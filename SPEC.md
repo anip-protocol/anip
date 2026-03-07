@@ -472,12 +472,14 @@ anip_discovery:
     search_flights:
       description: "Search available flights between two airports"
       side_effect: "read"
-      minimum_scope: "travel.search"
+      minimum_scope: ["travel.search"]
+      financial: false
       contract: "1.0"
     book_flight:
       description: "Book and confirm a flight reservation"
       side_effect: "irreversible"
-      minimum_scope: "travel.book"
+      minimum_scope: ["travel.book"]
+      financial: true
       contract: "2.1"
   endpoints:
     manifest: "/anip/manifest"
@@ -492,7 +494,7 @@ anip_discovery:
     service_description: "ANIP-compliant flight search and booking"
     service_category: "travel.booking"
     service_tags: ["flights", "booking", "irreversible-financial"]
-    capability_side_effect_types_present: ["read", "irreversible"]
+    capability_side_effect_types_present: ["read", "irreversible"]  # informational, derivable from capabilities
     max_delegation_depth: 5
     concurrent_branches_supported: true
     test_mode_available: false
@@ -511,7 +513,8 @@ anip_discovery:
 - **capabilities** (REQUIRED) — map of capability names to lightweight metadata. Not full declarations — those live at the manifest endpoint. Each entry includes:
   - `description` — what this capability does (one sentence)
   - `side_effect` — the side-effect type (`read`, `write`, `irreversible`, `transactional`). Lets agents identify dangerous capabilities without fetching the manifest.
-  - `minimum_scope` — the delegation scope REQUIRED to invoke this capability. This is a guarantee, not a hint: an agent whose delegation token lacks this scope MUST NOT attempt invocation. This lets agents self-filter at discovery time.
+  - `minimum_scope` — array of delegation scopes REQUIRED to invoke this capability. ALL scopes in the array are required (AND semantics). This is a guarantee, not a hint: an agent whose delegation token lacks any of these scopes MUST NOT attempt invocation. Using an array from day one avoids a breaking change when compound authorization is needed (e.g., `["travel.book", "payments.authorize"]`).
+  - `financial` — whether this capability involves financial cost. Lets agents distinguish "irreversible and costs money" from "irreversible but free" — a distinction that matters for authorization handling. When `true`, agents should check cost signaling and budget authority before attempting invocation.
   - `contract` — the current contract version. An agent with a cached manifest can check whether contracts have changed without refetching.
 - **endpoints** (REQUIRED) — URLs for each standard endpoint (see Section 6.2)
 - **metadata** (RECOMMENDED) — service-level metadata that lets agents make decisions without fetching the full manifest

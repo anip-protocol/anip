@@ -53,7 +53,8 @@ def discovery(request: Request):
         name: {
             "description": cap.description,
             "side_effect": cap.side_effect.type.value,
-            "minimum_scope": cap.required_scope,
+            "minimum_scope": [cap.required_scope],
+            "financial": cap.cost.financial is not None and cap.cost.financial.get("amount", 0) > 0,
             "contract": cap.contract_version,
         }
         for name, cap in _manifest.capabilities.items()

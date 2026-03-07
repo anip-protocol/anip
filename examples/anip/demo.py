@@ -85,7 +85,7 @@ def main():
     info(f"  Profiles: {discovery['profile']}")
     info(f"  Endpoints: {list(endpoints.keys())}")
     info(f"  Metadata: {discovery['metadata']['service_name']}")
-    info(f"  Side-effect types: {discovery['metadata']['side_effect_types_supported']}")
+    info(f"  Side-effect types: {discovery['metadata']['capability_side_effect_types_present']}")
     info(f"  Test mode: {discovery['metadata']['test_mode_available']}")
 
     step("Agent checks profile compatibility")
