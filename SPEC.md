@@ -362,9 +362,101 @@ A service implementing observability contracts MUST declare what fields are logg
 
 ---
 
-## 6. Manifest & Profile Handshake
+## 6. Discovery & Standard Endpoints
 
-Every ANIP service exposes a **manifest** — a machine-readable declaration of what the service supports.
+ANIP defines a standard set of endpoints that every implementation MUST or SHOULD expose. This ensures that any agent can interact with any ANIP service without out-of-band configuration — the protocol is self-describing from a single, predictable entry point.
+
+This is analogous to OAuth2's `/.well-known/openid-configuration`, which made OpenID Connect discoverable without prior knowledge of a service's URL structure.
+
+### 6.1 Discovery Document
+
+Every ANIP service MUST expose a discovery document at:
+
+```
+GET /.well-known/anip
+```
+
+This is the **single entry point** to the entire protocol. An agent encountering any domain can check this URL and immediately determine whether the service speaks ANIP, what it supports, and where to find each endpoint.
+
+The discovery document MUST conform to this schema:
+
+```yaml
+# GET /.well-known/anip
+anip_discovery:
+  protocol: "anip/1.0"
+  profile:
+    core: "1.0"
+    cost: "1.0"
+    capability_graph: "1.0"
+    observability: "1.0"
+  endpoints:
+    manifest: "/anip/manifest"
+    handshake: "/anip/handshake"
+    permissions: "/anip/permissions"
+    invoke: "/anip/invoke/{capability}"
+    tokens: "/anip/tokens"
+    graph: "/anip/graph/{capability}"
+    test: "/anip/test/{capability}"
+  metadata:
+    side_effect_types_supported: ["read", "write", "irreversible", "transactional"]
+    delegation_token_formats_supported: ["anip-v1"]
+    max_delegation_depth: 5
+    concurrent_branches_supported: true
+    test_mode_available: false
+    service_name: "Flight Booking Service"
+    service_description: "ANIP-compliant flight search and booking"
+```
+
+**Fields:**
+
+- **protocol** (REQUIRED) — the ANIP protocol version this service implements
+- **profile** (REQUIRED) — which profile extensions are implemented, each independently versioned
+- **endpoints** (REQUIRED) — URLs for each standard endpoint (see Section 6.2)
+- **metadata** (RECOMMENDED) — service-level metadata that lets agents make decisions without fetching the full manifest
+
+The discovery document is intentionally lightweight. Manifests can grow large as capabilities increase; the discovery document stays small and cacheable. An agent can often decide whether to proceed from the discovery document alone.
+
+### 6.2 Standard Endpoints
+
+ANIP defines the following standard endpoints. Core endpoints MUST be implemented by every ANIP-compliant service. Contextual endpoints SHOULD be implemented when the corresponding primitive is supported.
+
+#### Core Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/.well-known/anip` | GET | Discovery document — the single entry point |
+| `{manifest}` | GET | Full capability declarations with schemas |
+| `{handshake}` | POST | Profile compatibility check |
+| `{permissions}` | POST | Permission surface given a delegation token |
+| `{invoke}/{capability}` | POST | Invoke a capability with delegation chain and parameters |
+| `{tokens}` | POST | Register or validate delegation tokens |
+
+#### Contextual Endpoints
+
+| Endpoint | Method | Profile | Description |
+|----------|--------|---------|-------------|
+| `{graph}/{capability}` | GET | capability_graph | Capability prerequisites and composition |
+| `{test}/{capability}` | POST | test | Contract testing sandbox (reserved, v2) |
+
+Endpoint paths in the table above use `{name}` to reference the URL declared in the discovery document's `endpoints` field. Services MAY use any URL paths they choose — the discovery document is the source of truth for where each endpoint lives.
+
+### 6.3 Endpoint Contracts
+
+Each standard endpoint has a normative request/response contract.
+
+#### Discovery — `GET /.well-known/anip`
+
+**Request:** No body. No authentication required.
+
+**Response:** The discovery document (Section 6.1).
+
+An agent MUST be able to fetch this endpoint without a delegation token. This is the only unauthenticated endpoint in the protocol.
+
+#### Manifest — `GET {manifest}`
+
+**Request:** No body. No authentication required.
+
+**Response:** The full ANIP manifest — all capability declarations with their inputs, outputs, side-effect types, cost signals, and observability contracts.
 
 ```yaml
 anip_manifest:
@@ -372,7 +464,7 @@ anip_manifest:
   profile:
     core: "1.0"
     cost: "1.0"
-    capability-graph: "1.0"
+    capability_graph: "1.0"
     observability: "1.0"
   capabilities:
     search_flights:
@@ -385,20 +477,100 @@ anip_manifest:
       # ...full capability declaration
 ```
 
-Each profile extension is independently versioned. An agent can require `core@1.x` and `observability@1.x` without caring about the others. Extensions evolve at different rates.
+The manifest is the full-detail complement to the lightweight discovery document. Each profile extension is independently versioned. An agent can require `core@1.x` and `observability@1.x` without caring about the others.
 
-### Profile Handshake
+The manifest endpoint SHOULD be publicly accessible without authentication, as capability declarations are not sensitive. Services that require authentication for the manifest MUST document this in the discovery document's metadata.
 
-The first interaction between an agent and an ANIP service is a **profile handshake**:
+#### Handshake — `POST {handshake}`
+
+**Request:**
+
+```yaml
+required_profiles:
+  core: "1.0"
+  cost: "1.0"
+  observability: "1.0"
+```
+
+**Response:**
+
+```yaml
+compatible: true
+service_profiles:
+  core: "1.0"
+  cost: "1.0"
+  capability_graph: "1.0"
+  observability: "1.0"
+missing: null
+```
+
+Or, if incompatible:
+
+```yaml
+compatible: false
+service_profiles:
+  core: "1.0"
+missing:
+  cost: "not supported (required: 1.0)"
+  observability: "version mismatch: have 0.9, need 1.0"
+```
+
+The handshake is the first substantive interaction. The agent declares what profiles it needs; the service responds with whether it can satisfy them. Tasks declare their own profile requirements — matching happens before any capability is invoked.
+
+#### Token Registration — `POST {tokens}`
+
+**Request:** A delegation token (see Section 4.3 for schema).
+
+**Response:**
+
+```yaml
+registered: true
+token_id: "tok_root_001"
+```
+
+In ANIP v1 (trust-on-declaration), the service accepts the token's claims at face value. Future versions will define cryptographic verification at this endpoint.
+
+#### Permission Discovery — `POST {permissions}`
+
+**Request:** A delegation token.
+
+**Response:** The permission response (see Section 4.4 for schema) — available, restricted, and denied capabilities given the token's scope.
+
+#### Capability Invocation — `POST {invoke}/{capability}`
+
+**Request:**
+
+```yaml
+delegation_token: { ... }
+parameters: { ... }
+budget: { ... }           # optional, for cost negotiation
+```
+
+**Response:** An invocation response containing either a result or a failure object (see Section 4.5 for failure schema).
+
+The service MUST validate the delegation token before processing. The service MUST return an ANIP failure object (not an HTTP error) for any authorization, budget, or purpose-binding failure.
+
+#### Capability Graph — `GET {graph}/{capability}`
+
+**Request:** No body.
+
+**Response:** The capability's prerequisites and composition relationships (see Section 5.2 for schema).
+
+### 6.4 Agent Interaction Flow
+
+The standard endpoints define a predictable interaction sequence:
 
 ```
-Agent → Service:  "What profiles do you speak?"
-Service → Agent:  { core: "1.0", cost: "1.0", capability-graph: "1.0" }
-Agent:            [checks against task requirements]
-                  [proceeds if requirements met, bails if not]
+1. Agent discovers service          →  GET /.well-known/anip
+2. Agent checks compatibility       →  POST {handshake}
+3. Agent fetches full manifest       →  GET {manifest}
+4. Agent registers delegation token  →  POST {tokens}
+5. Agent queries permissions         →  POST {permissions}
+6. Agent explores capability graph   →  GET {graph}/{capability}
+7. Agent invokes capability          →  POST {invoke}/{capability}
 ```
 
-Tasks declare their own profile requirements. Matching happens before any capability is invoked. An agent whose task requires observability contracts can bail immediately if the service doesn't support them, rather than discovering this mid-interaction.
+Not every interaction requires all steps. An agent that has previously interacted with a service may skip directly to step 4 if it has cached the manifest. An agent performing a read-only operation may skip the capability graph step. But the sequence above is the canonical flow for a first interaction.
 
 ---
 
@@ -474,7 +646,7 @@ The following are explicitly out of scope for ANIP v1:
 
 - **Multi-agent distributed transactions.** The delegation chain is DAG-ready, but coordinating transactions across multiple ANIP services is not addressed. The primitives are designed not to preclude this in future versions.
 - **Non-HTTP transport bindings.** V1 is HTTP-first. Other transports are a future concern.
-- **Registry or discovery service.** How an agent *finds* ANIP services is a separate problem. V1 assumes the agent already knows where the service is.
+- **Registry service.** How an agent *finds* ANIP services across the internet (like DNS for domains) is a separate problem. V1 defines service-level discovery via `/.well-known/anip` but does not define a global registry.
 - **Trust verification enforcement.** V1 is trust-on-declaration. Verification is a v2 priority.
 - **Cryptographic token format mandate.** V1 defines delegation token semantics, not cryptographic format.
 
@@ -494,7 +666,7 @@ These are unresolved design questions where community input is needed:
 
 5. **Delegation chain auth format.** What concrete token format should ANIP recommend? JWT is familiar but has limitations for DAG delegation. W3C Verifiable Credentials are semantically richer but have adoption barriers. Should v1 recommend one, or remain format-agnostic?
 
-6. **Service advertisement.** How does a service advertise that it supports ANIP? A well-known URL (`/.well-known/anip`)? A DNS record? An HTTP header? All of the above?
+6. **Global service registry.** Service-level discovery is solved via `/.well-known/anip`. But should there be a global registry where agents can discover ANIP services by capability? (e.g., "find me services that can book flights")
 
 ---
 

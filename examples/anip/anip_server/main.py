@@ -34,13 +34,55 @@ _capability_handlers = {
 }
 
 
-# --- Profile Handshake ---
+# --- Discovery ---
+
+
+@app.get("/.well-known/anip")
+def discovery():
+    """ANIP discovery document — the single entry point to the protocol.
+
+    Lightweight, cacheable. Tells the agent everything it needs to know
+    to decide whether to fetch the full manifest.
+    """
+    profiles = _manifest.profile.model_dump(exclude_none=True)
+    side_effect_types = ["read", "write", "irreversible", "transactional"]
+
+    return {
+        "anip_discovery": {
+            "protocol": _manifest.protocol,
+            "profile": profiles,
+            "endpoints": {
+                "manifest": "/anip/manifest",
+                "handshake": "/anip/handshake",
+                "permissions": "/anip/permissions",
+                "invoke": "/anip/invoke/{capability}",
+                "tokens": "/anip/tokens",
+                "graph": "/anip/graph/{capability}",
+                "test": "/anip/test/{capability}",
+            },
+            "metadata": {
+                "side_effect_types_supported": side_effect_types,
+                "delegation_token_formats_supported": ["anip-v1"],
+                "max_delegation_depth": 5,
+                "concurrent_branches_supported": True,
+                "test_mode_available": False,
+                "service_name": "Flight Booking Service",
+                "service_description": "ANIP-compliant flight search and booking",
+            },
+        }
+    }
+
+
+# --- Manifest ---
 
 
 @app.get("/anip/manifest")
 def get_manifest():
-    """Profile handshake — returns the full ANIP manifest."""
+    """Full ANIP manifest — all capability declarations."""
     return _manifest.model_dump()
+
+
+# --- Profile Handshake ---
 
 
 class ProfileRequirements(BaseModel):
@@ -71,7 +113,7 @@ def profile_handshake(requirements: ProfileRequirements):
 # --- Delegation Token Registration ---
 
 
-@app.post("/anip/tokens/register")
+@app.post("/anip/tokens")
 def register_delegation_token(token: DelegationToken):
     """Register a delegation token with the service.
 
@@ -129,7 +171,7 @@ def invoke_capability(capability_name: str, request: InvokeRequest):
 # --- Capability Graph ---
 
 
-@app.get("/anip/capabilities/{capability_name}/graph")
+@app.get("/anip/graph/{capability_name}")
 def capability_graph(capability_name: str):
     """Get the capability graph — prerequisites and composition."""
     if capability_name not in _manifest.capabilities:

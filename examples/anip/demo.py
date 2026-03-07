@@ -72,12 +72,24 @@ def main():
     expires = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
 
     # =================================================================
-    # PHASE 1: Profile Handshake
+    # PHASE 1: Discovery & Handshake
     # =================================================================
-    header("PHASE 1: Profile Handshake")
-    step("Agent checks if service meets its requirements")
+    header("PHASE 1: Discovery & Handshake")
+    step("Agent checks /.well-known/anip — the single entry point")
 
-    resp = client.post("/anip/handshake", json={
+    resp = client.get("/.well-known/anip")
+    discovery = resp.json()["anip_discovery"]
+    endpoints = discovery["endpoints"]
+
+    success(f"Service discovered — protocol: {discovery['protocol']}")
+    info(f"  Profiles: {discovery['profile']}")
+    info(f"  Endpoints: {list(endpoints.keys())}")
+    info(f"  Metadata: {discovery['metadata']['service_name']}")
+    info(f"  Side-effect types: {discovery['metadata']['side_effect_types_supported']}")
+    info(f"  Test mode: {discovery['metadata']['test_mode_available']}")
+
+    step("Agent checks profile compatibility")
+    resp = client.post(endpoints["handshake"], json={
         "required_profiles": {"core": "1.0", "cost": "1.0", "observability": "1.0"}
     })
     handshake = resp.json()
@@ -89,7 +101,7 @@ def main():
         return
 
     step("Agent fetches full manifest")
-    resp = client.get("/anip/manifest")
+    resp = client.get(endpoints["manifest"])
     manifest = resp.json()
     caps = list(manifest["capabilities"].keys())
     success(f"Manifest received — protocol: {manifest['protocol']}, capabilities: {caps}")
@@ -126,7 +138,7 @@ def main():
             "concurrent_branches": "allowed"
         }
     }
-    resp = client.post("/anip/tokens/register", json=root_token)
+    resp = client.post(endpoints["tokens"], json=root_token)
     success(f"Root token registered: {resp.json()['token_id']}")
     info(f"  issuer: {root_token['issuer']}")
     info(f"  subject: {root_token['subject']}")
@@ -152,7 +164,7 @@ def main():
             "concurrent_branches": "allowed"
         }
     }
-    resp = client.post("/anip/tokens/register", json=booking_token)
+    resp = client.post(endpoints["tokens"], json=booking_token)
     success(f"Booking agent token registered: {resp.json()['token_id']}")
     info(f"  issuer: {booking_token['issuer']}")
     info(f"  subject: {booking_token['subject']}")
@@ -165,7 +177,7 @@ def main():
     header("PHASE 3: Permission Discovery")
     step("Booking agent queries: 'What can I do here?'")
 
-    resp = client.post("/anip/permissions", json=booking_token)
+    resp = client.post(endpoints["permissions"], json=booking_token)
     perms = resp.json()
 
     for cap in perms["available"]:
@@ -182,7 +194,7 @@ def main():
     header("PHASE 4: Capability Graph Traversal")
     step("Agent checks: 'What do I need before I can book?'")
 
-    resp = client.get("/anip/capabilities/book_flight/graph")
+    resp = client.get(endpoints["graph"].replace("{capability}", "book_flight"))
     graph = resp.json()
 
     for req in graph["requires"]:
@@ -210,9 +222,10 @@ def main():
         "expires": expires,
         "constraints": {"max_delegation_depth": 3, "concurrent_branches": "allowed"}
     }
-    client.post("/anip/tokens/register", json=search_token)
+    client.post(endpoints["tokens"], json=search_token)
 
-    resp = client.post("/anip/invoke/search_flights", json={
+    invoke_url = endpoints["invoke"].replace("{capability}", "search_flights")
+    resp = client.post(invoke_url, json={
         "delegation_token": search_token,
         "parameters": {
             "origin": "SEA",
@@ -242,7 +255,8 @@ def main():
     info(f"  Side effect: irreversible, rollback_window: none")
     info(f"  Agent confirms: PROCEED")
 
-    resp = client.post("/anip/invoke/book_flight", json={
+    invoke_url = endpoints["invoke"].replace("{capability}", "book_flight")
+    resp = client.post(invoke_url, json={
         "delegation_token": booking_token,
         "parameters": {
             "flight_number": "AA100",
@@ -281,9 +295,10 @@ def main():
         "expires": expires,
         "constraints": {"max_delegation_depth": 3, "concurrent_branches": "allowed"}
     }
-    client.post("/anip/tokens/register", json=limited_token)
+    client.post(endpoints["tokens"], json=limited_token)
 
-    resp = client.post("/anip/invoke/book_flight", json={
+    invoke_url = endpoints["invoke"].replace("{capability}", "book_flight")
+    resp = client.post(invoke_url, json={
         "delegation_token": limited_token,
         "parameters": {"flight_number": "AA100", "date": "2026-03-10"}
     })
@@ -312,9 +327,10 @@ def main():
         "expires": expires,
         "constraints": {"max_delegation_depth": 3, "concurrent_branches": "allowed"}
     }
-    client.post("/anip/tokens/register", json=budget_token)
+    client.post(endpoints["tokens"], json=budget_token)
 
-    resp = client.post("/anip/invoke/book_flight", json={
+    invoke_url = endpoints["invoke"].replace("{capability}", "book_flight")
+    resp = client.post(invoke_url, json={
         "delegation_token": budget_token,
         "parameters": {"flight_number": "DL520", "date": "2026-03-12"}
     })
@@ -330,7 +346,8 @@ def main():
     step("Scenario C: Agent reuses a book_flight token for a different route")
     info("Token was issued for SEA→SFO but agent tries to use it for search_flights")
 
-    resp = client.post("/anip/invoke/search_flights", json={
+    invoke_url = endpoints["invoke"].replace("{capability}", "search_flights")
+    resp = client.post(invoke_url, json={
         "delegation_token": booking_token,  # purpose is book_flight, not search_flights
         "parameters": {"origin": "SEA", "destination": "LAX", "date": "2026-03-10"}
     })
@@ -348,26 +365,29 @@ def main():
     print(f"""
 {BOLD}What this demo showed:{RESET}
 
-  {GREEN}1. Profile Handshake{RESET}
+  {GREEN}1. Discovery (/.well-known/anip){RESET}
+     Agent found the service and all its endpoints from a single URL.
+
+  {GREEN}2. Profile Handshake{RESET}
      Agent verified service compatibility BEFORE any interaction.
 
-  {GREEN}2. Delegation Chain (DAG){RESET}
+  {GREEN}3. Delegation Chain (DAG){RESET}
      Human → Orchestrator → Booking Agent
      Each link carries scoped authority, purpose binding, and constraints.
 
-  {GREEN}3. Permission Discovery{RESET}
+  {GREEN}4. Permission Discovery{RESET}
      Agent queried its full permission surface BEFORE attempting anything.
 
-  {GREEN}4. Capability Graph{RESET}
+  {GREEN}5. Capability Graph{RESET}
      Agent discovered prerequisites (search before book) programmatically.
 
-  {GREEN}5. Side-effect Awareness{RESET}
+  {GREEN}6. Side-effect Awareness{RESET}
      Agent knew book_flight was irreversible with no rollback BEFORE invoking.
 
-  {GREEN}6. Cost Awareness{RESET}
+  {GREEN}7. Cost Awareness{RESET}
      Agent knew the cost (~$420±10%) and checked budget authority ($500 max).
 
-  {GREEN}7. Failure Semantics{RESET}
+  {GREEN}8. Failure Semantics{RESET}
      Every failure told the agent: what went wrong, how to fix it,
      and who can grant the missing authority.
 
