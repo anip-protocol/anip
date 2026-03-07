@@ -47,9 +47,15 @@ def discovery(request: Request):
     to decide whether to fetch the full manifest.
     """
     profiles = _manifest.profile.model_dump(exclude_none=True)
-    capability_names = list(_manifest.capabilities.keys())
-    capability_contracts = {
-        name: cap.contract_version
+
+    # Build capability summaries for discovery
+    capabilities_summary = {
+        name: {
+            "description": cap.description,
+            "side_effect": cap.side_effect.type.value,
+            "minimum_scope": cap.required_scope,
+            "contract": cap.contract_version,
+        }
         for name, cap in _manifest.capabilities.items()
     }
     side_effect_types_present = sorted({
@@ -79,8 +85,7 @@ def discovery(request: Request):
                 "supported_formats": ["anip-v1"],
                 "minimum_scope_for_discovery": "none",
             },
-            "capabilities": capability_names,
-            "capability_contracts": capability_contracts,
+            "capabilities": capabilities_summary,
             "endpoints": {
                 "manifest": "/anip/manifest",
                 "handshake": "/anip/handshake",

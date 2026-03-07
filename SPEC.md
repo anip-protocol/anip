@@ -468,10 +468,17 @@ anip_discovery:
     delegation_token_required: true
     supported_formats: ["anip-v1"]
     minimum_scope_for_discovery: "none"    # no token needed for discovery/manifest
-  capabilities: ["search_flights", "book_flight"]
-  capability_contracts:
-    search_flights: "1.0"
-    book_flight: "2.1"
+  capabilities:
+    search_flights:
+      description: "Search available flights between two airports"
+      side_effect: "read"
+      minimum_scope: "travel.search"
+      contract: "1.0"
+    book_flight:
+      description: "Book and confirm a flight reservation"
+      side_effect: "irreversible"
+      minimum_scope: "travel.book"
+      contract: "2.1"
   endpoints:
     manifest: "/anip/manifest"
     handshake: "/anip/handshake"
@@ -501,8 +508,11 @@ anip_discovery:
 - **base_url** (REQUIRED) — the absolute base URL for resolving endpoint paths. Agents MUST NOT infer this from the request URL. Explicit over inferred.
 - **profile** (REQUIRED) — which profile extensions are implemented, each independently versioned
 - **auth** (REQUIRED) — what authentication the service requires, whether tokens are needed for discovery, and which token formats are supported. An agent MUST be able to determine from this field alone whether it can proceed without a delegation token.
-- **capabilities** (REQUIRED) — list of capability names available on this service. Not full declarations — just the names. Full declarations live at the manifest endpoint. This lets an agent answer "can this service do X?" without a round-trip.
-- **capability_contracts** (REQUIRED) — map of capability names to their current contract versions. An agent with a cached manifest can check whether any contracts have changed without refetching the full manifest.
+- **capabilities** (REQUIRED) — map of capability names to lightweight metadata. Not full declarations — those live at the manifest endpoint. Each entry includes:
+  - `description` — what this capability does (one sentence)
+  - `side_effect` — the side-effect type (`read`, `write`, `irreversible`, `transactional`). Lets agents identify dangerous capabilities without fetching the manifest.
+  - `minimum_scope` — the delegation scope REQUIRED to invoke this capability. This is a guarantee, not a hint: an agent whose delegation token lacks this scope MUST NOT attempt invocation. This lets agents self-filter at discovery time.
+  - `contract` — the current contract version. An agent with a cached manifest can check whether contracts have changed without refetching.
 - **endpoints** (REQUIRED) — URLs for each standard endpoint (see Section 6.2)
 - **metadata** (RECOMMENDED) — service-level metadata that lets agents make decisions without fetching the full manifest
 
