@@ -9,6 +9,7 @@ from ..primitives.models import (
     CapabilityInput,
     CapabilityOutput,
     Cost,
+    CostCertainty,
     DelegationToken,
     InvokeResponse,
     ObservabilityContract,
@@ -34,6 +35,8 @@ DECLARATION = CapabilityDeclaration(
     side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
     required_scope="travel.search",
     cost=Cost(
+        certainty=CostCertainty.FIXED,
+        financial={"amount": 0.00, "currency": "USD"},
         compute={"latency_p50": "200ms", "tokens": 500},
     ),
     session=SessionInfo(),

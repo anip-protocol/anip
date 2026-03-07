@@ -70,10 +70,24 @@ class CapabilityOutput(BaseModel):
     fields: list[str]
 
 
+class CostCertainty(str, Enum):
+    FIXED = "fixed"
+    ESTIMATED = "estimated"
+    DYNAMIC = "dynamic"
+
+
 class Cost(BaseModel):
+    certainty: CostCertainty = CostCertainty.FIXED
     financial: dict[str, Any] | None = None
+    determined_by: str | None = None  # capability that resolves actual cost (for estimated)
+    factors: list[str] | None = None  # what drives cost variation (for dynamic)
     compute: dict[str, Any] | None = None
     rate_limit: dict[str, Any] | None = None
+
+
+class CostActual(BaseModel):
+    financial: dict[str, Any]
+    variance_from_estimate: str | None = None
 
 
 class CapabilityRequirement(BaseModel):
@@ -190,5 +204,6 @@ class InvokeRequest(BaseModel):
 class InvokeResponse(BaseModel):
     success: bool
     result: dict[str, Any] | None = None
+    cost_actual: CostActual | None = None
     failure: ANIPFailure | None = None
     session: dict[str, Any] | None = None

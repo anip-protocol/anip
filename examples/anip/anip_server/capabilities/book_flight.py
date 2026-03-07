@@ -11,6 +11,8 @@ from ..primitives.models import (
     CapabilityOutput,
     CapabilityRequirement,
     Cost,
+    CostActual,
+    CostCertainty,
     DelegationToken,
     InvokeResponse,
     ObservabilityContract,
@@ -39,7 +41,14 @@ DECLARATION = CapabilityDeclaration(
     side_effect=SideEffect(type=SideEffectType.IRREVERSIBLE, rollback_window="none"),
     required_scope="travel.book",
     cost=Cost(
-        financial={"amount": 420, "currency": "USD", "variance": "±10%"},
+        certainty=CostCertainty.ESTIMATED,
+        financial={
+            "range_min": 280,
+            "range_max": 500,
+            "typical": 420,
+            "currency": "USD",
+        },
+        determined_by="search_flights",
         compute={"latency_p50": "2s", "tokens": 1500},
     ),
     requires=[
@@ -101,6 +110,11 @@ def invoke(token: DelegationToken, parameters: dict) -> InvokeResponse:
         on_behalf_of=get_root_principal(token),
     )
 
+    # Calculate variance from the typical estimate
+    typical_estimate = 420.0
+    variance_pct = ((booking.total_cost - typical_estimate) / typical_estimate) * 100
+    variance_str = f"{variance_pct:+.1f}%"
+
     return InvokeResponse(
         success=True,
         result={
@@ -112,4 +126,8 @@ def invoke(token: DelegationToken, parameters: dict) -> InvokeResponse:
             "side_effect_executed": "irreversible",
             "rollback_window": "none",
         },
+        cost_actual=CostActual(
+            financial={"amount": booking.total_cost, "currency": booking.flight.currency},
+            variance_from_estimate=variance_str,
+        ),
     )

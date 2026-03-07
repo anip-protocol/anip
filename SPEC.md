@@ -260,13 +260,73 @@ Contextual primitives have standardized schemas. A service MAY implement any com
 
 Cost signaling is bidirectional. The service declares what a capability costs. The agent may declare budget constraints. The service responds with the feasible space.
 
+#### Cost Certainty Levels
+
+Not all costs are known upfront. A capability MUST declare how certain its cost information is using one of three certainty levels:
+
+| Certainty | Meaning | Example |
+|-----------|---------|---------|
+| `fixed` | Exact cost, known before invocation. The manifest cost IS the actual cost. | API calls priced per-request ($0.01/call) |
+| `estimated` | Cost falls within a known range. Actual cost is determined by a preceding read operation. | Flights — search returns actual prices, manifest gives a typical range |
+| `dynamic` | Cost is unknown until invocation. May vary based on demand, timing, or availability. | Auction bids, market orders, surge-priced services |
+
 ```yaml
-# Service declares (part of capability manifest)
+# Fixed — exact cost, known upfront
 cost:
-  financial: { amount: 420, currency: "USD", variance: "±10%" }
-  compute: { latency_p50: "2s", tokens: 1500 }
-  rate_limit: { requests_per_minute: 60, remaining: 42 }
+  certainty: fixed
+  financial: { amount: 0.01, currency: "USD" }
+  compute: { latency_p50: "200ms", tokens: 500 }
 ```
+
+```yaml
+# Estimated — range known, exact cost determined by another capability
+cost:
+  certainty: estimated
+  financial:
+    range_min: 280
+    range_max: 500
+    typical: 420
+    currency: "USD"
+  determined_by: "search_flights"    # which capability resolves the actual cost
+  compute: { latency_p50: "2s", tokens: 1500 }
+```
+
+```yaml
+# Dynamic — unknown until execution
+cost:
+  certainty: dynamic
+  financial:
+    currency: "USD"
+    upper_bound: 10000               # worst-case for budget checking
+  factors: ["demand", "time_of_day", "availability"]
+  compute: { latency_p50: "5s", tokens: 3000 }
+```
+
+**Design rationale:**
+
+- **`fixed`** lets the agent make immediate go/no-go decisions from the manifest alone.
+- **`estimated`** with `determined_by` connects cost signaling to the capability graph — the agent knows which read operation will resolve the actual price before committing to a write.
+- **`dynamic`** with `upper_bound` gives the agent a worst-case for delegation chain budget checking. Even when the exact cost is unknowable, the agent can verify "my authority covers the maximum possible cost."
+
+#### Actual Cost in Responses
+
+For `estimated` and `dynamic` capabilities, the invocation response MUST include the actual cost incurred:
+
+```yaml
+result:
+  booking_id: "BK-0001"
+  flight_number: "UA205"
+  total_cost: 380.00
+  cost_actual:
+    financial: { amount: 380.00, currency: "USD" }
+    variance_from_estimate: "-9.5%"
+```
+
+The `variance_from_estimate` field tracks how far the actual cost deviated from the manifest's typical estimate. Over time, consistent variance is a trust signal — services whose estimates are systematically inaccurate surface through the trust model (Section 7).
+
+#### Budget Negotiation
+
+Cost signaling is bidirectional. The agent may declare budget constraints in the invocation request:
 
 ```yaml
 # Agent constrains (part of invocation request)
@@ -286,6 +346,19 @@ alternatives:
 ```
 
 This subsumes negotiation as an emergent behavior. The agent doesn't negotiate through a special verb — it declares constraints, and the service responds with what's feasible. If nothing fits, the service explains why.
+
+#### Rate Limits
+
+Rate and resource constraints are declared alongside financial cost:
+
+```yaml
+rate_limit:
+  requests_per_minute: 60
+  remaining: 42
+  reset_at: "2026-03-07T15:00:00Z"
+```
+
+Rate limits SHOULD be included in the manifest for each capability. The `remaining` field is dynamic and is most useful in invocation responses rather than the static manifest.
 
 ### 5.2 Capability Graph
 
