@@ -18,6 +18,7 @@ def build_manifest() -> ANIPManifest:
             core="1.0",
             cost="1.0",
             capability_graph="1.0",
+            state_session="1.0",
             observability="1.0",
         ),
         capabilities=capabilities,
