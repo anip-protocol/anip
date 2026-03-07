@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from datetime import datetime, timezone
+
+from fastapi import FastAPI, Request
 from pydantic import BaseModel
 
 from .capabilities import book_flight, search_flights
@@ -38,7 +40,7 @@ _capability_handlers = {
 
 
 @app.get("/.well-known/anip")
-def discovery():
+def discovery(request: Request):
     """ANIP discovery document — the single entry point to the protocol.
 
     Lightweight, cacheable. Tells the agent everything it needs to know
@@ -50,10 +52,27 @@ def discovery():
         name: cap.contract_version
         for name, cap in _manifest.capabilities.items()
     }
+    side_effect_types_present = sorted({
+        cap.side_effect.type.value
+        for cap in _manifest.capabilities.values()
+    })
+
+    # Determine compliance level from profile
+    compliance = "anip-complete" if all([
+        profiles.get("cost"),
+        profiles.get("capability_graph"),
+        profiles.get("state_session"),
+        profiles.get("observability"),
+    ]) else "anip-compliant"
+
+    # Build base_url from the incoming request
+    base_url = str(request.base_url).rstrip("/")
 
     return {
         "anip_discovery": {
             "protocol": _manifest.protocol,
+            "compliance": compliance,
+            "base_url": base_url,
             "profile": profiles,
             "auth": {
                 "delegation_token_required": True,
@@ -72,17 +91,17 @@ def discovery():
                 "test": "/anip/test/{capability}",
             },
             "metadata": {
-                "side_effect_types_supported": [
-                    "read", "write", "irreversible", "transactional",
-                ],
-                "max_delegation_depth": 5,
-                "concurrent_branches_supported": True,
-                "test_mode_available": False,
-                "test_mode_unavailable_policy": "require_explicit_authorization_for_irreversible",
                 "service_name": "Flight Booking Service",
                 "service_description": "ANIP-compliant flight search and booking",
                 "service_category": "travel.booking",
                 "service_tags": ["flights", "booking", "irreversible-financial"],
+                "capability_side_effect_types_present": side_effect_types_present,
+                "max_delegation_depth": 5,
+                "concurrent_branches_supported": True,
+                "test_mode_available": False,
+                "test_mode_unavailable_policy": "require_explicit_authorization_for_irreversible",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "ttl": "PT1H",
             },
         }
     }

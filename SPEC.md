@@ -457,6 +457,8 @@ The discovery document MUST conform to this schema:
 # GET /.well-known/anip
 anip_discovery:
   protocol: "anip/1.0"
+  compliance: "anip-complete"              # or "anip-compliant"
+  base_url: "https://flights.example.com"
   profile:
     core: "1.0"
     cost: "1.0"
@@ -479,26 +481,37 @@ anip_discovery:
     graph: "/anip/graph/{capability}"
     test: "/anip/test/{capability}"
   metadata:
-    side_effect_types_supported: ["read", "write", "irreversible", "transactional"]
-    max_delegation_depth: 5
-    concurrent_branches_supported: true
-    test_mode_available: false
-    test_mode_unavailable_policy: "require_explicit_authorization_for_irreversible"
     service_name: "Flight Booking Service"
     service_description: "ANIP-compliant flight search and booking"
     service_category: "travel.booking"
     service_tags: ["flights", "booking", "irreversible-financial"]
+    capability_side_effect_types_present: ["read", "irreversible"]
+    max_delegation_depth: 5
+    concurrent_branches_supported: true
+    test_mode_available: false
+    test_mode_unavailable_policy: "require_explicit_authorization_for_irreversible"
+    generated_at: "2026-03-07T10:00:00Z"
+    ttl: "PT1H"
 ```
 
 **Fields:**
 
 - **protocol** (REQUIRED) — the ANIP protocol version this service implements
+- **compliance** (REQUIRED) — `"anip-compliant"` (5 core primitives) or `"anip-complete"` (all 9). Agents MUST NOT infer compliance level from counting profile keys — this field is the source of truth.
+- **base_url** (REQUIRED) — the absolute base URL for resolving endpoint paths. Agents MUST NOT infer this from the request URL. Explicit over inferred.
 - **profile** (REQUIRED) — which profile extensions are implemented, each independently versioned
 - **auth** (REQUIRED) — what authentication the service requires, whether tokens are needed for discovery, and which token formats are supported. An agent MUST be able to determine from this field alone whether it can proceed without a delegation token.
 - **capabilities** (REQUIRED) — list of capability names available on this service. Not full declarations — just the names. Full declarations live at the manifest endpoint. This lets an agent answer "can this service do X?" without a round-trip.
 - **capability_contracts** (REQUIRED) — map of capability names to their current contract versions. An agent with a cached manifest can check whether any contracts have changed without refetching the full manifest.
 - **endpoints** (REQUIRED) — URLs for each standard endpoint (see Section 6.2)
 - **metadata** (RECOMMENDED) — service-level metadata that lets agents make decisions without fetching the full manifest
+
+**Cache validity:**
+
+- `generated_at` — ISO 8601 timestamp of when this discovery document was generated
+- `ttl` — ISO 8601 duration for how long this document is valid. After expiry, agents MUST re-fetch. Without a TTL, agents should treat the document as valid for at most 1 hour (the default).
+
+This prevents two failure modes: re-fetching on every interaction (wasteful at scale) and caching indefinitely (dangerous when contracts change).
 
 **Auth field details:**
 
