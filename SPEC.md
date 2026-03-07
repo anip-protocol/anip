@@ -745,21 +745,91 @@ The `fidelity` field matters: `behavioral` means the service runs real logic in 
 
 ---
 
-## 8. Versioning
+## 8. Conformance & Testability
+
+ANIP's trust model (§7) relies on declaration in v1. But declaration without verification is aspiration, not a protocol. This section defines what conformance means and how it can be tested — laying the groundwork for the contract testing path described in §7.
+
+### 8.1 Conformance Levels
+
+An ANIP implementation can be validated at three levels of rigor:
+
+1. **Structural conformance** — the implementation produces valid ANIP documents. Discovery, manifest, delegation tokens, failure objects, and invocation responses all conform to the defined schemas. This is fully testable from the outside with no service cooperation.
+
+2. **Semantic conformance** — the implementation behaves consistently with its declarations. A capability declared as `read` produces no state changes. A capability declared as `irreversible` cannot be rolled back. Permission discovery matches actual invocation behavior. This requires either service cooperation (sandbox mode) or sustained observation.
+
+3. **Behavioral conformance** — the implementation handles edge cases correctly. Expired tokens are rejected. Purpose-binding is enforced. Budget authority is checked. Delegation depth limits are respected. This is testable from the outside using adversarial inputs.
+
+Services MUST pass structural conformance. Services SHOULD pass behavioral conformance. Semantic conformance is a SHOULD for v1, with the expectation that it becomes a MUST when contract testing infrastructure exists (v2+).
+
+### 8.2 Conformance Test Categories
+
+The following categories define the surface area of ANIP conformance testing:
+
+**Category 1: Discovery Validation**
+- `/.well-known/anip` returns a valid discovery document
+- `compliance` field matches profile contents (if all 9 primitives are declared, compliance MUST be `anip-complete`)
+- `capability_side_effect_types_present` is consistent with per-capability `side_effect` declarations
+- All declared endpoints resolve (return non-404)
+- `minimum_scope` arrays are consistent between discovery and manifest
+
+**Category 2: Handshake Validation**
+- Profile handshake correctly accepts matching profile requirements
+- Profile handshake correctly rejects unsupported or version-mismatched profiles
+- Response includes the full set of service profiles
+
+**Category 3: Capability Contract Validation**
+- Manifest capabilities match discovery capability summaries (names, side-effect types, contract versions)
+- `financial` flag in discovery is consistent with cost signaling in manifest (financial cost > 0 → `financial: true`)
+- Capability inputs and outputs conform to declared schemas
+
+**Category 4: Delegation Chain Validation**
+- Tokens with expired TTL are rejected with `delegation_expired` failure type
+- Purpose-binding is enforced: a token issued for `book_flight` cannot invoke `search_flights`
+- `max_delegation_depth` is enforced: tokens exceeding depth are rejected
+- Parent chain is validated: a token referencing an unregistered parent is rejected
+- Scope narrowing: a child token cannot have broader scope than its parent
+
+**Category 5: Failure Semantics Validation**
+- All failures return structured `ANIPFailure` objects, not raw HTTP error codes
+- Failure objects include `type`, `detail`, `resolution`, and `retry` fields
+- `resolution` includes actionable information (what's needed, who can grant it)
+- Unknown capabilities return `unknown_capability` with `check_manifest` resolution
+
+**Category 6: Behavioral Contract Testing**
+- Sandbox invocations (when `test_mode_available: true`) match declared side-effect types
+- Read capabilities produce no observable state changes
+- Cost actuals fall within declared cost ranges (for `estimated` certainty)
+
+> **Limitation:** Category 6 is not fully verifiable from the outside. A service declaring `side_effect: read` could still mutate state internally. Full semantic conformance requires either sandbox cooperation or third-party attestation. The spec acknowledges this gap — it is a core motivation for the v2 trust model work.
+
+### 8.3 Conformance Test Suite
+
+ANIP v1 defines the test categories and expected behaviors above. A reference conformance test suite — a machine-runnable tool that validates any ANIP service against these categories — is a priority for the ecosystem but is not included in v0.1.
+
+The test suite, when built, SHOULD:
+
+- Accept a base URL and run all Category 1-5 tests without service cooperation
+- Accept optional sandbox credentials for Category 6 tests
+- Output structured results indicating pass/fail per category with specific violations
+- Be runnable by service implementers, agent developers, and third-party auditors
+
+---
+
+## 9. Versioning
 
 ANIP has three distinct versioning problems:
 
-### 8.1 Protocol Version
+### 9.1 Protocol Version
 
 "I speak ANIP v1.0." Declared in the manifest. Follows semantic versioning. A major version bump (v1 → v2) indicates breaking changes to core primitive schemas.
 
-### 8.2 Capability Contract Version
+### 9.2 Capability Contract Version
 
 "My `book_flight` capability changed." Each capability has a contract version. The contract includes the capability's inputs, outputs, side-effect type, cost shape, and permission requirements. Any change to these bumps the contract version.
 
 An agent can query: "Do you still have `book_flight` at contract v2?" rather than discovering breaking changes at invocation time.
 
-### 8.3 Capability Profile Version
+### 9.3 Capability Profile Version
 
 Which extensions are implemented, independently versioned. Cost signaling might reach v3 while core is still at v1. Each profile extension declares its own version in the manifest.
 
@@ -767,7 +837,7 @@ An agent requiring specific profile versions can express this during the handsha
 
 ---
 
-## 9. Transport
+## 10. Transport
 
 ANIP v1 is defined over HTTP. The semantic layer — capability declarations, delegation tokens, permission queries, failure objects — is transport-agnostic by design.
 
@@ -777,7 +847,7 @@ Future versions will define bindings for other transports (gRPC, NATS, WebSocket
 
 ---
 
-## 10. V1 Non-goals
+## 11. V1 Non-goals
 
 The following are explicitly out of scope for ANIP v1:
 
@@ -789,7 +859,7 @@ The following are explicitly out of scope for ANIP v1:
 
 ---
 
-## 11. Open Questions
+## 12. Open Questions
 
 These are unresolved design questions where community input is needed:
 
