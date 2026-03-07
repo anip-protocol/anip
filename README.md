@@ -86,7 +86,11 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 **What exists today:**
 - [Manifesto](MANIFESTO.md) — why this moment matters
 - [Spec](SPEC.md) — the technical design (v0.1)
+- [Reference implementation](examples/anip/) — working ANIP service (Python/FastAPI) with full demo
+- [Agent skills](skills/) — machine-optimized guides for consuming and building ANIP services
 - [Open questions](SPEC.md#open-questions) — where we need input
+
+**Agent skills** are themselves an example of ANIP's philosophy applied to documentation. Instead of prose docs written for humans that agents have to interpret, ANIP ships structured skill files that agents can consume directly. The protocol eats its own cooking.
 
 **What's next:**
 - Reference implementation comparing REST vs MCP vs ANIP for the same service
