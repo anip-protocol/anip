@@ -1,0 +1,96 @@
+# ANIP — Agent-Native Interface Protocol
+
+> A protocol for software interfaces designed from the ground up for AI agents, not humans.
+
+Read the [Manifesto](MANIFESTO.md) | Read the [Spec](SPEC.md) | [Contribute](CONTRIBUTING.md)
+
+---
+
+## The Shift
+
+Every major interface paradigm emerged when the dominant consumer changed:
+
+| Interface | Consumer | Era |
+|-----------|----------|-----|
+| CLI | Humans at terminals | 1970s–80s |
+| GUI | Humans with screens and mice | 1980s–2000s |
+| API | Programs written by humans | 2000s–2020s |
+| **ANIP** | **AI agents** | **Now** |
+
+Each shift wasn't a new format — it was a new set of assumptions about who is on the other end. That shift is happening again. The primary consumer of digital services is becoming an AI agent.
+
+## The Problem
+
+Today's interfaces were designed for humans. When agents interact with them, they do it in one of two ways — both wrong:
+
+**Computer-use agents** (OpenClaw, Anthropic Computer Use, Operator) teach AI to operate a mouse and keyboard against GUIs built for human eyes. Brilliant engineering. Fundamentally a workaround.
+
+**REST APIs** assume a human developer reads docs, writes deterministic code, and ships a program. When an agent uses an API directly, it discovers auth requirements by getting a 401, learns permissions by getting a 403, finds out costs after being charged, and can't undo what it doesn't know is irreversible.
+
+**MCP** (Model Context Protocol) adds a discovery layer but is still REST with a wrapper. The agent still guesses, still fails forward, still treats errors as learning opportunities rather than having the information upfront.
+
+## What It Looks Like
+
+**Without ANIP — what agents deal with today:**
+
+```
+Agent wants to book a flight
+→ Reads OpenAPI spec (designed for human developers)
+→ Guesses that POST /bookings is the right endpoint
+→ Discovers auth requirements by getting a 401
+→ Discovers insufficient permissions by getting a 403
+→ Books the flight
+→ Discovers the charge was $800 not $420 (undeclared currency conversion)
+→ Cannot undo (no rollback information was available)
+→ Audit log exists but agent didn't know to check it
+```
+
+**With ANIP:**
+
+```
+Agent queries manifest → profile handshake
+→ Sees book_flight: irreversible, financial, cost: ~$420±10%
+→ Checks delegation chain has travel.book scope + $500 budget authority
+→ Confirms rollback_window: none (knows upfront it's permanent)
+→ Confirms observability: logged, 90-day retention
+→ Decides to proceed, executes with full context
+```
+
+Every assumption that was implicit becomes explicit, typed, and queryable.
+
+## Core Principles
+
+ANIP defines 9 primitives in two tiers:
+
+**Core (ANIP-compliant) — every implementation MUST support:**
+
+1. **Capability Declaration** — intent-based ("I can book flights"), not endpoint-based (`POST /bookings`)
+2. **Side-effect Typing** — read, write, irreversible, transactional — with rollback windows
+3. **Delegation Chain** — structured identity as a DAG: who's asking, on whose behalf, with what scoped authority
+4. **Permission Discovery** — query what you're allowed to do *before* attempting it
+5. **Failure Semantics** — errors that reference the delegation chain, budget, and scope — not HTTP status codes
+
+**Contextual (ANIP-complete) — standardized shape, SHOULD support:**
+
+6. **Cost & Resource Signaling** — bidirectional: service declares cost, agent declares budget, service offers alternatives
+7. **Capability Graph** — capabilities know their prerequisites and what they compose with, so agents can navigate without reading docs
+8. **State & Session Semantics** — stateless vs. continuation vs. multi-step workflow, explicitly declared
+9. **Observability Contract** — what's logged, how long it's retained, who can audit it
+
+## Status
+
+ANIP is early-stage. The spec is a v0.1 draft. The core ideas have been validated through independent design review but the hard problems — trust verification, capability declaration format, multi-agent coordination — are open.
+
+This is a community effort. We'd rather define this standard thoughtfully and in the open than let it emerge ad-hoc.
+
+**What exists today:**
+- [Manifesto](MANIFESTO.md) — why this moment matters
+- [Spec](SPEC.md) — the technical design (v0.1)
+- [Open questions](SPEC.md#open-questions) — where we need input
+
+**What's next:**
+- Reference implementation comparing REST vs MCP vs ANIP for the same service
+- Capability declaration format design
+- Delegation chain token format
+
+If this resonates, star the repo, open an issue, or [contribute](CONTRIBUTING.md). If you think we're wrong, tell us why — that's equally valuable.
