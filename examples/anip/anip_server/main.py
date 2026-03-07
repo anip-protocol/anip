@@ -45,12 +45,23 @@ def discovery():
     to decide whether to fetch the full manifest.
     """
     profiles = _manifest.profile.model_dump(exclude_none=True)
-    side_effect_types = ["read", "write", "irreversible", "transactional"]
+    capability_names = list(_manifest.capabilities.keys())
+    capability_contracts = {
+        name: cap.contract_version
+        for name, cap in _manifest.capabilities.items()
+    }
 
     return {
         "anip_discovery": {
             "protocol": _manifest.protocol,
             "profile": profiles,
+            "auth": {
+                "delegation_token_required": True,
+                "supported_formats": ["anip-v1"],
+                "minimum_scope_for_discovery": "none",
+            },
+            "capabilities": capability_names,
+            "capability_contracts": capability_contracts,
             "endpoints": {
                 "manifest": "/anip/manifest",
                 "handshake": "/anip/handshake",
@@ -61,13 +72,17 @@ def discovery():
                 "test": "/anip/test/{capability}",
             },
             "metadata": {
-                "side_effect_types_supported": side_effect_types,
-                "delegation_token_formats_supported": ["anip-v1"],
+                "side_effect_types_supported": [
+                    "read", "write", "irreversible", "transactional",
+                ],
                 "max_delegation_depth": 5,
                 "concurrent_branches_supported": True,
                 "test_mode_available": False,
+                "test_mode_unavailable_policy": "require_explicit_authorization_for_irreversible",
                 "service_name": "Flight Booking Service",
                 "service_description": "ANIP-compliant flight search and booking",
+                "service_category": "travel.booking",
+                "service_tags": ["flights", "booking", "irreversible-financial"],
             },
         }
     }

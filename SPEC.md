@@ -462,6 +462,14 @@ anip_discovery:
     cost: "1.0"
     capability_graph: "1.0"
     observability: "1.0"
+  auth:
+    delegation_token_required: true
+    supported_formats: ["anip-v1"]
+    minimum_scope_for_discovery: "none"    # no token needed for discovery/manifest
+  capabilities: ["search_flights", "book_flight"]
+  capability_contracts:
+    search_flights: "1.0"
+    book_flight: "2.1"
   endpoints:
     manifest: "/anip/manifest"
     handshake: "/anip/handshake"
@@ -472,22 +480,52 @@ anip_discovery:
     test: "/anip/test/{capability}"
   metadata:
     side_effect_types_supported: ["read", "write", "irreversible", "transactional"]
-    delegation_token_formats_supported: ["anip-v1"]
     max_delegation_depth: 5
     concurrent_branches_supported: true
     test_mode_available: false
+    test_mode_unavailable_policy: "require_explicit_authorization_for_irreversible"
     service_name: "Flight Booking Service"
     service_description: "ANIP-compliant flight search and booking"
+    service_category: "travel.booking"
+    service_tags: ["flights", "booking", "irreversible-financial"]
 ```
 
 **Fields:**
 
 - **protocol** (REQUIRED) — the ANIP protocol version this service implements
 - **profile** (REQUIRED) — which profile extensions are implemented, each independently versioned
+- **auth** (REQUIRED) — what authentication the service requires, whether tokens are needed for discovery, and which token formats are supported. An agent MUST be able to determine from this field alone whether it can proceed without a delegation token.
+- **capabilities** (REQUIRED) — list of capability names available on this service. Not full declarations — just the names. Full declarations live at the manifest endpoint. This lets an agent answer "can this service do X?" without a round-trip.
+- **capability_contracts** (REQUIRED) — map of capability names to their current contract versions. An agent with a cached manifest can check whether any contracts have changed without refetching the full manifest.
 - **endpoints** (REQUIRED) — URLs for each standard endpoint (see Section 6.2)
 - **metadata** (RECOMMENDED) — service-level metadata that lets agents make decisions without fetching the full manifest
 
-The discovery document is intentionally lightweight. Manifests can grow large as capabilities increase; the discovery document stays small and cacheable. An agent can often decide whether to proceed from the discovery document alone.
+**Auth field details:**
+
+- `delegation_token_required` — whether the service requires a delegation token for capability invocation
+- `supported_formats` — which token formats the service accepts
+- `minimum_scope_for_discovery` — the minimum scope needed to access the discovery document and manifest. `"none"` means these are publicly accessible without a token. This is the RECOMMENDED default — capability declarations are not sensitive, and requiring auth for discovery defeats the purpose of zero-configuration entry.
+
+**Capability contracts field:**
+
+This field enables efficient caching. An agent that previously fetched the manifest can compare contract versions at the discovery level. If all versions match its cache, it skips the manifest fetch entirely. This matters at scale — an orchestrator agent interacting with dozens of services per task should not refetch full manifests on every interaction.
+
+**Test mode unavailable policy:**
+
+When `test_mode_available` is `false`, the `test_mode_unavailable_policy` field tells agents how to behave:
+
+- `"proceed_with_caution"` — agent may invoke capabilities but should apply extra validation
+- `"require_explicit_authorization_for_irreversible"` — agent MUST obtain explicit human authorization before invoking any capability with side-effect type `irreversible`
+- `"block_irreversible"` — agent MUST NOT invoke `irreversible` capabilities without test mode
+
+**Service category and tags (OPTIONAL):**
+
+- `service_category` — machine-readable category for orchestrator-level service selection (e.g., `"travel.booking"`, `"finance.payments"`, `"healthcare.records"`)
+- `service_tags` — machine-readable tags for more granular filtering
+
+These are optional in v1 (which assumes the agent already knows the service URL) but become important when a global service registry exists (see Open Questions).
+
+The discovery document is intentionally lightweight. Manifests can grow large as capabilities increase; the discovery document stays small and cacheable. An agent can often decide whether to proceed from the discovery document alone — and with the capability list, contract versions, and auth requirements, it frequently can.
 
 ### 6.2 Standard Endpoints
 
