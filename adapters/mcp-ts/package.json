@@ -1,7 +1,7 @@
 {
   "name": "anip-mcp-bridge-ts",
   "version": "0.1.0",
-  "description": "Generic MCP bridge for any ANIP-compliant service (TypeScript)",
+  "description": "Generic MCP adapter for any ANIP-compliant service (TypeScript)",
   "type": "module",
   "bin": {
     "anip-mcp-bridge": "./dist/index.js"

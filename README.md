@@ -122,8 +122,8 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 - [Reference implementation — Python](examples/anip/) — FastAPI + SQLite, full demo with audit logging
 - [Reference implementation — TypeScript](examples/anip-ts/) — Hono + Zod, same capabilities and endpoints
 - [JSON Schema](schema/) — validate any ANIP implementation against the spec
-- [MCP bridge — Python](bridges/mcp/) — use ANIP with your existing MCP tooling today
-- [MCP bridge — TypeScript](bridges/mcp-ts/) — same bridge, TypeScript/Node implementation
+- [MCP adapter — Python](adapters/mcp-py/) — use ANIP with your existing MCP tooling today
+- [MCP adapter — TypeScript](adapters/mcp-ts/) — same adapter, TypeScript/Node implementation
 - [Agent skills](skills/) — machine-optimized guides for consuming and building ANIP services
 - [Open questions](SPEC.md#open-questions) — where we need input
 
@@ -142,7 +142,7 @@ ANIP was designed through parallel sessions with Claude Sonnet and Claude Code a
 ## License
 
 Specification documents (SPEC.md, MANIFESTO.md, GUIDE.md, skills/, docs/): [CC-BY 4.0](LICENSE-SPEC)
-Reference implementations and tooling (examples/, bridges/, schema/): [Apache 2.0](LICENSE-CODE)
+Reference implementations and tooling (examples/, adapters/, schema/): [Apache 2.0](LICENSE-CODE)
 
 ## Attribution
 

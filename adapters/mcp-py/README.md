@@ -1,11 +1,11 @@
-# ANIP-MCP Bridge
+# ANIP-MCP Adapter
 
 > Point it at any ANIP service. It discovers capabilities automatically and exposes them as MCP tools. Zero per-service code.
 
 ```
 Agent (MCP-native)
        |
-Generic ANIP-MCP Bridge
+Generic ANIP-MCP Adapter
        |  (reads /.well-known/anip at startup)
 Any ANIP service
 ```
@@ -14,12 +14,12 @@ Any ANIP service
 
 The AI tooling ecosystem has converged on MCP as the de facto agent-tool interface. ANIP complements MCP with richer primitives — delegation chains, side-effect typing, cost signaling, observability contracts — but asking everyone to replace their MCP infrastructure is a non-starter.
 
-This bridge lets you use ANIP today with your existing MCP tooling. It's an upgrade path, not a replacement.
+This adapter lets you use ANIP today with your existing MCP tooling. It's an upgrade path, not a replacement.
 
 ## Quick Start
 
 ```bash
-cd bridges/mcp
+cd adapters/mcp-py
 
 # Install
 uv venv && source .venv/bin/activate
@@ -30,7 +30,7 @@ cd ../../examples/anip
 uv pip install -e .
 uvicorn anip_server.main:app --port 8000
 
-# Run the bridge
+# Run the adapter
 anip-mcp-bridge --url http://localhost:8000 --verbose
 ```
 
@@ -80,13 +80,13 @@ anip-mcp-bridge
 
 ### Delegation Configuration
 
-The bridge creates delegation tokens on behalf of the configured `issuer`. Each tool invocation gets its own token with:
+The adapter creates delegation tokens on behalf of the configured `issuer`. Each tool invocation gets its own token with:
 
 - **Purpose binding** — scoped to the specific capability being invoked
 - **Scope narrowing** — only the scopes needed for each capability
 - **TTL** — tokens expire after `token_ttl_minutes`
 
-This is more secure than a single shared token but less granular than native ANIP delegation chains. The bridge operates as a single agent identity — it cannot represent per-user or per-agent delegation.
+This is more secure than a single shared token but less granular than native ANIP delegation chains. The adapter operates as a single agent identity — it cannot represent per-user or per-agent delegation.
 
 ## How It Works
 
@@ -99,7 +99,7 @@ This is more secure than a single shared token but less granular than native ANI
 
 ### Description Enrichment
 
-When `enrich_descriptions: true` (default), the bridge encodes ANIP metadata into MCP tool descriptions:
+When `enrich_descriptions: true` (default), the adapter encodes ANIP metadata into MCP tool descriptions:
 
 **Without enrichment:**
 ```
@@ -117,13 +117,13 @@ This is lossy — the agent can't programmatically branch on `side_effect == "ir
 
 ## What Gets Lost in Translation
 
-This table is the honest accounting of what ANIP adds over MCP and what survives the bridge:
+This table is the honest accounting of what ANIP adds over MCP and what survives the adapter:
 
-| ANIP Primitive | MCP Bridge Behavior | What's Lost |
+| ANIP Primitive | MCP Adapter Behavior | What's Lost |
 |----------------|---------------------|-------------|
 | **Capability Declaration** | Full — maps to MCP tool | Nothing |
 | **Side-effect Typing** | Partial — encoded in description | Programmatic branching on side-effect type |
-| **Delegation Chain** | Degraded — bridge holds a single identity, per-tool scope narrowing | Per-agent chains, multi-hop delegation, concurrent branch control |
+| **Delegation Chain** | Degraded — adapter holds a single identity, per-tool scope narrowing | Per-agent chains, multi-hop delegation, concurrent branch control |
 | **Permission Discovery** | Absent | Agent can't query its permission surface before invoking |
 | **Failure Semantics** | Partial — ANIP failures converted to readable text | Structured recovery (resolution actions, grantable_by) |
 | **Cost Signaling** | Partial — encoded in description | Programmatic budget checking, cost certainty levels |
@@ -131,12 +131,12 @@ This table is the honest accounting of what ANIP adds over MCP and what survives
 | **State & Session** | Absent | Session continuity between invocations |
 | **Observability Contract** | Absent | Audit access, retention guarantees |
 
-Every "Absent" or "Degraded" row is a reason to go ANIP native. The bridge gets you started; the full protocol is where the value lives.
+Every "Absent" or "Degraded" row is a reason to go ANIP native. The adapter gets you started; the full protocol is where the value lives.
 
 ## Architecture
 
 ```
-bridges/mcp/
+adapters/mcp-py/
 ├── anip_mcp_bridge/
 │   ├── __init__.py
 │   ├── server.py          # MCP server + CLI entry point
@@ -151,27 +151,27 @@ bridges/mcp/
 
 ### Key Design Decisions
 
-**Generic, not per-service.** The bridge reads the ANIP discovery document and manifest at startup. It generates MCP tools dynamically. No code changes needed when pointing at a different ANIP service.
+**Generic, not per-service.** The adapter reads the ANIP discovery document and manifest at startup. It generates MCP tools dynamically. No code changes needed when pointing at a different ANIP service.
 
 **Per-invocation tokens.** Each tool call creates a fresh delegation token with purpose binding for that specific capability. This is more secure than reusing a single token but means every invocation involves two HTTP calls (token registration + capability invocation).
 
-**Scope narrowing per tool.** The bridge filters the configured scope list to include only the scopes each capability needs. A tool for `search_flights` (requiring `travel.search`) won't carry `travel.book` scope, limiting blast radius if the invocation is intercepted.
+**Scope narrowing per tool.** The adapter filters the configured scope list to include only the scopes each capability needs. A tool for `search_flights` (requiring `travel.search`) won't carry `travel.book` scope, limiting blast radius if the invocation is intercepted.
 
-**Enriched descriptions as safety hints, not guarantees.** The bridge encodes ANIP's safety signals (irreversibility, cost, prerequisites) into description strings. An LLM reading these will behave more cautiously. But there's no mechanism to *enforce* this — an MCP-native agent might still invoke an irreversible capability without checking. This is an inherent limitation of the MCP model, not a bridge bug.
+**Enriched descriptions as safety hints, not guarantees.** The adapter encodes ANIP's safety signals (irreversibility, cost, prerequisites) into description strings. An LLM reading these will behave more cautiously. But there's no mechanism to *enforce* this — an MCP-native agent might still invoke an irreversible capability without checking. This is an inherent limitation of the MCP model, not an adapter bug.
 
 ## Limitations
 
-- **Single identity.** The bridge operates as one agent. It cannot represent multi-user or multi-agent delegation chains. All invocations use the same configured issuer and scope.
-- **No permission discovery.** MCP has no equivalent of ANIP's permission query. The bridge exposes all capabilities as tools regardless of whether the configured scope can actually invoke them. Failures surface at invocation time, not discovery time.
+- **Single identity.** The adapter operates as one agent. It cannot represent multi-user or multi-agent delegation chains. All invocations use the same configured issuer and scope.
+- **No permission discovery.** MCP has no equivalent of ANIP's permission query. The adapter exposes all capabilities as tools regardless of whether the configured scope can actually invoke them. Failures surface at invocation time, not discovery time.
 - **No session state.** MCP tools are stateless. ANIP capabilities with `session.type: "continuation"` or `"workflow"` will lose session context between invocations.
 - **Description-based safety only.** Side-effect warnings, cost signals, and prerequisite declarations are encoded as text in tool descriptions. They inform but cannot enforce.
 
 ## The Bigger Picture
 
-This bridge validates two things simultaneously:
+This adapter validates two things simultaneously:
 
-1. **ANIP's machine-readability.** If the bridge can auto-discover any ANIP service and generate tools with zero per-service code, the discovery document and manifest are sufficiently machine-readable. The bridge is a conformance test for the spec.
+1. **ANIP's machine-readability.** If the adapter can auto-discover any ANIP service and generate tools with zero per-service code, the discovery document and manifest are sufficiently machine-readable. The adapter is a conformance test for the spec.
 
 2. **What MCP is missing.** The translation loss table above is a concrete, field-by-field accounting of what ANIP adds. It's not an argument — it's a measurement. Every row marked "Absent" or "Degraded" is a capability gap that agents using MCP alone cannot address.
 
-The bridge is both a migration tool and a demonstration. Use it to try ANIP today. Read the translation loss table to understand why going native matters.
+The adapter is both a migration tool and a demonstration. Use it to try ANIP today. Read the translation loss table to understand why going native matters.
