@@ -137,7 +137,7 @@ If this resonates, star the repo, open an issue, or [contribute](CONTRIBUTING.md
 
 ## How This Was Built
 
-ANIP was designed through parallel sessions with Claude Sonnet and Claude Code as co-authors. The commit history reflects that — every commit is co-authored, and we kept it that way deliberately. A protocol for agent-native interfaces, co-created with agents.
+ANIP was designed through parallel sessions with Claude Opus and Claude Code as co-authors. The commit history reflects that — every commit is co-authored, and we kept it that way deliberately. A protocol for agent-native interfaces, co-created with agents.
 
 ## License
 
