@@ -885,19 +885,21 @@ The following are explicitly out of scope for ANIP v1:
 
 These are unresolved design questions where community input is needed:
 
-1. **Capability declaration format.** Should ANIP use JSON Schema, a purpose-built IDL, an extension of OpenAPI, or something else entirely? The semantic structure is defined; the concrete syntax is not.
+1. **Relationship to existing standards.** How should ANIP relate to OpenAPI, JSON-LD, AsyncAPI, and other existing standards? Complement them? Replace them in agent contexts? Provide a mapping layer?
 
-2. **Relationship to existing standards.** How should ANIP relate to OpenAPI, JSON-LD, AsyncAPI, and other existing standards? Complement them? Replace them in agent contexts? Provide a mapping layer?
+2. **Registry model.** Should there be a registry for ANIP-compliant services, similar to npm for packages or DNS for domains? What would discovery look like?
 
-3. **Registry model.** Should there be a registry for ANIP-compliant services, similar to npm for packages or DNS for domains? What would discovery look like?
+3. **Side-effect type completeness.** Is `eventually_consistent` a distinct side-effect type that belongs in v1? Are there other side-effect categories we're missing?
 
-4. **Side-effect type completeness.** Is `eventually_consistent` a distinct side-effect type that belongs in v1? Are there other side-effect categories we're missing?
+4. **Delegation chain auth format.** What concrete token format should ANIP recommend? JWT is familiar but has limitations for DAG delegation. W3C Verifiable Credentials are semantically richer but have adoption barriers. Should v1 recommend one, or remain format-agnostic?
 
-5. **Delegation chain auth format.** What concrete token format should ANIP recommend? JWT is familiar but has limitations for DAG delegation. W3C Verifiable Credentials are semantically richer but have adoption barriers. Should v1 recommend one, or remain format-agnostic?
+5. **Global service registry.** Service-level discovery is solved via `/.well-known/anip`. But should there be a global registry where agents can discover ANIP services by capability? (e.g., "find me services that can book flights")
 
-6. **Global service registry.** Service-level discovery is solved via `/.well-known/anip`. But should there be a global registry where agents can discover ANIP services by capability? (e.g., "find me services that can book flights")
+6. **Wildcard scope matching.** Should ANIP define wildcard scope patterns (e.g., `travel.*` matching all `travel.` scopes)? If two services implement wildcards differently, agents will break. This needs either a formal definition or an explicit prohibition in v1.
 
-7. **Wildcard scope matching.** Should ANIP define wildcard scope patterns (e.g., `travel.*` matching all `travel.` scopes)? If two services implement wildcards differently, agents will break. This needs either a formal definition or an explicit prohibition in v1.
+**Resolved:**
+
+- **Capability declaration format.** ANIP uses JSON Schema (draft 2020-12). Canonical schemas are defined in Section 9 and validated across two reference implementations (Python/Pydantic and TypeScript/Zod). *(Resolved in v0.1)*
 
 ---
 
