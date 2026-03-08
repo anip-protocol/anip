@@ -35,22 +35,22 @@ Define types for all ANIP primitives. These are the building blocks everything e
 
 | Model | Purpose | Reference |
 |-------|---------|-----------|
-| `CapabilityDeclaration` | Full capability metadata | SPEC.md §4.1 |
-| `SideEffect` | Side-effect type + rollback window | SPEC.md §4.2 |
-| `DelegationToken` | Authorization chain node | SPEC.md §4.3 |
-| `PermissionResponse` | Available/restricted/denied capabilities | SPEC.md §4.4 |
-| `ANIPFailure` | Structured error with resolution | SPEC.md §4.5 |
-| `InvokeRequest` | Delegation token + parameters | SPEC.md §6.2 |
-| `InvokeResponse` | Success/failure + result + cost actual | SPEC.md §6.2 |
+| `CapabilityDeclaration` | Full capability metadata | Spec §4.1 |
+| `SideEffect` | Side-effect type + rollback window | Spec §4.2 |
+| `DelegationToken` | Authorization chain node | Spec §4.3 |
+| `PermissionResponse` | Available/restricted/denied capabilities | Spec §4.4 |
+| `ANIPFailure` | Structured error with resolution | Spec §4.5 |
+| `InvokeRequest` | Delegation token + parameters | Spec §6.2 |
+| `InvokeResponse` | Success/failure + result + cost actual | Spec §6.2 |
 
 **SHOULD implement (contextual primitives):**
 
 | Model | Purpose | Reference |
 |-------|---------|-----------|
-| `Cost` | Cost certainty model (fixed/estimated/dynamic) | SPEC.md §5.1 |
-| `CostActual` | Actual cost returned after invocation | SPEC.md §5.1 |
-| `SessionInfo` | State and session semantics | SPEC.md §5.3 |
-| `ObservabilityContract` | What's logged, retention, who can audit | SPEC.md §5.4 |
+| `Cost` | Cost certainty model (fixed/estimated/dynamic) | Spec §5.1 |
+| `CostActual` | Actual cost returned after invocation | Spec §5.1 |
+| `SessionInfo` | State and session semantics | Spec §5.3 |
+| `ObservabilityContract` | What's logged, retention, who can audit | Spec §5.4 |
 
 **Side-effect types (enum):**
 
@@ -210,7 +210,7 @@ anip_discovery:
 - `travel.search` matches `required_scope: "travel.search"`
 - `travel.book:max_$500` matches `required_scope: "travel.book"` with a $500 budget constraint
 
-> **Open question:** Wildcard scope matching (e.g., `travel.*` matching all `travel.` scopes) is not defined in ANIP v0.1. Do not implement wildcards — two services implementing them differently will break agent interoperability. This is tracked as an open design question in SPEC.md §12.
+> **Open question:** Wildcard scope matching (e.g., `travel.*` matching all `travel.` scopes) is not defined in ANIP v0.1. Do not implement wildcards — two services implementing them differently will break agent interoperability. This is tracked as an open design question in Spec §13.
 
 ---
 
@@ -270,7 +270,7 @@ Return the `requires` and `composes_with` lists from the capability declaration.
 
 **Endpoint:** `GET /anip/audit`
 
-**Purpose:** Expose the invocation audit log to authorized consumers. This is the queryable surface of your observability contract (SPEC.md §5.4).
+**Purpose:** Expose the invocation audit log to authorized consumers. This is the queryable surface of your observability contract (Spec §5.4).
 
 **Query parameters to support:**
 - `capability` — filter by capability name
@@ -300,7 +300,7 @@ Return the `requires` and `composes_with` lists from the capability declaration.
 
 ## Conformance Checklist
 
-Before shipping, verify against SPEC.md §8:
+Before shipping, verify against Spec §8:
 
 - [ ] `/.well-known/anip` returns valid discovery document
 - [ ] `compliance` field matches profile contents
@@ -335,4 +335,11 @@ See `examples/anip/` in the ANIP repository for a complete working example (Pyth
 - `anip_server/main.py` — all endpoints
 - `demo.py` — full 7-step agent interaction flow
 
-For full specification details, see [SPEC.md](../SPEC.md).
+## References
+
+- **Spec:** https://github.com/anip-protocol/anip/blob/main/SPEC.md
+- **Schema (all types):** https://github.com/anip-protocol/anip/blob/main/schema/anip.schema.json
+- **Schema (discovery):** https://github.com/anip-protocol/anip/blob/main/schema/discovery.schema.json
+- **Guide:** https://github.com/anip-protocol/anip/blob/main/GUIDE.md
+- **Reference implementation (Python):** https://github.com/anip-protocol/anip/tree/main/examples/anip
+- **Reference implementation (TypeScript):** https://github.com/anip-protocol/anip/tree/main/examples/anip-ts

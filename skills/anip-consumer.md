@@ -285,7 +285,7 @@ ANIP failures are structured and actionable. Never treat them as opaque errors.
 
 ## Cost Model
 
-ANIP uses three levels of cost certainty (see SPEC.md §5.1):
+ANIP uses three levels of cost certainty (see https://github.com/anip-protocol/anip/blob/main/SPEC.md §5.1):
 
 | Certainty | Meaning | What to Check |
 |-----------|---------|---------------|
@@ -336,4 +336,9 @@ Invoke:       POST /anip/invoke/{capability}   → execute a capability
 Audit:        GET  /anip/audit                 → query invocation audit log
 ```
 
-For full specification details, see [SPEC.md](../SPEC.md).
+## References
+
+- **Spec:** https://github.com/anip-protocol/anip/blob/main/SPEC.md
+- **Schema (all types):** https://github.com/anip-protocol/anip/blob/main/schema/anip.schema.json
+- **Schema (discovery):** https://github.com/anip-protocol/anip/blob/main/schema/discovery.schema.json
+- **Guide:** https://github.com/anip-protocol/anip/blob/main/GUIDE.md
