@@ -30,4 +30,4 @@ This is what Agent-Native Interface Protocol is for. Not a patch on REST. Not a 
 
 We're early. The spec is incomplete. The hard problems — trust, verification, multi-agent coordination — are ahead of us. We'd rather define this thoughtfully and in the open than let it emerge ad-hoc behind closed doors.
 
-If this resonates, [read the spec](SPEC.md). If you disagree, [open an issue](https://github.com/anthropics/anip/issues). Either way, the shift is happening. The question is whether we design for it or keep building workarounds.perfect
+If this resonates, [read the spec](SPEC.md). If you disagree, [open an issue](https://github.com/anip-protocol/anip/issues). Either way, the shift is happening. The question is whether we design for it or keep building workarounds.
