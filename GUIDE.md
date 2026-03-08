@@ -205,7 +205,7 @@ for required in minimum_scope:
         break
 ```
 
-The `:` splits scope from constraints. The prefix matching (`startswith`) allows hierarchical scopes — `travel` would match `travel.search` and `travel.book`. Note: wildcard syntax (`travel.*`) is deliberately not defined in v0.1 (see [Spec §12, Open Question 7](SPEC.md)).
+The `:` splits scope from constraints. The prefix matching (`startswith`) allows hierarchical scopes — `travel` would match `travel.search` and `travel.book`. Note: wildcard syntax (`travel.*`) is deliberately not defined in v0.1 (see [Spec §13, Open Question 6](SPEC.md)).
 
 ### Budget Authority
 
