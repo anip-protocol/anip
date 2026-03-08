@@ -10,7 +10,7 @@ import { Hono } from "hono";
 import { invoke as invokeBookFlight } from "./capabilities/book-flight.js";
 import { invoke as invokeSearchFlights } from "./capabilities/search-flights.js";
 import { buildManifest } from "./primitives/manifest.js";
-import { registerToken, validateDelegation } from "./primitives/delegation.js";
+import { registerToken, validateDelegation, getChain, getRootPrincipal } from "./primitives/delegation.js";
 import { discoverPermissions } from "./primitives/permissions.js";
 import {
   DelegationToken,
@@ -25,6 +25,35 @@ const app = new Hono();
 
 // Build manifest once at startup
 const manifest: ANIPManifest = buildManifest();
+
+// --- In-memory audit log ---
+
+interface AuditEntry {
+  capability: string;
+  timestamp: string;
+  token_id: string;
+  root_principal: string;
+  success: boolean;
+  result_summary: Record<string, unknown> | null;
+  failure_type: string | null;
+  cost_actual: Record<string, unknown> | null;
+  delegation_chain: string[];
+}
+
+const auditLog: AuditEntry[] = [];
+
+function logInvocation(entry: AuditEntry): void {
+  auditLog.push(entry);
+}
+
+function summarizeResult(result: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!result) return null;
+  const summary: Record<string, unknown> = {};
+  if ("booking_id" in result) summary.booking_id = result.booking_id;
+  if ("count" in result) summary.result_count = result.count;
+  if ("total_cost" in result) summary.total_cost = result.total_cost;
+  return Object.keys(summary).length > 0 ? summary : { type: "result_logged" };
+}
 
 // Capability registry — maps name to invoke function
 const capabilityHandlers: Record<
@@ -116,6 +145,7 @@ app.get("/.well-known/anip", (c) => {
         invoke: "/anip/invoke/{capability}",
         tokens: "/anip/tokens",
         graph: "/anip/graph/{capability}",
+        audit: "/anip/audit",
         test: "/anip/test/{capability}",
       },
       metadata: {
@@ -315,8 +345,23 @@ app.post("/anip/invoke/:capability", async (c) => {
 
   // 5. Invoke the capability
   const handler = capabilityHandlers[capabilityName];
-  const result = handler(request.delegation_token, request.parameters);
-  return c.json(result);
+  const response = handler(request.delegation_token, request.parameters);
+
+  // 6. Log to audit trail
+  const chain = getChain(request.delegation_token);
+  logInvocation({
+    capability: capabilityName,
+    timestamp: new Date().toISOString(),
+    token_id: request.delegation_token.token_id,
+    root_principal: getRootPrincipal(request.delegation_token),
+    success: response.success,
+    result_summary: response.success ? summarizeResult(response.result as Record<string, unknown>) : null,
+    failure_type: response.failure?.type ?? null,
+    cost_actual: response.cost_actual as Record<string, unknown> | null,
+    delegation_chain: chain.map((t) => t.token_id),
+  });
+
+  return c.json(response);
 });
 
 // --- Capability Graph ---
@@ -334,6 +379,34 @@ app.get("/anip/graph/:capability", (c) => {
     capability: capabilityName,
     requires: cap.requires,
     composes_with: cap.composes_with,
+  });
+});
+
+// --- Audit / Observability ---
+
+app.get("/anip/audit", (c) => {
+  /** Query the audit log with optional filters. */
+  const capability = c.req.query("capability") ?? null;
+  const since = c.req.query("since") ?? null;
+  const limit = Math.min(Number(c.req.query("limit") ?? 100), 1000);
+
+  let entries = auditLog;
+
+  if (capability) {
+    entries = entries.filter((e) => e.capability === capability);
+  }
+  if (since) {
+    const sinceDate = new Date(since);
+    entries = entries.filter((e) => new Date(e.timestamp) >= sinceDate);
+  }
+
+  entries = entries.slice(-limit);
+
+  return c.json({
+    entries,
+    count: entries.length,
+    capability_filter: capability,
+    since_filter: since,
   });
 });
 
