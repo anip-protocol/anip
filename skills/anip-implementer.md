@@ -1,6 +1,6 @@
 # ANIP Implementer Skill
 
-> Spec version: ANIP v0.1 | Skill version: 1.0 | Last validated: 2026-03-07
+> Spec version: ANIP v0.1 | Skill version: 1.1 | Last validated: 2026-03-08
 
 > For agents building ANIP-compliant services. Covers what to implement, in what order, and the common mistakes that break conformance.
 
@@ -13,15 +13,16 @@ Use this when you need to build a new ANIP-compliant service or add ANIP support
 Build in this order. Each step depends on the previous ones.
 
 ```
-1. Models          Define your Pydantic/schema types for all ANIP primitives
-2. Capabilities    Declare your capabilities with full metadata
-3. Manifest        Build the manifest from capability declarations
-4. Discovery       Implement /.well-known/anip
-5. Handshake       Profile compatibility endpoint
-6. Delegation      Token registration and validation
-7. Permissions     Permission discovery endpoint
-8. Invocation      Capability execution with full validation
-9. Graph           Capability prerequisites and composition
+ 1. Models          Define your Pydantic/schema types for all ANIP primitives
+ 2. Capabilities    Declare your capabilities with full metadata
+ 3. Manifest        Build the manifest from capability declarations
+ 4. Discovery       Implement /.well-known/anip
+ 5. Handshake       Profile compatibility endpoint
+ 6. Delegation      Token registration and validation
+ 7. Permissions     Permission discovery endpoint
+ 8. Invocation      Capability execution with full validation
+ 9. Graph           Capability prerequisites and composition
+10. Audit           Observability and audit log endpoint
 ```
 
 ---
@@ -150,6 +151,7 @@ anip_discovery:
     invoke: "/anip/invoke/{capability}"
     tokens: "/anip/tokens"
     graph: "/anip/graph/{capability}"
+    audit: "/anip/audit"
   metadata:                      # RECOMMENDED
     service_name: "Your Service"
     service_description: "What your service does"
@@ -235,7 +237,8 @@ anip_discovery:
 2. Delegation chain is valid → if not, return appropriate delegation failure
 3. Parameters are valid → if not, return `invalid_parameters` failure
 4. Execute the capability
-5. Return `InvokeResponse` with result and `cost_actual` (if applicable)
+5. Log the invocation to the audit trail (success or failure)
+6. Return `InvokeResponse` with result and `cost_actual` (if applicable)
 
 **Every failure must be an `ANIPFailure` object.** Never return a raw HTTP error for an ANIP-level problem. HTTP errors are for transport-level issues (service down, malformed JSON). ANIP failures are for protocol-level issues (insufficient scope, expired token, missing parameters).
 
@@ -263,6 +266,38 @@ Return the `requires` and `composes_with` lists from the capability declaration.
 
 ---
 
+## Step 10: Audit Endpoint
+
+**Endpoint:** `GET /anip/audit`
+
+**Purpose:** Expose the invocation audit log to authorized consumers. This is the queryable surface of your observability contract (SPEC.md §5.4).
+
+**Query parameters to support:**
+- `capability` — filter by capability name
+- `since` — ISO 8601 timestamp, return entries after this time
+- `limit` — max entries to return (default: 100, cap at 1000)
+
+**What to log per invocation:**
+- Capability name
+- Timestamp
+- Root principal from the delegation chain
+- Success/failure status
+- Result summary (not full payload — avoid storing sensitive data)
+- Delegation chain token IDs (for traceability)
+
+**Access control:**
+- Restrict access by delegation chain — a consumer should only see audit records where their root principal was in the chain
+- In the reference implementation, this is simplified (all records returned), but production implementations MUST enforce this
+
+**Storage:**
+- Use the same persistence layer as your token store (SQLite for reference, database in production)
+- Respect the `retention` period from your `ObservabilityContract` — purge entries older than the declared retention
+- Index on `capability` and `timestamp` for efficient filtering
+
+**Include in discovery:** Add `"audit": "/anip/audit"` to the `endpoints` map in your discovery document.
+
+---
+
 ## Conformance Checklist
 
 Before shipping, verify against SPEC.md §8:
@@ -274,8 +309,12 @@ Before shipping, verify against SPEC.md §8:
 - [ ] Handshake accepts/rejects profiles correctly
 - [ ] Manifest capabilities match discovery summaries
 - [ ] `minimum_scope` is an array in discovery, not a string
-- [ ] `financial` flag is present and consistent with cost signaling (financial cost > 0 → `true`)
+- [ ] `financial` flag is present and consistent with cost signaling (`cost.financial` non-null → `true`)
 - [ ] `capability_side_effect_types_present` in metadata matches per-capability `side_effect` declarations
+- [ ] `audit` endpoint is listed in discovery `endpoints` (if observability profile is implemented)
+- [ ] All invocations (success and failure) are logged to the audit trail
+- [ ] Audit log respects declared `retention` period from observability contract
+- [ ] Audit endpoint restricts access by delegation chain root principal
 - [ ] Expired tokens are rejected
 - [ ] Purpose-binding is enforced
 - [ ] Max delegation depth is enforced

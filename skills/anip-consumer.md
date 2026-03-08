@@ -1,6 +1,6 @@
 # ANIP Consumer Skill
 
-> Spec version: ANIP v0.1 | Skill version: 1.0 | Last validated: 2026-03-07
+> Spec version: ANIP v0.1 | Skill version: 1.1 | Last validated: 2026-03-08
 
 > For agents that need to discover, negotiate with, and invoke ANIP-compliant services.
 
@@ -8,7 +8,7 @@
 
 Use this when you need to interact with a service that exposes `/.well-known/anip`. This skill gives you the canonical interaction flow, field-by-field guidance for every response you'll encounter, and the decision points where you must stop and reason before proceeding.
 
-## The 7-Step Interaction Flow
+## The 8-Step Interaction Flow
 
 ```
 1. Discovery     GET /.well-known/anip
@@ -18,9 +18,10 @@ Use this when you need to interact with a service that exposes `/.well-known/ani
 5. Permissions   POST /anip/permissions
 6. Graph         GET /anip/graph/{capability}
 7. Invocation    POST /anip/invoke/{capability}
+8. Audit         GET /anip/audit
 ```
 
-Steps 1-3 are always sequential. Steps 4-7 may repeat as you invoke multiple capabilities.
+Steps 1-3 are always sequential. Steps 4-7 may repeat as you invoke multiple capabilities. Step 8 is optional — use it post-invocation to verify what happened.
 
 ---
 
@@ -226,6 +227,43 @@ You must register delegation tokens before invoking capabilities. Tokens form a 
 
 ---
 
+## Step 8: Audit Log
+
+**Request:** `GET {endpoints.audit}`
+
+**Optional query parameters:**
+- `capability` — filter by capability name (e.g., `book_flight`)
+- `since` — ISO 8601 timestamp to filter entries after (e.g., `2026-03-07T00:00:00Z`)
+- `limit` — max entries to return (default: 100, max: 1000)
+
+**What you get back:**
+
+```json
+{
+  "entries": [
+    {
+      "capability": "book_flight",
+      "timestamp": "2026-03-07T15:30:00Z",
+      "root_principal": "human:user@example.com",
+      "success": true,
+      "result_summary": {"booking_id": "BK-001", "total_cost": 420.0}
+    }
+  ],
+  "count": 1
+}
+```
+
+**When to use this:**
+
+1. **Post-invocation verification** — after an irreversible action, confirm it was logged correctly
+2. **Cost reconciliation** — compare `cost_actual` from invocation with what's in the audit trail
+3. **Debugging** — when a sub-agent reports a failure, query the audit log to see what actually happened
+4. **Compliance** — verify that the service's observability contract is being honored (retention period, fields logged)
+
+**Access control:** The audit endpoint should restrict access based on your delegation chain — you can only see records for invocations where your root principal was in the chain. If the service doesn't support audit (no `audit` in `endpoints`), fall back to the observability contract in the manifest to understand what's being logged.
+
+---
+
 ## Handling Failures
 
 ANIP failures are structured and actionable. Never treat them as opaque errors.
@@ -295,6 +333,7 @@ Tokens:       POST /anip/tokens                → register delegation tokens
 Permissions:  POST /anip/permissions           → what can I do with my token?
 Graph:        GET  /anip/graph/{capability}    → prerequisites and composition
 Invoke:       POST /anip/invoke/{capability}   → execute a capability
+Audit:        GET  /anip/audit                 → query invocation audit log
 ```
 
 For full specification details, see [SPEC.md](../SPEC.md).
