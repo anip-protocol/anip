@@ -215,6 +215,8 @@ def check_budget_authority(token: DelegationToken, amount: float) -> ANIPFailure
 
 Budget constraints live inside scope strings (`travel.book:max_$500`). This keeps the token schema simple — no extra fields for every possible constraint type. The tradeoff is that constraint parsing is convention-based, not schema-enforced. For v0.1, this is acceptable; a formal constraint language is a v2 concern.
 
+**Important:** In v0.1, the only defined constraint syntax is `:max_$N` for budget limits. Any other use of `:` in scope strings is undefined behavior and may break in future versions. Do not invent custom constraint syntaxes — two independent implementations using different conventions will create interoperability problems before v2 ships a formal constraint language.
+
 ### The Token Store
 
 ```python
@@ -295,9 +297,14 @@ restricted: list[RestrictedCapability]  # you can't, but someone can grant it
 denied: list[DeniedCapability]          # you can't, period
 ```
 
-The distinction between `restricted` and `denied` is important. `restricted` means the agent is missing a scope that its root principal *could* grant. `denied` means no amount of scope escalation will help — the capability requires admin access and the agent's chain starts from a standard user.
+The distinction between `restricted` and `denied` is important, and implementers need a clear decision rule:
 
-This three-bucket model lets agents build recovery strategies. For `restricted` capabilities, the agent can escalate to `grantable_by`. For `denied` capabilities, the agent should not waste time trying.
+- **Restricted** — the capability requires a scope that the root principal *could* grant but hasn't. The token's delegation chain starts from a principal with sufficient authority class, but the specific scope wasn't included. Example: a human user could grant `travel.book` but only delegated `travel.search`.
+- **Denied** — the capability requires a scope that is outside the root principal's authority class entirely. No amount of scope escalation within this delegation chain will help. Example: the capability requires `admin.config` but the chain starts from a standard user who cannot grant admin scopes.
+
+The implementation rule: check whether the required scope's authority class is reachable from the root principal. If yes → `restricted` (with `grantable_by` pointing to the root principal). If no → `denied`.
+
+Without this rule, implementers will either put everything in `restricted` (making `denied` meaningless) or classify arbitrarily (making agent recovery strategies unreliable). This three-bucket model only works when the buckets have clear, consistent boundaries.
 
 ---
 
@@ -368,6 +375,24 @@ The demo's failure scenarios are the most important part. They show three cases:
 **Purpose mismatch** — the agent reuses a `book_flight` token for `search_flights`. The failure explains the binding violation.
 
 In each case, the agent gets a structured recovery path, not a status code. That's the ANIP difference.
+
+---
+
+## Error Handling Before Invocation
+
+The demo covers failure scenarios at invocation time, but the earlier steps can also fail. Here's what to expect and how to handle it:
+
+| Step | Failure | Expected Behavior |
+|------|---------|-------------------|
+| Discovery | 404 | Service is not ANIP-aware. Stop. |
+| Discovery | Malformed response | Treat service as unreachable. Do not attempt to parse partial documents. |
+| Handshake | `compatible: false` | Stop. The service cannot meet your profile requirements. |
+| Manifest | Schema mismatch with discovery | Treat discovery capability summaries as authoritative. Log the inconsistency. |
+| Token registration | Duplicate `token_id` | Retry with a new `token_id`. |
+| Token registration | Service rejects token | Check `expires` (may be in the past) and `parent` (may reference unregistered token). |
+| Permission discovery | Empty `available` list | Your delegation token has no usable scope for this service. Escalate to your delegator. |
+
+The principle: fail early and fail clearly. An agent that discovers incompatibility at the handshake step saves every subsequent request. An agent that pushes through a failed handshake will hit confusing errors at invocation time.
 
 ---
 
