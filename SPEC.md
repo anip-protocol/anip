@@ -875,6 +875,8 @@ These are unresolved design questions where community input is needed:
 
 6. **Global service registry.** Service-level discovery is solved via `/.well-known/anip`. But should there be a global registry where agents can discover ANIP services by capability? (e.g., "find me services that can book flights")
 
+7. **Wildcard scope matching.** Should ANIP define wildcard scope patterns (e.g., `travel.*` matching all `travel.` scopes)? If two services implement wildcards differently, agents will break. This needs either a formal definition or an explicit prohibition in v1.
+
 ---
 
 *ANIP is an open specification under active development. This is v0.1 — the foundation, not the finished product. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anthropics/anip/issues).*

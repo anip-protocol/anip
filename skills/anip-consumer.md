@@ -1,5 +1,7 @@
 # ANIP Consumer Skill
 
+> Spec version: ANIP v0.1 | Skill version: 1.0 | Last validated: 2026-03-07
+
 > For agents that need to discover, negotiate with, and invoke ANIP-compliant services.
 
 ## When to Use This Skill
@@ -254,6 +256,21 @@ ANIP uses three levels of cost certainty (see SPEC.md §5.1):
 | `dynamic` | Cost depends on runtime factors | Check `factors` for what affects cost, `upper_bound` for the maximum possible cost |
 
 **Rule:** For `estimated` and `dynamic` costs, always invoke the `determined_by` capability first to get exact pricing before committing to an irreversible action.
+
+---
+
+## Handling Partial Implementations
+
+A service may be `anip-compliant` (5 core primitives) but not `anip-complete` (all 9). Early in the ecosystem, this will be common. Apply these fallback postures:
+
+| Missing Profile | Fallback Posture |
+|----------------|-----------------|
+| Cost signaling | Treat all `financial: true` capabilities as dynamic cost. Require explicit human authorization before any irreversible financial action. |
+| Capability graph | Assume no prerequisites. Proceed with caution — if an invocation fails with a resolution pointing to another capability, treat that as a discovered prerequisite. |
+| State & session | Assume stateless. Do not rely on server-side session continuity between invocations. |
+| Observability | Assume the interaction is logged and act accordingly. Do not assume audit access is available. |
+
+**Key principle:** When a contextual primitive is missing, adopt the most conservative interpretation. The cost of over-caution is one extra confirmation prompt. The cost of under-caution is an irreversible action without proper authorization.
 
 ---
 

@@ -1,5 +1,7 @@
 # ANIP Implementer Skill
 
+> Spec version: ANIP v0.1 | Skill version: 1.0 | Last validated: 2026-03-07
+
 > For agents building ANIP-compliant services. Covers what to implement, in what order, and the common mistakes that break conformance.
 
 ## When to Use This Skill
@@ -205,7 +207,8 @@ anip_discovery:
 **Scope matching rules:**
 - `travel.search` matches `required_scope: "travel.search"`
 - `travel.book:max_$500` matches `required_scope: "travel.book"` with a $500 budget constraint
-- Scope is prefix-based: `travel.*` would match both (if you choose to support wildcards)
+
+> **Open question:** Wildcard scope matching (e.g., `travel.*` matching all `travel.` scopes) is not defined in ANIP v0.1. Do not implement wildcards — two services implementing them differently will break agent interoperability. This is tracked as an open design question in SPEC.md §12.
 
 ---
 
@@ -266,10 +269,13 @@ Before shipping, verify against SPEC.md §8:
 
 - [ ] `/.well-known/anip` returns valid discovery document
 - [ ] `compliance` field matches profile contents
-- [ ] All declared endpoints resolve
+- [ ] `base_url` is derived from the incoming request, not hardcoded
+- [ ] All declared endpoints resolve (return non-404)
 - [ ] Handshake accepts/rejects profiles correctly
 - [ ] Manifest capabilities match discovery summaries
-- [ ] `financial` flag is consistent with cost signaling
+- [ ] `minimum_scope` is an array in discovery, not a string
+- [ ] `financial` flag is present and consistent with cost signaling (financial cost > 0 → `true`)
+- [ ] `capability_side_effect_types_present` in metadata matches per-capability `side_effect` declarations
 - [ ] Expired tokens are rejected
 - [ ] Purpose-binding is enforced
 - [ ] Max delegation depth is enforced
