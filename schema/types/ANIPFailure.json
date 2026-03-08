@@ -1,0 +1,78 @@
+{
+  "$defs": {
+    "Resolution": {
+      "properties": {
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "requires": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requires"
+        },
+        "grantable_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Grantable By"
+        },
+        "estimated_availability": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Estimated Availability"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "title": "Resolution",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "type": {
+      "title": "Type",
+      "type": "string"
+    },
+    "detail": {
+      "title": "Detail",
+      "type": "string"
+    },
+    "resolution": {
+      "$ref": "#/$defs/Resolution"
+    },
+    "retry": {
+      "default": true,
+      "title": "Retry",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "type",
+    "detail",
+    "resolution"
+  ],
+  "title": "ANIPFailure",
+  "type": "object"
+}

@@ -1,0 +1,26 @@
+{
+  "properties": {
+    "financial": {
+      "additionalProperties": true,
+      "title": "Financial",
+      "type": "object"
+    },
+    "variance_from_estimate": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Variance From Estimate"
+    }
+  },
+  "required": [
+    "financial"
+  ],
+  "title": "CostActual",
+  "type": "object"
+}

@@ -1,0 +1,23 @@
+{
+  "properties": {
+    "capability": {
+      "title": "Capability",
+      "type": "string"
+    },
+    "scope_match": {
+      "title": "Scope Match",
+      "type": "string"
+    },
+    "constraints": {
+      "additionalProperties": true,
+      "title": "Constraints",
+      "type": "object"
+    }
+  },
+  "required": [
+    "capability",
+    "scope_match"
+  ],
+  "title": "AvailableCapability",
+  "type": "object"
+}

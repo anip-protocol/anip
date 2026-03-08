@@ -1,0 +1,23 @@
+{
+  "properties": {
+    "capability": {
+      "title": "Capability",
+      "type": "string"
+    },
+    "reason": {
+      "title": "Reason",
+      "type": "string"
+    },
+    "grantable_by": {
+      "title": "Grantable By",
+      "type": "string"
+    }
+  },
+  "required": [
+    "capability",
+    "reason",
+    "grantable_by"
+  ],
+  "title": "RestrictedCapability",
+  "type": "object"
+}

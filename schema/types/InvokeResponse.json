@@ -1,0 +1,165 @@
+{
+  "$defs": {
+    "ANIPFailure": {
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "resolution": {
+          "$ref": "#/$defs/Resolution"
+        },
+        "retry": {
+          "default": true,
+          "title": "Retry",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "detail",
+        "resolution"
+      ],
+      "title": "ANIPFailure",
+      "type": "object"
+    },
+    "CostActual": {
+      "properties": {
+        "financial": {
+          "additionalProperties": true,
+          "title": "Financial",
+          "type": "object"
+        },
+        "variance_from_estimate": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Variance From Estimate"
+        }
+      },
+      "required": [
+        "financial"
+      ],
+      "title": "CostActual",
+      "type": "object"
+    },
+    "Resolution": {
+      "properties": {
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "requires": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requires"
+        },
+        "grantable_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Grantable By"
+        },
+        "estimated_availability": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Estimated Availability"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "title": "Resolution",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "success": {
+      "title": "Success",
+      "type": "boolean"
+    },
+    "result": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Result"
+    },
+    "cost_actual": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CostActual"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "failure": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ANIPFailure"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "session": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Session"
+    }
+  },
+  "required": [
+    "success"
+  ],
+  "title": "InvokeResponse",
+  "type": "object"
+}

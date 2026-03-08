@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anip.dev/schema/v0.1/discovery.schema.json",
+  "title": "ANIP Discovery Document",
+  "description": "Schema for the /.well-known/anip discovery endpoint response. See SPEC.md §6.1.",
+  "type": "object",
+  "required": ["anip_discovery"],
+  "properties": {
+    "anip_discovery": {
+      "type": "object",
+      "required": ["protocol", "compliance", "base_url", "profile", "auth", "capabilities", "endpoints"],
+      "properties": {
+        "protocol": {
+          "type": "string",
+          "pattern": "^anip/\\d+\\.\\d+$",
+          "description": "ANIP protocol version (e.g., 'anip/1.0')"
+        },
+        "compliance": {
+          "type": "string",
+          "enum": ["anip-compliant", "anip-complete"],
+          "description": "Compliance level — 'anip-compliant' (5 core primitives) or 'anip-complete' (all 9)"
+        },
+        "base_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Base URL for resolving endpoint paths. Must be derived from the incoming request, not hardcoded."
+        },
+        "profile": {
+          "type": "object",
+          "required": ["core"],
+          "properties": {
+            "core": { "type": "string" },
+            "cost": { "type": "string" },
+            "capability_graph": { "type": "string" },
+            "state_session": { "type": "string" },
+            "observability": { "type": "string" }
+          },
+          "additionalProperties": false,
+          "description": "Profile versions. 'core' is required; contextual profiles are optional."
+        },
+        "auth": {
+          "type": "object",
+          "required": ["delegation_token_required"],
+          "properties": {
+            "delegation_token_required": {
+              "type": "boolean",
+              "description": "Whether a delegation token is required for capability invocation"
+            },
+            "supported_formats": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Supported delegation token formats"
+            },
+            "minimum_scope_for_discovery": {
+              "type": "string",
+              "description": "Scope required to access discovery. 'none' means unauthenticated access."
+            }
+          }
+        },
+        "capabilities": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["description", "side_effect", "minimum_scope", "financial", "contract"],
+            "properties": {
+              "description": {
+                "type": "string",
+                "description": "What this capability does (one sentence)"
+              },
+              "side_effect": {
+                "type": "string",
+                "enum": ["read", "write", "irreversible", "transactional"],
+                "description": "Side-effect type"
+              },
+              "minimum_scope": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Delegation scopes required (AND semantics — all must be present)"
+              },
+              "financial": {
+                "type": "boolean",
+                "description": "Whether this capability involves financial cost"
+              },
+              "contract": {
+                "type": "string",
+                "description": "Capability contract version"
+              }
+            }
+          },
+          "description": "Map of capability names to lightweight metadata summaries"
+        },
+        "endpoints": {
+          "type": "object",
+          "required": ["manifest", "handshake", "permissions", "invoke", "tokens"],
+          "properties": {
+            "manifest": { "type": "string" },
+            "handshake": { "type": "string" },
+            "permissions": { "type": "string" },
+            "invoke": { "type": "string" },
+            "tokens": { "type": "string" },
+            "graph": { "type": "string" },
+            "test": { "type": "string" }
+          },
+          "description": "URL paths for standard ANIP endpoints"
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "service_name": { "type": "string" },
+            "service_description": { "type": "string" },
+            "service_category": { "type": "string" },
+            "service_tags": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "capability_side_effect_types_present": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["read", "write", "irreversible", "transactional"]
+              },
+              "description": "Informational — derivable from per-capability side_effect fields"
+            },
+            "max_delegation_depth": { "type": "integer" },
+            "concurrent_branches_supported": { "type": "boolean" },
+            "test_mode_available": { "type": "boolean" },
+            "test_mode_unavailable_policy": { "type": "string" },
+            "generated_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "ttl": {
+              "type": "string",
+              "description": "ISO 8601 duration for caching (e.g., 'PT1H')"
+            }
+          },
+          "description": "Service-level metadata (RECOMMENDED)"
+        }
+      }
+    }
+  }
+}

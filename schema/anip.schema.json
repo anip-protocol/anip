@@ -1,0 +1,819 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anip.dev/schema/v0.1/anip.schema.json",
+  "title": "ANIP \u2014 Agent-Native Interface Protocol",
+  "description": "JSON Schema for all ANIP v0.1 types. Generated from Pydantic models in examples/anip/anip_server/primitives/models.py. Use these schemas to validate ANIP documents and responses.",
+  "version": "0.1.0",
+  "$defs": {
+    "ConcurrentBranches": {
+      "enum": [
+        "allowed",
+        "exclusive"
+      ],
+      "title": "ConcurrentBranches",
+      "type": "string"
+    },
+    "DelegationConstraints": {
+      "properties": {
+        "max_delegation_depth": {
+          "default": 3,
+          "title": "Max Delegation Depth",
+          "type": "integer"
+        },
+        "concurrent_branches": {
+          "$ref": "#/$defs/ConcurrentBranches",
+          "default": "allowed"
+        }
+      },
+      "title": "DelegationConstraints",
+      "type": "object"
+    },
+    "Purpose": {
+      "properties": {
+        "capability": {
+          "title": "Capability",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": true,
+          "title": "Parameters",
+          "type": "object"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "capability",
+        "task_id"
+      ],
+      "title": "Purpose",
+      "type": "object"
+    },
+    "CapabilityComposition": {
+      "properties": {
+        "capability": {
+          "title": "Capability",
+          "type": "string"
+        },
+        "optional": {
+          "default": true,
+          "title": "Optional",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "capability"
+      ],
+      "title": "CapabilityComposition",
+      "type": "object"
+    },
+    "CapabilityInput": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "default": {
+          "default": null,
+          "title": "Default"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ],
+      "title": "CapabilityInput",
+      "type": "object"
+    },
+    "CapabilityOutput": {
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Fields",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "fields"
+      ],
+      "title": "CapabilityOutput",
+      "type": "object"
+    },
+    "CapabilityRequirement": {
+      "properties": {
+        "capability": {
+          "title": "Capability",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "capability",
+        "reason"
+      ],
+      "title": "CapabilityRequirement",
+      "type": "object"
+    },
+    "Cost": {
+      "properties": {
+        "certainty": {
+          "$ref": "#/$defs/CostCertainty",
+          "default": "fixed"
+        },
+        "financial": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Financial"
+        },
+        "determined_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Determined By"
+        },
+        "factors": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Factors"
+        },
+        "compute": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Compute"
+        },
+        "rate_limit": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rate Limit"
+        }
+      },
+      "title": "Cost",
+      "type": "object"
+    },
+    "CostCertainty": {
+      "enum": [
+        "fixed",
+        "estimated",
+        "dynamic"
+      ],
+      "title": "CostCertainty",
+      "type": "string"
+    },
+    "ObservabilityContract": {
+      "properties": {
+        "logged": {
+          "default": true,
+          "title": "Logged",
+          "type": "boolean"
+        },
+        "retention": {
+          "default": "P90D",
+          "title": "Retention",
+          "type": "string"
+        },
+        "fields_logged": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Fields Logged",
+          "type": "array"
+        },
+        "audit_accessible_by": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Audit Accessible By",
+          "type": "array"
+        }
+      },
+      "title": "ObservabilityContract",
+      "type": "object"
+    },
+    "SessionInfo": {
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/SessionType",
+          "default": "stateless"
+        }
+      },
+      "title": "SessionInfo",
+      "type": "object"
+    },
+    "SessionType": {
+      "enum": [
+        "stateless",
+        "continuation",
+        "workflow"
+      ],
+      "title": "SessionType",
+      "type": "string"
+    },
+    "SideEffect": {
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/SideEffectType"
+        },
+        "rollback_window": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rollback Window"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "SideEffect",
+      "type": "object"
+    },
+    "SideEffectType": {
+      "enum": [
+        "read",
+        "write",
+        "irreversible",
+        "transactional"
+      ],
+      "title": "SideEffectType",
+      "type": "string"
+    },
+    "AvailableCapability": {
+      "properties": {
+        "capability": {
+          "title": "Capability",
+          "type": "string"
+        },
+        "scope_match": {
+          "title": "Scope Match",
+          "type": "string"
+        },
+        "constraints": {
+          "additionalProperties": true,
+          "title": "Constraints",
+          "type": "object"
+        }
+      },
+      "required": [
+        "capability",
+        "scope_match"
+      ],
+      "title": "AvailableCapability",
+      "type": "object"
+    },
+    "DeniedCapability": {
+      "properties": {
+        "capability": {
+          "title": "Capability",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "capability",
+        "reason"
+      ],
+      "title": "DeniedCapability",
+      "type": "object"
+    },
+    "RestrictedCapability": {
+      "properties": {
+        "capability": {
+          "title": "Capability",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "grantable_by": {
+          "title": "Grantable By",
+          "type": "string"
+        }
+      },
+      "required": [
+        "capability",
+        "reason",
+        "grantable_by"
+      ],
+      "title": "RestrictedCapability",
+      "type": "object"
+    },
+    "Resolution": {
+      "properties": {
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "requires": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requires"
+        },
+        "grantable_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Grantable By"
+        },
+        "estimated_availability": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Estimated Availability"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "title": "Resolution",
+      "type": "object"
+    },
+    "DelegationToken": {
+      "properties": {
+        "token_id": {
+          "title": "Token Id",
+          "type": "string"
+        },
+        "issuer": {
+          "title": "Issuer",
+          "type": "string"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        },
+        "scope": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Scope",
+          "type": "array"
+        },
+        "purpose": {
+          "$ref": "#/$defs/Purpose"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent"
+        },
+        "expires": {
+          "format": "date-time",
+          "title": "Expires",
+          "type": "string"
+        },
+        "constraints": {
+          "$ref": "#/$defs/DelegationConstraints"
+        }
+      },
+      "required": [
+        "token_id",
+        "issuer",
+        "subject",
+        "scope",
+        "purpose",
+        "expires"
+      ],
+      "title": "DelegationToken",
+      "type": "object"
+    },
+    "ANIPFailure": {
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "resolution": {
+          "$ref": "#/$defs/Resolution"
+        },
+        "retry": {
+          "default": true,
+          "title": "Retry",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "detail",
+        "resolution"
+      ],
+      "title": "ANIPFailure",
+      "type": "object"
+    },
+    "CostActual": {
+      "properties": {
+        "financial": {
+          "additionalProperties": true,
+          "title": "Financial",
+          "type": "object"
+        },
+        "variance_from_estimate": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Variance From Estimate"
+        }
+      },
+      "required": [
+        "financial"
+      ],
+      "title": "CostActual",
+      "type": "object"
+    },
+    "CapabilityDeclaration": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "contract_version": {
+          "default": "1.0",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "inputs": {
+          "items": {
+            "$ref": "#/$defs/CapabilityInput"
+          },
+          "title": "Inputs",
+          "type": "array"
+        },
+        "output": {
+          "$ref": "#/$defs/CapabilityOutput"
+        },
+        "side_effect": {
+          "$ref": "#/$defs/SideEffect"
+        },
+        "required_scope": {
+          "title": "Required Scope",
+          "type": "string"
+        },
+        "cost": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cost"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "requires": {
+          "items": {
+            "$ref": "#/$defs/CapabilityRequirement"
+          },
+          "title": "Requires",
+          "type": "array"
+        },
+        "composes_with": {
+          "items": {
+            "$ref": "#/$defs/CapabilityComposition"
+          },
+          "title": "Composes With",
+          "type": "array"
+        },
+        "session": {
+          "$ref": "#/$defs/SessionInfo"
+        },
+        "observability": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObservabilityContract"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "inputs",
+        "output",
+        "side_effect",
+        "required_scope"
+      ],
+      "title": "CapabilityDeclaration",
+      "type": "object"
+    },
+    "ProfileVersions": {
+      "properties": {
+        "core": {
+          "default": "1.0",
+          "title": "Core",
+          "type": "string"
+        },
+        "cost": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cost"
+        },
+        "capability_graph": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capability Graph"
+        },
+        "state_session": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "State Session"
+        },
+        "observability": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observability"
+        }
+      },
+      "title": "ProfileVersions",
+      "type": "object"
+    },
+    "PermissionResponse": {
+      "properties": {
+        "available": {
+          "items": {
+            "$ref": "#/$defs/AvailableCapability"
+          },
+          "title": "Available",
+          "type": "array"
+        },
+        "restricted": {
+          "items": {
+            "$ref": "#/$defs/RestrictedCapability"
+          },
+          "title": "Restricted",
+          "type": "array"
+        },
+        "denied": {
+          "items": {
+            "$ref": "#/$defs/DeniedCapability"
+          },
+          "title": "Denied",
+          "type": "array"
+        }
+      },
+      "title": "PermissionResponse",
+      "type": "object"
+    },
+    "InvokeRequest": {
+      "properties": {
+        "delegation_token": {
+          "$ref": "#/$defs/DelegationToken"
+        },
+        "parameters": {
+          "additionalProperties": true,
+          "title": "Parameters",
+          "type": "object"
+        },
+        "budget": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Budget"
+        }
+      },
+      "required": [
+        "delegation_token"
+      ],
+      "title": "InvokeRequest",
+      "type": "object"
+    },
+    "InvokeResponse": {
+      "properties": {
+        "success": {
+          "title": "Success",
+          "type": "boolean"
+        },
+        "result": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Result"
+        },
+        "cost_actual": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CostActual"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "failure": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ANIPFailure"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "session": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "title": "InvokeResponse",
+      "type": "object"
+    },
+    "ANIPManifest": {
+      "properties": {
+        "protocol": {
+          "default": "anip/1.0",
+          "title": "Protocol",
+          "type": "string"
+        },
+        "profile": {
+          "$ref": "#/$defs/ProfileVersions"
+        },
+        "capabilities": {
+          "additionalProperties": {
+            "$ref": "#/$defs/CapabilityDeclaration"
+          },
+          "title": "Capabilities",
+          "type": "object"
+        }
+      },
+      "required": [
+        "profile",
+        "capabilities"
+      ],
+      "title": "ANIPManifest",
+      "type": "object"
+    }
+  }
+}
