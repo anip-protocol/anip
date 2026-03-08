@@ -1,6 +1,6 @@
 # ANIP — Agent-Native Interface Protocol
 
-> A protocol for software interfaces designed from the ground up for AI agents, not humans.
+> REST APIs are simple. ANIP gives agents confidence.
 
 Read the [Manifesto](MANIFESTO.md) | Read the [Spec](SPEC.md) | Read the [Guide](GUIDE.md) | [Contribute](CONTRIBUTING.md)
 
@@ -66,6 +66,29 @@ Agent queries manifest → profile handshake
 ```
 
 Every assumption that was implicit becomes explicit, typed, and queryable.
+
+**Five things an agent doesn't know with REST but does with ANIP:**
+
+1. **This action is irreversible** — `side_effect: irreversible`, `rollback_window: none`
+2. **This costs $280–500** — `cost.financial: { range_min: 280, range_max: 500 }`
+3. **Search before booking** — `requires: [{ capability: "search_flights" }]`
+4. **Budget will be enforced** — `scope: ["travel.book:max_$500"]` in the delegation chain
+5. **Who can fix a permission problem** — `resolution: { grantable_by: "human:samir@anip.dev" }`
+
+That last one is the killer feature. When a budget-exceeded failure comes back, it doesn't just say "denied" — it tells the agent exactly who can increase the budget. The agent can autonomously escalate to the right person. That's a capability that doesn't exist in REST, MCP, or OpenAPI.
+
+## When to Use ANIP
+
+ANIP is the right interface when the consumer is an AI agent. The distinction isn't complexity — it's consumer.
+
+- **Consumer is a human developer** writing deterministic code → REST/API is correct
+- **Consumer is an AI agent** reasoning and acting autonomously → ANIP is correct
+
+A simple read-only `get_weather` capability still benefits from ANIP when an agent consumes it: the agent knows it's safe to call repeatedly (`side_effect: read`), can discover it without reading docs, can verify its delegation scope before calling, and gets structured failures instead of HTTP codes.
+
+ANIP scales down gracefully. A read-only service with no auth needs only the 5 core primitives and the ceremony is minimal. The value is in the consistency: agents that speak ANIP can interact with any ANIP service without reading documentation, regardless of complexity.
+
+HTTP isn't overkill for serving a single static HTML file. The protocol is the same — GET, 200, content. The simplicity of the content doesn't make the protocol unnecessary. What makes HTTP unnecessary is when you're not on the web at all. Same with ANIP — what makes it unnecessary is when there's no agent in the picture.
 
 ## Core Principles
 
