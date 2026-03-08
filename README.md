@@ -112,6 +112,10 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 
 If this resonates, star the repo, open an issue, or [contribute](CONTRIBUTING.md). If you think we're wrong, tell us why — that's equally valuable.
 
+## How This Was Built
+
+ANIP was designed through parallel sessions with Claude Sonnet and Claude Code as co-authors. The commit history reflects that — every commit is co-authored, and we kept it that way deliberately. A protocol for agent-native interfaces, co-created with agents.
+
 ## License
 
 Specification documents (SPEC.md, MANIFESTO.md, GUIDE.md, skills/, docs/): [CC-BY 4.0](LICENSE-SPEC)
