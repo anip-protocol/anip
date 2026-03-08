@@ -70,11 +70,7 @@ app.get("/.well-known/anip", (c) => {
       description: cap.description,
       side_effect: cap.side_effect.type,
       minimum_scope: [cap.required_scope],
-      financial:
-        cap.cost?.financial !== null &&
-        cap.cost?.financial !== undefined &&
-        (cap.cost.financial as Record<string, unknown>)["amount"] !== undefined &&
-        (cap.cost.financial as Record<string, unknown>)["amount"] !== 0,
+      financial: cap.cost?.financial != null,
       contract: cap.contract_version,
     };
   }

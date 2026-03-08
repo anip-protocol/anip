@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-"""Generate ANIP JSON Schema from Pydantic models.
+"""Generate ANIP JSON Schema from the reference implementation's Pydantic models.
 
-This script exports the canonical JSON Schema for all ANIP types.
-Run it whenever the models change to keep the schema in sync.
+This script is a development tool — it generates a draft schema from the
+reference implementation to bootstrap updates. The output should be reviewed
+and edited to match SPEC.md before committing to schema/anip.schema.json.
+
+The canonical schemas in schema/ are spec-owned, not implementation-derived.
+This script helps keep them in sync but is not the source of truth.
 
 Usage:
     cd examples/anip && source .venv/bin/activate
@@ -71,11 +75,9 @@ def generate_schemas() -> dict:
         "$id": "https://anip.dev/schema/v0.1/anip.schema.json",
         "title": "ANIP — Agent-Native Interface Protocol",
         "description": (
-            "JSON Schema for all ANIP v0.1 types. Generated from "
-            "Pydantic models in examples/anip/anip_server/primitives/models.py. "
-            "Use these schemas to validate ANIP documents and responses."
+            "Canonical JSON Schema for all ANIP v0.1 types as defined in SPEC.md. "
+            "Use these schemas to validate ANIP documents, responses, and delegation tokens."
         ),
-        "version": "0.1.0",
         "$defs": {**all_defs, **schemas},
     }
 

@@ -2,8 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://anip.dev/schema/v0.1/anip.schema.json",
   "title": "ANIP \u2014 Agent-Native Interface Protocol",
-  "description": "JSON Schema for all ANIP v0.1 types. Generated from Pydantic models in examples/anip/anip_server/primitives/models.py. Use these schemas to validate ANIP documents and responses.",
-  "version": "0.1.0",
+  "description": "Canonical JSON Schema for all ANIP v0.1 types as defined in SPEC.md. Use these schemas to validate ANIP documents, responses, and delegation tokens.",
   "$defs": {
     "ConcurrentBranches": {
       "enum": [
@@ -11,7 +10,8 @@
         "exclusive"
       ],
       "title": "ConcurrentBranches",
-      "type": "string"
+      "type": "string",
+      "description": "Whether concurrent delegation branches are allowed or exclusive. See SPEC.md §4.3."
     },
     "DelegationConstraints": {
       "properties": {
@@ -26,7 +26,8 @@
         }
       },
       "title": "DelegationConstraints",
-      "type": "object"
+      "type": "object",
+      "description": "Constraints on delegation chain behavior. See SPEC.md §4.3."
     },
     "Purpose": {
       "properties": {
@@ -49,7 +50,8 @@
         "task_id"
       ],
       "title": "Purpose",
-      "type": "object"
+      "type": "object",
+      "description": "Purpose binding for a delegation token — which capability and task it authorizes. See SPEC.md §4.3."
     },
     "CapabilityComposition": {
       "properties": {
@@ -475,7 +477,8 @@
         "expires"
       ],
       "title": "DelegationToken",
-      "type": "object"
+      "type": "object",
+      "description": "A delegation token representing scoped authority in a delegation chain (DAG). See SPEC.md §4.3."
     },
     "ANIPFailure": {
       "properties": {
@@ -502,7 +505,8 @@
         "resolution"
       ],
       "title": "ANIPFailure",
-      "type": "object"
+      "type": "object",
+      "description": "Structured failure object with type, detail, resolution path, and retry hint. See SPEC.md §4.5."
     },
     "CostActual": {
       "properties": {
@@ -611,7 +615,8 @@
         "required_scope"
       ],
       "title": "CapabilityDeclaration",
-      "type": "object"
+      "type": "object",
+      "description": "Full capability declaration with inputs, outputs, side effects, cost, and observability. See SPEC.md §4.1."
     },
     "ProfileVersions": {
       "properties": {
@@ -697,7 +702,8 @@
         }
       },
       "title": "PermissionResponse",
-      "type": "object"
+      "type": "object",
+      "description": "Response from permission discovery — available, restricted, and denied capabilities. See SPEC.md §4.4."
     },
     "InvokeRequest": {
       "properties": {
@@ -788,7 +794,8 @@
         "success"
       ],
       "title": "InvokeResponse",
-      "type": "object"
+      "type": "object",
+      "description": "Response from capability invocation — result or failure with optional cost actual. See SPEC.md §6.2."
     },
     "ANIPManifest": {
       "properties": {
@@ -813,7 +820,8 @@
         "capabilities"
       ],
       "title": "ANIPManifest",
-      "type": "object"
+      "type": "object",
+      "description": "The full ANIP manifest — protocol version, profile versions, and all capability declarations. See SPEC.md §6.2."
     }
   }
 }

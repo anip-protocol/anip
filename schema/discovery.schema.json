@@ -99,6 +99,7 @@
             "invoke": { "type": "string" },
             "tokens": { "type": "string" },
             "graph": { "type": "string" },
+            "audit": { "type": "string" },
             "test": { "type": "string" }
           },
           "description": "URL paths for standard ANIP endpoints"

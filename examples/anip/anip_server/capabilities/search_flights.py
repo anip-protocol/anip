@@ -36,7 +36,7 @@ DECLARATION = CapabilityDeclaration(
     required_scope="travel.search",
     cost=Cost(
         certainty=CostCertainty.FIXED,
-        financial={"amount": 0.00, "currency": "USD"},
+        financial=None,
         compute={"latency_p50": "200ms", "tokens": 500},
     ),
     session=SessionInfo(),

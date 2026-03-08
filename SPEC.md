@@ -463,6 +463,7 @@ anip_discovery:
     core: "1.0"
     cost: "1.0"
     capability_graph: "1.0"
+    state_session: "1.0"
     observability: "1.0"
   auth:
     delegation_token_required: true
@@ -480,7 +481,7 @@ anip_discovery:
       side_effect: "irreversible"
       minimum_scope: ["travel.book"]
       financial: true
-      contract: "2.1"
+      contract: "1.0"
   endpoints:
     manifest: "/anip/manifest"
     handshake: "/anip/handshake"
@@ -488,6 +489,7 @@ anip_discovery:
     invoke: "/anip/invoke/{capability}"
     tokens: "/anip/tokens"
     graph: "/anip/graph/{capability}"
+    audit: "/anip/audit"
     test: "/anip/test/{capability}"
   metadata:
     service_name: "Flight Booking Service"
@@ -506,7 +508,7 @@ anip_discovery:
 **Fields:**
 
 - **protocol** (REQUIRED) — the ANIP protocol version this service implements
-- **compliance** (REQUIRED) — `"anip-compliant"` (5 core primitives) or `"anip-complete"` (all 9). Agents MUST NOT infer compliance level from counting profile keys — this field is the source of truth.
+- **compliance** (REQUIRED) — `"anip-compliant"` (5 core primitives) or `"anip-complete"` (all 9). A service MUST NOT claim `anip-complete` unless all four contextual profile keys (`cost`, `capability_graph`, `state_session`, `observability`) are present in its `profile` block. Agents MUST NOT infer compliance level from counting profile keys — this field is the source of truth.
 - **base_url** (REQUIRED) — the absolute base URL for resolving endpoint paths. Agents MUST NOT infer this from the request URL. Explicit over inferred.
 - **profile** (REQUIRED) — which profile extensions are implemented, each independently versioned
 - **auth** (REQUIRED) — what authentication the service requires, whether tokens are needed for discovery, and which token formats are supported. An agent MUST be able to determine from this field alone whether it can proceed without a delegation token.
@@ -514,7 +516,7 @@ anip_discovery:
   - `description` — what this capability does (one sentence)
   - `side_effect` — the side-effect type (`read`, `write`, `irreversible`, `transactional`). Lets agents identify dangerous capabilities without fetching the manifest.
   - `minimum_scope` — array of delegation scopes REQUIRED to invoke this capability. ALL scopes in the array are required (AND semantics). This is a guarantee, not a hint: an agent whose delegation token lacks any of these scopes MUST NOT attempt invocation. Using an array from day one avoids a breaking change when compound authorization is needed (e.g., `["travel.book", "payments.authorize"]`).
-  - `financial` — whether this capability involves financial cost. Lets agents distinguish "irreversible and costs money" from "irreversible but free" — a distinction that matters for authorization handling. When `true`, agents should check cost signaling and budget authority before attempting invocation.
+  - `financial` — whether this capability involves financial cost. The `financial` flag MUST be `true` for any capability whose `cost.financial` field is non-null in the manifest, regardless of cost certainty level (`fixed`, `estimated`, or `dynamic`). Implementations MUST NOT use the presence or value of an `amount` key to determine this flag. Capabilities with no financial cost MUST set `cost.financial` to `null` (not a zero-amount object). Lets agents distinguish "irreversible and costs money" from "irreversible but free" — a distinction that matters for authorization handling. When `true`, agents should check cost signaling and budget authority before attempting invocation.
   - `contract` — the current contract version. An agent with a cached manifest can check whether contracts have changed without refetching.
 - **endpoints** (REQUIRED) — URLs for each standard endpoint (see Section 6.2)
 - **metadata** (RECOMMENDED) — service-level metadata that lets agents make decisions without fetching the full manifest
@@ -602,6 +604,7 @@ anip_manifest:
     core: "1.0"
     cost: "1.0"
     capability_graph: "1.0"
+    state_session: "1.0"
     observability: "1.0"
   capabilities:
     search_flights:
@@ -609,7 +612,7 @@ anip_manifest:
       description: "Search available flights"
       # ...full capability declaration
     book_flight:
-      contract: "2.1"
+      contract: "1.0"
       description: "Book a confirmed flight reservation"
       # ...full capability declaration
 ```
@@ -637,6 +640,7 @@ service_profiles:
   core: "1.0"
   cost: "1.0"
   capability_graph: "1.0"
+  state_session: "1.0"
   observability: "1.0"
 missing: null
 ```
@@ -779,7 +783,7 @@ The following categories define the surface area of ANIP conformance testing:
 
 **Category 3: Capability Contract Validation**
 - Manifest capabilities match discovery capability summaries (names, side-effect types, contract versions)
-- `financial` flag in discovery is consistent with cost signaling in manifest (financial cost > 0 → `financial: true`)
+- `financial` flag in discovery is consistent with cost signaling in manifest (`cost.financial` is non-null → `financial: true`)
 - Capability inputs and outputs conform to declared schemas
 
 **Category 4: Delegation Chain Validation**
@@ -790,7 +794,7 @@ The following categories define the surface area of ANIP conformance testing:
 - Scope narrowing: a child token cannot have broader scope than its parent
 
 **Category 5: Failure Semantics Validation**
-- All failures return structured `ANIPFailure` objects, not raw HTTP error codes
+- All failures return structured failure objects conforming to Section 4.5, not raw HTTP error codes
 - Failure objects include `type`, `detail`, `resolution`, and `retry` fields
 - `resolution` includes actionable information (what's needed, who can grant it)
 - Unknown capabilities return `unknown_capability` with `check_manifest` resolution
@@ -815,21 +819,39 @@ The test suite, when built, SHOULD:
 
 ---
 
-## 9. Versioning
+## 9. Schema Definitions
+
+The YAML examples throughout this specification (Sections 4–6) define the semantic structure of each ANIP type. Machine-readable JSON Schema definitions that formalize these structures are maintained alongside the spec:
+
+- **[`schema/anip.schema.json`](schema/anip.schema.json)** — Canonical schema for all ANIP types: `DelegationToken`, `CapabilityDeclaration`, `PermissionResponse`, `InvokeRequest`, `InvokeResponse`, `CostActual`, and `ANIPFailure`. Each type references the spec section that defines its semantics.
+- **[`schema/discovery.schema.json`](schema/discovery.schema.json)** — Schema for the `/.well-known/anip` discovery document (Section 6.1), including `minimum_scope` array validation, `financial` boolean flag, and side-effect type enums.
+
+**Relationship between spec and schemas:**
+
+The spec is authoritative for *semantics* — what fields mean, how they interact, what invariants hold. The JSON Schemas are authoritative for *structure* — what fields exist, what types they have, which are required. When the spec adds or modifies a type, the corresponding schema MUST be updated. When the schemas validate a document, the spec's semantic constraints (e.g., "scope can only narrow, never widen") are not checked — those require runtime validation.
+
+Implementations can use these schemas for:
+- **Validation** — verify that discovery documents, tokens, and invocation payloads conform to the expected structure before processing
+- **Code generation** — generate type definitions in any language from the canonical schema
+- **Conformance testing** — Category 1 structural conformance (Section 8.2) can be automated using these schemas
+
+---
+
+## 10. Versioning
 
 ANIP has three distinct versioning problems:
 
-### 9.1 Protocol Version
+### 10.1 Protocol Version
 
 "I speak ANIP v1.0." Declared in the manifest. Follows semantic versioning. A major version bump (v1 → v2) indicates breaking changes to core primitive schemas.
 
-### 9.2 Capability Contract Version
+### 10.2 Capability Contract Version
 
 "My `book_flight` capability changed." Each capability has a contract version. The contract includes the capability's inputs, outputs, side-effect type, cost shape, and permission requirements. Any change to these bumps the contract version.
 
 An agent can query: "Do you still have `book_flight` at contract v2?" rather than discovering breaking changes at invocation time.
 
-### 9.3 Capability Profile Version
+### 10.3 Capability Profile Version
 
 Which extensions are implemented, independently versioned. Cost signaling might reach v3 while core is still at v1. Each profile extension declares its own version in the manifest.
 
@@ -837,7 +859,7 @@ An agent requiring specific profile versions can express this during the handsha
 
 ---
 
-## 10. Transport
+## 11. Transport
 
 ANIP v1 is defined over HTTP. The semantic layer — capability declarations, delegation tokens, permission queries, failure objects — is transport-agnostic by design.
 
@@ -847,7 +869,7 @@ Future versions will define bindings for other transports (gRPC, NATS, WebSocket
 
 ---
 
-## 11. V1 Non-goals
+## 12. V1 Non-goals
 
 The following are explicitly out of scope for ANIP v1:
 
@@ -859,7 +881,7 @@ The following are explicitly out of scope for ANIP v1:
 
 ---
 
-## 12. Open Questions
+## 13. Open Questions
 
 These are unresolved design questions where community input is needed:
 
@@ -879,4 +901,8 @@ These are unresolved design questions where community input is needed:
 
 ---
 
-*ANIP is an open specification under active development. This is v0.1 — the foundation, not the finished product. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anthropics/anip/issues).*
+*ANIP is an open specification under active development. This is v0.1 — the foundation, not the finished product. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
+
+---
+
+*© 2026 ANIP Contributors. Licensed under [CC-BY 4.0](LICENSE-SPEC).*

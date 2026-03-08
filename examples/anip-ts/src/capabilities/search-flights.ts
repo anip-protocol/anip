@@ -50,7 +50,7 @@ export const DECLARATION: CapabilityDeclaration = {
   required_scope: "travel.search",
   cost: {
     certainty: "fixed",
-    financial: { amount: 0.0, currency: "USD" },
+    financial: null,
     determined_by: null,
     factors: null,
     compute: { latency_p50: "200ms", tokens: 500 },

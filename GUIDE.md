@@ -23,7 +23,8 @@ examples/anip/
 │   │   ├── search_flights.py           # Read-only capability
 │   │   └── book_flight.py             # Irreversible financial capability
 │   └── data/
-│       └── flights.py                  # In-memory stub data
+│       ├── database.py                # SQLite persistence — tokens, bookings, audit log
+│       └── flights.py                  # Flight data — static inventory + SQLite-persisted bookings
 ├── demo.py                             # Full agent interaction demo
 ├── Dockerfile                          # Container deployment
 └── pyproject.toml                      # Dependencies
@@ -219,11 +220,19 @@ Budget constraints live inside scope strings (`travel.book:max_$500`). This keep
 
 ### The Token Store
 
+The reference implementation persists tokens in SQLite:
+
 ```python
-_token_store: dict[str, DelegationToken] = {}
+def register_token(token: DelegationToken) -> ...:
+    # Validate chain, then persist
+    db_store_token(token.token_id, token.model_dump())
+
+def get_token(token_id: str) -> DelegationToken | None:
+    data = db_load_token(token_id)
+    return DelegationToken(**data) if data else None
 ```
 
-The reference implementation uses an in-memory dict. In production, this would be a database, a JWT verification service, or a distributed cache. The token store is the one part of the delegation primitive that's explicitly not portable — it depends entirely on your deployment model.
+SQLite with WAL mode gives the reference implementation real persistence (tokens survive restarts, audit logging works across sessions) while keeping deployment simple — no external database required. In production, you'd swap the SQLite layer for Postgres, a JWT verification service, or a distributed cache. The token store is the one part of the delegation primitive that's explicitly not portable — it depends entirely on your deployment model.
 
 **What ANIP defines:** the token *semantics* (fields, validation rules, chain structure).
 
@@ -255,7 +264,7 @@ capabilities_summary = {
         "description": cap.description,
         "side_effect": cap.side_effect.type.value,
         "minimum_scope": [cap.required_scope],
-        "financial": cap.cost.financial is not None and cap.cost.financial.get("amount", 0) > 0,
+        "financial": cap.cost.financial is not None,
         "contract": cap.contract_version,
     }
     for name, cap in _manifest.capabilities.items()
@@ -266,7 +275,7 @@ Five fields per capability in discovery vs. 12+ in the manifest. An agent can ma
 
 The `minimum_scope` is always an array (AND semantics). Even when there's only one scope, it's `["travel.search"]`, not `"travel.search"`. This prevents a breaking change when a capability later requires compound authorization (e.g., `["travel.book", "payments.authorize"]`).
 
-The `financial` flag is computed, not declared — it's `true` when the capability has a non-zero financial cost. This lets agents distinguish "irreversible and costs money" (booking a flight) from "irreversible but free" (sending a notification).
+The `financial` flag is computed, not declared — it's `true` when the capability has any financial cost declaration (`cost.financial` is non-null), regardless of cost certainty level. This lets agents distinguish "irreversible and costs money" (booking a flight) from "irreversible but free" (sending a notification). The check is intentionally simple: if a financial cost field exists, the flag is `true`. It doesn't inspect `amount`, `range_min`, or other certainty-specific keys — those details belong to the full manifest.
 
 ### Compliance Detection
 
@@ -312,7 +321,7 @@ Without this rule, implementers will either put everything in `restricted` (maki
 
 **File:** `anip_server/main.py`, lines 178–207
 
-When an agent invokes a capability, four things happen in order:
+When an agent invokes a capability, five things happen in order:
 
 ```python
 # 1. Check capability exists
@@ -325,14 +334,31 @@ cap_declaration = _manifest.capabilities[capability_name]
 # 3. Validate delegation chain
 delegation_failure = validate_delegation(token=..., required_scope=..., capability_name=...)
 if delegation_failure is not None:
+    _log_failure(capability_name, token, delegation_failure)
     return InvokeResponse(success=False, failure=delegation_failure)
 
 # 4. Invoke the capability
 handler = _capability_handlers[capability_name]
-return handler(request.delegation_token, request.parameters)
+result = handler(request.delegation_token, request.parameters)
+
+# 5. Log to audit trail
+_log_invocation(capability_name, token, result)
+return result
 ```
 
-Notice: the endpoint doesn't know anything about flights. It doesn't validate parameters, check prices, or create bookings. It validates the *protocol layer* (does this capability exist? is the delegation valid?) and then hands off to the *capability layer* (the handler function). This separation means adding a new capability requires zero changes to the endpoint — you just add a handler to the registry and a declaration to the manifest.
+Notice: the endpoint doesn't know anything about flights. It doesn't validate parameters, check prices, or create bookings. It validates the *protocol layer* (does this capability exist? is the delegation valid?), hands off to the *capability layer* (the handler function), and logs everything to the audit trail. This separation means adding a new capability requires zero changes to the endpoint — you just add a handler to the registry and a declaration to the manifest.
+
+### Audit Logging
+
+Every invocation — successful or failed — is logged to SQLite with the capability name, delegation chain, timestamp, and a summarized result. The audit log is queryable via the `/anip/audit` endpoint:
+
+```
+GET /anip/audit?capability=book_flight&since=2026-03-07T00:00:00Z&limit=50
+```
+
+This endpoint is part of the observability contract (Primitive 9). The reference implementation returns all matching records; in production, you'd restrict access so that only the root principal of a delegation chain can query their own audit records.
+
+The audit log stores result summaries, not full payloads — booking IDs, result counts, and cost totals, but not the complete flight search results. This keeps the log useful for debugging and compliance without becoming a data retention liability.
 
 ---
 
