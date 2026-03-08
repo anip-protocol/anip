@@ -63,7 +63,7 @@ def get_chain_token_ids(token: DelegationToken) -> list[str]:
 
 def validate_delegation(
     token: DelegationToken,
-    required_scope: str,
+    minimum_scope: list[str],
     capability_name: str,
 ) -> ANIPFailure | None:
     """Validate a delegation token for invoking a capability.
@@ -82,21 +82,24 @@ def validate_delegation(
             retry=True,
         )
 
-    # 2. Check scope — the token must carry the required scope (prefix match)
-    scope_matched = False
-    for scope in token.scope:
-        scope_base = scope.split(":")[0]  # "travel.book:max_$500" → "travel.book"
-        if scope_base == required_scope or required_scope.startswith(scope_base + "."):
-            scope_matched = True
-            break
-    if not scope_matched:
+    # 2. Check scope — the token must carry ALL required scopes (prefix match)
+    token_scope_bases = [s.split(":")[0] for s in token.scope]  # "travel.book:max_$500" → "travel.book"
+    missing_scopes = []
+    for required_scope in minimum_scope:
+        scope_matched = any(
+            scope_base == required_scope or required_scope.startswith(scope_base + ".")
+            for scope_base in token_scope_bases
+        )
+        if not scope_matched:
+            missing_scopes.append(required_scope)
+    if missing_scopes:
         root_principal = get_root_principal(token)
         return ANIPFailure(
             type="insufficient_authority",
-            detail=f"delegation chain lacks scope: {required_scope}",
+            detail=f"delegation chain lacks scope(s): {', '.join(missing_scopes)}",
             resolution=Resolution(
                 action="request_scope_grant",
-                requires=f"delegation.scope += {required_scope}",
+                requires=f"delegation.scope += {', '.join(missing_scopes)}",
                 grantable_by=root_principal,
             ),
             retry=True,

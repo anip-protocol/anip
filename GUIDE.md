@@ -129,7 +129,7 @@ Compare the two declarations side by side:
 |-------|-------------------|---------------|
 | `side_effect` | `read`, `not_applicable` | `irreversible`, `none` |
 | `cost.certainty` | `fixed` ($0.00) | `estimated` ($280–$500) |
-| `required_scope` | `travel.search` | `travel.book` |
+| `minimum_scope` | `["travel.search"]` | `["travel.book"]` |
 | `requires` | *(none)* | `search_flights` |
 | `observability.fields_logged` | parameters, result_count | parameters, result, cost_actual, delegation_chain |
 
@@ -193,10 +193,15 @@ The order matters. Expiry is cheapest to check, so it goes first. Parent chain v
 ### Scope Matching
 
 ```python
-for scope in token.scope:
-    scope_base = scope.split(":")[0]  # "travel.book:max_$500" → "travel.book"
-    if scope_base == required_scope or required_scope.startswith(scope_base + "."):
-        scope_matched = True
+for required in minimum_scope:
+    matched = False
+    for scope in token.scope:
+        scope_base = scope.split(":")[0]  # "travel.book:max_$500" → "travel.book"
+        if scope_base == required or required.startswith(scope_base + "."):
+            matched = True
+            break
+    if not matched:
+        scope_matched = False
         break
 ```
 
@@ -263,7 +268,7 @@ capabilities_summary = {
     name: {
         "description": cap.description,
         "side_effect": cap.side_effect.type.value,
-        "minimum_scope": [cap.required_scope],
+        "minimum_scope": cap.minimum_scope,
         "financial": cap.cost.financial is not None,
         "contract": cap.contract_version,
     }
@@ -332,7 +337,7 @@ if capability_name not in _capability_handlers:
 cap_declaration = _manifest.capabilities[capability_name]
 
 # 3. Validate delegation chain
-delegation_failure = validate_delegation(token=..., required_scope=..., capability_name=...)
+delegation_failure = validate_delegation(token=..., minimum_scope=..., capability_name=...)
 if delegation_failure is not None:
     _log_failure(capability_name, token, delegation_failure)
     return InvokeResponse(success=False, failure=delegation_failure)

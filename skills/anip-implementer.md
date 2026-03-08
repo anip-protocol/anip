@@ -83,7 +83,7 @@ Each capability your service exposes needs a full declaration. This is the most 
 - [ ] `inputs` — list of `{name, type, description, required, default}`
 - [ ] `output` — `{type, fields}` describing the response shape
 - [ ] `side_effect` — type + `rollback_window` (`"none"`, `"PT24H"`, `"not_applicable"`)
-- [ ] `required_scope` — the delegation scope needed to invoke
+- [ ] `minimum_scope` — the delegation scopes needed to invoke (array)
 - [ ] `cost` — certainty level + financial/compute details
 - [ ] `requires` — list of prerequisite capabilities (if any)
 - [ ] `composes_with` — capabilities that work well together (if any)
@@ -200,15 +200,15 @@ anip_discovery:
 
 **What to validate on invocation (in the invoke endpoint):**
 1. Token is not expired
-2. Token scope includes the capability's `required_scope`
+2. Token scope includes the capability's `minimum_scope`
 3. Token purpose matches the capability being invoked
 4. Delegation depth does not exceed `max_delegation_depth`
 5. Parent chain is valid (all ancestors are registered and not expired)
 6. Budget authority is sufficient (if the capability has financial cost)
 
 **Scope matching rules:**
-- `travel.search` matches `required_scope: "travel.search"`
-- `travel.book:max_$500` matches `required_scope: "travel.book"` with a $500 budget constraint
+- `travel.search` matches `minimum_scope: ["travel.search"]`
+- `travel.book:max_$500` matches `minimum_scope: ["travel.book"]` with a $500 budget constraint
 
 > **Open question:** Wildcard scope matching (e.g., `travel.*` matching all `travel.` scopes) is not defined in ANIP v0.1. Do not implement wildcards — two services implementing them differently will break agent interoperability. This is tracked as an open design question in Spec §13.
 
@@ -221,7 +221,7 @@ anip_discovery:
 **Input:** A delegation token.
 
 **Logic:** For each capability in the manifest:
-1. Check if the token's scope covers the capability's `required_scope`
+1. Check if the token's scope covers the capability's `minimum_scope`
 2. If yes → add to `available` with any constraints (e.g., budget limits)
 3. If partially → add to `restricted` with reason
 4. If no → add to `denied` with reason

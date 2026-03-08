@@ -285,9 +285,12 @@
     "side_effect": {
       "$ref": "#/$defs/SideEffect"
     },
-    "required_scope": {
-      "title": "Required Scope",
-      "type": "string"
+    "minimum_scope": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Minimum Scope",
+      "type": "array"
     },
     "cost": {
       "anyOf": [
@@ -335,7 +338,7 @@
     "inputs",
     "output",
     "side_effect",
-    "required_scope"
+    "minimum_scope"
   ],
   "title": "CapabilityDeclaration",
   "type": "object"

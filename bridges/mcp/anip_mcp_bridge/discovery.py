@@ -68,9 +68,7 @@ async def discover_service(anip_url: str) -> ANIPService:
                 description=cap["description"],
                 side_effect=cap["side_effect"]["type"],
                 rollback_window=cap["side_effect"].get("rollback_window"),
-                minimum_scope=[cap["required_scope"]]
-                if isinstance(cap["required_scope"], str)
-                else cap["required_scope"],
+                minimum_scope=cap.get("minimum_scope", cap.get("required_scope", [])),
                 financial=cap.get("cost", {}).get("financial") is not None,
                 contract_version=cap.get("contract_version", "1.0"),
                 inputs=cap.get("inputs", []),

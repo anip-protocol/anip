@@ -562,9 +562,11 @@
         "side_effect": {
           "$ref": "#/$defs/SideEffect"
         },
-        "required_scope": {
-          "title": "Required Scope",
-          "type": "string"
+        "minimum_scope": {
+          "title": "Minimum Scope",
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Delegation scopes required to invoke this capability (AND semantics). Matches discovery document's minimum_scope field."
         },
         "cost": {
           "anyOf": [
@@ -612,7 +614,7 @@
         "inputs",
         "output",
         "side_effect",
-        "required_scope"
+        "minimum_scope"
       ],
       "title": "CapabilityDeclaration",
       "type": "object",
@@ -793,6 +795,26 @@
       "required": [
         "success"
       ],
+      "if": {
+        "properties": { "success": { "const": true } },
+        "required": ["success"]
+      },
+      "then": {
+        "required": ["result"],
+        "properties": {
+          "result": {
+            "not": { "type": "null" }
+          }
+        }
+      },
+      "else": {
+        "required": ["failure"],
+        "properties": {
+          "failure": {
+            "not": { "type": "null" }
+          }
+        }
+      },
       "title": "InvokeResponse",
       "type": "object",
       "description": "Response from capability invocation — result or failure with optional cost actual. See SPEC.md §6.2."

@@ -42,7 +42,7 @@ export function getRootPrincipal(token: DelegationToken): string {
 
 export function validateDelegation(
   token: DelegationToken,
-  requiredScope: string,
+  requiredScopes: string[],
   capabilityName: string
 ): ANIPFailure | null {
   /**
@@ -66,26 +66,32 @@ export function validateDelegation(
     };
   }
 
-  // 2. Check scope — the token must carry the required scope (prefix match)
-  let scopeMatched = false;
-  for (const scope of token.scope) {
-    const scopeBase = scope.split(":")[0]; // "travel.book:max_$500" -> "travel.book"
-    if (
-      scopeBase === requiredScope ||
-      requiredScope.startsWith(scopeBase + ".")
-    ) {
-      scopeMatched = true;
-      break;
+  // 2. Check scope — the token must carry ALL required scopes (AND semantics)
+  const missingScopes: string[] = [];
+  for (const requiredScope of requiredScopes) {
+    let scopeMatched = false;
+    for (const scope of token.scope) {
+      const scopeBase = scope.split(":")[0]; // "travel.book:max_$500" -> "travel.book"
+      if (
+        scopeBase === requiredScope ||
+        requiredScope.startsWith(scopeBase + ".")
+      ) {
+        scopeMatched = true;
+        break;
+      }
+    }
+    if (!scopeMatched) {
+      missingScopes.push(requiredScope);
     }
   }
-  if (!scopeMatched) {
+  if (missingScopes.length > 0) {
     const rootPrincipal = getRootPrincipal(token);
     return {
       type: "insufficient_authority",
-      detail: `delegation chain lacks scope: ${requiredScope}`,
+      detail: `delegation chain lacks scope: ${missingScopes.join(", ")}`,
       resolution: {
         action: "request_scope_grant",
-        requires: `delegation.scope += ${requiredScope}`,
+        requires: `delegation.scope += ${missingScopes.join(", ")}`,
         grantable_by: rootPrincipal,
         estimated_availability: null,
       },

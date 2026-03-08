@@ -62,15 +62,13 @@ export async function discoverService(anipUrl: string): Promise<ANIPService> {
   const capabilities = new Map<string, ANIPCapability>();
   for (const [name, cap] of Object.entries(manifest.capabilities)) {
     const sideEffect = cap.side_effect as { type: string; rollback_window?: string };
-    const requiredScope = cap.required_scope as string;
+    const minimumScope = cap.minimum_scope as string[];
     capabilities.set(name, {
       name,
       description: cap.description as string,
       sideEffect: sideEffect.type,
       rollbackWindow: sideEffect.rollback_window ?? null,
-      minimumScope: Array.isArray(requiredScope)
-        ? requiredScope
-        : [requiredScope],
+      minimumScope: minimumScope,
       financial: (cap.cost as Record<string, unknown>)?.financial != null,
       contractVersion: (cap.contract_version as string) ?? "1.0",
       inputs: (cap.inputs as ANIPCapability["inputs"]) ?? [],

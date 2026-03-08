@@ -33,7 +33,7 @@ DECLARATION = CapabilityDeclaration(
         fields=["flight_number", "departure_time", "arrival_time", "price", "stops"],
     ),
     side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
-    required_scope="travel.search",
+    minimum_scope=["travel.search"],
     cost=Cost(
         certainty=CostCertainty.FIXED,
         financial=None,

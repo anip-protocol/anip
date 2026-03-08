@@ -26,26 +26,31 @@ def discover_permissions(
     root_principal = get_root_principal(token)
 
     for name, cap in capabilities.items():
-        required = cap.required_scope
+        required_scopes = cap.minimum_scope
 
-        if required in token_scopes:
-            scope_str = token_scopes[required]
+        # Check if all required scopes are present in token
+        missing = [s for s in required_scopes if s not in token_scopes]
+
+        if not missing:
+            # All scopes matched — collect constraints from all matching scopes
             constraints: dict = {}
+            matched_scope_strs = [token_scopes[s] for s in required_scopes if s in token_scopes]
 
-            # Extract budget constraint if present
-            if ":max_$" in scope_str:
-                max_budget = float(scope_str.split(":max_$")[1])
-                constraints["budget_remaining"] = max_budget
-                constraints["currency"] = "USD"
+            # Extract budget constraint if present in any matched scope
+            for scope_str in matched_scope_strs:
+                if ":max_$" in scope_str:
+                    max_budget = float(scope_str.split(":max_$")[1])
+                    constraints["budget_remaining"] = max_budget
+                    constraints["currency"] = "USD"
 
             available.append(
                 AvailableCapability(
                     capability=name,
-                    scope_match=scope_str,
+                    scope_match=", ".join(matched_scope_strs),
                     constraints=constraints,
                 )
             )
-        elif _is_admin_scope(required):
+        elif any(_is_admin_scope(s) for s in missing):
             denied.append(
                 DeniedCapability(
                     capability=name,
@@ -56,7 +61,7 @@ def discover_permissions(
             restricted.append(
                 RestrictedCapability(
                     capability=name,
-                    reason=f"delegation chain lacks scope: {required}",
+                    reason=f"delegation chain lacks scope(s): {', '.join(missing)}",
                     grantable_by=root_principal,
                 )
             )

@@ -47,7 +47,7 @@ export const DECLARATION: CapabilityDeclaration = {
     ],
   },
   side_effect: { type: "read", rollback_window: "not_applicable" },
-  required_scope: "travel.search",
+  minimum_scope: ["travel.search"],
   cost: {
     certainty: "fixed",
     financial: null,

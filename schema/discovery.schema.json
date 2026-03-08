@@ -137,6 +137,17 @@
           },
           "description": "Service-level metadata (RECOMMENDED)"
         }
+      },
+      "if": {
+        "properties": { "compliance": { "const": "anip-complete" } },
+        "required": ["compliance"]
+      },
+      "then": {
+        "properties": {
+          "profile": {
+            "required": ["core", "cost", "capability_graph", "state_session", "observability"]
+          }
+        }
       }
     }
   }

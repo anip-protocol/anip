@@ -101,7 +101,7 @@ search_flights:
 - `output` — what the response contains (type, fields)
 - `side_effect.type` + `side_effect.rollback_window` — severity and reversibility
 - `cost` — see Cost Model section below
-- `required_scope` — the delegation scope needed
+- `minimum_scope` — the delegation scopes needed (array)
 - `requires` — prerequisites (other capabilities you must invoke first)
 - `composes_with` — capabilities that work well together
 

@@ -127,7 +127,7 @@ export const CapabilityDeclaration = z.object({
   inputs: z.array(CapabilityInput),
   output: CapabilityOutput,
   side_effect: SideEffect,
-  required_scope: z.string(), // delegation scope needed to invoke this
+  minimum_scope: z.array(z.string()), // delegation scopes needed to invoke this (AND semantics)
   cost: Cost.nullable().default(null),
   requires: z.array(CapabilityRequirement).default([]),
   composes_with: z.array(CapabilityComposition).default([]),

@@ -124,7 +124,7 @@ class CapabilityDeclaration(BaseModel):
     inputs: list[CapabilityInput]
     output: CapabilityOutput
     side_effect: SideEffect
-    required_scope: str  # delegation scope needed to invoke this
+    minimum_scope: list[str]  # delegation scopes needed to invoke this (AND semantics)
     cost: Cost | None = None
     requires: list[CapabilityRequirement] = Field(default_factory=list)
     composes_with: list[CapabilityComposition] = Field(default_factory=list)

@@ -69,7 +69,7 @@ app.get("/.well-known/anip", (c) => {
     capabilitiesSummary[name] = {
       description: cap.description,
       side_effect: cap.side_effect.type,
-      minimum_scope: [cap.required_scope],
+      minimum_scope: cap.minimum_scope,
       financial: cap.cost?.financial != null,
       contract: cap.contract_version,
     };
@@ -299,7 +299,7 @@ app.post("/anip/invoke/:capability", async (c) => {
   // 4. Validate delegation chain
   const delegationFailure = validateDelegation(
     request.delegation_token,
-    capDeclaration.required_scope,
+    capDeclaration.minimum_scope,
     capabilityName
   );
   if (delegationFailure !== null) {

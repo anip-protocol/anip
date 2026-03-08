@@ -39,7 +39,7 @@ DECLARATION = CapabilityDeclaration(
         fields=["booking_id", "flight_number", "departure_time", "total_cost"],
     ),
     side_effect=SideEffect(type=SideEffectType.IRREVERSIBLE, rollback_window="none"),
-    required_scope="travel.book",
+    minimum_scope=["travel.book"],
     cost=Cost(
         certainty=CostCertainty.ESTIMATED,
         financial={

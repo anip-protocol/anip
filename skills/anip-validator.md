@@ -117,7 +117,7 @@ GET /.well-known/anip → compliance field
    - Manifest `name` matches discovery key
    - Manifest `side_effect.type` matches discovery `side_effect`
    - Manifest `contract_version` matches discovery `contract`
-   - Manifest `required_scope` when wrapped as `[required_scope]` matches discovery `minimum_scope`
+   - Manifest `minimum_scope` matches discovery `minimum_scope` (both are arrays)
 
 3. **Financial flag consistency**
    - If manifest `cost.financial` is non-null → discovery `financial` MUST be `true`

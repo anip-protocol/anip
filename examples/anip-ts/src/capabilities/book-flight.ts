@@ -45,7 +45,7 @@ export const DECLARATION: CapabilityDeclaration = {
     fields: ["booking_id", "flight_number", "departure_time", "total_cost"],
   },
   side_effect: { type: "irreversible", rollback_window: "none" },
-  required_scope: "travel.book",
+  minimum_scope: ["travel.book"],
   cost: {
     certainty: "estimated",
     financial: {

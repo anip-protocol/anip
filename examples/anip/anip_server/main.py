@@ -60,7 +60,7 @@ def discovery(request: Request):
         name: {
             "description": cap.description,
             "side_effect": cap.side_effect.type.value,
-            "minimum_scope": [cap.required_scope],
+            "minimum_scope": cap.minimum_scope,
             "financial": cap.cost.financial is not None,
             "contract": cap.contract_version,
         }
@@ -208,7 +208,7 @@ def invoke_capability(capability_name: str, request: InvokeRequest):
     # 3. Validate delegation chain
     delegation_failure = validate_delegation(
         token=token,
-        required_scope=cap_declaration.required_scope,
+        minimum_scope=cap_declaration.minimum_scope,
         capability_name=capability_name,
     )
     if delegation_failure is not None:
