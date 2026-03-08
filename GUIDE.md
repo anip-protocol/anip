@@ -389,7 +389,7 @@ The demo covers failure scenarios at invocation time, but the earlier steps can 
 | Handshake | `compatible: false` | Stop. The service cannot meet your profile requirements. |
 | Manifest | Schema mismatch with discovery | Treat discovery capability summaries as authoritative. Log the inconsistency. |
 | Token registration | Duplicate `token_id` | Retry with a new `token_id`. |
-| Token registration | Service rejects token | Check `expires` (may be in the past) and `parent` (may reference unregistered token). |
+| Token registration | Service rejects token | Check `expires` (may be in the past), `parent` (may reference unregistered token), or `token_id` (may already be registered with different content — this is a conflict, not a duplicate). |
 | Permission discovery | Empty `available` list | Your delegation token has no usable scope for this service. Escalate to your delegator. |
 
 The principle: fail early and fail clearly. An agent that discovers incompatibility at the handshake step saves every subsequent request. An agent that pushes through a failed handshake will hit confusing errors at invocation time.
