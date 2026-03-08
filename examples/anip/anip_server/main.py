@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from pydantic import BaseModel
 
 from .capabilities import book_flight, search_flights
-from .primitives.delegation import register_token, validate_delegation
+from .data.database import log_invocation, query_audit_log
+from .primitives.delegation import (
+    get_chain_token_ids,
+    get_root_principal,
+    register_token,
+    validate_delegation,
+)
 from .primitives.manifest import build_manifest
 from .primitives.models import (
     ANIPFailure,
@@ -94,6 +101,7 @@ def discovery(request: Request):
                 "invoke": "/anip/invoke/{capability}",
                 "tokens": "/anip/tokens",
                 "graph": "/anip/graph/{capability}",
+                "audit": "/anip/audit",
                 "test": "/anip/test/{capability}",
             },
             "metadata": {
@@ -179,8 +187,11 @@ def query_permissions(token: DelegationToken):
 @app.post("/anip/invoke/{capability_name}", response_model=InvokeResponse)
 def invoke_capability(capability_name: str, request: InvokeRequest):
     """Invoke an ANIP capability with full delegation chain validation."""
+    token = request.delegation_token
+
     # 1. Check capability exists
     if capability_name not in _capability_handlers:
+        _log_failure(capability_name, token, request.parameters, "unknown_capability")
         return InvokeResponse(
             success=False,
             failure=ANIPFailure(
@@ -196,16 +207,110 @@ def invoke_capability(capability_name: str, request: InvokeRequest):
 
     # 3. Validate delegation chain
     delegation_failure = validate_delegation(
-        token=request.delegation_token,
+        token=token,
         required_scope=cap_declaration.required_scope,
         capability_name=capability_name,
     )
     if delegation_failure is not None:
+        _log_failure(capability_name, token, request.parameters, delegation_failure.type)
         return InvokeResponse(success=False, failure=delegation_failure)
 
     # 4. Invoke the capability
     handler = _capability_handlers[capability_name]
-    return handler(request.delegation_token, request.parameters)
+    response = handler(token, request.parameters)
+
+    # 5. Log the invocation
+    _log_invocation(capability_name, token, request.parameters, response)
+
+    return response
+
+
+def _log_invocation(
+    capability_name: str,
+    token: DelegationToken,
+    parameters: dict[str, Any],
+    response: InvokeResponse,
+) -> None:
+    """Log a successful or failed capability invocation."""
+    log_invocation(
+        capability=capability_name,
+        token_id=token.token_id,
+        issuer=token.issuer,
+        subject=token.subject,
+        root_principal=get_root_principal(token),
+        parameters=parameters,
+        success=response.success,
+        result_summary=_summarize_result(response.result) if response.success else None,
+        failure_type=response.failure.type if response.failure else None,
+        cost_actual=response.cost_actual.model_dump() if response.cost_actual else None,
+        delegation_chain=get_chain_token_ids(token),
+    )
+
+
+def _log_failure(
+    capability_name: str,
+    token: DelegationToken,
+    parameters: dict[str, Any],
+    failure_type: str,
+) -> None:
+    """Log a pre-invocation failure (delegation validation, unknown capability)."""
+    log_invocation(
+        capability=capability_name,
+        token_id=token.token_id,
+        issuer=token.issuer,
+        subject=token.subject,
+        root_principal=get_root_principal(token),
+        parameters=parameters,
+        success=False,
+        failure_type=failure_type,
+        delegation_chain=get_chain_token_ids(token),
+    )
+
+
+def _summarize_result(result: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Create a summary of the result for audit logging (avoid storing large payloads)."""
+    if result is None:
+        return None
+    summary: dict[str, Any] = {}
+    if "booking_id" in result:
+        summary["booking_id"] = result["booking_id"]
+    if "count" in result:
+        summary["result_count"] = result["count"]
+    if "total_cost" in result:
+        summary["total_cost"] = result["total_cost"]
+    return summary if summary else {"type": "result_logged"}
+
+
+# --- Audit / Observability ---
+
+
+@app.get("/anip/audit")
+def get_audit_log(
+    token: DelegationToken | None = None,
+    capability: str | None = Query(None),
+    since: str | None = Query(None),
+    limit: int = Query(100, le=1000),
+):
+    """Query the audit log.
+
+    Access is restricted by the observability contract:
+    only the root principal of the delegation chain can access
+    their own audit records.
+    """
+    # For now, return all matching records.
+    # In production, filter by root_principal from the token.
+    entries = query_audit_log(
+        capability=capability,
+        since=since,
+        limit=limit,
+    )
+
+    return {
+        "entries": entries,
+        "count": len(entries),
+        "capability_filter": capability,
+        "since_filter": since,
+    }
 
 
 # --- Capability Graph ---

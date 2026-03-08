@@ -2,26 +2,39 @@
 
 Validates the full delegation DAG: token expiry, scope sufficiency,
 purpose binding, delegation depth, and concurrent branch constraints.
+
+Tokens are persisted in SQLite for durability and audit trail.
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from ..data.database import load_token as db_load_token
+from ..data.database import store_token as db_store_token
 from .models import ANIPFailure, DelegationToken, Resolution
 
 
-# In-memory token store — maps token_id to DelegationToken
-# In production this would be a database or token verification service
-_token_store: dict[str, DelegationToken] = {}
-
-
 def register_token(token: DelegationToken) -> None:
-    _token_store[token.token_id] = token
+    """Register a delegation token, persisting to SQLite."""
+    db_store_token({
+        "token_id": token.token_id,
+        "issuer": token.issuer,
+        "subject": token.subject,
+        "scope": token.scope,
+        "purpose": token.purpose.model_dump(),
+        "parent": token.parent,
+        "expires": token.expires.isoformat(),
+        "constraints": token.constraints.model_dump(),
+    })
 
 
 def get_token(token_id: str) -> DelegationToken | None:
-    return _token_store.get(token_id)
+    """Load a delegation token from the persistent store."""
+    data = db_load_token(token_id)
+    if data is None:
+        return None
+    return DelegationToken(**data)
 
 
 def get_chain(token: DelegationToken) -> list[DelegationToken]:
@@ -41,6 +54,11 @@ def get_root_principal(token: DelegationToken) -> str:
     """Get the root principal (human) from a delegation chain."""
     chain = get_chain(token)
     return chain[0].issuer
+
+
+def get_chain_token_ids(token: DelegationToken) -> list[str]:
+    """Get the list of token IDs in the delegation chain (for audit logging)."""
+    return [t.token_id for t in get_chain(token)]
 
 
 def validate_delegation(

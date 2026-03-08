@@ -1,8 +1,10 @@
-"""Stub flight data — in-memory, no database."""
+"""Flight data — static inventory + SQLite-persisted bookings."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+
+from .database import load_booking, next_booking_id, store_booking
 
 
 @dataclass
@@ -28,7 +30,7 @@ class Booking:
     on_behalf_of: str  # root principal
 
 
-# Stub flight inventory
+# Stub flight inventory (static — doesn't need persistence)
 FLIGHTS: list[Flight] = [
     Flight("AA100", "SEA", "SFO", "2026-03-10", "08:00", "10:15", 420.00),
     Flight("UA205", "SEA", "SFO", "2026-03-10", "11:30", "13:45", 380.00),
@@ -37,10 +39,6 @@ FLIGHTS: list[Flight] = [
     Flight("UA450", "SEA", "LAX", "2026-03-10", "09:00", "11:30", 350.00),
     Flight("DL520", "SFO", "JFK", "2026-03-12", "06:00", "14:30", 580.00),
 ]
-
-# In-memory booking store
-_bookings: dict[str, Booking] = {}
-_next_booking_id = 1
 
 
 def search_flights(origin: str, destination: str, date: str) -> list[Flight]:
@@ -63,9 +61,7 @@ def create_booking(
     booked_by: str,
     on_behalf_of: str,
 ) -> Booking:
-    global _next_booking_id
-    booking_id = f"BK-{_next_booking_id:04d}"
-    _next_booking_id += 1
+    booking_id = next_booking_id()
     booking = Booking(
         booking_id=booking_id,
         flight=flight,
@@ -74,9 +70,19 @@ def create_booking(
         booked_by=booked_by,
         on_behalf_of=on_behalf_of,
     )
-    _bookings[booking_id] = booking
+    # Persist to SQLite
+    store_booking({
+        "booking_id": booking_id,
+        "flight_number": flight.flight_number,
+        "flight_date": flight.date,
+        "passengers": passengers,
+        "total_cost": booking.total_cost,
+        "currency": flight.currency,
+        "booked_by": booked_by,
+        "on_behalf_of": on_behalf_of,
+    })
     return booking
 
 
-def get_booking(booking_id: str) -> Booking | None:
-    return _bookings.get(booking_id)
+def get_booking(booking_id: str) -> dict | None:
+    return load_booking(booking_id)
