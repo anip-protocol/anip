@@ -87,7 +87,9 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 - [Manifesto](MANIFESTO.md) — why this moment matters
 - [Spec](SPEC.md) — the technical design (v0.1)
 - [Guide](GUIDE.md) — walkthrough of the reference implementation with design rationale
-- [Reference implementation](examples/anip/) — working ANIP service (Python/FastAPI) with full demo
+- [Reference implementation — Python](examples/anip/) — FastAPI + SQLite, full demo with audit logging
+- [Reference implementation — TypeScript](examples/anip-ts/) — Hono + Zod, same capabilities and endpoints
+- [JSON Schema](schema/) — validate any ANIP implementation against the spec
 - [Agent skills](skills/) — machine-optimized guides for consuming and building ANIP services
 - [Open questions](SPEC.md#open-questions) — where we need input
 
