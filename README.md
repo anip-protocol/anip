@@ -2,7 +2,7 @@
 
 > A protocol for software interfaces designed from the ground up for AI agents, not humans.
 
-Read the [Manifesto](MANIFESTO.md) | Read the [Spec](SPEC.md) | [Contribute](CONTRIBUTING.md)
+Read the [Manifesto](MANIFESTO.md) | Read the [Spec](SPEC.md) | Read the [Guide](GUIDE.md) | [Contribute](CONTRIBUTING.md)
 
 ---
 
@@ -86,6 +86,7 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 **What exists today:**
 - [Manifesto](MANIFESTO.md) — why this moment matters
 - [Spec](SPEC.md) — the technical design (v0.1)
+- [Guide](GUIDE.md) — walkthrough of the reference implementation with design rationale
 - [Reference implementation](examples/anip/) — working ANIP service (Python/FastAPI) with full demo
 - [Agent skills](skills/) — machine-optimized guides for consuming and building ANIP services
 - [Open questions](SPEC.md#open-questions) — where we need input
