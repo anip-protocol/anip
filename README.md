@@ -90,6 +90,26 @@ ANIP scales down gracefully. A read-only service with no auth needs only the 5 c
 
 HTTP isn't overkill for serving a single static HTML file. The protocol is the same — GET, 200, content. The simplicity of the content doesn't make the protocol unnecessary. What makes HTTP unnecessary is when you're not on the web at all. Same with ANIP — what makes it unnecessary is when there's no agent in the picture.
 
+## Why Implement ANIP First
+
+The adoption argument we didn't expect: implement ANIP once and you get every surface for free.
+
+ANIP ships with generic adapters for REST/OpenAPI, GraphQL, and MCP. They're fully generic — point any adapter at any ANIP service URL and it auto-generates the entire surface. No per-service code. No glue. No second implementation.
+
+```
+                              ┌─→ REST/OpenAPI (auto-generated spec + Swagger UI)
+                              │
+ANIP service ──→ adapters ────┼─→ GraphQL (auto-generated schema + directives)
+                              │
+                              └─→ MCP (auto-generated tools for Claude, Cursor, etc.)
+```
+
+This inverts the usual calculus. The conventional path — build a REST API, then layer MCP on top for agents — gives you two surfaces that each need maintenance and neither speaks the agent's language natively. ANIP gives you the native agent interface *and* REST, GraphQL, and MCP as byproducts. You're actually better off implementing ANIP than building REST first.
+
+Standard REST and GraphQL clients work normally — they ignore the ANIP metadata (`x-anip-*` OpenAPI extensions, `@anip*` GraphQL directives). ANIP-aware agents use the metadata for delegation, cost awareness, and side-effect reasoning. Graceful degradation by design.
+
+**One honest caveat.** The REST and GraphQL adapters simplify the delegation chain to a single identity. For read and write capabilities, that's fine. For irreversible financial operations, native ANIP is strongly recommended — purpose-bound authority and multi-hop delegation don't survive the translation. The [adapter READMEs](adapters/) document the exact translation loss for each surface.
+
 ## Core Principles
 
 ANIP defines 9 primitives in two tiers:
