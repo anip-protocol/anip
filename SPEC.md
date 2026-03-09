@@ -691,6 +691,8 @@ budget: { ... }           # optional, for cost negotiation
 
 The service MUST validate the delegation token before processing. The service MUST return an ANIP failure object (not an HTTP error) for any authorization, budget, or purpose-binding failure.
 
+The service MUST enforce budget constraints carried in the delegation token's scope. If a scope string includes a budget constraint (e.g., `travel.book:max_$500`) and the capability's cost exceeds that constraint, the service MUST reject the invocation with a `budget_exceeded` failure before executing the capability. Budget enforcement is not optional — a service that accepts a delegation token with budget constraints and ignores them violates the delegation contract.
+
 #### Capability Graph — `GET {graph}/{capability}`
 
 **Request:** No body.
@@ -881,7 +883,28 @@ The following are explicitly out of scope for ANIP v1:
 
 ---
 
-## 13. Open Questions
+## 13. Roadmap: v0.1 → v2
+
+Not all gaps are equal. The critical distinction is between *protocol requirement level* (what the spec mandates), *reference implementation status* (what the code ships), and *future protocol work* (what requires interoperability design). Conflating these overpromises. Each feature below is categorized across all three dimensions — an empty cell means no claim is being made.
+
+| Feature | Protocol Requirement Level | Reference Implementation Status | Future Protocol Work |
+|---------|---------------------------|--------------------------------|---------------------|
+| **Budget enforcement** | MUST — v1 core (§6.3) | Implemented | — |
+| **Scope narrowing** | MUST — v1.x | Implemented: reference servers reject child tokens that widen parent scope | — |
+| **Concurrent branch exclusivity** | SHOULD — v1.x | Implemented: reference servers enforce `concurrent_branches: "exclusive"` per root principal | Distributed enforcement across replicas is a deployment concern |
+| **Cost variance tracking** | MAY — v1.x | Implemented: reference servers record declared vs actual costs in audit log | — |
+| **Signed delegation tokens** | OPTIONAL — experimental extension | JWT signing available as implementation choice | Interoperable trust semantics: issuer trust, revocation, DAG-aware key discovery, format standardization |
+| **Side-effect contract testing** | — | — | Sandbox infrastructure with behavioral fidelity and isolation guarantees (§7) |
+| **Audit log integrity** | — | — | Append-only infrastructure, third-party attestation |
+| **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation, format standardization (JWT, W3C VC, or ANIP-native) |
+
+The guiding principle: v0.1 declares the contracts. v1.x reference implementations enforce what they can. v2 makes protocol-level guarantees that hold across implementations. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
+
+**What solving these gaps unlocks.** When trust and verification become real — not declarative — agents can evaluate risk before acting. Delegated authority becomes expressible in ways current tool layers can't handle. Failures become operationally useful, not just descriptive. High-stakes actions — travel, procurement, finance ops, approvals, multi-step orchestration — become automatable with real control surfaces. At that point, ANIP solves one of the central coordination problems of agent deployment: how an agent knows what it's allowed to do, what will happen if it does it, and how to recover when something blocks it.
+
+---
+
+## 14. Open Questions
 
 These are unresolved design questions where community input is needed:
 

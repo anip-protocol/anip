@@ -11,6 +11,9 @@ import type { ANIPFailure, DelegationToken } from "../types.js";
 // In production this would be a database or token verification service
 const tokenStore: Map<string, DelegationToken> = new Map();
 
+// Active request tracking for concurrent_branches enforcement
+const activeRequests: Set<string> = new Set();
+
 export function registerToken(token: DelegationToken): void {
   tokenStore.set(token.token_id, token);
 }
@@ -133,12 +136,23 @@ export function validateDelegation(
     };
   }
 
-  // 5. concurrent_branches — NOT YET ENFORCED
-  // The spec requires that when constraints.concurrent_branches == "exclusive",
-  // the service MUST reject concurrent requests from the same root principal.
-  // Enforcement requires session-level state tracking (e.g., active request
-  // counting per root_principal). This is declared but not enforced in v0.1.
-  // See: SPEC.md § Delegation Chain, concurrent_branches constraint.
+  // 5. Enforce concurrent_branches — reject if exclusive and another request is active
+  if (token.constraints.concurrent_branches === "exclusive") {
+    const root = getRootPrincipal(token);
+    if (activeRequests.has(root)) {
+      return {
+        type: "concurrent_request_rejected",
+        detail: `concurrent_branches is exclusive and another request from ${root} is in progress`,
+        resolution: {
+          action: "wait_and_retry",
+          grantable_by: root,
+          requires: null,
+          estimated_availability: null,
+        },
+        retry: true,
+      };
+    }
+  }
 
   // 6. Validate parent chain — every parent must also be valid and not expired
   for (const ancestor of chain.slice(0, -1)) {
@@ -160,6 +174,88 @@ export function validateDelegation(
   }
 
   return null; // all checks passed
+}
+
+export function acquireExclusiveLock(token: DelegationToken): void {
+  if (token.constraints.concurrent_branches === "exclusive") {
+    activeRequests.add(getRootPrincipal(token));
+  }
+}
+
+export function releaseExclusiveLock(token: DelegationToken): void {
+  if (token.constraints.concurrent_branches === "exclusive") {
+    activeRequests.delete(getRootPrincipal(token));
+  }
+}
+
+export function validateScopeNarrowing(token: DelegationToken): ANIPFailure | null {
+  /**
+   * Validate that a child token's scope is a subset of its parent's scope.
+   * Returns null if valid (or no parent), or an ANIPFailure if scope widens.
+   */
+  if (token.parent === null) {
+    return null; // root tokens have no parent to narrow from
+  }
+
+  const parent = getToken(token.parent);
+  if (parent === null) {
+    return null; // parent not registered — can't validate
+  }
+
+  const parentScopeBases = new Set(parent.scope.map((s) => s.split(":")[0]));
+
+  for (const childScope of token.scope) {
+    const childBase = childScope.split(":")[0];
+
+    // Child scope base must match or be narrower than a parent scope base
+    let matched = false;
+    for (const parentBase of parentScopeBases) {
+      if (childBase === parentBase || childBase.startsWith(parentBase + ".")) {
+        matched = true;
+        break;
+      }
+    }
+
+    if (!matched) {
+      return {
+        type: "scope_escalation",
+        detail: `child token scope '${childBase}' is not a subset of parent token scopes: ${[...parentScopeBases].sort().join(", ")}`,
+        resolution: {
+          action: "narrow_scope",
+          requires: "child scope must be subset of parent scope",
+          grantable_by: parent.issuer,
+          estimated_availability: null,
+        },
+        retry: false,
+      };
+    }
+
+    // Check budget narrowing: child budget constraint must not exceed parent's
+    if (childScope.includes(":max_$")) {
+      const childBudget = parseFloat(childScope.split(":max_$")[1]);
+      for (const parentScopeStr of parent.scope) {
+        const pBase = parentScopeStr.split(":")[0];
+        if (pBase === childBase && parentScopeStr.includes(":max_$")) {
+          const parentBudget = parseFloat(parentScopeStr.split(":max_$")[1]);
+          if (childBudget > parentBudget) {
+            return {
+              type: "scope_escalation",
+              detail: `child budget $${childBudget} exceeds parent budget $${parentBudget} for scope '${childBase}'`,
+              resolution: {
+                action: "narrow_budget",
+                requires: `budget must be <= $${parentBudget}`,
+                grantable_by: parent.issuer,
+                estimated_availability: null,
+              },
+              retry: false,
+            };
+          }
+        }
+      }
+    }
+  }
+
+  return null;
 }
 
 export function checkBudgetAuthority(

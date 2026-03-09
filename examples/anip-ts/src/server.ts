@@ -10,7 +10,7 @@ import { Hono } from "hono";
 import { invoke as invokeBookFlight } from "./capabilities/book-flight.js";
 import { invoke as invokeSearchFlights } from "./capabilities/search-flights.js";
 import { buildManifest } from "./primitives/manifest.js";
-import { registerToken, validateDelegation, getChain, getRootPrincipal } from "./primitives/delegation.js";
+import { registerToken, validateDelegation, getChain, getRootPrincipal, acquireExclusiveLock, releaseExclusiveLock, validateScopeNarrowing } from "./primitives/delegation.js";
 import { discoverPermissions } from "./primitives/permissions.js";
 import {
   DelegationToken,
@@ -37,6 +37,7 @@ interface AuditEntry {
   result_summary: Record<string, unknown> | null;
   failure_type: string | null;
   cost_actual: Record<string, unknown> | null;
+  cost_variance: Record<string, unknown> | null;
   delegation_chain: string[];
 }
 
@@ -44,6 +45,43 @@ const auditLog: AuditEntry[] = [];
 
 function logInvocation(entry: AuditEntry): void {
   auditLog.push(entry);
+}
+
+function calculateCostVariance(
+  capabilityName: string,
+  response: InvokeResponse,
+): Record<string, unknown> | null {
+  if (!response.success || !response.cost_actual) return null;
+
+  const cap = manifest.capabilities[capabilityName];
+  if (!cap?.cost?.financial) return null;
+
+  const declared = cap.cost.financial as Record<string, unknown>;
+  const actualAmount = (response.cost_actual as Record<string, unknown>)?.financial as Record<string, unknown> | undefined;
+  if (!actualAmount?.amount) return null;
+
+  const amount = actualAmount.amount as number;
+  const typical = declared.typical as number | undefined;
+  const rangeMin = declared.range_min as number | undefined;
+  const rangeMax = declared.range_max as number | undefined;
+
+  const variance: Record<string, unknown> = {
+    actual: amount,
+    currency: (declared.currency as string) ?? "USD",
+    certainty: cap.cost.certainty,
+  };
+
+  if (typical !== undefined) {
+    variance.declared_typical = typical;
+    variance.variance_from_typical_pct = Math.round(((amount - typical) / typical) * 1000) / 10;
+  }
+
+  if (rangeMin !== undefined && rangeMax !== undefined) {
+    variance.declared_range = { min: rangeMin, max: rangeMax };
+    variance.within_declared_range = amount >= rangeMin && amount <= rangeMax;
+  }
+
+  return variance;
 }
 
 function summarizeResult(result: Record<string, unknown> | null): Record<string, unknown> | null {
@@ -235,6 +273,13 @@ app.post("/anip/tokens", async (c) => {
   }
 
   const token = parseResult.data;
+
+  // Validate scope narrowing: child tokens cannot widen parent scope
+  const scopeFailure = validateScopeNarrowing(token);
+  if (scopeFailure !== null) {
+    return c.json({ registered: false, error: scopeFailure.detail });
+  }
+
   registerToken(token);
   return c.json({ registered: true, token_id: token.token_id });
 });
@@ -343,25 +388,33 @@ app.post("/anip/invoke/:capability", async (c) => {
     return c.json(response);
   }
 
-  // 5. Invoke the capability
-  const handler = capabilityHandlers[capabilityName];
-  const response = handler(request.delegation_token, request.parameters);
+  // 5. Acquire exclusive lock if needed
+  acquireExclusiveLock(request.delegation_token);
+  try {
+    // 6. Invoke the capability
+    const handler = capabilityHandlers[capabilityName];
+    const response = handler(request.delegation_token, request.parameters);
 
-  // 6. Log to audit trail
-  const chain = getChain(request.delegation_token);
-  logInvocation({
-    capability: capabilityName,
-    timestamp: new Date().toISOString(),
-    token_id: request.delegation_token.token_id,
-    root_principal: getRootPrincipal(request.delegation_token),
-    success: response.success,
-    result_summary: response.success ? summarizeResult(response.result as Record<string, unknown>) : null,
-    failure_type: response.failure?.type ?? null,
-    cost_actual: response.cost_actual as Record<string, unknown> | null,
-    delegation_chain: chain.map((t) => t.token_id),
-  });
+    // 7. Log to audit trail
+    const chain = getChain(request.delegation_token);
+    const costVariance = calculateCostVariance(capabilityName, response);
+    logInvocation({
+      capability: capabilityName,
+      timestamp: new Date().toISOString(),
+      token_id: request.delegation_token.token_id,
+      root_principal: getRootPrincipal(request.delegation_token),
+      success: response.success,
+      result_summary: response.success ? summarizeResult(response.result as Record<string, unknown>) : null,
+      failure_type: response.failure?.type ?? null,
+      cost_actual: response.cost_actual as Record<string, unknown> | null,
+      cost_variance: costVariance,
+      delegation_chain: chain.map((t) => t.token_id),
+    });
 
-  return c.json(response);
+    return c.json(response);
+  } finally {
+    releaseExclusiveLock(request.delegation_token);
+  }
 });
 
 // --- Capability Graph ---

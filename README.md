@@ -2,6 +2,8 @@
 
 > REST APIs are simple. ANIP gives agents confidence.
 
+The value is not "agents can call APIs better." The value is "agents can reason before acting."
+
 Read the [Manifesto](MANIFESTO.md) | Read the [Spec](SPEC.md) | Read the [Guide](GUIDE.md) | [Contribute](CONTRIBUTING.md)
 
 ---
