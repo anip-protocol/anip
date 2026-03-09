@@ -885,19 +885,30 @@ The following are explicitly out of scope for ANIP v1:
 
 ## 13. Roadmap: v0.1 → v2
 
-The following table maps known v0.1 enforceability gaps to their planned resolution mechanisms:
+Not all gaps are equal. Some are implementation work tractable in v1.x. Others require protocol-level design decisions that should not be rushed — signing a JWT is a weekend of work, but interoperable trust semantics (issuer trust, revocation, DAG-aware key discovery) are not.
+
+### v1.x — Implementable now
+
+These gaps are well-understood, high-value, and don't require protocol-level design decisions beyond what v0.1 already defines:
+
+| Gap | v0.1 Status | v1.x Target |
+|-----|------------|-------------|
+| **Budget constraint enforcement** | MUST (§6.3) — already normative and implemented in reference servers | Runtime budget tracking across delegation chains |
+| **Concurrent branch exclusivity** | Declared but not enforced — `concurrent_branches: "exclusive"` exists in the token schema | Enforce in reference implementations; single-service enforcement is straightforward, distributed enforcement is a deployment concern |
+| **Scope narrowing in delegation chains** | Semantic rule — child tokens should not widen parent scope — but not structurally enforced | Structural enforcement at token registration: service rejects tokens where child scope is not a subset of parent scope |
+| **Cost variance tracking** | Declared certainty levels (`fixed`/`estimated`/`dynamic`) but no verification that actuals match declarations | Record declared vs actual costs; surface variance as an observability/conformance signal |
+
+### v2 — Requires protocol-level design
+
+These gaps involve trust infrastructure, interoperability decisions, or external dependencies that cannot be solved by a single implementation:
 
 | Gap | v0.1 Status | v2 Target |
 |-----|------------|-----------|
-| **Side-effect declarations** | Trust-on-declaration — services declare `read`/`write`/`irreversible` without verification | Contract testing in sandboxed mode (§7) verifies declared side-effects match actual behavior |
-| **Delegation token authenticity** | Trust-on-declaration — tokens are accepted without cryptographic verification | Signed delegation tokens with verifiable key chains; format TBD (JWT, W3C VC, or ANIP-native) |
-| **Budget constraint enforcement** | MUST (§6.3) — services must honor budget constraints in delegation scope | Runtime budget tracking across delegation chains; authorization server may enforce cross-service budgets |
-| **Concurrent branch exclusivity** | Declared but not enforced — `concurrent_branches: "exclusive"` is a constraint in the token schema but implementations are not required to enforce it in v0.1 | Session-level state tracking with active request counting per root principal |
-| **Cost accuracy** | Declared certainty levels (`fixed`/`estimated`/`dynamic`) but no verification that actuals match declarations | Variance tracking (§5.1) feeds into reputation model; persistent variance flags untrusted services |
-| **Scope narrowing in delegation chains** | Semantic rule — child tokens should not widen parent scope — but not structurally enforced | Structural enforcement: service rejects tokens where child scope is not a subset of parent scope |
+| **Delegation token authenticity** | Trust-on-declaration — tokens are accepted without cryptographic verification | Signed delegation tokens with verifiable key chains; format TBD (JWT, W3C VC, or ANIP-native). The hard problems are issuer trust, revocation, parent-chain representation in DAG structures, and key discovery — not signing itself |
+| **Side-effect contract testing** | Trust-on-declaration — services declare side-effects without verification | Contract testing in sandboxed mode (§7) with behavioral fidelity; requires sandbox infrastructure and isolation guarantees |
 | **Audit log integrity** | Service-controlled — the service writes and serves its own audit log | Third-party attestation or append-only audit infrastructure with independent verification |
 
-The guiding principle: v0.1 declares the contracts. v2 verifies them. Every gap above is a place where the protocol currently trusts a declaration that will eventually require proof.
+The guiding principle: v0.1 declares the contracts. v1.x enforces what it can. v2 verifies what it must. The distinction is not coding difficulty — it is protocol maturity. A single implementation can land meaningful improvements quickly; a protocol guarantee requires interoperability, not just code.
 
 **What solving these gaps unlocks.** When trust and verification become real — not declarative — agents can evaluate risk before acting. Delegated authority becomes expressible in ways current tool layers can't handle. Failures become operationally useful, not just descriptive. High-stakes actions — travel, procurement, finance ops, approvals, multi-step orchestration — become automatable with real control surfaces. At that point, ANIP solves one of the central coordination problems of agent deployment: how an agent knows what it's allowed to do, what will happen if it does it, and how to recover when something blocks it.
 
