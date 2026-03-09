@@ -10,7 +10,7 @@ import { Hono } from "hono";
 import { invoke as invokeBookFlight } from "./capabilities/book-flight.js";
 import { invoke as invokeSearchFlights } from "./capabilities/search-flights.js";
 import { buildManifest } from "./primitives/manifest.js";
-import { registerToken, validateDelegation, validateParentExists, validateConstraintsNarrowing, getChain, getRootPrincipal, acquireExclusiveLock, releaseExclusiveLock, validateScopeNarrowing } from "./primitives/delegation.js";
+import { registerToken, validateDelegation, validateParentExists, validateConstraintsNarrowing, validateTokenRegistered, getChain, getRootPrincipal, acquireExclusiveLock, releaseExclusiveLock, validateScopeNarrowing } from "./primitives/delegation.js";
 import { discoverPermissions } from "./primitives/permissions.js";
 import {
   DelegationToken,
@@ -323,6 +323,16 @@ app.post("/anip/permissions", async (c) => {
   }
 
   const token = parseResult.data;
+
+  // Verify the token is registered — prevents forged tokens from querying permissions
+  const regFailure = validateTokenRegistered(token);
+  if (regFailure !== null) {
+    return c.json({
+      success: false,
+      failure: regFailure,
+    });
+  }
+
   return c.json(discoverPermissions(token, manifest.capabilities));
 });
 
@@ -480,6 +490,16 @@ app.post("/anip/audit", async (c) => {
   }
 
   const token = parseResult.data;
+
+  // Verify the token is registered — prevents forged tokens from querying audit data
+  const regFailure = validateTokenRegistered(token);
+  if (regFailure !== null) {
+    return c.json({
+      success: false,
+      failure: regFailure,
+    }, 401);
+  }
+
   const rootPrincipal = getRootPrincipal(token);
 
   const capability = c.req.query("capability") ?? null;

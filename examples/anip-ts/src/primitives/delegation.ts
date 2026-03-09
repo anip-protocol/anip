@@ -68,6 +68,29 @@ export function getRootPrincipal(token: DelegationToken): string {
   return chain[0].issuer;
 }
 
+export function validateTokenRegistered(token: DelegationToken): ANIPFailure | null {
+  /**
+   * Verify that the presented token is registered in the token store.
+   * Prevents forged tokens from bypassing registration-time validation
+   * (scope narrowing, budget constraints, constraint narrowing).
+   */
+  const stored = getToken(token.token_id);
+  if (stored === null) {
+    return {
+      type: "token_not_registered",
+      detail: `delegation token '${token.token_id}' is not registered — register via /anip/tokens first`,
+      resolution: {
+        action: "register_token",
+        requires: "token must be registered before use",
+        grantable_by: token.issuer,
+        estimated_availability: null,
+      },
+      retry: true,
+    };
+  }
+  return null;
+}
+
 export function validateDelegation(
   token: DelegationToken,
   requiredScopes: string[],
@@ -77,6 +100,12 @@ export function validateDelegation(
    * Validate a delegation token for invoking a capability.
    * Returns null if valid, or an ANIPFailure describing what's wrong.
    */
+
+  // 0. Verify the token itself is registered (prevents forged leaf tokens)
+  const registrationFailure = validateTokenRegistered(token);
+  if (registrationFailure !== null) {
+    return registrationFailure;
+  }
 
   // 1. Check expiry
   const expiresDate = new Date(token.expires);
