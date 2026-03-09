@@ -898,7 +898,7 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 |---------|---------------------------|--------------------------------|---------------------|
 | **Budget enforcement** | MUST — v1 core (§6.3) | Implemented | — |
 | **Scope narrowing** | MUST — v1.x | Implemented: reference servers reject child tokens that widen parent scope | — |
-| **Concurrent branch exclusivity** | SHOULD — v1.x | Implemented: reference servers enforce `concurrent_branches: "exclusive"` per root principal | Distributed enforcement across replicas is a deployment concern |
+| **Concurrent branch exclusivity** | SHOULD — v1.x | Implemented: reference servers enforce `concurrent_branches: "exclusive"` per root principal with atomic check-and-acquire (Python uses `threading.Lock`; TypeScript is single-threaded) | Distributed enforcement across replicas is a deployment concern |
 | **Cost variance tracking** | MAY — v1.x | Implemented: reference servers record declared vs actual costs in audit log | — |
 | **Signed delegation tokens** | OPTIONAL — experimental extension | JWT signing available as implementation choice | Interoperable trust semantics: issuer trust, revocation, DAG-aware key discovery, format standardization |
 | **Side-effect contract testing** | — | — | Sandbox infrastructure with behavioral fidelity and isolation guarantees (§7) |

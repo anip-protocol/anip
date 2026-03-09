@@ -244,8 +244,11 @@ def invoke_capability(capability_name: str, request: InvokeRequest):
     # Use the stored token for all downstream operations (lock, handler, audit)
     token = delegation_result
 
-    # 4. Acquire exclusive lock if needed
-    acquire_exclusive_lock(token)
+    # 4. Acquire exclusive lock if needed (atomic check-and-acquire)
+    lock_failure = acquire_exclusive_lock(token)
+    if lock_failure is not None:
+        _log_failure(capability_name, token, request.parameters, lock_failure.type)
+        return InvokeResponse(success=False, failure=lock_failure)
     try:
         # 5. Invoke the capability
         handler = _capability_handlers[capability_name]

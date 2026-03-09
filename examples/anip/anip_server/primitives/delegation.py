@@ -12,10 +12,13 @@ from datetime import datetime, timezone
 
 from ..data.database import load_token as db_load_token
 from ..data.database import store_token as db_store_token
+import threading
+
 from .models import ANIPFailure, ConcurrentBranches, DelegationToken, Resolution
 
 # Active request tracking for concurrent_branches enforcement
 _active_requests: set[str] = set()
+_active_requests_lock = threading.Lock()
 
 
 def validate_parent_exists(token: DelegationToken) -> ANIPFailure | None:
@@ -206,21 +209,7 @@ def validate_delegation(
             retry=True,
         )
 
-    # 6. Enforce concurrent_branches — reject if exclusive and another request is active
-    if token.constraints.concurrent_branches == ConcurrentBranches.EXCLUSIVE:
-        root = get_root_principal(token)
-        if root in _active_requests:
-            return ANIPFailure(
-                type="concurrent_request_rejected",
-                detail=f"concurrent_branches is exclusive and another request from {root} is in progress",
-                resolution=Resolution(
-                    action="wait_and_retry",
-                    grantable_by=root,
-                ),
-                retry=True,
-            )
-
-    # 7. Validate parent chain — every parent must also be valid and not expired
+    # 6. Validate parent chain — every parent must also be valid and not expired
     for ancestor in chain[:-1]:  # all except the current token
         if ancestor.expires < datetime.now(timezone.utc):
             return ANIPFailure(
@@ -236,16 +225,35 @@ def validate_delegation(
     return token  # all checks passed — return stored token for downstream use
 
 
-def acquire_exclusive_lock(token: DelegationToken) -> None:
-    """Mark a root principal as having an active request."""
-    if token.constraints.concurrent_branches == ConcurrentBranches.EXCLUSIVE:
-        _active_requests.add(get_root_principal(token))
+def acquire_exclusive_lock(token: DelegationToken) -> ANIPFailure | None:
+    """Atomically check and acquire the exclusive lock for a root principal.
+
+    Returns None on success, or an ANIPFailure if another request is active.
+    Uses threading.Lock to prevent TOCTOU races between check and acquire.
+    """
+    if token.constraints.concurrent_branches != ConcurrentBranches.EXCLUSIVE:
+        return None
+    root = get_root_principal(token)
+    with _active_requests_lock:
+        if root in _active_requests:
+            return ANIPFailure(
+                type="concurrent_request_rejected",
+                detail=f"concurrent_branches is exclusive and another request from {root} is in progress",
+                resolution=Resolution(
+                    action="wait_and_retry",
+                    grantable_by=root,
+                ),
+                retry=True,
+            )
+        _active_requests.add(root)
+    return None
 
 
 def release_exclusive_lock(token: DelegationToken) -> None:
     """Release the active request lock for a root principal."""
     if token.constraints.concurrent_branches == ConcurrentBranches.EXCLUSIVE:
-        _active_requests.discard(get_root_principal(token))
+        with _active_requests_lock:
+            _active_requests.discard(get_root_principal(token))
 
 
 def validate_scope_narrowing(token: DelegationToken) -> ANIPFailure | None:
