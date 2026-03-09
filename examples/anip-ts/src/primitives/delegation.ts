@@ -14,6 +14,31 @@ const tokenStore: Map<string, DelegationToken> = new Map();
 // Active request tracking for concurrent_branches enforcement
 const activeRequests: Set<string> = new Set();
 
+export function validateParentExists(token: DelegationToken): ANIPFailure | null {
+  /**
+   * Validate that a token's parent exists in the store.
+   * Returns null if valid (or no parent), or an ANIPFailure if the parent is missing.
+   */
+  if (token.parent === null) {
+    return null; // root token
+  }
+  const parent = getToken(token.parent);
+  if (parent === null) {
+    return {
+      type: "parent_not_found",
+      detail: `parent token '${token.parent}' is not registered`,
+      resolution: {
+        action: "register_parent_token_first",
+        requires: `token '${token.parent}' must be registered before its children`,
+        grantable_by: token.issuer,
+        estimated_availability: null,
+      },
+      retry: true,
+    };
+  }
+  return null;
+}
+
 export function registerToken(token: DelegationToken): void {
   tokenStore.set(token.token_id, token);
 }
@@ -199,7 +224,17 @@ export function validateScopeNarrowing(token: DelegationToken): ANIPFailure | nu
 
   const parent = getToken(token.parent);
   if (parent === null) {
-    return null; // parent not registered — can't validate
+    return {
+      type: "parent_not_found",
+      detail: `parent token '${token.parent}' is not registered — cannot validate scope narrowing`,
+      resolution: {
+        action: "register_parent_token_first",
+        requires: `token '${token.parent}' must be registered before its children`,
+        grantable_by: token.issuer,
+        estimated_availability: null,
+      },
+      retry: true,
+    };
   }
 
   const parentScopeBases = new Set(parent.scope.map((s) => s.split(":")[0]));

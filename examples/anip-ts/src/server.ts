@@ -10,7 +10,7 @@ import { Hono } from "hono";
 import { invoke as invokeBookFlight } from "./capabilities/book-flight.js";
 import { invoke as invokeSearchFlights } from "./capabilities/search-flights.js";
 import { buildManifest } from "./primitives/manifest.js";
-import { registerToken, validateDelegation, getChain, getRootPrincipal, acquireExclusiveLock, releaseExclusiveLock, validateScopeNarrowing } from "./primitives/delegation.js";
+import { registerToken, validateDelegation, validateParentExists, getChain, getRootPrincipal, acquireExclusiveLock, releaseExclusiveLock, validateScopeNarrowing } from "./primitives/delegation.js";
 import { discoverPermissions } from "./primitives/permissions.js";
 import {
   DelegationToken,
@@ -273,6 +273,12 @@ app.post("/anip/tokens", async (c) => {
   }
 
   const token = parseResult.data;
+
+  // Validate parent exists: child tokens must reference a registered parent
+  const parentFailure = validateParentExists(token);
+  if (parentFailure !== null) {
+    return c.json({ registered: false, error: parentFailure.detail });
+  }
 
   // Validate scope narrowing: child tokens cannot widen parent scope
   const scopeFailure = validateScopeNarrowing(token);

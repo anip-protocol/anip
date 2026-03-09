@@ -18,6 +18,28 @@ from .models import ANIPFailure, ConcurrentBranches, DelegationToken, Resolution
 _active_requests: set[str] = set()
 
 
+def validate_parent_exists(token: DelegationToken) -> ANIPFailure | None:
+    """Validate that a token's parent exists in the store.
+
+    Returns None if valid (or no parent), or an ANIPFailure if the parent is missing.
+    """
+    if token.parent is None:
+        return None  # root token
+    parent = get_token(token.parent)
+    if parent is None:
+        return ANIPFailure(
+            type="parent_not_found",
+            detail=f"parent token '{token.parent}' is not registered",
+            resolution=Resolution(
+                action="register_parent_token_first",
+                requires=f"token '{token.parent}' must be registered before its children",
+                grantable_by=token.issuer,
+            ),
+            retry=True,
+        )
+    return None
+
+
 def register_token(token: DelegationToken) -> None:
     """Register a delegation token, persisting to SQLite."""
     db_store_token({
@@ -192,7 +214,16 @@ def validate_scope_narrowing(token: DelegationToken) -> ANIPFailure | None:
 
     parent = get_token(token.parent)
     if parent is None:
-        return None  # parent not registered — can't validate
+        return ANIPFailure(
+            type="parent_not_found",
+            detail=f"parent token '{token.parent}' is not registered — cannot validate scope narrowing",
+            resolution=Resolution(
+                action="register_parent_token_first",
+                requires=f"token '{token.parent}' must be registered before its children",
+                grantable_by=token.issuer,
+            ),
+            retry=True,
+        )
 
     parent_scope_bases = {s.split(":")[0] for s in parent.scope}
 
