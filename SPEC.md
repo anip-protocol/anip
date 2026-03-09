@@ -899,6 +899,8 @@ The following table maps known v0.1 enforceability gaps to their planned resolut
 
 The guiding principle: v0.1 declares the contracts. v2 verifies them. Every gap above is a place where the protocol currently trusts a declaration that will eventually require proof.
 
+**What solving these gaps unlocks.** When trust and verification become real — not declarative — agents can evaluate risk before acting. Delegated authority becomes expressible in ways current tool layers can't handle. Failures become operationally useful, not just descriptive. High-stakes actions — travel, procurement, finance ops, approvals, multi-step orchestration — become automatable with real control surfaces. At that point, ANIP solves one of the central coordination problems of agent deployment: how an agent knows what it's allowed to do, what will happen if it does it, and how to recover when something blocks it.
+
 ---
 
 ## 14. Open Questions
