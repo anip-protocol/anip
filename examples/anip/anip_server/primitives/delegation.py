@@ -137,7 +137,14 @@ def validate_delegation(
             retry=True,
         )
 
-    # 5. Validate parent chain — every parent must also be valid and not expired
+    # 5. concurrent_branches — NOT YET ENFORCED
+    # The spec requires that when constraints.concurrent_branches == "exclusive",
+    # the service MUST reject concurrent requests from the same root principal.
+    # Enforcement requires session-level state tracking (e.g., active request
+    # counting per root_principal). This is declared but not enforced in v0.1.
+    # See: SPEC.md § Delegation Chain, concurrent_branches constraint.
+
+    # 6. Validate parent chain — every parent must also be valid and not expired
     for ancestor in chain[:-1]:  # all except the current token
         if ancestor.expires < datetime.now(timezone.utc):
             return ANIPFailure(

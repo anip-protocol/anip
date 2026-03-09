@@ -358,10 +358,11 @@ Notice: the endpoint doesn't know anything about flights. It doesn't validate pa
 Every invocation — successful or failed — is logged to SQLite with the capability name, delegation chain, timestamp, and a summarized result. The audit log is queryable via the `/anip/audit` endpoint:
 
 ```
-GET /anip/audit?capability=book_flight&since=2026-03-07T00:00:00Z&limit=50
+POST /anip/audit?capability=book_flight&since=2026-03-07T00:00:00Z&limit=50
+Body: { delegation_token }
 ```
 
-This endpoint is part of the observability contract (Primitive 9). The reference implementation returns all matching records; in production, you'd restrict access so that only the root principal of a delegation chain can query their own audit records.
+This endpoint is part of the observability contract (Primitive 9). A valid delegation token is required — the server filters audit records to only those belonging to the token's root principal, so each principal can only see their own invocation history.
 
 The audit log stores result summaries, not full payloads — booking IDs, result counts, and cost totals, but not the complete flight search results. This keeps the log useful for debugging and compliance without becoming a data retention liability.
 

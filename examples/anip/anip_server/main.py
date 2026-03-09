@@ -284,9 +284,9 @@ def _summarize_result(result: dict[str, Any] | None) -> dict[str, Any] | None:
 # --- Audit / Observability ---
 
 
-@app.get("/anip/audit")
+@app.post("/anip/audit")
 def get_audit_log(
-    token: DelegationToken | None = None,
+    token: DelegationToken,
     capability: str | None = Query(None),
     since: str | None = Query(None),
     limit: int = Query(100, le=1000),
@@ -295,12 +295,13 @@ def get_audit_log(
 
     Access is restricted by the observability contract:
     only the root principal of the delegation chain can access
-    their own audit records.
+    their own audit records. A valid delegation token is required.
     """
-    # For now, return all matching records.
-    # In production, filter by root_principal from the token.
+    root_principal = get_root_principal(token)
+
     entries = query_audit_log(
         capability=capability,
+        root_principal=root_principal,
         since=since,
         limit=limit,
     )
@@ -308,6 +309,7 @@ def get_audit_log(
     return {
         "entries": entries,
         "count": len(entries),
+        "root_principal": root_principal,
         "capability_filter": capability,
         "since_filter": since,
     }

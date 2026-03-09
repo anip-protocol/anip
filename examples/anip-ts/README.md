@@ -72,4 +72,4 @@ The REST adapter auto-generates endpoints and an OpenAPI 3.1 spec with `x-anip-*
 | `/anip/permissions` | POST | Permission discovery given a delegation token |
 | `/anip/invoke/{capability}` | POST | Invoke a capability with delegation chain |
 | `/anip/capabilities/{name}/graph` | GET | Capability prerequisite graph |
-| `/anip/audit` | GET | Audit log (filter by capability, since, limit) |
+| `/anip/audit` | POST | Audit log (requires delegation token, filtered by root principal) |

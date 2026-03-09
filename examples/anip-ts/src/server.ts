@@ -384,13 +384,45 @@ app.get("/anip/graph/:capability", (c) => {
 
 // --- Audit / Observability ---
 
-app.get("/anip/audit", (c) => {
-  /** Query the audit log with optional filters. */
+app.post("/anip/audit", async (c) => {
+  /**
+   * Query the audit log with optional filters.
+   *
+   * Access is restricted by the observability contract:
+   * only the root principal of the delegation chain can access
+   * their own audit records. A valid delegation token is required.
+   */
+  const body = await c.req.json();
+  const parseResult = DelegationToken.safeParse(body);
+  if (!parseResult.success) {
+    return c.json(
+      {
+        success: false,
+        failure: {
+          type: "invalid_token",
+          detail: `A valid delegation token is required to access the audit log`,
+          resolution: {
+            action: "provide_delegation_token",
+            requires: null,
+            grantable_by: null,
+            estimated_availability: null,
+          },
+          retry: true,
+        },
+      },
+      401
+    );
+  }
+
+  const token = parseResult.data;
+  const rootPrincipal = getRootPrincipal(token);
+
   const capability = c.req.query("capability") ?? null;
   const since = c.req.query("since") ?? null;
   const limit = Math.min(Number(c.req.query("limit") ?? 100), 1000);
 
-  let entries = auditLog;
+  // Filter to only entries belonging to this root principal
+  let entries = auditLog.filter((e) => e.root_principal === rootPrincipal);
 
   if (capability) {
     entries = entries.filter((e) => e.capability === capability);
@@ -405,6 +437,7 @@ app.get("/anip/audit", (c) => {
   return c.json({
     entries,
     count: entries.length,
+    root_principal: rootPrincipal,
     capability_filter: capability,
     since_filter: since,
   });
