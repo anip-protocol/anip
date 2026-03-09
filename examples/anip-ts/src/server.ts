@@ -10,7 +10,7 @@ import { Hono } from "hono";
 import { invoke as invokeBookFlight } from "./capabilities/book-flight.js";
 import { invoke as invokeSearchFlights } from "./capabilities/search-flights.js";
 import { buildManifest } from "./primitives/manifest.js";
-import { registerToken, validateDelegation, validateParentExists, validateConstraintsNarrowing, resolveRegisteredToken, getChain, getRootPrincipal, acquireExclusiveLock, releaseExclusiveLock, validateScopeNarrowing } from "./primitives/delegation.js";
+import { registerToken, validateDelegation, validateParentExists, validateConstraintsNarrowing, resolveRegisteredToken, isANIPFailure, getChain, getRootPrincipal, acquireExclusiveLock, releaseExclusiveLock, validateScopeNarrowing } from "./primitives/delegation.js";
 import { discoverPermissions } from "./primitives/permissions.js";
 import {
   DelegationToken,
@@ -391,38 +391,40 @@ app.post("/anip/invoke/:capability", async (c) => {
   // 3. Get the capability declaration for scope requirements
   const capDeclaration = manifest.capabilities[capabilityName];
 
-  // 4. Validate delegation chain
-  const delegationFailure = validateDelegation(
+  // 4. Validate delegation chain — returns stored token on success
+  const delegationResult = validateDelegation(
     request.delegation_token,
     capDeclaration.minimum_scope,
     capabilityName
   );
-  if (delegationFailure !== null) {
+  if (isANIPFailure(delegationResult)) {
     const response: InvokeResponse = {
       success: false,
       result: null,
       cost_actual: null,
-      failure: delegationFailure,
+      failure: delegationResult,
       session: null,
     };
     return c.json(response);
   }
+  // Use the stored token for all downstream operations (lock, handler, audit)
+  const token = delegationResult;
 
   // 5. Acquire exclusive lock if needed
-  acquireExclusiveLock(request.delegation_token);
+  acquireExclusiveLock(token);
   try {
     // 6. Invoke the capability
     const handler = capabilityHandlers[capabilityName];
-    const response = handler(request.delegation_token, request.parameters);
+    const response = handler(token, request.parameters);
 
     // 7. Log to audit trail
-    const chain = getChain(request.delegation_token);
+    const chain = getChain(token);
     const costVariance = calculateCostVariance(capabilityName, response);
     logInvocation({
       capability: capabilityName,
       timestamp: new Date().toISOString(),
-      token_id: request.delegation_token.token_id,
-      root_principal: getRootPrincipal(request.delegation_token),
+      token_id: token.token_id,
+      root_principal: getRootPrincipal(token),
       success: response.success,
       result_summary: response.success ? summarizeResult(response.result as Record<string, unknown>) : null,
       failure_type: response.failure?.type ?? null,
@@ -433,7 +435,7 @@ app.post("/anip/invoke/:capability", async (c) => {
 
     return c.json(response);
   } finally {
-    releaseExclusiveLock(request.delegation_token);
+    releaseExclusiveLock(token);
   }
 });
 

@@ -232,15 +232,17 @@ def invoke_capability(capability_name: str, request: InvokeRequest):
     # 2. Get the capability declaration for scope requirements
     cap_declaration = _manifest.capabilities[capability_name]
 
-    # 3. Validate delegation chain
-    delegation_failure = validate_delegation(
+    # 3. Validate delegation chain — returns stored token on success
+    delegation_result = validate_delegation(
         token=token,
         minimum_scope=cap_declaration.minimum_scope,
         capability_name=capability_name,
     )
-    if delegation_failure is not None:
-        _log_failure(capability_name, token, request.parameters, delegation_failure.type)
-        return InvokeResponse(success=False, failure=delegation_failure)
+    if isinstance(delegation_result, ANIPFailure):
+        _log_failure(capability_name, token, request.parameters, delegation_result.type)
+        return InvokeResponse(success=False, failure=delegation_result)
+    # Use the stored token for all downstream operations (lock, handler, audit)
+    token = delegation_result
 
     # 4. Acquire exclusive lock if needed
     acquire_exclusive_lock(token)

@@ -93,7 +93,7 @@ export function resolveRegisteredToken(token: DelegationToken): DelegationToken 
   return stored;
 }
 
-function isANIPFailure(value: DelegationToken | ANIPFailure): value is ANIPFailure {
+export function isANIPFailure(value: DelegationToken | ANIPFailure): value is ANIPFailure {
   return "type" in value && "detail" in value && "resolution" in value;
 }
 
@@ -101,11 +101,11 @@ export function validateDelegation(
   token: DelegationToken,
   requiredScopes: string[],
   capabilityName: string
-): ANIPFailure | null {
+): DelegationToken | ANIPFailure {
   /**
    * Validate a delegation token for invoking a capability.
-   * Returns null if valid, or an ANIPFailure describing what's wrong.
-   * Uses the stored token record for all checks, not the caller-supplied fields.
+   * Returns the stored DelegationToken if valid (callers MUST use this for
+   * all downstream operations), or an ANIPFailure describing what's wrong.
    */
 
   // 0. Resolve to stored token (prevents forged inline fields)
@@ -252,7 +252,7 @@ export function validateDelegation(
     }
   }
 
-  return null; // all checks passed
+  return token; // all checks passed — return stored token for downstream use
 }
 
 export function acquireExclusiveLock(token: DelegationToken): void {

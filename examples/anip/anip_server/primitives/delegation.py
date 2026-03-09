@@ -113,11 +113,11 @@ def validate_delegation(
     token: DelegationToken,
     minimum_scope: list[str],
     capability_name: str,
-) -> ANIPFailure | None:
+) -> DelegationToken | ANIPFailure:
     """Validate a delegation token for invoking a capability.
 
-    Returns None if valid, or an ANIPFailure describing what's wrong.
-    Uses the stored token record for all checks, not the caller-supplied fields.
+    Returns the stored DelegationToken if valid (callers MUST use this for
+    all downstream operations), or an ANIPFailure describing what's wrong.
     """
     # 0. Resolve to stored token (prevents forged inline fields)
     resolved = resolve_registered_token(token)
@@ -233,7 +233,7 @@ def validate_delegation(
                 retry=True,
             )
 
-    return None  # all checks passed
+    return token  # all checks passed — return stored token for downstream use
 
 
 def acquire_exclusive_lock(token: DelegationToken) -> None:
