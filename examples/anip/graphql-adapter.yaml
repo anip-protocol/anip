@@ -1,0 +1,16 @@
+# GraphQL adapter config for the Python reference implementation
+
+anip_service_url: "http://localhost:9100"
+port: 3002
+
+delegation:
+  issuer: "human:user@example.com"
+  scope:
+    - "travel.search"
+    - "travel.book:max_$500"
+  token_ttl_minutes: 60
+
+graphql:
+  path: "/graphql"
+  playground: true
+  introspection: true

@@ -1,0 +1,21 @@
+# REST adapter config for the Python reference implementation
+# Uses custom semantic routes to demonstrate configurable path mapping
+
+anip_service_url: "http://localhost:9100"
+port: 3001
+
+delegation:
+  issuer: "human:user@example.com"
+  scope:
+    - "travel.search"
+    - "travel.book:max_$500"
+  token_ttl_minutes: 60
+
+# Custom RESTful routes — semantic paths instead of /api/{capability}
+routes:
+  search_flights:
+    path: "/flights/search"
+    method: "GET"
+  book_flight:
+    path: "/flights/book"
+    method: "POST"

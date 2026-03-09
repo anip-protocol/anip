@@ -1,0 +1,24 @@
+# ANIP GraphQL Adapter Configuration
+#
+# Copy to adapter.yaml and adjust for your setup.
+
+# The ANIP service to expose as a GraphQL endpoint
+anip_service_url: "http://localhost:8000"
+
+# GraphQL server port
+port: 3002
+
+# Delegation token configuration
+# The adapter creates tokens on behalf of this identity
+delegation:
+  issuer: "human:user@example.com"
+  scope:
+    - "travel.search"
+    - "travel.book:max_$500"
+  token_ttl_minutes: 60
+
+# GraphQL-specific configuration
+graphql:
+  path: "/graphql"
+  playground: true
+  introspection: true

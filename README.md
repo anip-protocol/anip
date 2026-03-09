@@ -124,6 +124,10 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 - [JSON Schema](schema/) — validate any ANIP implementation against the spec
 - [MCP adapter — Python](adapters/mcp-py/) — use ANIP with your existing MCP tooling today
 - [MCP adapter — TypeScript](adapters/mcp-ts/) — same adapter, TypeScript/Node implementation
+- [REST/OpenAPI adapter — Python](adapters/rest-py/) — expose ANIP as REST with auto-generated OpenAPI spec
+- [REST/OpenAPI adapter — TypeScript](adapters/rest-ts/) — same adapter, TypeScript/Hono implementation
+- [GraphQL adapter — Python](adapters/graphql-py/) — expose ANIP as GraphQL with custom @anip* directives
+- [GraphQL adapter — TypeScript](adapters/graphql-ts/) — same adapter, TypeScript/Hono implementation
 - [Agent skills](skills/) — machine-optimized guides for consuming and building ANIP services
 - [Open questions](SPEC.md#open-questions) — where we need input
 
