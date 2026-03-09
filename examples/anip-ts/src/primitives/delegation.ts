@@ -68,11 +68,13 @@ export function getRootPrincipal(token: DelegationToken): string {
   return chain[0].issuer;
 }
 
-export function validateTokenRegistered(token: DelegationToken): ANIPFailure | null {
+export function resolveRegisteredToken(token: DelegationToken): DelegationToken | ANIPFailure {
   /**
-   * Verify that the presented token is registered in the token store.
-   * Prevents forged tokens from bypassing registration-time validation
-   * (scope narrowing, budget constraints, constraint narrowing).
+   * Look up the stored version of a token and return it.
+   * Returns the stored DelegationToken if the token_id is registered,
+   * or an ANIPFailure if not. Callers MUST use the returned token for
+   * all downstream operations — this prevents forged inline fields
+   * (issuer, scope, constraints) from bypassing registration-time validation.
    */
   const stored = getToken(token.token_id);
   if (stored === null) {
@@ -88,7 +90,11 @@ export function validateTokenRegistered(token: DelegationToken): ANIPFailure | n
       retry: true,
     };
   }
-  return null;
+  return stored;
+}
+
+function isANIPFailure(value: DelegationToken | ANIPFailure): value is ANIPFailure {
+  return "type" in value && "detail" in value && "resolution" in value;
 }
 
 export function validateDelegation(
@@ -99,13 +105,15 @@ export function validateDelegation(
   /**
    * Validate a delegation token for invoking a capability.
    * Returns null if valid, or an ANIPFailure describing what's wrong.
+   * Uses the stored token record for all checks, not the caller-supplied fields.
    */
 
-  // 0. Verify the token itself is registered (prevents forged leaf tokens)
-  const registrationFailure = validateTokenRegistered(token);
-  if (registrationFailure !== null) {
-    return registrationFailure;
+  // 0. Resolve to stored token (prevents forged inline fields)
+  const resolved = resolveRegisteredToken(token);
+  if (isANIPFailure(resolved)) {
+    return resolved;
   }
+  token = resolved; // use stored token for all subsequent checks
 
   // 1. Check expiry
   const expiresDate = new Date(token.expires);

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from .capabilities import book_flight, search_flights
@@ -20,7 +20,7 @@ from .primitives.delegation import (
     validate_delegation,
     validate_parent_exists,
     validate_scope_narrowing,
-    validate_token_registered,
+    resolve_registered_token,
 )
 from .primitives.manifest import build_manifest
 from .primitives.models import (
@@ -199,10 +199,11 @@ def register_delegation_token(token: DelegationToken):
 @app.post("/anip/permissions", response_model=PermissionResponse)
 def query_permissions(token: DelegationToken):
     """Discover what the agent can do given its delegation chain."""
-    # Verify the token is registered — prevents forged tokens from querying permissions
-    reg_failure = validate_token_registered(token)
-    if reg_failure is not None:
-        return {"error": reg_failure.detail, "failure": reg_failure.model_dump()}
+    # Resolve to stored token — prevents forged inline fields
+    resolved = resolve_registered_token(token)
+    if isinstance(resolved, ANIPFailure):
+        raise HTTPException(status_code=401, detail=resolved.detail)
+    token = resolved
 
     return discover_permissions(token, _manifest.capabilities)
 
@@ -373,10 +374,11 @@ def get_audit_log(
     only the root principal of the delegation chain can access
     their own audit records. A valid, registered delegation token is required.
     """
-    # Verify the token is registered — prevents forged tokens from querying audit data
-    reg_failure = validate_token_registered(token)
-    if reg_failure is not None:
-        return {"success": False, "failure": reg_failure.model_dump()}
+    # Resolve to stored token — prevents forged inline fields
+    resolved = resolve_registered_token(token)
+    if isinstance(resolved, ANIPFailure):
+        raise HTTPException(status_code=401, detail=resolved.detail)
+    token = resolved
 
     root_principal = get_root_principal(token)
 
