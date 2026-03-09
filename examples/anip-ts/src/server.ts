@@ -10,7 +10,7 @@ import { Hono } from "hono";
 import { invoke as invokeBookFlight } from "./capabilities/book-flight.js";
 import { invoke as invokeSearchFlights } from "./capabilities/search-flights.js";
 import { buildManifest } from "./primitives/manifest.js";
-import { registerToken, validateDelegation, validateParentExists, validateConstraintsNarrowing, validateTokenRegistered, getChain, getRootPrincipal, acquireExclusiveLock, releaseExclusiveLock, validateScopeNarrowing } from "./primitives/delegation.js";
+import { registerToken, validateDelegation, validateParentExists, validateConstraintsNarrowing, resolveRegisteredToken, getChain, getRootPrincipal, acquireExclusiveLock, releaseExclusiveLock, validateScopeNarrowing } from "./primitives/delegation.js";
 import { discoverPermissions } from "./primitives/permissions.js";
 import {
   DelegationToken,
@@ -322,16 +322,14 @@ app.post("/anip/permissions", async (c) => {
     );
   }
 
-  const token = parseResult.data;
+  const parsed = parseResult.data;
 
-  // Verify the token is registered — prevents forged tokens from querying permissions
-  const regFailure = validateTokenRegistered(token);
-  if (regFailure !== null) {
-    return c.json({
-      success: false,
-      failure: regFailure,
-    });
+  // Resolve to stored token — prevents forged inline fields
+  const resolved = resolveRegisteredToken(parsed);
+  if ("detail" in resolved) {
+    return c.json({ success: false, failure: resolved }, 401);
   }
+  const token = resolved;
 
   return c.json(discoverPermissions(token, manifest.capabilities));
 });
@@ -489,16 +487,14 @@ app.post("/anip/audit", async (c) => {
     );
   }
 
-  const token = parseResult.data;
+  const parsed = parseResult.data;
 
-  // Verify the token is registered — prevents forged tokens from querying audit data
-  const regFailure = validateTokenRegistered(token);
-  if (regFailure !== null) {
-    return c.json({
-      success: false,
-      failure: regFailure,
-    }, 401);
+  // Resolve to stored token — prevents forged inline fields
+  const resolved = resolveRegisteredToken(parsed);
+  if ("detail" in resolved) {
+    return c.json({ success: false, failure: resolved }, 401);
   }
+  const token = resolved;
 
   const rootPrincipal = getRootPrincipal(token);
 

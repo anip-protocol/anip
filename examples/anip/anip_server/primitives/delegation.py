@@ -86,11 +86,13 @@ def get_chain_token_ids(token: DelegationToken) -> list[str]:
     return [t.token_id for t in get_chain(token)]
 
 
-def validate_token_registered(token: DelegationToken) -> ANIPFailure | None:
-    """Verify that the presented token is registered in the token store.
+def resolve_registered_token(token: DelegationToken) -> DelegationToken | ANIPFailure:
+    """Look up the stored version of a token and return it.
 
-    Prevents forged tokens from bypassing registration-time validation
-    (scope narrowing, budget constraints, constraint narrowing).
+    Returns the stored DelegationToken if the token_id is registered,
+    or an ANIPFailure if not. Callers MUST use the returned token for
+    all downstream operations — this prevents forged inline fields
+    (issuer, scope, constraints) from bypassing registration-time validation.
     """
     stored = get_token(token.token_id)
     if stored is None:
@@ -104,7 +106,7 @@ def validate_token_registered(token: DelegationToken) -> ANIPFailure | None:
             ),
             retry=True,
         )
-    return None
+    return stored
 
 
 def validate_delegation(
@@ -115,11 +117,13 @@ def validate_delegation(
     """Validate a delegation token for invoking a capability.
 
     Returns None if valid, or an ANIPFailure describing what's wrong.
+    Uses the stored token record for all checks, not the caller-supplied fields.
     """
-    # 0. Verify the token itself is registered (prevents forged leaf tokens)
-    registration_failure = validate_token_registered(token)
-    if registration_failure is not None:
-        return registration_failure
+    # 0. Resolve to stored token (prevents forged inline fields)
+    resolved = resolve_registered_token(token)
+    if isinstance(resolved, ANIPFailure):
+        return resolved
+    token = resolved  # use stored token for all subsequent checks
 
     # 1. Check expiry
     if token.expires < datetime.now(timezone.utc):
