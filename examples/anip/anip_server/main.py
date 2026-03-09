@@ -11,10 +11,13 @@ from pydantic import BaseModel
 from .capabilities import book_flight, search_flights
 from .data.database import log_invocation, query_audit_log
 from .primitives.delegation import (
+    acquire_exclusive_lock,
     get_chain_token_ids,
     get_root_principal,
     register_token,
+    release_exclusive_lock,
     validate_delegation,
+    validate_scope_narrowing,
 )
 from .primitives.manifest import build_manifest
 from .primitives.models import (
@@ -168,6 +171,11 @@ def register_delegation_token(token: DelegationToken):
     In production, tokens would be cryptographically verified.
     In this demo, we trust-on-declaration (per ANIP v1 spec).
     """
+    # Validate scope narrowing: child tokens cannot widen parent scope
+    scope_failure = validate_scope_narrowing(token)
+    if scope_failure is not None:
+        return {"registered": False, "error": scope_failure.detail}
+
     register_token(token)
     return {"registered": True, "token_id": token.token_id}
 
@@ -215,14 +223,59 @@ def invoke_capability(capability_name: str, request: InvokeRequest):
         _log_failure(capability_name, token, request.parameters, delegation_failure.type)
         return InvokeResponse(success=False, failure=delegation_failure)
 
-    # 4. Invoke the capability
-    handler = _capability_handlers[capability_name]
-    response = handler(token, request.parameters)
+    # 4. Acquire exclusive lock if needed
+    acquire_exclusive_lock(token)
+    try:
+        # 5. Invoke the capability
+        handler = _capability_handlers[capability_name]
+        response = handler(token, request.parameters)
 
-    # 5. Log the invocation
-    _log_invocation(capability_name, token, request.parameters, response)
+        # 6. Log the invocation
+        _log_invocation(capability_name, token, request.parameters, response)
 
-    return response
+        return response
+    finally:
+        release_exclusive_lock(token)
+
+
+def _calculate_cost_variance(
+    capability_name: str,
+    response: InvokeResponse,
+) -> dict[str, Any] | None:
+    """Calculate cost variance between declared and actual cost."""
+    if not response.success or response.cost_actual is None:
+        return None
+
+    cap = _manifest.capabilities.get(capability_name)
+    if cap is None or cap.cost is None or cap.cost.financial is None:
+        return None
+
+    declared = cap.cost.financial
+    actual_amount = response.cost_actual.financial.get("amount")
+    if actual_amount is None:
+        return None
+
+    typical = declared.get("typical")
+    range_min = declared.get("range_min")
+    range_max = declared.get("range_max")
+
+    variance: dict[str, Any] = {
+        "actual": actual_amount,
+        "currency": declared.get("currency", "USD"),
+        "certainty": cap.cost.certainty.value,
+    }
+
+    if typical is not None:
+        variance["declared_typical"] = typical
+        variance["variance_from_typical_pct"] = round(
+            ((actual_amount - typical) / typical) * 100, 1
+        )
+
+    if range_min is not None and range_max is not None:
+        variance["declared_range"] = {"min": range_min, "max": range_max}
+        variance["within_declared_range"] = range_min <= actual_amount <= range_max
+
+    return variance
 
 
 def _log_invocation(
@@ -232,6 +285,11 @@ def _log_invocation(
     response: InvokeResponse,
 ) -> None:
     """Log a successful or failed capability invocation."""
+    cost_variance = _calculate_cost_variance(capability_name, response)
+    cost_actual_data = response.cost_actual.model_dump() if response.cost_actual else None
+    if cost_actual_data and cost_variance:
+        cost_actual_data["variance_tracking"] = cost_variance
+
     log_invocation(
         capability=capability_name,
         token_id=token.token_id,
@@ -242,7 +300,7 @@ def _log_invocation(
         success=response.success,
         result_summary=_summarize_result(response.result) if response.success else None,
         failure_type=response.failure.type if response.failure else None,
-        cost_actual=response.cost_actual.model_dump() if response.cost_actual else None,
+        cost_actual=cost_actual_data,
         delegation_chain=get_chain_token_ids(token),
     )
 

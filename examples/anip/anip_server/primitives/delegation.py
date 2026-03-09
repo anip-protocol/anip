@@ -12,7 +12,10 @@ from datetime import datetime, timezone
 
 from ..data.database import load_token as db_load_token
 from ..data.database import store_token as db_store_token
-from .models import ANIPFailure, DelegationToken, Resolution
+from .models import ANIPFailure, ConcurrentBranches, DelegationToken, Resolution
+
+# Active request tracking for concurrent_branches enforcement
+_active_requests: set[str] = set()
 
 
 def register_token(token: DelegationToken) -> None:
@@ -137,12 +140,19 @@ def validate_delegation(
             retry=True,
         )
 
-    # 5. concurrent_branches — NOT YET ENFORCED
-    # The spec requires that when constraints.concurrent_branches == "exclusive",
-    # the service MUST reject concurrent requests from the same root principal.
-    # Enforcement requires session-level state tracking (e.g., active request
-    # counting per root_principal). This is declared but not enforced in v0.1.
-    # See: SPEC.md § Delegation Chain, concurrent_branches constraint.
+    # 5. Enforce concurrent_branches — reject if exclusive and another request is active
+    if token.constraints.concurrent_branches == ConcurrentBranches.EXCLUSIVE:
+        root = get_root_principal(token)
+        if root in _active_requests:
+            return ANIPFailure(
+                type="concurrent_request_rejected",
+                detail=f"concurrent_branches is exclusive and another request from {root} is in progress",
+                resolution=Resolution(
+                    action="wait_and_retry",
+                    grantable_by=root,
+                ),
+                retry=True,
+            )
 
     # 6. Validate parent chain — every parent must also be valid and not expired
     for ancestor in chain[:-1]:  # all except the current token
@@ -158,6 +168,73 @@ def validate_delegation(
             )
 
     return None  # all checks passed
+
+
+def acquire_exclusive_lock(token: DelegationToken) -> None:
+    """Mark a root principal as having an active request."""
+    if token.constraints.concurrent_branches == ConcurrentBranches.EXCLUSIVE:
+        _active_requests.add(get_root_principal(token))
+
+
+def release_exclusive_lock(token: DelegationToken) -> None:
+    """Release the active request lock for a root principal."""
+    if token.constraints.concurrent_branches == ConcurrentBranches.EXCLUSIVE:
+        _active_requests.discard(get_root_principal(token))
+
+
+def validate_scope_narrowing(token: DelegationToken) -> ANIPFailure | None:
+    """Validate that a child token's scope is a subset of its parent's scope.
+
+    Returns None if valid (or no parent), or an ANIPFailure if scope widens.
+    """
+    if token.parent is None:
+        return None  # root tokens have no parent to narrow from
+
+    parent = get_token(token.parent)
+    if parent is None:
+        return None  # parent not registered — can't validate
+
+    parent_scope_bases = {s.split(":")[0] for s in parent.scope}
+
+    for child_scope in token.scope:
+        child_base = child_scope.split(":")[0]
+        # Child scope base must match or be narrower than a parent scope base
+        matched = any(
+            child_base == parent_base or child_base.startswith(parent_base + ".")
+            for parent_base in parent_scope_bases
+        )
+        if not matched:
+            return ANIPFailure(
+                type="scope_escalation",
+                detail=f"child token scope '{child_base}' is not a subset of parent token scopes: {', '.join(sorted(parent_scope_bases))}",
+                resolution=Resolution(
+                    action="narrow_scope",
+                    requires=f"child scope must be subset of parent scope",
+                    grantable_by=parent.issuer,
+                ),
+                retry=False,
+            )
+
+        # Check budget narrowing: child budget constraint must not exceed parent's
+        if ":max_$" in child_scope:
+            child_budget = float(child_scope.split(":max_$")[1])
+            for parent_scope_str in parent.scope:
+                parent_base = parent_scope_str.split(":")[0]
+                if parent_base == child_base and ":max_$" in parent_scope_str:
+                    parent_budget = float(parent_scope_str.split(":max_$")[1])
+                    if child_budget > parent_budget:
+                        return ANIPFailure(
+                            type="scope_escalation",
+                            detail=f"child budget ${child_budget} exceeds parent budget ${parent_budget} for scope '{child_base}'",
+                            resolution=Resolution(
+                                action="narrow_budget",
+                                requires=f"budget must be <= ${parent_budget}",
+                                grantable_by=parent.issuer,
+                            ),
+                            retry=False,
+                        )
+
+    return None
 
 
 def check_budget_authority(token: DelegationToken, amount: float) -> ANIPFailure | None:
