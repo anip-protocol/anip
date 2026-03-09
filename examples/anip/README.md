@@ -86,7 +86,7 @@ The REST adapter's OpenAPI spec includes `x-anip-*` extensions preserving ANIP m
 |----------|--------|-------------|
 | `/anip/manifest` | GET | Full ANIP manifest with all capability declarations |
 | `/anip/handshake` | POST | Profile compatibility check |
-| `/anip/tokens/register` | POST | Register a delegation token |
+| `/anip/tokens` | POST | Register a delegation token |
 | `/anip/permissions` | POST | Permission discovery given a delegation token |
 | `/anip/invoke/{capability}` | POST | Invoke a capability with delegation chain |
-| `/anip/capabilities/{name}/graph` | GET | Capability prerequisite graph |
+| `/anip/graph/{capability}` | GET | Capability prerequisite graph |
