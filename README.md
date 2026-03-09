@@ -133,6 +133,8 @@ ANIP defines 9 primitives in two tiers:
 
 ANIP is early-stage. The spec is a v0.1 draft. The core ideas have been validated through independent design review but the hard problems — trust verification, capability declaration format, multi-agent coordination — are open.
 
+> **v0.1 is trust-on-declaration.** Services declare their capabilities, costs, and side effects, and agents take those declarations at face value. There is no cryptographic verification that a service actually behaves as declared. This makes ANIP v0.1 convincing as an internal protocol for trusted environments — within an organization, between known services, behind a gateway. Internet-scale trust verification (attestation, capability proofs, third-party auditing) is an explicit v2 concern. See [SPEC.md § Open Questions](SPEC.md#open-questions) for the full list of deferred problems.
+
 This is a community effort. We'd rather define this standard thoughtfully and in the open than let it emerge ad-hoc.
 
 **What exists today:**

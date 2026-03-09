@@ -25,26 +25,36 @@ export function discoverPermissions(
   const restricted: RestrictedCapability[] = [];
   const denied: DeniedCapability[] = [];
 
-  // Build a map of scope base -> full scope string
-  const tokenScopes: Record<string, string> = {};
-  for (const s of token.scope) {
-    const base = s.split(":")[0];
-    tokenScopes[base] = s;
-  }
+  // Build scope base list: "travel.book:max_$500" → ["travel.book", "travel.book:max_$500"]
+  const tokenScopeBases: Array<[string, string]> = token.scope.map((s) => [
+    s.split(":")[0],
+    s,
+  ]);
 
   const rootPrincipal = getRootPrincipal(token);
 
   for (const [name, cap] of Object.entries(capabilities)) {
     const requiredScopes = cap.minimum_scope;
 
-    // Check if ALL required scopes are present (AND semantics)
+    // Check if ALL required scopes are present (prefix match —
+    // same logic as invocation validation in delegation.ts)
     const matchedScopes: string[] = [];
     const missingScopes: string[] = [];
     let hasAdminScope = false;
 
     for (const required of requiredScopes) {
-      if (required in tokenScopes) {
-        matchedScopes.push(tokenScopes[required]);
+      let matchedFull: string | null = null;
+      for (const [scopeBase, fullScope] of tokenScopeBases) {
+        if (
+          scopeBase === required ||
+          required.startsWith(scopeBase + ".")
+        ) {
+          matchedFull = fullScope;
+          break;
+        }
+      }
+      if (matchedFull !== null) {
+        matchedScopes.push(matchedFull);
       } else if (isAdminScope(required)) {
         hasAdminScope = true;
         missingScopes.push(required);

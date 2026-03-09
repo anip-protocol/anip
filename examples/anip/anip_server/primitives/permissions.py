@@ -22,19 +22,31 @@ def discover_permissions(
     restricted: list[RestrictedCapability] = []
     denied: list[DeniedCapability] = []
 
-    token_scopes = {s.split(":")[0]: s for s in token.scope}
+    # Build scope base list: "travel.book:max_$500" → "travel.book"
+    token_scope_bases = [(s.split(":")[0], s) for s in token.scope]
     root_principal = get_root_principal(token)
 
     for name, cap in capabilities.items():
         required_scopes = cap.minimum_scope
 
-        # Check if all required scopes are present in token
-        missing = [s for s in required_scopes if s not in token_scopes]
+        # Check if all required scopes are present in token (prefix match —
+        # same logic as invocation validation in delegation.py)
+        matched_scope_strs: list[str] = []
+        missing: list[str] = []
+        for required in required_scopes:
+            matched_full = None
+            for scope_base, full_scope in token_scope_bases:
+                if scope_base == required or required.startswith(scope_base + "."):
+                    matched_full = full_scope
+                    break
+            if matched_full is not None:
+                matched_scope_strs.append(matched_full)
+            else:
+                missing.append(required)
 
         if not missing:
-            # All scopes matched — collect constraints from all matching scopes
+            # All scopes matched — collect constraints
             constraints: dict = {}
-            matched_scope_strs = [token_scopes[s] for s in required_scopes if s in token_scopes]
 
             # Extract budget constraint if present in any matched scope
             for scope_str in matched_scope_strs:
