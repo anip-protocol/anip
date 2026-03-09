@@ -112,6 +112,8 @@ Standard REST and GraphQL clients work normally — they ignore the ANIP metadat
 
 **One honest caveat.** The REST and GraphQL adapters simplify the delegation chain to a single identity. For read and write capabilities, that's fine. For irreversible financial operations, native ANIP is strongly recommended — purpose-bound authority and multi-hop delegation don't survive the translation. The [adapter READMEs](adapters/) document the exact translation loss for each surface.
 
+**These adapters are reference implementations.** They run as separate proxy processes to demonstrate that ANIP translates cleanly to existing surfaces. For production, the recommended path is direct integration — ANIP client SDKs and libraries that speak the protocol natively, giving agents full access to delegation chains, budget constraints, and side-effect reasoning without translation loss. The adapters prove interoperability; direct ANIP integration is the production deployment path.
+
 ## Core Principles
 
 ANIP defines 9 primitives in two tiers:
