@@ -1,0 +1,25 @@
+services:
+  anip-server:
+    build:
+      context: ../../examples/anip-ts
+    ports:
+      - "9103:8000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8000/anip/manifest"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+  graphql-adapter:
+    build:
+      context: .
+    ports:
+      - "3004:3002"
+    environment:
+      ANIP_SERVICE_URL: "http://anip-server:8000"
+      ANIP_ADAPTER_PORT: "3002"
+      ANIP_ISSUER: "human:test@example.com"
+      ANIP_SCOPE: "travel.search,travel.book:max_$500"
+    depends_on:
+      anip-server:
+        condition: service_healthy
