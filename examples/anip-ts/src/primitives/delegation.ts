@@ -142,8 +142,25 @@ export function validateDelegation(
     };
   }
 
-  // 4. Check delegation depth — walk the chain and count
+  // 4. Verify the delegation chain is complete (no missing ancestors)
   const chain = getChain(token);
+  // If the token has a parent but get_chain didn't reach a root (parent=null),
+  // the chain is broken — an ancestor is unregistered
+  if (chain[0].parent !== null) {
+    return {
+      type: "broken_delegation_chain",
+      detail: `delegation chain is incomplete — ancestor token '${chain[0].parent}' is not registered`,
+      resolution: {
+        action: "register_missing_ancestor",
+        grantable_by: token.issuer,
+        requires: null,
+        estimated_availability: null,
+      },
+      retry: true,
+    };
+  }
+
+  // 5. Check delegation depth
   const maxDepth = token.constraints.max_delegation_depth;
   // Depth is number of delegations (edges), not nodes
   const actualDepth = chain.length - 1;
@@ -161,7 +178,7 @@ export function validateDelegation(
     };
   }
 
-  // 5. Enforce concurrent_branches — reject if exclusive and another request is active
+  // 6. Enforce concurrent_branches — reject if exclusive and another request is active
   if (token.constraints.concurrent_branches === "exclusive") {
     const root = getRootPrincipal(token);
     if (activeRequests.has(root)) {
@@ -179,7 +196,7 @@ export function validateDelegation(
     }
   }
 
-  // 6. Validate parent chain — every parent must also be valid and not expired
+  // 7. Validate parent chain — every parent must also be valid and not expired
   for (const ancestor of chain.slice(0, -1)) {
     // all except the current token
     const ancestorExpires = new Date(ancestor.expires);
@@ -265,29 +282,92 @@ export function validateScopeNarrowing(token: DelegationToken): ANIPFailure | nu
       };
     }
 
-    // Check budget narrowing: child budget constraint must not exceed parent's
-    if (childScope.includes(":max_$")) {
-      const childBudget = parseFloat(childScope.split(":max_$")[1]);
-      for (const parentScopeStr of parent.scope) {
-        const pBase = parentScopeStr.split(":")[0];
-        if (pBase === childBase && parentScopeStr.includes(":max_$")) {
-          const parentBudget = parseFloat(parentScopeStr.split(":max_$")[1]);
-          if (childBudget > parentBudget) {
-            return {
-              type: "scope_escalation",
-              detail: `child budget $${childBudget} exceeds parent budget $${parentBudget} for scope '${childBase}'`,
-              resolution: {
-                action: "narrow_budget",
-                requires: `budget must be <= $${parentBudget}`,
-                grantable_by: parent.issuer,
-                estimated_availability: null,
-              },
-              retry: false,
-            };
-          }
+    // Check budget constraints: if parent has a budget on this scope,
+    // child MUST preserve it (same or tighter). Dropping it is escalation.
+    for (const parentScopeStr of parent.scope) {
+      const pBase = parentScopeStr.split(":")[0];
+      if (pBase === childBase && parentScopeStr.includes(":max_$")) {
+        const parentBudget = parseFloat(parentScopeStr.split(":max_$")[1]);
+        if (!childScope.includes(":max_$")) {
+          // Child dropped the budget constraint entirely
+          return {
+            type: "scope_escalation",
+            detail: `child dropped budget constraint from scope '${childBase}' (parent has max $${parentBudget})`,
+            resolution: {
+              action: "preserve_budget_constraint",
+              requires: `scope '${childBase}' must include budget <= $${parentBudget}`,
+              grantable_by: parent.issuer,
+              estimated_availability: null,
+            },
+            retry: false,
+          };
+        }
+        const childBudget = parseFloat(childScope.split(":max_$")[1]);
+        if (childBudget > parentBudget) {
+          return {
+            type: "scope_escalation",
+            detail: `child budget $${childBudget} exceeds parent budget $${parentBudget} for scope '${childBase}'`,
+            resolution: {
+              action: "narrow_budget",
+              requires: `budget must be <= $${parentBudget}`,
+              grantable_by: parent.issuer,
+              estimated_availability: null,
+            },
+            retry: false,
+          };
         }
       }
     }
+  }
+
+  return null;
+}
+
+export function validateConstraintsNarrowing(token: DelegationToken): ANIPFailure | null {
+  /**
+   * Validate that a child token's constraints don't weaken its parent's.
+   * Returns null if valid (or no parent), or an ANIPFailure if constraints widen.
+   */
+  if (token.parent === null) {
+    return null;
+  }
+
+  const parent = getToken(token.parent);
+  if (parent === null) {
+    return null; // parent existence is checked separately
+  }
+
+  // max_delegation_depth: child cannot raise it
+  if (token.constraints.max_delegation_depth > parent.constraints.max_delegation_depth) {
+    return {
+      type: "constraint_escalation",
+      detail: `child max_delegation_depth (${token.constraints.max_delegation_depth}) exceeds parent (${parent.constraints.max_delegation_depth})`,
+      resolution: {
+        action: "narrow_constraints",
+        requires: `max_delegation_depth must be <= ${parent.constraints.max_delegation_depth}`,
+        grantable_by: parent.issuer,
+        estimated_availability: null,
+      },
+      retry: false,
+    };
+  }
+
+  // concurrent_branches: child cannot weaken from exclusive to allowed
+  if (
+    parent.constraints.concurrent_branches === "exclusive" &&
+    token.constraints.concurrent_branches === "allowed"
+  ) {
+    return {
+      type: "constraint_escalation",
+      detail: "child weakened concurrent_branches from 'exclusive' to 'allowed'",
+      resolution: {
+        action: "preserve_constraint",
+        requires: "concurrent_branches must remain 'exclusive'",
+        grantable_by: parent.issuer,
+        estimated_availability: null,
+      },
+      retry: false,
+    };
   }
 
   return null;

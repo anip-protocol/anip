@@ -75,7 +75,7 @@ capability:
 
 A service MUST declare all capabilities in its manifest. Each capability MUST include a name, description, inputs with types, output shape, and side-effect type.
 
-The concrete format for capability declarations (JSON Schema, a purpose-built IDL, or another approach) is an open design question. The schema above represents the semantic structure that any format must express.
+ANIP uses JSON Schema (draft 2020-12) for capability declarations. Canonical schemas are defined in Section 9 and validated across two reference implementations (Python/Pydantic and TypeScript/Zod).
 
 ### 4.2 Side-effect Typing
 
@@ -575,6 +575,7 @@ ANIP defines the following standard endpoints. Core endpoints MUST be implemente
 | Endpoint | Method | Profile | Description |
 |----------|--------|---------|-------------|
 | `{graph}/{capability}` | GET | capability_graph | Capability prerequisites and composition |
+| `{audit}` | POST | observability | Audit log query, filtered by root principal |
 | `{test}/{capability}` | POST | test | Contract testing sandbox (reserved, v2) |
 
 Endpoint paths in the table above use `{name}` to reference the URL declared in the discovery document's `endpoints` field. Services MAY use any URL paths they choose — the discovery document is the source of truth for where each endpoint lives.
@@ -698,6 +699,12 @@ The service MUST enforce budget constraints carried in the delegation token's sc
 **Request:** No body.
 
 **Response:** The capability's prerequisites and composition relationships (see Section 5.2 for schema).
+
+#### Audit Log — `POST {audit}`
+
+**Request:** A delegation token in the body. Optional query parameters: `capability`, `since` (ISO 8601), `limit`.
+
+**Response:** Audit log entries filtered to the root principal of the provided delegation token. A service MUST NOT return audit entries belonging to other principals. This enforces the observability contract: each principal can only see their own audit trail.
 
 ### 6.4 Agent Interaction Flow
 
