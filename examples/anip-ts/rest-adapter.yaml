@@ -1,0 +1,15 @@
+# REST adapter config for the TypeScript reference implementation
+# Uses default routes — zero config, generic /api/{capability} paths
+
+anip_service_url: "http://localhost:8001"
+port: 3003
+
+delegation:
+  issuer: "human:user@example.com"
+  scope:
+    - "travel.search"
+    - "travel.book:max_$500"
+  token_ttl_minutes: 60
+
+# No route overrides — proves the adapter works generically
+# Default routes: GET /api/search_flights, POST /api/book_flight

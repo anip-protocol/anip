@@ -1,0 +1,16 @@
+# GraphQL adapter config for the TypeScript reference implementation
+
+anip_service_url: "http://localhost:8001"
+port: 3004
+
+delegation:
+  issuer: "human:user@example.com"
+  scope:
+    - "travel.search"
+    - "travel.book:max_$500"
+  token_ttl_minutes: 60
+
+graphql:
+  path: "/graphql"
+  playground: true
+  introspection: true
