@@ -17,6 +17,7 @@ from .primitives.delegation import (
     register_token,
     release_exclusive_lock,
     validate_delegation,
+    validate_parent_exists,
     validate_scope_narrowing,
 )
 from .primitives.manifest import build_manifest
@@ -171,6 +172,11 @@ def register_delegation_token(token: DelegationToken):
     In production, tokens would be cryptographically verified.
     In this demo, we trust-on-declaration (per ANIP v1 spec).
     """
+    # Validate parent exists: child tokens must reference a registered parent
+    parent_failure = validate_parent_exists(token)
+    if parent_failure is not None:
+        return {"registered": False, "error": parent_failure.detail}
+
     # Validate scope narrowing: child tokens cannot widen parent scope
     scope_failure = validate_scope_narrowing(token)
     if scope_failure is not None:
