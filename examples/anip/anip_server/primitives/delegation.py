@@ -86,6 +86,27 @@ def get_chain_token_ids(token: DelegationToken) -> list[str]:
     return [t.token_id for t in get_chain(token)]
 
 
+def validate_token_registered(token: DelegationToken) -> ANIPFailure | None:
+    """Verify that the presented token is registered in the token store.
+
+    Prevents forged tokens from bypassing registration-time validation
+    (scope narrowing, budget constraints, constraint narrowing).
+    """
+    stored = get_token(token.token_id)
+    if stored is None:
+        return ANIPFailure(
+            type="token_not_registered",
+            detail=f"delegation token '{token.token_id}' is not registered — register via /anip/tokens first",
+            resolution=Resolution(
+                action="register_token",
+                requires="token must be registered before use",
+                grantable_by=token.issuer,
+            ),
+            retry=True,
+        )
+    return None
+
+
 def validate_delegation(
     token: DelegationToken,
     minimum_scope: list[str],
@@ -95,6 +116,11 @@ def validate_delegation(
 
     Returns None if valid, or an ANIPFailure describing what's wrong.
     """
+    # 0. Verify the token itself is registered (prevents forged leaf tokens)
+    registration_failure = validate_token_registered(token)
+    if registration_failure is not None:
+        return registration_failure
+
     # 1. Check expiry
     if token.expires < datetime.now(timezone.utc):
         return ANIPFailure(

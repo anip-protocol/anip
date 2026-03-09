@@ -20,6 +20,7 @@ from .primitives.delegation import (
     validate_delegation,
     validate_parent_exists,
     validate_scope_narrowing,
+    validate_token_registered,
 )
 from .primitives.manifest import build_manifest
 from .primitives.models import (
@@ -198,6 +199,11 @@ def register_delegation_token(token: DelegationToken):
 @app.post("/anip/permissions", response_model=PermissionResponse)
 def query_permissions(token: DelegationToken):
     """Discover what the agent can do given its delegation chain."""
+    # Verify the token is registered — prevents forged tokens from querying permissions
+    reg_failure = validate_token_registered(token)
+    if reg_failure is not None:
+        return {"error": reg_failure.detail, "failure": reg_failure.model_dump()}
+
     return discover_permissions(token, _manifest.capabilities)
 
 
@@ -365,8 +371,13 @@ def get_audit_log(
 
     Access is restricted by the observability contract:
     only the root principal of the delegation chain can access
-    their own audit records. A valid delegation token is required.
+    their own audit records. A valid, registered delegation token is required.
     """
+    # Verify the token is registered — prevents forged tokens from querying audit data
+    reg_failure = validate_token_registered(token)
+    if reg_failure is not None:
+        return {"success": False, "failure": reg_failure.model_dump()}
+
     root_principal = get_root_principal(token)
 
     entries = query_audit_log(
