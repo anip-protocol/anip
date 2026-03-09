@@ -691,6 +691,8 @@ budget: { ... }           # optional, for cost negotiation
 
 The service MUST validate the delegation token before processing. The service MUST return an ANIP failure object (not an HTTP error) for any authorization, budget, or purpose-binding failure.
 
+The service MUST enforce budget constraints carried in the delegation token's scope. If a scope string includes a budget constraint (e.g., `travel.book:max_$500`) and the capability's cost exceeds that constraint, the service MUST reject the invocation with a `budget_exceeded` failure before executing the capability. Budget enforcement is not optional — a service that accepts a delegation token with budget constraints and ignores them violates the delegation contract.
+
 #### Capability Graph — `GET {graph}/{capability}`
 
 **Request:** No body.
@@ -881,7 +883,25 @@ The following are explicitly out of scope for ANIP v1:
 
 ---
 
-## 13. Open Questions
+## 13. Roadmap: v0.1 → v2
+
+The following table maps known v0.1 enforceability gaps to their planned resolution mechanisms:
+
+| Gap | v0.1 Status | v2 Target |
+|-----|------------|-----------|
+| **Side-effect declarations** | Trust-on-declaration — services declare `read`/`write`/`irreversible` without verification | Contract testing in sandboxed mode (§7) verifies declared side-effects match actual behavior |
+| **Delegation token authenticity** | Trust-on-declaration — tokens are accepted without cryptographic verification | Signed delegation tokens with verifiable key chains; format TBD (JWT, W3C VC, or ANIP-native) |
+| **Budget constraint enforcement** | MUST (§6.3) — services must honor budget constraints in delegation scope | Runtime budget tracking across delegation chains; authorization server may enforce cross-service budgets |
+| **Concurrent branch exclusivity** | Declared but not enforced — `concurrent_branches: "exclusive"` is a constraint in the token schema but implementations are not required to enforce it in v0.1 | Session-level state tracking with active request counting per root principal |
+| **Cost accuracy** | Declared certainty levels (`fixed`/`estimated`/`dynamic`) but no verification that actuals match declarations | Variance tracking (§5.1) feeds into reputation model; persistent variance flags untrusted services |
+| **Scope narrowing in delegation chains** | Semantic rule — child tokens should not widen parent scope — but not structurally enforced | Structural enforcement: service rejects tokens where child scope is not a subset of parent scope |
+| **Audit log integrity** | Service-controlled — the service writes and serves its own audit log | Third-party attestation or append-only audit infrastructure with independent verification |
+
+The guiding principle: v0.1 declares the contracts. v2 verifies them. Every gap above is a place where the protocol currently trusts a declaration that will eventually require proof.
+
+---
+
+## 14. Open Questions
 
 These are unresolved design questions where community input is needed:
 
