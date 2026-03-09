@@ -10,7 +10,7 @@ import { Hono } from "hono";
 import { invoke as invokeBookFlight } from "./capabilities/book-flight.js";
 import { invoke as invokeSearchFlights } from "./capabilities/search-flights.js";
 import { buildManifest } from "./primitives/manifest.js";
-import { registerToken, validateDelegation, validateParentExists, getChain, getRootPrincipal, acquireExclusiveLock, releaseExclusiveLock, validateScopeNarrowing } from "./primitives/delegation.js";
+import { registerToken, validateDelegation, validateParentExists, validateConstraintsNarrowing, getChain, getRootPrincipal, acquireExclusiveLock, releaseExclusiveLock, validateScopeNarrowing } from "./primitives/delegation.js";
 import { discoverPermissions } from "./primitives/permissions.js";
 import {
   DelegationToken,
@@ -284,6 +284,12 @@ app.post("/anip/tokens", async (c) => {
   const scopeFailure = validateScopeNarrowing(token);
   if (scopeFailure !== null) {
     return c.json({ registered: false, error: scopeFailure.detail });
+  }
+
+  // Validate constraints narrowing: child cannot weaken parent constraints
+  const constraintFailure = validateConstraintsNarrowing(token);
+  if (constraintFailure !== null) {
+    return c.json({ registered: false, error: constraintFailure.detail });
   }
 
   registerToken(token);

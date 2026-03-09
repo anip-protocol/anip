@@ -145,8 +145,22 @@ def validate_delegation(
             retry=True,
         )
 
-    # 4. Check delegation depth — walk the chain and count
+    # 4. Verify the delegation chain is complete (no missing ancestors)
     chain = get_chain(token)
+    # If the token has a parent but get_chain didn't reach a root (parent=None),
+    # the chain is broken — an ancestor is unregistered
+    if chain[0].parent is not None:
+        return ANIPFailure(
+            type="broken_delegation_chain",
+            detail=f"delegation chain is incomplete — ancestor token '{chain[0].parent}' is not registered",
+            resolution=Resolution(
+                action="register_missing_ancestor",
+                grantable_by=token.issuer,
+            ),
+            retry=True,
+        )
+
+    # 5. Check delegation depth
     max_depth = token.constraints.max_delegation_depth
     # Depth is number of delegations (edges), not nodes
     actual_depth = len(chain) - 1
@@ -162,7 +176,7 @@ def validate_delegation(
             retry=True,
         )
 
-    # 5. Enforce concurrent_branches — reject if exclusive and another request is active
+    # 6. Enforce concurrent_branches — reject if exclusive and another request is active
     if token.constraints.concurrent_branches == ConcurrentBranches.EXCLUSIVE:
         root = get_root_principal(token)
         if root in _active_requests:
@@ -176,7 +190,7 @@ def validate_delegation(
                 retry=True,
             )
 
-    # 6. Validate parent chain — every parent must also be valid and not expired
+    # 7. Validate parent chain — every parent must also be valid and not expired
     for ancestor in chain[:-1]:  # all except the current token
         if ancestor.expires < datetime.now(timezone.utc):
             return ANIPFailure(
@@ -246,24 +260,83 @@ def validate_scope_narrowing(token: DelegationToken) -> ANIPFailure | None:
                 retry=False,
             )
 
-        # Check budget narrowing: child budget constraint must not exceed parent's
-        if ":max_$" in child_scope:
-            child_budget = float(child_scope.split(":max_$")[1])
-            for parent_scope_str in parent.scope:
-                parent_base = parent_scope_str.split(":")[0]
-                if parent_base == child_base and ":max_$" in parent_scope_str:
-                    parent_budget = float(parent_scope_str.split(":max_$")[1])
-                    if child_budget > parent_budget:
-                        return ANIPFailure(
-                            type="scope_escalation",
-                            detail=f"child budget ${child_budget} exceeds parent budget ${parent_budget} for scope '{child_base}'",
-                            resolution=Resolution(
-                                action="narrow_budget",
-                                requires=f"budget must be <= ${parent_budget}",
-                                grantable_by=parent.issuer,
-                            ),
-                            retry=False,
-                        )
+        # Check budget constraints: if parent has a budget on this scope,
+        # child MUST preserve it (same or tighter). Dropping it is escalation.
+        for parent_scope_str in parent.scope:
+            parent_base = parent_scope_str.split(":")[0]
+            if parent_base == child_base and ":max_$" in parent_scope_str:
+                parent_budget = float(parent_scope_str.split(":max_$")[1])
+                if ":max_$" not in child_scope:
+                    # Child dropped the budget constraint entirely
+                    return ANIPFailure(
+                        type="scope_escalation",
+                        detail=f"child dropped budget constraint from scope '{child_base}' (parent has max ${parent_budget})",
+                        resolution=Resolution(
+                            action="preserve_budget_constraint",
+                            requires=f"scope '{child_base}' must include budget <= ${parent_budget}",
+                            grantable_by=parent.issuer,
+                        ),
+                        retry=False,
+                    )
+                child_budget = float(child_scope.split(":max_$")[1])
+                if child_budget > parent_budget:
+                    return ANIPFailure(
+                        type="scope_escalation",
+                        detail=f"child budget ${child_budget} exceeds parent budget ${parent_budget} for scope '{child_base}'",
+                        resolution=Resolution(
+                            action="narrow_budget",
+                            requires=f"budget must be <= ${parent_budget}",
+                            grantable_by=parent.issuer,
+                        ),
+                        retry=False,
+                    )
+
+    return None
+
+
+def validate_constraints_narrowing(token: DelegationToken) -> ANIPFailure | None:
+    """Validate that a child token's constraints don't weaken its parent's.
+
+    Returns None if valid (or no parent), or an ANIPFailure if constraints widen.
+    """
+    if token.parent is None:
+        return None
+
+    parent = get_token(token.parent)
+    if parent is None:
+        return None  # parent existence is checked separately
+
+    # max_delegation_depth: child cannot raise it
+    if token.constraints.max_delegation_depth > parent.constraints.max_delegation_depth:
+        return ANIPFailure(
+            type="constraint_escalation",
+            detail=(
+                f"child max_delegation_depth ({token.constraints.max_delegation_depth}) "
+                f"exceeds parent ({parent.constraints.max_delegation_depth})"
+            ),
+            resolution=Resolution(
+                action="narrow_constraints",
+                requires=f"max_delegation_depth must be <= {parent.constraints.max_delegation_depth}",
+                grantable_by=parent.issuer,
+            ),
+            retry=False,
+        )
+
+    # concurrent_branches: child cannot weaken from exclusive to allowed
+    if (
+        parent.constraints.concurrent_branches == ConcurrentBranches.EXCLUSIVE
+        and token.constraints.concurrent_branches == ConcurrentBranches.ALLOWED
+    ):
+        return ANIPFailure(
+            type="constraint_escalation",
+            detail="child weakened concurrent_branches from 'exclusive' to 'allowed'",
+            resolution=Resolution(
+                action="preserve_constraint",
+                requires="concurrent_branches must remain 'exclusive'",
+                grantable_by=parent.issuer,
+            ),
+            retry=False,
+        )
 
     return None
 

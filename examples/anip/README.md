@@ -90,3 +90,4 @@ The REST adapter's OpenAPI spec includes `x-anip-*` extensions preserving ANIP m
 | `/anip/permissions` | POST | Permission discovery given a delegation token |
 | `/anip/invoke/{capability}` | POST | Invoke a capability with delegation chain |
 | `/anip/graph/{capability}` | GET | Capability prerequisite graph |
+| `/anip/audit` | POST | Audit log (requires delegation token, filtered by root principal) |

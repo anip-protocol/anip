@@ -16,6 +16,7 @@ from .primitives.delegation import (
     get_root_principal,
     register_token,
     release_exclusive_lock,
+    validate_constraints_narrowing,
     validate_delegation,
     validate_parent_exists,
     validate_scope_narrowing,
@@ -181,6 +182,11 @@ def register_delegation_token(token: DelegationToken):
     scope_failure = validate_scope_narrowing(token)
     if scope_failure is not None:
         return {"registered": False, "error": scope_failure.detail}
+
+    # Validate constraints narrowing: child cannot weaken parent constraints
+    constraint_failure = validate_constraints_narrowing(token)
+    if constraint_failure is not None:
+        return {"registered": False, "error": constraint_failure.detail}
 
     register_token(token)
     return {"registered": True, "token_id": token.token_id}
