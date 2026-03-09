@@ -885,41 +885,20 @@ The following are explicitly out of scope for ANIP v1:
 
 ## 13. Roadmap: v0.1 → v2
 
-Not all gaps are equal. The critical distinction is between *reference implementation improvements* (code a single server can ship) and *protocol-level guarantees* (interoperable commitments that hold across implementations). Conflating the two overpromises.
+Not all gaps are equal. The critical distinction is between *protocol requirement level* (what the spec mandates), *reference implementation status* (what the code ships), and *future protocol work* (what requires interoperability design). Conflating these overpromises. Each feature below is categorized across all three dimensions — an empty cell means no claim is being made.
 
-### Protocol-level guarantees — already in v1
+| Feature | Protocol Requirement Level | Reference Implementation Status | Future Protocol Work |
+|---------|---------------------------|--------------------------------|---------------------|
+| **Budget enforcement** | MUST — v1 core (§6.3) | Implemented | — |
+| **Scope narrowing** | MUST — v1.x | Implemented: reference servers reject child tokens that widen parent scope | — |
+| **Concurrent branch exclusivity** | SHOULD — v1.x | Implemented: reference servers enforce `concurrent_branches: "exclusive"` per root principal | Distributed enforcement across replicas is a deployment concern |
+| **Cost variance tracking** | MAY — v1.x | Implemented: reference servers record declared vs actual costs in audit log | — |
+| **Signed delegation tokens** | OPTIONAL — experimental extension | JWT signing available as implementation choice | Interoperable trust semantics: issuer trust, revocation, DAG-aware key discovery, format standardization |
+| **Side-effect contract testing** | — | — | Sandbox infrastructure with behavioral fidelity and isolation guarantees (§7) |
+| **Audit log integrity** | — | — | Append-only infrastructure, third-party attestation |
+| **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation, format standardization (JWT, W3C VC, or ANIP-native) |
 
-| Guarantee | Status |
-|-----------|--------|
-| **Budget constraint enforcement** | MUST (§6.3) — normative and implemented in reference servers. A service that accepts a delegation token with budget constraints and ignores them violates the protocol. |
-
-### Reference implementation improvements — v1.x
-
-These are enforced in the reference servers. They are well-understood, high-value, and don't require protocol-level design decisions beyond what v0.1 already defines. Other implementations SHOULD enforce them; they will become protocol-level MUSTs when cross-implementation testing confirms consistent behavior.
-
-| Improvement | v0.1 Status | v1.x Status |
-|-------------|------------|-------------|
-| **Concurrent branch exclusivity** | Declared but not enforced — `concurrent_branches: "exclusive"` exists in the token schema | Enforced in reference implementations. Single-service enforcement is straightforward; distributed enforcement across replicas is a deployment concern, not a protocol concern. |
-| **Scope narrowing in delegation chains** | Semantic rule — child tokens should not widen parent scope — but not structurally enforced | Enforced at token registration: reference servers reject tokens where child scope is not a subset of parent scope. |
-| **Cost variance tracking** | Declared certainty levels (`fixed`/`estimated`/`dynamic`) but no verification that actuals match declarations | Reference servers record declared vs actual costs and surface variance as an observability signal. |
-
-### Optional experimental extension — v1.x
-
-| Extension | Status |
-|-----------|--------|
-| **Signed delegation tokens** | Implementations MAY sign tokens using JWT. This is an implementation choice, not a protocol guarantee. Interoperable trust semantics — issuer trust, revocation, parent-chain representation in DAG structures, and key discovery — are v2 protocol work. A single implementation signing JWTs does not constitute a protocol-level trust model. |
-
-### Protocol-level design — v2
-
-These gaps involve trust infrastructure, interoperability decisions, or external dependencies that cannot be solved by a single implementation:
-
-| Gap | Why v2 |
-|-----|--------|
-| **Cryptographic delegation chain verification** | Requires interoperable trust semantics: issuer trust, revocation, DAG-aware key discovery, and format standardization (JWT, W3C VC, or ANIP-native). The hard problem is not signing — it is making signatures meaningful across implementations. |
-| **Side-effect contract testing** | Requires sandbox infrastructure with behavioral fidelity and isolation guarantees (§7). Cannot be faked with stubs. |
-| **Audit log integrity** | Requires third-party attestation or append-only infrastructure with independent verification. A service auditing itself is not a trust guarantee. |
-
-The guiding principle: v0.1 declares the contracts. v1.x reference implementations enforce what they can. v2 makes protocol-level guarantees that hold across implementations. The distinction is not coding difficulty — it is protocol maturity.
+The guiding principle: v0.1 declares the contracts. v1.x reference implementations enforce what they can. v2 makes protocol-level guarantees that hold across implementations. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
 
 **What solving these gaps unlocks.** When trust and verification become real — not declarative — agents can evaluate risk before acting. Delegated authority becomes expressible in ways current tool layers can't handle. Failures become operationally useful, not just descriptive. High-stakes actions — travel, procurement, finance ops, approvals, multi-step orchestration — become automatable with real control surfaces. At that point, ANIP solves one of the central coordination problems of agent deployment: how an agent knows what it's allowed to do, what will happen if it does it, and how to recover when something blocks it.
 
