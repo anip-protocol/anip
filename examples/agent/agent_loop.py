@@ -203,3 +203,29 @@ def generate_tools(manifest: dict[str, Any]) -> list[dict[str, Any]]:
         tools.append(_capability_to_tool(name, cap))
     tools.extend(PROTOCOL_TOOLS)
     return tools
+
+
+def build_system_prompt(token_inventory: list[dict[str, Any]]) -> str:
+    """Build the system prompt with goal and token inventory."""
+    token_lines = []
+    for t in token_inventory:
+        line = f"  - {t['token_id']}: {t['capability']} (scope: {t['scope']}"
+        if t.get("budget"):
+            line += f", budget: max ${t['budget']}"
+        line += ")"
+        token_lines.append(line)
+
+    return (
+        "You are an AI agent with access to an ANIP flight booking service.\n\n"
+        "Goal: Book a SEA→SFO flight for March 10.\n\n"
+        "Your delegation tokens:\n"
+        + "\n".join(token_lines)
+        + "\n\n"
+        "Use check_permissions and the tool descriptions to understand your authority "
+        "before acting. You must specify which token_id to use when invoking capabilities.\n"
+        "If a capability fails due to budget or scope, use request_budget_increase "
+        "to ask the human for additional authority.\n\n"
+        "Think carefully before acting. Check side effects, costs, and "
+        "prerequisites in the tool descriptions.\n"
+        "When you are done, respond with a final text summary of what you accomplished."
+    )
