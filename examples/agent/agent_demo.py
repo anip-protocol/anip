@@ -223,6 +223,78 @@ class DemoAgent:
         print_result(f"Blocked: {failure['type']}")
         print_reasoning(reason("booking_blocked", self.state, self.live))
 
+    def step_6_human_delegation(self) -> None:
+        print_header(6, "HUMAN GRANTS FRESH DELEGATION")
+
+        # Human issues a new root token (not a child — widening budget
+        # would violate scope narrowing rules)
+        new_token = make_token(
+            issuer="human:samir@example.com",
+            subject="agent:demo-agent",
+            scope=["travel.book:max_$450"],
+            capability="book_flight",
+        )
+
+        print_action("POST", "/anip/tokens")
+        reg = self.client.register_token(new_token)
+        print_result(f"New token registered: {reg.get('token_id', 'N/A')}")
+
+        self.state.update({
+            "new_token": new_token,
+            "new_budget_cap": 450,
+        })
+
+        print_reasoning(reason("human_delegation", self.state, self.live))
+
+    def step_7_booking_success(self) -> None:
+        print_header(7, "BOOKING SUCCEEDS")
+
+        print_action("POST", "/anip/invoke/book_flight")
+        result = self.client.invoke(
+            "book_flight",
+            self.state["new_token"],
+            {
+                "flight_number": self.state["preferred_flight"],
+                "date": "2026-03-10",
+                "passengers": 1,
+            },
+        )
+
+        booking = result["result"]
+        self.state.update({
+            "booking_id": booking["booking_id"],
+            "flight_number": booking["flight_number"],
+            "departure_time": booking["departure_time"],
+            "total_cost": booking["total_cost"],
+        })
+
+        print_result(f"Booking confirmed: {booking['booking_id']}")
+        print_reasoning(reason("booking_success", self.state, self.live))
+
+    def step_8_audit(self) -> None:
+        print_header(8, "AUDIT VERIFICATION AND REST CONTRAST")
+
+        print_action("POST", "/anip/audit")
+        audit = self.client.query_audit(
+            self.state["new_token"],
+            capability="book_flight",
+        )
+
+        entries = audit.get("entries", [])
+        # Find the successful booking entry
+        success_entries = [e for e in entries if e.get("success")]
+        entry = success_entries[-1] if success_entries else {}
+
+        self.state.update({
+            "audit_count": len(entries),
+            "subject": self.state["new_token"]["subject"],
+            "root_principal": audit.get("root_principal", "unknown"),
+            "chain": entry.get("delegation_chain", []),
+        })
+
+        print_result(f"{len(entries)} audit entries for book_flight")
+        print_reasoning(reason("audit", self.state, self.live))
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="ANIP Demo Agent")
