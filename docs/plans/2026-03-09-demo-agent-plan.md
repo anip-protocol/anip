@@ -24,6 +24,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -89,7 +90,6 @@ class ANIPClient:
 
 
 def make_token(
-    token_id: str,
     issuer: str,
     subject: str,
     scope: list[str],
@@ -99,14 +99,15 @@ def make_token(
     concurrent_branches: str = "allowed",
     ttl_hours: int = 2,
 ) -> dict[str, Any]:
-    """Build a delegation token dict."""
+    """Build a delegation token dict with a unique runtime ID."""
+    token_id = f"demo-{uuid.uuid4().hex[:8]}"
     expires = (datetime.now(timezone.utc) + timedelta(hours=ttl_hours)).isoformat()
     return {
         "token_id": token_id,
         "issuer": issuer,
         "subject": subject,
         "scope": scope,
-        "purpose": {"capability": capability, "parameters": {}, "task_id": f"demo-{token_id}"},
+        "purpose": {"capability": capability, "parameters": {}, "task_id": f"task-{token_id}"},
         "parent": parent,
         "expires": expires,
         "constraints": {
@@ -168,9 +169,10 @@ SIMULATED_REASONING: dict[str, Any] = {
         f"search_flights is a declared prerequisite for book_flight — I must search before booking."
     ),
     "permissions": lambda state: (
-        f"Permission check complete. I can invoke search_flights (scope: travel.search) "
-        f"and book_flight (scope: travel.book, budget cap: ${state['budget_cap']}). "
-        f"My authority is limited to ${state['budget_cap']} per booking."
+        f"Two tokens registered, one per capability. "
+        f"Search token: travel.search scope, grants search_flights. "
+        f"Book token: travel.book scope, budget cap ${state['budget_cap']}. "
+        f"My booking authority is limited to ${state['budget_cap']}."
     ),
     "pre_invocation": lambda state: (
         "Before acting, I note three things from the manifest:\n"
@@ -415,36 +417,55 @@ class DemoAgent:
     def step_2_permissions(self) -> None:
         print_header(2, "PERMISSION CHECK")
 
-        # Human delegates to agent with limited budget
-        token = make_token(
-            token_id="demo-agent-token",
+        # Human delegates to agent — one token per capability (purpose-bound)
+        search_token = make_token(
             issuer="human:samir@example.com",
             subject="agent:demo-agent",
-            scope=["travel.search", "travel.book:max_$300"],
+            scope=["travel.search"],
             capability="search_flights",
         )
+        book_token = make_token(
+            issuer="human:samir@example.com",
+            subject="agent:demo-agent",
+            scope=["travel.book:max_$300"],
+            capability="book_flight",
+        )
 
-        print_action("POST", "/anip/tokens")
-        reg = self.client.register_token(token)
-        print_result(f"Token registered: {reg.get('token_id', 'N/A')}")
+        print_action("POST", "/anip/tokens (search)")
+        self.client.register_token(search_token)
+        print_result(f"Token registered: {search_token['token_id']}")
 
-        self.state["agent_token"] = token
+        print_action("POST", "/anip/tokens (book)")
+        self.client.register_token(book_token)
+        print_result(f"Token registered: {book_token['token_id']}")
+
+        self.state["search_token"] = search_token
+        self.state["book_token"] = book_token
         self.state["budget_cap"] = 300
 
-        print_action("POST", "/anip/permissions")
-        permissions = self.client.check_permissions(token)
-        available = [c["capability"] for c in permissions.get("available", [])]
-        print_result(f"Available capabilities: {', '.join(available)}")
+        print_action("POST", "/anip/permissions (search token)")
+        search_perms = self.client.check_permissions(search_token)
+        search_available = [c["capability"] for c in search_perms.get("available", [])]
+        print_result(f"Search token grants: {', '.join(search_available)}")
+
+        print_action("POST", "/anip/permissions (book token)")
+        book_perms = self.client.check_permissions(book_token)
+        book_available = [c["capability"] for c in book_perms.get("available", [])]
+        print_result(f"Book token grants: {', '.join(book_available)}")
 
         print_reasoning(reason("permissions", self.state, self.live))
 
     def step_3_pre_invocation(self) -> None:
         print_header(3, "PRE-INVOCATION REASONING")
 
-        print_action("GET", "/anip/graph/book_flight")
-        graph = self.client.get_graph("book_flight")
-        requires = [r["capability"] for r in graph.get("requires", [])]
-        print_result(f"Prerequisites for book_flight: {', '.join(requires)}")
+        # No HTTP call — this step is pure reasoning from manifest metadata
+        # already fetched in Step 1. The agent reviews what it knows before acting.
+        book_cap = self.state["manifest"]["capabilities"]["book_flight"]
+        requires = [r["capability"] for r in book_cap.get("requires", [])]
+        side_effect = book_cap.get("side_effect", "unknown")
+        print(f"\nFrom manifest (already fetched):")
+        print(f"  book_flight side_effect: {side_effect}")
+        print(f"  book_flight prerequisites: {', '.join(requires)}")
 
         print_reasoning(reason("pre_invocation", self.state, self.live))
 
@@ -493,7 +514,7 @@ git commit -m "feat(demo-agent): add agent runner with steps 1-3"
 **Files:**
 - Modify: `examples/agent/agent_demo.py`
 
-**Context:** Add the search step and the budget-blocked booking attempt. The agent searches SEA→SFO, finds 3 flights, prefers AA100 ($420 nonstop) but it exceeds the $300 budget. Agent tries to book anyway and gets a structured `budget_exceeded` failure.
+**Context:** Add the search step and the budget-blocked booking attempt. The agent reuses the tokens registered in Step 2 — no fresh tokens here. It searches SEA→SFO, finds 3 flights, prefers AA100 ($420 nonstop) but it exceeds the $300 budget. Agent tries to book anyway and gets a structured `budget_exceeded` failure.
 
 **Step 1: Add step_4_search and step_5_booking_blocked**
 
@@ -503,15 +524,8 @@ Add these methods to the `DemoAgent` class:
     def step_4_search(self) -> None:
         print_header(4, "SEARCH AND COMPARE")
 
-        # Need a search-purpose token
-        search_token = make_token(
-            token_id="demo-search-token",
-            issuer="human:samir@example.com",
-            subject="agent:demo-agent",
-            scope=["travel.search"],
-            capability="search_flights",
-        )
-        self.client.register_token(search_token)
+        # Reuse the search token registered in Step 2
+        search_token = self.state["search_token"]
 
         print_action("POST", "/anip/invoke/search_flights")
         result = self.client.invoke(
@@ -531,7 +545,6 @@ Add these methods to the `DemoAgent` class:
             "flight_count": len(flights),
             "preferred_flight": preferred["flight_number"],
             "preferred_price": preferred["price"],
-            "search_token": search_token,
         })
 
         print_reasoning(reason("search_results", self.state, self.live))
@@ -539,17 +552,10 @@ Add these methods to the `DemoAgent` class:
     def step_5_booking_blocked(self) -> None:
         print_header(5, "BOOKING ATTEMPT — BLOCKED")
 
-        # Try to book with the $300-capped token
-        book_token = make_token(
-            token_id="demo-book-token-v1",
-            issuer="human:samir@example.com",
-            subject="agent:demo-agent",
-            scope=["travel.book:max_$300"],
-            capability="book_flight",
-        )
-        self.client.register_token(book_token)
+        # Reuse the $300-capped book token from Step 2
+        book_token = self.state["book_token"]
 
-        print_action("POST", f"/anip/invoke/book_flight")
+        print_action("POST", "/anip/invoke/book_flight")
         result = self.client.invoke(
             "book_flight",
             book_token,
@@ -607,7 +613,6 @@ Add these methods to the `DemoAgent` class:
         # Human issues a new root token (not a child — widening budget
         # would violate scope narrowing rules)
         new_token = make_token(
-            token_id="demo-book-token-v2",
             issuer="human:samir@example.com",
             subject="agent:demo-agent",
             scope=["travel.book:max_$450"],

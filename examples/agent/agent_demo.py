@@ -144,6 +144,10 @@ class DemoAgent:
         self.state["search_token"] = search_token
         self.state["book_token"] = book_token
         self.state["budget_cap"] = 300
+        self.state["token_strategy"] = (
+            "two purpose-bound tokens, one per capability; "
+            "permissions are evaluated per token, not globally"
+        )
 
         print_action("POST", "/anip/permissions (search token)")
         search_perms = self.client.check_permissions(search_token)

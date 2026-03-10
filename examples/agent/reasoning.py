@@ -73,6 +73,12 @@ You are an AI agent reasoning about an ANIP (Agent-Native Interface Protocol) se
 You are given metadata from the service (manifest, permissions, responses, failures)
 and must reason concisely about what you observe and what to do next.
 
+ANIP uses purpose-bound delegation tokens. An agent may hold multiple tokens, each \
+scoped to a single capability. When you see permission responses from different tokens, \
+each showing the other's capability as "restricted," that is normal — permissions are \
+per-token, not global. Only flag a conflict if the same token both requires and blocks \
+the same action.
+
 Keep your reasoning to 2-4 sentences. Be factual and specific — reference actual
 numbers, scope names, and capability properties. Do not use filler language."""
 
