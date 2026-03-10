@@ -229,3 +229,196 @@ def build_system_prompt(token_inventory: list[dict[str, Any]]) -> str:
         "prerequisites in the tool descriptions.\n"
         "When you are done, respond with a final text summary of what you accomplished."
     )
+
+
+def dispatch_tool(
+    client: ANIPClient,
+    tool_name: str,
+    tool_input: dict[str, Any],
+    token_inventory: list[dict[str, Any]],
+    capabilities: list[str],
+    budget_failures: dict[str, dict[str, Any]],
+    human_in_the_loop: bool = False,
+) -> tuple[str, list[dict[str, Any]]]:
+    """Execute a tool call and return (result_string, updated_token_inventory).
+
+    Returns the result as a JSON string for Claude, plus the potentially
+    updated token inventory (if a new token was granted).
+    """
+    if tool_name == "check_permissions":
+        token = _find_token(tool_input["token_id"], token_inventory)
+        if token is None:
+            return json.dumps({"error": f"token {tool_input['token_id']} not found"}), token_inventory
+        result = client.check_permissions(token["raw_token"])
+        return json.dumps(result, default=str), token_inventory
+
+    if tool_name == "request_budget_increase":
+        return _handle_budget_request(
+            client, tool_input, token_inventory, budget_failures, human_in_the_loop
+        )
+
+    if tool_name == "query_audit":
+        token = _find_token(tool_input["token_id"], token_inventory)
+        if token is None:
+            return json.dumps({"error": f"token {tool_input['token_id']} not found"}), token_inventory
+        result = client.query_audit(
+            token["raw_token"],
+            capability=tool_input.get("capability"),
+        )
+        return json.dumps(result, default=str), token_inventory
+
+    # Capability invocation
+    if tool_name in capabilities:
+        token_id = tool_input.pop("token_id", None)
+        if token_id is None:
+            return json.dumps({"error": "token_id is required"}), token_inventory
+        token = _find_token(token_id, token_inventory)
+        if token is None:
+            return json.dumps({"error": f"token {token_id} not found"}), token_inventory
+        # tool_input has token_id popped, so it contains only the invocation params
+        result = client.invoke(tool_name, token["raw_token"], tool_input)
+        # Track budget_exceeded failures with full context so escalation can validate
+        if "failure" in result and result["failure"].get("type") == "budget_exceeded":
+            budget_failures[token_id] = {
+                "capability": tool_name,
+                "parameters": dict(tool_input),  # the params that were rejected
+            }
+        return json.dumps(result, default=str), token_inventory
+
+    return json.dumps({"error": f"unknown tool: {tool_name}"}), token_inventory
+
+
+def _find_token(
+    token_id: str, inventory: list[dict[str, Any]]
+) -> dict[str, Any] | None:
+    """Find a token in the inventory by ID."""
+    for t in inventory:
+        if t["token_id"] == token_id:
+            return t
+    return None
+
+
+def _handle_budget_request(
+    client: ANIPClient,
+    tool_input: dict[str, Any],
+    token_inventory: list[dict[str, Any]],
+    budget_failures: dict[str, dict[str, Any]],
+    human_in_the_loop: bool,
+) -> tuple[str, list[dict[str, Any]]]:
+    """Handle a budget increase request — simulated or interactive.
+
+    Validates that:
+    1. current_token_id exists in inventory
+    2. target_capability matches that token's capability
+    3. The agent actually received a budget_exceeded failure for that token
+    4. The requested flight_number and date match the parameters from the
+       failed invocation (escalation must be for the same booking attempt)
+    """
+    current_token_id = tool_input["current_token_id"]
+    requested_budget = tool_input["requested_budget"]
+    target_capability = tool_input["target_capability"]
+    flight_number = tool_input["flight_number"]
+    date = tool_input["date"]
+    reason = tool_input.get("reason", "")
+
+    # Validate: token must exist
+    token = _find_token(current_token_id, token_inventory)
+    if token is None:
+        return json.dumps({
+            "error": f"token {current_token_id} not found",
+        }), token_inventory
+
+    # Validate: target_capability must match the token's capability
+    if token.get("capability") != target_capability:
+        return json.dumps({
+            "error": f"token {current_token_id} is for {token.get('capability')}, "
+                     f"not {target_capability}",
+        }), token_inventory
+
+    # Validate: must have a prior budget_exceeded failure for this token
+    failed_context = budget_failures.get(current_token_id)
+    if failed_context is None:
+        return json.dumps({
+            "error": "No budget_exceeded failure recorded for this token. "
+                     "You must attempt the capability first and receive a "
+                     "budget_exceeded failure before requesting escalation.",
+        }), token_inventory
+
+    # Validate: escalation must match the failed invocation parameters
+    failed_params = failed_context.get("parameters", {})
+    if failed_params.get("flight_number") != flight_number:
+        return json.dumps({
+            "error": f"flight_number '{flight_number}' does not match the failed "
+                     f"request ('{failed_params.get('flight_number')}'). "
+                     "Escalation must be for the same booking attempt.",
+        }), token_inventory
+    if failed_params.get("date") != date:
+        return json.dumps({
+            "error": f"date '{date}' does not match the failed request "
+                     f"('{failed_params.get('date')}'). "
+                     "Escalation must be for the same booking attempt.",
+        }), token_inventory
+
+    # Cap at reasonable maximum
+    max_allowed = 500
+    granted_budget = min(requested_budget, max_allowed)
+
+    if human_in_the_loop:
+        print(f"\n{'=' * 60}")
+        print("HUMAN DELEGATION REQUEST")
+        print(f"{'=' * 60}")
+        print(f"Agent requests budget increase:")
+        print(f"  Capability: {target_capability}")
+        print(f"  For: {flight_number} on {date}")
+        print(f"  Requested budget: ${requested_budget}")
+        print(f"  Reason: {reason}")
+        response = input(f"\nGrant budget? (enter amount, or 'deny'): ").strip()
+        if response.lower() == "deny":
+            return json.dumps({
+                "status": "denied",
+                "detail": "Human denied the budget increase request",
+            }), token_inventory
+        try:
+            granted_budget = float(response)
+        except ValueError:
+            granted_budget = min(requested_budget, max_allowed)
+    else:
+        print(f"\n[Simulated human grants ${granted_budget} budget for {target_capability} — {flight_number} on {date}]")
+
+    # Create and register a fresh root token with purpose binding.
+    # Note: purpose.parameters records the intended booking for audit context,
+    # but the current server does not enforce parameter-level binding at
+    # invocation time (it only checks capability match). Server-side
+    # enforcement of purpose.parameters is a future enhancement.
+    scope_str = f"travel.book:max_${int(granted_budget)}"
+    new_token = make_token(
+        issuer="human:samir@example.com",
+        subject="agent:demo-agent",
+        scope=[scope_str],
+        capability=target_capability,
+    )
+    new_token["purpose"]["parameters"] = {
+        "flight_number": flight_number,
+        "date": date,
+    }
+    client.register_token(new_token)
+
+    # Add to inventory
+    new_entry = {
+        "token_id": new_token["token_id"],
+        "capability": target_capability,
+        "scope": scope_str,
+        "budget": granted_budget,
+        "purpose_bound_to": f"{flight_number} on {date}",
+        "raw_token": new_token,
+    }
+    token_inventory = token_inventory + [new_entry]
+
+    return json.dumps({
+        "status": "approved",
+        "new_token_id": new_token["token_id"],
+        "granted_scope": scope_str,
+        "granted_budget": granted_budget,
+        "purpose": target_capability,
+        "purpose_bound_to": f"{flight_number} on {date}",
+    }), token_inventory
