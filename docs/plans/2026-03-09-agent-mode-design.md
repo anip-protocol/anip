@@ -87,7 +87,9 @@ The model reasons about authority but does not mint it. The runner owns delegati
 ```
 You are an AI agent with access to an ANIP flight booking service.
 
-Goal: Book a SEA→SFO flight for March 10.
+Goal: Book a SEA→SFO flight for March 10. Prefer nonstop flights when
+possible, but stay within your current authority unless additional
+authority is explicitly granted.
 
 Your delegation tokens:
   - {token_id}: search_flights (scope: travel.search)

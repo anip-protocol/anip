@@ -1,2 +1,2 @@
 httpx>=0.27
-anthropic>=0.40  # optional, only needed for --live mode
+anthropic>=0.40  # required for --live and --agent modes

@@ -217,7 +217,9 @@ def build_system_prompt(token_inventory: list[dict[str, Any]]) -> str:
 
     return (
         "You are an AI agent with access to an ANIP flight booking service.\n\n"
-        "Goal: Book a SEA→SFO flight for March 10.\n\n"
+        "Goal: Book a SEA→SFO flight for 2026-03-10. Prefer nonstop flights when "
+        "possible, but stay within your current authority unless additional "
+        "authority is explicitly granted.\n\n"
         "Your delegation tokens:\n"
         + "\n".join(token_lines)
         + "\n\n"
@@ -278,7 +280,8 @@ def dispatch_tool(
         # tool_input has token_id popped, so it contains only the invocation params
         result = client.invoke(tool_name, token["raw_token"], tool_input)
         # Track budget_exceeded failures with full context so escalation can validate
-        if "failure" in result and result["failure"].get("type") == "budget_exceeded":
+        failure = result.get("failure")
+        if failure and failure.get("type") == "budget_exceeded":
             budget_failures[token_id] = {
                 "capability": tool_name,
                 "parameters": dict(tool_input),  # the params that were rejected
@@ -401,7 +404,11 @@ def _handle_budget_request(
         "flight_number": flight_number,
         "date": date,
     }
-    client.register_token(new_token)
+    reg = client.register_token(new_token)
+    if not reg.get("registered", False):
+        return json.dumps({
+            "error": f"Failed to register escalated token: {reg.get('error', 'unknown')}",
+        }), token_inventory
 
     # Add to inventory
     new_entry = {
@@ -413,6 +420,10 @@ def _handle_budget_request(
         "raw_token": new_token,
     }
     token_inventory = token_inventory + [new_entry]
+
+    # Clear the failure record — escalation was granted, so the same
+    # failure cannot be reused to mint additional tokens.
+    budget_failures.pop(current_token_id, None)
 
     return json.dumps({
         "status": "approved",
@@ -458,7 +469,9 @@ def run_agent_loop(
         scope=["travel.search"],
         capability="search_flights",
     )
-    client.register_token(search_token)
+    reg = client.register_token(search_token)
+    if not reg.get("registered", False):
+        raise RuntimeError(f"Failed to register search token: {reg.get('error', 'unknown')}")
 
     book_token = make_token(
         issuer="human:samir@example.com",
@@ -466,7 +479,9 @@ def run_agent_loop(
         scope=["travel.book:max_$300"],
         capability="book_flight",
     )
-    client.register_token(book_token)
+    reg = client.register_token(book_token)
+    if not reg.get("registered", False):
+        raise RuntimeError(f"Failed to register book token: {reg.get('error', 'unknown')}")
 
     token_inventory: list[dict[str, Any]] = [
         {
@@ -496,7 +511,9 @@ def run_agent_loop(
     print("AGENT LOOP")
     print(f"{'=' * 60}")
 
-    messages: list[dict[str, Any]] = []
+    messages: list[dict[str, Any]] = [
+        {"role": "user", "content": "Begin. Use the tools to accomplish the goal."},
+    ]
     tool_call_count = 0
     budget_failures: dict[str, dict[str, Any]] = {}  # token_id -> failed request context
 

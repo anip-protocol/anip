@@ -134,11 +134,15 @@ class DemoAgent:
         )
 
         print_action("POST", "/anip/tokens (search)")
-        self.client.register_token(search_token)
+        reg = self.client.register_token(search_token)
+        if not reg.get("registered", False):
+            raise RuntimeError(f"Failed to register search token: {reg.get('error', 'unknown')}")
         print_result(f"Token registered: {search_token['token_id']}")
 
         print_action("POST", "/anip/tokens (book)")
-        self.client.register_token(book_token)
+        reg = self.client.register_token(book_token)
+        if not reg.get("registered", False):
+            raise RuntimeError(f"Failed to register book token: {reg.get('error', 'unknown')}")
         print_result(f"Token registered: {book_token['token_id']}")
 
         self.state["search_token"] = search_token
@@ -250,6 +254,8 @@ class DemoAgent:
 
         print_action("POST", "/anip/tokens")
         reg = self.client.register_token(new_token)
+        if not reg.get("registered", False):
+            raise RuntimeError(f"Failed to register escalated token: {reg.get('error', 'unknown')}")
         print_result(f"New token registered: {reg.get('token_id', 'N/A')}")
 
         self.state.update({
