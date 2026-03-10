@@ -46,6 +46,12 @@ python agent_demo.py
 
 # Live mode — real LLM reasoning via Claude API
 ANTHROPIC_API_KEY=sk-... python agent_demo.py --live
+
+# Agent mode — real autonomous agent
+ANTHROPIC_API_KEY=sk-... python agent_demo.py --agent
+
+# Agent mode with interactive human delegation
+ANTHROPIC_API_KEY=sk-... python agent_demo.py --agent --human-in-the-loop
 ```
 
 ## Modes
@@ -54,4 +60,19 @@ ANTHROPIC_API_KEY=sk-... python agent_demo.py --live
 
 **Live (`--live`):** Same flow, but at each decision point the agent sends ANIP metadata to Claude and prints the model's actual reasoning. Proves the interface is usable by a real LLM, not just a hand-authored walkthrough.
 
-In both modes, the ANIP HTTP calls are real — the agent talks to the actual reference server.
+### Agent (`--agent`)
+
+Real autonomous agent. The model receives ANIP-generated tool definitions and chooses which tools to call, in what order, with which parameters. The runner fetches the ANIP manifest at startup and generates tool descriptions from the live capability declarations — side effects, costs, prerequisites, and scope requirements are embedded in the tool interface.
+
+The agent gets:
+- **Capability tools** (generated from manifest): `search_flights`, `book_flight`
+- **Protocol tools** (static): `check_permissions`, `request_budget_increase`, `query_audit`
+- **Initial tokens**: search (travel.search) + book (travel.book, max $300)
+
+The agent must decide on its own to search first, handle the budget block, request escalation, retry, and verify the audit trail. The loop is capped at 15 tool calls.
+
+**Human delegation modes:**
+- Default: budget requests are auto-granted (simulated human)
+- `--human-in-the-loop`: pauses and prompts you to approve/deny/modify budget requests
+
+In all modes, the ANIP HTTP calls are real — the agent talks to the actual reference server.

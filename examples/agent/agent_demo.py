@@ -134,11 +134,15 @@ class DemoAgent:
         )
 
         print_action("POST", "/anip/tokens (search)")
-        self.client.register_token(search_token)
+        reg = self.client.register_token(search_token)
+        if not reg.get("registered", False):
+            raise RuntimeError(f"Failed to register search token: {reg.get('error', 'unknown')}")
         print_result(f"Token registered: {search_token['token_id']}")
 
         print_action("POST", "/anip/tokens (book)")
-        self.client.register_token(book_token)
+        reg = self.client.register_token(book_token)
+        if not reg.get("registered", False):
+            raise RuntimeError(f"Failed to register book token: {reg.get('error', 'unknown')}")
         print_result(f"Token registered: {book_token['token_id']}")
 
         self.state["search_token"] = search_token
@@ -250,6 +254,8 @@ class DemoAgent:
 
         print_action("POST", "/anip/tokens")
         reg = self.client.register_token(new_token)
+        if not reg.get("registered", False):
+            raise RuntimeError(f"Failed to register escalated token: {reg.get('error', 'unknown')}")
         print_result(f"New token registered: {reg.get('token_id', 'N/A')}")
 
         self.state.update({
@@ -322,8 +328,27 @@ class DemoAgent:
 def main() -> None:
     parser = argparse.ArgumentParser(description="ANIP Demo Agent")
     parser.add_argument("--live", action="store_true", help="Use live LLM reasoning (requires ANTHROPIC_API_KEY)")
+    parser.add_argument("--agent", action="store_true", help="Run as autonomous agent (requires ANTHROPIC_API_KEY)")
+    parser.add_argument("--human-in-the-loop", action="store_true", help="Interactive human delegation (with --agent)")
     parser.add_argument("--base-url", default="http://127.0.0.1:8000", help="ANIP service URL")
     args = parser.parse_args()
+
+    if args.agent:
+        from agent_loop import run_agent_loop
+        try:
+            run_agent_loop(
+                base_url=args.base_url,
+                human_in_the_loop=args.human_in_the_loop,
+            )
+        except httpx.ConnectError:
+            print(f"\nError: Cannot connect to ANIP server at {args.base_url}")
+            print("Start the server first: cd examples/anip && uvicorn anip_server.main:app")
+            sys.exit(1)
+        except httpx.HTTPStatusError as e:
+            print(f"\nError: Server returned {e.response.status_code} for {e.request.url}")
+            print("Check that the ANIP reference server is running correctly.")
+            sys.exit(1)
+        return
 
     agent = DemoAgent(base_url=args.base_url, live=args.live)
     try:

@@ -94,7 +94,9 @@ HTTP isn't overkill for serving a single static HTML file. The protocol is the s
 
 ## Why Implement ANIP First
 
-The adoption argument we didn't expect: implement ANIP once and you get every surface for free.
+An ANIP manifest is not just a description of a service — it is enough to derive the service's tool surface for an agent. An agent runner can fetch the manifest, generate tool definitions programmatically (with side effects, costs, prerequisites, and scope requirements embedded in each tool description), and hand them to the model. No per-service hand-wiring. No hand-authored tool descriptions. The [demo agent](examples/agent/) proves this: `generate_tools(manifest)` produces the agent's entire actionable interface from live ANIP metadata.
+
+And there's a second adoption argument we didn't expect: implement ANIP once and you get every surface for free.
 
 ANIP ships with generic adapters for REST/OpenAPI, GraphQL, and MCP. They're fully generic — point any adapter at any ANIP service URL and it auto-generates the entire surface. No per-service code. No glue. No second implementation.
 
