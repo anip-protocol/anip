@@ -102,9 +102,12 @@ def _live_reason(step: str, state: dict[str, Any]) -> str:
     try:
         client = anthropic.Anthropic()
 
+        # Exclude large objects (manifest) from LLM context to save tokens
+        llm_state = {k: v for k, v in state.items() if k != "manifest"}
+
         user_prompt = (
             f"Step: {step}\n\n"
-            f"Current state:\n{json.dumps(state, indent=2, default=str)}\n\n"
+            f"Current state:\n{json.dumps(llm_state, indent=2, default=str)}\n\n"
             f"Reason about what you observe and what the agent should do next."
         )
 

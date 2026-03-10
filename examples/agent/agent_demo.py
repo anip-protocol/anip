@@ -310,6 +310,10 @@ def main() -> None:
         print(f"\nError: Cannot connect to ANIP server at {args.base_url}")
         print("Start the server first: cd examples/anip && uvicorn anip_server.main:app")
         sys.exit(1)
+    except httpx.HTTPStatusError as e:
+        print(f"\nError: Server returned {e.response.status_code} for {e.request.url}")
+        print("Check that the ANIP reference server is running correctly.")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
