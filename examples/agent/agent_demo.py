@@ -299,7 +299,8 @@ class DemoAgent:
         audit_subject = entry.get("subject", "unknown")
         audit_root = entry.get("root_principal", "unknown")
         audit_cost = entry.get("cost_actual", {})
-        audit_total = audit_cost.get("total", self.state.get("total_cost", "unknown"))
+        audit_financial = audit_cost.get("financial", {}) if audit_cost else {}
+        audit_total = audit_financial.get("amount", "unknown")
         audit_chain = entry.get("delegation_chain", [])
 
         self.state.update({
