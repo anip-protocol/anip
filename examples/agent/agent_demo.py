@@ -160,9 +160,10 @@ class DemoAgent:
         # already fetched in Step 1. The agent reviews what it knows before acting.
         book_cap = self.state["manifest"]["capabilities"]["book_flight"]
         requires = [r["capability"] for r in book_cap.get("requires", [])]
-        side_effect = book_cap.get("side_effect", "unknown")
+        side_effect = book_cap.get("side_effect", {})
+        side_type = side_effect.get("type", "unknown") if isinstance(side_effect, dict) else side_effect
         print(f"\nFrom manifest (already fetched):")
-        print(f"  book_flight side_effect: {side_effect}")
+        print(f"  book_flight side_effect: {side_type}")
         print(f"  book_flight prerequisites: {', '.join(requires)}")
 
         print_reasoning(reason("pre_invocation", self.state, self.live))
@@ -299,7 +300,7 @@ class DemoAgent:
 def main() -> None:
     parser = argparse.ArgumentParser(description="ANIP Demo Agent")
     parser.add_argument("--live", action="store_true", help="Use live LLM reasoning (requires ANTHROPIC_API_KEY)")
-    parser.add_argument("--base-url", default="http://localhost:8000", help="ANIP service URL")
+    parser.add_argument("--base-url", default="http://127.0.0.1:8000", help="ANIP service URL")
     args = parser.parse_args()
 
     agent = DemoAgent(base_url=args.base_url, live=args.live)
