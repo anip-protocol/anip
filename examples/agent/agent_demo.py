@@ -29,6 +29,8 @@ import argparse
 import sys
 from typing import Any
 
+import httpx
+
 from anip_client import ANIPClient, make_token
 from reasoning import reason
 
@@ -182,5 +184,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    import httpx
     main()
