@@ -422,3 +422,163 @@ def _handle_budget_request(
         "purpose": target_capability,
         "purpose_bound_to": f"{flight_number} on {date}",
     }), token_inventory
+
+
+MAX_TOOL_CALLS = 15
+
+
+def run_agent_loop(
+    base_url: str = "http://127.0.0.1:8000",
+    human_in_the_loop: bool = False,
+) -> None:
+    """Run the autonomous agent loop."""
+    import anthropic
+
+    client = ANIPClient(base_url)
+    claude = anthropic.Anthropic()
+
+    # --- Setup: fetch manifest and generate tools ---
+    print("ANIP Agent Mode")
+    print(f"Server: {base_url}")
+    print(f"Human delegation: {'interactive' if human_in_the_loop else 'simulated'}")
+
+    print(f"\n{'=' * 60}")
+    print("SETUP: Fetching ANIP manifest and registering tokens")
+    print(f"{'=' * 60}")
+
+    manifest = client.get_manifest()
+    capability_names = list(manifest.get("capabilities", {}).keys())
+    tools = generate_tools(manifest)
+    print(f"Generated {len(tools)} tools from manifest: {', '.join(t['name'] for t in tools)}")
+
+    # Register initial tokens
+    search_token = make_token(
+        issuer="human:samir@example.com",
+        subject="agent:demo-agent",
+        scope=["travel.search"],
+        capability="search_flights",
+    )
+    client.register_token(search_token)
+
+    book_token = make_token(
+        issuer="human:samir@example.com",
+        subject="agent:demo-agent",
+        scope=["travel.book:max_$300"],
+        capability="book_flight",
+    )
+    client.register_token(book_token)
+
+    token_inventory: list[dict[str, Any]] = [
+        {
+            "token_id": search_token["token_id"],
+            "capability": "search_flights",
+            "scope": "travel.search",
+            "raw_token": search_token,
+        },
+        {
+            "token_id": book_token["token_id"],
+            "capability": "book_flight",
+            "scope": "travel.book:max_$300",
+            "budget": 300,
+            "raw_token": book_token,
+        },
+    ]
+
+    print(f"Registered tokens:")
+    for t in token_inventory:
+        budget_str = f", budget: max ${t['budget']}" if t.get('budget') else ""
+        print(f"  {t['token_id']}: {t['capability']} ({t['scope']}{budget_str})")
+
+    system_prompt = build_system_prompt(token_inventory)
+
+    # --- Agent loop ---
+    print(f"\n{'=' * 60}")
+    print("AGENT LOOP")
+    print(f"{'=' * 60}")
+
+    messages: list[dict[str, Any]] = []
+    tool_call_count = 0
+    budget_failures: dict[str, dict[str, Any]] = {}  # token_id -> failed request context
+
+    while tool_call_count < MAX_TOOL_CALLS:
+        response = claude.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1024,
+            system=system_prompt,
+            tools=tools,
+            messages=messages,
+        )
+
+        # Process response content blocks
+        assistant_content = response.content
+        tool_uses = []
+
+        for block in assistant_content:
+            if block.type == "text" and block.text.strip():
+                print(f"\nAgent: {block.text}")
+            elif block.type == "tool_use":
+                tool_uses.append(block)
+
+        # If no tool calls, the agent is done
+        if not tool_uses:
+            break
+
+        # Append assistant message
+        messages.append({"role": "assistant", "content": assistant_content})
+
+        # Execute each tool call
+        tool_results = []
+        for tool_use in tool_uses:
+            tool_call_count += 1
+            print(f"\n[{tool_call_count}/{MAX_TOOL_CALLS}] Tool: {tool_use.name}")
+            print(f"  Input: {json.dumps(tool_use.input, default=str)}")
+
+            result_str, token_inventory = dispatch_tool(
+                client,
+                tool_use.name,
+                dict(tool_use.input),  # copy to avoid mutation
+                token_inventory,
+                capability_names,
+                budget_failures,
+                human_in_the_loop,
+            )
+
+            # Print a compact result summary
+            try:
+                result_data = json.loads(result_str)
+                if isinstance(result_data, dict):
+                    if result_data.get("success") is False:
+                        failure = result_data.get("failure", {})
+                        print(f"  Result: BLOCKED — {failure.get('type', 'unknown')}: {failure.get('detail', '')}")
+                    elif result_data.get("success") is True:
+                        print(f"  Result: SUCCESS")
+                    elif result_data.get("status"):
+                        print(f"  Result: {result_data['status']}")
+                    else:
+                        # Permission check or audit — show compact summary
+                        if "available" in result_data:
+                            avail = [c["capability"] for c in result_data.get("available", [])]
+                            print(f"  Result: available={avail}")
+                        elif "entries" in result_data:
+                            print(f"  Result: {len(result_data['entries'])} audit entries")
+                        else:
+                            print(f"  Result: {result_str[:200]}")
+                else:
+                    print(f"  Result: {result_str[:200]}")
+            except (json.JSONDecodeError, TypeError):
+                print(f"  Result: {result_str[:200]}")
+
+            tool_results.append({
+                "type": "tool_result",
+                "tool_use_id": tool_use.id,
+                "content": result_str,
+            })
+
+        messages.append({"role": "user", "content": tool_results})
+
+    if tool_call_count >= MAX_TOOL_CALLS:
+        print(f"\n[Loop cap reached: {MAX_TOOL_CALLS} tool calls]")
+
+    print(f"\n{'=' * 60}")
+    print(f"AGENT COMPLETE ({tool_call_count} tool calls)")
+    print(f"{'=' * 60}")
