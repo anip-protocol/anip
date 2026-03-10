@@ -100,14 +100,18 @@ class DemoAgent:
         manifest = self.client.get_manifest()
         print_result("Full capability declarations retrieved")
 
-        # Extract cost info from book_flight for reasoning state
+        # Extract capability metadata for reasoning state
         book_cap = manifest["capabilities"]["book_flight"]
+        search_cap = manifest["capabilities"]["search_flights"]
         book_cost = book_cap["cost"]["financial"]
         self.state.update({
             "manifest": manifest,
             "book_cost_min": book_cost["range_min"],
             "book_cost_max": book_cost["range_max"],
             "book_cost_typical": book_cost["typical"],
+            # Store capability declarations for live mode reasoning
+            "book_flight_declaration": book_cap,
+            "search_flights_declaration": search_cap,
         })
 
         print_reasoning(reason("discovery", self.state, self.live))
@@ -150,6 +154,10 @@ class DemoAgent:
         book_perms = self.client.check_permissions(book_token)
         book_available = [c["capability"] for c in book_perms.get("available", [])]
         print_result(f"Book token grants: {', '.join(book_available)}")
+
+        # Store permission responses for live mode reasoning
+        self.state["search_permissions"] = search_perms
+        self.state["book_permissions"] = book_perms
 
         print_reasoning(reason("permissions", self.state, self.live))
 
@@ -282,15 +290,24 @@ class DemoAgent:
         )
 
         entries = audit.get("entries", [])
-        # Find the successful booking entry
+        # Find the successful booking entry and read values FROM the audit
+        # record, not from local state — this proves the audit trail is real.
         success_entries = [e for e in entries if e.get("success")]
         entry = success_entries[-1] if success_entries else {}
 
+        # These values come from the server's audit log, not our local state
+        audit_subject = entry.get("subject", "unknown")
+        audit_root = entry.get("root_principal", "unknown")
+        audit_cost = entry.get("cost_actual", {})
+        audit_total = audit_cost.get("total", self.state.get("total_cost", "unknown"))
+        audit_chain = entry.get("delegation_chain", [])
+
         self.state.update({
             "audit_count": len(entries),
-            "subject": self.state["new_token"]["subject"],
-            "root_principal": audit.get("root_principal", "unknown"),
-            "chain": entry.get("delegation_chain", []),
+            "subject": audit_subject,
+            "root_principal": audit_root,
+            "total_cost": audit_total,
+            "chain": audit_chain,
         })
 
         print_result(f"{len(entries)} audit entries for book_flight")

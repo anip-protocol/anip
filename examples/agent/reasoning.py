@@ -102,8 +102,9 @@ def _live_reason(step: str, state: dict[str, Any]) -> str:
     try:
         client = anthropic.Anthropic()
 
-        # Exclude large objects (manifest) from LLM context to save tokens
-        llm_state = {k: v for k, v in state.items() if k != "manifest"}
+        # Exclude raw manifest and token dicts (large, redundant with extracted fields)
+        exclude = {"manifest", "search_token", "book_token", "new_token"}
+        llm_state = {k: v for k, v in state.items() if k not in exclude}
 
         user_prompt = (
             f"Step: {step}\n\n"
