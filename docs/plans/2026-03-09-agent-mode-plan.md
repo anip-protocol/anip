@@ -152,8 +152,8 @@ PROTOCOL_TOOLS: list[dict[str, Any]] = [
             "PREREQUISITE: You must have received a budget_exceeded failure from a "
             "capability invocation before calling this. The runner will reject the "
             "request if no prior failure exists. "
-            "The human will review and may grant a new purpose-bound token with "
-            "higher budget, scoped to the specific booking you specify."
+            "The human will review and may grant a new token with higher budget. "
+            "The token records the specific flight/date for audit context."
         ),
         "input_schema": {
             "type": "object",
@@ -337,7 +337,7 @@ def dispatch_tool(
     tool_input: dict[str, Any],
     token_inventory: list[dict[str, Any]],
     capabilities: list[str],
-    budget_failures: set[str],
+    budget_failures: dict[str, dict[str, Any]],
     human_in_the_loop: bool = False,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Execute a tool call and return (result_string, updated_token_inventory).
