@@ -68,31 +68,34 @@ The model reasons about authority but does not mint it. The runner owns delegati
 - `request_budget_increase` — structured escalation. Inputs:
   - `current_token_id` — the token that was insufficient
   - `requested_budget` — the amount needed
-  - `reason` — why the increase is needed
-  - `target_capability` — which capability this is for
-  Returns on approval: new token ID, granted scope, purpose.
+  - `reason` — why the increase is needed (must reference the specific failure)
+  - `target_capability` — which capability this is for (must match the failed token's capability)
+  - `flight_number` — specific flight this budget is for (purpose binding)
+  - `date` — travel date (purpose binding)
+  Runner validates: (1) token exists, (2) target_capability matches, (3) a `budget_exceeded` failure was actually received for that token. Rejects if any check fails.
+  Returns on approval: new token ID, granted scope, purpose binding.
 - `query_audit` — verify the audit trail. Input: `token_id`, optional `capability` filter.
 
 ### Human Delegation Modes
 
-- **Simulated (default):** `request_budget_increase` auto-grants the request. Runner creates a fresh root token with the requested budget (capped at a reasonable max, e.g. $500).
-- **Interactive (`--human-in-the-loop`):** Runner pauses, prints the request details, prompts the user to approve/deny/modify. User can adjust the budget before granting.
+- **Simulated (default):** `request_budget_increase` auto-grants after validation. Runner creates a fresh root token purpose-bound to the specific flight/date (capped at $500).
+- **Interactive (`--human-in-the-loop`):** Runner pauses, prints the request details including the specific flight, prompts the user to approve/deny/modify. User can adjust the budget before granting.
 
 ### System Prompt
 
 ```
 You are an AI agent with access to an ANIP flight booking service.
 
-Goal: Book the best nonstop SEA→SFO flight for March 10.
-Your initial budget authority is $300.
+Goal: Book a SEA→SFO flight for March 10.
 
 Your delegation tokens:
   - {token_id}: search_flights (scope: travel.search)
   - {token_id}: book_flight (scope: travel.book, budget: max $300)
 
-You must specify which token_id to use when invoking capabilities.
-If a capability fails due to budget or scope, use request_budget_increase
-to ask the human for additional authority.
+Use check_permissions and the tool descriptions to understand your
+authority before acting. You must specify which token_id to use when
+invoking capabilities. If a capability fails due to budget or scope,
+use request_budget_increase to ask the human for additional authority.
 
 Think carefully before acting. Check side effects, costs, and
 prerequisites in the tool descriptions.

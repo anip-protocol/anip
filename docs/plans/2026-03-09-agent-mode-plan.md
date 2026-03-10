@@ -149,15 +149,18 @@ PROTOCOL_TOOLS: list[dict[str, Any]] = [
         "name": "request_budget_increase",
         "description": (
             "Request additional budget authority from the human principal. "
-            "Use this when a capability invocation fails due to budget_exceeded. "
-            "The human will review and may grant a new token with higher budget."
+            "PREREQUISITE: You must have received a budget_exceeded failure from a "
+            "capability invocation before calling this. The runner will reject the "
+            "request if no prior failure exists. "
+            "The human will review and may grant a new purpose-bound token with "
+            "higher budget, scoped to the specific booking you specify."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "current_token_id": {
                     "type": "string",
-                    "description": "The token that was insufficient",
+                    "description": "The token that was insufficient (must match a registered token)",
                 },
                 "requested_budget": {
                     "type": "number",
@@ -165,11 +168,19 @@ PROTOCOL_TOOLS: list[dict[str, Any]] = [
                 },
                 "reason": {
                     "type": "string",
-                    "description": "Why the increase is needed",
+                    "description": "Why the increase is needed — reference the specific failure",
                 },
                 "target_capability": {
                     "type": "string",
-                    "description": "Which capability this budget is for",
+                    "description": "Which capability this budget is for (must match the failed token's capability)",
+                },
+                "flight_number": {
+                    "type": "string",
+                    "description": "The specific flight this budget is for (purpose binding)",
+                },
+                "date": {
+                    "type": "string",
+                    "description": "The travel date (purpose binding)",
                 },
             },
             "required": [
@@ -177,6 +188,8 @@ PROTOCOL_TOOLS: list[dict[str, Any]] = [
                 "requested_budget",
                 "reason",
                 "target_capability",
+                "flight_number",
+                "date",
             ],
         },
     },
@@ -268,12 +281,12 @@ def build_system_prompt(token_inventory: list[dict[str, Any]]) -> str:
 
     return (
         "You are an AI agent with access to an ANIP flight booking service.\n\n"
-        "Goal: Book the best nonstop SEA→SFO flight for March 10.\n"
-        "Your initial budget authority is $300.\n\n"
+        "Goal: Book a SEA→SFO flight for March 10.\n\n"
         "Your delegation tokens:\n"
         + "\n".join(token_lines)
         + "\n\n"
-        "You must specify which token_id to use when invoking capabilities.\n"
+        "Use check_permissions and the tool descriptions to understand your authority "
+        "before acting. You must specify which token_id to use when invoking capabilities.\n"
         "If a capability fails due to budget or scope, use request_budget_increase "
         "to ask the human for additional authority.\n\n"
         "Think carefully before acting. Check side effects, costs, and "
@@ -311,7 +324,7 @@ git commit -m "feat(agent-mode): add system prompt builder with token inventory"
 **Files:**
 - Modify: `examples/agent/agent_loop.py`
 
-**Context:** The dispatcher maps tool names to `ANIPClient` method calls. Capability tools look up the token from inventory and invoke via the client. `request_budget_increase` either auto-grants or prompts the human. The dispatcher returns the result as a string for Claude.
+**Context:** The dispatcher maps tool names to `ANIPClient` method calls. Capability tools look up the token from inventory and invoke via the client. `request_budget_increase` either auto-grants or prompts the human — but **only if the agent has actually received a `budget_exceeded` failure** (tracked via a `budget_failures` set passed through the dispatch chain). The dispatcher returns the result as a string for Claude.
 
 **Step 1: Add the dispatcher**
 
@@ -324,6 +337,7 @@ def dispatch_tool(
     tool_input: dict[str, Any],
     token_inventory: list[dict[str, Any]],
     capabilities: list[str],
+    budget_failures: set[str],
     human_in_the_loop: bool = False,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Execute a tool call and return (result_string, updated_token_inventory).
@@ -340,7 +354,7 @@ def dispatch_tool(
 
     if tool_name == "request_budget_increase":
         return _handle_budget_request(
-            client, tool_input, token_inventory, human_in_the_loop
+            client, tool_input, token_inventory, budget_failures, human_in_the_loop
         )
 
     if tool_name == "query_audit":
@@ -362,6 +376,9 @@ def dispatch_tool(
         if token is None:
             return json.dumps({"error": f"token {token_id} not found"}), token_inventory
         result = client.invoke(tool_name, token["raw_token"], tool_input)
+        # Track budget_exceeded failures so escalation can validate against them
+        if "failure" in result and result["failure"].get("type") == "budget_exceeded":
+            budget_failures.add(token_id)
         return json.dumps(result, default=str), token_inventory
 
     return json.dumps({"error": f"unknown tool: {tool_name}"}), token_inventory
@@ -381,12 +398,44 @@ def _handle_budget_request(
     client: ANIPClient,
     tool_input: dict[str, Any],
     token_inventory: list[dict[str, Any]],
+    budget_failures: set[str],
     human_in_the_loop: bool,
 ) -> tuple[str, list[dict[str, Any]]]:
-    """Handle a budget increase request — simulated or interactive."""
+    """Handle a budget increase request — simulated or interactive.
+
+    Validates that:
+    1. current_token_id exists in inventory
+    2. target_capability matches that token's capability
+    3. The agent actually received a budget_exceeded failure for that token
+    """
+    current_token_id = tool_input["current_token_id"]
     requested_budget = tool_input["requested_budget"]
     target_capability = tool_input["target_capability"]
+    flight_number = tool_input["flight_number"]
+    date = tool_input["date"]
     reason = tool_input.get("reason", "")
+
+    # Validate: token must exist
+    token = _find_token(current_token_id, token_inventory)
+    if token is None:
+        return json.dumps({
+            "error": f"token {current_token_id} not found",
+        }), token_inventory
+
+    # Validate: target_capability must match the token's capability
+    if token.get("capability") != target_capability:
+        return json.dumps({
+            "error": f"token {current_token_id} is for {token.get('capability')}, "
+                     f"not {target_capability}",
+        }), token_inventory
+
+    # Validate: must have a prior budget_exceeded failure for this token
+    if current_token_id not in budget_failures:
+        return json.dumps({
+            "error": "No budget_exceeded failure recorded for this token. "
+                     "You must attempt the capability first and receive a "
+                     "budget_exceeded failure before requesting escalation.",
+        }), token_inventory
 
     # Cap at reasonable maximum
     max_allowed = 500
@@ -398,6 +447,7 @@ def _handle_budget_request(
         print(f"{'=' * 60}")
         print(f"Agent requests budget increase:")
         print(f"  Capability: {target_capability}")
+        print(f"  For: {flight_number} on {date}")
         print(f"  Requested budget: ${requested_budget}")
         print(f"  Reason: {reason}")
         response = input(f"\nGrant budget? (enter amount, or 'deny'): ").strip()
@@ -411,9 +461,9 @@ def _handle_budget_request(
         except ValueError:
             granted_budget = min(requested_budget, max_allowed)
     else:
-        print(f"\n[Simulated human grants ${granted_budget} budget for {target_capability}]")
+        print(f"\n[Simulated human grants ${granted_budget} budget for {target_capability} — {flight_number} on {date}]")
 
-    # Create and register a fresh root token
+    # Create and register a fresh root token — purpose-bound to the specific booking
     scope_str = f"travel.book:max_${int(granted_budget)}"
     new_token = make_token(
         issuer="human:samir@example.com",
@@ -421,6 +471,11 @@ def _handle_budget_request(
         scope=[scope_str],
         capability=target_capability,
     )
+    # Bind purpose to the specific flight and date
+    new_token["purpose"]["parameters"] = {
+        "flight_number": flight_number,
+        "date": date,
+    }
     client.register_token(new_token)
 
     # Add to inventory
@@ -429,6 +484,7 @@ def _handle_budget_request(
         "capability": target_capability,
         "scope": scope_str,
         "budget": granted_budget,
+        "purpose_bound_to": f"{flight_number} on {date}",
         "raw_token": new_token,
     }
     token_inventory = token_inventory + [new_entry]
@@ -439,6 +495,7 @@ def _handle_budget_request(
         "granted_scope": scope_str,
         "granted_budget": granted_budget,
         "purpose": target_capability,
+        "purpose_bound_to": f"{flight_number} on {date}",
     }), token_inventory
 ```
 
@@ -537,6 +594,7 @@ def run_agent_loop(
 
     messages: list[dict[str, Any]] = []
     tool_call_count = 0
+    budget_failures: set[str] = set()  # tracks tokens that received budget_exceeded
 
     while tool_call_count < MAX_TOOL_CALLS:
         response = claude.messages.create(
@@ -577,6 +635,7 @@ def run_agent_loop(
                 dict(tool_use.input),  # copy to avoid mutation
                 token_inventory,
                 capability_names,
+                budget_failures,
                 human_in_the_loop,
             )
 
