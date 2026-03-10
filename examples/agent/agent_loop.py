@@ -505,8 +505,8 @@ def run_agent_loop(
             model="claude-sonnet-4-20250514",
             max_tokens=1024,
             system=system_prompt,
-            tools=tools,
-            messages=messages,
+            tools=tools,  # type: ignore[arg-type]
+            messages=messages,  # type: ignore[arg-type]
         )
 
         # Process response content blocks
