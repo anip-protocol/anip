@@ -167,6 +167,62 @@ class DemoAgent:
 
         print_reasoning(reason("pre_invocation", self.state, self.live))
 
+    def step_4_search(self) -> None:
+        print_header(4, "SEARCH AND COMPARE")
+
+        # Reuse the search token registered in Step 2
+        search_token = self.state["search_token"]
+
+        print_action("POST", "/anip/invoke/search_flights")
+        result = self.client.invoke(
+            "search_flights",
+            search_token,
+            {"origin": "SEA", "destination": "SFO", "date": "2026-03-10"},
+        )
+        flights = result["result"]["flights"]
+        print_result(f"{result['result']['count']} flights found")
+
+        # Find the preferred flight (nonstop, earliest)
+        nonstop = [f for f in flights if f["stops"] == 0]
+        preferred = min(nonstop, key=lambda f: f["departure_time"]) if nonstop else flights[0]
+
+        self.state.update({
+            "flights": flights,
+            "flight_count": len(flights),
+            "preferred_flight": preferred["flight_number"],
+            "preferred_price": preferred["price"],
+        })
+
+        print_reasoning(reason("search_results", self.state, self.live))
+
+    def step_5_booking_blocked(self) -> None:
+        print_header(5, "BOOKING ATTEMPT — BLOCKED")
+
+        # Reuse the $300-capped book token from Step 2
+        book_token = self.state["book_token"]
+
+        print_action("POST", "/anip/invoke/book_flight")
+        result = self.client.invoke(
+            "book_flight",
+            book_token,
+            {
+                "flight_number": self.state["preferred_flight"],
+                "date": "2026-03-10",
+                "passengers": 1,
+            },
+        )
+
+        failure = result["failure"]
+        self.state.update({
+            "failure_type": failure["type"],
+            "failure_detail": failure["detail"],
+            "resolution_action": failure["resolution"]["action"],
+            "grantable_by": failure["resolution"].get("grantable_by", "unknown"),
+        })
+
+        print_result(f"Blocked: {failure['type']}")
+        print_reasoning(reason("booking_blocked", self.state, self.live))
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="ANIP Demo Agent")
