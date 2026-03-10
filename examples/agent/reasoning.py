@@ -99,19 +99,22 @@ def _live_reason(step: str, state: dict[str, Any]) -> str:
     except ImportError:
         return "[Live mode requires 'anthropic' package: pip install anthropic]"
 
-    client = anthropic.Anthropic()
+    try:
+        client = anthropic.Anthropic()
 
-    user_prompt = (
-        f"Step: {step}\n\n"
-        f"Current state:\n{json.dumps(state, indent=2, default=str)}\n\n"
-        f"Reason about what you observe and what the agent should do next."
-    )
+        user_prompt = (
+            f"Step: {step}\n\n"
+            f"Current state:\n{json.dumps(state, indent=2, default=str)}\n\n"
+            f"Reason about what you observe and what the agent should do next."
+        )
 
-    message = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=300,
-        system=LIVE_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_prompt}],
-    )
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=300,
+            system=LIVE_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
 
-    return message.content[0].text
+        return message.content[0].text  # type: ignore[union-attr]
+    except Exception as e:
+        return f"[Live reasoning failed: {e}]"
