@@ -324,7 +324,7 @@ git commit -m "feat(agent-mode): add system prompt builder with token inventory"
 **Files:**
 - Modify: `examples/agent/agent_loop.py`
 
-**Context:** The dispatcher maps tool names to `ANIPClient` method calls. Capability tools look up the token from inventory and invoke via the client. `request_budget_increase` either auto-grants or prompts the human — but **only if the agent has actually received a `budget_exceeded` failure** (tracked via a `budget_failures` set passed through the dispatch chain). The dispatcher returns the result as a string for Claude.
+**Context:** The dispatcher maps tool names to `ANIPClient` method calls. Capability tools look up the token from inventory and invoke via the client. `request_budget_increase` either auto-grants or prompts the human — but **only after validating**: (1) token exists, (2) capability matches, (3) a `budget_exceeded` failure was received for that token, (4) the requested flight/date match the failed invocation parameters. Failed request context is tracked in `budget_failures: dict[str, dict]` keyed by token_id. The dispatcher returns the result as a string for Claude.
 
 **Step 1: Add the dispatcher**
 
@@ -375,10 +375,14 @@ def dispatch_tool(
         token = _find_token(token_id, token_inventory)
         if token is None:
             return json.dumps({"error": f"token {token_id} not found"}), token_inventory
+        # tool_input has token_id popped, so it contains only the invocation params
         result = client.invoke(tool_name, token["raw_token"], tool_input)
-        # Track budget_exceeded failures so escalation can validate against them
+        # Track budget_exceeded failures with full context so escalation can validate
         if "failure" in result and result["failure"].get("type") == "budget_exceeded":
-            budget_failures.add(token_id)
+            budget_failures[token_id] = {
+                "capability": tool_name,
+                "parameters": dict(tool_input),  # the params that were rejected
+            }
         return json.dumps(result, default=str), token_inventory
 
     return json.dumps({"error": f"unknown tool: {tool_name}"}), token_inventory
@@ -398,7 +402,7 @@ def _handle_budget_request(
     client: ANIPClient,
     tool_input: dict[str, Any],
     token_inventory: list[dict[str, Any]],
-    budget_failures: set[str],
+    budget_failures: dict[str, dict[str, Any]],
     human_in_the_loop: bool,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Handle a budget increase request — simulated or interactive.
@@ -407,6 +411,8 @@ def _handle_budget_request(
     1. current_token_id exists in inventory
     2. target_capability matches that token's capability
     3. The agent actually received a budget_exceeded failure for that token
+    4. The requested flight_number and date match the parameters from the
+       failed invocation (escalation must be for the same booking attempt)
     """
     current_token_id = tool_input["current_token_id"]
     requested_budget = tool_input["requested_budget"]
@@ -430,11 +436,27 @@ def _handle_budget_request(
         }), token_inventory
 
     # Validate: must have a prior budget_exceeded failure for this token
-    if current_token_id not in budget_failures:
+    failed_context = budget_failures.get(current_token_id)
+    if failed_context is None:
         return json.dumps({
             "error": "No budget_exceeded failure recorded for this token. "
                      "You must attempt the capability first and receive a "
                      "budget_exceeded failure before requesting escalation.",
+        }), token_inventory
+
+    # Validate: escalation must match the failed invocation parameters
+    failed_params = failed_context.get("parameters", {})
+    if failed_params.get("flight_number") != flight_number:
+        return json.dumps({
+            "error": f"flight_number '{flight_number}' does not match the failed "
+                     f"request ('{failed_params.get('flight_number')}'). "
+                     "Escalation must be for the same booking attempt.",
+        }), token_inventory
+    if failed_params.get("date") != date:
+        return json.dumps({
+            "error": f"date '{date}' does not match the failed request "
+                     f"('{failed_params.get('date')}'). "
+                     "Escalation must be for the same booking attempt.",
         }), token_inventory
 
     # Cap at reasonable maximum
@@ -463,7 +485,11 @@ def _handle_budget_request(
     else:
         print(f"\n[Simulated human grants ${granted_budget} budget for {target_capability} — {flight_number} on {date}]")
 
-    # Create and register a fresh root token — purpose-bound to the specific booking
+    # Create and register a fresh root token with purpose binding.
+    # Note: purpose.parameters records the intended booking for audit context,
+    # but the current server does not enforce parameter-level binding at
+    # invocation time (it only checks capability match). Server-side
+    # enforcement of purpose.parameters is a future enhancement.
     scope_str = f"travel.book:max_${int(granted_budget)}"
     new_token = make_token(
         issuer="human:samir@example.com",
@@ -471,7 +497,6 @@ def _handle_budget_request(
         scope=[scope_str],
         capability=target_capability,
     )
-    # Bind purpose to the specific flight and date
     new_token["purpose"]["parameters"] = {
         "flight_number": flight_number,
         "date": date,
@@ -594,7 +619,7 @@ def run_agent_loop(
 
     messages: list[dict[str, Any]] = []
     tool_call_count = 0
-    budget_failures: set[str] = set()  # tracks tokens that received budget_exceeded
+    budget_failures: dict[str, dict[str, Any]] = {}  # token_id -> failed request context
 
     while tool_call_count < MAX_TOOL_CALLS:
         response = claude.messages.create(

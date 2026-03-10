@@ -72,8 +72,9 @@ The model reasons about authority but does not mint it. The runner owns delegati
   - `target_capability` — which capability this is for (must match the failed token's capability)
   - `flight_number` — specific flight this budget is for (purpose binding)
   - `date` — travel date (purpose binding)
-  Runner validates: (1) token exists, (2) target_capability matches, (3) a `budget_exceeded` failure was actually received for that token. Rejects if any check fails.
+  Runner validates: (1) token exists, (2) target_capability matches, (3) a `budget_exceeded` failure was actually received for that token, (4) flight_number and date match the parameters from the failed invocation. Rejects if any check fails.
   Returns on approval: new token ID, granted scope, purpose binding.
+  Note: purpose binding (flight_number/date) is recorded in the token for audit context. The runner enforces it at the escalation gate; the server currently enforces capability-level binding but not parameter-level binding at invocation time.
 - `query_audit` — verify the audit trail. Input: `token_id`, optional `capability` filter.
 
 ### Human Delegation Modes
