@@ -147,6 +147,7 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 - [Guide](GUIDE.md) — walkthrough of the reference implementation with design rationale
 - [Reference implementation — Python](examples/anip/) — FastAPI + SQLite, full demo with audit logging
 - [Reference implementation — TypeScript](examples/anip-ts/) — Hono + Zod, same capabilities and endpoints
+- [Demo agent](examples/agent/) — an AI agent that consumes ANIP to reason before acting, handle budget failures, and verify audit trails
 - [JSON Schema](schema/) — validate any ANIP implementation against the spec
 - [MCP adapter — Python](adapters/mcp-py/) — use ANIP with your existing MCP tooling today
 - [MCP adapter — TypeScript](adapters/mcp-ts/) — same adapter, TypeScript/Node implementation
