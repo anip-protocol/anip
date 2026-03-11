@@ -79,6 +79,54 @@ Every assumption that was implicit becomes explicit, typed, and queryable.
 
 That last one is the killer feature. When a budget-exceeded failure comes back, it doesn't just say "denied" — it tells the agent exactly who can increase the budget. The agent can autonomously escalate to the right person. That's a capability that doesn't exist in REST, MCP, or OpenAPI.
 
+**See it in action.** This is real output from an autonomous agent consuming the ANIP [reference server](examples/anip/). No scripting — the agent discovers its authority, searches flights, hits the budget wall, escalates, books, and verifies the audit trail, all from ANIP metadata.
+
+```
+ANIP Agent Mode | Server: http://127.0.0.1:8000 | Human delegation: simulated
+
+SETUP: Fetching ANIP manifest and registering tokens
+Generated 5 tools from manifest: search_flights, book_flight,
+  check_permissions, request_budget_increase, query_audit
+Registered tokens:
+  demo-b0995ff9: search_flights (travel.search)
+  demo-f72e58e6: book_flight (travel.book:max_$300, budget: max $300)
+
+AGENT LOOP
+
+Agent: Let me start by checking my permissions and searching for flights.
+
+[1/15] check_permissions → available=['search_flights']
+[2/15] check_permissions → available=['book_flight']
+
+Agent: I have search and book permissions. Budget is $300. Searching flights...
+
+[3/15] search_flights(origin=SEA, destination=SFO, date=2026-03-10) → SUCCESS
+  AA100 (nonstop) 08:00→10:15  $420  ← exceeds budget
+  UA205 (nonstop) 11:30→13:45  $380  ← exceeds budget
+  DL310 (1 stop)  14:00→18:30  $280  ← within budget
+
+Agent: Nonstop flights exceed my $300 budget. Trying UA205 anyway...
+
+[4/15] book_flight(UA205) → BLOCKED
+  budget_exceeded: costs $380 but authority is max $300
+
+Agent: Requesting budget increase for the nonstop flight.
+
+[5/15] request_budget_increase(token=demo-f72e58e6, budget=$380,
+         flight=UA205, date=2026-03-10)
+  [Simulated human grants $380 for book_flight — UA205 on 2026-03-10]
+  → approved, new token: demo-c5da6ccd
+
+[6/15] book_flight(UA205, token=demo-c5da6ccd) → SUCCESS
+  Booking confirmed: BK-0018
+
+[7/15] query_audit(token=demo-c5da6ccd) → 61 audit entries
+
+Agent: Done. UA205 nonstop SEA→SFO, March 10, $380. 7 tool calls.
+```
+
+The agent was never told the steps. It discovered its authority from `check_permissions`, learned prices from `search_flights`, hit the budget wall from ANIP's structured failure (not an HTTP 403), escalated through `request_budget_increase` with the exact failed flight/date, and verified its work through the audit trail. Every decision came from ANIP metadata. ([Run it yourself](examples/agent/))
+
 ## When to Use ANIP
 
 ANIP is the right interface when the consumer is an AI agent. The distinction isn't complexity — it's consumer.
