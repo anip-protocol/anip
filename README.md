@@ -120,7 +120,7 @@ Agent: Requesting budget increase for the nonstop flight.
 [6/15] book_flight(UA205, token=demo-c5da6ccd) → SUCCESS
   Booking confirmed: BK-0018
 
-[7/15] query_audit(token=demo-c5da6ccd) → 61 audit entries
+[7/15] query_audit(token=demo-c5da6ccd) → 2 audit entries
 
 Agent: Done. UA205 nonstop SEA→SFO, March 10, $380. 7 tool calls.
 ```
