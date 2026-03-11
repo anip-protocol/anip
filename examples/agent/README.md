@@ -76,3 +76,102 @@ The agent must decide on its own to search first, handle the budget block, reque
 - `--human-in-the-loop`: pauses and prompts you to approve/deny/modify budget requests
 
 In all modes, the ANIP HTTP calls are real — the agent talks to the actual reference server.
+
+## Example Output (`--agent`)
+
+This is real output from a single run. The agent autonomously discovers its authority, searches flights, hits the budget wall, escalates, books a nonstop flight, and verifies the audit trail — all from ANIP metadata, with no scripting.
+
+```
+ANIP Agent Mode
+Server: http://127.0.0.1:8000
+Human delegation: simulated
+
+============================================================
+SETUP: Fetching ANIP manifest and registering tokens
+============================================================
+Generated 5 tools from manifest: search_flights, book_flight, check_permissions, request_budget_increase, query_audit
+Registered tokens:
+  demo-b0995ff9: search_flights (travel.search)
+  demo-f72e58e6: book_flight (travel.book:max_$300, budget: max $300)
+
+============================================================
+AGENT LOOP
+============================================================
+
+Agent: I'll help you book a SEA→SFO flight for 2026-03-10. Let me start by
+checking my permissions and then searching for available flights.
+
+[1/15] Tool: check_permissions
+  Input: {"token_id": "demo-b0995ff9"}
+  Result: available=['search_flights']
+
+[2/15] Tool: check_permissions
+  Input: {"token_id": "demo-f72e58e6"}
+  Result: available=['book_flight']
+
+Agent: Good! I can see that:
+- Token demo-b0995ff9 allows me to search flights
+- Token demo-f72e58e6 allows me to book flights with a budget of $300
+
+Now let me search for flights from SEA to SFO on 2026-03-10:
+
+[3/15] Tool: search_flights
+  Input: {"token_id": "demo-b0995ff9", "origin": "SEA", "destination": "SFO",
+          "date": "2026-03-10"}
+  Result: SUCCESS
+
+Agent: Perfect! I found 3 flights:
+
+1. AA100 (nonstop): Departs 08:00, arrives 10:15 - $420 (exceeds budget)
+2. UA205 (nonstop): Departs 11:30, arrives 13:45 - $380 (exceeds budget)
+3. DL310 (1 stop): Departs 14:00, arrives 18:30 - $280 (within budget)
+
+Since you prefer nonstop flights when possible, let me try to book the cheapest
+nonstop option (UA205 at $380) first:
+
+[4/15] Tool: book_flight
+  Input: {"token_id": "demo-f72e58e6", "flight_number": "UA205",
+          "date": "2026-03-10"}
+  Result: BLOCKED — budget_exceeded: capability costs $380.0 but delegation
+          chain authority is max $300.0
+
+Agent: As expected, the nonstop flight exceeds my budget. Let me request a
+budget increase:
+
+[5/15] Tool: request_budget_increase
+  Input: {"current_token_id": "demo-f72e58e6", "requested_budget": 380,
+          "reason": "The cheapest nonstop flight UA205 costs $380, but current
+          budget is only $300.",
+          "target_capability": "book_flight", "flight_number": "UA205",
+          "date": "2026-03-10"}
+
+[Simulated human grants $380 budget for book_flight — UA205 on 2026-03-10]
+  Result: approved
+
+Agent: The budget increase was approved. I now have a new token demo-c5da6ccd
+with $380 budget. Let me book the nonstop flight UA205:
+
+[6/15] Tool: book_flight
+  Input: {"token_id": "demo-c5da6ccd", "flight_number": "UA205",
+          "date": "2026-03-10"}
+  Result: SUCCESS
+
+Agent: The flight has been successfully booked. Let me verify the audit trail:
+
+[7/15] Tool: query_audit
+  Input: {"token_id": "demo-c5da6ccd"}
+  Result: 61 audit entries
+
+Agent: Booking confirmed.
+
+Flight: UA205 (nonstop), SEA → SFO, March 10 2026, 11:30→13:45
+Cost: $380 | Booking ID: BK-0018
+Process: checked permissions → searched flights → preferred nonstop →
+hit $300 budget → escalated to $380 → booked → verified audit trail
+
+============================================================
+AGENT COMPLETE (7 tool calls)
+============================================================
+```
+
+**What to notice:** The agent was never told the steps. It discovered its authority from `check_permissions`, learned flight prices from `search_flights`, hit the budget wall from ANIP's structured failure (not an HTTP 403), escalated through the protocol's `request_budget_increase` with the exact failed flight/date, and verified its work through the audit trail. Every decision came from ANIP metadata.
