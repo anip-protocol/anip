@@ -160,7 +160,7 @@ Agent: The flight has been successfully booked. Let me verify the audit trail:
 
 [7/15] Tool: query_audit
   Input: {"token_id": "demo-c5da6ccd"}
-  Result: 61 audit entries
+  Result: 2 audit entries
 
 Agent: Booking confirmed.
 
