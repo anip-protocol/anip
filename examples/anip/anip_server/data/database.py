@@ -6,6 +6,7 @@ In production, swap SQLite for Postgres — the schema stays the same.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 from contextlib import contextmanager
@@ -83,6 +84,7 @@ def _init_schema(conn: sqlite3.Connection) -> None:
 
         CREATE TABLE IF NOT EXISTS audit_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sequence_number INTEGER NOT NULL,
             timestamp TEXT NOT NULL,
             capability TEXT NOT NULL,
             token_id TEXT,
@@ -94,7 +96,9 @@ def _init_schema(conn: sqlite3.Connection) -> None:
             result_summary TEXT,           -- JSON (truncated)
             failure_type TEXT,
             cost_actual TEXT,              -- JSON
-            delegation_chain TEXT          -- JSON array of token_ids
+            delegation_chain TEXT,         -- JSON array of token_ids
+            previous_hash TEXT NOT NULL,
+            signature TEXT
         );
 
         CREATE INDEX IF NOT EXISTS idx_audit_capability ON audit_log(capability);
@@ -248,6 +252,16 @@ def load_session(session_id: str) -> dict[str, Any] | None:
 # --- Audit Log ---
 
 
+def _compute_entry_hash(entry: dict[str, Any]) -> str:
+    """Compute SHA-256 hash of an audit entry for the hash chain."""
+    canonical = json.dumps(
+        {k: v for k, v in sorted(entry.items()) if k not in ("signature", "id")},
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode()
+    return f"sha256:{hashlib.sha256(canonical).hexdigest()}"
+
+
 def log_invocation(
     capability: str,
     token_id: str | None,
@@ -263,13 +277,41 @@ def log_invocation(
 ) -> None:
     """Log a capability invocation to the audit log."""
     with transaction() as conn:
+        # Get last entry's hash and sequence number
+        last_row = conn.execute(
+            "SELECT sequence_number, previous_hash FROM audit_log ORDER BY sequence_number DESC LIMIT 1"
+        ).fetchone()
+
+        if last_row is None:
+            sequence_number = 1
+            # For the very first entry, use sentinel value
+            previous_hash = "sha256:0"
+        else:
+            sequence_number = last_row["sequence_number"] + 1
+            # Compute hash of the last entry to chain
+            last_entry_row = conn.execute(
+                "SELECT * FROM audit_log WHERE sequence_number = ?",
+                (last_row["sequence_number"],),
+            ).fetchone()
+            last_entry = dict(last_entry_row)
+            # Parse JSON fields for canonical hashing
+            for field in ("parameters", "result_summary", "cost_actual", "delegation_chain"):
+                if last_entry[field]:
+                    last_entry[field] = json.loads(last_entry[field])
+            last_entry["success"] = bool(last_entry["success"])
+            previous_hash = _compute_entry_hash(last_entry)
+
+        now = datetime.now(timezone.utc).isoformat()
+
         conn.execute(
             """INSERT INTO audit_log
-               (timestamp, capability, token_id, issuer, subject, root_principal,
-                parameters, success, result_summary, failure_type, cost_actual, delegation_chain)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (sequence_number, timestamp, capability, token_id, issuer, subject, root_principal,
+                parameters, success, result_summary, failure_type, cost_actual, delegation_chain,
+                previous_hash, signature)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                datetime.now(timezone.utc).isoformat(),
+                sequence_number,
+                now,
                 capability,
                 token_id,
                 issuer,
@@ -281,6 +323,8 @@ def log_invocation(
                 failure_type,
                 json.dumps(cost_actual) if cost_actual else None,
                 json.dumps(delegation_chain) if delegation_chain else None,
+                previous_hash,
+                None,  # signature filled in Task 9
             ),
         )
 
