@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Header, HTTPException, Query, Request
+from fastapi import Body, FastAPI, Header, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from .capabilities import book_flight, search_flights
@@ -18,13 +19,19 @@ from .primitives.delegation import (
     get_root_principal,
     get_token,
     issue_token,
+    register_token,
     release_exclusive_lock,
+    resolve_registered_token,
+    validate_constraints_narrowing,
     validate_delegation,
+    validate_parent_exists,
+    validate_scope_narrowing,
 )
 from .primitives.manifest import build_manifest
 from .primitives.models import (
     ANIPFailure,
     DelegationToken,
+    InvokeRequest,
     InvokeRequestV2,
     InvokeResponse,
     Resolution,
@@ -32,6 +39,25 @@ from .primitives.models import (
     TokenRequest,
 )
 from .primitives.permissions import discover_permissions
+
+logger = logging.getLogger("anip")
+
+_trust_mode = os.environ.get("ANIP_TRUST_MODE", "signed")
+
+
+def get_trust_mode() -> str:
+    return _trust_mode
+
+
+def set_trust_mode(mode: str) -> None:
+    global _trust_mode
+    _trust_mode = mode
+    if mode == "declaration":
+        logger.warning(
+            "ANIP server running in trust-on-declaration mode. "
+            "Tokens are NOT cryptographically verified. "
+            "Do NOT use this in production."
+        )
 
 app = FastAPI(
     title="ANIP Flight Service",
@@ -277,8 +303,29 @@ def _resolve_jwt_token(token_jwt: str) -> DelegationToken | ANIPFailure:
 
 
 @app.post("/anip/tokens")
-def issue_delegation_token(request: TokenRequest, authorization: str | None = Header(None)):
-    """Issue a signed delegation token (v0.2)."""
+def issue_or_register_token(request: dict = Body(...), authorization: str | None = Header(None)):
+    """Issue a signed delegation token (v0.2) or register an unsigned one (v0.1)."""
+    if _trust_mode == "declaration":
+        # v0.1 path: accept full DelegationToken
+        try:
+            token = DelegationToken(**request)
+        except Exception as e:
+            return {"registered": False, "error": str(e)}
+        parent_failure = validate_parent_exists(token)
+        if parent_failure is not None:
+            return {"registered": False, "error": parent_failure.detail}
+        scope_failure = validate_scope_narrowing(token)
+        if scope_failure is not None:
+            return {"registered": False, "error": scope_failure.detail}
+        constraint_failure = validate_constraints_narrowing(token)
+        if constraint_failure is not None:
+            return {"registered": False, "error": constraint_failure.detail}
+        register_token(token)
+        return {"registered": True, "token_id": token.token_id}
+
+    # v0.2 path: server-side JWT issuance
+    token_request = TokenRequest(**request)
+
     caller_identity = _authenticate_caller(authorization)
     if caller_identity is None:
         return {"issued": False, "error": "authentication required — provide Authorization: Bearer <key>"}
@@ -286,9 +333,9 @@ def issue_delegation_token(request: TokenRequest, authorization: str | None = He
     parent_token = None
     root_principal = caller_identity
 
-    if request.parent_token is not None:
+    if token_request.parent_token is not None:
         try:
-            parent_claims = _keys.verify_jwt(request.parent_token)
+            parent_claims = _keys.verify_jwt(token_request.parent_token)
         except Exception as e:
             return {"issued": False, "error": f"invalid parent token: {e}"}
         parent_stored = get_token(parent_claims["jti"])
@@ -301,19 +348,19 @@ def issue_delegation_token(request: TokenRequest, authorization: str | None = He
 
     try:
         token, token_id = issue_token(
-            request_subject=request.subject,
-            request_scope=request.scope,
-            request_capability=request.capability,
+            request_subject=token_request.subject,
+            request_scope=token_request.scope,
+            request_capability=token_request.capability,
             issuer_id="anip-flight-service",
             parent_token=parent_token,
-            purpose_parameters=request.purpose_parameters,
-            ttl_hours=request.ttl_hours,
+            purpose_parameters=token_request.purpose_parameters,
+            ttl_hours=token_request.ttl_hours,
         )
     except ValueError as e:
         return {"issued": False, "error": str(e)}
 
     budget = None
-    for s in request.scope:
+    for s in token_request.scope:
         if ":max_$" in s:
             budget = {"max": float(s.split(":max_$")[1]), "currency": "USD"}
             break
@@ -321,12 +368,12 @@ def issue_delegation_token(request: TokenRequest, authorization: str | None = He
     claims = {
         "jti": token_id,
         "iss": "anip-flight-service",
-        "sub": request.subject,
+        "sub": token_request.subject,
         "aud": "anip-flight-service",
-        "iat": int(token.expires.timestamp()) - (request.ttl_hours * 3600),
+        "iat": int(token.expires.timestamp()) - (token_request.ttl_hours * 3600),
         "exp": int(token.expires.timestamp()),
-        "scope": request.scope,
-        "capability": request.capability,
+        "scope": token_request.scope,
+        "capability": token_request.capability,
         "purpose": token.purpose.model_dump(),
         "root_principal": root_principal,
         "constraints": token.constraints.model_dump(),
@@ -350,23 +397,30 @@ def issue_delegation_token(request: TokenRequest, authorization: str | None = He
 
 
 @app.post("/anip/permissions")
-def query_permissions(presentation: TokenPresentation):
+def query_permissions(request: dict = Body(...)):
     """Discover what the agent can do given its delegation chain."""
-    resolved = _resolve_jwt_token(presentation.token)
-    if isinstance(resolved, ANIPFailure):
-        raise HTTPException(status_code=401, detail=resolved.detail)
-    return discover_permissions(resolved, _manifest.capabilities)
+    if _trust_mode == "declaration" and "token_id" in request:
+        token = DelegationToken(**request)
+        resolved = resolve_registered_token(token)
+        if isinstance(resolved, ANIPFailure):
+            raise HTTPException(status_code=401, detail=resolved.detail)
+        return discover_permissions(resolved, _manifest.capabilities)
+    else:
+        token_jwt = request.get("token", "")
+        resolved = _resolve_jwt_token(token_jwt)
+        if isinstance(resolved, ANIPFailure):
+            raise HTTPException(status_code=401, detail=resolved.detail)
+        return discover_permissions(resolved, _manifest.capabilities)
 
 
 # --- Capability Invocation ---
 
 
 @app.post("/anip/invoke/{capability_name}")
-def invoke_capability(capability_name: str, request: InvokeRequestV2):
+def invoke_capability(capability_name: str, request: dict = Body(...)):
     """Invoke an ANIP capability with full delegation chain validation."""
-    # 1. Check capability exists (use a dummy token for early failure logging)
+    # 1. Check capability exists
     if capability_name not in _capability_handlers:
-        # Can't resolve token yet, return structured failure
         return InvokeResponse(
             success=False,
             failure=ANIPFailure(
@@ -377,11 +431,22 @@ def invoke_capability(capability_name: str, request: InvokeRequestV2):
             ),
         )
 
-    # 2. Resolve JWT to stored token
-    jwt_resolved = _resolve_jwt_token(request.token)
-    if isinstance(jwt_resolved, ANIPFailure):
-        return InvokeResponse(success=False, failure=jwt_resolved)
-    token = jwt_resolved
+    # 2. Resolve token based on trust mode
+    if _trust_mode == "declaration" and "delegation_token" in request:
+        invoke_req = InvokeRequest(**request)
+        token = invoke_req.delegation_token
+        resolved = resolve_registered_token(token)
+        if isinstance(resolved, ANIPFailure):
+            return InvokeResponse(success=False, failure=resolved)
+        token = resolved
+        parameters = invoke_req.parameters
+    else:
+        invoke_req_v2 = InvokeRequestV2(**request)
+        jwt_resolved = _resolve_jwt_token(invoke_req_v2.token)
+        if isinstance(jwt_resolved, ANIPFailure):
+            return InvokeResponse(success=False, failure=jwt_resolved)
+        token = jwt_resolved
+        parameters = invoke_req_v2.parameters
 
     # 3. Get the capability declaration for scope requirements
     cap_declaration = _manifest.capabilities[capability_name]
@@ -393,22 +458,22 @@ def invoke_capability(capability_name: str, request: InvokeRequestV2):
         capability_name=capability_name,
     )
     if isinstance(delegation_result, ANIPFailure):
-        _log_failure(capability_name, token, request.parameters, delegation_result.type)
+        _log_failure(capability_name, token, parameters, delegation_result.type)
         return InvokeResponse(success=False, failure=delegation_result)
     token = delegation_result
 
     # 5. Acquire exclusive lock if needed
     lock_failure = acquire_exclusive_lock(token)
     if lock_failure is not None:
-        _log_failure(capability_name, token, request.parameters, lock_failure.type)
+        _log_failure(capability_name, token, parameters, lock_failure.type)
         return InvokeResponse(success=False, failure=lock_failure)
     try:
         # 6. Invoke the capability
         handler = _capability_handlers[capability_name]
-        response = handler(token, request.parameters)
+        response = handler(token, parameters)
 
         # 7. Log the invocation
-        _log_invocation(capability_name, token, request.parameters, response)
+        _log_invocation(capability_name, token, parameters, response)
 
         return response
     finally:
@@ -521,16 +586,25 @@ def _summarize_result(result: dict[str, Any] | None) -> dict[str, Any] | None:
 
 @app.post("/anip/audit")
 def get_audit_log(
-    presentation: TokenPresentation,
+    request: dict = Body(...),
     capability: str | None = Query(None),
     since: str | None = Query(None),
     limit: int = Query(100, le=1000),
 ):
     """Query the audit log."""
-    resolved = _resolve_jwt_token(presentation.token)
-    if isinstance(resolved, ANIPFailure):
-        raise HTTPException(status_code=401, detail=resolved.detail)
-    token = resolved
+    if _trust_mode == "declaration" and "token_id" in request:
+        token = DelegationToken(**request)
+        resolved = resolve_registered_token(token)
+        if isinstance(resolved, ANIPFailure):
+            raise HTTPException(status_code=401, detail=resolved.detail)
+        token = resolved
+    else:
+        token_jwt = request.get("token", "")
+        resolved = _resolve_jwt_token(token_jwt)
+        if isinstance(resolved, ANIPFailure):
+            raise HTTPException(status_code=401, detail=resolved.detail)
+        token = resolved
+
     root_principal = get_root_principal(token)
     entries = query_audit_log(
         capability=capability,
