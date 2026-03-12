@@ -8,7 +8,7 @@
 import { loadConfig } from "./src/config.js";
 import type { AdapterConfig } from "./src/config.js";
 import { discoverService } from "./src/discovery.js";
-import { ANIPInvoker } from "./src/invocation.js";
+import { ANIPInvoker, CredentialError } from "./src/invocation.js";
 import { generateSchema, toCamelCase, toSnakeCase } from "./src/translation.js";
 import { buildApp } from "./src/index.js";
 import { buildSchema } from "graphql";
@@ -46,25 +46,16 @@ function testConfigDefaults(): void {
 
   const oldUrl = process.env.ANIP_SERVICE_URL;
   const oldPort = process.env.ANIP_ADAPTER_PORT;
-  const oldIssuer = process.env.ANIP_ISSUER;
-  const oldScope = process.env.ANIP_SCOPE;
-  const oldTtl = process.env.ANIP_TOKEN_TTL;
   const oldConfig = process.env.ANIP_ADAPTER_CONFIG;
 
   delete process.env.ANIP_SERVICE_URL;
   delete process.env.ANIP_ADAPTER_PORT;
-  delete process.env.ANIP_ISSUER;
-  delete process.env.ANIP_SCOPE;
-  delete process.env.ANIP_TOKEN_TTL;
   delete process.env.ANIP_ADAPTER_CONFIG;
 
   const cfg = loadConfig("/nonexistent/path.yaml");
 
   if (oldUrl) process.env.ANIP_SERVICE_URL = oldUrl;
   if (oldPort) process.env.ANIP_ADAPTER_PORT = oldPort;
-  if (oldIssuer) process.env.ANIP_ISSUER = oldIssuer;
-  if (oldScope) process.env.ANIP_SCOPE = oldScope;
-  if (oldTtl) process.env.ANIP_TOKEN_TTL = oldTtl;
   if (oldConfig) process.env.ANIP_ADAPTER_CONFIG = oldConfig;
 
   assert(
@@ -73,21 +64,6 @@ function testConfigDefaults(): void {
     `got ${cfg.anipServiceUrl}`
   );
   assert(cfg.port === 3002, "default port", `got ${cfg.port}`);
-  assert(
-    cfg.delegation.issuer === "human:user@example.com",
-    "default issuer",
-    `got ${cfg.delegation.issuer}`
-  );
-  assert(
-    JSON.stringify(cfg.delegation.scope) === JSON.stringify(["*"]),
-    "default scope",
-    `got ${JSON.stringify(cfg.delegation.scope)}`
-  );
-  assert(
-    cfg.delegation.tokenTtlMinutes === 60,
-    "default TTL",
-    `got ${cfg.delegation.tokenTtlMinutes}`
-  );
   assert(
     cfg.graphqlPath === "/graphql",
     "default graphql path",
@@ -188,32 +164,85 @@ async function testInvocation(anipUrl: string): Promise<void> {
   console.log("\n--- Invocation ---");
 
   const service = await discoverService(anipUrl);
-  const invoker = new ANIPInvoker(service, {
-    issuer: "human:test@example.com",
-    scope: ["*"],
-    tokenTtlMinutes: 60,
-  });
-  await invoker.setup();
+  const invoker = new ANIPInvoker(service);
 
-  // Search flights
-  const result = await invoker.invoke("search_flights", {
-    origin: "SEA",
-    destination: "SFO",
-    date: "2026-03-10",
-    passengers: 1,
-  });
+  // API-key path: search flights
+  const result = await invoker.invoke(
+    "search_flights",
+    {
+      origin: "SEA",
+      destination: "SFO",
+      date: "2026-03-10",
+      passengers: 1,
+    },
+    { apiKey: "demo-human-key" },
+  );
   assert(typeof result === "object", "search_flights returns dict");
   assert(result.success === true, "search_flights succeeds");
   assert("result" in result, "search_flights has result");
 
-  // Book flight
-  const bookResult = await invoker.invoke("book_flight", {
-    flight_number: "AA100",
-    date: "2026-03-10",
-    passengers: 1,
-  });
+  // API-key path: book flight
+  const bookResult = await invoker.invoke(
+    "book_flight",
+    {
+      flight_number: "AA100",
+      date: "2026-03-10",
+      passengers: 1,
+    },
+    { apiKey: "demo-human-key" },
+  );
   assert(typeof bookResult === "object", "book_flight returns dict");
   assert("success" in bookResult, "book_flight has success key");
+
+  // Token path: pre-issue a token, then invoke with it
+  const tokenResp = await fetch(service.endpoints.tokens, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer demo-human-key",
+    },
+    body: JSON.stringify({
+      subject: "adapter:anip-graphql-adapter-ts",
+      scope: ["*"],
+      capability: "search_flights",
+    }),
+  });
+  assert(tokenResp.ok, "token request succeeded");
+  const tokenData = (await tokenResp.json()) as Record<string, unknown>;
+  assert(tokenData.issued === true, "token issued for token-path test");
+  const jwt = tokenData.token as string;
+
+  const tokenResult = await invoker.invoke(
+    "search_flights",
+    {
+      origin: "SEA",
+      destination: "SFO",
+      date: "2026-03-10",
+      passengers: 1,
+    },
+    { token: jwt },
+  );
+  assert(typeof tokenResult === "object", "token-path search_flights returns dict");
+  assert(tokenResult.success === true, "token-path search_flights succeeds");
+
+  // No credentials raises CredentialError
+  try {
+    await invoker.invoke(
+      "search_flights",
+      { origin: "SEA", destination: "SFO", date: "2026-03-10", passengers: 1 },
+      {},
+    );
+    fail("no-creds raises CredentialError", "no exception raised");
+  } catch (e) {
+    if (e instanceof CredentialError) {
+      ok("no-creds raises CredentialError");
+    } else {
+      fail(
+        "no-creds raises CredentialError",
+        `wrong exception: ${e instanceof Error ? e.constructor.name : String(e)}`
+      );
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -226,11 +255,6 @@ async function testServer(anipUrl: string): Promise<void> {
   const config: AdapterConfig = {
     anipServiceUrl: anipUrl,
     port: 0,
-    delegation: {
-      issuer: "human:user@example.com",
-      scope: ["*"],
-      tokenTtlMinutes: 60,
-    },
     graphqlPath: "/graphql",
   };
 
@@ -246,10 +270,42 @@ async function testServer(anipUrl: string): Promise<void> {
     "schema.graphql has directives"
   );
 
-  // POST /graphql with searchFlights query
+  // Missing credentials test: POST without headers should return failure
   resp = await app.request("/graphql", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query: `query {
+        searchFlights(
+          origin: "SEA"
+          destination: "SFO"
+          date: "2026-03-10"
+        ) {
+          success
+          failure { type detail }
+        }
+      }`,
+    }),
+  });
+  assert(resp.status === 200, "POST /graphql without creds returns 200 (GraphQL envelope)");
+  let data = (await resp.json()) as Record<string, unknown>;
+  const noCreds = ((data.data as Record<string, unknown>) ?? {})
+    .searchFlights as Record<string, unknown> | undefined;
+  assert(noCreds?.success === false, "missing-creds searchFlights success is false");
+  const noCredsFailure = noCreds?.failure as Record<string, unknown> | undefined;
+  assert(
+    noCredsFailure?.type === "missing_credentials",
+    "missing-creds failure type is missing_credentials",
+    `got ${noCredsFailure?.type}`
+  );
+
+  // API-key path: POST /graphql with searchFlights query
+  resp = await app.request("/graphql", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-ANIP-API-Key": "demo-human-key",
+    },
     body: JSON.stringify({
       query: `query {
         searchFlights(
@@ -264,7 +320,7 @@ async function testServer(anipUrl: string): Promise<void> {
     }),
   });
   assert(resp.status === 200, "POST /graphql searchFlights returns 200");
-  let data = (await resp.json()) as Record<string, unknown>;
+  data = (await resp.json()) as Record<string, unknown>;
   const errors = data.errors as unknown[] | undefined;
   assert(
     !errors || errors.length === 0,
@@ -276,10 +332,61 @@ async function testServer(anipUrl: string): Promise<void> {
   assert(searchData?.success === true, "searchFlights success is true");
   assert(searchData?.result != null, "searchFlights has result");
 
+  // Token path: pre-issue a signed token via real fetch to ANIP server
+  const tokenResp = await fetch(`${anipUrl}/anip/tokens`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer demo-human-key",
+    },
+    body: JSON.stringify({
+      subject: "adapter:anip-graphql-adapter-ts",
+      scope: ["*"],
+      capability: "search_flights",
+    }),
+  });
+  const tokenData = await tokenResp.json() as Record<string, unknown>;
+  assert(tokenData.issued === true, "token issued for token-path test");
+  const signedToken = tokenData.token as string;
+
+  resp = await app.request("/graphql", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-ANIP-Token": signedToken,
+    },
+    body: JSON.stringify({
+      query: `query {
+        searchFlights(
+          origin: "SEA"
+          destination: "SFO"
+          date: "2026-03-10"
+        ) {
+          success
+          result
+        }
+      }`,
+    }),
+  });
+  assert(resp.status === 200, "POST /graphql with token returns 200");
+  data = (await resp.json()) as Record<string, unknown>;
+  const tokenErrors = data.errors as unknown[] | undefined;
+  assert(
+    !tokenErrors || tokenErrors.length === 0,
+    `token-path searchFlights has no errors`,
+    JSON.stringify(tokenErrors)
+  );
+  const tokenSearchData = ((data.data as Record<string, unknown>) ?? {})
+    .searchFlights as Record<string, unknown> | undefined;
+  assert(tokenSearchData?.success === true, "token-path searchFlights success is true");
+
   // POST /graphql with bookFlight mutation
   resp = await app.request("/graphql", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "X-ANIP-API-Key": "demo-human-key",
+    },
     body: JSON.stringify({
       query: `mutation {
         bookFlight(
