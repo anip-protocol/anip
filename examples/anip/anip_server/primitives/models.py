@@ -52,6 +52,7 @@ class DelegationToken(BaseModel):
     parent: str | None = None  # None for root tokens (issued by humans)
     expires: datetime
     constraints: DelegationConstraints = Field(default_factory=DelegationConstraints)
+    root_principal: str | None = None  # The human at the root of the delegation chain
 
 
 class TokenRequest(BaseModel):

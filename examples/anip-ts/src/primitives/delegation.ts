@@ -65,6 +65,10 @@ export function getChain(token: DelegationToken): DelegationToken[] {
 
 export function getRootPrincipal(token: DelegationToken): string {
   /** Get the root principal (human) from a delegation chain. */
+  if (token.root_principal !== null) {
+    return token.root_principal;
+  }
+  // Fallback for v0.1 tokens without root_principal field
   const chain = getChain(token);
   return chain[0].issuer;
 }
@@ -419,6 +423,7 @@ export function issueToken(
   parentToken: DelegationToken | null,
   purposeParameters: Record<string, unknown>,
   ttlHours: number,
+  rootPrincipal: string | null = null,
 ): { token: DelegationToken; tokenId: string } {
   const tokenId = `anip-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
   const now = new Date();
@@ -447,6 +452,7 @@ export function issueToken(
       max_delegation_depth: maxDepth,
       concurrent_branches: concurrent,
     },
+    root_principal: rootPrincipal,
   };
 
   // Validate narrowing if child token

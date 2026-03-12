@@ -53,6 +53,7 @@ export const DelegationToken = z.object({
     max_delegation_depth: 3,
     concurrent_branches: "allowed",
   }),
+  root_principal: z.string().nullable().default(null), // Human at root of delegation chain
 });
 export type DelegationToken = z.infer<typeof DelegationToken>;
 

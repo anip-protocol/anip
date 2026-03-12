@@ -62,6 +62,7 @@ def register_token(token: DelegationToken) -> None:
         "parent": token.parent,
         "expires": token.expires.isoformat(),
         "constraints": token.constraints.model_dump(),
+        "root_principal": token.root_principal,
     })
 
 
@@ -88,6 +89,9 @@ def get_chain(token: DelegationToken) -> list[DelegationToken]:
 
 def get_root_principal(token: DelegationToken) -> str:
     """Get the root principal (human) from a delegation chain."""
+    if token.root_principal is not None:
+        return token.root_principal
+    # Fallback for v0.1 tokens without root_principal field
     chain = get_chain(token)
     return chain[0].issuer
 
@@ -101,6 +105,7 @@ def issue_token(
     purpose_parameters: dict | None = None,
     ttl_hours: int = 2,
     max_delegation_depth: int = 3,
+    root_principal: str | None = None,
 ) -> tuple[DelegationToken, str]:
     """Issue a new delegation token. Returns (token, token_id).
 
@@ -133,6 +138,7 @@ def issue_token(
             max_delegation_depth=max_delegation_depth,
             concurrent_branches=concurrent,
         ),
+        root_principal=root_principal,
     )
 
     # Validate narrowing if child token

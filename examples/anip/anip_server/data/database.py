@@ -63,6 +63,7 @@ def _init_schema(conn: sqlite3.Connection) -> None:
             parent TEXT,
             expires TEXT NOT NULL,         -- ISO 8601
             constraints TEXT NOT NULL,     -- JSON object
+            root_principal TEXT,           -- Human at root of delegation chain
             registered_at TEXT NOT NULL,
             FOREIGN KEY (parent) REFERENCES delegation_tokens(token_id)
         );
@@ -123,8 +124,8 @@ def store_token(token_data: dict[str, Any]) -> None:
     with transaction() as conn:
         conn.execute(
             """INSERT INTO delegation_tokens
-               (token_id, issuer, subject, scope, purpose, parent, expires, constraints, registered_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (token_id, issuer, subject, scope, purpose, parent, expires, constraints, root_principal, registered_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 token_data["token_id"],
                 token_data["issuer"],
@@ -134,6 +135,7 @@ def store_token(token_data: dict[str, Any]) -> None:
                 token_data.get("parent"),
                 token_data["expires"],
                 json.dumps(token_data["constraints"]),
+                token_data.get("root_principal"),
                 datetime.now(timezone.utc).isoformat(),
             ),
         )
@@ -156,6 +158,7 @@ def load_token(token_id: str) -> dict[str, Any] | None:
         "parent": row["parent"],
         "expires": row["expires"],
         "constraints": json.loads(row["constraints"]),
+        "root_principal": row["root_principal"],
     }
 
 

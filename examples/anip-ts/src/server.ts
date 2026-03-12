@@ -268,15 +268,12 @@ async function resolveJwtToken(
       `capability: jwt=${claims.capability} store=${stored.purpose.capability}`
     );
   }
-  // root_principal check: only for child tokens
-  if (stored.parent !== null) {
-    const jwtRoot = claims.root_principal as string | undefined;
-    const storedRoot = getRootPrincipal(stored);
-    if (jwtRoot === undefined) {
-      mismatches.push("root_principal: missing from JWT claims");
-    } else if (jwtRoot !== storedRoot) {
-      mismatches.push(`root_principal: jwt=${jwtRoot} store=${storedRoot}`);
-    }
+  const jwtRoot = claims.root_principal as string | undefined;
+  const storedRoot = getRootPrincipal(stored);
+  if (jwtRoot === undefined) {
+    mismatches.push("root_principal: missing from JWT claims");
+  } else if (jwtRoot !== storedRoot) {
+    mismatches.push(`root_principal: jwt=${jwtRoot} store=${storedRoot}`);
   }
   const jwtParent = (claims.parent_token_id as string | undefined) ?? null;
   if (jwtParent !== stored.parent) {
@@ -544,7 +541,7 @@ app.post("/anip/tokens", async (c) => {
     parentToken = parentStored;
     rootPrincipal =
       (parentClaims.root_principal as string) ??
-      getRootPrincipal(parentStored);
+      parentStored.root_principal;
   }
 
   let token: DelegationTokenType;
@@ -558,6 +555,7 @@ app.post("/anip/tokens", async (c) => {
       parentToken,
       tokenRequest.purpose_parameters,
       tokenRequest.ttl_hours,
+      rootPrincipal,
     );
     token = result.token;
     tokenId = result.tokenId;

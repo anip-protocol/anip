@@ -280,17 +280,12 @@ def _resolve_jwt_token(token_jwt: str) -> DelegationToken | ANIPFailure:
         mismatches.append(f"scope: jwt={claims.get('scope')} store={stored.scope}")
     if claims.get("capability") != stored.purpose.capability:
         mismatches.append(f"capability: jwt={claims.get('capability')} store={stored.purpose.capability}")
-    # root_principal check: only meaningful for child tokens where the chain
-    # can be walked. For root tokens (parent=None), the JWT root_principal is
-    # the authenticated human identity, while get_root_principal returns the
-    # server issuer — these are intentionally different.
-    if stored.parent is not None:
-        jwt_root = claims.get("root_principal")
-        stored_root = get_root_principal(stored)
-        if jwt_root is None:
-            mismatches.append("root_principal: missing from JWT claims")
-        elif jwt_root != stored_root:
-            mismatches.append(f"root_principal: jwt={jwt_root} store={stored_root}")
+    jwt_root = claims.get("root_principal")
+    stored_root = get_root_principal(stored)
+    if jwt_root is None:
+        mismatches.append("root_principal: missing from JWT claims")
+    elif jwt_root != stored_root:
+        mismatches.append(f"root_principal: jwt={jwt_root} store={stored_root}")
     jwt_parent = claims.get("parent_token_id")
     if jwt_parent != stored.parent:
         mismatches.append(f"parent: jwt={jwt_parent} store={stored.parent}")
@@ -358,7 +353,7 @@ def issue_or_register_token(request: dict = Body(...), authorization: str | None
         if caller_identity != parent_stored.subject:
             return {"issued": False, "error": f"caller '{caller_identity}' is not the parent token's subject ('{parent_stored.subject}') — only the delegatee can sub-delegate"}
         parent_token = parent_stored
-        root_principal = parent_claims.get("root_principal", get_root_principal(parent_stored))
+        root_principal = parent_claims.get("root_principal", parent_stored.root_principal)
 
     try:
         token, token_id = issue_token(
@@ -369,6 +364,7 @@ def issue_or_register_token(request: dict = Body(...), authorization: str | None
             parent_token=parent_token,
             purpose_parameters=token_request.purpose_parameters,
             ttl_hours=token_request.ttl_hours,
+            root_principal=root_principal,
         )
     except ValueError as e:
         return {"issued": False, "error": str(e)}
