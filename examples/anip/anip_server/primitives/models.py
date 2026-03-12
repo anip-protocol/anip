@@ -196,10 +196,25 @@ class ProfileVersions(BaseModel):
     observability: str | None = None
 
 
+class ManifestMetadata(BaseModel):
+    version: str = "0.2.0"
+    sha256: str = ""  # Set at build time
+    issued_at: str = ""  # Set at build time
+    expires_at: str = ""  # Set at build time
+
+
+class ServiceIdentity(BaseModel):
+    id: str = "anip-flight-service"
+    jwks_uri: str = "/.well-known/jwks.json"
+    issuer_mode: str = "first-party"
+
+
 class ANIPManifest(BaseModel):
-    protocol: str = "anip/1.0"
+    protocol: str = "anip/0.2"
     profile: ProfileVersions
     capabilities: dict[str, CapabilityDeclaration]
+    manifest_metadata: ManifestMetadata | None = None
+    service_identity: ServiceIdentity | None = None
 
 
 # --- Invocation ---

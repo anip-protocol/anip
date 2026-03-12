@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json as json_mod
 import logging
 import os
 from datetime import datetime, timezone
@@ -10,6 +11,7 @@ from typing import Any
 
 from fastapi import Body, FastAPI, Header, HTTPException, Query, Request
 from pydantic import BaseModel
+from starlette.responses import Response
 
 from .capabilities import book_flight, search_flights
 from .data.database import log_invocation, query_audit_log
@@ -176,8 +178,15 @@ def jwks():
 
 @app.get("/anip/manifest")
 def get_manifest():
-    """Full ANIP manifest — all capability declarations."""
-    return _manifest.model_dump()
+    """Full ANIP manifest with detached JWS signature."""
+    manifest_dict = _manifest.model_dump()
+    manifest_bytes = json_mod.dumps(manifest_dict, sort_keys=True).encode("utf-8")
+    signature = _keys.sign_jws_detached(manifest_bytes)
+    return Response(
+        content=manifest_bytes,
+        media_type="application/json",
+        headers={"X-ANIP-Signature": signature},
+    )
 
 
 # --- Profile Handshake ---
