@@ -8,14 +8,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Generator
 
-# Default database path — can be overridden via environment variable
-DB_PATH = Path(__file__).parent / "anip.db"
+# Database path — configurable via ANIP_DB_PATH environment variable
+DB_PATH = Path(os.environ.get("ANIP_DB_PATH", str(Path(__file__).parent / "anip.db")))
 
 _connection: sqlite3.Connection | None = None
 _audit_signer = None
