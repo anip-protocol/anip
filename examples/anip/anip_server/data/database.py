@@ -6,17 +6,26 @@ In production, swap SQLite for Postgres — the schema stays the same.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Generator
 
-# Default database path — can be overridden via environment variable
-DB_PATH = Path(__file__).parent / "anip.db"
+# Database path — configurable via ANIP_DB_PATH environment variable
+DB_PATH = Path(os.environ.get("ANIP_DB_PATH", str(Path(__file__).parent / "anip.db")))
 
 _connection: sqlite3.Connection | None = None
+_audit_signer = None
+
+
+def set_audit_signer(signer):
+    """Set the audit entry signer (KeyManager instance)."""
+    global _audit_signer
+    _audit_signer = signer
 
 
 def get_connection() -> sqlite3.Connection:
@@ -55,6 +64,7 @@ def _init_schema(conn: sqlite3.Connection) -> None:
             parent TEXT,
             expires TEXT NOT NULL,         -- ISO 8601
             constraints TEXT NOT NULL,     -- JSON object
+            root_principal TEXT,           -- Human at root of delegation chain
             registered_at TEXT NOT NULL,
             FOREIGN KEY (parent) REFERENCES delegation_tokens(token_id)
         );
@@ -83,6 +93,7 @@ def _init_schema(conn: sqlite3.Connection) -> None:
 
         CREATE TABLE IF NOT EXISTS audit_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sequence_number INTEGER NOT NULL,
             timestamp TEXT NOT NULL,
             capability TEXT NOT NULL,
             token_id TEXT,
@@ -94,7 +105,9 @@ def _init_schema(conn: sqlite3.Connection) -> None:
             result_summary TEXT,           -- JSON (truncated)
             failure_type TEXT,
             cost_actual TEXT,              -- JSON
-            delegation_chain TEXT          -- JSON array of token_ids
+            delegation_chain TEXT,         -- JSON array of token_ids
+            previous_hash TEXT NOT NULL,
+            signature TEXT
         );
 
         CREATE INDEX IF NOT EXISTS idx_audit_capability ON audit_log(capability);
@@ -112,8 +125,8 @@ def store_token(token_data: dict[str, Any]) -> None:
     with transaction() as conn:
         conn.execute(
             """INSERT INTO delegation_tokens
-               (token_id, issuer, subject, scope, purpose, parent, expires, constraints, registered_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (token_id, issuer, subject, scope, purpose, parent, expires, constraints, root_principal, registered_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 token_data["token_id"],
                 token_data["issuer"],
@@ -123,6 +136,7 @@ def store_token(token_data: dict[str, Any]) -> None:
                 token_data.get("parent"),
                 token_data["expires"],
                 json.dumps(token_data["constraints"]),
+                token_data.get("root_principal"),
                 datetime.now(timezone.utc).isoformat(),
             ),
         )
@@ -145,6 +159,7 @@ def load_token(token_id: str) -> dict[str, Any] | None:
         "parent": row["parent"],
         "expires": row["expires"],
         "constraints": json.loads(row["constraints"]),
+        "root_principal": row["root_principal"],
     }
 
 
@@ -248,6 +263,16 @@ def load_session(session_id: str) -> dict[str, Any] | None:
 # --- Audit Log ---
 
 
+def _compute_entry_hash(entry: dict[str, Any]) -> str:
+    """Compute SHA-256 hash of an audit entry for the hash chain."""
+    canonical = json.dumps(
+        {k: v for k, v in sorted(entry.items()) if k not in ("signature", "id")},
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode()
+    return f"sha256:{hashlib.sha256(canonical).hexdigest()}"
+
+
 def log_invocation(
     capability: str,
     token_id: str | None,
@@ -263,13 +288,64 @@ def log_invocation(
 ) -> None:
     """Log a capability invocation to the audit log."""
     with transaction() as conn:
+        # Get last entry's hash and sequence number
+        last_row = conn.execute(
+            "SELECT sequence_number, previous_hash FROM audit_log ORDER BY sequence_number DESC LIMIT 1"
+        ).fetchone()
+
+        if last_row is None:
+            sequence_number = 1
+            # For the very first entry, use sentinel value
+            previous_hash = "sha256:0"
+        else:
+            sequence_number = last_row["sequence_number"] + 1
+            # Compute hash of the last entry to chain
+            last_entry_row = conn.execute(
+                "SELECT * FROM audit_log WHERE sequence_number = ?",
+                (last_row["sequence_number"],),
+            ).fetchone()
+            last_entry = dict(last_entry_row)
+            # Parse JSON fields for canonical hashing
+            for field in ("parameters", "result_summary", "cost_actual", "delegation_chain"):
+                if last_entry[field]:
+                    last_entry[field] = json.loads(last_entry[field])
+            last_entry["success"] = bool(last_entry["success"])
+            previous_hash = _compute_entry_hash(last_entry)
+
+        now = datetime.now(timezone.utc).isoformat()
+
+        # Build entry dict for signing
+        entry_dict = {
+            "sequence_number": sequence_number,
+            "timestamp": now,
+            "capability": capability,
+            "token_id": token_id,
+            "issuer": issuer,
+            "subject": subject,
+            "root_principal": root_principal,
+            "parameters": parameters,
+            "success": success,
+            "result_summary": result_summary,
+            "failure_type": failure_type,
+            "cost_actual": cost_actual,
+            "delegation_chain": delegation_chain,
+            "previous_hash": previous_hash,
+        }
+
+        # Sign audit entry with dedicated audit key
+        signature = None
+        if _audit_signer is not None:
+            signature = _audit_signer.sign_audit_entry(entry_dict)
+
         conn.execute(
             """INSERT INTO audit_log
-               (timestamp, capability, token_id, issuer, subject, root_principal,
-                parameters, success, result_summary, failure_type, cost_actual, delegation_chain)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (sequence_number, timestamp, capability, token_id, issuer, subject, root_principal,
+                parameters, success, result_summary, failure_type, cost_actual, delegation_chain,
+                previous_hash, signature)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                datetime.now(timezone.utc).isoformat(),
+                sequence_number,
+                now,
                 capability,
                 token_id,
                 issuer,
@@ -281,6 +357,8 @@ def log_invocation(
                 failure_type,
                 json.dumps(cost_actual) if cost_actual else None,
                 json.dumps(delegation_chain) if delegation_chain else None,
+                previous_hash,
+                signature,
             ),
         )
 
@@ -308,7 +386,7 @@ def query_audit_log(
 
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     rows = conn.execute(
-        f"SELECT * FROM audit_log {where} ORDER BY timestamp DESC LIMIT ?",
+        f"SELECT * FROM audit_log {where} ORDER BY sequence_number DESC LIMIT ?",
         [*params, limit],
     ).fetchall()
 

@@ -57,12 +57,10 @@ async function main() {
 
   // Step 2: Set up the invoker with delegation tokens
   const invoker = new ANIPInvoker(service, {
-    issuer: config.issuer,
     scope: config.scope,
-    tokenTtlMinutes: config.tokenTtlMinutes,
+    apiKey: config.apiKey,
   });
-  await invoker.setup();
-  console.error("[anip-mcp-bridge] Delegation token registered");
+  console.error("[anip-mcp-bridge] Invoker ready");
 
   // Step 3: Build MCP tools from ANIP capabilities
   const mcpTools: Map<string, MCPTool> = new Map();
@@ -80,7 +78,7 @@ async function main() {
 
   // Step 4: Create MCP server
   const server = new Server(
-    { name: "anip-mcp-bridge", version: "0.1.0" },
+    { name: "anip-mcp-bridge", version: "0.2.0" },
     { capabilities: { tools: {} } }
   );
 

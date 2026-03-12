@@ -31,7 +31,7 @@ from typing import Any
 
 import httpx
 
-from anip_client import ANIPClient, make_token
+from anip_client import ANIPClient
 from reasoning import reason
 
 
@@ -56,9 +56,10 @@ def print_result(text: str) -> None:
 class DemoAgent:
     """An agent that consumes an ANIP service with pre-action reasoning."""
 
-    def __init__(self, base_url: str, live: bool = False):
+    def __init__(self, base_url: str, live: bool = False, api_key: str = "demo-human-key"):
         self.client = ANIPClient(base_url)
         self.live = live
+        self.api_key = api_key
         self.state: dict[str, Any] = {}
 
     def run(self) -> None:
@@ -120,33 +121,32 @@ class DemoAgent:
         print_header(2, "PERMISSION CHECK")
 
         # Human delegates to agent — one token per capability (purpose-bound)
-        search_token = make_token(
-            issuer="human:samir@example.com",
+        print_action("POST", "/anip/tokens (search)")
+        search_resp = self.client.request_token(
             subject="agent:demo-agent",
             scope=["travel.search"],
             capability="search_flights",
+            api_key=self.api_key,
         )
-        book_token = make_token(
-            issuer="human:samir@example.com",
+        if not search_resp.get("issued", False):
+            raise RuntimeError(f"Failed to issue search token: {search_resp}")
+        search_jwt = search_resp["token"]
+        print_result(f"Token issued: {search_resp['token_id']}")
+
+        print_action("POST", "/anip/tokens (book)")
+        book_resp = self.client.request_token(
             subject="agent:demo-agent",
             scope=["travel.book:max_$300"],
             capability="book_flight",
+            api_key=self.api_key,
         )
+        if not book_resp.get("issued", False):
+            raise RuntimeError(f"Failed to issue book token: {book_resp}")
+        book_jwt = book_resp["token"]
+        print_result(f"Token issued: {book_resp['token_id']}")
 
-        print_action("POST", "/anip/tokens (search)")
-        reg = self.client.register_token(search_token)
-        if not reg.get("registered", False):
-            raise RuntimeError(f"Failed to register search token: {reg.get('error', 'unknown')}")
-        print_result(f"Token registered: {search_token['token_id']}")
-
-        print_action("POST", "/anip/tokens (book)")
-        reg = self.client.register_token(book_token)
-        if not reg.get("registered", False):
-            raise RuntimeError(f"Failed to register book token: {reg.get('error', 'unknown')}")
-        print_result(f"Token registered: {book_token['token_id']}")
-
-        self.state["search_token"] = search_token
-        self.state["book_token"] = book_token
+        self.state["search_token"] = search_jwt
+        self.state["book_token"] = book_jwt
         self.state["budget_cap"] = 300
         self.state["token_strategy"] = (
             "two purpose-bound tokens, one per capability; "
@@ -154,12 +154,12 @@ class DemoAgent:
         )
 
         print_action("POST", "/anip/permissions (search token)")
-        search_perms = self.client.check_permissions(search_token)
+        search_perms = self.client.check_permissions(search_jwt)
         search_available = [c["capability"] for c in search_perms.get("available", [])]
         print_result(f"Search token grants: {', '.join(search_available)}")
 
         print_action("POST", "/anip/permissions (book token)")
-        book_perms = self.client.check_permissions(book_token)
+        book_perms = self.client.check_permissions(book_jwt)
         book_available = [c["capability"] for c in book_perms.get("available", [])]
         print_result(f"Book token grants: {', '.join(book_available)}")
 
@@ -187,13 +187,13 @@ class DemoAgent:
     def step_4_search(self) -> None:
         print_header(4, "SEARCH AND COMPARE")
 
-        # Reuse the search token registered in Step 2
-        search_token = self.state["search_token"]
+        # Reuse the search token JWT from Step 2
+        search_jwt = self.state["search_token"]
 
         print_action("POST", "/anip/invoke/search_flights")
         result = self.client.invoke(
             "search_flights",
-            search_token,
+            search_jwt,
             {"origin": "SEA", "destination": "SFO", "date": "2026-03-10"},
         )
         flights = result["result"]["flights"]
@@ -215,13 +215,13 @@ class DemoAgent:
     def step_5_booking_blocked(self) -> None:
         print_header(5, "BOOKING ATTEMPT — BLOCKED")
 
-        # Reuse the $300-capped book token from Step 2
-        book_token = self.state["book_token"]
+        # Reuse the $300-capped book token JWT from Step 2
+        book_jwt = self.state["book_token"]
 
         print_action("POST", "/anip/invoke/book_flight")
         result = self.client.invoke(
             "book_flight",
-            book_token,
+            book_jwt,
             {
                 "flight_number": self.state["preferred_flight"],
                 "date": "2026-03-10",
@@ -243,23 +243,21 @@ class DemoAgent:
     def step_6_human_delegation(self) -> None:
         print_header(6, "HUMAN GRANTS FRESH DELEGATION")
 
-        # Human issues a new root token (not a child — widening budget
-        # would violate scope narrowing rules)
-        new_token = make_token(
-            issuer="human:samir@example.com",
+        # Human issues a new root token with higher budget
+        print_action("POST", "/anip/tokens")
+        resp = self.client.request_token(
             subject="agent:demo-agent",
             scope=["travel.book:max_$450"],
             capability="book_flight",
+            api_key=self.api_key,
         )
-
-        print_action("POST", "/anip/tokens")
-        reg = self.client.register_token(new_token)
-        if not reg.get("registered", False):
-            raise RuntimeError(f"Failed to register escalated token: {reg.get('error', 'unknown')}")
-        print_result(f"New token registered: {reg.get('token_id', 'N/A')}")
+        if not resp.get("issued", False):
+            raise RuntimeError(f"Failed to issue escalated token: {resp}")
+        new_jwt = resp["token"]
+        print_result(f"New token issued: {resp.get('token_id', 'N/A')}")
 
         self.state.update({
-            "new_token": new_token,
+            "new_token": new_jwt,
             "new_budget_cap": 450,
         })
 

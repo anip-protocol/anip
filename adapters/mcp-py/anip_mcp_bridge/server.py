@@ -110,12 +110,10 @@ async def run_bridge(config: BridgeConfig) -> None:
     # Step 2: Set up the invoker with delegation tokens
     invoker = ANIPInvoker(
         service=service,
-        issuer=config.delegation.issuer,
         scope=config.delegation.scope,
-        token_ttl_minutes=config.delegation.token_ttl_minutes,
+        api_key=config.delegation.api_key,
     )
-    await invoker.setup()
-    logger.info("Delegation token registered")
+    logger.info("Invoker ready")
 
     # Step 3: Build and run MCP server
     server = build_server(service, invoker, config)
@@ -129,7 +127,7 @@ async def run_bridge(config: BridgeConfig) -> None:
                 write_stream,
                 InitializationOptions(
                     server_name="anip-mcp-bridge",
-                    server_version="0.1.0",
+                    server_version="0.2.0",
                     capabilities=server.get_capabilities(
                         notification_options=NotificationOptions(),
                         experimental_capabilities={},

@@ -13,9 +13,8 @@ import yaml
 class DelegationConfig:
     """Delegation token configuration for the bridge."""
 
-    issuer: str = "human:user@example.com"
     scope: list[str] = field(default_factory=lambda: ["*"])
-    token_ttl_minutes: int = 60
+    api_key: str = "demo-human-key"
 
 
 @dataclass
@@ -49,10 +48,8 @@ def load_config(config_path: str | None = None) -> BridgeConfig:
                 "ANIP_SERVICE_URL", "http://localhost:8000"
             ),
             delegation=DelegationConfig(
-                issuer=os.environ.get(
-                    "ANIP_ISSUER", "human:user@example.com"
-                ),
                 scope=os.environ.get("ANIP_SCOPE", "*").split(","),
+                api_key=os.environ.get("ANIP_API_KEY", "demo-human-key"),
             ),
         )
 
@@ -62,9 +59,8 @@ def load_config(config_path: str | None = None) -> BridgeConfig:
 
     delegation_data = data.get("delegation", {})
     delegation = DelegationConfig(
-        issuer=delegation_data.get("issuer", "human:user@example.com"),
         scope=delegation_data.get("scope", ["*"]),
-        token_ttl_minutes=delegation_data.get("token_ttl_minutes", 60),
+        api_key=delegation_data.get("api_key", "demo-human-key"),
     )
 
     return BridgeConfig(

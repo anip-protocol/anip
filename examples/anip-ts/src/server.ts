@@ -2,54 +2,82 @@
  * ANIP reference server — flight booking service.
  *
  * Hono-based TypeScript implementation of the Agent-Native Interface Protocol.
+ * v0.2: JWT tokens, signed manifests, audit hash chain.
  */
 
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { fileURLToPath } from "url";
+import { dirname, resolve } from "path";
+import { logAuditEntry, queryAuditLog } from "./data/database.js";
 
 import { invoke as invokeBookFlight } from "./capabilities/book-flight.js";
 import { invoke as invokeSearchFlights } from "./capabilities/search-flights.js";
 import { buildManifest } from "./primitives/manifest.js";
-import { registerToken, validateDelegation, validateParentExists, validateConstraintsNarrowing, resolveRegisteredToken, isANIPFailure, getChain, getRootPrincipal, acquireExclusiveLock, releaseExclusiveLock, validateScopeNarrowing } from "./primitives/delegation.js";
+import {
+  registerToken,
+  validateDelegation,
+  validateParentExists,
+  validateConstraintsNarrowing,
+  resolveRegisteredToken,
+  isANIPFailure,
+  getChain,
+  getRootPrincipal,
+  acquireExclusiveLock,
+  releaseExclusiveLock,
+  validateScopeNarrowing,
+  issueToken,
+  getChainTokenIds,
+  getToken,
+} from "./primitives/delegation.js";
 import { discoverPermissions } from "./primitives/permissions.js";
 import {
   DelegationToken,
   InvokeRequest,
+  InvokeRequestV2,
+  TokenRequest,
   type ANIPFailure,
   type ANIPManifest,
   type InvokeResponse,
   type DelegationToken as DelegationTokenType,
 } from "./types.js";
+import { KeyManager } from "./crypto.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const keyPath =
+  process.env.ANIP_KEY_PATH ?? resolve(__dirname, "../anip-keys.json");
+const keys = new KeyManager(keyPath);
 
 const app = new Hono();
 
 // Build manifest once at startup
 const manifest: ANIPManifest = buildManifest();
 
-// --- In-memory audit log ---
+// Trust mode: "signed" (v0.2 JWT) or "declaration" (v0.1 trust-on-declaration)
+const trustMode = process.env.ANIP_TRUST_MODE ?? "signed";
 
-interface AuditEntry {
-  capability: string;
-  timestamp: string;
-  token_id: string;
-  root_principal: string;
-  success: boolean;
-  result_summary: Record<string, unknown> | null;
-  failure_type: string | null;
-  cost_actual: Record<string, unknown> | null;
-  cost_variance: Record<string, unknown> | null;
-  delegation_chain: string[];
+// API key -> identity mapping
+const apiKeyIdentities: Record<string, string> = {
+  "demo-human-key": "human:samir@example.com",
+  "demo-agent-key": "agent:demo-agent",
+};
+
+function authenticateCaller(
+  authorization: string | undefined
+): string | undefined {
+  if (!authorization?.startsWith("Bearer ")) return undefined;
+  const key = authorization.replace("Bearer ", "").trim();
+  return apiKeyIdentities[key];
 }
 
-const auditLog: AuditEntry[] = [];
-
-function logInvocation(entry: AuditEntry): void {
-  auditLog.push(entry);
+// Audit signing helper
+async function signAuditEntryFn(data: Record<string, unknown>): Promise<string> {
+  return keys.signAuditEntry(data);
 }
 
 function calculateCostVariance(
   capabilityName: string,
-  response: InvokeResponse,
+  response: InvokeResponse
 ): Record<string, unknown> | null {
   if (!response.success || !response.cost_actual) return null;
 
@@ -57,7 +85,8 @@ function calculateCostVariance(
   if (!cap?.cost?.financial) return null;
 
   const declared = cap.cost.financial as Record<string, unknown>;
-  const actualAmount = (response.cost_actual as Record<string, unknown>)?.financial as Record<string, unknown> | undefined;
+  const actualAmount = (response.cost_actual as Record<string, unknown>)
+    ?.financial as Record<string, unknown> | undefined;
   if (!actualAmount?.amount) return null;
 
   const amount = actualAmount.amount as number;
@@ -73,7 +102,8 @@ function calculateCostVariance(
 
   if (typical !== undefined) {
     variance.declared_typical = typical;
-    variance.variance_from_typical_pct = Math.round(((amount - typical) / typical) * 1000) / 10;
+    variance.variance_from_typical_pct =
+      Math.round(((amount - typical) / typical) * 1000) / 10;
   }
 
   if (rangeMin !== undefined && rangeMax !== undefined) {
@@ -84,7 +114,9 @@ function calculateCostVariance(
   return variance;
 }
 
-function summarizeResult(result: Record<string, unknown> | null): Record<string, unknown> | null {
+function summarizeResult(
+  result: Record<string, unknown> | null
+): Record<string, unknown> | null {
   if (!result) return null;
   const summary: Record<string, unknown> = {};
   if ("booking_id" in result) summary.booking_id = result.booking_id;
@@ -119,16 +151,129 @@ function excludeNone(
   return result;
 }
 
+// --- JWT token resolution ---
+
+async function resolveJwtToken(
+  tokenJwt: string
+): Promise<DelegationTokenType | ANIPFailure> {
+  let claims: Record<string, unknown>;
+  try {
+    claims = (await keys.verifyJWT(tokenJwt)) as Record<string, unknown>;
+  } catch (e) {
+    return {
+      type: "invalid_token",
+      detail: `JWT verification failed: ${e}`,
+      resolution: {
+        action: "present_valid_token",
+        requires: null,
+        grantable_by: null,
+        estimated_availability: null,
+      },
+      retry: false,
+    };
+  }
+
+  const tokenId = claims.jti as string | undefined;
+  if (!tokenId) {
+    return {
+      type: "invalid_token",
+      detail: "JWT missing jti claim",
+      resolution: {
+        action: "present_valid_token",
+        requires: null,
+        grantable_by: null,
+        estimated_availability: null,
+      },
+      retry: false,
+    };
+  }
+
+  const stored = getToken(tokenId);
+  if (stored === null) {
+    return {
+      type: "token_not_registered",
+      detail: `token '${tokenId}' not found in store`,
+      resolution: {
+        action: "issue_new_token",
+        requires: null,
+        grantable_by: null,
+        estimated_availability: null,
+      },
+      retry: true,
+    };
+  }
+
+  // TRUST BOUNDARY: compare ALL trust-critical signed claims against stored values.
+  const mismatches: string[] = [];
+  if (claims.sub !== stored.subject) {
+    mismatches.push(`sub: jwt=${claims.sub} store=${stored.subject}`);
+  }
+  const jwtScope = (claims.scope as string[]) ?? [];
+  if (JSON.stringify([...jwtScope].sort()) !== JSON.stringify([...stored.scope].sort())) {
+    mismatches.push(`scope: jwt=${JSON.stringify(jwtScope)} store=${JSON.stringify(stored.scope)}`);
+  }
+  if (claims.capability !== stored.purpose.capability) {
+    mismatches.push(
+      `capability: jwt=${claims.capability} store=${stored.purpose.capability}`
+    );
+  }
+  const jwtRoot = claims.root_principal as string | undefined;
+  const storedRoot = getRootPrincipal(stored);
+  if (jwtRoot === undefined) {
+    mismatches.push("root_principal: missing from JWT claims");
+  } else if (jwtRoot !== storedRoot) {
+    mismatches.push(`root_principal: jwt=${jwtRoot} store=${storedRoot}`);
+  }
+  const jwtParent = (claims.parent_token_id as string | undefined) ?? null;
+  if (jwtParent !== stored.parent) {
+    mismatches.push(`parent: jwt=${jwtParent} store=${stored.parent}`);
+  }
+  const jwtConstraints = claims.constraints as Record<string, unknown> | undefined;
+  if (jwtConstraints === undefined) {
+    mismatches.push("constraints: missing from JWT claims");
+  } else {
+    const storedConstraints = {
+      max_delegation_depth: stored.constraints.max_delegation_depth,
+      concurrent_branches: stored.constraints.concurrent_branches,
+    };
+    if (JSON.stringify(jwtConstraints) !== JSON.stringify(storedConstraints)) {
+      mismatches.push(
+        `constraints: jwt=${JSON.stringify(jwtConstraints)} store=${JSON.stringify(storedConstraints)}`
+      );
+    }
+  }
+
+  if (mismatches.length > 0) {
+    return {
+      type: "token_integrity_violation",
+      detail: `Signed JWT claims diverge from stored token: ${mismatches.join("; ")}. The stored token may have been tampered with.`,
+      resolution: {
+        action: "reissue_token",
+        requires: null,
+        grantable_by: null,
+        estimated_availability: null,
+      },
+      retry: false,
+    };
+  }
+
+  return stored;
+}
+
+// --- JWKS Endpoint ---
+
+app.get("/.well-known/jwks.json", async (c) => {
+  await keys.ready();
+  const jwks = await keys.getJWKS();
+  return c.json(jwks);
+});
+
 // --- Discovery ---
 
 app.get("/.well-known/anip", (c) => {
-  /**
-   * ANIP discovery document — the single entry point to the protocol.
-   *
-   * Lightweight, cacheable. Tells the agent everything it needs to know
-   * to decide whether to fetch the full manifest.
-   */
-  const profiles = excludeNone(manifest.profile as unknown as Record<string, unknown>);
+  const profiles = excludeNone(
+    manifest.profile as unknown as Record<string, unknown>
+  );
 
   // Build capability summaries for discovery
   const capabilitiesSummary: Record<string, unknown> = {};
@@ -169,10 +314,11 @@ app.get("/.well-known/anip", (c) => {
       protocol: manifest.protocol,
       compliance,
       base_url: baseUrl,
+      jwks_uri: `${baseUrl}/.well-known/jwks.json`,
       profile: profiles,
       auth: {
         delegation_token_required: true,
-        supported_formats: ["anip-v1"],
+        supported_formats: ["jwt-es256", "anip-v1"],
         minimum_scope_for_discovery: "none",
       },
       capabilities: capabilitiesSummary,
@@ -182,6 +328,7 @@ app.get("/.well-known/anip", (c) => {
         permissions: "/anip/permissions",
         invoke: "/anip/invoke/{capability}",
         tokens: "/anip/tokens",
+        jwks: "/.well-known/jwks.json",
         graph: "/anip/graph/{capability}",
         audit: "/anip/audit",
         test: "/anip/test/{capability}",
@@ -206,15 +353,16 @@ app.get("/.well-known/anip", (c) => {
 
 // --- Manifest ---
 
-app.get("/anip/manifest", (c) => {
-  /** Full ANIP manifest — all capability declarations. */
-  return c.json(manifest);
+app.get("/anip/manifest", async (c) => {
+  await keys.ready();
+  const manifestBytes = new TextEncoder().encode(JSON.stringify(manifest));
+  const signature = await keys.signJWSDetached(manifestBytes);
+  return c.json(manifest, 200, { "X-ANIP-Signature": signature });
 });
 
 // --- Profile Handshake ---
 
 app.post("/anip/handshake", async (c) => {
-  /** Check if this service meets the agent's profile requirements. */
   const body = (await c.req.json()) as {
     required_profiles: Record<string, string>;
   };
@@ -241,95 +389,216 @@ app.post("/anip/handshake", async (c) => {
   });
 });
 
-// --- Delegation Token Registration ---
+// --- Token Issuance / Registration ---
 
 app.post("/anip/tokens", async (c) => {
-  /**
-   * Register a delegation token with the service.
-   *
-   * In production, tokens would be cryptographically verified.
-   * In this demo, we trust-on-declaration (per ANIP v1 spec).
-   */
+  await keys.ready();
   const body = await c.req.json();
-  const parseResult = DelegationToken.safeParse(body);
+
+  if (trustMode === "declaration") {
+    // v0.1 path: accept full DelegationToken
+    const parseResult = DelegationToken.safeParse(body);
+    if (!parseResult.success) {
+      return c.json(
+        {
+          success: false,
+          failure: {
+            type: "invalid_token",
+            detail: `Invalid delegation token: ${parseResult.error.message}`,
+            resolution: {
+              action: "fix_token_format",
+              requires: null,
+              grantable_by: null,
+              estimated_availability: null,
+            },
+            retry: true,
+          },
+        },
+        400
+      );
+    }
+
+    const token = parseResult.data;
+
+    const parentFailure = validateParentExists(token);
+    if (parentFailure !== null) {
+      return c.json({ registered: false, error: parentFailure.detail });
+    }
+
+    const scopeFailure = validateScopeNarrowing(token);
+    if (scopeFailure !== null) {
+      return c.json({ registered: false, error: scopeFailure.detail });
+    }
+
+    const constraintFailure = validateConstraintsNarrowing(token);
+    if (constraintFailure !== null) {
+      return c.json({ registered: false, error: constraintFailure.detail });
+    }
+
+    registerToken(token);
+    return c.json({ registered: true, token_id: token.token_id });
+  }
+
+  // v0.2 path: server-side JWT issuance
+  const parseResult = TokenRequest.safeParse(body);
   if (!parseResult.success) {
     return c.json(
-      {
-        success: false,
-        failure: {
-          type: "invalid_token",
-          detail: `Invalid delegation token: ${parseResult.error.message}`,
-          resolution: {
-            action: "fix_token_format",
-            requires: null,
-            grantable_by: null,
-            estimated_availability: null,
-          },
-          retry: true,
-        },
-      },
+      { issued: false, error: `Invalid token request: ${parseResult.error.message}` },
       400
     );
   }
+  const tokenRequest = parseResult.data;
 
-  const token = parseResult.data;
-
-  // Validate parent exists: child tokens must reference a registered parent
-  const parentFailure = validateParentExists(token);
-  if (parentFailure !== null) {
-    return c.json({ registered: false, error: parentFailure.detail });
+  const authorization = c.req.header("Authorization");
+  const callerIdentity = authenticateCaller(authorization);
+  if (!callerIdentity) {
+    return c.json(
+      {
+        issued: false,
+        error:
+          "authentication required — provide Authorization: Bearer <key>",
+      },
+      401
+    );
   }
 
-  // Validate scope narrowing: child tokens cannot widen parent scope
-  const scopeFailure = validateScopeNarrowing(token);
-  if (scopeFailure !== null) {
-    return c.json({ registered: false, error: scopeFailure.detail });
+  let parentToken: DelegationTokenType | null = null;
+  let rootPrincipal = callerIdentity;
+
+  if (tokenRequest.parent_token) {
+    let parentClaims: Record<string, unknown>;
+    try {
+      parentClaims = (await keys.verifyJWT(
+        tokenRequest.parent_token
+      )) as Record<string, unknown>;
+    } catch (e) {
+      return c.json({ issued: false, error: `invalid parent token: ${e}` });
+    }
+    const parentStored = getToken(parentClaims.jti as string);
+    if (parentStored === null) {
+      return c.json({
+        issued: false,
+        error: "parent token not found in store",
+      });
+    }
+    if (callerIdentity !== parentStored.subject) {
+      return c.json({
+        issued: false,
+        error: `caller '${callerIdentity}' is not the parent token's subject ('${parentStored.subject}') — only the delegatee can sub-delegate`,
+      });
+    }
+    parentToken = parentStored;
+    rootPrincipal =
+      (parentClaims.root_principal as string) ??
+      parentStored.root_principal;
   }
 
-  // Validate constraints narrowing: child cannot weaken parent constraints
-  const constraintFailure = validateConstraintsNarrowing(token);
-  if (constraintFailure !== null) {
-    return c.json({ registered: false, error: constraintFailure.detail });
+  let token: DelegationTokenType;
+  let tokenId: string;
+  try {
+    const result = issueToken(
+      tokenRequest.subject,
+      tokenRequest.scope,
+      tokenRequest.capability,
+      "anip-flight-service",
+      parentToken,
+      tokenRequest.purpose_parameters,
+      tokenRequest.ttl_hours,
+      rootPrincipal,
+    );
+    token = result.token;
+    tokenId = result.tokenId;
+  } catch (e) {
+    return c.json({ issued: false, error: String(e) });
   }
 
-  registerToken(token);
-  return c.json({ registered: true, token_id: token.token_id });
+  // Extract budget from scope if present
+  let budget: Record<string, unknown> | null = null;
+  for (const s of tokenRequest.scope) {
+    if (s.includes(":max_$")) {
+      budget = {
+        max: parseFloat(s.split(":max_$")[1]),
+        currency: "USD",
+      };
+      break;
+    }
+  }
+
+  const expiresTs = Math.floor(new Date(token.expires).getTime() / 1000);
+  const claims: Record<string, unknown> = {
+    jti: tokenId,
+    iss: "anip-flight-service",
+    sub: tokenRequest.subject,
+    aud: "anip-flight-service",
+    iat: expiresTs - tokenRequest.ttl_hours * 3600,
+    exp: expiresTs,
+    scope: tokenRequest.scope,
+    capability: tokenRequest.capability,
+    purpose: token.purpose,
+    root_principal: rootPrincipal,
+    constraints: token.constraints,
+  };
+  if (parentToken !== null) {
+    claims.parent_token_id = parentToken.token_id;
+  }
+  if (budget !== null) {
+    claims.budget = budget;
+  }
+
+  const jwtStr = await keys.signJWT(claims);
+
+  return c.json({
+    issued: true,
+    token_id: tokenId,
+    token: jwtStr,
+    expires: token.expires,
+  });
 });
 
 // --- Permission Discovery ---
 
 app.post("/anip/permissions", async (c) => {
-  /** Discover what the agent can do given its delegation chain. */
+  await keys.ready();
   const body = await c.req.json();
-  const parseResult = DelegationToken.safeParse(body);
-  if (!parseResult.success) {
-    return c.json(
-      {
-        success: false,
-        failure: {
-          type: "invalid_token",
-          detail: `Invalid delegation token: ${parseResult.error.message}`,
-          resolution: {
-            action: "fix_token_format",
-            requires: null,
-            grantable_by: null,
-            estimated_availability: null,
+
+  let token: DelegationTokenType;
+
+  if (trustMode === "declaration" && "token_id" in body) {
+    // v0.1 path
+    const parseResult = DelegationToken.safeParse(body);
+    if (!parseResult.success) {
+      return c.json(
+        {
+          success: false,
+          failure: {
+            type: "invalid_token",
+            detail: `Invalid delegation token: ${parseResult.error.message}`,
+            resolution: {
+              action: "fix_token_format",
+              requires: null,
+              grantable_by: null,
+              estimated_availability: null,
+            },
+            retry: true,
           },
-          retry: true,
         },
-      },
-      400
-    );
+        400
+      );
+    }
+    const resolved = resolveRegisteredToken(parseResult.data);
+    if ("detail" in resolved) {
+      return c.json({ success: false, failure: resolved }, 401);
+    }
+    token = resolved;
+  } else {
+    // v0.2 path: JWT
+    const tokenJwt = (body as Record<string, unknown>).token as string ?? "";
+    const resolved = await resolveJwtToken(tokenJwt);
+    if ("detail" in resolved) {
+      return c.json({ success: false, failure: resolved }, 401);
+    }
+    token = resolved;
   }
-
-  const parsed = parseResult.data;
-
-  // Resolve to stored token — prevents forged inline fields
-  const resolved = resolveRegisteredToken(parsed);
-  if ("detail" in resolved) {
-    return c.json({ success: false, failure: resolved }, 401);
-  }
-  const token = resolved;
 
   return c.json(discoverPermissions(token, manifest.capabilities));
 });
@@ -337,7 +606,7 @@ app.post("/anip/permissions", async (c) => {
 // --- Capability Invocation ---
 
 app.post("/anip/invoke/:capability", async (c) => {
-  /** Invoke an ANIP capability with full delegation chain validation. */
+  await keys.ready();
   const capabilityName = c.req.param("capability");
 
   // 1. Check capability exists
@@ -362,38 +631,78 @@ app.post("/anip/invoke/:capability", async (c) => {
     return c.json(response);
   }
 
-  // 2. Parse the request
+  // 2. Parse request and resolve token based on trust mode
   const body = await c.req.json();
-  const parseResult = InvokeRequest.safeParse(body);
-  if (!parseResult.success) {
-    const response: InvokeResponse = {
-      success: false,
-      result: null,
-      cost_actual: null,
-      failure: {
-        type: "invalid_request",
-        detail: `Invalid invoke request: ${parseResult.error.message}`,
-        resolution: {
-          action: "fix_request_format",
-          requires: null,
-          grantable_by: null,
-          estimated_availability: null,
-        },
-        retry: true,
-      },
-      session: null,
-    };
-    return c.json(response, 400);
-  }
+  let token: DelegationTokenType;
+  let parameters: Record<string, unknown>;
 
-  const request = parseResult.data;
+  if (trustMode === "declaration" && "delegation_token" in body) {
+    // v0.1 path
+    const parseResult = InvokeRequest.safeParse(body);
+    if (!parseResult.success) {
+      const response: InvokeResponse = {
+        success: false,
+        result: null,
+        cost_actual: null,
+        failure: {
+          type: "invalid_request",
+          detail: `Invalid invoke request: ${parseResult.error.message}`,
+          resolution: {
+            action: "fix_request_format",
+            requires: null,
+            grantable_by: null,
+            estimated_availability: null,
+          },
+          retry: true,
+        },
+        session: null,
+      };
+      return c.json(response, 400);
+    }
+    const request = parseResult.data;
+    const resolved = resolveRegisteredToken(request.delegation_token);
+    if (isANIPFailure(resolved)) {
+      return c.json({ success: false, failure: resolved, result: null, cost_actual: null, session: null });
+    }
+    token = resolved;
+    parameters = request.parameters;
+  } else {
+    // v0.2 path: JWT
+    const parseResult = InvokeRequestV2.safeParse(body);
+    if (!parseResult.success) {
+      const response: InvokeResponse = {
+        success: false,
+        result: null,
+        cost_actual: null,
+        failure: {
+          type: "invalid_request",
+          detail: `Invalid invoke request: ${parseResult.error.message}`,
+          resolution: {
+            action: "fix_request_format",
+            requires: null,
+            grantable_by: null,
+            estimated_availability: null,
+          },
+          retry: true,
+        },
+        session: null,
+      };
+      return c.json(response, 400);
+    }
+    const resolved = await resolveJwtToken(parseResult.data.token);
+    if ("detail" in resolved) {
+      return c.json({ success: false, failure: resolved, result: null, cost_actual: null, session: null });
+    }
+    token = resolved;
+    parameters = parseResult.data.parameters;
+  }
 
   // 3. Get the capability declaration for scope requirements
   const capDeclaration = manifest.capabilities[capabilityName];
 
   // 4. Validate delegation chain — returns stored token on success
   const delegationResult = validateDelegation(
-    request.delegation_token,
+    token,
     capDeclaration.minimum_scope,
     capabilityName
   );
@@ -407,31 +716,36 @@ app.post("/anip/invoke/:capability", async (c) => {
     };
     return c.json(response);
   }
-  // Use the stored token for all downstream operations (lock, handler, audit)
-  const token = delegationResult;
+  // Use the stored token for all downstream operations
+  token = delegationResult;
 
   // 5. Acquire exclusive lock if needed
   acquireExclusiveLock(token);
   try {
     // 6. Invoke the capability
     const handler = capabilityHandlers[capabilityName];
-    const response = handler(token, request.parameters);
+    const response = handler(token, parameters);
 
-    // 7. Log to audit trail
+    // 7. Log to audit trail (persisted to SQLite)
     const chain = getChain(token);
     const costVariance = calculateCostVariance(capabilityName, response);
-    logInvocation({
-      capability: capabilityName,
-      timestamp: new Date().toISOString(),
-      token_id: token.token_id,
-      root_principal: getRootPrincipal(token),
-      success: response.success,
-      result_summary: response.success ? summarizeResult(response.result as Record<string, unknown>) : null,
-      failure_type: response.failure?.type ?? null,
-      cost_actual: response.cost_actual as Record<string, unknown> | null,
-      cost_variance: costVariance,
-      delegation_chain: chain.map((t) => t.token_id),
-    });
+    logAuditEntry(
+      {
+        capability: capabilityName,
+        timestamp: new Date().toISOString(),
+        token_id: token.token_id,
+        root_principal: getRootPrincipal(token),
+        success: response.success,
+        result_summary: response.success
+          ? summarizeResult(response.result as Record<string, unknown>)
+          : null,
+        failure_type: response.failure?.type ?? null,
+        cost_actual: response.cost_actual as Record<string, unknown> | null,
+        cost_variance: costVariance,
+        delegation_chain: chain.map((t) => t.token_id),
+      },
+      signAuditEntryFn,
+    );
 
     return c.json(response);
   } finally {
@@ -442,7 +756,6 @@ app.post("/anip/invoke/:capability", async (c) => {
 // --- Capability Graph ---
 
 app.get("/anip/graph/:capability", (c) => {
-  /** Get the capability graph — prerequisites and composition. */
   const capabilityName = c.req.param("capability");
 
   if (!(capabilityName in manifest.capabilities)) {
@@ -460,43 +773,47 @@ app.get("/anip/graph/:capability", (c) => {
 // --- Audit / Observability ---
 
 app.post("/anip/audit", async (c) => {
-  /**
-   * Query the audit log with optional filters.
-   *
-   * Access is restricted by the observability contract:
-   * only the root principal of the delegation chain can access
-   * their own audit records. A valid delegation token is required.
-   */
+  await keys.ready();
   const body = await c.req.json();
-  const parseResult = DelegationToken.safeParse(body);
-  if (!parseResult.success) {
-    return c.json(
-      {
-        success: false,
-        failure: {
-          type: "invalid_token",
-          detail: `A valid delegation token is required to access the audit log`,
-          resolution: {
-            action: "provide_delegation_token",
-            requires: null,
-            grantable_by: null,
-            estimated_availability: null,
+
+  let token: DelegationTokenType;
+
+  if (trustMode === "declaration" && "token_id" in body) {
+    // v0.1 path
+    const parseResult = DelegationToken.safeParse(body);
+    if (!parseResult.success) {
+      return c.json(
+        {
+          success: false,
+          failure: {
+            type: "invalid_token",
+            detail: "A valid delegation token is required to access the audit log",
+            resolution: {
+              action: "provide_delegation_token",
+              requires: null,
+              grantable_by: null,
+              estimated_availability: null,
+            },
+            retry: true,
           },
-          retry: true,
         },
-      },
-      401
-    );
+        401
+      );
+    }
+    const resolved = resolveRegisteredToken(parseResult.data);
+    if ("detail" in resolved) {
+      return c.json({ success: false, failure: resolved }, 401);
+    }
+    token = resolved;
+  } else {
+    // v0.2 path: JWT
+    const tokenJwt = (body as Record<string, unknown>).token as string ?? "";
+    const resolved = await resolveJwtToken(tokenJwt);
+    if ("detail" in resolved) {
+      return c.json({ success: false, failure: resolved }, 401);
+    }
+    token = resolved;
   }
-
-  const parsed = parseResult.data;
-
-  // Resolve to stored token — prevents forged inline fields
-  const resolved = resolveRegisteredToken(parsed);
-  if ("detail" in resolved) {
-    return c.json({ success: false, failure: resolved }, 401);
-  }
-  const token = resolved;
 
   const rootPrincipal = getRootPrincipal(token);
 
@@ -504,18 +821,12 @@ app.post("/anip/audit", async (c) => {
   const since = c.req.query("since") ?? null;
   const limit = Math.min(Number(c.req.query("limit") ?? 100), 1000);
 
-  // Filter to only entries belonging to this root principal
-  let entries = auditLog.filter((e) => e.root_principal === rootPrincipal);
-
-  if (capability) {
-    entries = entries.filter((e) => e.capability === capability);
-  }
-  if (since) {
-    const sinceDate = new Date(since);
-    entries = entries.filter((e) => new Date(e.timestamp) >= sinceDate);
-  }
-
-  entries = entries.slice(-limit);
+  const entries = queryAuditLog({
+    rootPrincipal,
+    capability,
+    since,
+    limit,
+  });
 
   return c.json({
     entries,
@@ -528,8 +839,8 @@ app.post("/anip/audit", async (c) => {
 
 // --- Start server ---
 
-const port = Number(process.env.PORT || 8000);
-console.log(`ANIP Flight Service (TypeScript) listening on port ${port}`);
+const port = Number(process.env.PORT || 3000);
+console.log(`ANIP Flight Service (TypeScript v0.2) listening on port ${port}`);
 
 serve({
   fetch: app.fetch,

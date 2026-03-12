@@ -52,6 +52,17 @@ class DelegationToken(BaseModel):
     parent: str | None = None  # None for root tokens (issued by humans)
     expires: datetime
     constraints: DelegationConstraints = Field(default_factory=DelegationConstraints)
+    root_principal: str | None = None  # The human at the root of the delegation chain
+
+
+class TokenRequest(BaseModel):
+    """Client request for token issuance. Server controls signing and metadata."""
+    subject: str
+    scope: list[str]
+    capability: str
+    parent_token: str | None = None  # JWT string of parent (for child issuance)
+    purpose_parameters: dict[str, Any] = Field(default_factory=dict)
+    ttl_hours: int = 2
 
 
 # --- Capability Declaration ---
@@ -186,13 +197,40 @@ class ProfileVersions(BaseModel):
     observability: str | None = None
 
 
+class ManifestMetadata(BaseModel):
+    version: str = "0.2.0"
+    sha256: str = ""  # Set at build time
+    issued_at: str = ""  # Set at build time
+    expires_at: str = ""  # Set at build time
+
+
+class ServiceIdentity(BaseModel):
+    id: str = "anip-flight-service"
+    jwks_uri: str = "/.well-known/jwks.json"
+    issuer_mode: str = "first-party"
+
+
 class ANIPManifest(BaseModel):
-    protocol: str = "anip/1.0"
+    protocol: str = "anip/0.2"
     profile: ProfileVersions
     capabilities: dict[str, CapabilityDeclaration]
+    manifest_metadata: ManifestMetadata | None = None
+    service_identity: ServiceIdentity | None = None
 
 
 # --- Invocation ---
+
+
+class TokenPresentation(BaseModel):
+    """JWT token presentation for v0.2 protected endpoints."""
+    token: str  # JWT string
+
+
+class InvokeRequestV2(BaseModel):
+    """v0.2 invocation request with JWT token."""
+    token: str  # JWT string
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    budget: dict[str, Any] | None = None
 
 
 class InvokeRequest(BaseModel):

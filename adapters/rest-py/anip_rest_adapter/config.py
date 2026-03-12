@@ -10,15 +10,6 @@ import yaml
 
 
 @dataclass
-class DelegationConfig:
-    """Delegation token configuration for the adapter."""
-
-    issuer: str = "human:user@example.com"
-    scope: list[str] = field(default_factory=lambda: ["*"])
-    token_ttl_minutes: int = 60
-
-
-@dataclass
 class RouteOverride:
     """Override for a capability's REST route."""
 
@@ -32,7 +23,6 @@ class AdapterConfig:
 
     anip_service_url: str = "http://localhost:8000"
     port: int = 3001
-    delegation: DelegationConfig = field(default_factory=DelegationConfig)
     routes: dict[str, RouteOverride] = field(default_factory=dict)
 
 
@@ -56,24 +46,11 @@ def load_config(config_path: str | None = None) -> AdapterConfig:
                 "ANIP_SERVICE_URL", "http://localhost:8000"
             ),
             port=int(os.environ.get("ANIP_ADAPTER_PORT", "3001")),
-            delegation=DelegationConfig(
-                issuer=os.environ.get(
-                    "ANIP_ISSUER", "human:user@example.com"
-                ),
-                scope=os.environ.get("ANIP_SCOPE", "*").split(","),
-            ),
         )
 
     # Load from YAML
     with open(config_path) as f:
         data = yaml.safe_load(f)
-
-    delegation_data = data.get("delegation", {})
-    delegation = DelegationConfig(
-        issuer=delegation_data.get("issuer", "human:user@example.com"),
-        scope=delegation_data.get("scope", ["*"]),
-        token_ttl_minutes=delegation_data.get("token_ttl_minutes", 60),
-    )
 
     routes: dict[str, RouteOverride] = {}
     for cap_name, route_data in data.get("routes", {}).items():
@@ -87,6 +64,5 @@ def load_config(config_path: str | None = None) -> AdapterConfig:
             "anip_service_url", "http://localhost:8000"
         ),
         port=data.get("port", 3001),
-        delegation=delegation,
         routes=routes,
     )

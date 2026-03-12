@@ -8,13 +8,21 @@ Tokens are persisted in SQLite for durability and audit trail.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import uuid
+from datetime import datetime, timedelta, timezone
 
 from ..data.database import load_token as db_load_token
 from ..data.database import store_token as db_store_token
 import threading
 
-from .models import ANIPFailure, ConcurrentBranches, DelegationToken, Resolution
+from .models import (
+    ANIPFailure,
+    ConcurrentBranches,
+    DelegationConstraints,
+    DelegationToken,
+    Purpose,
+    Resolution,
+)
 
 # Active request tracking for concurrent_branches enforcement
 _active_requests: set[str] = set()
@@ -54,6 +62,7 @@ def register_token(token: DelegationToken) -> None:
         "parent": token.parent,
         "expires": token.expires.isoformat(),
         "constraints": token.constraints.model_dump(),
+        "root_principal": token.root_principal,
     })
 
 
@@ -80,8 +89,69 @@ def get_chain(token: DelegationToken) -> list[DelegationToken]:
 
 def get_root_principal(token: DelegationToken) -> str:
     """Get the root principal (human) from a delegation chain."""
+    if token.root_principal is not None:
+        return token.root_principal
+    # Fallback for v0.1 tokens without root_principal field
     chain = get_chain(token)
     return chain[0].issuer
+
+
+def issue_token(
+    request_subject: str,
+    request_scope: list[str],
+    request_capability: str,
+    issuer_id: str,
+    parent_token: DelegationToken | None = None,
+    purpose_parameters: dict | None = None,
+    ttl_hours: int = 2,
+    max_delegation_depth: int = 3,
+    root_principal: str | None = None,
+) -> tuple[DelegationToken, str]:
+    """Issue a new delegation token. Returns (token, token_id).
+
+    Validates scope/constraint narrowing against parent if present.
+    """
+    token_id = f"anip-{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    expires = now + timedelta(hours=ttl_hours)
+
+    concurrent = ConcurrentBranches.ALLOWED
+    if parent_token is not None:
+        max_delegation_depth = min(
+            max_delegation_depth, parent_token.constraints.max_delegation_depth
+        )
+        concurrent = parent_token.constraints.concurrent_branches
+
+    token = DelegationToken(
+        token_id=token_id,
+        issuer=issuer_id,
+        subject=request_subject,
+        scope=request_scope,
+        purpose=Purpose(
+            capability=request_capability,
+            parameters=purpose_parameters or {},
+            task_id=f"task-{token_id}",
+        ),
+        parent=parent_token.token_id if parent_token else None,
+        expires=expires,
+        constraints=DelegationConstraints(
+            max_delegation_depth=max_delegation_depth,
+            concurrent_branches=concurrent,
+        ),
+        root_principal=root_principal,
+    )
+
+    # Validate narrowing if child token
+    if parent_token is not None:
+        scope_failure = validate_scope_narrowing(token)
+        if scope_failure is not None:
+            raise ValueError(scope_failure.detail)
+        constraint_failure = validate_constraints_narrowing(token)
+        if constraint_failure is not None:
+            raise ValueError(constraint_failure.detail)
+
+    register_token(token)
+    return token, token_id
 
 
 def get_chain_token_ids(token: DelegationToken) -> list[str]:
@@ -135,7 +205,7 @@ def validate_delegation(
             detail=f"delegation token {token.token_id} expired at {token.expires.isoformat()}",
             resolution=Resolution(
                 action="request_new_delegation",
-                grantable_by=token.issuer,
+                grantable_by=get_root_principal(token),
             ),
             retry=True,
         )
@@ -173,7 +243,7 @@ def validate_delegation(
             ),
             resolution=Resolution(
                 action="request_new_delegation",
-                grantable_by=token.issuer,
+                grantable_by=get_root_principal(token),
             ),
             retry=True,
         )
@@ -188,7 +258,7 @@ def validate_delegation(
             detail=f"delegation chain is incomplete — ancestor token '{chain[0].parent}' is not registered",
             resolution=Resolution(
                 action="register_missing_ancestor",
-                grantable_by=token.issuer,
+                grantable_by=get_root_principal(token),
             ),
             retry=True,
         )
@@ -217,7 +287,7 @@ def validate_delegation(
                 detail=f"ancestor token {ancestor.token_id} in delegation chain has expired",
                 resolution=Resolution(
                     action="refresh_delegation_chain",
-                    grantable_by=ancestor.issuer,
+                    grantable_by=get_root_principal(token),
                 ),
                 retry=True,
             )
@@ -293,7 +363,7 @@ def validate_scope_narrowing(token: DelegationToken) -> ANIPFailure | None:
                 resolution=Resolution(
                     action="narrow_scope",
                     requires=f"child scope must be subset of parent scope",
-                    grantable_by=parent.issuer,
+                    grantable_by=get_root_principal(parent),
                 ),
                 retry=False,
             )
@@ -312,7 +382,7 @@ def validate_scope_narrowing(token: DelegationToken) -> ANIPFailure | None:
                         resolution=Resolution(
                             action="preserve_budget_constraint",
                             requires=f"scope '{child_base}' must include budget <= ${parent_budget}",
-                            grantable_by=parent.issuer,
+                            grantable_by=get_root_principal(parent),
                         ),
                         retry=False,
                     )
@@ -324,7 +394,7 @@ def validate_scope_narrowing(token: DelegationToken) -> ANIPFailure | None:
                         resolution=Resolution(
                             action="narrow_budget",
                             requires=f"budget must be <= ${parent_budget}",
-                            grantable_by=parent.issuer,
+                            grantable_by=get_root_principal(parent),
                         ),
                         retry=False,
                     )
@@ -355,7 +425,7 @@ def validate_constraints_narrowing(token: DelegationToken) -> ANIPFailure | None
             resolution=Resolution(
                 action="narrow_constraints",
                 requires=f"max_delegation_depth must be <= {parent.constraints.max_delegation_depth}",
-                grantable_by=parent.issuer,
+                grantable_by=get_root_principal(parent),
             ),
             retry=False,
         )
@@ -371,7 +441,7 @@ def validate_constraints_narrowing(token: DelegationToken) -> ANIPFailure | None
             resolution=Resolution(
                 action="preserve_constraint",
                 requires="concurrent_branches must remain 'exclusive'",
-                grantable_by=parent.issuer,
+                grantable_by=get_root_principal(parent),
             ),
             retry=False,
         )

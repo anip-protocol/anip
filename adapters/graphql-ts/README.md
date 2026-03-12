@@ -69,6 +69,19 @@ type BookFlightResult {
 }
 ```
 
+## Authentication
+
+The adapter is a **stateless credential bridge** — it holds no tokens of its own. Callers must provide credentials via HTTP headers on every GraphQL request:
+
+| Header | Description |
+|---|---|
+| `X-ANIP-Token: <token>` | Signed ANIP delegation token (preferred). Forwarded directly to the ANIP service. |
+| `X-ANIP-API-Key: <key>` | ANIP API key (convenience). The adapter requests a short-lived, per-request capability token from the ANIP service, then invokes with it. |
+
+If `X-ANIP-Token` is present, it takes precedence. If neither header is provided, the resolver returns a GraphQL response with `success: false` and a `missing_credentials` failure.
+
+Authentication is always via HTTP headers, never via GraphQL arguments.
+
 ## Configuration
 
 ### Environment Variables
@@ -78,8 +91,6 @@ type BookFlightResult {
 | `ANIP_SERVICE_URL` | `http://localhost:8000` | ANIP service base URL |
 | `ANIP_ADAPTER_PORT` | `3002` | GraphQL adapter port |
 | `ANIP_ADAPTER_CONFIG` | -- | Path to adapter.yaml |
-| `ANIP_ISSUER` | `human:user@example.com` | Delegation token issuer |
-| `ANIP_SCOPE` | `*` | Comma-separated scopes |
 
 ### Config File
 
@@ -107,7 +118,7 @@ npx tsx test-adapter.ts http://localhost:9100
 |---|---|---|
 | Capability Declaration | Full — field + result type + directives | Nothing |
 | Side-effect Typing | `@anipSideEffect` directive | Standard clients don't read directives |
-| Delegation Chain | Simplified — single identity | Multi-hop, concurrent branches |
+| Delegation Chain | Pass-through — caller provides token | Adapter can't inspect or constrain the chain |
 | Permission Discovery | Absent | Can't query before calling |
 | Failure Semantics | `ANIPFailure` type in result | No HTTP status differentiation |
 | Cost Signaling | `@anipCost` + `costActual` field | Standard clients don't read directives |
@@ -115,4 +126,4 @@ npx tsx test-adapter.ts http://localhost:9100
 | State & Session | Absent | No continuity |
 | Observability | Absent | No audit access |
 
-**When to use native ANIP instead:** These adapters simplify the delegation chain to a single identity. For read and write capabilities this is sufficient. For irreversible financial operations, native ANIP is strongly recommended — it provides purpose-bound authority, multi-hop delegation, and the ability for the service to verify *why* an action is being invoked and on whose behalf.
+**When to use native ANIP instead:** These adapters translate the protocol surface but lose visibility into the delegation chain, cost signaling, and capability graph. For read and write capabilities this is sufficient. For irreversible financial operations, native ANIP is strongly recommended — it provides purpose-bound authority, multi-hop delegation, and the ability for the service to verify *why* an action is being invoked and on whose behalf.

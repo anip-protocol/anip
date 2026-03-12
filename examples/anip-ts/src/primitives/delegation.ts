@@ -5,6 +5,7 @@
  * purpose binding, delegation depth, and parent chain.
  */
 
+import { randomUUID } from "crypto";
 import type { ANIPFailure, DelegationToken } from "../types.js";
 
 // In-memory token store — maps token_id to DelegationToken
@@ -64,6 +65,10 @@ export function getChain(token: DelegationToken): DelegationToken[] {
 
 export function getRootPrincipal(token: DelegationToken): string {
   /** Get the root principal (human) from a delegation chain. */
+  if (token.root_principal !== null) {
+    return token.root_principal;
+  }
+  // Fallback for v0.1 tokens without root_principal field
   const chain = getChain(token);
   return chain[0].issuer;
 }
@@ -123,7 +128,7 @@ export function validateDelegation(
       detail: `delegation token ${token.token_id} expired at ${token.expires}`,
       resolution: {
         action: "request_new_delegation",
-        grantable_by: token.issuer,
+        grantable_by: getRootPrincipal(token),
         requires: null,
         estimated_availability: null,
       },
@@ -171,7 +176,7 @@ export function validateDelegation(
       detail: `delegation token purpose is ${token.purpose.capability} but request is for ${capabilityName}`,
       resolution: {
         action: "request_new_delegation",
-        grantable_by: token.issuer,
+        grantable_by: getRootPrincipal(token),
         requires: null,
         estimated_availability: null,
       },
@@ -189,7 +194,7 @@ export function validateDelegation(
       detail: `delegation chain is incomplete — ancestor token '${chain[0].parent}' is not registered`,
       resolution: {
         action: "register_missing_ancestor",
-        grantable_by: token.issuer,
+        grantable_by: getRootPrincipal(token),
         requires: null,
         estimated_availability: null,
       },
@@ -243,7 +248,7 @@ export function validateDelegation(
         detail: `ancestor token ${ancestor.token_id} in delegation chain has expired`,
         resolution: {
           action: "refresh_delegation_chain",
-          grantable_by: ancestor.issuer,
+          grantable_by: getRootPrincipal(token),
           requires: null,
           estimated_availability: null,
         },
@@ -312,7 +317,7 @@ export function validateScopeNarrowing(token: DelegationToken): ANIPFailure | nu
         resolution: {
           action: "narrow_scope",
           requires: "child scope must be subset of parent scope",
-          grantable_by: parent.issuer,
+          grantable_by: getRootPrincipal(parent),
           estimated_availability: null,
         },
         retry: false,
@@ -333,7 +338,7 @@ export function validateScopeNarrowing(token: DelegationToken): ANIPFailure | nu
             resolution: {
               action: "preserve_budget_constraint",
               requires: `scope '${childBase}' must include budget <= $${parentBudget}`,
-              grantable_by: parent.issuer,
+              grantable_by: getRootPrincipal(parent),
               estimated_availability: null,
             },
             retry: false,
@@ -347,7 +352,7 @@ export function validateScopeNarrowing(token: DelegationToken): ANIPFailure | nu
             resolution: {
               action: "narrow_budget",
               requires: `budget must be <= $${parentBudget}`,
-              grantable_by: parent.issuer,
+              grantable_by: getRootPrincipal(parent),
               estimated_availability: null,
             },
             retry: false,
@@ -382,7 +387,7 @@ export function validateConstraintsNarrowing(token: DelegationToken): ANIPFailur
       resolution: {
         action: "narrow_constraints",
         requires: `max_delegation_depth must be <= ${parent.constraints.max_delegation_depth}`,
-        grantable_by: parent.issuer,
+        grantable_by: getRootPrincipal(parent),
         estimated_availability: null,
       },
       retry: false,
@@ -400,7 +405,7 @@ export function validateConstraintsNarrowing(token: DelegationToken): ANIPFailur
       resolution: {
         action: "preserve_constraint",
         requires: "concurrent_branches must remain 'exclusive'",
-        grantable_by: parent.issuer,
+        grantable_by: getRootPrincipal(parent),
         estimated_availability: null,
       },
       retry: false,
@@ -408,6 +413,66 @@ export function validateConstraintsNarrowing(token: DelegationToken): ANIPFailur
   }
 
   return null;
+}
+
+export function issueToken(
+  subject: string,
+  scope: string[],
+  capability: string,
+  issuerId: string,
+  parentToken: DelegationToken | null,
+  purposeParameters: Record<string, unknown>,
+  ttlHours: number,
+  rootPrincipal: string | null = null,
+): { token: DelegationToken; tokenId: string } {
+  const tokenId = `anip-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
+  const now = new Date();
+  const expires = new Date(now.getTime() + ttlHours * 3600 * 1000);
+
+  let maxDepth = 3;
+  let concurrent: "allowed" | "exclusive" = "allowed";
+  if (parentToken !== null) {
+    maxDepth = Math.min(maxDepth, parentToken.constraints.max_delegation_depth);
+    concurrent = parentToken.constraints.concurrent_branches;
+  }
+
+  const token: DelegationToken = {
+    token_id: tokenId,
+    issuer: issuerId,
+    subject,
+    scope,
+    purpose: {
+      capability,
+      parameters: purposeParameters,
+      task_id: `task-${tokenId}`,
+    },
+    parent: parentToken?.token_id ?? null,
+    expires: expires.toISOString(),
+    constraints: {
+      max_delegation_depth: maxDepth,
+      concurrent_branches: concurrent,
+    },
+    root_principal: rootPrincipal,
+  };
+
+  // Validate narrowing if child token
+  if (parentToken !== null) {
+    const scopeFailure = validateScopeNarrowing(token);
+    if (scopeFailure !== null) {
+      throw new Error(scopeFailure.detail);
+    }
+    const constraintFailure = validateConstraintsNarrowing(token);
+    if (constraintFailure !== null) {
+      throw new Error(constraintFailure.detail);
+    }
+  }
+
+  registerToken(token);
+  return { token, tokenId };
+}
+
+export function getChainTokenIds(token: DelegationToken): string[] {
+  return getChain(token).map((t) => t.token_id);
 }
 
 export function checkBudgetAuthority(

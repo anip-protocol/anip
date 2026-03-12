@@ -18,7 +18,7 @@ import { loadConfig } from "./config.js";
 import type { AdapterConfig } from "./config.js";
 import { discoverService } from "./discovery.js";
 import type { ANIPCapability, ANIPService } from "./discovery.js";
-import { ANIPInvoker } from "./invocation.js";
+import { ANIPInvoker, CredentialError, IssuanceError } from "./invocation.js";
 import {
   generateRoutes,
   generateOpenAPISpec,
@@ -63,16 +63,52 @@ function convertParamTypes(
   return converted;
 }
 
+function extractCredentials(c: { req: { header: (name: string) => string | undefined } }): {
+  token?: string;
+  apiKey?: string;
+} {
+  const token = c.req.header("x-anip-token") ?? undefined;
+  const apiKey = c.req.header("x-anip-api-key") ?? undefined;
+  return { token, apiKey };
+}
+
 async function invokeAndRespond(
   invoker: ANIPInvoker,
   capabilityName: string,
   args: Record<string, unknown>,
-  cap: ANIPCapability
+  cap: ANIPCapability,
+  creds: { token?: string; apiKey?: string },
 ): Promise<{ status: number; body: Record<string, unknown> }> {
   let result: Record<string, unknown>;
   try {
-    result = await invoker.invoke(capabilityName, args);
+    result = await invoker.invoke(capabilityName, args, creds);
   } catch (e) {
+    if (e instanceof CredentialError) {
+      return {
+        status: 401,
+        body: {
+          success: false,
+          failure: {
+            type: "missing_credentials",
+            detail: e.message,
+            retry: false,
+          },
+        },
+      };
+    }
+    if (e instanceof IssuanceError) {
+      return {
+        status: 403,
+        body: {
+          success: false,
+          failure: {
+            type: "token_issuance_denied",
+            detail: e.message,
+            retry: false,
+          },
+        },
+      };
+    }
     return {
       status: 502,
       body: {
@@ -135,14 +171,9 @@ export async function buildApp(config: AdapterConfig): Promise<Hono> {
     );
   }
 
-  // Step 2: Set up the invoker with delegation tokens
-  const invoker = new ANIPInvoker(service, {
-    issuer: config.delegation.issuer,
-    scope: config.delegation.scope,
-    tokenTtlMinutes: config.delegation.tokenTtlMinutes,
-  });
-  await invoker.setup();
-  console.error("[anip-rest-adapter] Delegation token registered");
+  // Step 2: Set up the invoker (stateless — no token registration)
+  const invoker = new ANIPInvoker(service);
+  console.error("[anip-rest-adapter] Invoker ready (pass-through mode)");
 
   // Step 3: Generate routes and OpenAPI spec
   const routes = generateRoutes(service, config.routes);
@@ -192,22 +223,26 @@ function registerRoute(
         if (v !== undefined) queryParams[k] = v;
       }
       const args = convertParamTypes(queryParams, cap);
+      const creds = extractCredentials(c);
       const { status, body } = await invokeAndRespond(
         invoker,
         capName,
         args,
-        cap
+        cap,
+        creds
       );
       return c.json(body, status as 200);
     });
   } else {
     app.post(route.path, async (c) => {
       const body = await c.req.json();
+      const creds = extractCredentials(c);
       const { status, body: responseBody } = await invokeAndRespond(
         invoker,
         capName,
         body,
-        cap
+        cap,
+        creds
       );
       return c.json(responseBody, status as 200);
     });

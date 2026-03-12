@@ -8,64 +8,26 @@
 import type { ANIPService } from "./discovery.js";
 
 interface DelegationConfig {
-  issuer: string;
   scope: string[];
-  tokenTtlMinutes: number;
+  apiKey: string;
 }
 
 export class ANIPInvoker {
   private service: ANIPService;
   private config: DelegationConfig;
-  private rootTokenId: string | null = null;
-
   constructor(service: ANIPService, config: DelegationConfig) {
     this.service = service;
     this.config = config;
   }
 
   async setup(): Promise<void> {
-    this.rootTokenId = `mcp-bridge-${randomHex(12)}`;
-    const expires = new Date(
-      Date.now() + this.config.tokenTtlMinutes * 60 * 1000
-    ).toISOString();
-
-    const rootToken = {
-      token_id: this.rootTokenId,
-      issuer: this.config.issuer,
-      subject: "bridge:anip-mcp-bridge-ts",
-      scope: this.config.scope,
-      purpose: {
-        capability: "*",
-        parameters: {},
-        task_id: `mcp-session-${randomHex(8)}`,
-      },
-      parent: null,
-      expires,
-      constraints: {
-        max_delegation_depth: 2,
-        concurrent_branches: "allowed",
-      },
-    };
-
-    const resp = await fetch(this.service.endpoints.tokens, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(rootToken),
-    });
-    if (!resp.ok) {
-      throw new Error(`Token registration failed: ${resp.status}`);
-    }
+    // v0.2: tokens are requested per-invocation, no root token needed
   }
 
   async invoke(
     capabilityName: string,
     args: Record<string, unknown>
   ): Promise<string> {
-    const capTokenId = `mcp-${capabilityName}-${randomHex(8)}`;
-    const expires = new Date(
-      Date.now() + this.config.tokenTtlMinutes * 60 * 1000
-    ).toISOString();
-
     // Narrow scope to what the capability needs
     const capability = this.service.capabilities.get(capabilityName);
     let capScope = this.config.scope;
@@ -80,35 +42,30 @@ export class ANIPInvoker {
       }
     }
 
-    const capToken = {
-      token_id: capTokenId,
-      issuer: "bridge:anip-mcp-bridge-ts",
-      subject: "bridge:anip-mcp-bridge-ts",
-      scope: capScope,
-      purpose: {
-        capability: capabilityName,
-        parameters: args,
-        task_id: `mcp-invoke-${randomHex(8)}`,
-      },
-      parent: this.rootTokenId,
-      expires,
-      constraints: {
-        max_delegation_depth: 2,
-        concurrent_branches: "allowed",
-      },
-    };
-
-    // Register the capability token
+    // Step 1: Request a signed JWT token
     const tokenResp = await fetch(this.service.endpoints.tokens, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(capToken),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${this.config.apiKey}`,
+      },
+      body: JSON.stringify({
+        subject: "bridge:anip-mcp-bridge-ts",
+        scope: capScope,
+        capability: capabilityName,
+      }),
     });
     if (!tokenResp.ok) {
-      throw new Error(`Token registration failed: ${tokenResp.status}`);
+      throw new Error(`Token request failed: ${tokenResp.status}`);
     }
+    const tokenData = (await tokenResp.json()) as Record<string, unknown>;
+    if (!tokenData.issued) {
+      const error = (tokenData.error as string) ?? "unknown error";
+      return `FAILED: token_issuance\nDetail: ${error}\nRetryable: no`;
+    }
+    const jwt = tokenData.token as string;
 
-    // Invoke the capability
+    // Step 2: Invoke with the JWT
     const invokeUrl = this.service.endpoints.invoke.replace(
       "{capability}",
       capabilityName
@@ -117,7 +74,7 @@ export class ANIPInvoker {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        delegation_token: capToken,
+        token: jwt,
         parameters: args,
       }),
     });
@@ -174,13 +131,4 @@ export class ANIPInvoker {
 
     return parts.join("\n");
   }
-}
-
-function randomHex(length: number): string {
-  const chars = "0123456789abcdef";
-  let result = "";
-  for (let i = 0; i < length; i++) {
-    result += chars[Math.floor(Math.random() * 16)];
-  }
-  return result;
 }

@@ -19,7 +19,7 @@ import { loadConfig } from "./config.js";
 import type { AdapterConfig } from "./config.js";
 import { discoverService } from "./discovery.js";
 import type { ANIPService } from "./discovery.js";
-import { ANIPInvoker } from "./invocation.js";
+import { ANIPInvoker, CredentialError, IssuanceError } from "./invocation.js";
 import { generateSchema, toCamelCase, toSnakeCase } from "./translation.js";
 
 function buildAnipResponse(result: Record<string, unknown>): Record<string, unknown> {
@@ -64,27 +64,38 @@ function buildAnipResponse(result: Record<string, unknown>): Record<string, unkn
 }
 
 function makeResolver(capabilityName: string, invoker: ANIPInvoker) {
-  return async (args: Record<string, unknown>) => {
-    // Convert camelCase args back to snake_case for ANIP
+  return async (
+    args: Record<string, unknown>,
+    creds: { token?: string; apiKey?: string },
+  ) => {
     const snakeArgs: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(args)) {
       snakeArgs[toSnakeCase(k)] = v;
     }
 
     try {
-      const result = await invoker.invoke(capabilityName, snakeArgs);
+      const result = await invoker.invoke(capabilityName, snakeArgs, creds);
       return buildAnipResponse(result);
     } catch (e) {
+      if (e instanceof CredentialError) {
+        return {
+          success: false, result: null, costActual: null,
+          failure: { type: "missing_credentials", detail: e.message, resolution: null, retry: false },
+        };
+      }
+      if (e instanceof IssuanceError) {
+        return {
+          success: false, result: null, costActual: null,
+          failure: { type: "token_issuance_denied", detail: e.error, resolution: null, retry: false },
+        };
+      }
       console.error(`ANIP invocation failed for ${capabilityName}:`, e);
       return {
-        success: false,
-        result: null,
-        costActual: null,
+        success: false, result: null, costActual: null,
         failure: {
           type: "adapter_error",
           detail: e instanceof Error ? e.message : String(e),
-          resolution: null,
-          retry: true,
+          resolution: null, retry: true,
         },
       };
     }
@@ -106,14 +117,9 @@ export async function buildApp(config: AdapterConfig): Promise<Hono> {
     );
   }
 
-  // Step 2: Set up the invoker with delegation tokens
-  const invoker = new ANIPInvoker(service, {
-    issuer: config.delegation.issuer,
-    scope: config.delegation.scope,
-    tokenTtlMinutes: config.delegation.tokenTtlMinutes,
-  });
-  await invoker.setup();
-  console.error("[anip-graphql-adapter] Delegation token registered");
+  // Step 2: Set up the invoker
+  const invoker = new ANIPInvoker(service);
+  console.error("[anip-graphql-adapter] Invoker ready (stateless credential pass-through)");
 
   // Step 3: Generate GraphQL schema SDL
   const schemaSdl = generateSchema(service);
@@ -122,7 +128,7 @@ export async function buildApp(config: AdapterConfig): Promise<Hono> {
   const schema = buildSchema(schemaSdl);
 
   // Step 5: Build root resolvers
-  const rootValue: Record<string, (args: Record<string, unknown>) => Promise<Record<string, unknown>>> = {};
+  const rootValue: Record<string, (args: Record<string, unknown>, creds: { token?: string; apiKey?: string }) => Promise<Record<string, unknown>>> = {};
   for (const [name, cap] of service.capabilities) {
     const camelName = toCamelCase(name);
     rootValue[camelName] = makeResolver(name, invoker);
@@ -139,10 +145,21 @@ export async function buildApp(config: AdapterConfig): Promise<Hono> {
       operationName?: string;
     };
 
+    // Extract credentials from HTTP headers
+    const token = c.req.header("x-anip-token") ?? undefined;
+    const apiKey = c.req.header("x-anip-api-key") ?? undefined;
+    const creds = { token, apiKey };
+
+    // Wrap resolvers to inject credentials
+    const rootValueWithCreds: Record<string, (args: Record<string, unknown>) => Promise<Record<string, unknown>>> = {};
+    for (const [name, resolver] of Object.entries(rootValue)) {
+      rootValueWithCreds[name] = (args: Record<string, unknown>) => resolver(args, creds);
+    }
+
     const result = await graphql({
       schema,
       source: body.query,
-      rootValue,
+      rootValue: rootValueWithCreds,
       variableValues: body.variables,
       operationName: body.operationName,
     });
@@ -155,12 +172,23 @@ export async function buildApp(config: AdapterConfig): Promise<Hono> {
     // If ?query= param, run it
     const query = c.req.query("query");
     if (query) {
+      // Extract credentials from HTTP headers
+      const token = c.req.header("x-anip-token") ?? undefined;
+      const apiKey = c.req.header("x-anip-api-key") ?? undefined;
+      const creds = { token, apiKey };
+
+      // Wrap resolvers to inject credentials
+      const rootValueWithCreds: Record<string, (args: Record<string, unknown>) => Promise<Record<string, unknown>>> = {};
+      for (const [name, resolver] of Object.entries(rootValue)) {
+        rootValueWithCreds[name] = (args: Record<string, unknown>) => resolver(args, creds);
+      }
+
       // Execute inline query (for simple testing)
       return (async () => {
         const result = await graphql({
           schema,
           source: query,
-          rootValue,
+          rootValue: rootValueWithCreds,
         });
         return c.json(result);
       })();

@@ -1,4 +1,4 @@
-# ANIP Specification v0.1
+# ANIP Specification v0.2
 
 > Agent-Native Interface Protocol — Draft
 
@@ -154,7 +154,7 @@ delegation_token:
 
 - **DAG, not list.** An orchestrator delegating to Agent A and Agent B in parallel creates two tokens with the same parent. The service can detect concurrent agents sharing a root principal.
 - **Purpose-bound.** Prevents token reuse beyond the intended task. Agent B cannot use a token delegated for flight booking to access expense reports, even if the scope strings overlap.
-- **Format-agnostic.** ANIP v1 defines the semantic structure above. Implementations MAY use JWTs, signed payloads, or other token formats that can express this structure. The semantic model is inspired by W3C Verifiable Credentials, and future versions may define a standard cryptographic binding.
+- **JWT/ES256 in v0.2.** ANIP v0.2 defines JWT (JSON Web Token) with ES256 (ECDSA P-256) as the standard token format. The service is the sole token issuer — agents request tokens via `POST /anip/tokens` with Bearer authentication, and the service returns signed JWTs. The semantic model is inspired by W3C Verifiable Credentials. See [docs/trust-model-v0.2.md](docs/trust-model-v0.2.md) for the full cryptographic trust model.
 
 Every request to an ANIP service MUST include a delegation token. The service MUST validate the token's scope, purpose, expiry, and constraints before processing the request.
 
@@ -670,7 +670,7 @@ registered: true
 token_id: "tok_root_001"
 ```
 
-In ANIP v1 (trust-on-declaration), the service accepts the token's claims at face value. Future versions will define cryptographic verification at this endpoint.
+In ANIP v0.2 (signed mode, default), the service issues JWT tokens and verifies their ES256 signatures at every protected endpoint. A trust boundary (`_resolve_jwt_token()`) compares all signed JWT claims against stored state, detecting both token forgery and store tampering. Legacy trust-on-declaration mode is available via `ANIP_TRUST_MODE=declaration` for backward compatibility.
 
 #### Permission Discovery — `POST {permissions}`
 
@@ -817,14 +817,14 @@ The following categories define the surface area of ANIP conformance testing:
 
 ### 8.3 Conformance Test Suite
 
-ANIP v1 defines the test categories and expected behaviors above. A reference conformance test suite — a machine-runnable tool that validates any ANIP service against these categories — is a priority for the ecosystem but is not included in v0.1.
+ANIP v0.2 defines the test categories and expected behaviors above. A reference conformance test suite is included in v0.2 at `tests/test_conformance.py`. It validates side-effect accuracy, scope enforcement, budget enforcement, failure semantics, and cost accuracy against any ANIP service.
 
-The test suite, when built, SHOULD:
+The conformance test suite:
 
-- Accept a base URL and run all Category 1-5 tests without service cooperation
-- Accept optional sandbox credentials for Category 6 tests
-- Output structured results indicating pass/fail per category with specific violations
-- Be runnable by service implementers, agent developers, and third-party auditors
+- Accepts a base URL via `--anip-url` and runs all tests without service cooperation
+- Accepts optional API key via `--anip-api-key` for authenticated endpoints
+- Outputs structured results indicating pass/fail per category with specific violations
+- Is runnable by service implementers, agent developers, and third-party auditors
 
 ---
 
@@ -885,8 +885,8 @@ The following are explicitly out of scope for ANIP v1:
 - **Multi-agent distributed transactions.** The delegation chain is DAG-ready, but coordinating transactions across multiple ANIP services is not addressed. The primitives are designed not to preclude this in future versions.
 - **Non-HTTP transport bindings.** V1 is HTTP-first. Other transports are a future concern.
 - **Registry service.** How an agent *finds* ANIP services across the internet (like DNS for domains) is a separate problem. V1 defines service-level discovery via `/.well-known/anip` but does not define a global registry.
-- **Trust verification enforcement.** V1 is trust-on-declaration. Verification is a v2 priority.
-- **Cryptographic token format mandate.** V1 defines delegation token semantics, not cryptographic format.
+- **Trust verification enforcement.** ~~V1 is trust-on-declaration.~~ *Resolved in v0.2:* signed mode (default) uses JWT/ES256 with full cryptographic verification. Trust-on-declaration remains available for development via `ANIP_TRUST_MODE=declaration`.
+- **Cryptographic token format mandate.** ~~V1 defines delegation token semantics, not cryptographic format.~~ *Resolved in v0.2:* JWT with ES256 is the standard format. JWKS endpoint at `/.well-known/jwks.json` for public key discovery.
 
 ---
 
@@ -896,16 +896,17 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 
 | Feature | Protocol Requirement Level | Reference Implementation Status | Future Protocol Work |
 |---------|---------------------------|--------------------------------|---------------------|
-| **Budget enforcement** | MUST — v1 core (§6.3) | Implemented | — |
-| **Scope narrowing** | MUST — v1.x | Implemented: reference servers reject child tokens that widen parent scope | — |
-| **Concurrent branch exclusivity** | SHOULD — v1.x | Implemented: reference servers enforce `concurrent_branches: "exclusive"` per root principal with atomic check-and-acquire (Python uses `threading.Lock`; TypeScript is single-threaded) | Distributed enforcement across replicas is a deployment concern |
-| **Cost variance tracking** | MAY — v1.x | Implemented: reference servers record declared vs actual costs in audit log | — |
-| **Signed delegation tokens** | OPTIONAL — experimental extension | JWT signing available as implementation choice | Interoperable trust semantics: issuer trust, revocation, DAG-aware key discovery, format standardization |
-| **Side-effect contract testing** | — | — | Sandbox infrastructure with behavioral fidelity and isolation guarantees (§7) |
-| **Audit log integrity** | — | — | Append-only infrastructure, third-party attestation |
-| **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation, format standardization (JWT, W3C VC, or ANIP-native) |
+| **Budget enforcement** | MUST — v0.1 core (§6.3) | Implemented | — |
+| **Scope narrowing** | MUST — v0.1+ | Implemented: reference servers reject child tokens that widen parent scope | — |
+| **Concurrent branch exclusivity** | SHOULD — v0.1+ | Implemented: reference servers enforce `concurrent_branches: "exclusive"` per root principal with atomic check-and-acquire (Python uses `threading.Lock`; TypeScript is single-threaded) | Distributed enforcement across replicas is a deployment concern |
+| **Cost variance tracking** | MAY — v0.1+ | Implemented: reference servers record declared vs actual costs in audit log | — |
+| **Signed delegation tokens** | MUST — v0.2 core | Implemented: server-issued JWT/ES256, JWKS discovery, trust boundary verification | Interoperable trust semantics: issuer trust, revocation, DAG-aware key discovery |
+| **Signed manifests** | MUST — v0.2 core | Implemented: detached JWS (ES256) in `X-ANIP-Signature` header, manifest metadata with SHA-256 hash | Third-party manifest attestation |
+| **Audit log integrity** | MUST — v0.2 core | Implemented: hash chain with per-entry signatures, separate audit signing key | Append-only infrastructure, third-party attestation, external timestamp anchoring |
+| **Conformance test suite** | SHOULD — v0.2 | Implemented: portable test suite at `tests/test_conformance.py` with `--anip-url` flag | Side-effect contract testing (§7), sandbox infrastructure |
+| **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation across services, federated trust |
 
-The guiding principle: v0.1 declares the contracts. v1.x reference implementations enforce what they can. v2 makes protocol-level guarantees that hold across implementations. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
+The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
 
 **What solving these gaps unlocks.** When trust and verification become real — not declarative — agents can evaluate risk before acting. Delegated authority becomes expressible in ways current tool layers can't handle. Failures become operationally useful, not just descriptive. High-stakes actions — travel, procurement, finance ops, approvals, multi-step orchestration — become automatable with real control surfaces. At that point, ANIP solves one of the central coordination problems of agent deployment: how an agent knows what it's allowed to do, what will happen if it does it, and how to recover when something blocks it.
 
@@ -921,7 +922,7 @@ These are unresolved design questions where community input is needed:
 
 3. **Side-effect type completeness.** Is `eventually_consistent` a distinct side-effect type that belongs in v1? Are there other side-effect categories we're missing?
 
-4. **Delegation chain auth format.** What concrete token format should ANIP recommend? JWT is familiar but has limitations for DAG delegation. W3C Verifiable Credentials are semantically richer but have adoption barriers. Should v1 recommend one, or remain format-agnostic?
+4. ~~**Delegation chain auth format.** What concrete token format should ANIP recommend?~~ *Resolved in v0.2:* JWT with ES256 (ECDSA P-256). The service is the sole token issuer. JWKS endpoint at `/.well-known/jwks.json` for public key discovery. See [SECURITY.md](SECURITY.md) and [docs/trust-model-v0.2.md](docs/trust-model-v0.2.md).
 
 5. **Global service registry.** Service-level discovery is solved via `/.well-known/anip`. But should there be a global registry where agents can discover ANIP services by capability? (e.g., "find me services that can book flights")
 
@@ -930,10 +931,11 @@ These are unresolved design questions where community input is needed:
 **Resolved:**
 
 - **Capability declaration format.** ANIP uses JSON Schema (draft 2020-12). Canonical schemas are defined in Section 9 and validated across two reference implementations (Python/Pydantic and TypeScript/Zod). *(Resolved in v0.1)*
+- **Delegation chain auth format.** JWT with ES256 (ECDSA P-256). Server-issued tokens with JWKS discovery. *(Resolved in v0.2)*
 
 ---
 
-*ANIP is an open specification under active development. This is v0.1 — the foundation, not the finished product. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
+*ANIP is an open specification under active development. This is v0.2 — cryptographic trust foundations are in place, with federated trust and cross-service delegation as future goals. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
 
 ---
 
