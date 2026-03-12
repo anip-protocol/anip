@@ -47,14 +47,11 @@ def _assert(condition: bool, label: str, detail: str = "") -> None:
 
 def test_config_defaults() -> None:
     print("\n--- Config defaults ---")
-    from anip_rest_adapter.config import AdapterConfig, DelegationConfig, load_config
+    from anip_rest_adapter.config import AdapterConfig, load_config
 
     cfg = AdapterConfig()
     _assert(cfg.anip_service_url == "http://localhost:8000", "default service URL")
     _assert(cfg.port == 3001, "default port")
-    _assert(cfg.delegation.issuer == "human:user@example.com", "default issuer")
-    _assert(cfg.delegation.scope == ["*"], "default scope")
-    _assert(cfg.delegation.token_ttl_minutes == 60, "default TTL")
     _assert(cfg.routes == {}, "default routes empty")
 
 
@@ -90,17 +87,12 @@ async def test_discovery(anip_url: str) -> None:
 async def test_invocation(anip_url: str) -> None:
     print("\n--- Invocation ---")
     from anip_rest_adapter.discovery import discover_service
-    from anip_rest_adapter.invocation import ANIPInvoker
+    from anip_rest_adapter.invocation import ANIPInvoker, CredentialError
 
     service = await discover_service(anip_url)
-    invoker = ANIPInvoker(
-        service=service,
-        issuer="human:test@example.com",
-        scope=["*"],
-    )
-    await invoker.setup()
+    invoker = ANIPInvoker(service=service)
 
-    # Search flights
+    # API-key path: search flights
     result = await invoker.invoke(
         "search_flights",
         {
@@ -109,12 +101,13 @@ async def test_invocation(anip_url: str) -> None:
             "date": "2026-03-10",
             "passengers": 1,
         },
+        api_key="demo-human-key",
     )
     _assert(isinstance(result, dict), "search_flights returns dict")
     _assert(result.get("success") is True, "search_flights succeeds")
     _assert("result" in result, "search_flights has result")
 
-    # Book flight
+    # API-key path: book flight
     result = await invoker.invoke(
         "book_flight",
         {
@@ -122,9 +115,51 @@ async def test_invocation(anip_url: str) -> None:
             "date": "2026-03-10",
             "passengers": 1,
         },
+        api_key="demo-human-key",
     )
     _assert(isinstance(result, dict), "book_flight returns dict")
     _assert("success" in result, "book_flight has success key")
+
+    # Token path: pre-issue a token, then invoke with it
+    async with httpx.AsyncClient(timeout=30) as client:
+        token_resp = await client.post(
+            service.endpoints["tokens"],
+            json={
+                "subject": "adapter:anip-rest-adapter",
+                "scope": ["*"],
+                "capability": "search_flights",
+            },
+            headers={"Authorization": "Bearer demo-human-key"},
+        )
+        token_resp.raise_for_status()
+        token_data = token_resp.json()
+        _assert(token_data.get("issued") is True, "token issued for token-path test")
+        jwt_str = token_data["token"]
+
+    result = await invoker.invoke(
+        "search_flights",
+        {
+            "origin": "SEA",
+            "destination": "SFO",
+            "date": "2026-03-10",
+            "passengers": 1,
+        },
+        token=jwt_str,
+    )
+    _assert(isinstance(result, dict), "token-path search_flights returns dict")
+    _assert(result.get("success") is True, "token-path search_flights succeeds")
+
+    # No credentials raises CredentialError
+    try:
+        await invoker.invoke(
+            "search_flights",
+            {"origin": "SEA", "destination": "SFO", "date": "2026-03-10", "passengers": 1},
+        )
+        _fail("no-creds raises CredentialError", "no exception raised")
+    except CredentialError:
+        _ok("no-creds raises CredentialError")
+    except Exception as e:
+        _fail("no-creds raises CredentialError", f"wrong exception: {type(e).__name__}: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -193,14 +228,29 @@ async def test_translation(anip_url: str) -> None:
 
 async def test_server(anip_url: str) -> None:
     print("\n--- Server (ASGI) ---")
-    from anip_rest_adapter.config import AdapterConfig, DelegationConfig
+    from anip_rest_adapter.config import AdapterConfig
     from anip_rest_adapter.server import build_app
 
-    config = AdapterConfig(
-        anip_service_url=anip_url,
-        delegation=DelegationConfig(scope=["*"]),
-    )
+    config = AdapterConfig(anip_service_url=anip_url)
     app = await build_app(config)
+
+    # Pre-issue a signed token outside the ASGI transport block
+    from anip_rest_adapter.discovery import discover_service
+
+    service = await discover_service(anip_url)
+    async with httpx.AsyncClient(timeout=30) as client:
+        token_resp = await client.post(
+            service.endpoints["tokens"],
+            json={
+                "subject": "adapter:anip-rest-adapter",
+                "scope": ["*"],
+                "capability": "search_flights",
+            },
+            headers={"Authorization": "Bearer demo-human-key"},
+        )
+        token_resp.raise_for_status()
+        token_data = token_resp.json()
+        signed_token = token_data["token"]
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
@@ -211,7 +261,7 @@ async def test_server(anip_url: str) -> None:
         _assert(spec["openapi"] == "3.1.0", "served spec is 3.1.0")
         _assert("/api/search_flights" in spec["paths"], "spec paths include search_flights")
 
-        # GET search_flights
+        # 401 test: no credentials
         resp = await client.get(
             "/api/search_flights",
             params={
@@ -221,12 +271,40 @@ async def test_server(anip_url: str) -> None:
                 "passengers": "1",
             },
         )
-        _assert(resp.status_code == 200, "GET /api/search_flights returns 200")
-        data = resp.json()
-        _assert(data.get("success") is True, "search_flights response success")
-        _assert("result" in data, "search_flights response has result")
+        _assert(resp.status_code == 401, "GET without credentials returns 401")
 
-        # POST book_flight — first search for a real flight
+        # API-key path: GET search_flights
+        resp = await client.get(
+            "/api/search_flights",
+            params={
+                "origin": "SEA",
+                "destination": "SFO",
+                "date": "2026-03-10",
+                "passengers": "1",
+            },
+            headers={"X-ANIP-API-Key": "demo-human-key"},
+        )
+        _assert(resp.status_code == 200, "GET /api/search_flights with API key returns 200")
+        data = resp.json()
+        _assert(data.get("success") is True, "search_flights response success (api-key)")
+        _assert("result" in data, "search_flights response has result (api-key)")
+
+        # Token path: GET search_flights
+        resp = await client.get(
+            "/api/search_flights",
+            params={
+                "origin": "SEA",
+                "destination": "SFO",
+                "date": "2026-03-10",
+                "passengers": "1",
+            },
+            headers={"X-ANIP-Token": signed_token},
+        )
+        _assert(resp.status_code == 200, "GET /api/search_flights with token returns 200")
+        data = resp.json()
+        _assert(data.get("success") is True, "search_flights response success (token)")
+
+        # POST book_flight with API key — first search for a real flight
         search_resp = await client.get(
             "/api/search_flights",
             params={
@@ -235,6 +313,7 @@ async def test_server(anip_url: str) -> None:
                 "date": "2026-03-10",
                 "passengers": "1",
             },
+            headers={"X-ANIP-API-Key": "demo-human-key"},
         )
         flights = search_resp.json().get("result", {}).get("flights", [])
         flight_number = flights[0]["flight_number"] if flights else "UA100"
@@ -246,6 +325,7 @@ async def test_server(anip_url: str) -> None:
                 "date": "2026-03-10",
                 "passengers": 1,
             },
+            headers={"X-ANIP-API-Key": "demo-human-key"},
         )
         _assert(resp.status_code == 200, "POST /api/book_flight returns 200")
         data = resp.json()

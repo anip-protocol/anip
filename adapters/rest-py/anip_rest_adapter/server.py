@@ -29,7 +29,7 @@ from fastapi.responses import JSONResponse
 
 from .config import AdapterConfig, load_config
 from .discovery import discover_service
-from .invocation import ANIPInvoker
+from .invocation import ANIPInvoker, CredentialError, IssuanceError
 from .translation import RESTRoute, generate_openapi_spec, generate_routes
 
 logger = logging.getLogger("anip-rest-adapter")
@@ -69,15 +69,9 @@ async def build_app(config: AdapterConfig) -> FastAPI:
             " (financial)" if cap.financial else "",
         )
 
-    # Step 2: Set up the invoker with delegation tokens
-    invoker = ANIPInvoker(
-        service=service,
-        issuer=config.delegation.issuer,
-        scope=config.delegation.scope,
-        token_ttl_minutes=config.delegation.token_ttl_minutes,
-    )
-    await invoker.setup()
-    logger.info("Delegation token registered")
+    # Step 2: Set up the invoker (stateless — no token registration)
+    invoker = ANIPInvoker(service=service)
+    logger.info("Invoker ready (pass-through mode)")
 
     # Step 3: Generate routes and OpenAPI spec
     routes = generate_routes(service, config.routes)
@@ -100,6 +94,13 @@ async def build_app(config: AdapterConfig) -> FastAPI:
     return app
 
 
+def _extract_credentials(request: Request) -> tuple[str | None, str | None]:
+    """Extract ANIP credentials from request headers."""
+    token = request.headers.get("x-anip-token")
+    api_key = request.headers.get("x-anip-api-key")
+    return token, api_key
+
+
 def _register_route(
     app: FastAPI,
     route: RESTRoute,
@@ -119,7 +120,10 @@ def _register_route(
             # Extract query parameters and convert types
             arguments = dict(request.query_params)
             arguments = _convert_param_types(arguments, _cap)
-            return await _invoke_and_respond(invoker, _cap_name, arguments, _cap)
+            token, api_key = _extract_credentials(request)
+            return await _invoke_and_respond(
+                invoker, _cap_name, arguments, _cap, token=token, api_key=api_key
+            )
 
     else:
 
@@ -130,7 +134,10 @@ def _register_route(
             _cap: Any = cap,
         ) -> JSONResponse:
             body = await request.json()
-            return await _invoke_and_respond(invoker, _cap_name, body, _cap)
+            token, api_key = _extract_credentials(request)
+            return await _invoke_and_respond(
+                invoker, _cap_name, body, _cap, token=token, api_key=api_key
+            )
 
 
 def _convert_param_types(
@@ -168,10 +175,39 @@ async def _invoke_and_respond(
     capability_name: str,
     arguments: dict[str, Any],
     cap: Any,
+    *,
+    token: str | None = None,
+    api_key: str | None = None,
 ) -> JSONResponse:
     """Invoke an ANIP capability and map the response to HTTP status codes."""
     try:
-        result = await invoker.invoke(capability_name, arguments)
+        result = await invoker.invoke(
+            capability_name, arguments, token=token, api_key=api_key
+        )
+    except CredentialError as e:
+        return JSONResponse(
+            status_code=401,
+            content={
+                "success": False,
+                "failure": {
+                    "type": "missing_credentials",
+                    "detail": str(e),
+                    "retry": False,
+                },
+            },
+        )
+    except IssuanceError as e:
+        return JSONResponse(
+            status_code=403,
+            content={
+                "success": False,
+                "failure": {
+                    "type": "token_issuance_denied",
+                    "detail": str(e),
+                    "retry": False,
+                },
+            },
+        )
     except Exception as e:
         logger.exception("ANIP invocation failed for %s", capability_name)
         return JSONResponse(
