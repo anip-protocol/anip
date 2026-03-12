@@ -4,6 +4,8 @@ A **reference adapter** that discovers any ANIP-compliant service and exposes it
 
 > **Reference adapter, not production architecture.** This adapter runs as a separate proxy process for demonstration. The same translation logic can be embedded as middleware directly in the ANIP service, eliminating the second process. The adapter proves interoperability; the SDK/middleware approach is the production deployment path.
 
+> **v0.2 Compatibility:** This adapter uses the v0.1 token flow (client-constructed delegation tokens). To use with an ANIP v0.2 server, set `ANIP_TRUST_MODE=declaration` on the server. Migration to the v0.2 JWT-based token flow is planned.
+
 ## Quick Start
 
 ```bash

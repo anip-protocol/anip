@@ -84,10 +84,10 @@ That last one is the killer feature. When a budget-exceeded failure comes back, 
 ```
 ANIP Agent Mode | Server: http://127.0.0.1:8000 | Human delegation: simulated
 
-SETUP: Fetching ANIP manifest and registering tokens
+SETUP: Fetching ANIP manifest and requesting tokens
 Generated 5 tools from manifest: search_flights, book_flight,
   check_permissions, request_budget_increase, query_audit
-Registered tokens:
+Issued tokens:
   demo-b0995ff9: search_flights (travel.search)
   demo-f72e58e6: book_flight (travel.book:max_$300, budget: max $300)
 
@@ -162,6 +162,8 @@ Standard REST and GraphQL clients work normally — they ignore the ANIP metadat
 
 **One honest caveat.** The REST and GraphQL adapters simplify the delegation chain to a single identity. For read and write capabilities, that's fine. For irreversible financial operations, native ANIP is strongly recommended — purpose-bound authority and multi-hop delegation don't survive the translation. The [adapter READMEs](adapters/) document the exact translation loss for each surface.
 
+**v0.2 compatibility note.** The adapter reference implementations currently use the v0.1 token flow (client-constructed tokens, unsigned invocations). They require `ANIP_TRUST_MODE=declaration` to work with v0.2 servers. Updating the adapters to use JWT-based token requests is planned.
+
 **These adapters are reference implementations.** They run as separate proxy processes to demonstrate that ANIP translates cleanly to existing surfaces. For production, the recommended path is direct integration — ANIP client SDKs and libraries that speak the protocol natively, giving agents full access to delegation chains, budget constraints, and side-effect reasoning without translation loss. The adapters prove interoperability; direct ANIP integration is the production deployment path.
 
 ## Core Principles
@@ -185,20 +187,22 @@ ANIP defines 9 primitives in two tiers:
 
 ## Status
 
-ANIP is early-stage. The spec is a v0.1 draft. The core ideas have been validated through independent design review but the hard problems — trust verification, multi-agent coordination — are open. See [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v2) for the full breakdown of what's enforced now vs what requires v2 protocol work.
+ANIP is under active development. The spec is at v0.2 with cryptographic trust foundations in place. Trust verification — signed delegation tokens, signed manifests, and tamper-evident audit logs — is implemented in both reference servers. Multi-agent coordination and federated trust remain open. See [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v2) for the full breakdown.
 
-> **v0.1 is trust-on-declaration.** Services declare their capabilities, costs, and side effects, and agents take those declarations at face value. There is no cryptographic verification that a service actually behaves as declared. This makes ANIP v0.1 convincing as an internal protocol for trusted environments — within an organization, between known services, behind a gateway. Internet-scale trust verification (attestation, capability proofs, third-party auditing) is an explicit v2 concern. See [SPEC.md § Open Questions](SPEC.md#open-questions) for the full list of deferred problems.
+> **v0.2 adds cryptographic trust.** Delegation tokens are server-issued JWTs (ES256), manifests carry detached JWS signatures, and audit logs form a hash chain with per-entry signatures. A trust boundary verifies every signed claim against stored state, detecting both token forgery and store tampering. Trust-on-declaration mode remains available via `ANIP_TRUST_MODE=declaration` for development. Internet-scale trust federation (cross-service delegation, third-party attestation) is a future goal. See [SECURITY.md](SECURITY.md) for the trust model summary and [docs/trust-model-v0.2.md](docs/trust-model-v0.2.md) for the full architecture.
 
 This is a community effort. We'd rather define this standard thoughtfully and in the open than let it emerge ad-hoc.
 
 **What exists today:**
 - [Manifesto](MANIFESTO.md) — why this moment matters
-- [Spec](SPEC.md) — the technical design (v0.1)
+- [Spec](SPEC.md) — the technical design (v0.2)
 - [Guide](GUIDE.md) — walkthrough of the reference implementation with design rationale
 - [Reference implementation — Python](examples/anip/) — FastAPI + SQLite, full demo with audit logging
 - [Reference implementation — TypeScript](examples/anip-ts/) — Hono + Zod, same capabilities and endpoints
 - [Demo agent](examples/agent/) — an AI agent that consumes ANIP to reason before acting, handle budget failures, and verify audit trails
 - [JSON Schema](schema/) — validate any ANIP implementation against the spec
+- [Security policy](SECURITY.md) — vulnerability reporting, trust model summary, deployment guidance
+- [Trust model](docs/trust-model-v0.2.md) — deep dive on v0.2 cryptographic architecture
 - [MCP adapter — Python](adapters/mcp-py/) — use ANIP with your existing MCP tooling today
 - [MCP adapter — TypeScript](adapters/mcp-ts/) — same adapter, TypeScript/Node implementation
 - [REST/OpenAPI adapter — Python](adapters/rest-py/) — expose ANIP as REST with auto-generated OpenAPI spec
@@ -211,8 +215,9 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 **Agent skills** are themselves an example of ANIP's philosophy applied to documentation. Instead of prose docs written for humans that agents have to interpret, ANIP ships structured skill files that agents can consume directly. The protocol eats its own cooking. These skill files were generated by an agent working directly from the spec, demonstrating the principle that ANIP documentation should be agent-consumable from day one.
 
 **What's next:**
-- Delegation chain token format (see [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v2))
-- Conformance test suite (see [SPEC.md § Conformance](SPEC.md#8-conformance--testability))
+- Federated trust — cross-service delegation chains and token exchange
+- Adapter v0.2 migration — REST, GraphQL, and MCP adapters currently require `ANIP_TRUST_MODE=declaration`
+- Side-effect contract testing — sandbox infrastructure for verifying behavioral declarations
 
 If this resonates, star the repo, open an issue, or [contribute](CONTRIBUTING.md). If you think we're wrong, tell us why — that's equally valuable.
 
