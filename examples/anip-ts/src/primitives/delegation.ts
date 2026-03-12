@@ -128,7 +128,7 @@ export function validateDelegation(
       detail: `delegation token ${token.token_id} expired at ${token.expires}`,
       resolution: {
         action: "request_new_delegation",
-        grantable_by: token.issuer,
+        grantable_by: getRootPrincipal(token),
         requires: null,
         estimated_availability: null,
       },
@@ -176,7 +176,7 @@ export function validateDelegation(
       detail: `delegation token purpose is ${token.purpose.capability} but request is for ${capabilityName}`,
       resolution: {
         action: "request_new_delegation",
-        grantable_by: token.issuer,
+        grantable_by: getRootPrincipal(token),
         requires: null,
         estimated_availability: null,
       },
@@ -194,7 +194,7 @@ export function validateDelegation(
       detail: `delegation chain is incomplete — ancestor token '${chain[0].parent}' is not registered`,
       resolution: {
         action: "register_missing_ancestor",
-        grantable_by: token.issuer,
+        grantable_by: getRootPrincipal(token),
         requires: null,
         estimated_availability: null,
       },
@@ -248,7 +248,7 @@ export function validateDelegation(
         detail: `ancestor token ${ancestor.token_id} in delegation chain has expired`,
         resolution: {
           action: "refresh_delegation_chain",
-          grantable_by: ancestor.issuer,
+          grantable_by: getRootPrincipal(token),
           requires: null,
           estimated_availability: null,
         },
@@ -317,7 +317,7 @@ export function validateScopeNarrowing(token: DelegationToken): ANIPFailure | nu
         resolution: {
           action: "narrow_scope",
           requires: "child scope must be subset of parent scope",
-          grantable_by: parent.issuer,
+          grantable_by: getRootPrincipal(parent),
           estimated_availability: null,
         },
         retry: false,
@@ -338,7 +338,7 @@ export function validateScopeNarrowing(token: DelegationToken): ANIPFailure | nu
             resolution: {
               action: "preserve_budget_constraint",
               requires: `scope '${childBase}' must include budget <= $${parentBudget}`,
-              grantable_by: parent.issuer,
+              grantable_by: getRootPrincipal(parent),
               estimated_availability: null,
             },
             retry: false,
@@ -352,7 +352,7 @@ export function validateScopeNarrowing(token: DelegationToken): ANIPFailure | nu
             resolution: {
               action: "narrow_budget",
               requires: `budget must be <= $${parentBudget}`,
-              grantable_by: parent.issuer,
+              grantable_by: getRootPrincipal(parent),
               estimated_availability: null,
             },
             retry: false,
@@ -387,7 +387,7 @@ export function validateConstraintsNarrowing(token: DelegationToken): ANIPFailur
       resolution: {
         action: "narrow_constraints",
         requires: `max_delegation_depth must be <= ${parent.constraints.max_delegation_depth}`,
-        grantable_by: parent.issuer,
+        grantable_by: getRootPrincipal(parent),
         estimated_availability: null,
       },
       retry: false,
@@ -405,7 +405,7 @@ export function validateConstraintsNarrowing(token: DelegationToken): ANIPFailur
       resolution: {
         action: "preserve_constraint",
         requires: "concurrent_branches must remain 'exclusive'",
-        grantable_by: parent.issuer,
+        grantable_by: getRootPrincipal(parent),
         estimated_availability: null,
       },
       retry: false,

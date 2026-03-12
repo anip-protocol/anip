@@ -205,7 +205,7 @@ def validate_delegation(
             detail=f"delegation token {token.token_id} expired at {token.expires.isoformat()}",
             resolution=Resolution(
                 action="request_new_delegation",
-                grantable_by=token.issuer,
+                grantable_by=get_root_principal(token),
             ),
             retry=True,
         )
@@ -243,7 +243,7 @@ def validate_delegation(
             ),
             resolution=Resolution(
                 action="request_new_delegation",
-                grantable_by=token.issuer,
+                grantable_by=get_root_principal(token),
             ),
             retry=True,
         )
@@ -258,7 +258,7 @@ def validate_delegation(
             detail=f"delegation chain is incomplete — ancestor token '{chain[0].parent}' is not registered",
             resolution=Resolution(
                 action="register_missing_ancestor",
-                grantable_by=token.issuer,
+                grantable_by=get_root_principal(token),
             ),
             retry=True,
         )
@@ -287,7 +287,7 @@ def validate_delegation(
                 detail=f"ancestor token {ancestor.token_id} in delegation chain has expired",
                 resolution=Resolution(
                     action="refresh_delegation_chain",
-                    grantable_by=ancestor.issuer,
+                    grantable_by=get_root_principal(token),
                 ),
                 retry=True,
             )
@@ -363,7 +363,7 @@ def validate_scope_narrowing(token: DelegationToken) -> ANIPFailure | None:
                 resolution=Resolution(
                     action="narrow_scope",
                     requires=f"child scope must be subset of parent scope",
-                    grantable_by=parent.issuer,
+                    grantable_by=get_root_principal(parent),
                 ),
                 retry=False,
             )
@@ -382,7 +382,7 @@ def validate_scope_narrowing(token: DelegationToken) -> ANIPFailure | None:
                         resolution=Resolution(
                             action="preserve_budget_constraint",
                             requires=f"scope '{child_base}' must include budget <= ${parent_budget}",
-                            grantable_by=parent.issuer,
+                            grantable_by=get_root_principal(parent),
                         ),
                         retry=False,
                     )
@@ -394,7 +394,7 @@ def validate_scope_narrowing(token: DelegationToken) -> ANIPFailure | None:
                         resolution=Resolution(
                             action="narrow_budget",
                             requires=f"budget must be <= ${parent_budget}",
-                            grantable_by=parent.issuer,
+                            grantable_by=get_root_principal(parent),
                         ),
                         retry=False,
                     )
@@ -425,7 +425,7 @@ def validate_constraints_narrowing(token: DelegationToken) -> ANIPFailure | None
             resolution=Resolution(
                 action="narrow_constraints",
                 requires=f"max_delegation_depth must be <= {parent.constraints.max_delegation_depth}",
-                grantable_by=parent.issuer,
+                grantable_by=get_root_principal(parent),
             ),
             retry=False,
         )
@@ -441,7 +441,7 @@ def validate_constraints_narrowing(token: DelegationToken) -> ANIPFailure | None
             resolution=Resolution(
                 action="preserve_constraint",
                 requires="concurrent_branches must remain 'exclusive'",
-                grantable_by=parent.issuer,
+                grantable_by=get_root_principal(parent),
             ),
             retry=False,
         )
