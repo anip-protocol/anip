@@ -283,16 +283,23 @@ class KeyManager:
         )
         return jwt.encode(payload, private_pem, algorithm="ES256", headers=headers)
 
-    def verify_jwt(self, token: str) -> dict:
+    def verify_jwt(self, token: str, audience: str = "anip-flight-service") -> dict:
         """Verify and decode a JWT using the public key.
 
-        Raises jwt.exceptions.InvalidSignatureError on failure.
+        Validates the audience claim against the expected value. Tokens are
+        issued with aud="anip-flight-service", so verification must pass
+        the same audience — otherwise PyJWT raises InvalidAudienceError.
+
+        Raises jwt.exceptions.InvalidSignatureError on signature failure.
+        Raises jwt.exceptions.InvalidAudienceError on audience mismatch.
         """
         public_pem = self._public_key.public_bytes(
             serialization.Encoding.PEM,
             serialization.PublicFormat.SubjectPublicKeyInfo,
         )
-        return jwt.decode(token, public_pem, algorithms=["ES256"])
+        return jwt.decode(
+            token, public_pem, algorithms=["ES256"], audience=audience,
+        )
 
     def sign_jws_detached(self, payload: bytes) -> str:
         """Create a detached JWS signature over a payload.
@@ -830,7 +837,9 @@ def issue_delegation_token(
             budget = {"max": float(s.split(":max_$")[1]), "currency": "USD"}
             break
 
-    # Build JWT claims — these are the cryptographic authority
+    # Build JWT claims — these are the cryptographic authority.
+    # Every trust-critical field must be signed so _resolve_jwt_token()
+    # can detect store tampering.
     claims = {
         "jti": token_id,
         "iss": "anip-flight-service",
@@ -842,6 +851,7 @@ def issue_delegation_token(
         "capability": request.capability,
         "purpose": token.purpose.model_dump(),
         "root_principal": root_principal,
+        "constraints": token.constraints.model_dump(),
     }
     if parent_token is not None:
         claims["parent_token_id"] = parent_token.token_id
@@ -1068,6 +1078,13 @@ def _resolve_jwt_token(token_jwt: str) -> DelegationToken | ANIPFailure:
     jwt_parent = claims.get("parent_token_id")
     if jwt_parent != stored.parent:
         mismatches.append(f"parent: jwt={jwt_parent} store={stored.parent}")
+    # delegation constraints: a store mutation could raise max_delegation_depth
+    # or weaken concurrent_branches from exclusive to allowed
+    jwt_constraints = claims.get("constraints")
+    if jwt_constraints is not None:
+        stored_constraints = stored.constraints.model_dump()
+        if jwt_constraints != stored_constraints:
+            mismatches.append(f"constraints: jwt={jwt_constraints} store={stored_constraints}")
     if mismatches:
         return ANIPFailure(
             type="token_integrity_violation",
@@ -2293,9 +2310,20 @@ Add trust mode via `ANIP_TRUST_MODE` env var.
 Add `TokenRequest`, `ManifestMetadata`, `ServiceIdentity` Zod schemas.
 Update protocol version to `"anip/0.2"`.
 
-**Step 5: Add audit hash chain**
+**Step 5: Add audit hash chain with persistence**
 
-Update the in-memory audit log to track `sequence_number`, `previous_hash`, and `signature`.
+The TypeScript server currently keeps audit logs only in memory. For Phase 3's "append-only integrity" claim to hold, signed audit entries must survive a restart. Two options:
+
+- **Option A (recommended for reference parity):** Add a `better-sqlite3` dependency and persist audit entries to SQLite, mirroring the Python server's approach. The audit table schema matches the Python version with `sequence_number`, `previous_hash`, and `signature` columns.
+- **Option B (minimal):** Keep in-memory storage but document explicitly that the TS server's audit chain does NOT survive restarts and is therefore unsuitable for production audit integrity. Add a prominent comment and a startup log warning.
+
+Choose Option A for the reference implementation. Add `better-sqlite3` to dependencies:
+
+```bash
+cd examples/anip-ts && npm install better-sqlite3 && npm install -D @types/better-sqlite3
+```
+
+Create a minimal `src/data/database.ts` with the audit table schema matching the Python version. Update the audit log functions to write to and read from SQLite instead of the in-memory array.
 
 **Step 6: Build and verify**
 
