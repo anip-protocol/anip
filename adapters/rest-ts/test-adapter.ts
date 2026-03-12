@@ -148,7 +148,7 @@ async function testInvocation(anipUrl: string): Promise<void> {
     },
     body: JSON.stringify({
       subject: "adapter:anip-rest-adapter-ts",
-      scope: ["*"],
+      scope: ["travel.search"],
       capability: "search_flights",
     }),
   });
@@ -330,7 +330,7 @@ async function testServer(anipUrl: string): Promise<void> {
     },
     body: JSON.stringify({
       subject: "adapter:anip-rest-adapter-ts",
-      scope: ["*"],
+      scope: ["travel.search"],
       capability: "search_flights",
     }),
   });

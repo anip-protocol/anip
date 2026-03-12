@@ -151,7 +151,7 @@ async def test_server(anip_url: str) -> None:
             service.endpoints["tokens"],
             json={
                 "subject": "adapter:anip-graphql-adapter",
-                "scope": ["*"],
+                "scope": ["travel.search"],
                 "capability": "search_flights",
             },
             headers={"Authorization": "Bearer demo-human-key"},

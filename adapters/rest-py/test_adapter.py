@@ -47,7 +47,7 @@ def _assert(condition: bool, label: str, detail: str = "") -> None:
 
 def test_config_defaults() -> None:
     print("\n--- Config defaults ---")
-    from anip_rest_adapter.config import AdapterConfig, load_config
+    from anip_rest_adapter.config import AdapterConfig
 
     cfg = AdapterConfig()
     _assert(cfg.anip_service_url == "http://localhost:8000", "default service URL")
@@ -126,7 +126,7 @@ async def test_invocation(anip_url: str) -> None:
             service.endpoints["tokens"],
             json={
                 "subject": "adapter:anip-rest-adapter",
-                "scope": ["*"],
+                "scope": ["travel.search"],
                 "capability": "search_flights",
             },
             headers={"Authorization": "Bearer demo-human-key"},
@@ -243,7 +243,7 @@ async def test_server(anip_url: str) -> None:
             service.endpoints["tokens"],
             json={
                 "subject": "adapter:anip-rest-adapter",
-                "scope": ["*"],
+                "scope": ["travel.search"],
                 "capability": "search_flights",
             },
             headers={"Authorization": "Bearer demo-human-key"},
