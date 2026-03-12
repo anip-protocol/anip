@@ -14,7 +14,7 @@
 
 ### Task 1: Crypto Dependencies and Key Management Module
 
-**Context:** The entire cryptographic trust model depends on a key pair. The server generates an ES256 (ECDSA P-256) key pair at startup and serves the public key via JWKS. This task creates the foundation everything else builds on.
+**Context:** The entire cryptographic trust model depends on a key pair. The server generates an ES256 (ECDSA P-256) key pair at startup — or loads an existing one from disk if present. Keys MUST be persisted so that a server restart does not invalidate issued tokens, signed manifests, or audit log signatures. This task creates the foundation everything else builds on.
 
 **Files:**
 - Modify: `examples/anip/pyproject.toml`
@@ -118,6 +118,20 @@ class TestKeyManager:
         kid2 = km2.get_jwks()["keys"][0]["kid"]
         assert kid1 != kid2
 
+    def test_persists_and_loads_keys(self, tmp_path):
+        """Keys survive a restart — same kid and verification works across instances."""
+        key_file = tmp_path / "anip-keys.json"
+        km1 = KeyManager(key_path=str(key_file))
+        kid1 = km1.get_jwks()["keys"][0]["kid"]
+        token = km1.sign_jwt({"sub": "test"})
+        # Simulate restart: new instance loads from same path
+        km2 = KeyManager(key_path=str(key_file))
+        kid2 = km2.get_jwks()["keys"][0]["kid"]
+        assert kid1 == kid2
+        # Token signed by km1 is verifiable by km2
+        decoded = km2.verify_jwt(token)
+        assert decoded["sub"] == "test"
+
     def test_sign_jws_detached(self):
         km = KeyManager()
         payload = b'{"protocol": "anip/0.2"}'
@@ -178,6 +192,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+from pathlib import Path
 
 import jwt
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -185,17 +200,50 @@ from cryptography.hazmat.primitives import serialization
 
 
 class KeyManager:
-    """Manages an ES256 key pair for signing delegation tokens and manifests."""
+    """Manages an ES256 key pair for signing delegation tokens and manifests.
 
-    def __init__(self) -> None:
+    Keys are persisted to disk so they survive server restarts. If a key file
+    exists at the given path, keys are loaded from it. Otherwise, new keys are
+    generated and saved. This is critical: ephemeral keys would invalidate all
+    issued tokens and signed manifests on restart.
+    """
+
+    def __init__(self, key_path: str | None = None) -> None:
+        self._key_path = key_path
+        if key_path and Path(key_path).exists():
+            self._load_keys(key_path)
+        else:
+            self._generate_keys()
+            if key_path:
+                self._save_keys(key_path)
+
+    def _generate_keys(self) -> None:
         self._private_key = ec.generate_private_key(ec.SECP256R1())
         self._public_key = self._private_key.public_key()
-        # Derive a stable kid from the public key
         pub_bytes = self._public_key.public_bytes(
             serialization.Encoding.DER,
             serialization.PublicFormat.SubjectPublicKeyInfo,
         )
         self._kid = hashlib.sha256(pub_bytes).hexdigest()[:16]
+
+    def _save_keys(self, path: str) -> None:
+        """Persist the private key to disk (PEM format, wrapped in JSON with kid)."""
+        private_pem = self._private_key.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption(),
+        ).decode()
+        data = {"kid": self._kid, "private_key_pem": private_pem}
+        Path(path).write_text(json.dumps(data))
+
+    def _load_keys(self, path: str) -> None:
+        """Load a previously persisted key pair."""
+        data = json.loads(Path(path).read_text())
+        self._kid = data["kid"]
+        self._private_key = serialization.load_pem_private_key(
+            data["private_key_pem"].encode(), password=None
+        )
+        self._public_key = self._private_key.public_key()
 
     @property
     def private_key(self) -> ec.EllipticCurvePrivateKey:
@@ -373,10 +421,17 @@ Expected: FAIL — 404 (endpoint doesn't exist)
 In `main.py`, after the `app = FastAPI(...)` block (line 40), add:
 
 ```python
+import os
+from pathlib import Path
 from .primitives.crypto import KeyManager
 
-# Server key pair — generated at startup, used for signing tokens and manifests
-_keys = KeyManager()
+# Server key pair — persisted to disk so restarts don't invalidate tokens.
+# Default path: alongside the SQLite database. Override with ANIP_KEY_PATH env var.
+_key_path = os.environ.get(
+    "ANIP_KEY_PATH",
+    str(Path(__file__).parent / "data" / "anip-keys.json"),
+)
+_keys = KeyManager(key_path=_key_path)
 ```
 
 Add the endpoint after the discovery endpoint (after line 127):
@@ -406,6 +461,8 @@ git commit -m "feat: add JWKS endpoint and server key initialization"
 
 **Context:** The biggest change in v0.2. `POST /anip/tokens` currently accepts a full token dict from the client. In v0.2, the client sends a *request* (desired scope, capability, subject) and the server constructs and signs a JWT. The server controls `token_id`, `iss`, `iat`, `exp`. The client cannot forge claims.
 
+**Authentication:** The issuance endpoint MUST require authentication. Without it, any caller can mint arbitrary authority, which defeats the point of signed tokens. The reference implementation uses API key authentication via the `Authorization: Bearer <key>` header. The server maps API keys to identities (the `root_principal`). For the demo, a hardcoded key is acceptable; the mechanism is what matters. Child issuance requires presenting the parent JWT and the server verifies the caller is the parent token's `sub`.
+
 **Important:** The endpoint must remain backward-compatible when `--trust-on-declaration` mode is active (Task 6). For now, implement the new issuance path and update the existing endpoint. The old `DelegationToken` Pydantic model is still used for internal storage; the JWT is the external representation.
 
 **Files:**
@@ -425,13 +482,29 @@ import jwt as pyjwt
 from tests.conftest import client  # noqa: F401
 
 
-def test_issue_root_token(client):
-    """Server issues a signed JWT for a root delegation request."""
+DEMO_AUTH = {"Authorization": "Bearer demo-human-key"}
+AGENT_AUTH = {"Authorization": "Bearer demo-agent-key"}
+
+
+def test_issue_requires_authentication(client):
+    """Issuance without auth header is rejected."""
     resp = client.post("/anip/tokens", json={
         "subject": "agent:demo-agent",
         "scope": ["travel.search"],
         "capability": "search_flights",
     })
+    body = resp.json()
+    assert body["issued"] is False
+    assert "authentication" in body["error"].lower()
+
+
+def test_issue_root_token(client):
+    """Server issues a signed JWT for an authenticated root delegation request."""
+    resp = client.post("/anip/tokens", json={
+        "subject": "agent:demo-agent",
+        "scope": ["travel.search"],
+        "capability": "search_flights",
+    }, headers=DEMO_AUTH)
     assert resp.status_code == 200
     body = resp.json()
     assert body["issued"] is True
@@ -451,19 +524,18 @@ def test_issued_token_is_verifiable_via_jwks(client):
         "subject": "agent:demo-agent",
         "scope": ["travel.search"],
         "capability": "search_flights",
-    })
+    }, headers=DEMO_AUTH)
     token_str = resp.json()["token"]
     # Decode header to get kid
     header = pyjwt.get_unverified_header(token_str)
     assert header["alg"] == "ES256"
     assert "kid" in header
-    # Verify we can decode (just check it doesn't raise)
-    # In a real client, you'd construct the public key from JWKS
-    # For testing, just verify the JWT has the right claims
+    # Verify the JWT has the right claims
     unverified = pyjwt.decode(token_str, options={"verify_signature": False})
     assert unverified["sub"] == "agent:demo-agent"
     assert unverified["scope"] == ["travel.search"]
     assert unverified["capability"] == "search_flights"
+    assert unverified["root_principal"] == "human:samir@example.com"
     assert "iss" in unverified
     assert "iat" in unverified
     assert "exp" in unverified
@@ -476,7 +548,7 @@ def test_issued_token_has_server_controlled_fields(client):
         "subject": "agent:demo-agent",
         "scope": ["travel.book:max_$300"],
         "capability": "book_flight",
-    })
+    }, headers=DEMO_AUTH)
     token_str = resp.json()["token"]
     claims = pyjwt.decode(token_str, options={"verify_signature": False})
     # Server-controlled
@@ -490,26 +562,48 @@ def test_issued_token_has_server_controlled_fields(client):
 
 def test_issue_child_token_with_parent(client):
     """Child token references parent and narrows scope."""
-    # Issue parent
+    # Issue parent (human delegates to agent)
     parent_resp = client.post("/anip/tokens", json={
         "subject": "agent:demo-agent",
         "scope": ["travel.search", "travel.book:max_$500"],
         "capability": "book_flight",
-    })
+    }, headers=DEMO_AUTH)
     parent_id = parent_resp.json()["token_id"]
     parent_jwt = parent_resp.json()["token"]
-    # Issue child with narrower scope
+    # Issue child (agent sub-delegates) — agent must authenticate as the parent's subject
     child_resp = client.post("/anip/tokens", json={
         "subject": "agent:sub-agent",
         "scope": ["travel.book:max_$300"],
         "capability": "book_flight",
         "parent_token": parent_jwt,
-    })
+    }, headers=AGENT_AUTH)
     assert child_resp.status_code == 200
     body = child_resp.json()
     assert body["issued"] is True
     child_claims = pyjwt.decode(body["token"], options={"verify_signature": False})
     assert child_claims["parent_token_id"] == parent_id
+    # Root principal is inherited from parent chain, not the child caller
+    assert child_claims["root_principal"] == "human:samir@example.com"
+
+
+def test_child_issuance_requires_caller_is_parent_subject(client):
+    """Only the parent token's subject can sub-delegate."""
+    parent_resp = client.post("/anip/tokens", json={
+        "subject": "agent:demo-agent",
+        "scope": ["travel.search"],
+        "capability": "search_flights",
+    }, headers=DEMO_AUTH)
+    parent_jwt = parent_resp.json()["token"]
+    # Try to sub-delegate as the human (not the agent who is the subject)
+    child_resp = client.post("/anip/tokens", json={
+        "subject": "agent:sub-agent",
+        "scope": ["travel.search"],
+        "capability": "search_flights",
+        "parent_token": parent_jwt,
+    }, headers=DEMO_AUTH)  # human auth, but parent's subject is agent:demo-agent
+    body = child_resp.json()
+    assert body["issued"] is False
+    assert "subject" in body["error"].lower() or "delegatee" in body["error"].lower()
 
 
 def test_child_cannot_widen_scope(client):
@@ -518,14 +612,14 @@ def test_child_cannot_widen_scope(client):
         "subject": "agent:demo-agent",
         "scope": ["travel.search"],
         "capability": "search_flights",
-    })
+    }, headers=DEMO_AUTH)
     parent_jwt = parent_resp.json()["token"]
     child_resp = client.post("/anip/tokens", json={
         "subject": "agent:sub-agent",
         "scope": ["travel.search", "travel.book:max_$500"],
         "capability": "book_flight",
         "parent_token": parent_jwt,
-    })
+    }, headers=AGENT_AUTH)
     body = child_resp.json()
     assert body["issued"] is False
     assert "scope" in body["error"].lower() or "escalation" in body["error"].lower()
@@ -537,14 +631,14 @@ def test_child_cannot_widen_budget(client):
         "subject": "agent:demo-agent",
         "scope": ["travel.book:max_$300"],
         "capability": "book_flight",
-    })
+    }, headers=DEMO_AUTH)
     parent_jwt = parent_resp.json()["token"]
     child_resp = client.post("/anip/tokens", json={
         "subject": "agent:sub-agent",
         "scope": ["travel.book:max_$500"],
         "capability": "book_flight",
         "parent_token": parent_jwt,
-    })
+    }, headers=AGENT_AUTH)
     body = child_resp.json()
     assert body["issued"] is False
 ```
@@ -560,7 +654,11 @@ In `models.py`, after the `DelegationToken` class (after line 54), add:
 
 ```python
 class TokenRequest(BaseModel):
-    """Client request for token issuance. The server controls signing and metadata."""
+    """Client request for token issuance. The server controls signing and metadata.
+
+    The caller authenticates via Authorization header. The server derives
+    root_principal from the authenticated identity, not from the request body.
+    """
     subject: str
     scope: list[str]
     capability: str
@@ -640,34 +738,77 @@ def issue_token(
 
 Replace the existing `register_delegation_token` function (lines 170-193) with:
 
+First, add an API key registry and authentication helper at module level:
+
+```python
+from fastapi import Header
+
+# API key → identity mapping. In production, this would be a database or
+# identity provider lookup. For the reference implementation, demo keys are
+# hardcoded. The key is what matters — issuance requires authentication.
+_api_key_identities: dict[str, str] = {
+    "demo-human-key": "human:samir@example.com",
+    "demo-agent-key": "agent:demo-agent",
+}
+
+
+def _authenticate_caller(authorization: str | None) -> str | None:
+    """Extract identity from Authorization header.
+
+    Returns the caller's identity string, or None if unauthenticated.
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    key = authorization.removeprefix("Bearer ").strip()
+    return _api_key_identities.get(key)
+```
+
+Then the endpoint:
+
 ```python
 from .primitives.models import TokenRequest
 
 
 @app.post("/anip/tokens")
-def issue_delegation_token(request: TokenRequest):
+def issue_delegation_token(
+    request: TokenRequest,
+    authorization: str | None = Header(None),
+):
     """Issue a signed delegation token.
 
-    v0.2: The server constructs and signs the JWT. The client requests
-    desired scope/capability; the server controls identity and signing.
+    v0.2: The server constructs and signs the JWT. The client authenticates
+    via Authorization header; the server derives root_principal from the
+    authenticated identity, not from the request body.
     """
     from .primitives.delegation import issue_token
 
+    # Authenticate the caller
+    caller_identity = _authenticate_caller(authorization)
+    if caller_identity is None:
+        return {"issued": False, "error": "authentication required — provide Authorization: Bearer <key>"}
+
     parent_token = None
+    root_principal = caller_identity  # Default: caller is the root
+
     if request.parent_token is not None:
-        # Verify and decode the parent JWT
+        # Child issuance: verify parent JWT and check caller authorization
         try:
             parent_claims = _keys.verify_jwt(request.parent_token)
         except Exception as e:
             return {"issued": False, "error": f"invalid parent token: {e}"}
-        # Load the stored parent token
         parent_stored = get_token(parent_claims["jti"])
         if parent_stored is None:
             return {"issued": False, "error": "parent token not found in store"}
-        # Verify caller is the parent's subject (only the delegatee can sub-delegate)
-        if request.subject != parent_stored.subject and request.subject != parent_stored.issuer:
-            pass  # For demo, we allow any subject. Production would check caller identity.
+        # Only the parent token's subject can sub-delegate
+        if caller_identity != parent_stored.subject:
+            return {
+                "issued": False,
+                "error": f"caller '{caller_identity}' is not the parent token's subject "
+                         f"('{parent_stored.subject}') — only the delegatee can sub-delegate",
+            }
         parent_token = parent_stored
+        # Root principal comes from the parent chain, not the child caller
+        root_principal = get_root_principal(parent_stored)
 
     try:
         token, token_id = issue_token(
@@ -689,16 +830,18 @@ def issue_delegation_token(request: TokenRequest):
             budget = {"max": float(s.split(":max_$")[1]), "currency": "USD"}
             break
 
-    # Build JWT claims
+    # Build JWT claims — these are the cryptographic authority
     claims = {
         "jti": token_id,
         "iss": "anip-flight-service",
         "sub": request.subject,
+        "aud": "anip-flight-service",
         "iat": int(token.expires.timestamp()) - (request.ttl_hours * 3600),
         "exp": int(token.expires.timestamp()),
         "scope": request.scope,
         "capability": request.capability,
         "purpose": token.purpose.model_dump(),
+        "root_principal": root_principal,
     }
     if parent_token is not None:
         claims["parent_token_id"] = parent_token.token_id
@@ -753,6 +896,9 @@ git commit -m "feat: replace token registration with server-side JWT issuance"
 from tests.conftest import client  # noqa: F401
 
 
+AUTH = {"Authorization": "Bearer demo-human-key"}
+
+
 def _issue_token(client, scope, capability, **kwargs):
     """Helper: issue a token and return the JWT string + token_id."""
     resp = client.post("/anip/tokens", json={
@@ -760,7 +906,7 @@ def _issue_token(client, scope, capability, **kwargs):
         "scope": scope,
         "capability": capability,
         **kwargs,
-    })
+    }, headers=AUTH)
     body = resp.json()
     return body["token"], body["token_id"]
 
@@ -801,6 +947,28 @@ def test_invoke_rejects_invalid_jwt(client):
     assert body["failure"]["type"] == "invalid_token"
 
 
+def test_invoke_rejects_tampered_store(client):
+    """If the stored token's scope is mutated after issuance, invocation is rejected."""
+    token_jwt, token_id = _issue_token(client, ["travel.search"], "search_flights")
+    # Simulate store tampering: directly modify the stored token's scope
+    from anip_server.data.database import get_connection
+    import json
+    conn = get_connection()
+    conn.execute(
+        "UPDATE delegation_tokens SET scope = ? WHERE token_id = ?",
+        (json.dumps(["travel.search", "travel.book:max_$999"]), token_id),
+    )
+    conn.commit()
+    # Now try to use the token — should be rejected because JWT scope != stored scope
+    resp = client.post("/anip/invoke/search_flights", json={
+        "token": token_jwt,
+        "parameters": {"origin": "SEA", "destination": "SFO", "date": "2026-03-10"},
+    })
+    body = resp.json()
+    assert body["success"] is False
+    assert body["failure"]["type"] == "token_integrity_violation"
+
+
 def test_audit_with_jwt(client):
     token_jwt, _ = _issue_token(client, ["travel.search"], "search_flights")
     # Do an invocation first so there's something in the audit log
@@ -839,11 +1007,22 @@ class InvokeRequestV2(BaseModel):
     budget: dict[str, Any] | None = None
 ```
 
-In `main.py`, add a helper function to resolve a JWT to a stored token:
+In `main.py`, add a helper function to resolve a JWT to a stored token.
+
+**CRITICAL:** The signed JWT claims are the authority source, not the mutable store.
+After loading the stored token, we MUST compare the JWT claims against the stored
+values for `sub`, `scope`, `capability`, and `exp`. If they diverge, the store has
+been tampered with and the request is rejected. This prevents a DB mutation from
+silently widening scope or changing identity after a token was signed.
 
 ```python
 def _resolve_jwt_token(token_jwt: str) -> DelegationToken | ANIPFailure:
-    """Verify JWT signature and resolve to stored token."""
+    """Verify JWT signature and resolve to stored token.
+
+    The JWT claims are the cryptographic authority. After loading the stored
+    token, we verify that critical fields (sub, scope, capability, exp) match
+    the signed claims. If the store has been mutated, the request is rejected.
+    """
     try:
         claims = _keys.verify_jwt(token_jwt)
     except Exception as e:
@@ -869,6 +1048,25 @@ def _resolve_jwt_token(token_jwt: str) -> DelegationToken | ANIPFailure:
             resolution=Resolution(action="issue_new_token"),
             retry=True,
         )
+
+    # TRUST BOUNDARY: compare signed claims against stored values.
+    # The JWT is the authority — if the store diverges, reject.
+    mismatches = []
+    if claims.get("sub") != stored.subject:
+        mismatches.append(f"sub: jwt={claims.get('sub')} store={stored.subject}")
+    if sorted(claims.get("scope", [])) != sorted(stored.scope):
+        mismatches.append(f"scope: jwt={claims.get('scope')} store={stored.scope}")
+    if claims.get("capability") != stored.purpose.capability:
+        mismatches.append(f"capability: jwt={claims.get('capability')} store={stored.purpose.capability}")
+    if mismatches:
+        return ANIPFailure(
+            type="token_integrity_violation",
+            detail=f"Signed JWT claims diverge from stored token: {'; '.join(mismatches)}. "
+                   "The stored token may have been tampered with.",
+            resolution=Resolution(action="reissue_token"),
+            retry=False,
+        )
+
     return stored
 ```
 
@@ -1170,21 +1368,52 @@ def test_manifest_has_service_identity(client):
     assert identity["issuer_mode"] == "first-party"
 
 
-def test_manifest_signature_verifies(client):
-    """Signature over the manifest body should verify."""
-    # Get JWKS
+def test_manifest_signature_verifies_cryptographically(client):
+    """Detached JWS signature must cryptographically verify against the manifest body."""
+    import base64
+    import json as json_mod
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
+    from cryptography.hazmat.primitives import hashes
+
+    # Get the public key from JWKS
     jwks_resp = client.get("/.well-known/jwks.json")
-    # Get manifest + signature
+    jwk = jwks_resp.json()["keys"][0]  # delegation key (use=sig)
+
+    # Reconstruct the EC public key from JWK coordinates
+    def _pad_b64(s):
+        return s + "=" * (4 - len(s) % 4) if len(s) % 4 else s
+
+    x = int.from_bytes(base64.urlsafe_b64decode(_pad_b64(jwk["x"])), "big")
+    y = int.from_bytes(base64.urlsafe_b64decode(_pad_b64(jwk["y"])), "big")
+    from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicNumbers, SECP256R1
+    pub_key = EllipticCurvePublicNumbers(x, y, SECP256R1()).public_key()
+
+    # Get manifest + detached signature
     manifest_resp = client.get("/anip/manifest")
-    sig = manifest_resp.headers["X-ANIP-Signature"]
+    sig_header = manifest_resp.headers["X-ANIP-Signature"]
+    # The manifest body as the server serialized it
     manifest_bytes = manifest_resp.content
-    # Verify using the server's own verify endpoint (if available)
-    # For now, just verify the signature is well-formed
-    parts = sig.split(".")
+
+    # Parse detached JWS: header..signature
+    parts = sig_header.split(".")
     assert len(parts) == 3
-    assert parts[1] == ""
-    assert len(parts[0]) > 0
-    assert len(parts[2]) > 0
+    assert parts[1] == ""  # detached = empty payload
+    header_b64, _, sig_b64 = parts
+
+    # Reconstruct signing input: header_b64 + "." + base64url(manifest_bytes)
+    payload_b64 = base64.urlsafe_b64encode(manifest_bytes).rstrip(b"=").decode()
+    signing_input = f"{header_b64}.{payload_b64}".encode()
+
+    # Decode signature (ES256 = r || s, 32 bytes each)
+    sig_bytes = base64.urlsafe_b64decode(_pad_b64(sig_b64))
+    r = int.from_bytes(sig_bytes[:32], "big")
+    s = int.from_bytes(sig_bytes[32:], "big")
+    der_sig = encode_dss_signature(r, s)
+
+    # Verify — this will raise if the signature is invalid
+    pub_key.verify(der_sig, signing_input, ec.ECDSA(hashes.SHA256()))
+    # If we reach here, the signature is valid
 
 
 def test_manifest_protocol_is_v02(client):
@@ -1653,10 +1882,65 @@ git commit -m "feat: signed audit entries with dedicated audit key"
 
 ### Task 10: Conformance Test Suite
 
-**Context:** A test suite that validates ANIP service behavior against its declarations. Tests side-effect accuracy, cost accuracy (model-aware), scope enforcement, budget enforcement, and failure semantics. This is a standalone test module that can run against any ANIP service URL.
+**Context:** A test suite that validates ANIP service behavior against its declarations. Tests side-effect accuracy, cost accuracy (model-aware), scope enforcement, budget enforcement, and failure semantics.
+
+**Portability:** The suite MUST be runnable against any ANIP service URL, not just the bundled app. It accepts a `--anip-url` pytest flag (defaulting to in-process TestClient for convenience). This makes it a genuine portable verifier, not just regression coverage.
 
 **Files:**
 - Create: `examples/anip/tests/test_conformance.py`
+- Modify: `examples/anip/tests/conftest.py` (add `--anip-url` flag and `service` fixture)
+
+**Step 0: Update conftest.py**
+
+Add the `--anip-url` flag and a `service` fixture that works against either a live URL or the in-process app:
+
+```python
+# Add to examples/anip/tests/conftest.py
+
+import httpx
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--anip-url", default=None,
+        help="ANIP service URL for conformance tests (default: in-process TestClient)",
+    )
+    parser.addoption(
+        "--anip-api-key", default="demo-human-key",
+        help="API key for authenticated ANIP requests",
+    )
+
+
+class LiveServiceClient:
+    """Thin wrapper around httpx that matches TestClient interface for conformance tests."""
+
+    def __init__(self, base_url: str, api_key: str):
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+
+    def get(self, path, **kwargs):
+        return httpx.get(f"{self.base_url}{path}", **kwargs)
+
+    def post(self, path, json=None, headers=None, **kwargs):
+        headers = dict(headers or {})
+        return httpx.post(f"{self.base_url}{path}", json=json, headers=headers, **kwargs)
+
+
+@pytest.fixture
+def service(request):
+    """Service client — in-process TestClient or live HTTP client."""
+    url = request.config.getoption("--anip-url")
+    if url:
+        api_key = request.config.getoption("--anip-api-key")
+        return LiveServiceClient(url, api_key)
+    return TestClient(app)
+
+
+@pytest.fixture
+def auth_headers(request):
+    api_key = request.config.getoption("--anip-api-key", default="demo-human-key")
+    return {"Authorization": f"Bearer {api_key}"}
+```
 
 **Step 1: Write the conformance tests**
 
@@ -1665,35 +1949,35 @@ git commit -m "feat: signed audit entries with dedicated audit key"
 """ANIP v0.2 Conformance Test Suite.
 
 Validates that an ANIP service behaves according to its manifest declarations.
-Can run against any ANIP service URL.
+Portable: run against any ANIP service URL with --anip-url, or against the
+bundled app in-process (default).
+
+Usage:
+    # Against bundled app (default)
+    pytest tests/test_conformance.py -v
+
+    # Against a live server
+    pytest tests/test_conformance.py -v --anip-url http://localhost:8000 --anip-api-key my-key
 """
 
 import pytest
-from fastapi.testclient import TestClient
-
-from anip_server.main import app
 
 
-@pytest.fixture
-def service():
-    return TestClient(app)
-
-
-def _issue(service, scope, capability):
+def _issue(service, scope, capability, auth_headers):
     resp = service.post("/anip/tokens", json={
         "subject": "agent:conformance-tester",
         "scope": scope,
         "capability": capability,
-    })
+    }, headers=auth_headers)
     return resp.json()["token"]
 
 
 class TestSideEffectAccuracy:
     """Verify side_effect declarations match actual behavior."""
 
-    def test_read_capability_does_not_mutate_state(self, service):
+    def test_read_capability_does_not_mutate_state(self, service, auth_headers):
         """search_flights is declared as 'read' — calling it should not change state."""
-        token = _issue(service, ["travel.search"], "search_flights")
+        token = _issue(service, ["travel.search"], "search_flights", auth_headers)
         # Call twice with same params
         params = {"origin": "SEA", "destination": "SFO", "date": "2026-03-10"}
         r1 = service.post("/anip/invoke/search_flights", json={"token": token, "parameters": params})
@@ -1704,9 +1988,9 @@ class TestSideEffectAccuracy:
 class TestScopeEnforcement:
     """Verify scope constraints are enforced."""
 
-    def test_wrong_capability_scope_is_rejected(self, service):
+    def test_wrong_capability_scope_is_rejected(self, service, auth_headers):
         """Token scoped for search should not allow booking."""
-        token = _issue(service, ["travel.search"], "search_flights")
+        token = _issue(service, ["travel.search"], "search_flights", auth_headers)
         resp = service.post("/anip/invoke/book_flight", json={
             "token": token,
             "parameters": {"flight_number": "AA100", "date": "2026-03-10", "passengers": 1},
@@ -1719,10 +2003,10 @@ class TestScopeEnforcement:
 class TestBudgetEnforcement:
     """Verify budget constraints from scope are enforced."""
 
-    def test_over_budget_invocation_is_rejected(self, service):
+    def test_over_budget_invocation_is_rejected(self, service, auth_headers):
         """Booking a flight that costs more than the budget should fail with budget_exceeded."""
         # First search to know prices
-        search_token = _issue(service, ["travel.search"], "search_flights")
+        search_token = _issue(service, ["travel.search"], "search_flights", auth_headers)
         search_resp = service.post("/anip/invoke/search_flights", json={
             "token": search_token,
             "parameters": {"origin": "SEA", "destination": "SFO", "date": "2026-03-10"},
@@ -1731,7 +2015,7 @@ class TestBudgetEnforcement:
         expensive = max(flights, key=lambda f: f["price"])
 
         # Try to book with a budget lower than the expensive flight
-        book_token = _issue(service, ["travel.book:max_$100"], "book_flight")
+        book_token = _issue(service, ["travel.book:max_$100"], "book_flight", auth_headers)
         resp = service.post("/anip/invoke/book_flight", json={
             "token": book_token,
             "parameters": {
@@ -1748,9 +2032,9 @@ class TestBudgetEnforcement:
 class TestFailureSemantics:
     """Verify failures include structured resolution guidance."""
 
-    def test_failure_has_type_detail_resolution(self, service):
+    def test_failure_has_type_detail_resolution(self, service, auth_headers):
         """Every ANIP failure must have type, detail, and resolution."""
-        token = _issue(service, ["travel.book:max_$1"], "book_flight")
+        token = _issue(service, ["travel.book:max_$1"], "book_flight", auth_headers)
         resp = service.post("/anip/invoke/book_flight", json={
             "token": token,
             "parameters": {"flight_number": "AA100", "date": "2026-03-10", "passengers": 1},
@@ -1763,9 +2047,9 @@ class TestFailureSemantics:
         assert "resolution" in failure
         assert "action" in failure["resolution"]
 
-    def test_budget_exceeded_resolution_is_actionable(self, service):
+    def test_budget_exceeded_resolution_is_actionable(self, service, auth_headers):
         """Budget exceeded should tell the agent who can grant more budget."""
-        token = _issue(service, ["travel.book:max_$1"], "book_flight")
+        token = _issue(service, ["travel.book:max_$1"], "book_flight", auth_headers)
         resp = service.post("/anip/invoke/book_flight", json={
             "token": token,
             "parameters": {"flight_number": "AA100", "date": "2026-03-10", "passengers": 1},
@@ -1779,7 +2063,7 @@ class TestFailureSemantics:
 class TestCostAccuracy:
     """Verify actual costs fall within declared ranges."""
 
-    def test_booking_cost_within_declared_range(self, service):
+    def test_booking_cost_within_declared_range(self, service, auth_headers):
         """Actual booking cost should fall within manifest-declared cost range."""
         # Get manifest to know declared range
         manifest = service.get("/anip/manifest").json()
@@ -1788,7 +2072,7 @@ class TestCostAccuracy:
         range_max = book_cost["range_max"]
 
         # Search for cheapest flight
-        search_token = _issue(service, ["travel.search"], "search_flights")
+        search_token = _issue(service, ["travel.search"], "search_flights", auth_headers)
         flights = service.post("/anip/invoke/search_flights", json={
             "token": search_token,
             "parameters": {"origin": "SEA", "destination": "SFO", "date": "2026-03-10"},
@@ -1796,7 +2080,7 @@ class TestCostAccuracy:
         cheapest = min(flights, key=lambda f: f["price"])
 
         # Book it
-        book_token = _issue(service, [f"travel.book:max_${int(cheapest['price']) + 100}"], "book_flight")
+        book_token = _issue(service, [f"travel.book:max_${int(cheapest['price']) + 100}"], "book_flight", auth_headers)
         resp = service.post("/anip/invoke/book_flight", json={
             "token": book_token,
             "parameters": {
