@@ -8,7 +8,7 @@
 import { loadConfig } from "./src/config.js";
 import type { AdapterConfig } from "./src/config.js";
 import { discoverService } from "./src/discovery.js";
-import { ANIPInvoker } from "./src/invocation.js";
+import { ANIPInvoker, CredentialError } from "./src/invocation.js";
 import { generateRoutes, generateOpenAPISpec } from "./src/translation.js";
 import { buildApp } from "./src/index.js";
 
@@ -46,16 +46,10 @@ function testConfigDefaults(): void {
   // Test with no config file and no env vars — use defaults
   const oldUrl = process.env.ANIP_SERVICE_URL;
   const oldPort = process.env.ANIP_ADAPTER_PORT;
-  const oldIssuer = process.env.ANIP_ISSUER;
-  const oldScope = process.env.ANIP_SCOPE;
-  const oldTtl = process.env.ANIP_TOKEN_TTL;
   const oldConfig = process.env.ANIP_ADAPTER_CONFIG;
 
   delete process.env.ANIP_SERVICE_URL;
   delete process.env.ANIP_ADAPTER_PORT;
-  delete process.env.ANIP_ISSUER;
-  delete process.env.ANIP_SCOPE;
-  delete process.env.ANIP_TOKEN_TTL;
   delete process.env.ANIP_ADAPTER_CONFIG;
 
   // loadConfig without a path and without adapter.yaml in CWD
@@ -65,9 +59,6 @@ function testConfigDefaults(): void {
   // Restore env vars
   if (oldUrl) process.env.ANIP_SERVICE_URL = oldUrl;
   if (oldPort) process.env.ANIP_ADAPTER_PORT = oldPort;
-  if (oldIssuer) process.env.ANIP_ISSUER = oldIssuer;
-  if (oldScope) process.env.ANIP_SCOPE = oldScope;
-  if (oldTtl) process.env.ANIP_TOKEN_TTL = oldTtl;
   if (oldConfig) process.env.ANIP_ADAPTER_CONFIG = oldConfig;
 
   assert(
@@ -76,21 +67,6 @@ function testConfigDefaults(): void {
     `got ${cfg.anipServiceUrl}`
   );
   assert(cfg.port === 3001, "default port", `got ${cfg.port}`);
-  assert(
-    cfg.delegation.issuer === "human:user@example.com",
-    "default issuer",
-    `got ${cfg.delegation.issuer}`
-  );
-  assert(
-    JSON.stringify(cfg.delegation.scope) === JSON.stringify(["*"]),
-    "default scope",
-    `got ${JSON.stringify(cfg.delegation.scope)}`
-  );
-  assert(
-    cfg.delegation.tokenTtlMinutes === 60,
-    "default TTL",
-    `got ${cfg.delegation.tokenTtlMinutes}`
-  );
   assert(
     Object.keys(cfg.routes).length === 0,
     "default routes empty",
@@ -133,32 +109,85 @@ async function testInvocation(anipUrl: string): Promise<void> {
   console.log("\n--- Invocation ---");
 
   const service = await discoverService(anipUrl);
-  const invoker = new ANIPInvoker(service, {
-    issuer: "human:test@example.com",
-    scope: ["*"],
-    tokenTtlMinutes: 60,
-  });
-  await invoker.setup();
+  const invoker = new ANIPInvoker(service);
 
-  // Search flights
-  const result = await invoker.invoke("search_flights", {
-    origin: "SEA",
-    destination: "SFO",
-    date: "2026-03-10",
-    passengers: 1,
-  });
+  // API-key path: search flights
+  const result = await invoker.invoke(
+    "search_flights",
+    {
+      origin: "SEA",
+      destination: "SFO",
+      date: "2026-03-10",
+      passengers: 1,
+    },
+    { apiKey: "demo-human-key" },
+  );
   assert(typeof result === "object", "search_flights returns dict");
   assert(result.success === true, "search_flights succeeds");
   assert("result" in result, "search_flights has result");
 
-  // Book flight
-  const bookResult = await invoker.invoke("book_flight", {
-    flight_number: "AA100",
-    date: "2026-03-10",
-    passengers: 1,
-  });
+  // API-key path: book flight
+  const bookResult = await invoker.invoke(
+    "book_flight",
+    {
+      flight_number: "AA100",
+      date: "2026-03-10",
+      passengers: 1,
+    },
+    { apiKey: "demo-human-key" },
+  );
   assert(typeof bookResult === "object", "book_flight returns dict");
   assert("success" in bookResult, "book_flight has success key");
+
+  // Token path: pre-issue a token, then invoke with it
+  const tokenResp = await fetch(service.endpoints.tokens, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer demo-human-key",
+    },
+    body: JSON.stringify({
+      subject: "adapter:anip-rest-adapter-ts",
+      scope: ["*"],
+      capability: "search_flights",
+    }),
+  });
+  assert(tokenResp.ok, "token request succeeded");
+  const tokenData = (await tokenResp.json()) as Record<string, unknown>;
+  assert(tokenData.issued === true, "token issued for token-path test");
+  const jwt = tokenData.token as string;
+
+  const tokenResult = await invoker.invoke(
+    "search_flights",
+    {
+      origin: "SEA",
+      destination: "SFO",
+      date: "2026-03-10",
+      passengers: 1,
+    },
+    { token: jwt },
+  );
+  assert(typeof tokenResult === "object", "token-path search_flights returns dict");
+  assert(tokenResult.success === true, "token-path search_flights succeeds");
+
+  // No credentials raises CredentialError
+  try {
+    await invoker.invoke(
+      "search_flights",
+      { origin: "SEA", destination: "SFO", date: "2026-03-10", passengers: 1 },
+      {},
+    );
+    fail("no-creds raises CredentialError", "no exception raised");
+  } catch (e) {
+    if (e instanceof CredentialError) {
+      ok("no-creds raises CredentialError");
+    } else {
+      fail(
+        "no-creds raises CredentialError",
+        `wrong exception: ${e instanceof Error ? e.constructor.name : String(e)}`
+      );
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -251,11 +280,6 @@ async function testServer(anipUrl: string): Promise<void> {
   const config: AdapterConfig = {
     anipServiceUrl: anipUrl,
     port: 0, // not used — we test via app.request()
-    delegation: {
-      issuer: "human:user@example.com",
-      scope: ["*"],
-      tokenTtlMinutes: 60,
-    },
     routes: {},
   };
 
@@ -271,22 +295,59 @@ async function testServer(anipUrl: string): Promise<void> {
     "spec paths include search_flights"
   );
 
-  // GET search_flights
+  // 401 test: no credentials
+  const searchParamsNoCreds = new URLSearchParams({
+    origin: "SEA",
+    destination: "SFO",
+    date: "2026-03-10",
+    passengers: "1",
+  });
+  resp = await app.request(`/api/search_flights?${searchParamsNoCreds}`);
+  assert(resp.status === 401, "GET without credentials returns 401");
+
+  // API-key path: GET search_flights
   const searchParams = new URLSearchParams({
     origin: "SEA",
     destination: "SFO",
     date: "2026-03-10",
     passengers: "1",
   });
-  resp = await app.request(`/api/search_flights?${searchParams}`);
-  assert(resp.status === 200, "GET /api/search_flights returns 200");
+  resp = await app.request(`/api/search_flights?${searchParams}`, {
+    headers: { "X-ANIP-API-Key": "demo-human-key" },
+  });
+  assert(resp.status === 200, "GET /api/search_flights with API key returns 200");
   let data = (await resp.json()) as Record<string, any>;
-  assert(data.success === true, "search_flights response success");
-  assert("result" in data, "search_flights response has result");
+  assert(data.success === true, "search_flights response success (api-key)");
+  assert("result" in data, "search_flights response has result (api-key)");
 
-  // POST book_flight — first search for a real flight
+  // Token path: pre-issue a signed token, then use it
+  const service = await discoverService(anipUrl);
+  const tokenResp = await fetch(service.endpoints.tokens, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer demo-human-key",
+    },
+    body: JSON.stringify({
+      subject: "adapter:anip-rest-adapter-ts",
+      scope: ["*"],
+      capability: "search_flights",
+    }),
+  });
+  const tokenData = (await tokenResp.json()) as Record<string, unknown>;
+  const signedToken = tokenData.token as string;
+
+  resp = await app.request(`/api/search_flights?${searchParams}`, {
+    headers: { "X-ANIP-Token": signedToken },
+  });
+  assert(resp.status === 200, "GET /api/search_flights with token returns 200");
+  data = (await resp.json()) as Record<string, any>;
+  assert(data.success === true, "search_flights response success (token)");
+
+  // POST book_flight with API key — first search for a real flight
   const searchResp = await app.request(
-    `/api/search_flights?${searchParams}`
+    `/api/search_flights?${searchParams}`,
+    { headers: { "X-ANIP-API-Key": "demo-human-key" } },
   );
   const searchData = (await searchResp.json()) as Record<string, any>;
   const flights = searchData.result?.flights ?? [];
@@ -294,7 +355,10 @@ async function testServer(anipUrl: string): Promise<void> {
 
   resp = await app.request("/api/book_flight", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "X-ANIP-API-Key": "demo-human-key",
+    },
     body: JSON.stringify({
       flight_number: flightNumber,
       date: "2026-03-10",
