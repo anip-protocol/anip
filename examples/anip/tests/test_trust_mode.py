@@ -1,8 +1,7 @@
 """Tests for trust mode switching."""
 
-import os
+import uuid
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -18,9 +17,10 @@ def test_declaration_mode_accepts_old_format(monkeypatch):
     from anip_server.main import app, set_trust_mode
     set_trust_mode("declaration")
     client = TestClient(app)
+    token_id = f"test-old-style-{uuid.uuid4().hex[:8]}"
     # Old-style token registration
     resp = client.post("/anip/tokens", json={
-        "token_id": "test-old-style",
+        "token_id": token_id,
         "issuer": "human:test@example.com",
         "subject": "agent:test",
         "scope": ["travel.search"],
@@ -33,7 +33,7 @@ def test_declaration_mode_accepts_old_format(monkeypatch):
     assert body.get("registered") is True or body.get("issued") is True
     # Old-style permissions query
     resp2 = client.post("/anip/permissions", json={
-        "token_id": "test-old-style",
+        "token_id": token_id,
         "issuer": "human:test@example.com",
         "subject": "agent:test",
         "scope": ["travel.search"],
