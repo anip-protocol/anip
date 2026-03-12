@@ -37,7 +37,7 @@ from fastapi.responses import PlainTextResponse
 
 from .config import AdapterConfig, load_config
 from .discovery import discover_service
-from .invocation import ANIPInvoker
+from .invocation import ANIPInvoker, CredentialError, IssuanceError
 from .translation import generate_schema, _to_camel_case
 
 logger = logging.getLogger("anip-graphql-adapter")
@@ -88,26 +88,44 @@ def _build_anip_response(result: dict[str, Any]) -> dict[str, Any]:
     return response
 
 
+def _extract_credentials_from_info(info: Any) -> tuple[str | None, str | None]:
+    """Extract ANIP credentials from Ariadne's GraphQL info context."""
+    token: str | None = None
+    api_key: str | None = None
+    request = info.context.get("request")
+    if request is not None:
+        token = request.headers.get("x-anip-token")
+        api_key = request.headers.get("x-anip-api-key")
+    return token, api_key
+
+
 def _make_resolver(capability_name: str, invoker: ANIPInvoker):
     """Create a resolver function for a given capability."""
 
-    async def resolver(_obj: Any, _info: Any, **kwargs: Any) -> dict[str, Any]:
+    async def resolver(_obj: Any, info: Any, **kwargs: Any) -> dict[str, Any]:
         # Convert camelCase args back to snake_case for ANIP
         arguments = {_camel_to_snake(k): v for k, v in kwargs.items()}
+        token, api_key = _extract_credentials_from_info(info)
         try:
-            result = await invoker.invoke(capability_name, arguments)
+            result = await invoker.invoke(
+                capability_name, arguments,
+                token=token, api_key=api_key,
+            )
+        except CredentialError as e:
+            return {
+                "success": False, "result": None, "costActual": None,
+                "failure": {"type": "missing_credentials", "detail": str(e), "resolution": None, "retry": False},
+            }
+        except IssuanceError as e:
+            return {
+                "success": False, "result": None, "costActual": None,
+                "failure": {"type": "token_issuance_denied", "detail": e.error, "resolution": None, "retry": False},
+            }
         except Exception as e:
             logger.exception("ANIP invocation failed for %s", capability_name)
             return {
-                "success": False,
-                "result": None,
-                "costActual": None,
-                "failure": {
-                    "type": "adapter_error",
-                    "detail": str(e),
-                    "resolution": None,
-                    "retry": True,
-                },
+                "success": False, "result": None, "costActual": None,
+                "failure": {"type": "adapter_error", "detail": str(e), "resolution": None, "retry": True},
             }
         return _build_anip_response(result)
 
@@ -138,15 +156,9 @@ async def build_app(config: AdapterConfig) -> FastAPI:
             " (financial)" if cap.financial else "",
         )
 
-    # Step 2: Set up the invoker with delegation tokens
-    invoker = ANIPInvoker(
-        service=service,
-        issuer=config.delegation.issuer,
-        scope=config.delegation.scope,
-        token_ttl_minutes=config.delegation.token_ttl_minutes,
-    )
-    await invoker.setup()
-    logger.info("Delegation token registered")
+    # Step 2: Set up the invoker (pass-through mode)
+    invoker = ANIPInvoker(service=service)
+    logger.info("Invoker ready (pass-through mode)")
 
     # Step 3: Generate GraphQL schema SDL
     schema_sdl = generate_schema(service)

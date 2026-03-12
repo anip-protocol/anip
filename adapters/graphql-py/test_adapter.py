@@ -52,9 +52,6 @@ def test_config_defaults() -> None:
     cfg = AdapterConfig()
     _assert(cfg.anip_service_url == "http://localhost:8000", "default service URL")
     _assert(cfg.port == 3002, "default port")
-    _assert(cfg.delegation.issuer == "human:user@example.com", "default issuer")
-    _assert(cfg.delegation.scope == ["*"], "default scope")
-    _assert(cfg.delegation.token_ttl_minutes == 60, "default TTL")
     _assert(cfg.graphql.path == "/graphql", "default graphql path")
     _assert(cfg.graphql.playground is True, "default playground enabled")
     _assert(cfg.graphql.introspection is True, "default introspection enabled")
@@ -139,14 +136,29 @@ async def test_schema_generation(anip_url: str) -> None:
 
 async def test_server(anip_url: str) -> None:
     print("\n--- Server (ASGI) ---")
-    from anip_graphql_adapter.config import AdapterConfig, DelegationConfig
+    from anip_graphql_adapter.config import AdapterConfig
     from anip_graphql_adapter.server import build_app
 
-    config = AdapterConfig(
-        anip_service_url=anip_url,
-        delegation=DelegationConfig(scope=["*"]),
-    )
+    config = AdapterConfig(anip_service_url=anip_url)
     app = await build_app(config)
+
+    # Pre-issue a signed token outside the ASGI transport block
+    from anip_graphql_adapter.discovery import discover_service
+
+    service = await discover_service(anip_url)
+    async with httpx.AsyncClient(timeout=30) as client:
+        token_resp = await client.post(
+            service.endpoints["tokens"],
+            json={
+                "subject": "adapter:anip-graphql-adapter",
+                "scope": ["*"],
+                "capability": "search_flights",
+            },
+            headers={"Authorization": "Bearer demo-human-key"},
+        )
+        token_resp.raise_for_status()
+        token_data = token_resp.json()
+        signed_token = token_data["token"]
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
@@ -157,7 +169,38 @@ async def test_server(anip_url: str) -> None:
         _assert("type Query" in sdl, "schema.graphql contains Query type")
         _assert("directive @anipSideEffect" in sdl, "schema.graphql has directives")
 
-        # POST /graphql with query { searchFlights(...) { success result } }
+        # Missing credentials test: POST /graphql without auth headers
+        resp = await client.post(
+            "/graphql/",
+            json={
+                "query": """
+                    query {
+                        searchFlights(
+                            origin: "SEA"
+                            destination: "SFO"
+                            date: "2026-03-10"
+                        ) {
+                            success
+                            result
+                            failure {
+                                type
+                                detail
+                            }
+                        }
+                    }
+                """,
+            },
+        )
+        _assert(resp.status_code == 200, "POST /graphql without creds returns 200 (GraphQL layer)")
+        data = resp.json()
+        search_data = data.get("data", {}).get("searchFlights", {})
+        _assert(search_data.get("success") is False, "no-creds searchFlights success is false")
+        _assert(
+            search_data.get("failure", {}).get("type") == "missing_credentials",
+            f"no-creds failure type is missing_credentials: {search_data.get('failure')}",
+        )
+
+        # API-key path: POST /graphql with X-ANIP-API-Key header
         resp = await client.post(
             "/graphql/",
             json={
@@ -174,14 +217,41 @@ async def test_server(anip_url: str) -> None:
                     }
                 """,
             },
+            headers={"X-ANIP-API-Key": "demo-human-key"},
         )
-        _assert(resp.status_code == 200, "POST /graphql searchFlights returns 200")
+        _assert(resp.status_code == 200, "POST /graphql searchFlights with API key returns 200")
         data = resp.json()
         _assert("errors" not in data or data["errors"] is None,
-                f"searchFlights has no errors: {data.get('errors')}")
+                f"searchFlights has no errors (api-key): {data.get('errors')}")
         search_data = data.get("data", {}).get("searchFlights", {})
-        _assert(search_data.get("success") is True, "searchFlights success is true")
-        _assert(search_data.get("result") is not None, "searchFlights has result")
+        _assert(search_data.get("success") is True, "searchFlights success is true (api-key)")
+        _assert(search_data.get("result") is not None, "searchFlights has result (api-key)")
+
+        # Token path: POST /graphql with X-ANIP-Token header
+        resp = await client.post(
+            "/graphql/",
+            json={
+                "query": """
+                    query {
+                        searchFlights(
+                            origin: "SEA"
+                            destination: "SFO"
+                            date: "2026-03-10"
+                        ) {
+                            success
+                            result
+                        }
+                    }
+                """,
+            },
+            headers={"X-ANIP-Token": signed_token},
+        )
+        _assert(resp.status_code == 200, "POST /graphql searchFlights with token returns 200")
+        data = resp.json()
+        _assert("errors" not in data or data["errors"] is None,
+                f"searchFlights has no errors (token): {data.get('errors')}")
+        search_data = data.get("data", {}).get("searchFlights", {})
+        _assert(search_data.get("success") is True, "searchFlights success is true (token)")
 
         # POST /graphql with mutation { bookFlight(...) { success result costActual { ... } } }
         resp = await client.post(
@@ -207,6 +277,7 @@ async def test_server(anip_url: str) -> None:
                     }
                 """,
             },
+            headers={"X-ANIP-API-Key": "demo-human-key"},
         )
         _assert(resp.status_code == 200, "POST /graphql bookFlight returns 200")
         data = resp.json()

@@ -8,17 +8,14 @@ anip_service_url: "http://localhost:8000"
 # GraphQL server port
 port: 3002
 
-# Delegation token configuration
-# The adapter creates tokens on behalf of this identity
-delegation:
-  issuer: "human:user@example.com"
-  scope:
-    - "travel.search"
-    - "travel.book:max_$500"
-  token_ttl_minutes: 60
+# Authentication: callers must provide credentials via HTTP headers:
+#   X-ANIP-Token: <signed-anip-token>  (preferred)
+#   X-ANIP-API-Key: <api-key>           (convenience)
+#
+# The adapter is a stateless bridge — it holds no tokens of its own.
 
-# GraphQL-specific configuration
-graphql:
-  path: "/graphql"
-  playground: true
-  introspection: true
+# GraphQL configuration (optional)
+# graphql:
+#   path: "/graphql"
+#   playground: true
+#   introspection: true

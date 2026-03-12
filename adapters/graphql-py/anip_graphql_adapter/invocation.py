@@ -1,13 +1,11 @@
 """ANIP capability invocation from GraphQL requests.
 
-Handles delegation token construction and ANIP invocation,
-returning raw dicts for GraphQL resolver serialization.
+Passes caller-provided credentials (delegation token or API key)
+through to the ANIP service. The adapter holds no tokens of its own.
 """
 
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -15,120 +13,110 @@ import httpx
 from .discovery import ANIPService
 
 
-class ANIPInvoker:
-    """Invokes ANIP capabilities on behalf of GraphQL requests.
+class CredentialError(Exception):
+    """Raised when no valid credentials are provided."""
 
-    Manages delegation tokens and translates between GraphQL's
-    resolver model and ANIP's delegation-aware invocation.
+
+class IssuanceError(Exception):
+    """Raised when API-key token issuance is denied."""
+
+    def __init__(self, error: str):
+        self.error = error
+        super().__init__(f"Token issuance denied: {error}")
+
+
+class ANIPInvoker:
+    """Invokes ANIP capabilities by forwarding caller credentials.
+
+    Supports two credential modes:
+    1. Delegation token (preferred): caller provides a signed ANIP token
+    2. API key (convenience): caller provides an API key, adapter requests
+       a short-lived token scoped to the specific capability
     """
 
-    def __init__(
-        self,
-        service: ANIPService,
-        issuer: str,
-        scope: list[str],
-        token_ttl_minutes: int = 60,
-    ):
+    def __init__(self, service: ANIPService):
         self.service = service
-        self.issuer = issuer
-        self.scope = scope
-        self.token_ttl_minutes = token_ttl_minutes
-        self._root_token_id: str | None = None
-
-    async def setup(self) -> None:
-        """Register the root delegation token with the ANIP service."""
-        self._root_token_id = f"graphql-adapter-{uuid.uuid4().hex[:12]}"
-        root_token = {
-            "token_id": self._root_token_id,
-            "issuer": self.issuer,
-            "subject": "adapter:anip-graphql-adapter",
-            "scope": self.scope,
-            "purpose": {
-                "capability": "*",
-                "parameters": {},
-                "task_id": f"graphql-session-{uuid.uuid4().hex[:8]}",
-            },
-            "parent": None,
-            "expires": (
-                datetime.now(timezone.utc)
-                + timedelta(minutes=self.token_ttl_minutes)
-            ).isoformat(),
-            "constraints": {
-                "max_delegation_depth": 2,
-                "concurrent_branches": "allowed",
-            },
-        }
-
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(
-                self.service.endpoints["tokens"], json=root_token
-            )
-            resp.raise_for_status()
 
     async def invoke(
-        self, capability_name: str, arguments: dict[str, Any]
+        self,
+        capability_name: str,
+        arguments: dict[str, Any],
+        *,
+        token: str | None = None,
+        api_key: str | None = None,
     ) -> dict[str, Any]:
-        """Invoke an ANIP capability and return the raw response dict.
+        """Invoke an ANIP capability using caller-provided credentials."""
+        if token is not None:
+            return await self._invoke_with_token(capability_name, arguments, token)
+        elif api_key is not None:
+            return await self._invoke_with_api_key(capability_name, arguments, api_key)
+        else:
+            raise CredentialError(
+                "No credentials provided. Include either "
+                "'X-ANIP-Token: <anip-token>' or "
+                "'X-ANIP-API-Key: <key>' header."
+            )
 
-        Creates a per-invocation delegation token with proper purpose
-        binding, invokes the capability, and returns the ANIP response
-        directly as a dict for resolver serialization.
-        """
-        # Build a capability-specific token
-        cap_token_id = f"graphql-{capability_name}-{uuid.uuid4().hex[:8]}"
-
-        # Determine scope for this capability
-        capability = self.service.capabilities.get(capability_name)
-        cap_scope = self.scope  # default to full scope
-        if capability and capability.minimum_scope:
-            if "*" in self.scope:
-                cap_scope = capability.minimum_scope
-            else:
-                needed = capability.minimum_scope
-                cap_scope = [
-                    s
-                    for s in self.scope
-                    if s.split(":")[0] in needed or s in needed
-                ]
-                if not cap_scope:
-                    cap_scope = self.scope
-
-        cap_token = {
-            "token_id": cap_token_id,
-            "issuer": "adapter:anip-graphql-adapter",
-            "subject": "adapter:anip-graphql-adapter",
-            "scope": cap_scope,
-            "purpose": {
-                "capability": capability_name,
-                "parameters": arguments,
-                "task_id": f"graphql-invoke-{uuid.uuid4().hex[:8]}",
-            },
-            "parent": self._root_token_id,
-            "expires": (
-                datetime.now(timezone.utc)
-                + timedelta(minutes=self.token_ttl_minutes)
-            ).isoformat(),
-            "constraints": {
-                "max_delegation_depth": 2,
-                "concurrent_branches": "allowed",
-            },
-        }
-
+    async def _invoke_with_token(
+        self,
+        capability_name: str,
+        arguments: dict[str, Any],
+        token: str,
+    ) -> dict[str, Any]:
+        """Invoke directly with a caller-provided signed token."""
+        invoke_url = self.service.endpoints["invoke"].replace(
+            "{capability}", capability_name
+        )
         async with httpx.AsyncClient(timeout=30) as client:
-            # Register the capability token
             resp = await client.post(
-                self.service.endpoints["tokens"], json=cap_token
+                invoke_url,
+                json={
+                    "token": token,
+                    "parameters": arguments,
+                },
             )
             resp.raise_for_status()
+            return resp.json()
 
-            # Invoke the capability
+    async def _invoke_with_api_key(
+        self,
+        capability_name: str,
+        arguments: dict[str, Any],
+        api_key: str,
+    ) -> dict[str, Any]:
+        """Request a capability token via API key, then invoke."""
+        capability = self.service.capabilities.get(capability_name)
+        cap_scope = ["*"]
+        if capability and capability.minimum_scope:
+            cap_scope = capability.minimum_scope
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            # Step 1: Request a signed token
+            token_resp = await client.post(
+                self.service.endpoints["tokens"],
+                json={
+                    "subject": "adapter:anip-graphql-adapter",
+                    "scope": cap_scope,
+                    "capability": capability_name,
+                },
+                headers={"Authorization": f"Bearer {api_key}"},
+            )
+            token_resp.raise_for_status()
+            token_data = token_resp.json()
+
+            if not token_data.get("issued"):
+                raise IssuanceError(token_data.get("error", "unknown error"))
+
+            jwt_str = token_data["token"]
+
+            # Step 2: Invoke with the signed token
             invoke_url = self.service.endpoints["invoke"].replace(
                 "{capability}", capability_name
             )
             resp = await client.post(
                 invoke_url,
                 json={
-                    "delegation_token": cap_token,
+                    "token": jwt_str,
                     "parameters": arguments,
                 },
             )
