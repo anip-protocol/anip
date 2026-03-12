@@ -205,6 +205,18 @@ class ANIPManifest(BaseModel):
 # --- Invocation ---
 
 
+class TokenPresentation(BaseModel):
+    """JWT token presentation for v0.2 protected endpoints."""
+    token: str  # JWT string
+
+
+class InvokeRequestV2(BaseModel):
+    """v0.2 invocation request with JWT token."""
+    token: str  # JWT string
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    budget: dict[str, Any] | None = None
+
+
 class InvokeRequest(BaseModel):
     delegation_token: DelegationToken
     parameters: dict[str, Any] = Field(default_factory=dict)
