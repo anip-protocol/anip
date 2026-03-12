@@ -11,11 +11,11 @@ def test_generates_ec_p256_key():
     assert isinstance(km.public_key, ec.EllipticCurvePublicKey)
 
 
-def test_jwks_contains_one_key():
+def test_jwks_contains_two_keys():
     km = KeyManager()
     jwks = km.get_jwks()
     assert "keys" in jwks
-    assert len(jwks["keys"]) == 1
+    assert len(jwks["keys"]) == 2
 
 
 def test_jwks_key_has_required_fields():

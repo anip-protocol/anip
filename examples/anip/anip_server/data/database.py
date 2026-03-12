@@ -18,6 +18,13 @@ from typing import Any, Generator
 DB_PATH = Path(__file__).parent / "anip.db"
 
 _connection: sqlite3.Connection | None = None
+_audit_signer = None
+
+
+def set_audit_signer(signer):
+    """Set the audit entry signer (KeyManager instance)."""
+    global _audit_signer
+    _audit_signer = signer
 
 
 def get_connection() -> sqlite3.Connection:
@@ -303,6 +310,29 @@ def log_invocation(
 
         now = datetime.now(timezone.utc).isoformat()
 
+        # Build entry dict for signing
+        entry_dict = {
+            "sequence_number": sequence_number,
+            "timestamp": now,
+            "capability": capability,
+            "token_id": token_id,
+            "issuer": issuer,
+            "subject": subject,
+            "root_principal": root_principal,
+            "parameters": parameters,
+            "success": success,
+            "result_summary": result_summary,
+            "failure_type": failure_type,
+            "cost_actual": cost_actual,
+            "delegation_chain": delegation_chain,
+            "previous_hash": previous_hash,
+        }
+
+        # Sign audit entry with dedicated audit key
+        signature = None
+        if _audit_signer is not None:
+            signature = _audit_signer.sign_audit_entry(entry_dict)
+
         conn.execute(
             """INSERT INTO audit_log
                (sequence_number, timestamp, capability, token_id, issuer, subject, root_principal,
@@ -324,7 +354,7 @@ def log_invocation(
                 json.dumps(cost_actual) if cost_actual else None,
                 json.dumps(delegation_chain) if delegation_chain else None,
                 previous_hash,
-                None,  # signature filled in Task 9
+                signature,
             ),
         )
 

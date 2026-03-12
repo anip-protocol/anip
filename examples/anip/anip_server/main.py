@@ -75,6 +75,10 @@ _key_path = os.environ.get(
 )
 _keys = KeyManager(key_path=_key_path)
 
+# Wire audit signer so audit entries are signed with the dedicated audit key
+from .data.database import set_audit_signer
+set_audit_signer(_keys)
+
 # Build manifest once at startup
 _manifest = build_manifest()
 
