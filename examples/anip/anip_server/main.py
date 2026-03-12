@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -38,6 +40,15 @@ app = FastAPI(
     description="Reference implementation of the Agent-Native Interface Protocol",
     version="0.1.0",
 )
+
+# Server key pair — persisted to disk so restarts don't invalidate tokens.
+from .primitives.crypto import KeyManager
+
+_key_path = os.environ.get(
+    "ANIP_KEY_PATH",
+    str(Path(__file__).parent / "data" / "anip-keys.json"),
+)
+_keys = KeyManager(key_path=_key_path)
 
 # Build manifest once at startup
 _manifest = build_manifest()
@@ -125,6 +136,15 @@ def discovery(request: Request):
             },
         }
     }
+
+
+# --- JWKS ---
+
+
+@app.get("/.well-known/jwks.json")
+def jwks():
+    """Public key set for verifying server-issued tokens."""
+    return _keys.get_jwks()
 
 
 # --- Manifest ---
