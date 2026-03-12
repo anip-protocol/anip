@@ -4,8 +4,6 @@ A **reference adapter** that discovers any ANIP-compliant service and exposes it
 
 > **Reference adapter, not production architecture.** This adapter runs as a separate proxy process for demonstration. The same translation logic can be embedded as middleware directly in the ANIP service, eliminating the second process. The adapter proves interoperability; the SDK/middleware approach is the production deployment path.
 
-> **v0.2 Compatibility:** This adapter uses the v0.1 token flow (client-constructed delegation tokens). To use with an ANIP v0.2 server, set `ANIP_TRUST_MODE=declaration` on the server. Migration to the v0.2 JWT-based token flow is planned.
-
 ## Quick Start
 
 ```bash
@@ -78,6 +76,17 @@ The OpenAPI spec preserves ANIP metadata as vendor extensions on each operation:
 
 Successful responses include a `warnings` array in the JSON body for irreversible or financial operations.
 
+## Authentication
+
+The adapter is a **stateless credential bridge** — it holds no tokens of its own. Callers must provide credentials via HTTP headers on every request:
+
+| Header | Description |
+|---|---|
+| `X-ANIP-Token: <token>` | Signed ANIP delegation token (preferred). Forwarded directly to the ANIP service. |
+| `X-ANIP-API-Key: <key>` | ANIP API key (convenience). The adapter requests a short-lived, per-request capability token from the ANIP service, then invokes with it. |
+
+If `X-ANIP-Token` is present, it takes precedence. If neither header is provided, the adapter returns 401.
+
 ## Configuration
 
 ### Environment Variables
@@ -87,8 +96,6 @@ Successful responses include a `warnings` array in the JSON body for irreversibl
 | `ANIP_SERVICE_URL` | `http://localhost:8000` | ANIP service base URL |
 | `ANIP_ADAPTER_PORT` | `3001` | REST adapter port |
 | `ANIP_ADAPTER_CONFIG` | -- | Path to adapter.yaml |
-| `ANIP_ISSUER` | `human:user@example.com` | Delegation token issuer |
-| `ANIP_SCOPE` | `*` | Comma-separated scopes |
 
 ### Config File
 
@@ -116,7 +123,7 @@ npx tsx test-adapter.ts http://localhost:9100
 |---|---|---|
 | Capability Declaration | Full — endpoint + OpenAPI | Nothing |
 | Side-effect Typing | `x-anip-side-effect` extension | Standard clients don't read extensions |
-| Delegation Chain | Simplified — single identity | Multi-hop, concurrent branches |
+| Delegation Chain | Pass-through — caller provides token | Adapter can't inspect or constrain the chain |
 | Permission Discovery | Absent | Can't query before calling |
 | Failure Semantics | HTTP status + ANIPFailure body | Status codes conflate failure types |
 | Cost Signaling | `x-anip-cost` + `cost_actual` | Standard clients don't read extensions |
@@ -124,4 +131,4 @@ npx tsx test-adapter.ts http://localhost:9100
 | State & Session | Absent | No continuity |
 | Observability | Absent | No audit access |
 
-**When to use native ANIP instead:** These adapters simplify the delegation chain to a single identity. For read and write capabilities this is sufficient. For irreversible financial operations, native ANIP is strongly recommended — it provides purpose-bound authority, multi-hop delegation, and the ability for the service to verify *why* an action is being invoked and on whose behalf.
+**When to use native ANIP instead:** These adapters translate the protocol surface but lose visibility into the delegation chain, cost signaling, and capability graph. For read and write capabilities this is sufficient. For irreversible financial operations, native ANIP is strongly recommended — it provides purpose-bound authority, multi-hop delegation, and the ability for the service to verify *why* an action is being invoked and on whose behalf.
