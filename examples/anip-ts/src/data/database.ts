@@ -200,7 +200,7 @@ export function queryAuditLog(opts: {
       `SELECT sequence_number, timestamp, capability, token_id, root_principal,
               success, result_summary, failure_type, cost_actual, cost_variance,
               delegation_chain, previous_hash, signature
-       FROM audit_log ${where} ORDER BY timestamp DESC LIMIT ?`
+       FROM audit_log ${where} ORDER BY sequence_number DESC LIMIT ?`
     )
     .all(...params, limit) as Record<string, unknown>[];
 

@@ -223,7 +223,8 @@ class KeyManager:
     def verify_jws_detached(self, jws: str, payload: bytes) -> None:
         """Verify a detached JWS against the provided payload."""
         parts = jws.split(".")
-        assert len(parts) == 3 and parts[1] == "", "Invalid detached JWS format"
+        if len(parts) != 3 or parts[1] != "":
+            raise ValueError("Invalid detached JWS format: expected 'header..signature'")
         header_b64, _, sig_b64 = parts
 
         payload_b64 = _b64url_encode(payload)

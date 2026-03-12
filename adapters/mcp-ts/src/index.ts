@@ -78,7 +78,7 @@ async function main() {
 
   // Step 4: Create MCP server
   const server = new Server(
-    { name: "anip-mcp-bridge", version: "0.1.0" },
+    { name: "anip-mcp-bridge", version: "0.2.0" },
     { capabilities: { tools: {} } }
   );
 

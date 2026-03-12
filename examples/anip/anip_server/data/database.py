@@ -385,7 +385,7 @@ def query_audit_log(
 
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     rows = conn.execute(
-        f"SELECT * FROM audit_log {where} ORDER BY timestamp DESC LIMIT ?",
+        f"SELECT * FROM audit_log {where} ORDER BY sequence_number DESC LIMIT ?",
         [*params, limit],
     ).fetchall()
 
