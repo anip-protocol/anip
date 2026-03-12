@@ -37,7 +37,6 @@ from .primitives.models import (
     InvokeRequestV2,
     InvokeResponse,
     Resolution,
-    TokenPresentation,
     TokenRequest,
 )
 from .primitives.permissions import discover_permissions

@@ -1,7 +1,6 @@
 """Tests for manifest signing with detached JWS."""
 
 import base64
-import json
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
