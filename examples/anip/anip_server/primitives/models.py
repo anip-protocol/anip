@@ -54,6 +54,16 @@ class DelegationToken(BaseModel):
     constraints: DelegationConstraints = Field(default_factory=DelegationConstraints)
 
 
+class TokenRequest(BaseModel):
+    """Client request for token issuance. Server controls signing and metadata."""
+    subject: str
+    scope: list[str]
+    capability: str
+    parent_token: str | None = None  # JWT string of parent (for child issuance)
+    purpose_parameters: dict[str, Any] = Field(default_factory=dict)
+    ttl_hours: int = 2
+
+
 # --- Capability Declaration ---
 
 

@@ -8,13 +8,21 @@ Tokens are persisted in SQLite for durability and audit trail.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import uuid
+from datetime import datetime, timedelta, timezone
 
 from ..data.database import load_token as db_load_token
 from ..data.database import store_token as db_store_token
 import threading
 
-from .models import ANIPFailure, ConcurrentBranches, DelegationToken, Resolution
+from .models import (
+    ANIPFailure,
+    ConcurrentBranches,
+    DelegationConstraints,
+    DelegationToken,
+    Purpose,
+    Resolution,
+)
 
 # Active request tracking for concurrent_branches enforcement
 _active_requests: set[str] = set()
@@ -82,6 +90,62 @@ def get_root_principal(token: DelegationToken) -> str:
     """Get the root principal (human) from a delegation chain."""
     chain = get_chain(token)
     return chain[0].issuer
+
+
+def issue_token(
+    request_subject: str,
+    request_scope: list[str],
+    request_capability: str,
+    issuer_id: str,
+    parent_token: DelegationToken | None = None,
+    purpose_parameters: dict | None = None,
+    ttl_hours: int = 2,
+    max_delegation_depth: int = 3,
+) -> tuple[DelegationToken, str]:
+    """Issue a new delegation token. Returns (token, token_id).
+
+    Validates scope/constraint narrowing against parent if present.
+    """
+    token_id = f"anip-{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc)
+    expires = now + timedelta(hours=ttl_hours)
+
+    concurrent = ConcurrentBranches.ALLOWED
+    if parent_token is not None:
+        max_delegation_depth = min(
+            max_delegation_depth, parent_token.constraints.max_delegation_depth
+        )
+        concurrent = parent_token.constraints.concurrent_branches
+
+    token = DelegationToken(
+        token_id=token_id,
+        issuer=issuer_id,
+        subject=request_subject,
+        scope=request_scope,
+        purpose=Purpose(
+            capability=request_capability,
+            parameters=purpose_parameters or {},
+            task_id=f"task-{token_id}",
+        ),
+        parent=parent_token.token_id if parent_token else None,
+        expires=expires,
+        constraints=DelegationConstraints(
+            max_delegation_depth=max_delegation_depth,
+            concurrent_branches=concurrent,
+        ),
+    )
+
+    # Validate narrowing if child token
+    if parent_token is not None:
+        scope_failure = validate_scope_narrowing(token)
+        if scope_failure is not None:
+            raise ValueError(scope_failure.detail)
+        constraint_failure = validate_constraints_narrowing(token)
+        if constraint_failure is not None:
+            raise ValueError(constraint_failure.detail)
+
+    register_token(token)
+    return token, token_id
 
 
 def get_chain_token_ids(token: DelegationToken) -> list[str]:

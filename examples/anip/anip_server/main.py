@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from .capabilities import book_flight, search_flights
@@ -16,6 +16,8 @@ from .primitives.delegation import (
     acquire_exclusive_lock,
     get_chain_token_ids,
     get_root_principal,
+    get_token,
+    issue_token,
     register_token,
     release_exclusive_lock,
     validate_constraints_narrowing,
@@ -32,6 +34,7 @@ from .primitives.models import (
     InvokeResponse,
     PermissionResponse,
     Resolution,
+    TokenRequest,
 )
 from .primitives.permissions import discover_permissions
 
@@ -184,33 +187,93 @@ def profile_handshake(requirements: ProfileRequirements):
     }
 
 
-# --- Delegation Token Registration ---
+# --- API Key Authentication ---
+
+# API key → identity mapping
+_api_key_identities: dict[str, str] = {
+    "demo-human-key": "human:samir@example.com",
+    "demo-agent-key": "agent:demo-agent",
+}
+
+
+def _authenticate_caller(authorization: str | None) -> str | None:
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    key = authorization.removeprefix("Bearer ").strip()
+    return _api_key_identities.get(key)
+
+
+# --- Token Issuance ---
 
 
 @app.post("/anip/tokens")
-def register_delegation_token(token: DelegationToken):
-    """Register a delegation token with the service.
+def issue_delegation_token(request: TokenRequest, authorization: str | None = Header(None)):
+    """Issue a signed delegation token (v0.2)."""
+    caller_identity = _authenticate_caller(authorization)
+    if caller_identity is None:
+        return {"issued": False, "error": "authentication required — provide Authorization: Bearer <key>"}
 
-    In production, tokens would be cryptographically verified.
-    In this demo, we trust-on-declaration (per ANIP v1 spec).
-    """
-    # Validate parent exists: child tokens must reference a registered parent
-    parent_failure = validate_parent_exists(token)
-    if parent_failure is not None:
-        return {"registered": False, "error": parent_failure.detail}
+    parent_token = None
+    root_principal = caller_identity
 
-    # Validate scope narrowing: child tokens cannot widen parent scope
-    scope_failure = validate_scope_narrowing(token)
-    if scope_failure is not None:
-        return {"registered": False, "error": scope_failure.detail}
+    if request.parent_token is not None:
+        try:
+            parent_claims = _keys.verify_jwt(request.parent_token)
+        except Exception as e:
+            return {"issued": False, "error": f"invalid parent token: {e}"}
+        parent_stored = get_token(parent_claims["jti"])
+        if parent_stored is None:
+            return {"issued": False, "error": "parent token not found in store"}
+        if caller_identity != parent_stored.subject:
+            return {"issued": False, "error": f"caller '{caller_identity}' is not the parent token's subject ('{parent_stored.subject}') — only the delegatee can sub-delegate"}
+        parent_token = parent_stored
+        root_principal = parent_claims.get("root_principal", get_root_principal(parent_stored))
 
-    # Validate constraints narrowing: child cannot weaken parent constraints
-    constraint_failure = validate_constraints_narrowing(token)
-    if constraint_failure is not None:
-        return {"registered": False, "error": constraint_failure.detail}
+    try:
+        token, token_id = issue_token(
+            request_subject=request.subject,
+            request_scope=request.scope,
+            request_capability=request.capability,
+            issuer_id="anip-flight-service",
+            parent_token=parent_token,
+            purpose_parameters=request.purpose_parameters,
+            ttl_hours=request.ttl_hours,
+        )
+    except ValueError as e:
+        return {"issued": False, "error": str(e)}
 
-    register_token(token)
-    return {"registered": True, "token_id": token.token_id}
+    budget = None
+    for s in request.scope:
+        if ":max_$" in s:
+            budget = {"max": float(s.split(":max_$")[1]), "currency": "USD"}
+            break
+
+    claims = {
+        "jti": token_id,
+        "iss": "anip-flight-service",
+        "sub": request.subject,
+        "aud": "anip-flight-service",
+        "iat": int(token.expires.timestamp()) - (request.ttl_hours * 3600),
+        "exp": int(token.expires.timestamp()),
+        "scope": request.scope,
+        "capability": request.capability,
+        "purpose": token.purpose.model_dump(),
+        "root_principal": root_principal,
+        "constraints": token.constraints.model_dump(),
+    }
+    if parent_token is not None:
+        claims["parent_token_id"] = parent_token.token_id
+    if budget is not None:
+        claims["budget"] = budget
+
+    jwt_str = _keys.sign_jwt(claims)
+
+    return {
+        "issued": True,
+        "token_id": token_id,
+        "token": jwt_str,
+        "expires": token.expires.isoformat(),
+    }
 
 
 # --- Permission Discovery ---
