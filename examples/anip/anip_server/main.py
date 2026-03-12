@@ -18,12 +18,8 @@ from .primitives.delegation import (
     get_root_principal,
     get_token,
     issue_token,
-    register_token,
     release_exclusive_lock,
-    validate_constraints_narrowing,
     validate_delegation,
-    validate_parent_exists,
-    validate_scope_narrowing,
 )
 from .primitives.manifest import build_manifest
 from .primitives.models import (
@@ -251,13 +247,17 @@ def _resolve_jwt_token(token_jwt: str) -> DelegationToken | ANIPFailure:
     if stored.parent is not None:
         jwt_root = claims.get("root_principal")
         stored_root = get_root_principal(stored)
-        if jwt_root is not None and jwt_root != stored_root:
+        if jwt_root is None:
+            mismatches.append("root_principal: missing from JWT claims")
+        elif jwt_root != stored_root:
             mismatches.append(f"root_principal: jwt={jwt_root} store={stored_root}")
     jwt_parent = claims.get("parent_token_id")
     if jwt_parent != stored.parent:
         mismatches.append(f"parent: jwt={jwt_parent} store={stored.parent}")
     jwt_constraints = claims.get("constraints")
-    if jwt_constraints is not None:
+    if jwt_constraints is None:
+        mismatches.append("constraints: missing from JWT claims")
+    else:
         stored_constraints = stored.constraints.model_dump(mode="json")
         if jwt_constraints != stored_constraints:
             mismatches.append(f"constraints: jwt={jwt_constraints} store={stored_constraints}")
