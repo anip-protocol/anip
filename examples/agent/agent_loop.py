@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from anip_client import ANIPClient, make_token
+from anip_client import ANIPClient
 
 
 def _capability_to_tool(name: str, cap: dict[str, Any]) -> dict[str, Any]:
@@ -241,6 +241,7 @@ def dispatch_tool(
     capabilities: list[str],
     budget_failures: dict[str, dict[str, Any]],
     human_in_the_loop: bool = False,
+    api_key: str = "demo-human-key",
 ) -> tuple[str, list[dict[str, Any]]]:
     """Execute a tool call and return (result_string, updated_token_inventory).
 
@@ -251,12 +252,12 @@ def dispatch_tool(
         token = _find_token(tool_input["token_id"], token_inventory)
         if token is None:
             return json.dumps({"error": f"token {tool_input['token_id']} not found"}), token_inventory
-        result = client.check_permissions(token["raw_token"])
+        result = client.check_permissions(token["jwt"])
         return json.dumps(result, default=str), token_inventory
 
     if tool_name == "request_budget_increase":
         return _handle_budget_request(
-            client, tool_input, token_inventory, budget_failures, human_in_the_loop
+            client, tool_input, token_inventory, budget_failures, human_in_the_loop, api_key
         )
 
     if tool_name == "query_audit":
@@ -264,7 +265,7 @@ def dispatch_tool(
         if token is None:
             return json.dumps({"error": f"token {tool_input['token_id']} not found"}), token_inventory
         result = client.query_audit(
-            token["raw_token"],
+            token["jwt"],
             capability=tool_input.get("capability"),
         )
         return json.dumps(result, default=str), token_inventory
@@ -278,7 +279,7 @@ def dispatch_tool(
         if token is None:
             return json.dumps({"error": f"token {token_id} not found"}), token_inventory
         # tool_input has token_id popped, so it contains only the invocation params
-        result = client.invoke(tool_name, token["raw_token"], tool_input)
+        result = client.invoke(tool_name, token["jwt"], tool_input)
         # Track budget_exceeded failures with full context so escalation can validate
         failure = result.get("failure")
         if failure and failure.get("type") == "budget_exceeded":
@@ -307,6 +308,7 @@ def _handle_budget_request(
     token_inventory: list[dict[str, Any]],
     budget_failures: dict[str, dict[str, Any]],
     human_in_the_loop: bool,
+    api_key: str = "demo-human-key",
 ) -> tuple[str, list[dict[str, Any]]]:
     """Handle a budget increase request — simulated or interactive.
 
@@ -388,36 +390,32 @@ def _handle_budget_request(
     else:
         print(f"\n[Simulated human grants ${granted_budget} budget for {target_capability} — {flight_number} on {date}]")
 
-    # Create and register a fresh root token with purpose binding.
-    # Note: purpose.parameters records the intended booking for audit context,
-    # but the current server does not enforce parameter-level binding at
-    # invocation time (it only checks capability match). Server-side
-    # enforcement of purpose.parameters is a future enhancement.
+    # Request a fresh token with higher budget via the JWT flow.
+    # purpose_parameters records the intended booking for audit context.
     scope_str = f"travel.book:max_${int(granted_budget)}"
-    new_token = make_token(
-        issuer="human:samir@example.com",
+    resp = client.request_token(
         subject="agent:demo-agent",
         scope=[scope_str],
         capability=target_capability,
+        api_key=api_key,
+        purpose_parameters={
+            "flight_number": flight_number,
+            "date": date,
+        },
     )
-    new_token["purpose"]["parameters"] = {
-        "flight_number": flight_number,
-        "date": date,
-    }
-    reg = client.register_token(new_token)
-    if not reg.get("registered", False):
+    if not resp.get("issued", False):
         return json.dumps({
-            "error": f"Failed to register escalated token: {reg.get('error', 'unknown')}",
+            "error": f"Failed to issue escalated token: {resp}",
         }), token_inventory
 
     # Add to inventory
     new_entry = {
-        "token_id": new_token["token_id"],
+        "token_id": resp["token_id"],
         "capability": target_capability,
         "scope": scope_str,
         "budget": granted_budget,
         "purpose_bound_to": f"{flight_number} on {date}",
-        "raw_token": new_token,
+        "jwt": resp["token"],
     }
     token_inventory = token_inventory + [new_entry]
 
@@ -427,7 +425,7 @@ def _handle_budget_request(
 
     return json.dumps({
         "status": "approved",
-        "new_token_id": new_token["token_id"],
+        "new_token_id": resp["token_id"],
         "granted_scope": scope_str,
         "granted_budget": granted_budget,
         "purpose": target_capability,
@@ -441,6 +439,7 @@ MAX_TOOL_CALLS = 15
 def run_agent_loop(
     base_url: str = "http://127.0.0.1:8000",
     human_in_the_loop: bool = False,
+    api_key: str = "demo-human-key",
 ) -> None:
     """Run the autonomous agent loop."""
     import anthropic
@@ -454,7 +453,7 @@ def run_agent_loop(
     print(f"Human delegation: {'interactive' if human_in_the_loop else 'simulated'}")
 
     print(f"\n{'=' * 60}")
-    print("SETUP: Fetching ANIP manifest and registering tokens")
+    print("SETUP: Fetching ANIP manifest and requesting tokens")
     print(f"{'=' * 60}")
 
     manifest = client.get_manifest()
@@ -462,44 +461,42 @@ def run_agent_loop(
     tools = generate_tools(manifest)
     print(f"Generated {len(tools)} tools from manifest: {', '.join(t['name'] for t in tools)}")
 
-    # Register initial tokens
-    search_token = make_token(
-        issuer="human:samir@example.com",
+    # Request initial tokens via JWT flow
+    search_resp = client.request_token(
         subject="agent:demo-agent",
         scope=["travel.search"],
         capability="search_flights",
+        api_key=api_key,
     )
-    reg = client.register_token(search_token)
-    if not reg.get("registered", False):
-        raise RuntimeError(f"Failed to register search token: {reg.get('error', 'unknown')}")
+    if not search_resp.get("issued", False):
+        raise RuntimeError(f"Failed to issue search token: {search_resp}")
 
-    book_token = make_token(
-        issuer="human:samir@example.com",
+    book_resp = client.request_token(
         subject="agent:demo-agent",
         scope=["travel.book:max_$300"],
         capability="book_flight",
+        api_key=api_key,
     )
-    reg = client.register_token(book_token)
-    if not reg.get("registered", False):
-        raise RuntimeError(f"Failed to register book token: {reg.get('error', 'unknown')}")
+    if not book_resp.get("issued", False):
+        raise RuntimeError(f"Failed to issue book token: {book_resp}")
 
     token_inventory: list[dict[str, Any]] = [
         {
-            "token_id": search_token["token_id"],
+            "token_id": search_resp["token_id"],
             "capability": "search_flights",
             "scope": "travel.search",
-            "raw_token": search_token,
+            "jwt": search_resp["token"],
         },
         {
-            "token_id": book_token["token_id"],
+            "token_id": book_resp["token_id"],
             "capability": "book_flight",
             "scope": "travel.book:max_$300",
             "budget": 300,
-            "raw_token": book_token,
+            "jwt": book_resp["token"],
         },
     ]
 
-    print(f"Registered tokens:")
+    print(f"Issued tokens:")
     for t in token_inventory:
         budget_str = f", budget: max ${t['budget']}" if t.get('budget') else ""
         print(f"  {t['token_id']}: {t['capability']} ({t['scope']}{budget_str})")
@@ -558,6 +555,7 @@ def run_agent_loop(
                 capability_names,
                 budget_failures,
                 human_in_the_loop,
+                api_key,
             )
 
             # Print a compact result summary
