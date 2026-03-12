@@ -5,7 +5,6 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
-import os
 from pathlib import Path
 
 import jwt
@@ -66,9 +65,12 @@ class KeyManager:
 
     def _load_keys(self, path: str) -> None:
         data = json.loads(Path(path).read_text())
-        self._private_key = serialization.load_pem_private_key(
+        loaded_key = serialization.load_pem_private_key(
             data["private_key_pem"].encode("utf-8"), password=None
         )
+        if not isinstance(loaded_key, ec.EllipticCurvePrivateKey):
+            raise TypeError("Expected EC private key, got " + type(loaded_key).__name__)
+        self._private_key = loaded_key
         self._public_key = self._private_key.public_key()
         self._kid = data["kid"]
 

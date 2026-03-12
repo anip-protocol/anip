@@ -1,5 +1,3 @@
-import json
-
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
