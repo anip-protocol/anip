@@ -7,9 +7,9 @@
 
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
-import { createHash } from "crypto";
 import { fileURLToPath } from "url";
 import { dirname, resolve } from "path";
+import { logAuditEntry, queryAuditLog } from "./data/database.js";
 
 import { invoke as invokeBookFlight } from "./capabilities/book-flight.js";
 import { invoke as invokeSearchFlights } from "./capabilities/search-flights.js";
@@ -70,60 +70,9 @@ function authenticateCaller(
   return apiKeyIdentities[key];
 }
 
-// --- In-memory audit log with hash chain ---
-
-interface AuditEntry {
-  sequence_number: number;
-  capability: string;
-  timestamp: string;
-  token_id: string;
-  root_principal: string;
-  success: boolean;
-  result_summary: Record<string, unknown> | null;
-  failure_type: string | null;
-  cost_actual: Record<string, unknown> | null;
-  cost_variance: Record<string, unknown> | null;
-  delegation_chain: string[];
-  previous_hash: string;
-  signature: string | null;
-}
-
-const auditLog: AuditEntry[] = [];
-
-function computeEntryHash(entry: AuditEntry): string {
-  const canonical = JSON.stringify(entry, Object.keys(entry).sort());
-  return `sha256:${createHash("sha256").update(canonical).digest("hex")}`;
-}
-
-async function logInvocation(
-  entryData: Omit<AuditEntry, "sequence_number" | "previous_hash" | "signature">
-): Promise<void> {
-  const sequenceNumber =
-    auditLog.length > 0
-      ? auditLog[auditLog.length - 1].sequence_number + 1
-      : 1;
-
-  const previousHash =
-    auditLog.length > 0
-      ? computeEntryHash(auditLog[auditLog.length - 1])
-      : "sha256:0";
-
-  const entry: AuditEntry = {
-    sequence_number: sequenceNumber,
-    ...entryData,
-    previous_hash: previousHash,
-    signature: null,
-  };
-
-  // Sign the audit entry
-  try {
-    const signData: Record<string, unknown> = { ...entry };
-    entry.signature = await keys.signAuditEntry(signData);
-  } catch {
-    // If signing fails (keys not ready), leave signature null
-  }
-
-  auditLog.push(entry);
+// Audit signing helper
+async function signAuditEntryFn(data: Record<string, unknown>): Promise<string> {
+  return keys.signAuditEntry(data);
 }
 
 function calculateCostVariance(
@@ -777,23 +726,26 @@ app.post("/anip/invoke/:capability", async (c) => {
     const handler = capabilityHandlers[capabilityName];
     const response = handler(token, parameters);
 
-    // 7. Log to audit trail
+    // 7. Log to audit trail (persisted to SQLite)
     const chain = getChain(token);
     const costVariance = calculateCostVariance(capabilityName, response);
-    await logInvocation({
-      capability: capabilityName,
-      timestamp: new Date().toISOString(),
-      token_id: token.token_id,
-      root_principal: getRootPrincipal(token),
-      success: response.success,
-      result_summary: response.success
-        ? summarizeResult(response.result as Record<string, unknown>)
-        : null,
-      failure_type: response.failure?.type ?? null,
-      cost_actual: response.cost_actual as Record<string, unknown> | null,
-      cost_variance: costVariance,
-      delegation_chain: chain.map((t) => t.token_id),
-    });
+    logAuditEntry(
+      {
+        capability: capabilityName,
+        timestamp: new Date().toISOString(),
+        token_id: token.token_id,
+        root_principal: getRootPrincipal(token),
+        success: response.success,
+        result_summary: response.success
+          ? summarizeResult(response.result as Record<string, unknown>)
+          : null,
+        failure_type: response.failure?.type ?? null,
+        cost_actual: response.cost_actual as Record<string, unknown> | null,
+        cost_variance: costVariance,
+        delegation_chain: chain.map((t) => t.token_id),
+      },
+      signAuditEntryFn,
+    );
 
     return c.json(response);
   } finally {
@@ -869,18 +821,12 @@ app.post("/anip/audit", async (c) => {
   const since = c.req.query("since") ?? null;
   const limit = Math.min(Number(c.req.query("limit") ?? 100), 1000);
 
-  // Filter to only entries belonging to this root principal
-  let entries = auditLog.filter((e) => e.root_principal === rootPrincipal);
-
-  if (capability) {
-    entries = entries.filter((e) => e.capability === capability);
-  }
-  if (since) {
-    const sinceDate = new Date(since);
-    entries = entries.filter((e) => new Date(e.timestamp) >= sinceDate);
-  }
-
-  entries = entries.slice(-limit);
+  const entries = queryAuditLog({
+    rootPrincipal,
+    capability,
+    since,
+    limit,
+  });
 
   return c.json({
     entries,
