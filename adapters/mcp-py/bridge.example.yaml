@@ -6,13 +6,12 @@
 anip_service_url: "http://localhost:8000"
 
 # Delegation token configuration
-# The bridge creates tokens on behalf of this identity
+# The bridge requests signed tokens from the ANIP service
 delegation:
-  issuer: "human:user@example.com"
+  api_key: "demo-human-key"
   scope:
     - "travel.search"
     - "travel.book:max_$500"
-  token_ttl_minutes: 60
 
 # Surface ANIP metadata (side-effects, costs, prerequisites)
 # in MCP tool descriptions

@@ -32,11 +32,10 @@ async def test_bridge(url: str):
     print("\n3. Testing invocation...")
     invoker = ANIPInvoker(
         service=service,
-        issuer="human:test@example.com",
         scope=["travel.search", "travel.book:max_$500"],
+        api_key="demo-human-key",
     )
-    await invoker.setup()
-    print("   Root token registered")
+    print("   Invoker ready")
 
     # Search flights
     result = await invoker.invoke("search_flights", {

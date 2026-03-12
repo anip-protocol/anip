@@ -33,12 +33,10 @@ async function test() {
   // 3. Invocation
   console.log("\n3. Testing invocation...");
   const invoker = new ANIPInvoker(service, {
-    issuer: "human:test@example.com",
     scope: ["travel.search", "travel.book:max_$500"],
-    tokenTtlMinutes: 60,
+    apiKey: "demo-human-key",
   });
-  await invoker.setup();
-  console.log("   Root token registered");
+  console.log("   Invoker ready");
 
   const searchResult = await invoker.invoke("search_flights", {
     origin: "SEA",
