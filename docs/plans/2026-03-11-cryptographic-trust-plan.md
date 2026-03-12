@@ -1049,8 +1049,9 @@ def _resolve_jwt_token(token_jwt: str) -> DelegationToken | ANIPFailure:
             retry=True,
         )
 
-    # TRUST BOUNDARY: compare signed claims against stored values.
+    # TRUST BOUNDARY: compare ALL trust-critical signed claims against stored values.
     # The JWT is the authority — if the store diverges, reject.
+    # This covers identity, scope, capability, delegation linkage, and constraints.
     mismatches = []
     if claims.get("sub") != stored.subject:
         mismatches.append(f"sub: jwt={claims.get('sub')} store={stored.subject}")
@@ -1058,6 +1059,15 @@ def _resolve_jwt_token(token_jwt: str) -> DelegationToken | ANIPFailure:
         mismatches.append(f"scope: jwt={claims.get('scope')} store={stored.scope}")
     if claims.get("capability") != stored.purpose.capability:
         mismatches.append(f"capability: jwt={claims.get('capability')} store={stored.purpose.capability}")
+    # root_principal: controls audit visibility — must match signed claim
+    jwt_root = claims.get("root_principal")
+    stored_root = get_root_principal(stored)
+    if jwt_root is not None and jwt_root != stored_root:
+        mismatches.append(f"root_principal: jwt={jwt_root} store={stored_root}")
+    # parent linkage: a store mutation could graft the token onto a different chain
+    jwt_parent = claims.get("parent_token_id")
+    if jwt_parent != stored.parent:
+        mismatches.append(f"parent: jwt={jwt_parent} store={stored.parent}")
     if mismatches:
         return ANIPFailure(
             type="token_integrity_violation",
@@ -2131,6 +2141,14 @@ Run: `cd examples/anip-ts && npm install jose`
 ```typescript
 // examples/anip-ts/src/crypto.ts
 import * as jose from "jose";
+import { readFileSync, writeFileSync, existsSync } from "fs";
+
+interface PersistedKeys {
+  delegationJwk: jose.JWK;
+  delegationKid: string;
+  auditJwk: jose.JWK;
+  auditKid: string;
+}
 
 export class KeyManager {
   private privateKey!: CryptoKey;
@@ -2140,25 +2158,65 @@ export class KeyManager {
   private auditPublicKey!: CryptoKey;
   private auditKid!: string;
   private _ready: Promise<void>;
+  private keyPath: string | undefined;
 
-  constructor() {
+  constructor(keyPath?: string) {
+    this.keyPath = keyPath;
     this._ready = this.init();
   }
 
   private async init() {
-    // Delegation key
+    // Try to load persisted keys first (same as Python: restart must not
+    // invalidate issued tokens, signed manifests, or audit signatures)
+    if (this.keyPath && existsSync(this.keyPath)) {
+      await this.loadKeys(this.keyPath);
+      return;
+    }
+
+    // Generate fresh keys
     const { publicKey, privateKey } = await jose.generateKeyPair("ES256");
     this.privateKey = privateKey as CryptoKey;
     this.publicKey = publicKey as CryptoKey;
     const jwk = await jose.exportJWK(this.publicKey);
     this.kid = await this.computeKid(jwk);
 
-    // Audit key (separate)
+    // Audit key (separate from delegation key)
     const audit = await jose.generateKeyPair("ES256");
     this.auditPrivateKey = audit.privateKey as CryptoKey;
     this.auditPublicKey = audit.publicKey as CryptoKey;
     const auditJwk = await jose.exportJWK(this.auditPublicKey);
     this.auditKid = await this.computeKid(auditJwk);
+
+    // Persist for next restart
+    if (this.keyPath) {
+      await this.saveKeys(this.keyPath);
+    }
+  }
+
+  private async saveKeys(path: string): Promise<void> {
+    const delegationJwk = await jose.exportJWK(this.privateKey);
+    const auditJwk = await jose.exportJWK(this.auditPrivateKey);
+    const data: PersistedKeys = {
+      delegationJwk,
+      delegationKid: this.kid,
+      auditJwk,
+      auditKid: this.auditKid,
+    };
+    writeFileSync(path, JSON.stringify(data), "utf-8");
+  }
+
+  private async loadKeys(path: string): Promise<void> {
+    const data: PersistedKeys = JSON.parse(readFileSync(path, "utf-8"));
+    this.kid = data.delegationKid;
+    this.privateKey = (await jose.importJWK(data.delegationJwk, "ES256")) as CryptoKey;
+    this.publicKey = (await jose.importJWK(
+      { ...data.delegationJwk, d: undefined }, "ES256"
+    )) as CryptoKey;
+    this.auditKid = data.auditKid;
+    this.auditPrivateKey = (await jose.importJWK(data.auditJwk, "ES256")) as CryptoKey;
+    this.auditPublicKey = (await jose.importJWK(
+      { ...data.auditJwk, d: undefined }, "ES256"
+    )) as CryptoKey;
   }
 
   private async computeKid(jwk: jose.JWK): Promise<string> {
@@ -2213,8 +2271,11 @@ In `server.ts`, add:
 
 ```typescript
 import { KeyManager } from "./crypto";
+import { resolve } from "path";
 
-const keys = new KeyManager();
+// Persist keys alongside the server source — override with ANIP_KEY_PATH env var
+const keyPath = process.env.ANIP_KEY_PATH ?? resolve(__dirname, "../anip-keys.json");
+const keys = new KeyManager(keyPath);
 
 app.get("/.well-known/jwks.json", async (c) => {
   const jwks = await keys.getJWKS();
