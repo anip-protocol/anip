@@ -12,8 +12,6 @@ Usage:
     pytest tests/test_conformance.py -v --anip-url http://localhost:8000 --anip-api-key my-key
 """
 
-import pytest
-
 
 def _issue(service, scope, capability, auth_headers):
     resp = service.post("/anip/tokens", json={
