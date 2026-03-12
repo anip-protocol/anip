@@ -160,9 +160,7 @@ This inverts the usual calculus. The conventional path — build a REST API, the
 
 Standard REST and GraphQL clients work normally — they ignore the ANIP metadata (`x-anip-*` OpenAPI extensions, `@anip*` GraphQL directives). ANIP-aware agents use the metadata for delegation, cost awareness, and side-effect reasoning. Graceful degradation by design.
 
-**One honest caveat.** The REST and GraphQL adapters simplify the delegation chain to a single identity. For read and write capabilities, that's fine. For irreversible financial operations, native ANIP is strongly recommended — purpose-bound authority and multi-hop delegation don't survive the translation. The [adapter READMEs](adapters/) document the exact translation loss for each surface.
-
-**v0.2 compatibility note.** The adapter reference implementations currently use the v0.1 token flow (client-constructed tokens, unsigned invocations). They require `ANIP_TRUST_MODE=declaration` to work with v0.2 servers. Updating the adapters to use JWT-based token requests is planned.
+**One honest caveat.** The REST and GraphQL adapters translate the protocol surface but lose visibility into the delegation chain, cost signaling, and capability graph. For read and write capabilities, that's fine. For irreversible financial operations, native ANIP is strongly recommended — purpose-bound authority and multi-hop delegation don't survive the translation. The [adapter READMEs](adapters/) document the exact translation loss for each surface.
 
 **These adapters are reference implementations.** They run as separate proxy processes to demonstrate that ANIP translates cleanly to existing surfaces. For production, the recommended path is direct integration — ANIP client SDKs and libraries that speak the protocol natively, giving agents full access to delegation chains, budget constraints, and side-effect reasoning without translation loss. The adapters prove interoperability; direct ANIP integration is the production deployment path.
 
@@ -216,7 +214,6 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 
 **What's next:**
 - Federated trust — cross-service delegation chains and token exchange
-- Adapter v0.2 migration — REST, GraphQL, and MCP adapters currently require `ANIP_TRUST_MODE=declaration`
 - Side-effect contract testing — sandbox infrastructure for verifying behavioral declarations
 
 If this resonates, star the repo, open an issue, or [contribute](CONTRIBUTING.md). If you think we're wrong, tell us why — that's equally valuable.
