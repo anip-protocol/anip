@@ -194,10 +194,31 @@ export const ProfileVersions = z.object({
 });
 export type ProfileVersions = z.infer<typeof ProfileVersions>;
 
+// --- Manifest Metadata (v0.2) ---
+
+export const ManifestMetadata = z.object({
+  version: z.string().default("0.2.0"),
+  sha256: z.string(),
+  issued_at: z.string(),
+  expires_at: z.string(),
+});
+export type ManifestMetadata = z.infer<typeof ManifestMetadata>;
+
+// --- Service Identity (v0.2) ---
+
+export const ServiceIdentity = z.object({
+  id: z.string().default("anip-flight-service"),
+  jwks_uri: z.string().default("/.well-known/jwks.json"),
+  issuer_mode: z.string().default("first-party"),
+});
+export type ServiceIdentity = z.infer<typeof ServiceIdentity>;
+
 export const ANIPManifest = z.object({
-  protocol: z.string().default("anip/1.0"),
+  protocol: z.string().default("anip/0.2"),
   profile: ProfileVersions,
   capabilities: z.record(CapabilityDeclaration),
+  manifest_metadata: ManifestMetadata.nullable().default(null),
+  service_identity: ServiceIdentity.nullable().default(null),
 });
 export type ANIPManifest = z.infer<typeof ANIPManifest>;
 
@@ -218,3 +239,24 @@ export const InvokeResponse = z.object({
   session: z.record(z.any()).nullable().default(null),
 });
 export type InvokeResponse = z.infer<typeof InvokeResponse>;
+
+// --- Token Request (v0.2 server-side issuance) ---
+
+export const TokenRequest = z.object({
+  subject: z.string(),
+  scope: z.array(z.string()),
+  capability: z.string(),
+  parent_token: z.string().nullable().optional(),
+  purpose_parameters: z.record(z.any()).default({}),
+  ttl_hours: z.number().default(2),
+});
+export type TokenRequest = z.infer<typeof TokenRequest>;
+
+// --- Invoke Request V2 (JWT-based) ---
+
+export const InvokeRequestV2 = z.object({
+  token: z.string(),
+  parameters: z.record(z.any()).default({}),
+  budget: z.record(z.any()).nullable().default(null),
+});
+export type InvokeRequestV2 = z.infer<typeof InvokeRequestV2>;

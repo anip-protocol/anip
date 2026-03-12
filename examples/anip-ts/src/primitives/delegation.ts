@@ -5,6 +5,7 @@
  * purpose binding, delegation depth, and parent chain.
  */
 
+import { randomUUID } from "crypto";
 import type { ANIPFailure, DelegationToken } from "../types.js";
 
 // In-memory token store — maps token_id to DelegationToken
@@ -408,6 +409,64 @@ export function validateConstraintsNarrowing(token: DelegationToken): ANIPFailur
   }
 
   return null;
+}
+
+export function issueToken(
+  subject: string,
+  scope: string[],
+  capability: string,
+  issuerId: string,
+  parentToken: DelegationToken | null,
+  purposeParameters: Record<string, unknown>,
+  ttlHours: number,
+): { token: DelegationToken; tokenId: string } {
+  const tokenId = `anip-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
+  const now = new Date();
+  const expires = new Date(now.getTime() + ttlHours * 3600 * 1000);
+
+  let maxDepth = 3;
+  let concurrent: "allowed" | "exclusive" = "allowed";
+  if (parentToken !== null) {
+    maxDepth = Math.min(maxDepth, parentToken.constraints.max_delegation_depth);
+    concurrent = parentToken.constraints.concurrent_branches;
+  }
+
+  const token: DelegationToken = {
+    token_id: tokenId,
+    issuer: issuerId,
+    subject,
+    scope,
+    purpose: {
+      capability,
+      parameters: purposeParameters,
+      task_id: `task-${tokenId}`,
+    },
+    parent: parentToken?.token_id ?? null,
+    expires: expires.toISOString(),
+    constraints: {
+      max_delegation_depth: maxDepth,
+      concurrent_branches: concurrent,
+    },
+  };
+
+  // Validate narrowing if child token
+  if (parentToken !== null) {
+    const scopeFailure = validateScopeNarrowing(token);
+    if (scopeFailure !== null) {
+      throw new Error(scopeFailure.detail);
+    }
+    const constraintFailure = validateConstraintsNarrowing(token);
+    if (constraintFailure !== null) {
+      throw new Error(constraintFailure.detail);
+    }
+  }
+
+  registerToken(token);
+  return { token, tokenId };
+}
+
+export function getChainTokenIds(token: DelegationToken): string[] {
+  return getChain(token).map((t) => t.token_id);
 }
 
 export function checkBudgetAuthority(
