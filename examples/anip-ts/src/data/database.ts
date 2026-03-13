@@ -302,6 +302,69 @@ export function queryAuditLog(opts: {
   }));
 }
 
+export function getCheckpointById(checkpointId: string): {
+  checkpoint_id: string;
+  range: { first_sequence: number; last_sequence: number };
+  merkle_root: string;
+  previous_checkpoint: string | null;
+  timestamp: string;
+  entry_count: number;
+  signature: string;
+} | null {
+  const conn = getConnection();
+  const row = conn
+    .prepare("SELECT * FROM checkpoints WHERE checkpoint_id = ?")
+    .get(checkpointId) as Record<string, unknown> | undefined;
+  if (row === undefined) return null;
+  return {
+    checkpoint_id: row.checkpoint_id as string,
+    range: {
+      first_sequence: row.first_sequence as number,
+      last_sequence: row.last_sequence as number,
+    },
+    merkle_root: row.merkle_root as string,
+    previous_checkpoint: (row.previous_checkpoint as string) ?? null,
+    timestamp: row.timestamp as string,
+    entry_count: row.entry_count as number,
+    signature: row.signature as string,
+  };
+}
+
+export function rebuildMerkleTreeTo(sequenceNumber: number): MerkleTree {
+  const conn = getConnection();
+  const rows = conn
+    .prepare(
+      "SELECT * FROM audit_log WHERE sequence_number <= ? ORDER BY sequence_number ASC"
+    )
+    .all(sequenceNumber) as Record<string, unknown>[];
+
+  const tree = new MerkleTree();
+  for (const row of rows) {
+    const entry: Record<string, unknown> = { ...row };
+    entry.success = Boolean(entry.success);
+    for (const field of [
+      "result_summary",
+      "failure_type",
+      "cost_actual",
+      "cost_variance",
+      "delegation_chain",
+    ]) {
+      if (typeof entry[field] === "string") {
+        entry[field] = JSON.parse(entry[field] as string);
+      }
+    }
+    // Build canonical JSON (sorted keys, excluding signature and id)
+    const filtered: Record<string, unknown> = {};
+    for (const key of Object.keys(entry).sort()) {
+      if (key !== "signature" && key !== "id") {
+        filtered[key] = entry[key];
+      }
+    }
+    tree.addLeaf(Buffer.from(JSON.stringify(filtered)));
+  }
+  return tree;
+}
+
 export function getMerkleSnapshot() {
   return merkleTree.snapshot();
 }

@@ -9,6 +9,7 @@ import {
   hasNewEntriesSinceCheckpoint,
 } from "../src/data/database";
 import { CheckpointPolicy, CheckpointScheduler } from "../src/checkpoint";
+import { app } from "../src/server";
 
 // Use an in-memory database for test isolation
 beforeAll(() => {
@@ -138,5 +139,67 @@ describe("Auto-checkpointing", () => {
     scheduler.stop();
 
     expect(getCheckpoints().length).toBeGreaterThan(initial);
+  });
+});
+
+describe("Checkpoint endpoints", () => {
+  it("GET /anip/checkpoints returns list", async () => {
+    addAuditEntry();
+    createCheckpoint(mockSign);
+    const res = await app.request("/anip/checkpoints");
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.checkpoints.length).toBeGreaterThanOrEqual(1);
+    expect(data.checkpoints[0]).toHaveProperty("merkle_root");
+    expect(data.checkpoints[0]).toHaveProperty("range");
+    expect(data.checkpoints[0]).toHaveProperty("signature");
+  });
+
+  it("GET /anip/checkpoints?limit=1 respects limit", async () => {
+    const res = await app.request("/anip/checkpoints?limit=1");
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.checkpoints.length).toBeLessThanOrEqual(1);
+  });
+
+  it("GET /anip/checkpoints/:id with inclusion proof", async () => {
+    for (let i = 0; i < 3; i++) addAuditEntry();
+    createCheckpoint(mockSign);
+    const checkpoints = getCheckpoints();
+    const id = checkpoints[checkpoints.length - 1].checkpoint_id;
+    const res = await app.request(
+      `/anip/checkpoints/${id}?include_proof=true&leaf_index=0`
+    );
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toHaveProperty("checkpoint");
+    expect(data).toHaveProperty("inclusion_proof");
+    expect(data.inclusion_proof).toHaveProperty("path");
+    expect(data.inclusion_proof).toHaveProperty("merkle_root");
+    expect(data.inclusion_proof).toHaveProperty("leaf_count");
+  });
+
+  it("GET /anip/checkpoints/:id with consistency proof", async () => {
+    for (let i = 0; i < 3; i++) addAuditEntry();
+    createCheckpoint(mockSign);
+    for (let i = 0; i < 3; i++) addAuditEntry();
+    createCheckpoint(mockSign);
+    const checkpoints = getCheckpoints();
+    const oldId = checkpoints[checkpoints.length - 2].checkpoint_id;
+    const newId = checkpoints[checkpoints.length - 1].checkpoint_id;
+    const res = await app.request(
+      `/anip/checkpoints/${newId}?consistency_from=${oldId}`
+    );
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toHaveProperty("consistency_proof");
+    expect(data.consistency_proof).toHaveProperty("old_size");
+    expect(data.consistency_proof).toHaveProperty("new_size");
+    expect(data.consistency_proof).toHaveProperty("path");
+  });
+
+  it("GET /anip/checkpoints/:id returns 404 for unknown", async () => {
+    const res = await app.request("/anip/checkpoints/ckpt-nonexistent");
+    expect(res.status).toBe(404);
   });
 });
