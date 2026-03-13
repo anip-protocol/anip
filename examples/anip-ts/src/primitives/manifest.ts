@@ -17,14 +17,16 @@ export function buildManifest(): ANIPManifest {
   const trustLevel = (process.env.ANIP_TRUST_LEVEL ?? "signed") as TrustPosture["level"];
   let anchoring: AnchoringPolicy | null = null;
   if (trustLevel === "anchored" || trustLevel === "attested") {
-    const cadence = process.env.ANIP_CHECKPOINT_CADENCE ?? null;
+    // cadence: ISO 8601 duration for max time between checkpoints
     const intervalStr = process.env.ANIP_CHECKPOINT_INTERVAL ?? null;
-    const sinkEnv = process.env.ANIP_CHECKPOINT_SINK ?? "file:///var/log/anip/checkpoints/";
-    anchoring = {
-      cadence,
-      max_lag: intervalStr ? parseInt(intervalStr, 10) : null,
-      sink: sinkEnv.split(",").map((s) => s.trim()),
-    };
+    const cadence = intervalStr ? `PT${intervalStr}S` : null;
+    // max_lag: max uncheckpointed entry count from ANIP_CHECKPOINT_CADENCE
+    const cadenceStr = process.env.ANIP_CHECKPOINT_CADENCE ?? null;
+    const maxLag = cadenceStr ? parseInt(cadenceStr, 10) : null;
+    // sink: qualifying URIs required for anchored (file:// is dev-only)
+    const sinkEnv = process.env.ANIP_CHECKPOINT_SINK ?? null;
+    const sink = sinkEnv ? sinkEnv.split(",").map((s) => s.trim()) : null;
+    anchoring = { cadence, max_lag: maxLag, sink };
   }
   const trust: TrustPosture = { level: trustLevel, anchoring };
 
