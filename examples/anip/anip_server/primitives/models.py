@@ -212,9 +212,8 @@ class ServiceIdentity(BaseModel):
 
 class AnchoringPolicy(BaseModel):
     cadence: str | None = None
-    max_lag: str | None = None
-    sink: str | None = None
-    sink_name: str | None = None
+    max_lag: int | None = None
+    sink: list[str] | None = None
 
 
 class TrustPolicyTrigger(BaseModel):

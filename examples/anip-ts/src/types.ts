@@ -188,9 +188,8 @@ export type ANIPFailure = z.infer<typeof ANIPFailure>;
 
 export const AnchoringPolicy = z.object({
   cadence: z.string().nullable().optional(),
-  max_lag: z.string().nullable().optional(),
-  sink: z.string().nullable().optional(),
-  sink_name: z.string().nullable().optional(),
+  max_lag: z.number().nullable().optional(),
+  sink: z.array(z.string()).nullable().optional(),
 });
 export type AnchoringPolicy = z.infer<typeof AnchoringPolicy>;
 

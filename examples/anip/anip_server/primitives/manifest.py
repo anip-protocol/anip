@@ -27,12 +27,14 @@ def build_manifest() -> ANIPManifest:
     # Build trust posture from environment
     trust_level = os.environ.get("ANIP_TRUST_LEVEL", "signed")
     anchoring = None
-    if trust_level == "anchored":
-        cadence = os.environ.get("ANIP_CHECKPOINT_CADENCE")
-        interval = os.environ.get("ANIP_CHECKPOINT_INTERVAL")
+    if trust_level in ("anchored", "attested"):
+        cadence_env = os.environ.get("ANIP_CHECKPOINT_CADENCE")
+        max_lag_env = os.environ.get("ANIP_CHECKPOINT_INTERVAL")
+        sink_env = os.environ.get("ANIP_CHECKPOINT_SINK", "file:///var/log/anip/checkpoints/")
         anchoring = AnchoringPolicy(
-            cadence=cadence,
-            max_lag=interval,
+            cadence=cadence_env,
+            max_lag=int(max_lag_env) if max_lag_env else None,
+            sink=[s.strip() for s in sink_env.split(",")],
         )
     trust = TrustPosture(level=trust_level, anchoring=anchoring)
 

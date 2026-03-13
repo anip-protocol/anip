@@ -69,7 +69,7 @@ def set_trust_mode(mode: str) -> None:
 app = FastAPI(
     title="ANIP Flight Service",
     description="Reference implementation of the Agent-Native Interface Protocol",
-    version="0.2.0",
+    version="0.3.0",
 )
 
 # Server key pair — persisted to disk so restarts don't invalidate tokens.

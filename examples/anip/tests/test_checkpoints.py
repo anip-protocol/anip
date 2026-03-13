@@ -161,14 +161,14 @@ class TestAutoCheckpoint:
             "/anip/invoke/search_flights",
             json={"token": token, "parameters": {"origin": "SEA", "destination": "SFO", "date": "2026-04-01"}},
         )
-        initial_checkpoints = get_checkpoints(limit=100)
+        initial_checkpoints = get_checkpoints(limit=1000)
         initial_count = len(initial_checkpoints)
         # Start scheduler
         scheduler = CheckpointScheduler(1, create_checkpoint, has_new_entries_since_checkpoint)
         scheduler.start()
         time.sleep(1.5)
         scheduler.stop()
-        checkpoints = get_checkpoints(limit=100)
+        checkpoints = get_checkpoints(limit=1000)
         assert len(checkpoints) > initial_count, (
             "CheckpointScheduler should create checkpoint without requiring another write"
         )

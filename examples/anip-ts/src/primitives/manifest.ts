@@ -16,12 +16,14 @@ export function buildManifest(): ANIPManifest {
   // Build trust posture from environment
   const trustLevel = (process.env.ANIP_TRUST_LEVEL ?? "signed") as TrustPosture["level"];
   let anchoring: AnchoringPolicy | null = null;
-  if (trustLevel === "anchored") {
+  if (trustLevel === "anchored" || trustLevel === "attested") {
     const cadence = process.env.ANIP_CHECKPOINT_CADENCE ?? null;
-    const interval = process.env.ANIP_CHECKPOINT_INTERVAL ?? null;
+    const intervalStr = process.env.ANIP_CHECKPOINT_INTERVAL ?? null;
+    const sinkEnv = process.env.ANIP_CHECKPOINT_SINK ?? "file:///var/log/anip/checkpoints/";
     anchoring = {
       cadence,
-      max_lag: interval,
+      max_lag: intervalStr ? parseInt(intervalStr, 10) : null,
+      sink: sinkEnv.split(",").map((s) => s.trim()),
     };
   }
   const trust: TrustPosture = { level: trustLevel, anchoring };
