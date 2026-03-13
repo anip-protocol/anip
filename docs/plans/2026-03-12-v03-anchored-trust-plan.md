@@ -772,9 +772,10 @@ In `models.py`, add:
 
 ```python
 class AnchoringPolicy(BaseModel):
-    cadence: str | None = None  # e.g. "5m", "100 entries"
-    max_lag: str | None = None  # e.g. "15m"
-    sink: str | None = None     # logical identifier
+    cadence: str | None = None     # e.g. "5m", "100 entries"
+    max_lag: str | None = None     # e.g. "15m"
+    sink: str | None = None        # URI-scheme identifier (witness:, https:, file:)
+    sink_name: str | None = None   # human-readable sink label
 
 class TrustPolicyTrigger(BaseModel):
     trigger: dict[str, Any]
@@ -831,7 +832,7 @@ git commit -m "feat: trust level declaration in discovery and manifest (TypeScri
 ### Task 11: GET /anip/checkpoints Endpoint — Python
 
 **Files:**
-- Modify: `examples/anip/anip_server/main.py` — add checkpoint inspection endpoint
+- Modify: `examples/anip/anip_server/main.py` — add checkpoint list + individual checkpoint endpoints
 - Test: `examples/anip/tests/test_checkpoints.py` — add endpoint tests
 
 **Step 1: Write the failing tests**
@@ -841,7 +842,6 @@ Add to `test_checkpoints.py`:
 ```python
 def test_checkpoints_endpoint_returns_list(client):
     """GET /anip/checkpoints should return checkpoint metadata."""
-    # Generate entries and force a checkpoint
     token = _issue_token(client, "search_flights", ["travel.search"])
     client.post("/anip/invoke/search_flights",
                 json={"origin": "SEA", "destination": "SFO", "date": "2026-04-01"},
@@ -871,9 +871,57 @@ def test_checkpoints_endpoint_empty_when_no_checkpoints(client):
     resp = client.get("/anip/checkpoints")
     assert resp.status_code == 200
     assert resp.json()["checkpoints"] == [] or isinstance(resp.json()["checkpoints"], list)
+
+
+def test_individual_checkpoint_with_inclusion_proof(client):
+    """GET /anip/checkpoints/{id}?include_proof=true&leaf_index=N should return inclusion proof."""
+    token = _issue_token(client, "search_flights", ["travel.search"])
+    for _ in range(3):
+        client.post("/anip/invoke/search_flights",
+                    json={"origin": "SEA", "destination": "SFO", "date": "2026-04-01"},
+                    headers={"Authorization": f"Bearer {token}"})
+    create_checkpoint()
+    checkpoints = get_checkpoints(limit=1)
+    ckpt_id = checkpoints[0]["checkpoint_id"]
+    resp = client.get(f"/anip/checkpoints/{ckpt_id}?include_proof=true&leaf_index=0")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "checkpoint" in data
+    assert "inclusion_proof" in data
+    proof = data["inclusion_proof"]
+    assert "leaf_index" in proof
+    assert "path" in proof
+    assert isinstance(proof["path"], list)
+    assert "merkle_root" in proof
+
+
+def test_individual_checkpoint_with_consistency_proof(client):
+    """GET /anip/checkpoints/{id}?consistency_from={old_id} should return consistency proof."""
+    token = _issue_token(client, "search_flights", ["travel.search"])
+    for _ in range(3):
+        client.post("/anip/invoke/search_flights",
+                    json={"origin": "SEA", "destination": "SFO", "date": "2026-04-01"},
+                    headers={"Authorization": f"Bearer {token}"})
+    create_checkpoint()
+    for _ in range(3):
+        client.post("/anip/invoke/search_flights",
+                    json={"origin": "SEA", "destination": "SFO", "date": "2026-04-01"},
+                    headers={"Authorization": f"Bearer {token}"})
+    create_checkpoint()
+    checkpoints = get_checkpoints(limit=10)
+    old_id = checkpoints[0]["checkpoint_id"]
+    new_id = checkpoints[1]["checkpoint_id"]
+    resp = client.get(f"/anip/checkpoints/{new_id}?consistency_from={old_id}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "consistency_proof" in data
+    proof = data["consistency_proof"]
+    assert "old_size" in proof
+    assert "new_size" in proof
+    assert "path" in proof
 ```
 
-**Step 2: Implement endpoint**
+**Step 2: Implement endpoints**
 
 In `main.py`:
 
@@ -883,17 +931,63 @@ def get_checkpoints_endpoint(limit: int = 10):
     """Checkpoint inspection surface — convenience/status, not the trust anchor."""
     checkpoints = get_checkpoints(limit=limit)
     return {"checkpoints": checkpoints}
+
+
+@app.get("/anip/checkpoints/{checkpoint_id}")
+def get_checkpoint_detail(
+    checkpoint_id: str,
+    include_proof: bool = False,
+    leaf_index: int | None = None,
+    consistency_from: str | None = None,
+):
+    """Individual checkpoint with optional Merkle proofs.
+
+    Query params:
+    - include_proof=true&leaf_index=N: returns inclusion proof for leaf N
+    - consistency_from=<old_checkpoint_id>: returns consistency proof from old to this checkpoint
+    """
+    ckpt = get_checkpoint_by_id(checkpoint_id)
+    if not ckpt:
+        return JSONResponse(status_code=404, content={"error": "checkpoint_not_found"})
+
+    result = {"checkpoint": ckpt}
+
+    if include_proof and leaf_index is not None:
+        proof = get_merkle_inclusion_proof(leaf_index)
+        result["inclusion_proof"] = {
+            "leaf_index": leaf_index,
+            "path": proof["path"],
+            "merkle_root": ckpt["merkle_root"],
+        }
+
+    if consistency_from:
+        old_ckpt = get_checkpoint_by_id(consistency_from)
+        if old_ckpt:
+            proof = get_merkle_consistency_proof(old_ckpt["range"]["last_sequence"])
+            result["consistency_proof"] = {
+                "old_size": old_ckpt["range"]["last_sequence"],
+                "new_size": ckpt["range"]["last_sequence"],
+                "old_root": old_ckpt["merkle_root"],
+                "new_root": ckpt["merkle_root"],
+                "path": proof,
+            }
+
+    return result
 ```
 
-Add `"checkpoints": "/anip/checkpoints"` to the `endpoints` dict in the discovery response.
+Add to discovery endpoints:
+- `"checkpoints": "/anip/checkpoints"`
+- `"checkpoint_detail": "/anip/checkpoints/{checkpoint_id}"`
+
+Add `get_checkpoint_by_id(id)` and `get_merkle_consistency_proof(old_size)` to `database.py`.
 
 **Step 3: Run tests, verify pass**
 
 **Step 4: Commit**
 
 ```bash
-git add examples/anip/anip_server/main.py examples/anip/tests/test_checkpoints.py
-git commit -m "feat: add GET /anip/checkpoints inspection endpoint (Python)"
+git add examples/anip/anip_server/main.py examples/anip/anip_server/data/database.py examples/anip/tests/test_checkpoints.py
+git commit -m "feat: add GET /anip/checkpoints + /{id} with Merkle proofs (Python)"
 ```
 
 ---
@@ -902,15 +996,16 @@ git commit -m "feat: add GET /anip/checkpoints inspection endpoint (Python)"
 
 **Files:**
 - Modify: `examples/anip-ts/src/server.ts`
+- Modify: `examples/anip-ts/src/data/database.ts`
 - Test: `examples/anip-ts/tests/checkpoint.test.ts`
 
-Mirror Python implementation from Task 11.
+Mirror Python implementation from Task 11 — both the list endpoint and the `/{checkpoint_id}` detail endpoint with inclusion and consistency proof support.
 
 **Commit:**
 
 ```bash
-git add examples/anip-ts/src/server.ts examples/anip-ts/tests/checkpoint.test.ts
-git commit -m "feat: add GET /anip/checkpoints inspection endpoint (TypeScript)"
+git add examples/anip-ts/src/server.ts examples/anip-ts/src/data/database.ts examples/anip-ts/tests/checkpoint.test.ts
+git commit -m "feat: add GET /anip/checkpoints + /{id} with Merkle proofs (TypeScript)"
 ```
 
 ---
@@ -1052,21 +1147,85 @@ A service declares its trust level in both discovery (`trust_level` field) and t
 
 **Step 2: Add checkpoint format specification**
 
-Add the checkpoint object schema, detached JWS signing requirement, and Merkle tree algorithm (SHA-256, RFC 6962).
+Add the checkpoint object schema, detached JWS signing requirement, and Merkle tree algorithm (SHA-256, RFC 6962). Include the full checkpoint JSON schema:
 
-**Step 3: Add policy hooks specification**
+```json
+{
+  "version": "0.3",
+  "service_id": "<string>",
+  "checkpoint_id": "<string>",
+  "range": { "first_sequence": "<int>", "last_sequence": "<int>" },
+  "merkle_root": "sha256:<hex>",
+  "previous_checkpoint": "sha256:<hex> | null",
+  "timestamp": "<ISO 8601>",
+  "entry_count": "<int>",
+  "signature": "<detached JWS, signed by audit key>"
+}
+```
+
+**Step 3: Add Merkle proof format specification**
+
+Standardize the proof schemas so that any ANIP implementation produces interoperable proofs:
+
+Inclusion proof schema:
+```json
+{
+  "leaf_index": "<int>",
+  "merkle_root": "sha256:<hex>",
+  "path": [
+    { "hash": "<hex>", "side": "left | right" }
+  ]
+}
+```
+
+Consistency proof schema:
+```json
+{
+  "old_size": "<int>",
+  "new_size": "<int>",
+  "old_root": "sha256:<hex>",
+  "new_root": "sha256:<hex>",
+  "path": [
+    { "hash": "<hex>", "type": "old | new" }
+  ]
+}
+```
+
+Document:
+- Leaf hash: `SHA-256(0x00 || data)` per RFC 6962 §2.1
+- Node hash: `SHA-256(0x01 || left || right)` per RFC 6962 §2.1
+- Canonical entry serialization: all fields except `signature` and `id`, sorted keys, no whitespace
+- Verification algorithm for both proof types
+
+**Step 4: Add policy hooks specification**
 
 Document the policy hook vocabulary: `cadence`, `max_lag`, `sink`, trigger/action pairs.
 
-**Step 4: Update discovery endpoint schema**
+**Step 5: Add checkpoint location declaration vocabulary**
+
+Standardize how a service declares where checkpoints are published. The `sink` field in the trust posture uses a URI-like scheme:
+
+| Scheme | Example | Description |
+|--------|---------|-------------|
+| `witness:` | `witness:acme-audit` | Named witness service (deployment-defined) |
+| `https:` | `https://audit.example.com/checkpoints` | HTTPS endpoint accepting checkpoint POST |
+| `file:` | `file:///var/anip/checkpoints/` | Local filesystem (reference/dev only) |
+
+The protocol standardizes the scheme vocabulary. Deployments define the actual endpoints. Callers can discover checkpoint locations from the manifest trust posture and independently verify published artifacts.
+
+**Step 6: Update discovery endpoint schema**
 
 Add `trust_level` field to the discovery response specification.
 
-**Step 5: Add /anip/checkpoints endpoint specification**
+**Step 7: Add /anip/checkpoints endpoint specification**
 
-Document the new endpoint, its response shape, query parameters (`limit`), and its role as a convenience surface.
+Document both endpoints:
+- `GET /anip/checkpoints` — list recent checkpoints (query: `limit`)
+- `GET /anip/checkpoints/{checkpoint_id}` — individual checkpoint with optional proofs (query: `include_proof`, `leaf_index`, `consistency_from`)
 
-**Step 6: Update roadmap table**
+Explicitly note: this is a convenience/inspection surface, not the authoritative trust anchor. Callers should verify checkpoint artifacts independently.
+
+**Step 8: Update roadmap table**
 
 Add v0.3 features to the roadmap table. Update protocol version references from `anip/0.2` to `anip/0.3`.
 
@@ -1166,6 +1325,37 @@ class TestAnchoredTrust:
         if not checkpoints:
             pytest.skip("No checkpoints available")
         assert "signature" in checkpoints[0]
+
+    def test_inclusion_proof_format(self):
+        """Inclusion proofs MUST follow standardized schema."""
+        resp = requests.get(f"{BASE}/anip/checkpoints?limit=1")
+        checkpoints = resp.json()["checkpoints"]
+        if not checkpoints:
+            pytest.skip("No checkpoints available")
+        ckpt_id = checkpoints[0]["checkpoint_id"]
+        resp = requests.get(f"{BASE}/anip/checkpoints/{ckpt_id}?include_proof=true&leaf_index=0")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "inclusion_proof" in data
+        proof = data["inclusion_proof"]
+        assert "leaf_index" in proof
+        assert "merkle_root" in proof
+        assert "path" in proof
+        assert isinstance(proof["path"], list)
+        for step in proof["path"]:
+            assert "hash" in step
+            assert step["side"] in ("left", "right")
+
+    def test_checkpoint_detail_endpoint(self):
+        """GET /anip/checkpoints/{id} MUST return the checkpoint."""
+        resp = requests.get(f"{BASE}/anip/checkpoints?limit=1")
+        checkpoints = resp.json()["checkpoints"]
+        if not checkpoints:
+            pytest.skip("No checkpoints available")
+        ckpt_id = checkpoints[0]["checkpoint_id"]
+        resp = requests.get(f"{BASE}/anip/checkpoints/{ckpt_id}")
+        assert resp.status_code == 200
+        assert resp.json()["checkpoint"]["checkpoint_id"] == ckpt_id
 ```
 
 **Step 2: Run against both servers, verify pass**
