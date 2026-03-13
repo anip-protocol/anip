@@ -97,8 +97,26 @@ class TestMerkleTree:
         count_at_5 = tree.leaf_count
         for i in range(5, 10):
             tree.add_leaf(f"entry-{i}".encode())
+        root_at_10 = tree.root
+        count_at_10 = tree.leaf_count
         proof = tree.consistency_proof(count_at_5)
-        assert tree.verify_consistency(root_at_5, count_at_5, proof)
+        # verify_consistency is static — uses only the proof, not tree internals
+        assert MerkleTree.verify_consistency_static(
+            root_at_5, count_at_5, root_at_10, count_at_10, proof
+        )
+
+    def test_consistency_proof_rejects_wrong_old_root(self):
+        tree = MerkleTree()
+        for i in range(5):
+            tree.add_leaf(f"entry-{i}".encode())
+        count_at_5 = tree.leaf_count
+        for i in range(5, 10):
+            tree.add_leaf(f"entry-{i}".encode())
+        proof = tree.consistency_proof(count_at_5)
+        assert not MerkleTree.verify_consistency_static(
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            count_at_5, tree.root, tree.leaf_count, proof
+        )
 
     def test_leaf_count(self):
         tree = MerkleTree()
@@ -187,8 +205,19 @@ class MerkleTree:
         self._build_inclusion_path(index, 0, len(self._leaves), path)
         return path
 
-    def verify_inclusion(self, index: int, data: bytes, proof: list[dict[str, Any]]) -> bool:
-        """Verify an inclusion proof for the given data at index."""
+    def verify_inclusion(self, index: int, data: bytes, proof: list[dict[str, Any]],
+                         expected_root: str | None = None) -> bool:
+        """Verify an inclusion proof for the given data at index.
+
+        If expected_root is provided, verify against that root (for checkpoint proofs).
+        Otherwise verify against the current live tree root.
+        """
+        return self.verify_inclusion_static(data, proof, expected_root or self.root)
+
+    @staticmethod
+    def verify_inclusion_static(data: bytes, proof: list[dict[str, Any]],
+                                expected_root: str) -> bool:
+        """Static verification — uses only the proof, not tree internals."""
         current = _leaf_hash(data)
         for step in proof:
             sibling = bytes.fromhex(step["hash"])
@@ -196,7 +225,7 @@ class MerkleTree:
                 current = _node_hash(sibling, current)
             else:
                 current = _node_hash(current, sibling)
-        return _hex(current) == self.root
+        return _hex(current) == expected_root
 
     def consistency_proof(self, old_size: int) -> list[dict[str, Any]]:
         """Generate a consistency proof from old_size to current size."""
@@ -208,18 +237,46 @@ class MerkleTree:
         self._build_consistency_path(old_size, 0, len(self._leaves), path, True)
         return path
 
-    def verify_consistency(
-        self, old_root: str, old_size: int, proof: list[dict[str, Any]]
+    @staticmethod
+    def verify_consistency_static(
+        old_root: str, old_size: int, new_root: str, new_size: int,
+        proof: list[dict[str, Any]]
     ) -> bool:
-        """Verify that the tree grew consistently from old_root at old_size."""
+        """Verify that the tree grew consistently from old_root to new_root.
+
+        Static verification — uses only the proof, not tree internals.
+        Given old_root at old_size and new_root at new_size, the proof must
+        reconstruct both roots from shared subtrees.
+        """
         if old_size == 0:
             return True
-        if old_size == len(self._leaves):
-            return old_root == self.root
+        if old_size == new_size:
+            return old_root == new_root
+        if not proof:
+            return False
 
-        # Rebuild old root and new root from proof
-        old_hash = self._compute_root(0, old_size)
-        return _hex(old_hash) == old_root
+        # Separate old-tree and new-tree hash components from proof
+        old_hashes = [bytes.fromhex(p["hash"]) for p in proof if p["type"] == "old"]
+        new_hashes = [bytes.fromhex(p["hash"]) for p in proof if p["type"] == "new"]
+
+        # Reconstruct old root from old components
+        if not old_hashes:
+            return False
+        reconstructed_old = old_hashes[0]
+        for h in old_hashes[1:]:
+            reconstructed_old = _node_hash(h, reconstructed_old)
+        if _hex(reconstructed_old) != old_root:
+            return False
+
+        # Reconstruct new root from all components (old subtrees + new subtrees)
+        reconstructed_new = old_hashes[0]
+        for p in proof[1:]:
+            h = bytes.fromhex(p["hash"])
+            if p["type"] == "old":
+                reconstructed_new = _node_hash(h, reconstructed_new)
+            else:
+                reconstructed_new = _node_hash(reconstructed_new, h)
+        return _hex(reconstructed_new) == new_root
 
     # --- internal tree computation ---
 
@@ -942,6 +999,11 @@ def get_checkpoint_detail(
 ):
     """Individual checkpoint with optional Merkle proofs.
 
+    IMPORTANT: Proofs are generated from a snapshot of the tree at checkpoint
+    time, NOT from the live tree. This ensures proofs are stable — they verify
+    against the checkpoint's merkle_root regardless of entries added after
+    the checkpoint was created.
+
     Query params:
     - include_proof=true&leaf_index=N: returns inclusion proof for leaf N
     - consistency_from=<old_checkpoint_id>: returns consistency proof from old to this checkpoint
@@ -952,18 +1014,27 @@ def get_checkpoint_detail(
 
     result = {"checkpoint": ckpt}
 
+    # Rebuild a tree snapshot up to this checkpoint's range for proof generation
+    snapshot_tree = rebuild_merkle_tree_to(ckpt["range"]["last_sequence"])
+
     if include_proof and leaf_index is not None:
-        proof = get_merkle_inclusion_proof(leaf_index)
+        if leaf_index >= ckpt["range"]["last_sequence"]:
+            return JSONResponse(status_code=400, content={
+                "error": "leaf_index_out_of_range",
+                "detail": f"Leaf {leaf_index} is beyond checkpoint range [0, {ckpt['range']['last_sequence']})"
+            })
+        proof = snapshot_tree.inclusion_proof(leaf_index)
         result["inclusion_proof"] = {
             "leaf_index": leaf_index,
-            "path": proof["path"],
+            "path": proof,
             "merkle_root": ckpt["merkle_root"],
         }
 
     if consistency_from:
         old_ckpt = get_checkpoint_by_id(consistency_from)
         if old_ckpt:
-            proof = get_merkle_consistency_proof(old_ckpt["range"]["last_sequence"])
+            old_snapshot = rebuild_merkle_tree_to(old_ckpt["range"]["last_sequence"])
+            proof = snapshot_tree.consistency_proof(old_ckpt["range"]["last_sequence"])
             result["consistency_proof"] = {
                 "old_size": old_ckpt["range"]["last_sequence"],
                 "new_size": ckpt["range"]["last_sequence"],
@@ -979,7 +1050,9 @@ Add to discovery endpoints:
 - `"checkpoints": "/anip/checkpoints"`
 - `"checkpoint_detail": "/anip/checkpoints/{checkpoint_id}"`
 
-Add `get_checkpoint_by_id(id)` and `get_merkle_consistency_proof(old_size)` to `database.py`.
+Add to `database.py`:
+- `get_checkpoint_by_id(id)` — fetch a single checkpoint by its ID
+- `rebuild_merkle_tree_to(sequence_number)` — rebuild a Merkle tree from audit entries up to a given sequence number. This produces a snapshot-accurate tree for generating proofs against a specific checkpoint's root, not the live tree. Cache recent snapshots to avoid repeated rebuilds.
 
 **Step 3: Run tests, verify pass**
 
@@ -1091,7 +1164,13 @@ class LocalFileSink(CheckpointSink):
             json.dump(checkpoint, f, indent=2, sort_keys=True)
 ```
 
-Wire into `checkpoint.py`: after storing checkpoint in DB, publish to sink if configured.
+Wire into `checkpoint.py`: after storing checkpoint in DB, submit to sink via a background queue — **not inline in `create_checkpoint()`**. This keeps sink I/O out of the audit write path.
+
+Implementation:
+- Add a `_sink_queue: queue.Queue` and a daemon thread that drains it
+- `create_checkpoint()` stores in DB (fast, local), then enqueues the checkpoint for async sink publication
+- If the sink is unavailable, the checkpoint stays in the queue for retry
+- Add `get_pending_sink_count()` for observability (anchoring lag monitoring)
 
 **Step 3: Run tests, verify pass**
 
@@ -1099,7 +1178,7 @@ Wire into `checkpoint.py`: after storing checkpoint in DB, publish to sink if co
 
 ```bash
 git add examples/anip/anip_server/primitives/sinks.py examples/anip/anip_server/primitives/checkpoint.py examples/anip/tests/test_sinks.py
-git commit -m "feat: add checkpoint sink interface + local filesystem sink (Python)"
+git commit -m "feat: add checkpoint sink interface + async publication queue (Python)"
 ```
 
 ---
@@ -1205,11 +1284,13 @@ Document the policy hook vocabulary: `cadence`, `max_lag`, `sink`, trigger/actio
 
 Standardize how a service declares where checkpoints are published. The `sink` field in the trust posture uses a URI-like scheme:
 
-| Scheme | Example | Description |
-|--------|---------|-------------|
-| `witness:` | `witness:acme-audit` | Named witness service (deployment-defined) |
-| `https:` | `https://audit.example.com/checkpoints` | HTTPS endpoint accepting checkpoint POST |
-| `file:` | `file:///var/anip/checkpoints/` | Local filesystem (reference/dev only) |
+| Scheme | Example | Qualifies as anchored? | Description |
+|--------|---------|----------------------|-------------|
+| `witness:` | `witness:acme-audit` | Yes | Named witness service (deployment-defined) |
+| `https:` | `https://audit.example.com/checkpoints` | Yes | HTTPS endpoint accepting checkpoint POST |
+| `file:` | `file:///var/anip/checkpoints/` | **No** — dev/reference only | Local filesystem — not infrastructure the service doesn't control |
+
+A `file:` sink is useful for development and testing but does not satisfy the anchored trust level's requirement of publishing to infrastructure the service does not solely control. A service declaring `trust_level: anchored` with a `file:` sink SHOULD be treated as effectively `signed` by callers.
 
 The protocol standardizes the scheme vocabulary. Deployments define the actual endpoints. Callers can discover checkpoint locations from the manifest trust posture and independently verify published artifacts.
 
@@ -1222,6 +1303,11 @@ Add `trust_level` field to the discovery response specification.
 Document both endpoints:
 - `GET /anip/checkpoints` — list recent checkpoints (query: `limit`)
 - `GET /anip/checkpoints/{checkpoint_id}` — individual checkpoint with optional proofs (query: `include_proof`, `leaf_index`, `consistency_from`)
+
+Requirement levels per trust level:
+- `signed`: endpoint MAY be present (returns empty list if no checkpoints)
+- `anchored`: endpoint MUST be present and MUST return checkpoints
+- `attested`: same as anchored (v0.4)
 
 Explicitly note: this is a convenience/inspection surface, not the authoritative trust anchor. Callers should verify checkpoint artifacts independently.
 
@@ -1286,7 +1372,7 @@ git commit -m "docs: rename trust-model-v0.2.md → trust-model.md and add v0.3 
 class TestTrustLevel:
     def test_discovery_declares_trust_level(self):
         """Discovery MUST include trust_level."""
-        resp = requests.get(f"{BASE}/. well-known/anip")
+        resp = requests.get(f"{BASE}/.well-known/anip")
         data = resp.json()["anip_discovery"]
         assert "trust_level" in data
         assert data["trust_level"] in ("signed", "anchored", "attested")
@@ -1298,17 +1384,22 @@ class TestTrustLevel:
         assert "trust" in manifest
         assert manifest["trust"]["level"] in ("signed", "anchored", "attested")
 
-    def test_checkpoints_endpoint_exists(self):
-        """GET /anip/checkpoints MUST return 200."""
+
+class TestAnchoredTrust:
+    """Tests that only apply to services declaring trust_level: anchored.
+    Skip entire class if service declares signed."""
+
+    def test_checkpoints_endpoint_required(self):
+        """For anchored services, GET /anip/checkpoints MUST return 200 with checkpoints."""
+        resp = requests.get(f"{BASE}/.well-known/anip")
+        trust_level = resp.json()["anip_discovery"].get("trust_level", "signed")
+        if trust_level == "signed":
+            pytest.skip("Service declares signed — checkpoints endpoint not required")
         resp = requests.get(f"{BASE}/anip/checkpoints")
         assert resp.status_code == 200
         data = resp.json()
         assert "checkpoints" in data
         assert isinstance(data["checkpoints"], list)
-
-
-class TestAnchoredTrust:
-    """Tests that only apply to services declaring trust_level: anchored."""
 
     def test_checkpoint_has_merkle_root(self):
         """Checkpoints MUST include a Merkle root."""
