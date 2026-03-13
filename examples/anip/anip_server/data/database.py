@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Generator
 
+from anip_server.primitives.checkpoint import CheckpointPolicy
 from anip_server.primitives.merkle import MerkleTree
 
 # Database path — configurable via ANIP_DB_PATH environment variable
@@ -23,12 +24,21 @@ DB_PATH = Path(os.environ.get("ANIP_DB_PATH", str(Path(__file__).parent / "anip.
 _connection: sqlite3.Connection | None = None
 _audit_signer = None
 _merkle_tree = MerkleTree()
+_checkpoint_policy: CheckpointPolicy | None = None
+_entries_since_checkpoint: int = 0
 
 
 def set_audit_signer(signer):
     """Set the audit entry signer (KeyManager instance)."""
     global _audit_signer
     _audit_signer = signer
+
+
+def set_checkpoint_policy(policy: CheckpointPolicy | None) -> None:
+    """Set the checkpoint policy for automatic checkpointing."""
+    global _checkpoint_policy, _entries_since_checkpoint
+    _checkpoint_policy = policy
+    _entries_since_checkpoint = 0
 
 
 def get_connection() -> sqlite3.Connection:
@@ -385,6 +395,15 @@ def log_invocation(
             ),
         )
 
+    # Auto-checkpoint based on entry count policy (outside the transaction)
+    global _entries_since_checkpoint
+    _entries_since_checkpoint += 1
+    if _checkpoint_policy and _checkpoint_policy.should_checkpoint(
+        entries_since_last=_entries_since_checkpoint
+    ):
+        create_checkpoint()
+        _entries_since_checkpoint = 0
+
 
 def query_audit_log(
     capability: str | None = None,
@@ -547,4 +566,31 @@ def create_checkpoint() -> tuple[dict[str, Any], str]:
         signature = _audit_signer.sign_jws_detached(canonical_bytes)
 
     store_checkpoint(body, signature)
+
+    # Reset entry counter after checkpoint creation
+    global _entries_since_checkpoint
+    _entries_since_checkpoint = 0
+
     return body, signature
+
+
+def get_anchoring_lag() -> dict[str, Any]:
+    """Return metrics describing how far the audit log is from the last checkpoint."""
+    checkpoints = get_checkpoints(limit=1)
+    if checkpoints:
+        last_ts = checkpoints[-1]["timestamp"]
+        last_dt = datetime.fromisoformat(last_ts)
+        seconds = (datetime.now(timezone.utc) - last_dt).total_seconds()
+    else:
+        seconds = 0.0
+    return {
+        "entries_since_last_checkpoint": _entries_since_checkpoint,
+        "seconds_since_last_checkpoint": seconds,
+        "pending_sink_publications": 0,  # placeholder for Task 13
+        "max_lag_exceeded": False,  # placeholder
+    }
+
+
+def has_new_entries_since_checkpoint() -> bool:
+    """Return True if there are audit entries since the last checkpoint."""
+    return _entries_since_checkpoint > 0

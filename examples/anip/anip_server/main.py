@@ -82,6 +82,27 @@ set_audit_signer(_keys)
 # Build manifest once at startup
 _manifest = build_manifest()
 
+# Configure automatic checkpointing from environment variables
+from .primitives.checkpoint import CheckpointPolicy, CheckpointScheduler
+from .data.database import set_checkpoint_policy, create_checkpoint, has_new_entries_since_checkpoint
+
+_checkpoint_cadence = os.environ.get("ANIP_CHECKPOINT_CADENCE")
+_checkpoint_interval = os.environ.get("ANIP_CHECKPOINT_INTERVAL")
+_checkpoint_scheduler: CheckpointScheduler | None = None
+
+if _checkpoint_cadence or _checkpoint_interval:
+    _ckpt_policy = CheckpointPolicy(
+        entry_count=int(_checkpoint_cadence) if _checkpoint_cadence else None,
+        interval_seconds=int(_checkpoint_interval) if _checkpoint_interval else None,
+    )
+    set_checkpoint_policy(_ckpt_policy)
+
+if _checkpoint_interval:
+    _checkpoint_scheduler = CheckpointScheduler(
+        int(_checkpoint_interval), create_checkpoint, has_new_entries_since_checkpoint
+    )
+    _checkpoint_scheduler.start()
+
 # Capability registry — maps name to invoke function
 _capability_handlers = {
     "search_flights": search_flights.invoke,
