@@ -1,0 +1,20 @@
+[project]
+name = "anip-crypto"
+version = "0.3.0"
+description = "ANIP cryptographic primitives — key management, JWT, JWS, JWKS"
+requires-python = ">=3.11"
+dependencies = [
+    "anip-core>=0.3.0",
+    "cryptography>=42.0",
+    "PyJWT[crypto]>=2.8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
