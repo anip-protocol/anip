@@ -1,9 +1,8 @@
 """Tests for anip-core protocol models."""
-import pytest
 from anip_core import (
     ANIPManifest, CapabilityDeclaration, DelegationToken,
     TrustPosture, AnchoringPolicy, SideEffectType,
-    ConcurrentBranches, PermissionResponse, InvokeResponse,
+    ConcurrentBranches, PermissionResponse,
     ANIPFailure, PROTOCOL_VERSION,
 )
 
