@@ -87,6 +87,32 @@ The adapter is a **stateless credential bridge** — it holds no tokens of its o
 
 If `X-ANIP-Token` is present, it takes precedence. If neither header is provided, the adapter returns 401.
 
+```mermaid
+sequenceDiagram
+    participant Client as HTTP Client
+    participant Adapter as REST Adapter
+    participant ANIP as ANIP Service
+
+    rect rgb(230, 245, 230)
+    Note over Client,ANIP: Preferred: Signed Token Path
+    Client->>Adapter: GET /api/search_flights (X-ANIP-Token: <JWT>)
+    Adapter->>ANIP: POST /anip/invoke/search_flights (+ JWT)
+    ANIP-->>Adapter: {success, result}
+    Adapter-->>Client: 200 {success, result}
+    end
+
+    rect rgb(255, 243, 224)
+    Note over Client,ANIP: Convenience: API Key Path
+    Client->>Adapter: GET /api/search_flights (X-ANIP-API-Key: <key>)
+    Adapter->>ANIP: POST /anip/tokens (+ key, scoped)
+    ANIP-->>Adapter: signed JWT
+    Adapter->>ANIP: POST /anip/invoke/search_flights (+ JWT)
+    ANIP-->>Adapter: {success, result}
+    Adapter-->>Client: 200 {success, result}
+    Note over Adapter: audit subject = adapter identity, not caller
+    end
+```
+
 ## Configuration
 
 ### Environment Variables
