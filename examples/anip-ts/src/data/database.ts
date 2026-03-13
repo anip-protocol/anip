@@ -66,6 +66,18 @@ function initSchema(conn: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_audit_capability ON audit_log(capability);
     CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
     CREATE INDEX IF NOT EXISTS idx_audit_root_principal ON audit_log(root_principal);
+
+    CREATE TABLE IF NOT EXISTS checkpoints (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      checkpoint_id TEXT NOT NULL UNIQUE,
+      first_sequence INTEGER NOT NULL,
+      last_sequence INTEGER NOT NULL,
+      merkle_root TEXT NOT NULL,
+      previous_checkpoint TEXT,
+      timestamp TEXT NOT NULL,
+      entry_count INTEGER NOT NULL,
+      signature TEXT NOT NULL
+    );
   `);
 }
 
@@ -254,4 +266,149 @@ export function getMerkleInclusionProof(index: number) {
   } catch {
     return null;
   }
+}
+
+// --- Checkpoints ---
+
+export interface CheckpointBody {
+  version: string;
+  service_id: string;
+  checkpoint_id: string;
+  range: { first_sequence: number; last_sequence: number };
+  merkle_root: string;
+  previous_checkpoint: string | null;
+  timestamp: string;
+  entry_count: number;
+}
+
+export function storeCheckpoint(body: CheckpointBody, signature: string): void {
+  const conn = getConnection();
+  conn
+    .prepare(
+      `INSERT INTO checkpoints
+       (checkpoint_id, first_sequence, last_sequence, merkle_root,
+        previous_checkpoint, timestamp, entry_count, signature)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      body.checkpoint_id,
+      body.range.first_sequence,
+      body.range.last_sequence,
+      body.merkle_root,
+      body.previous_checkpoint,
+      body.timestamp,
+      body.entry_count,
+      signature,
+    );
+}
+
+export function getCheckpoints(limit: number = 10): Array<{
+  checkpoint_id: string;
+  first_sequence: number;
+  last_sequence: number;
+  merkle_root: string;
+  previous_checkpoint: string | null;
+  timestamp: string;
+  entry_count: number;
+  signature: string;
+}> {
+  const conn = getConnection();
+  const rows = conn
+    .prepare("SELECT * FROM checkpoints ORDER BY id ASC LIMIT ?")
+    .all(limit) as Record<string, unknown>[];
+
+  return rows.map((row) => ({
+    checkpoint_id: row.checkpoint_id as string,
+    first_sequence: row.first_sequence as number,
+    last_sequence: row.last_sequence as number,
+    merkle_root: row.merkle_root as string,
+    previous_checkpoint: (row.previous_checkpoint as string) ?? null,
+    timestamp: row.timestamp as string,
+    entry_count: row.entry_count as number,
+    signature: row.signature as string,
+  }));
+}
+
+export function createCheckpoint(
+  signFn: (payload: Buffer) => string,
+): [CheckpointBody, string] {
+  const snap = getMerkleSnapshot();
+  const conn = getConnection();
+
+  // Determine previous checkpoint (if any)
+  const prevRow = conn
+    .prepare("SELECT * FROM checkpoints ORDER BY id DESC LIMIT 1")
+    .get() as Record<string, unknown> | undefined;
+
+  let firstSequence: number;
+  let previousCheckpoint: string | null;
+  let checkpointNumber: number;
+
+  if (prevRow === undefined) {
+    firstSequence = 1;
+    previousCheckpoint = null;
+    checkpointNumber = 1;
+  } else {
+    firstSequence = (prevRow.last_sequence as number) + 1;
+    // Hash the previous checkpoint body (canonical JSON, sorted keys, no whitespace)
+    const prevBody: CheckpointBody = {
+      version: "0.3",
+      service_id: process.env.ANIP_SERVICE_ID ?? "anip-reference-server",
+      checkpoint_id: prevRow.checkpoint_id as string,
+      range: {
+        first_sequence: prevRow.first_sequence as number,
+        last_sequence: prevRow.last_sequence as number,
+      },
+      merkle_root: prevRow.merkle_root as string,
+      previous_checkpoint: (prevRow.previous_checkpoint as string) ?? null,
+      timestamp: prevRow.timestamp as string,
+      entry_count: prevRow.entry_count as number,
+    };
+    const prevCanonical = canonicalJson(prevBody);
+    previousCheckpoint = `sha256:${createHash("sha256").update(prevCanonical).digest("hex")}`;
+    // Extract number from previous checkpoint_id
+    const parts = (prevRow.checkpoint_id as string).split("-");
+    checkpointNumber = parseInt(parts[1], 10) + 1;
+  }
+
+  const lastSequence = snap.leaf_count;
+  const entryCount = lastSequence - firstSequence + 1;
+
+  const body: CheckpointBody = {
+    version: "0.3",
+    service_id: process.env.ANIP_SERVICE_ID ?? "anip-reference-server",
+    checkpoint_id: `ckpt-${checkpointNumber}`,
+    range: {
+      first_sequence: firstSequence,
+      last_sequence: lastSequence,
+    },
+    merkle_root: snap.root,
+    previous_checkpoint: previousCheckpoint,
+    timestamp: new Date().toISOString(),
+    entry_count: entryCount,
+  };
+
+  // Sign with detached JWS
+  const canonicalBytes = Buffer.from(canonicalJson(body));
+  const signature = signFn(canonicalBytes);
+
+  storeCheckpoint(body, signature);
+  return [body, signature];
+}
+
+/**
+ * Produce canonical JSON: sorted keys, no whitespace.
+ */
+function canonicalJson(obj: unknown): string {
+  if (obj === null || obj === undefined) return "null";
+  if (typeof obj === "string") return JSON.stringify(obj);
+  if (typeof obj === "number" || typeof obj === "boolean") return String(obj);
+  if (Array.isArray(obj)) {
+    return `[${obj.map(canonicalJson).join(",")}]`;
+  }
+  const keys = Object.keys(obj as Record<string, unknown>).sort();
+  const pairs = keys.map(
+    (k) => `${JSON.stringify(k)}:${canonicalJson((obj as Record<string, unknown>)[k])}`,
+  );
+  return `{${pairs.join(",")}}`;
 }
