@@ -212,7 +212,7 @@ The principle: each version extends trust guarantees without requiring the previ
 
 4. **Anchoring verification endpoint:** `GET /anip/checkpoints` — a convenience/inspection surface exposing checkpoint metadata and receipts if available. This is a helper for callers to monitor checkpoint cadence and inspect proofs, **not the authoritative trust anchor itself**. Callers should verify checkpoint artifacts independently, not blindly trust the endpoint. Optional for `signed`, available for `anchored`.
 
-5. **Backward compatibility:** Fully additive. A v0.2 caller that doesn't understand trust levels sees no difference — new fields in discovery and manifest are optional. A v0.2 service remains a valid `signed` deployment with no changes.
+5. **Backward compatibility:** Not a constraint. There are no external dependents yet, so v0.3 may introduce clean protocol changes if they improve the trust model. v0.2 semantics are the conceptual baseline (a v0.2-style deployment is still `signed`), but not a hard wire-format compatibility promise. Clarity matters more than migration burden at this stage.
 
 ---
 
