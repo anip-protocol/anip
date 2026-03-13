@@ -1,4 +1,4 @@
-# ANIP Specification v0.2
+# ANIP Specification v0.3
 
 > Agent-Native Interface Protocol — Draft
 
@@ -154,7 +154,7 @@ delegation_token:
 
 - **DAG, not list.** An orchestrator delegating to Agent A and Agent B in parallel creates two tokens with the same parent. The service can detect concurrent agents sharing a root principal.
 - **Purpose-bound.** Prevents token reuse beyond the intended task. Agent B cannot use a token delegated for flight booking to access expense reports, even if the scope strings overlap.
-- **JWT/ES256 in v0.2.** ANIP v0.2 defines JWT (JSON Web Token) with ES256 (ECDSA P-256) as the standard token format. The service is the sole token issuer — agents request tokens via `POST /anip/tokens` with Bearer authentication, and the service returns signed JWTs. The semantic model is inspired by W3C Verifiable Credentials. See [docs/trust-model-v0.2.md](docs/trust-model-v0.2.md) for the full cryptographic trust model.
+- **JWT/ES256 (since v0.2).** ANIP defines JWT (JSON Web Token) with ES256 (ECDSA P-256) as the standard token format. The service is the sole token issuer — agents request tokens via `POST /anip/tokens` with Bearer authentication, and the service returns signed JWTs. The semantic model is inspired by W3C Verifiable Credentials. See [docs/trust-model.md](docs/trust-model.md) for the full cryptographic trust model.
 
 Every request to an ANIP service MUST include a delegation token. The service MUST validate the token's scope, purpose, expiry, and constraints before processing the request.
 
@@ -491,6 +491,8 @@ anip_discovery:
     graph: "/anip/graph/{capability}"
     audit: "/anip/audit"
     test: "/anip/test/{capability}"
+    checkpoints: "/anip/checkpoints"           # v0.3: MAY for signed, MUST for anchored/attested
+  trust_level: "anchored"                    # one of: signed, anchored, attested (see Section 7.1)
   metadata:
     service_name: "Flight Booking Service"
     service_description: "ANIP-compliant flight search and booking"
@@ -518,6 +520,7 @@ anip_discovery:
   - `minimum_scope` — array of delegation scopes REQUIRED to invoke this capability. ALL scopes in the array are required (AND semantics). This is a guarantee, not a hint: an agent whose delegation token lacks any of these scopes MUST NOT attempt invocation. Using an array from day one avoids a breaking change when compound authorization is needed (e.g., `["travel.book", "payments.authorize"]`).
   - `financial` — whether this capability involves financial cost. The `financial` flag MUST be `true` for any capability whose `cost.financial` field is non-null in the manifest, regardless of cost certainty level (`fixed`, `estimated`, or `dynamic`). Implementations MUST NOT use the presence or value of an `amount` key to determine this flag. Capabilities with no financial cost MUST set `cost.financial` to `null` (not a zero-amount object). Lets agents distinguish "irreversible and costs money" from "irreversible but free" — a distinction that matters for authorization handling. When `true`, agents should check cost signaling and budget authority before attempting invocation.
   - `contract` — the current contract version. An agent with a cached manifest can check whether contracts have changed without refetching.
+- **trust_level** (REQUIRED, v0.3) — the trust level this service claims: `"signed"`, `"anchored"`, or `"attested"` (see Section 7.1). Agents use this to determine what verification guarantees the service provides. A service claiming `"anchored"` or `"attested"` MUST implement the checkpoint endpoints (Section 6.5).
 - **endpoints** (REQUIRED) — URLs for each standard endpoint (see Section 6.2)
 - **metadata** (RECOMMENDED) — service-level metadata that lets agents make decisions without fetching the full manifest
 
@@ -577,6 +580,8 @@ ANIP defines the following standard endpoints. Core endpoints MUST be implemente
 | `{graph}/{capability}` | GET | capability_graph | Capability prerequisites and composition |
 | `{audit}` | POST | observability | Audit log query, filtered by root principal |
 | `{test}/{capability}` | POST | test | Contract testing sandbox (reserved, v2) |
+| `{checkpoints}` | GET | trust (v0.3) | List checkpoints with pagination |
+| `{checkpoints}/{id}` | GET | trust (v0.3) | Checkpoint detail with Merkle proofs |
 
 Endpoint paths in the table above use `{name}` to reference the URL declared in the discovery document's `endpoints` field. Services MAY use any URL paths they choose — the discovery document is the source of truth for where each endpoint lives.
 
@@ -670,7 +675,7 @@ registered: true
 token_id: "tok_root_001"
 ```
 
-In ANIP v0.2 (signed mode, default), the service issues JWT tokens and verifies their ES256 signatures at every protected endpoint. A trust boundary (`_resolve_jwt_token()`) compares all signed JWT claims against stored state, detecting both token forgery and store tampering. Legacy trust-on-declaration mode is available via `ANIP_TRUST_MODE=declaration` for backward compatibility.
+In ANIP v0.2+ (signed mode, default), the service issues JWT tokens and verifies their ES256 signatures at every protected endpoint. A trust boundary (`_resolve_jwt_token()`) compares all signed JWT claims against stored state, detecting both token forgery and store tampering. Legacy trust-on-declaration mode is available via `ANIP_TRUST_MODE=declaration` for backward compatibility.
 
 #### Permission Discovery — `POST {permissions}`
 
@@ -765,24 +770,215 @@ sequenceDiagram
 
 Not every interaction requires all steps. An agent that has previously interacted with a service may skip directly to step 4 if it has cached the manifest. An agent performing a read-only operation may skip the capability graph step. But the sequence above is the canonical flow for a first interaction.
 
+### 6.5 Checkpoint Endpoints (v0.3)
+
+Services at trust level `anchored` or `attested` MUST expose checkpoint endpoints. Services at trust level `signed` MAY expose them.
+
+#### List Checkpoints — `GET {checkpoints}`
+
+**Request:** No body. Optional query parameters: `since` (ISO 8601 timestamp), `limit` (integer, default 20).
+
+**Response:**
+
+```json
+{
+  "checkpoints": [
+    {
+      "checkpoint_id": "cp_00042",
+      "range": { "from": 1001, "to": 1500 },
+      "merkle_root": "sha256:3a7bd3e2360a8bb...",
+      "timestamp": "2026-03-12T06:00:00Z",
+      "entry_count": 500
+    }
+  ],
+  "next_cursor": "cp_00041"
+}
+```
+
+#### Checkpoint Detail — `GET {checkpoints}/{id}`
+
+**Request:** No body. Optional query parameters: `include_proof` (boolean, default `false`), `leaf_index` (integer, required when `include_proof` is `true`).
+
+**Response:**
+
+```json
+{
+  "version": "0.3",
+  "service_id": "flights.example.com",
+  "checkpoint_id": "cp_00042",
+  "range": { "from": 1001, "to": 1500 },
+  "merkle_root": "sha256:3a7bd3e2360a8bb...",
+  "previous_checkpoint": "cp_00041",
+  "timestamp": "2026-03-12T06:00:00Z",
+  "entry_count": 500
+}
+```
+
+Note: The checkpoint body does NOT contain a signature field. Checkpoints use the detached JWS pattern — the signature is carried in the `X-ANIP-Signature` header, not in the body. This keeps the signed payload identical to the response body, avoiding canonicalization issues.
+
+When `include_proof=true` and `leaf_index` is provided, the response includes an `inclusion_proof` field (see Section 7.4 for proof schemas).
+
 ---
 
 ## 7. Trust Model
 
-### V1: Trust-on-Declaration
+### 7.1 Trust Levels (v0.3)
+
+ANIP v0.3 introduces three trust levels. Each level builds on the previous one — higher levels provide strictly stronger guarantees.
+
+| Level | Protocol Name | Description |
+|-------|---------------|-------------|
+| Bronze | `signed` | Service signs manifests and delegation tokens with ES256 (ECDSA P-256). Agents can verify that declarations come from the claimed service and have not been tampered with. This is the v0.2 baseline. |
+| Silver | `anchored` | Service periodically publishes Merkle tree checkpoints over its audit log. Agents can request inclusion proofs to verify that a specific interaction was recorded. Checkpoints MAY be anchored to external witnesses (see Section 7.5). This makes log tampering detectable after the fact. |
+| Gold | `attested` | A third-party auditor or witness co-signs checkpoints, attesting that the service's declared behavior matches observed behavior. Requires both anchored checkpoints and external attestation. |
+
+A service MUST declare its trust level in the discovery document's `trust_level` field (Section 6.1). A service MUST NOT claim a higher trust level than it implements. Trust levels are verifiable: an agent can confirm `signed` by checking JWS signatures, `anchored` by requesting Merkle proofs, and `attested` by verifying the co-signer's attestation.
+
+### 7.2 Trust-on-Declaration (v1 baseline)
 
 In ANIP v1, services declare their capabilities, side-effects, costs, and observability contracts. Agents trust those declarations.
 
 This is explicitly acknowledged as insufficient for production use at scale. Unlike robots.txt violations (which are economically low-stakes for the violator), ANIP violations involving cost signaling or side-effect declarations have direct financial consequences. The trust-on-declaration model will face adversarial pressure faster than web crawling norms did.
 
-V1 operates on trust-on-declaration with the expectation that verification mechanisms are a priority for v2.
+V1 operates on trust-on-declaration. v0.2 added cryptographic signing (Bronze). v0.3 adds anchored checkpoints (Silver) and the attestation framework (Gold).
 
-### Path to Verification (v2+)
+### 7.3 Checkpoint Format (v0.3)
 
-The solution space includes:
+A checkpoint is a commitment over a contiguous range of audit log entries, structured as a Merkle tree. The checkpoint body contains:
 
-- **Signed manifests** — the service signs its manifest with a verifiable key. Agents can confirm the manifest hasn't been tampered with and was issued by the claimed service.
-- **Third-party attestation** — a registry or auditor vouches for manifest accuracy, similar to certificate authorities for TLS.
+```json
+{
+  "version": "0.3",
+  "service_id": "flights.example.com",
+  "checkpoint_id": "cp_00042",
+  "range": { "from": 1001, "to": 1500 },
+  "merkle_root": "sha256:3a7bd3e2360a8bb...",
+  "previous_checkpoint": "cp_00041",
+  "timestamp": "2026-03-12T06:00:00Z",
+  "entry_count": 500
+}
+```
+
+**Fields:**
+
+- **version** (REQUIRED) — the ANIP protocol version that defines this checkpoint format
+- **service_id** (REQUIRED) — the service that produced this checkpoint, matching `base_url` in the discovery document
+- **checkpoint_id** (REQUIRED) — unique, monotonically increasing identifier for this checkpoint
+- **range** (REQUIRED) — the audit log entry range covered by this checkpoint (`from` inclusive, `to` inclusive)
+- **merkle_root** (REQUIRED) — the root hash of the Merkle tree over the entries in this range, prefixed with the hash algorithm
+- **previous_checkpoint** (REQUIRED, except for the first checkpoint) — the checkpoint_id of the immediately preceding checkpoint, forming a hash chain
+- **timestamp** (REQUIRED) — ISO 8601 timestamp of when this checkpoint was produced
+- **entry_count** (REQUIRED) — number of entries in this checkpoint's range
+
+The checkpoint body does NOT contain a signature field. Checkpoints use the **detached JWS pattern**: the service signs the checkpoint body with its ES256 key and delivers the signature in the `X-ANIP-Signature` response header. This keeps the signed payload byte-identical to the response body.
+
+### 7.4 Merkle Proof Schemas (v0.3)
+
+ANIP uses RFC 6962-compatible Merkle trees for checkpoint integrity. Hash functions:
+
+- **Leaf hash:** `SHA-256(0x00 || data)` — the hash of a leaf node is the SHA-256 of a `0x00` byte concatenated with the leaf data
+- **Node hash:** `SHA-256(0x01 || left || right)` — the hash of an interior node is the SHA-256 of a `0x01` byte concatenated with the left and right child hashes
+
+The `0x00`/`0x01` domain separation prefix prevents second-preimage attacks where an interior node could be confused with a leaf.
+
+#### Inclusion Proof
+
+An inclusion proof demonstrates that a specific audit log entry is present in a checkpoint's Merkle tree:
+
+```json
+{
+  "leaf_index": 42,
+  "merkle_root": "sha256:3a7bd3e2360a8bb...",
+  "path": [
+    { "hash": "sha256:a1b2c3d4...", "side": "left" },
+    { "hash": "sha256:e5f6a7b8...", "side": "right" },
+    { "hash": "sha256:c9d0e1f2...", "side": "left" }
+  ]
+}
+```
+
+**Fields:**
+
+- **leaf_index** (REQUIRED) — the zero-based index of the leaf in the Merkle tree
+- **merkle_root** (REQUIRED) — the expected root hash (must match the checkpoint's `merkle_root`)
+- **path** (REQUIRED) — ordered list of sibling hashes from leaf to root. Each entry contains:
+  - `hash` — the sibling node's hash
+  - `side` — which side the sibling is on (`"left"` or `"right"`)
+
+To verify: start with the leaf hash, combine with each path element (respecting `side` ordering), and confirm the result matches `merkle_root`.
+
+#### Consistency Proof
+
+A consistency proof demonstrates that an older checkpoint's tree is a prefix of a newer checkpoint's tree — proving that no entries were removed or altered between checkpoints:
+
+```json
+{
+  "old_size": 500,
+  "new_size": 1000,
+  "old_root": "sha256:aabbccdd...",
+  "new_root": "sha256:3a7bd3e2360a8bb...",
+  "path": [
+    { "hash": "sha256:11223344...", "side": "left" },
+    { "hash": "sha256:55667788...", "side": "right" }
+  ]
+}
+```
+
+**Fields:**
+
+- **old_size** (REQUIRED) — the entry count of the older checkpoint
+- **new_size** (REQUIRED) — the entry count of the newer checkpoint
+- **old_root** (REQUIRED) — the Merkle root of the older checkpoint
+- **new_root** (REQUIRED) — the Merkle root of the newer checkpoint
+- **path** (REQUIRED) — the consistency proof path per RFC 6962 Section 2.1.2
+
+Consistency proofs let agents verify that the service has not retroactively modified audit log history. An agent that cached a previous checkpoint can request a consistency proof against the current checkpoint and confirm that all previously committed entries are still present and unchanged.
+
+### 7.5 Policy Hooks (v0.3)
+
+Policy hooks define the operational rules for checkpoint production and sink delivery. A service at trust level `anchored` or `attested` MUST declare its checkpoint policy in the manifest.
+
+```yaml
+checkpoint_policy:
+  cadence: "PT1H"                    # ISO 8601 duration — produce a checkpoint at least this often
+  max_lag: 500                       # maximum audit log entries before a checkpoint MUST be produced
+  sink:
+    - "witness:rekor.sigstore.dev"   # qualifying: external witness
+    - "https://auditor.example.com/checkpoints"  # qualifying: HTTPS endpoint
+  triggers:
+    - trigger: entry_count_exceeded
+      action: produce_checkpoint
+    - trigger: cadence_elapsed
+      action: produce_checkpoint
+    - trigger: checkpoint_produced
+      action: publish_to_sinks
+```
+
+**Fields:**
+
+- **cadence** (REQUIRED) — ISO 8601 duration specifying the maximum time between checkpoints. The service MUST produce a checkpoint at least this often, even if no new entries exist (in which case the checkpoint covers an empty range).
+- **max_lag** (REQUIRED) — the maximum number of uncheck pointed audit log entries. When the count of entries since the last checkpoint exceeds this value, the service MUST produce a new checkpoint immediately.
+- **sink** (REQUIRED for `anchored` and `attested`) — ordered list of sink URIs where checkpoints are published (see Section 7.6).
+- **triggers** (RECOMMENDED) — list of trigger/action pairs defining the checkpoint production workflow. Standard triggers: `entry_count_exceeded`, `cadence_elapsed`, `manual_request`. Standard actions: `produce_checkpoint`, `publish_to_sinks`.
+
+### 7.6 Sink URI Schemes (v0.3)
+
+Sinks are destinations where checkpoints are published for external verification. ANIP defines three URI schemes:
+
+| Scheme | Qualifying | Description |
+|--------|-----------|-------------|
+| `witness:` | Yes | An external transparency log or witness service (e.g., `witness:rekor.sigstore.dev`). The witness co-signs or records the checkpoint, providing independent proof of its existence at a specific time. |
+| `https:` | Yes | An HTTPS endpoint that accepts checkpoint submissions. The endpoint MUST return a signed receipt. Suitable for dedicated auditor services or cross-organizational verification. |
+| `file:` | No | A local filesystem path (e.g., `file:///var/log/anip/checkpoints/`). For development and testing only. Does NOT qualify as an external sink because it provides no independent verification. |
+
+A service claiming trust level `anchored` MUST publish checkpoints to at least one qualifying sink (`witness:` or `https:`). A service claiming trust level `attested` MUST publish to at least one `witness:` sink with third-party co-signing.
+
+Non-qualifying sinks (`file:`) MAY be included alongside qualifying sinks for debugging purposes but MUST NOT be the sole sink for a service claiming `anchored` or `attested` trust level.
+
+### 7.7 Path to Full Verification (v2+)
+
+The remaining solution space beyond v0.3 includes:
+
 - **Runtime reputation** — agents track declared vs. actual behavior over time and share reputation signals.
 - **Contract testing** — a standardized sandbox where agents or auditors can invoke capabilities and verify that declared side-effects match actual behavior.
 
@@ -860,7 +1056,7 @@ The following categories define the surface area of ANIP conformance testing:
 
 ### 8.3 Conformance Test Suite
 
-ANIP v0.2 defines the test categories and expected behaviors above. A reference conformance test suite is included in v0.2 at `tests/test_conformance.py`. It validates side-effect accuracy, scope enforcement, budget enforcement, failure semantics, and cost accuracy against any ANIP service.
+ANIP defines the test categories and expected behaviors above. A reference conformance test suite is included in v0.2 at `tests/test_conformance.py`. It validates side-effect accuracy, scope enforcement, budget enforcement, failure semantics, and cost accuracy against any ANIP service.
 
 The conformance test suite:
 
@@ -928,7 +1124,7 @@ The following are explicitly out of scope for ANIP v1:
 - **Multi-agent distributed transactions.** The delegation chain is DAG-ready, but coordinating transactions across multiple ANIP services is not addressed. The primitives are designed not to preclude this in future versions.
 - **Non-HTTP transport bindings.** V1 is HTTP-first. Other transports are a future concern.
 - **Registry service.** How an agent *finds* ANIP services across the internet (like DNS for domains) is a separate problem. V1 defines service-level discovery via `/.well-known/anip` but does not define a global registry.
-- **Trust verification enforcement.** ~~V1 is trust-on-declaration.~~ *Resolved in v0.2:* signed mode (default) uses JWT/ES256 with full cryptographic verification. Trust-on-declaration remains available for development via `ANIP_TRUST_MODE=declaration`.
+- **Trust verification enforcement.** ~~V1 is trust-on-declaration.~~ *Resolved in v0.2:* signed mode (default) uses JWT/ES256 with full cryptographic verification. Trust-on-declaration remains available for development via `ANIP_TRUST_MODE=declaration`. *Extended in v0.3:* anchored trust adds Merkle checkpoints, inclusion/consistency proofs, and external sink publication for verifiable audit log integrity.
 - **Cryptographic token format mandate.** ~~V1 defines delegation token semantics, not cryptographic format.~~ *Resolved in v0.2:* JWT with ES256 is the standard format. JWKS endpoint at `/.well-known/jwks.json` for public key discovery.
 
 ---
@@ -947,9 +1143,15 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Signed manifests** | MUST — v0.2 core | Implemented: detached JWS (ES256) in `X-ANIP-Signature` header, manifest metadata with SHA-256 hash | Third-party manifest attestation |
 | **Audit log integrity** | MUST — v0.2 core | Implemented: hash chain with per-entry signatures, separate audit signing key | Append-only infrastructure, third-party attestation, external timestamp anchoring |
 | **Conformance test suite** | SHOULD — v0.2 | Implemented: portable test suite at `tests/test_conformance.py` with `--anip-url` flag | Side-effect contract testing (§7), sandbox infrastructure |
+| **Trust levels (§7.1)** | MUST — v0.3 core | Implemented: signed/anchored/attested levels with `trust_level` in discovery | — |
+| **Merkle checkpoints (§7.3)** | MUST for anchored — v0.3 | Implemented: checkpoint production, Merkle tree construction, detached JWS | Cross-service checkpoint federation |
+| **Merkle proofs (§7.4)** | MUST for anchored — v0.3 | Implemented: inclusion proofs, consistency proofs, RFC 6962 hash scheme | — |
+| **Policy hooks (§7.5)** | MUST for anchored — v0.3 | Implemented: cadence, max_lag, trigger/action pairs | Policy negotiation between agents and services |
+| **Sink publication (§7.6)** | MUST for anchored — v0.3 | Implemented: witness: and https: qualifying sinks, file: for dev | Standardized witness receipt format |
+| **Checkpoint endpoints (§6.5)** | MUST for anchored — v0.3 | Implemented: GET /anip/checkpoints (list) and GET /anip/checkpoints/{id} (detail with proofs) | — |
 | **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation across services, federated trust |
 
-The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
+The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
 
 **What solving these gaps unlocks.** When trust and verification become real — not declarative — agents can evaluate risk before acting. Delegated authority becomes expressible in ways current tool layers can't handle. Failures become operationally useful, not just descriptive. High-stakes actions — travel, procurement, finance ops, approvals, multi-step orchestration — become automatable with real control surfaces. At that point, ANIP solves one of the central coordination problems of agent deployment: how an agent knows what it's allowed to do, what will happen if it does it, and how to recover when something blocks it.
 
@@ -965,7 +1167,7 @@ These are unresolved design questions where community input is needed:
 
 3. **Side-effect type completeness.** Is `eventually_consistent` a distinct side-effect type that belongs in v1? Are there other side-effect categories we're missing?
 
-4. ~~**Delegation chain auth format.** What concrete token format should ANIP recommend?~~ *Resolved in v0.2:* JWT with ES256 (ECDSA P-256). The service is the sole token issuer. JWKS endpoint at `/.well-known/jwks.json` for public key discovery. See [SECURITY.md](SECURITY.md) and [docs/trust-model-v0.2.md](docs/trust-model-v0.2.md).
+4. ~~**Delegation chain auth format.** What concrete token format should ANIP recommend?~~ *Resolved in v0.2:* JWT with ES256 (ECDSA P-256). The service is the sole token issuer. JWKS endpoint at `/.well-known/jwks.json` for public key discovery. See [SECURITY.md](SECURITY.md) and [docs/trust-model.md](docs/trust-model.md).
 
 5. **Global service registry.** Service-level discovery is solved via `/.well-known/anip`. But should there be a global registry where agents can discover ANIP services by capability? (e.g., "find me services that can book flights")
 
@@ -975,10 +1177,11 @@ These are unresolved design questions where community input is needed:
 
 - **Capability declaration format.** ANIP uses JSON Schema (draft 2020-12). Canonical schemas are defined in Section 9 and validated across two reference implementations (Python/Pydantic and TypeScript/Zod). *(Resolved in v0.1)*
 - **Delegation chain auth format.** JWT with ES256 (ECDSA P-256). Server-issued tokens with JWKS discovery. *(Resolved in v0.2)*
+- **Audit log verifiability.** Merkle tree checkpoints with RFC 6962 hash scheme, inclusion and consistency proofs, detached JWS signatures, and external sink publication. Three trust levels: signed (Bronze), anchored (Silver), attested (Gold). *(Resolved in v0.3)*
 
 ---
 
-*ANIP is an open specification under active development. This is v0.2 — cryptographic trust foundations are in place, with federated trust and cross-service delegation as future goals. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
+*ANIP is an open specification under active development. This is v0.3 — anchored trust with Merkle checkpoints, verifiable proofs, and external sink publication build on v0.2's cryptographic foundations. Federated trust and cross-service delegation remain future goals. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
 
 ---
 
