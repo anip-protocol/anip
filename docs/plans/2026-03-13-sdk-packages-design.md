@@ -83,7 +83,7 @@ Each layer is independently installable. Adopters stop at the layer they need:
 
 **Contents:**
 
-- **Delegation engine:** `issue_token()`, `validate_delegation()`, scope narrowing validation, constraint narrowing, concurrent branch enforcement, budget authority checking, chain walking (DAG traversal to root principal)
+- **Delegation engine:** `issue_root_token(authenticated_principal, subject, scope, ...)` for root tokens (issuer derived from service_id, root_principal from authenticated context), `delegate(parent_token, subject, scope, ...)` for child tokens (issuer and root_principal derived from parent chain), `validate_delegation()`, scope narrowing validation, constraint narrowing, concurrent branch enforcement, budget authority checking, chain walking (DAG traversal to root principal). No raw issuer_id/root_principal parameters in the public API — trust context is always derived, never caller-supplied.
 - **Permission discovery:** `discover_permissions(token, capabilities)` classifying capabilities as available/restricted/denied
 - **Manifest builder:** `build_manifest(capabilities, trust, identity)` with SHA-256 capability hash, metadata, expiry. Parameter-driven, not env-var-driven.
 - **Audit log:** `log_entry()`, `query_entries()`, hash chain computation. Uses storage abstraction.
@@ -207,3 +207,4 @@ Go, Java, C#, Rust follow in later phases per the SDK strategy document.
 5. **Key separation is enforced.** Purpose-specific methods prevent delegation/audit key misuse at the API level.
 6. **CheckpointScheduler stays small.** Implementation helper, not a job framework.
 7. **Core stays declarative.** Models and constants only. No behavioral creep.
+8. **Trust context is derived, never caller-supplied.** Root token issuance requires an `authenticated_principal` (the application layer's job to authenticate). Child token issuance derives `issuer` and `root_principal` from the parent chain. The SDK never exposes raw `issuer_id` or `root_principal` parameters that would let callers forge trust context.

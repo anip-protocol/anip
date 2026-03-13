@@ -95,7 +95,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-sqlite = ["aiosqlite>=0.19"]
 dev = ["pytest>=8.0"]
 
 [build-system]
@@ -265,20 +264,34 @@ Each package `tsconfig.json`:
 }
 ```
 
-**Step 8: Write placeholder index.ts files**
+**Step 8: Write vitest.config.ts for each package**
+
+Each package needs its own `vitest.config.ts` so `npx vitest run` works from the package directory:
+
+```typescript
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    include: ["tests/**/*.test.ts"],
+  },
+});
+```
+
+**Step 9: Write placeholder index.ts files**
 
 Each `src/index.ts`:
 ```typescript
 // @anip/<package> — ANIP SDK
 ```
 
-**Step 9: Install dependencies**
+**Step 10: Install dependencies**
 
 ```bash
 cd packages/typescript && npm install
 ```
 
-**Step 10: Commit**
+**Step 11: Commit**
 
 ```bash
 git add packages/typescript/
@@ -684,7 +697,7 @@ describe("ANIPManifest", () => {
 **Step 2: Run test to verify it fails**
 
 ```bash
-cd packages/typescript && npx vitest run --project core
+cd packages/typescript/core && npx vitest run
 ```
 
 Expected: FAIL — imports don't resolve.
@@ -731,7 +744,7 @@ export * from "./constants.js";
 **Step 5: Run tests**
 
 ```bash
-cd packages/typescript && npx vitest run --project core
+cd packages/typescript/core && npx vitest run
 ```
 
 Expected: All PASS.
@@ -1161,7 +1174,7 @@ describe("canonicalize", () => {
 **Step 2: Run test — expected FAIL**
 
 ```bash
-cd packages/typescript && npx vitest run --project crypto
+cd packages/typescript/crypto && npx vitest run
 ```
 
 **Step 3: Implement**
@@ -1225,7 +1238,7 @@ export { verifyAuditEntrySignature } from "./verify.js";
 **Step 5: Run tests — expected PASS**
 
 ```bash
-cd packages/typescript && npx vitest run --project crypto
+cd packages/typescript/crypto && npx vitest run
 ```
 
 **Step 6: Commit**
@@ -1488,30 +1501,54 @@ from anip_core import DelegationToken, ANIPFailure
 
 def make_engine():
     storage = SQLiteStorage(":memory:")
-    return DelegationEngine(storage)
+    return DelegationEngine(storage, service_id="test-svc")
 
 
-def test_issue_and_validate():
+def test_issue_root_and_validate():
+    """Root token issuance requires authenticated_principal from the application layer."""
     engine = make_engine()
-    token, token_id = engine.issue_token(
+    token, token_id = engine.issue_root_token(
+        authenticated_principal="human:alice@example.com",
         subject="agent",
         scope=["travel.search"],
         capability="search_flights",
-        issuer_id="svc",
-        root_principal="human:alice@example.com",
     )
+    # root_principal is derived from authenticated_principal, not caller-supplied
+    assert token.root_principal == "human:alice@example.com"
+    assert token.issuer == "test-svc"  # derived from engine's service_id
     result = engine.validate_delegation(token, ["travel.search"], "search_flights")
+    assert isinstance(result, DelegationToken)
+
+
+def test_delegate_from_parent():
+    """Child token issuance derives issuer and root_principal from parent chain."""
+    engine = make_engine()
+    parent, _ = engine.issue_root_token(
+        authenticated_principal="human:alice@example.com",
+        subject="agent-a",
+        scope=["travel.search", "travel.book"],
+        capability="search_flights",
+    )
+    child, _ = engine.delegate(
+        parent_token=parent,
+        subject="agent-b",
+        scope=["travel.search"],
+        capability="search_flights",
+    )
+    # root_principal inherited from parent chain, issuer is parent's subject
+    assert child.root_principal == "human:alice@example.com"
+    assert child.issuer == "agent-a"
+    result = engine.validate_delegation(child, ["travel.search"], "search_flights")
     assert isinstance(result, DelegationToken)
 
 
 def test_expired_token_rejected():
     engine = make_engine()
-    token, _ = engine.issue_token(
+    token, _ = engine.issue_root_token(
+        authenticated_principal="human:alice@example.com",
         subject="agent",
         scope=["travel.search"],
         capability="search_flights",
-        issuer_id="svc",
-        root_principal="human:alice@example.com",
         ttl_hours=-1,  # already expired
     )
     result = engine.validate_delegation(token, ["travel.search"], "search_flights")
@@ -1521,12 +1558,11 @@ def test_expired_token_rejected():
 
 def test_scope_insufficient():
     engine = make_engine()
-    token, _ = engine.issue_token(
+    token, _ = engine.issue_root_token(
+        authenticated_principal="human:alice@example.com",
         subject="agent",
         scope=["travel.search"],
         capability="search_flights",
-        issuer_id="svc",
-        root_principal="human:alice@example.com",
     )
     result = engine.validate_delegation(token, ["travel.book"], "book_flight")
     assert isinstance(result, ANIPFailure)
@@ -1535,20 +1571,17 @@ def test_scope_insufficient():
 
 def test_child_scope_narrowing():
     engine = make_engine()
-    parent, parent_id = engine.issue_token(
+    parent, _ = engine.issue_root_token(
+        authenticated_principal="human:alice@example.com",
         subject="agent",
         scope=["travel.search", "travel.book"],
         capability="search_flights",
-        issuer_id="svc",
-        root_principal="human:alice@example.com",
     )
-    child, _ = engine.issue_token(
+    child, _ = engine.delegate(
+        parent_token=parent,
         subject="sub-agent",
         scope=["travel.search"],
         capability="search_flights",
-        issuer_id="agent",
-        parent_token=parent,
-        root_principal="human:alice@example.com",
     )
     result = engine.validate_delegation(child, ["travel.search"], "search_flights")
     assert isinstance(result, DelegationToken)
@@ -1556,43 +1589,68 @@ def test_child_scope_narrowing():
 
 def test_child_scope_widening_rejected():
     engine = make_engine()
-    parent, _ = engine.issue_token(
+    parent, _ = engine.issue_root_token(
+        authenticated_principal="human:alice@example.com",
         subject="agent",
         scope=["travel.search"],
         capability="search_flights",
-        issuer_id="svc",
-        root_principal="human:alice@example.com",
     )
-    result = engine.issue_token(
+    result = engine.delegate(
+        parent_token=parent,
         subject="sub-agent",
         scope=["travel.search", "travel.book"],
         capability="search_flights",
-        issuer_id="agent",
-        parent_token=parent,
-        root_principal="human:alice@example.com",
     )
     # Should return ANIPFailure for scope escalation
-    assert isinstance(result, ANIPFailure) or (
-        isinstance(result, tuple) and isinstance(
-            engine.validate_scope_narrowing(result[0]), ANIPFailure
-        )
-    )
+    assert isinstance(result, ANIPFailure)
 ```
 
 **Step 2: Run test — expected FAIL**
 
 **Step 3: Implement delegation engine**
 
-Extract from `examples/anip/anip_server/primitives/delegation.py`. Key change: wrap in a `DelegationEngine` class that takes a `StorageBackend` instead of using module-level state:
+Extract from `examples/anip/anip_server/primitives/delegation.py`. Key change: wrap in a `DelegationEngine` class that takes a `StorageBackend` instead of using module-level state.
+
+**Critical API design:** The engine enforces trust boundaries at the API level:
+
+- `issue_root_token(authenticated_principal, subject, scope, ...)` — only way to create a root token. The `authenticated_principal` parameter makes it explicit that the caller must have already authenticated the human principal. `issuer` is derived from the engine's `service_id`, not caller-supplied. `root_principal` is set from `authenticated_principal`.
+- `delegate(parent_token, subject, scope, ...)` — only way to create a child token. `issuer` is derived from `parent_token.subject`. `root_principal` is inherited from the parent chain. No way for the caller to forge either value.
+- No raw `issue_token(issuer_id=..., root_principal=...)` in the public API.
 
 ```python
 class DelegationEngine:
-    def __init__(self, storage: StorageBackend) -> None:
+    def __init__(self, storage: StorageBackend, *, service_id: str) -> None:
         self._storage = storage
+        self._service_id = service_id
         self._active_requests: set[str] = set()
         self._lock = threading.Lock()
 
-    def issue_token(self, ...) -> tuple[DelegationToken, str] | ANIPFailure: ...
+    def issue_root_token(
+        self, *, authenticated_principal: str, subject: str,
+        scope: list[str], capability: str, ttl_hours: int = 2,
+        max_delegation_depth: int = 3,
+    ) -> tuple[DelegationToken, str]:
+        """Issue a root delegation token.
+
+        issuer is this engine's service_id.
+        root_principal is the authenticated_principal.
+        The caller is responsible for authenticating the principal
+        before calling this method.
+        """
+        ...
+
+    def delegate(
+        self, *, parent_token: DelegationToken, subject: str,
+        scope: list[str], capability: str, ttl_hours: int = 2,
+    ) -> tuple[DelegationToken, str] | ANIPFailure:
+        """Issue a child delegation token from a parent.
+
+        issuer is derived from parent_token.subject.
+        root_principal is inherited from the parent chain.
+        Validates scope narrowing and constraint narrowing.
+        """
+        ...
+
     def validate_delegation(self, ...) -> DelegationToken | ANIPFailure: ...
     def validate_scope_narrowing(self, ...) -> ANIPFailure | None: ...
     def validate_constraints_narrowing(self, ...) -> ANIPFailure | None: ...
@@ -1892,32 +1950,52 @@ import { DelegationEngine } from "../src/delegation.js";
 import { SQLiteStorage } from "../src/storage.js";
 
 function makeEngine() {
-  return new DelegationEngine(new SQLiteStorage(":memory:"));
+  return new DelegationEngine(new SQLiteStorage(":memory:"), { serviceId: "test-svc" });
 }
 
 describe("DelegationEngine", () => {
-  it("issues and validates token", () => {
+  it("issues root token and validates", () => {
     const engine = makeEngine();
-    const { token } = engine.issueToken({
+    const { token } = engine.issueRootToken({
+      authenticatedPrincipal: "human:alice@example.com",
       subject: "agent",
       scope: ["travel.search"],
       capability: "search_flights",
-      issuerId: "svc",
-      rootPrincipal: "human:alice@example.com",
     });
+    expect(token.root_principal).toBe("human:alice@example.com");
+    expect(token.issuer).toBe("test-svc");
     const result = engine.validateDelegation(token, ["travel.search"], "search_flights");
     expect(result).not.toHaveProperty("type"); // not an ANIPFailure
     expect(result).toHaveProperty("token_id");
   });
 
+  it("delegates from parent with derived trust context", () => {
+    const engine = makeEngine();
+    const { token: parent } = engine.issueRootToken({
+      authenticatedPrincipal: "human:alice@example.com",
+      subject: "agent-a",
+      scope: ["travel.search", "travel.book"],
+      capability: "search_flights",
+    });
+    const { token: child } = engine.delegate({
+      parentToken: parent,
+      subject: "agent-b",
+      scope: ["travel.search"],
+      capability: "search_flights",
+    });
+    expect(child.root_principal).toBe("human:alice@example.com");
+    expect(child.issuer).toBe("agent-a");
+    const result = engine.validateDelegation(child, ["travel.search"], "search_flights");
+    expect(result).toHaveProperty("token_id");
+  });
+
   it("rejects insufficient scope", () => {
     const engine = makeEngine();
-    const { token } = engine.issueToken({
+    const { token } = engine.issueRootToken({
+      authenticatedPrincipal: "human:alice@example.com",
       subject: "agent",
       scope: ["travel.search"],
       capability: "search_flights",
-      issuerId: "svc",
-      rootPrincipal: "human:alice@example.com",
     });
     const result = engine.validateDelegation(token, ["travel.book"], "book_flight");
     expect(result).toHaveProperty("type", "scope_insufficient");
@@ -1997,7 +2075,7 @@ export { StorageBackend, SQLiteStorage } from "./storage.js";
 **Step 4: Run tests**
 
 ```bash
-cd packages/typescript && npx vitest run --project server
+cd packages/typescript/server && npx vitest run
 ```
 
 Expected: All PASS.
@@ -2139,7 +2217,9 @@ git commit -m "refactor: update TypeScript example to consume SDK packages"
 cd packages/python/anip-core && pytest tests/ -v
 cd packages/python/anip-crypto && pytest tests/ -v
 cd packages/python/anip-server && pytest tests/ -v
-cd packages/typescript && npx vitest run
+cd packages/typescript/core && npx vitest run
+cd packages/typescript/crypto && npx vitest run
+cd packages/typescript/server && npx vitest run
 ```
 
 **Step 2: Run all example tests**
