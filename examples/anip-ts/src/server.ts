@@ -56,7 +56,7 @@ const keyPath =
   process.env.ANIP_KEY_PATH ?? resolve(__dirname, "../anip-keys.json");
 const keys = new KeyManager(keyPath);
 
-const app = new Hono();
+export const app = new Hono();
 
 // Build manifest once at startup
 const manifest: ANIPManifest = buildManifest();
@@ -320,6 +320,7 @@ app.get("/.well-known/anip", (c) => {
   return c.json({
     anip_discovery: {
       protocol: manifest.protocol,
+      trust_level: manifest.trust?.level ?? "signed",
       compliance,
       base_url: baseUrl,
       jwks_uri: `${baseUrl}/.well-known/jwks.json`,
@@ -911,9 +912,12 @@ app.post("/anip/audit", async (c) => {
 // --- Start server ---
 
 const port = Number(process.env.PORT || 3000);
-console.log(`ANIP Flight Service (TypeScript v0.2) listening on port ${port}`);
 
-serve({
-  fetch: app.fetch,
-  port,
-});
+if (process.env.VITEST === undefined) {
+  console.log(`ANIP Flight Service (TypeScript v0.3) listening on port ${port}`);
+
+  serve({
+    fetch: app.fetch,
+    port,
+  });
+}
