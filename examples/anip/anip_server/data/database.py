@@ -117,6 +117,18 @@ def _init_schema(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
         CREATE INDEX IF NOT EXISTS idx_audit_root_principal ON audit_log(root_principal);
         CREATE INDEX IF NOT EXISTS idx_sessions_capability ON sessions(capability);
+
+        CREATE TABLE IF NOT EXISTS checkpoints (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            checkpoint_id TEXT NOT NULL UNIQUE,
+            first_sequence INTEGER NOT NULL,
+            last_sequence INTEGER NOT NULL,
+            merkle_root TEXT NOT NULL,
+            previous_checkpoint TEXT,
+            timestamp TEXT NOT NULL,
+            entry_count INTEGER NOT NULL,
+            signature TEXT NOT NULL
+        );
     """)
 
 
@@ -426,3 +438,113 @@ def get_merkle_inclusion_proof(index: int) -> dict[str, Any]:
         "root": _merkle_tree.root,
         "leaf_count": _merkle_tree.leaf_count,
     }
+
+
+# --- Checkpoints ---
+
+
+def store_checkpoint(body: dict[str, Any], signature: str) -> None:
+    """Insert a checkpoint record into the database."""
+    with transaction() as conn:
+        conn.execute(
+            """INSERT INTO checkpoints
+               (checkpoint_id, first_sequence, last_sequence, merkle_root,
+                previous_checkpoint, timestamp, entry_count, signature)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                body["checkpoint_id"],
+                body["range"]["first_sequence"],
+                body["range"]["last_sequence"],
+                body["merkle_root"],
+                body["previous_checkpoint"],
+                body["timestamp"],
+                body["entry_count"],
+                signature,
+            ),
+        )
+
+
+def get_checkpoints(limit: int = 10) -> list[dict[str, Any]]:
+    """Return checkpoints ordered by id (ascending)."""
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT * FROM checkpoints ORDER BY id ASC LIMIT ?", (limit,)
+    ).fetchall()
+    results = []
+    for row in rows:
+        results.append({
+            "checkpoint_id": row["checkpoint_id"],
+            "first_sequence": row["first_sequence"],
+            "last_sequence": row["last_sequence"],
+            "merkle_root": row["merkle_root"],
+            "previous_checkpoint": row["previous_checkpoint"],
+            "timestamp": row["timestamp"],
+            "entry_count": row["entry_count"],
+            "signature": row["signature"],
+        })
+    return results
+
+
+def create_checkpoint() -> tuple[dict[str, Any], str]:
+    """Create a checkpoint: snapshot Merkle state, sign, store, return.
+
+    Returns ``(body_dict, detached_jws_signature)``.
+    """
+    snap = get_merkle_snapshot()
+    conn = get_connection()
+
+    # Determine previous checkpoint (if any)
+    prev_row = conn.execute(
+        "SELECT * FROM checkpoints ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+
+    if prev_row is None:
+        first_sequence = 1
+        previous_checkpoint = None
+        checkpoint_number = 1
+    else:
+        first_sequence = prev_row["last_sequence"] + 1
+        # Hash the previous checkpoint body (canonical JSON)
+        prev_body = {
+            "version": "0.3",
+            "service_id": os.environ.get("ANIP_SERVICE_ID", "anip-reference-server"),
+            "checkpoint_id": prev_row["checkpoint_id"],
+            "range": {
+                "first_sequence": prev_row["first_sequence"],
+                "last_sequence": prev_row["last_sequence"],
+            },
+            "merkle_root": prev_row["merkle_root"],
+            "previous_checkpoint": prev_row["previous_checkpoint"],
+            "timestamp": prev_row["timestamp"],
+            "entry_count": prev_row["entry_count"],
+        }
+        prev_canonical = json.dumps(prev_body, separators=(",", ":"), sort_keys=True).encode()
+        previous_checkpoint = f"sha256:{hashlib.sha256(prev_canonical).hexdigest()}"
+        # Extract number from previous checkpoint_id
+        checkpoint_number = int(prev_row["checkpoint_id"].split("-")[1]) + 1
+
+    last_sequence = snap["leaf_count"]
+    entry_count = last_sequence - first_sequence + 1
+
+    body = {
+        "version": "0.3",
+        "service_id": os.environ.get("ANIP_SERVICE_ID", "anip-reference-server"),
+        "checkpoint_id": f"ckpt-{checkpoint_number}",
+        "range": {
+            "first_sequence": first_sequence,
+            "last_sequence": last_sequence,
+        },
+        "merkle_root": snap["root"],
+        "previous_checkpoint": previous_checkpoint,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "entry_count": entry_count,
+    }
+
+    # Sign with detached JWS using the audit signer
+    canonical_bytes = json.dumps(body, separators=(",", ":"), sort_keys=True).encode()
+    signature = ""
+    if _audit_signer is not None:
+        signature = _audit_signer.sign_jws_detached(canonical_bytes)
+
+    store_checkpoint(body, signature)
+    return body, signature
