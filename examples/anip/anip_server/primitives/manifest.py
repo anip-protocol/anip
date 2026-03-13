@@ -4,10 +4,18 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from datetime import datetime, timedelta, timezone
 
 from ..capabilities import search_flights, book_flight
-from .models import ANIPManifest, ManifestMetadata, ProfileVersions, ServiceIdentity
+from .models import (
+    ANIPManifest,
+    AnchoringPolicy,
+    ManifestMetadata,
+    ProfileVersions,
+    ServiceIdentity,
+    TrustPosture,
+)
 
 
 def build_manifest() -> ANIPManifest:
@@ -16,8 +24,20 @@ def build_manifest() -> ANIPManifest:
         "book_flight": book_flight.DECLARATION,
     }
 
+    # Build trust posture from environment
+    trust_level = os.environ.get("ANIP_TRUST_LEVEL", "signed")
+    anchoring = None
+    if trust_level == "anchored":
+        cadence = os.environ.get("ANIP_CHECKPOINT_CADENCE")
+        interval = os.environ.get("ANIP_CHECKPOINT_INTERVAL")
+        anchoring = AnchoringPolicy(
+            cadence=cadence,
+            max_lag=interval,
+        )
+    trust = TrustPosture(level=trust_level, anchoring=anchoring)
+
     manifest = ANIPManifest(
-        protocol="anip/0.2",
+        protocol="anip/0.3",
         profile=ProfileVersions(
             core="1.0",
             cost="1.0",
@@ -27,6 +47,7 @@ def build_manifest() -> ANIPManifest:
         ),
         capabilities=capabilities,
         service_identity=ServiceIdentity(),
+        trust=trust,
     )
 
     # Compute sha256 over capabilities (excluding metadata itself)

@@ -84,7 +84,7 @@ def test_manifest_signature_verifies_cryptographically(client):
     pub_key.verify(der_sig, signing_input, ec.ECDSA(hashes.SHA256()))
 
 
-def test_manifest_protocol_is_v02(client):
+def test_manifest_protocol_is_v03(client):
     resp = client.get("/anip/manifest")
     body = resp.json()
-    assert body["protocol"] == "anip/0.2"
+    assert body["protocol"] == "anip/0.3"

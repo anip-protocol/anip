@@ -128,7 +128,7 @@ def discovery(request: Request):
             "description": cap.description,
             "side_effect": cap.side_effect.type.value,
             "minimum_scope": cap.minimum_scope,
-            "financial": cap.cost.financial is not None,
+            "financial": cap.cost is not None and cap.cost.financial is not None,
             "contract": cap.contract_version,
         }
         for name, cap in _manifest.capabilities.items()
@@ -152,6 +152,7 @@ def discovery(request: Request):
     return {
         "anip_discovery": {
             "protocol": _manifest.protocol,
+            "trust_level": _manifest.trust.level if _manifest.trust else "signed",
             "compliance": compliance,
             "base_url": base_url,
             "jwks_uri": f"{base_url}/.well-known/jwks.json",

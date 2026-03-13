@@ -210,12 +210,31 @@ class ServiceIdentity(BaseModel):
     issuer_mode: str = "first-party"
 
 
+class AnchoringPolicy(BaseModel):
+    cadence: str | None = None
+    max_lag: str | None = None
+    sink: str | None = None
+    sink_name: str | None = None
+
+
+class TrustPolicyTrigger(BaseModel):
+    trigger: dict[str, Any]
+    action: str
+
+
+class TrustPosture(BaseModel):
+    level: str = "signed"
+    anchoring: AnchoringPolicy | None = None
+    policies: list[TrustPolicyTrigger] | None = None
+
+
 class ANIPManifest(BaseModel):
-    protocol: str = "anip/0.2"
+    protocol: str = "anip/0.3"
     profile: ProfileVersions
     capabilities: dict[str, CapabilityDeclaration]
     manifest_metadata: ManifestMetadata | None = None
     service_identity: ServiceIdentity | None = None
+    trust: TrustPosture | None = None
 
 
 # --- Invocation ---
