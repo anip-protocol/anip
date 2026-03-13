@@ -371,31 +371,6 @@ class MerkleTree:
 
         return _hex(old_hash) == old_root and _hex(new_hash) == new_root
 
-
-def _count_bits_to_verify(old_size: int, new_size: int) -> int:
-    """Count how many proof nodes contribute to the old root reconstruction.
-
-    This is derived from the binary decomposition of old_size:
-    the number of set bits that overlap with the tree structure.
-    """
-    # The proof nodes that contribute to both old and new roots
-    # correspond to the path from the deepest complete subtree
-    # of the old tree up to the old tree's root.
-    # This equals the number of significant bits in old_size minus 1
-    # (the first proof node is the starting point, not a merge step).
-    if old_size == 0:
-        return 0
-    count = 0
-    m = old_size
-    # Strip trailing zeros
-    while m % 2 == 0:
-        m >>= 1
-    # Count remaining bits
-    while m > 0:
-        count += 1
-        m >>= 1
-    return count
-
     # --- internal tree computation ---
 
     def _compute_root(self, lo: int, hi: int) -> bytes:
@@ -424,6 +399,26 @@ def _count_bits_to_verify(old_size: int, new_size: int) -> int:
             left = self._compute_root(lo, lo + split)
             path.append({"hash": left.hex(), "side": "left"})
             self._build_inclusion_path(index, lo + split, hi, path)
+
+
+def _count_bits_to_verify(old_size: int, new_size: int) -> int:
+    """Count how many proof nodes contribute to the old root reconstruction.
+
+    This is derived from the binary decomposition of old_size:
+    the number of set bits that overlap with the tree structure.
+    """
+    if old_size == 0:
+        return 0
+    count = 0
+    m = old_size
+    # Strip trailing zeros
+    while m % 2 == 0:
+        m >>= 1
+    # Count remaining bits
+    while m > 0:
+        count += 1
+        m >>= 1
+    return count
 
 
 def _largest_power_of_2_less_than(n: int) -> int:
@@ -858,22 +853,25 @@ def test_auto_checkpoint_after_n_entries(client):
 
 
 def test_time_based_checkpoint(client):
-    """With interval_seconds policy, a checkpoint should be created after the interval."""
+    """CheckpointScheduler fires independently — no subsequent write needed."""
     import time
     from anip_server.data.database import set_checkpoint_policy, get_checkpoints
-    from anip_server.primitives.checkpoint import CheckpointPolicy
+    from anip_server.primitives.checkpoint import CheckpointPolicy, CheckpointScheduler
     set_checkpoint_policy(CheckpointPolicy(interval_seconds=1))
     token = _issue_token(client, "search_flights", ["travel.search"])
+    # Create one audit entry so the scheduler has something to checkpoint
     client.post("/anip/invoke/search_flights",
                 json={"origin": "SEA", "destination": "SFO", "date": "2026-04-01"},
                 headers={"Authorization": f"Bearer {token}"})
+    initial_checkpoints = get_checkpoints()
+    initial_count = len(initial_checkpoints)
+    # Wait for the background scheduler to fire (interval=1s, wait 1.5s)
     time.sleep(1.5)
-    # Trigger another write to check the timer
-    client.post("/anip/invoke/search_flights",
-                json={"origin": "SEA", "destination": "SFO", "date": "2026-04-01"},
-                headers={"Authorization": f"Bearer {token}"})
+    # No additional write — the scheduler should have created a checkpoint on its own
     checkpoints = get_checkpoints()
-    assert len(checkpoints) >= 1
+    assert len(checkpoints) > initial_count, (
+        "CheckpointScheduler should create checkpoint without requiring another write"
+    )
 ```
 
 **Step 2: Implement auto-checkpointing**
