@@ -58,12 +58,10 @@ Copy `bridge.example.yaml` to `bridge.yaml`:
 ```yaml
 anip_service_url: "http://localhost:8000"
 
-delegation:
-  issuer: "human:user@example.com"
-  scope:
-    - "travel.search"
-    - "travel.book:max_$500"
-  token_ttl_minutes: 60
+api_key: "demo-human-key"
+scope:
+  - "travel.search"
+  - "travel.book:max_$500"
 
 enrich_descriptions: true
 transport: "stdio"
@@ -73,18 +71,17 @@ Or use environment variables:
 
 ```bash
 ANIP_SERVICE_URL=http://localhost:8000 \
-ANIP_ISSUER=human:user@example.com \
 ANIP_SCOPE=travel.search,travel.book:max_\$500 \
 anip-mcp-bridge
 ```
 
-### Delegation Configuration
+### Credential Configuration
 
-The adapter creates delegation tokens on behalf of the configured `issuer`. Each tool invocation gets its own token with:
+The adapter requests signed capability tokens from the ANIP service using the configured API key. Each tool invocation gets its own server-issued token with:
 
 - **Purpose binding** — scoped to the specific capability being invoked
 - **Scope narrowing** — only the scopes needed for each capability
-- **TTL** — tokens expire after `token_ttl_minutes`
+- **Server-issued** — the ANIP service signs and verifies all tokens
 
 This is more secure than a single shared token but less granular than native ANIP delegation chains. The adapter operates as a single agent identity — it cannot represent per-user or per-agent delegation.
 
@@ -92,10 +89,32 @@ This is more secure than a single shared token but less granular than native ANI
 
 1. **Discovery** — fetches `/.well-known/anip` from the ANIP service
 2. **Manifest** — fetches full capability declarations
-3. **Token setup** — registers a root delegation token
+3. **Token setup** — none needed (v0.2 issues per-request tokens)
 4. **Tool generation** — converts each ANIP capability into an MCP tool
-5. **Invocation** — for each tool call, creates a purpose-bound token and invokes the ANIP capability
+5. **Invocation** — for each tool call, requests a signed token from the ANIP service and invokes the capability
 6. **Translation** — converts ANIP responses (success/failure, cost actuals) into MCP result strings
+
+```mermaid
+sequenceDiagram
+    participant MCP as MCP Host
+    participant Adapter as MCP Adapter
+    participant ANIP as ANIP Service
+
+    Note over Adapter,ANIP: Startup
+    Adapter->>ANIP: GET /.well-known/anip
+    ANIP-->>Adapter: discovery
+    Adapter->>ANIP: GET /anip/manifest
+    ANIP-->>Adapter: capabilities
+    Note over Adapter: generate MCP tools from capabilities
+
+    Note over MCP,ANIP: Tool Invocation
+    MCP->>Adapter: tool call (search_flights, args)
+    Adapter->>ANIP: POST /anip/tokens (+ API key, scoped)
+    ANIP-->>Adapter: signed JWT
+    Adapter->>ANIP: POST /anip/invoke/search_flights (+ JWT)
+    ANIP-->>Adapter: {success, result, cost_actual}
+    Adapter-->>MCP: MCP tool result (text)
+```
 
 ### Description Enrichment
 
@@ -123,7 +142,7 @@ This table is the honest accounting of what ANIP adds over MCP and what survives
 |----------------|---------------------|-------------|
 | **Capability Declaration** | Full — maps to MCP tool | Nothing |
 | **Side-effect Typing** | Partial — encoded in description | Programmatic branching on side-effect type |
-| **Delegation Chain** | Degraded — adapter holds a single identity, per-tool scope narrowing | Per-agent chains, multi-hop delegation, concurrent branch control |
+| **Delegation Chain** | Degraded — adapter uses a single API key, per-tool scope narrowing via server-issued tokens | Per-agent chains, multi-hop delegation, concurrent branch control |
 | **Permission Discovery** | Absent | Agent can't query its permission surface before invoking |
 | **Failure Semantics** | Partial — ANIP failures converted to readable text | Structured recovery (resolution actions, grantable_by) |
 | **Cost Signaling** | Partial — encoded in description | Programmatic budget checking, cost certainty levels |
@@ -142,7 +161,7 @@ adapters/mcp-py/
 │   ├── server.py          # MCP server + CLI entry point
 │   ├── discovery.py       # ANIP service auto-discovery
 │   ├── translation.py     # ANIP capability → MCP tool schema + descriptions
-│   ├── invocation.py      # Delegation token management + ANIP invocation
+│   ├── invocation.py      # Token request + ANIP invocation
 │   └── config.py          # YAML/env configuration loading
 ├── bridge.example.yaml    # Example configuration
 ├── pyproject.toml
@@ -153,7 +172,7 @@ adapters/mcp-py/
 
 **Generic, not per-service.** The adapter reads the ANIP discovery document and manifest at startup. It generates MCP tools dynamically. No code changes needed when pointing at a different ANIP service.
 
-**Per-invocation tokens.** Each tool call creates a fresh delegation token with purpose binding for that specific capability. This is more secure than reusing a single token but means every invocation involves two HTTP calls (token registration + capability invocation).
+**Per-invocation tokens.** Each tool call requests a fresh signed token from the ANIP service with purpose binding for that specific capability. This is more secure than reusing a single token but means every invocation involves two HTTP calls (token request + capability invocation).
 
 **Scope narrowing per tool.** The adapter filters the configured scope list to include only the scopes each capability needs. A tool for `search_flights` (requiring `travel.search`) won't carry `travel.book` scope, limiting blast radius if the invocation is intercepted.
 
@@ -161,7 +180,7 @@ adapters/mcp-py/
 
 ## Limitations
 
-- **Single identity.** The adapter operates as one agent. It cannot represent multi-user or multi-agent delegation chains. All invocations use the same configured issuer and scope.
+- **Single identity.** The adapter operates as one agent. It cannot represent multi-user or multi-agent delegation chains. All invocations use the same configured API key and scope.
 - **No permission discovery.** MCP has no equivalent of ANIP's permission query. The adapter exposes all capabilities as tools regardless of whether the configured scope can actually invoke them. Failures surface at invocation time, not discovery time.
 - **No session state.** MCP tools are stateless. ANIP capabilities with `session.type: "continuation"` or `"workflow"` will lose session context between invocations.
 - **Description-based safety only.** Side-effect warnings, cost signals, and prerequisite declarations are encoded as text in tool descriptions. They inform but cannot enforce.

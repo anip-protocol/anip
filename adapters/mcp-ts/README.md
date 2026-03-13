@@ -51,12 +51,34 @@ adapters/mcp-ts/
 │   ├── index.ts          # MCP server + CLI entry point
 │   ├── discovery.ts      # ANIP service auto-discovery
 │   ├── translation.ts    # ANIP capability → MCP tool schema + descriptions
-│   ├── invocation.ts     # Delegation token management + ANIP invocation
+│   ├── invocation.ts     # Token request + ANIP invocation
 │   └── config.ts         # Configuration loading
 ├── test-bridge.ts        # Integration tests
 ├── package.json
 ├── tsconfig.json
 └── README.md
+```
+
+```mermaid
+sequenceDiagram
+    participant MCP as MCP Host
+    participant Adapter as MCP Adapter
+    participant ANIP as ANIP Service
+
+    Note over Adapter,ANIP: Startup
+    Adapter->>ANIP: GET /.well-known/anip
+    ANIP-->>Adapter: discovery
+    Adapter->>ANIP: GET /anip/manifest
+    ANIP-->>Adapter: capabilities
+    Note over Adapter: generate MCP tools from capabilities
+
+    Note over MCP,ANIP: Tool Invocation
+    MCP->>Adapter: tool call (search_flights, args)
+    Adapter->>ANIP: POST /anip/tokens (+ API key, scoped)
+    ANIP-->>Adapter: signed JWT
+    Adapter->>ANIP: POST /anip/invoke/search_flights (+ JWT)
+    ANIP-->>Adapter: {success, result, cost_actual}
+    Adapter-->>MCP: MCP tool result (text)
 ```
 
 ## What Gets Lost in Translation

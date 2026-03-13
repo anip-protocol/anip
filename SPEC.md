@@ -720,6 +720,49 @@ The standard endpoints define a predictable interaction sequence:
 7. Agent invokes capability          →  POST {invoke}/{capability}
 ```
 
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant ANIP as ANIP Service
+
+    Agent->>ANIP: GET /.well-known/anip
+    ANIP-->>Agent: discovery (capabilities, endpoints)
+
+    Agent->>ANIP: GET /anip/manifest
+    ANIP-->>Agent: full capability declarations
+
+    Agent->>ANIP: POST /anip/tokens (+ API key)
+    ANIP-->>Agent: signed JWT delegation token
+
+    Agent->>ANIP: POST /anip/invoke/search_flights (+ token)
+    ANIP-->>Agent: {success, result, cost_actual}
+```
+
+#### Budget Escalation
+
+When a capability invocation fails due to insufficient budget, the structured failure includes `resolution.grantable_by`, enabling the agent to escalate autonomously:
+
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant ANIP as ANIP Service
+    participant Human
+
+    Agent->>ANIP: POST /anip/invoke/book_flight (+ token)
+    ANIP-->>Agent: budget_exceeded (grantable_by: human)
+
+    Agent->>Human: request_budget_increase ($380, UA205)
+    Human-->>Agent: approved
+
+    Human->>ANIP: POST /anip/tokens (higher budget)
+    ANIP-->>Human: new signed JWT
+
+    Human-->>Agent: new token
+
+    Agent->>ANIP: POST /anip/invoke/book_flight (+ new token)
+    ANIP-->>Agent: {success: true, booking: BK-0018}
+```
+
 Not every interaction requires all steps. An agent that has previously interacted with a service may skip directly to step 4 if it has cached the manifest. An agent performing a read-only operation may skip the capability graph step. But the sequence above is the canonical flow for a first interaction.
 
 ---

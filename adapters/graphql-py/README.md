@@ -82,6 +82,32 @@ If `X-ANIP-Token` is present, it takes precedence. If neither header is provided
 
 Authentication is always via HTTP headers, never via GraphQL arguments.
 
+```mermaid
+sequenceDiagram
+    participant Client as HTTP Client
+    participant Adapter as GraphQL Adapter
+    participant ANIP as ANIP Service
+
+    rect rgb(230, 245, 230)
+    Note over Client,ANIP: Preferred: Signed Token Path
+    Client->>Adapter: POST /graphql (X-ANIP-Token: <JWT>)
+    Adapter->>ANIP: POST /anip/invoke/search_flights (+ JWT)
+    ANIP-->>Adapter: {success, result}
+    Adapter-->>Client: 200 {data: {searchFlights: ...}}
+    end
+
+    rect rgb(255, 243, 224)
+    Note over Client,ANIP: Convenience: API Key Path
+    Client->>Adapter: POST /graphql (X-ANIP-API-Key: <key>)
+    Adapter->>ANIP: POST /anip/tokens (+ key, scoped)
+    ANIP-->>Adapter: signed JWT
+    Adapter->>ANIP: POST /anip/invoke/search_flights (+ JWT)
+    ANIP-->>Adapter: {success, result}
+    Adapter-->>Client: 200 {data: {searchFlights: ...}}
+    Note over Adapter: audit subject = adapter identity, not caller
+    end
+```
+
 ## Configuration
 
 ### Environment Variables
