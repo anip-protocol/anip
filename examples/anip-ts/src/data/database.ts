@@ -9,10 +9,12 @@ import Database from "better-sqlite3";
 import { createHash } from "crypto";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
+import { MerkleTree } from "../merkle.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 let db: Database.Database | null = null;
+const merkleTree = new MerkleTree();
 
 export interface AuditEntry {
   sequence_number: number;
@@ -128,6 +130,15 @@ export function logAuditEntry(
     signature: null,
   };
 
+  // Accumulate into Merkle tree (canonical JSON with sorted keys, excluding signature and id)
+  const merkleData: Record<string, unknown> = {};
+  for (const key of Object.keys(entry).sort()) {
+    if (key !== "signature" && key !== "id") {
+      merkleData[key] = (entry as Record<string, unknown>)[key];
+    }
+  }
+  merkleTree.addLeaf(Buffer.from(JSON.stringify(merkleData)));
+
   // Insert (signature is set asynchronously after if signFn provided)
   conn
     .prepare(
@@ -227,4 +238,20 @@ export function queryAuditLog(opts: {
     previous_hash: row.previous_hash as string,
     signature: (row.signature as string) ?? null,
   }));
+}
+
+export function getMerkleSnapshot() {
+  return merkleTree.snapshot();
+}
+
+export function getMerkleInclusionProof(index: number) {
+  try {
+    return {
+      path: merkleTree.inclusionProof(index),
+      root: merkleTree.root,
+      leaf_count: merkleTree.leafCount,
+    };
+  } catch {
+    return null;
+  }
 }
