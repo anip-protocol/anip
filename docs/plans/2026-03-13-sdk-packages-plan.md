@@ -811,7 +811,7 @@ def test_persist_and_load():
 **Step 2: Run test — expected FAIL**
 
 ```bash
-cd packages/python/anip-crypto && pip install -e ".[dev]" && pip install -e ../anip-core && pytest tests/test_keys.py -v
+cd packages/python/anip-crypto && pip install -e ../anip-core -e ".[dev]" && pytest tests/test_keys.py -v
 ```
 
 **Step 3: Implement KeyManager**
@@ -1320,7 +1320,7 @@ def test_load_nonexistent_token():
 **Step 2: Run test — expected FAIL**
 
 ```bash
-cd packages/python/anip-server && pip install -e ".[dev]" && pip install -e ../anip-core -e ../anip-crypto && pytest tests/test_storage.py -v
+cd packages/python/anip-server && pip install -e ../anip-core -e ../anip-crypto -e ".[dev]" && pytest tests/test_storage.py -v
 ```
 
 **Step 3: Implement storage abstraction**
@@ -2101,16 +2101,18 @@ git commit -m "feat(@anip/server): extract TypeScript server package"
 **Step 1: Update pyproject.toml**
 
 Change name from `anip-demo` to `anip-flight-demo` and update entry points.
-Add SDK packages as dependencies:
+Add SDK packages as **local path** dependencies (since they're not yet published to PyPI):
 ```toml
 dependencies = [
-    "anip-core>=0.3.0",
-    "anip-crypto>=0.3.0",
-    "anip-server>=0.3.0",
+    "anip-core @ file:../../packages/python/anip-core",
+    "anip-crypto @ file:../../packages/python/anip-crypto",
+    "anip-server @ file:../../packages/python/anip-server",
     "fastapi>=0.115.0",
     "uvicorn>=0.34.0",
 ]
 ```
+
+Note: When the packages are eventually published to PyPI, these will be changed to version-pinned dependencies (`anip-core>=0.3.0`). The `@ file:` syntax is PEP 440 compliant and works with pip for local development.
 
 **Step 2: Rename package directory**
 
@@ -2135,10 +2137,10 @@ from anip_crypto import KeyManager
 from anip_server import DelegationEngine, discover_permissions, build_manifest
 ```
 
-**Step 4: Run existing tests**
+**Step 4: Install and run existing tests**
 
 ```bash
-cd examples/anip && pytest tests/ -v
+cd examples/anip && pip install -e ".[dev]" && pytest tests/ -v
 ```
 
 Expected: All existing tests PASS with new imports.
@@ -2160,23 +2162,35 @@ git commit -m "refactor: rename Python example to anip-flight-demo and consume S
 - Modify: `examples/anip-ts/src/primitives/manifest.ts`
 - Update all internal imports
 
-**Step 1: Add SDK dependencies to package.json**
+**Step 1: Add SDK dependencies to package.json using `file:` protocol**
+
+Since `examples/anip-ts/` is outside the `packages/typescript/` workspace, use local `file:` references to resolve the unpublished SDK packages:
 
 ```json
 {
   "dependencies": {
-    "@anip/core": "0.3.0",
-    "@anip/crypto": "0.3.0",
-    "@anip/server": "0.3.0",
+    "@anip/core": "file:../../packages/typescript/core",
+    "@anip/crypto": "file:../../packages/typescript/crypto",
+    "@anip/server": "file:../../packages/typescript/server",
     "@hono/node-server": "^1.11.0",
     "hono": "^4.4.0"
   }
 }
 ```
 
+Note: When the packages are published to npm, these will be changed to version-pinned dependencies (`@anip/core: "0.3.0"`). The `file:` protocol creates symlinks during `npm install` so local changes are reflected immediately.
+
 Remove `better-sqlite3`, `jose`, `zod` from direct dependencies (now transitive through SDK packages).
 
-**Step 2: Update imports throughout**
+**Step 2: Install and verify resolution**
+
+```bash
+cd examples/anip-ts && npm install
+```
+
+Verify that `node_modules/@anip/core`, `@anip/crypto`, `@anip/server` are symlinked to the local packages.
+
+**Step 3: Update imports throughout**
 
 Replace local primitive imports with SDK package imports:
 
@@ -2192,7 +2206,7 @@ import { KeyManager } from "@anip/crypto";
 import { DelegationEngine, discoverPermissions, buildManifest } from "@anip/server";
 ```
 
-**Step 3: Run existing tests**
+**Step 4: Run existing tests**
 
 ```bash
 cd examples/anip-ts && npx vitest run
@@ -2200,7 +2214,7 @@ cd examples/anip-ts && npx vitest run
 
 Expected: All existing tests PASS.
 
-**Step 4: Commit**
+**Step 5: Commit**
 
 ```bash
 git add examples/anip-ts/
