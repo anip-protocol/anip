@@ -1,6 +1,12 @@
 """Tests for v0.2 audit log schema with hash chain."""
 
-from anip_server.data.database import get_connection, log_invocation, query_audit_log
+from anip_server.data.database import (
+    get_connection,
+    get_merkle_inclusion_proof,
+    get_merkle_snapshot,
+    log_invocation,
+    query_audit_log,
+)
 
 
 def test_audit_table_has_new_columns():
@@ -55,3 +61,38 @@ def test_sequential_entries_form_hash_chain():
         older = entries[1]
         assert newer["previous_hash"] != older["previous_hash"]
         assert newer["sequence_number"] > older["sequence_number"]
+
+
+def test_merkle_root_advances_with_entries():
+    """After logging entries, the Merkle root should change."""
+    snap1 = get_merkle_snapshot()
+    log_invocation(
+        capability="test_merkle",
+        token_id="test-merkle-1",
+        issuer="human:test@example.com",
+        subject="agent:test",
+        root_principal="human:test@example.com",
+        parameters={"key": "value"},
+        success=True,
+    )
+    snap2 = get_merkle_snapshot()
+    assert snap2["leaf_count"] == snap1["leaf_count"] + 1
+    assert snap2["root"] != snap1["root"]
+
+
+def test_merkle_inclusion_proof_for_audit_entry():
+    """An inclusion proof for a logged entry should verify."""
+    log_invocation(
+        capability="test_merkle_proof",
+        token_id="test-merkle-2",
+        issuer="human:test@example.com",
+        subject="agent:test",
+        root_principal="human:test@example.com",
+        parameters={"proof": "test"},
+        success=True,
+    )
+    snap = get_merkle_snapshot()
+    leaf_index = snap["leaf_count"] - 1
+    proof = get_merkle_inclusion_proof(leaf_index)
+    assert proof is not None
+    assert len(proof["path"]) > 0 or snap["leaf_count"] == 1

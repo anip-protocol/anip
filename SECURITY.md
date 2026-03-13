@@ -1,12 +1,13 @@
 # Security Policy
 
-ANIP v0.2 introduces cryptographically signed delegation tokens, signed manifests, and tamper-evident audit foundations, but it does not by itself solve prompt injection, host sandboxing, or internet-scale trust federation.
+ANIP v0.3 builds on v0.2's cryptographic foundations (signed tokens, manifests, hash-chain audit) with Merkle tree checkpoints, trust levels (`signed`/`anchored`/`attested`), and external anchoring. It does not by itself solve prompt injection, host sandboxing, or internet-scale trust federation.
 
 ## Supported Versions
 
 | Version | Status |
 |---------|--------|
-| v0.2    | Current — signed tokens, signed manifests, hash-chain audit |
+| v0.3    | Current — anchored trust, Merkle checkpoints, trust levels |
+| v0.2    | Stable — signed tokens, signed manifests, hash-chain audit |
 | v0.1    | Legacy — declaration-only trust, no cryptographic verification |
 
 v0.1 is available via `ANIP_TRUST_MODE=declaration` for development and migration. It should not be used in production.
@@ -36,13 +37,15 @@ ANIP v0.2 uses a **first-party issuer model**: the service generates and signs a
 - Side-effect types (declared, not verified — a service claiming "read" could mutate state)
 - Capability descriptions (human-readable, not machine-verified)
 
-For the full threat model and architectural details, see [docs/trust-model-v0.2.md](docs/trust-model-v0.2.md).
+For the full threat model and architectural details, see [docs/trust-model.md](docs/trust-model.md).
 
 ## Trust Modes
 
 | Mode | Flag | Use Case |
 |------|------|----------|
-| **Signed** (default) | `ANIP_TRUST_MODE=signed` | Production — all tokens are server-issued JWTs with ES256 signatures |
+| **Signed** (default) | `ANIP_TRUST_LEVEL=signed` | Bronze — all tokens are server-issued JWTs with ES256 signatures |
+| **Anchored** | `ANIP_TRUST_LEVEL=anchored` | Silver — signed + Merkle tree checkpoints over audit log |
+| **Attested** | `ANIP_TRUST_LEVEL=attested` | Gold — anchored + third-party co-signing (future) |
 | **Declaration** | `ANIP_TRUST_MODE=declaration` | Development/migration — clients build token dicts locally, no signatures |
 
 Declaration mode accepts unsigned token dicts for backward compatibility with v0.1 clients. It provides no cryptographic guarantees and exists only to support incremental migration.
@@ -55,7 +58,7 @@ Declaration mode accepts unsigned token dicts for backward compatibility with v0
 - **Run behind TLS.** ANIP does not encrypt payloads — it signs them. Transport encryption (HTTPS) is required to protect tokens in transit.
 - **Scope tokens narrowly.** Issue tokens with the minimum scope and budget needed for each task.
 
-## What v0.2 Improves Over v0.1
+## What v0.2 Introduced
 
 - Tokens are **server-issued JWTs** instead of client-constructed dicts — the server is the authority, not the caller
 - Manifests carry **detached JWS signatures** — consumers can verify the manifest hasn't been tampered with
@@ -64,7 +67,15 @@ Declaration mode accepts unsigned token dicts for backward compatibility with v0
 - **Separate signing keys** for delegation and audit (blast radius containment)
 - **JWKS endpoint** at `/.well-known/jwks.json` for public key discovery
 
-## What v0.2 Does Not Solve
+## What v0.3 Adds
+
+- **Trust levels** — `signed` (Bronze), `anchored` (Silver), `attested` (Gold) declared in discovery
+- **Merkle tree checkpoints** — RFC 6962-compatible trees over audit log entries, with inclusion and consistency proofs
+- **Checkpoint scheduling** — automatic checkpoints by entry count and/or time interval
+- **Async sink publication** — checkpoints published to external sinks via background queue
+- **Checkpoint endpoints** — `GET /anip/checkpoints` and `GET /anip/checkpoints/{id}` with proof support
+
+## What ANIP Does Not Yet Solve
 
 - **Prompt injection** — ANIP controls what an agent is *authorized* to do, not what it is *tricked into wanting* to do
 - **Host sandboxing** — ANIP assumes the agent runtime is not compromised

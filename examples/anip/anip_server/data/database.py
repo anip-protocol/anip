@@ -15,17 +15,30 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Generator
 
+from anip_server.primitives.checkpoint import CheckpointPolicy, enqueue_for_sink, get_pending_sink_count
+from anip_server.primitives.merkle import MerkleTree
+
 # Database path — configurable via ANIP_DB_PATH environment variable
 DB_PATH = Path(os.environ.get("ANIP_DB_PATH", str(Path(__file__).parent / "anip.db")))
 
 _connection: sqlite3.Connection | None = None
 _audit_signer = None
+_merkle_tree = MerkleTree()
+_checkpoint_policy: CheckpointPolicy | None = None
+_entries_since_checkpoint: int = 0
 
 
 def set_audit_signer(signer):
     """Set the audit entry signer (KeyManager instance)."""
     global _audit_signer
     _audit_signer = signer
+
+
+def set_checkpoint_policy(policy: CheckpointPolicy | None) -> None:
+    """Set the checkpoint policy for automatic checkpointing."""
+    global _checkpoint_policy, _entries_since_checkpoint
+    _checkpoint_policy = policy
+    _entries_since_checkpoint = 0
 
 
 def get_connection() -> sqlite3.Connection:
@@ -114,6 +127,18 @@ def _init_schema(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
         CREATE INDEX IF NOT EXISTS idx_audit_root_principal ON audit_log(root_principal);
         CREATE INDEX IF NOT EXISTS idx_sessions_capability ON sessions(capability);
+
+        CREATE TABLE IF NOT EXISTS checkpoints (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            checkpoint_id TEXT NOT NULL UNIQUE,
+            first_sequence INTEGER NOT NULL,
+            last_sequence INTEGER NOT NULL,
+            merkle_root TEXT NOT NULL,
+            previous_checkpoint TEXT,
+            timestamp TEXT NOT NULL,
+            entry_count INTEGER NOT NULL,
+            signature TEXT NOT NULL
+        );
     """)
 
 
@@ -332,6 +357,14 @@ def log_invocation(
             "previous_hash": previous_hash,
         }
 
+        # Accumulate into Merkle tree (canonical bytes match _compute_entry_hash)
+        canonical_bytes = json.dumps(
+            {k: v for k, v in sorted(entry_dict.items()) if k not in ("signature", "id")},
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode()
+        _merkle_tree.add_leaf(canonical_bytes)
+
         # Sign audit entry with dedicated audit key
         signature = None
         if _audit_signer is not None:
@@ -361,6 +394,15 @@ def log_invocation(
                 signature,
             ),
         )
+
+    # Auto-checkpoint based on entry count policy (outside the transaction)
+    global _entries_since_checkpoint
+    _entries_since_checkpoint += 1
+    if _checkpoint_policy and _checkpoint_policy.should_checkpoint(
+        entries_since_last=_entries_since_checkpoint
+    ):
+        create_checkpoint()
+        _entries_since_checkpoint = 0
 
 
 def query_audit_log(
@@ -401,3 +443,197 @@ def query_audit_log(
         results.append(entry)
 
     return results
+
+
+def get_merkle_snapshot() -> dict[str, Any]:
+    """Return the current Merkle tree snapshot (root hash and leaf count)."""
+    return _merkle_tree.snapshot()
+
+
+def get_merkle_inclusion_proof(index: int) -> dict[str, Any]:
+    """Return an inclusion proof for the leaf at *index*."""
+    return {
+        "path": _merkle_tree.inclusion_proof(index),
+        "root": _merkle_tree.root,
+        "leaf_count": _merkle_tree.leaf_count,
+    }
+
+
+# --- Checkpoints ---
+
+
+def store_checkpoint(body: dict[str, Any], signature: str) -> None:
+    """Insert a checkpoint record into the database."""
+    with transaction() as conn:
+        conn.execute(
+            """INSERT INTO checkpoints
+               (checkpoint_id, first_sequence, last_sequence, merkle_root,
+                previous_checkpoint, timestamp, entry_count, signature)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                body["checkpoint_id"],
+                body["range"]["first_sequence"],
+                body["range"]["last_sequence"],
+                body["merkle_root"],
+                body["previous_checkpoint"],
+                body["timestamp"],
+                body["entry_count"],
+                signature,
+            ),
+        )
+
+
+def get_checkpoints(limit: int = 10) -> list[dict[str, Any]]:
+    """Return checkpoints ordered by id (ascending)."""
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT * FROM checkpoints ORDER BY id ASC LIMIT ?", (limit,)
+    ).fetchall()
+    results = []
+    for row in rows:
+        results.append({
+            "checkpoint_id": row["checkpoint_id"],
+            "first_sequence": row["first_sequence"],
+            "last_sequence": row["last_sequence"],
+            "merkle_root": row["merkle_root"],
+            "previous_checkpoint": row["previous_checkpoint"],
+            "timestamp": row["timestamp"],
+            "entry_count": row["entry_count"],
+            "signature": row["signature"],
+        })
+    return results
+
+
+def create_checkpoint() -> tuple[dict[str, Any], str]:
+    """Create a checkpoint: snapshot Merkle state, sign, store, return.
+
+    Returns ``(body_dict, detached_jws_signature)``.
+    """
+    snap = get_merkle_snapshot()
+    conn = get_connection()
+
+    # Determine previous checkpoint (if any)
+    prev_row = conn.execute(
+        "SELECT * FROM checkpoints ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+
+    if prev_row is None:
+        first_sequence = 1
+        previous_checkpoint = None
+        checkpoint_number = 1
+    else:
+        first_sequence = prev_row["last_sequence"] + 1
+        # Hash the previous checkpoint body (canonical JSON)
+        prev_body = {
+            "version": "0.3",
+            "service_id": os.environ.get("ANIP_SERVICE_ID", "anip-reference-server"),
+            "checkpoint_id": prev_row["checkpoint_id"],
+            "range": {
+                "first_sequence": prev_row["first_sequence"],
+                "last_sequence": prev_row["last_sequence"],
+            },
+            "merkle_root": prev_row["merkle_root"],
+            "previous_checkpoint": prev_row["previous_checkpoint"],
+            "timestamp": prev_row["timestamp"],
+            "entry_count": prev_row["entry_count"],
+        }
+        prev_canonical = json.dumps(prev_body, separators=(",", ":"), sort_keys=True).encode()
+        previous_checkpoint = f"sha256:{hashlib.sha256(prev_canonical).hexdigest()}"
+        # Extract number from previous checkpoint_id
+        checkpoint_number = int(prev_row["checkpoint_id"].split("-")[1]) + 1
+
+    last_sequence = snap["leaf_count"]
+    entry_count = last_sequence - first_sequence + 1
+
+    body = {
+        "version": "0.3",
+        "service_id": os.environ.get("ANIP_SERVICE_ID", "anip-reference-server"),
+        "checkpoint_id": f"ckpt-{checkpoint_number}",
+        "range": {
+            "first_sequence": first_sequence,
+            "last_sequence": last_sequence,
+        },
+        "merkle_root": snap["root"],
+        "previous_checkpoint": previous_checkpoint,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "entry_count": entry_count,
+    }
+
+    # Sign with detached JWS using the audit key (not the delegation key)
+    canonical_bytes = json.dumps(body, separators=(",", ":"), sort_keys=True).encode()
+    signature = ""
+    if _audit_signer is not None:
+        signature = _audit_signer.sign_jws_detached_audit(canonical_bytes)
+
+    store_checkpoint(body, signature)
+
+    # Publish to sink (async via background thread) — include signature so
+    # external witnesses can verify independently without querying the service.
+    enqueue_for_sink({"body": body, "signature": signature})
+
+    # Reset entry counter after checkpoint creation
+    global _entries_since_checkpoint
+    _entries_since_checkpoint = 0
+
+    return body, signature
+
+
+def get_anchoring_lag() -> dict[str, Any]:
+    """Return metrics describing how far the audit log is from the last checkpoint."""
+    checkpoints = get_checkpoints(limit=1)
+    if checkpoints:
+        last_ts = checkpoints[-1]["timestamp"]
+        last_dt = datetime.fromisoformat(last_ts)
+        seconds = (datetime.now(timezone.utc) - last_dt).total_seconds()
+    else:
+        seconds = 0.0
+    return {
+        "entries_since_last_checkpoint": _entries_since_checkpoint,
+        "seconds_since_last_checkpoint": seconds,
+        "pending_sink_publications": get_pending_sink_count(),
+        "max_lag_exceeded": False,  # placeholder
+    }
+
+
+def has_new_entries_since_checkpoint() -> bool:
+    """Return True if there are audit entries since the last checkpoint."""
+    return _entries_since_checkpoint > 0
+
+
+def get_checkpoint_by_id(checkpoint_id: str) -> dict[str, Any] | None:
+    conn = get_connection()
+    row = conn.execute("SELECT * FROM checkpoints WHERE checkpoint_id = ?", (checkpoint_id,)).fetchone()
+    if row is None:
+        return None
+    return {
+        "checkpoint_id": row["checkpoint_id"],
+        "range": {"first_sequence": row["first_sequence"], "last_sequence": row["last_sequence"]},
+        "merkle_root": row["merkle_root"],
+        "previous_checkpoint": row["previous_checkpoint"],
+        "timestamp": row["timestamp"],
+        "entry_count": row["entry_count"],
+        "signature": row["signature"],
+    }
+
+
+def rebuild_merkle_tree_to(sequence_number: int) -> MerkleTree:
+    """Rebuild Merkle tree from audit entries up to sequence_number."""
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT * FROM audit_log WHERE sequence_number <= ? ORDER BY sequence_number ASC",
+        (sequence_number,)
+    ).fetchall()
+    tree = MerkleTree()
+    for row in rows:
+        entry = dict(row)
+        for field in ("parameters", "result_summary", "cost_actual", "delegation_chain"):
+            if entry[field]:
+                entry[field] = json.loads(entry[field])
+        entry["success"] = bool(entry["success"])
+        canonical = json.dumps(
+            {k: v for k, v in sorted(entry.items()) if k not in ("signature", "id")},
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode()
+        tree.add_leaf(canonical)
+    return tree

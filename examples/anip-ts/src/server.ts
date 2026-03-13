@@ -9,7 +9,18 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { fileURLToPath } from "url";
 import { dirname, resolve } from "path";
-import { logAuditEntry, queryAuditLog } from "./data/database.js";
+import {
+  logAuditEntry,
+  queryAuditLog,
+  createCheckpoint,
+  setCheckpointPolicy,
+  setCheckpointSignFn,
+  hasNewEntriesSinceCheckpoint,
+  getCheckpoints,
+  getCheckpointById,
+  rebuildMerkleTreeTo,
+} from "./data/database.js";
+import { CheckpointPolicy, CheckpointScheduler } from "./checkpoint.js";
 
 import { invoke as invokeBookFlight } from "./capabilities/book-flight.js";
 import { invoke as invokeSearchFlights } from "./capabilities/search-flights.js";
@@ -48,7 +59,7 @@ const keyPath =
   process.env.ANIP_KEY_PATH ?? resolve(__dirname, "../anip-keys.json");
 const keys = new KeyManager(keyPath);
 
-const app = new Hono();
+export const app = new Hono();
 
 // Build manifest once at startup
 const manifest: ANIPManifest = buildManifest();
@@ -312,6 +323,7 @@ app.get("/.well-known/anip", (c) => {
   return c.json({
     anip_discovery: {
       protocol: manifest.protocol,
+      trust_level: manifest.trust?.level ?? "signed",
       compliance,
       base_url: baseUrl,
       jwks_uri: `${baseUrl}/.well-known/jwks.json`,
@@ -331,6 +343,7 @@ app.get("/.well-known/anip", (c) => {
         jwks: "/.well-known/jwks.json",
         graph: "/anip/graph/{capability}",
         audit: "/anip/audit",
+        checkpoints: "/anip/checkpoints",
         test: "/anip/test/{capability}",
       },
       metadata: {
@@ -837,12 +850,143 @@ app.post("/anip/audit", async (c) => {
   });
 });
 
+// --- Checkpoint Endpoints ---
+
+app.get("/anip/checkpoints", (c) => {
+  const limit = Math.min(Number(c.req.query("limit") ?? 10), 100);
+  const checkpoints = getCheckpoints(limit);
+  // Reshape to include nested range
+  const results = checkpoints.map((ck) => ({
+    checkpoint_id: ck.checkpoint_id,
+    range: {
+      first_sequence: ck.first_sequence,
+      last_sequence: ck.last_sequence,
+    },
+    merkle_root: ck.merkle_root,
+    previous_checkpoint: ck.previous_checkpoint,
+    timestamp: ck.timestamp,
+    entry_count: ck.entry_count,
+    signature: ck.signature,
+  }));
+  return c.json({ checkpoints: results });
+});
+
+app.get("/anip/checkpoints/:checkpoint_id", (c) => {
+  const checkpointId = c.req.param("checkpoint_id");
+  const ckpt = getCheckpointById(checkpointId);
+  if (ckpt === null) {
+    return c.json({ error: `checkpoint '${checkpointId}' not found` }, 404);
+  }
+
+  const response: Record<string, unknown> = { checkpoint: ckpt };
+
+  // Inclusion proof: rebuild tree at checkpoint time
+  const includeProof = c.req.query("include_proof") === "true";
+  const leafIndexParam = c.req.query("leaf_index");
+  if (includeProof && leafIndexParam !== undefined) {
+    const leafIndex = Number(leafIndexParam);
+    const tree = rebuildMerkleTreeTo(ckpt.range.last_sequence);
+    try {
+      const path = tree.inclusionProof(leafIndex);
+      response.inclusion_proof = {
+        leaf_index: leafIndex,
+        path,
+        merkle_root: tree.root,
+        leaf_count: tree.leafCount,
+      };
+    } catch (e) {
+      return c.json({ error: String(e) }, 400);
+    }
+  }
+
+  // Consistency proof: rebuild trees at both checkpoint times
+  const consistencyFrom = c.req.query("consistency_from");
+  if (consistencyFrom !== undefined) {
+    const oldCkpt = getCheckpointById(consistencyFrom);
+    if (oldCkpt === null) {
+      return c.json(
+        { error: `old checkpoint '${consistencyFrom}' not found` },
+        404
+      );
+    }
+    const oldTree = rebuildMerkleTreeTo(oldCkpt.range.last_sequence);
+    const newTree = rebuildMerkleTreeTo(ckpt.range.last_sequence);
+    const rawPath = newTree.consistencyProof(oldTree.leafCount);
+    // Hex-encode raw bytes for JSON serialization
+    const hexPath = rawPath.map((h) => h.toString("hex"));
+    response.consistency_proof = {
+      old_checkpoint_id: consistencyFrom,
+      new_checkpoint_id: checkpointId,
+      old_size: oldTree.leafCount,
+      new_size: newTree.leafCount,
+      old_root: oldTree.root,
+      new_root: newTree.root,
+      path: hexPath,
+    };
+  }
+
+  return c.json(response);
+});
+
+// --- Checkpoint policy configuration ---
+
+{
+  const cadence = process.env.ANIP_CHECKPOINT_CADENCE
+    ? parseInt(process.env.ANIP_CHECKPOINT_CADENCE, 10)
+    : undefined;
+  const interval = process.env.ANIP_CHECKPOINT_INTERVAL
+    ? parseInt(process.env.ANIP_CHECKPOINT_INTERVAL, 10)
+    : undefined;
+
+  if (cadence !== undefined || interval !== undefined) {
+    const policy = new CheckpointPolicy({
+      entryCount: cadence,
+      intervalSeconds: interval,
+    });
+    setCheckpointPolicy(policy);
+
+    // Set the sign function for auto-checkpoints once keys are ready.
+    // Uses the audit key (not delegation key) for checkpoint signatures.
+    keys.ready().then(async () => {
+      setCheckpointSignFn((payload: Buffer) =>
+        keys.signJWSDetachedAudit(new Uint8Array(payload))
+      );
+    }).catch(() => {
+      // If key setup fails, auto-checkpoints will be skipped (no signFn)
+    });
+
+    if (interval !== undefined) {
+      keys.ready().then(async () => {
+        const signFn = (payload: Buffer) =>
+          keys.signJWSDetachedAudit(new Uint8Array(payload));
+
+        const scheduler = new CheckpointScheduler(
+          interval,
+          () => {
+            createCheckpoint(signFn).catch(() => {});
+          },
+          hasNewEntriesSinceCheckpoint,
+        );
+        scheduler.start();
+        console.log(`Checkpoint scheduler started: interval=${interval}s`);
+      });
+    }
+
+    console.log(
+      `Checkpoint policy: cadence=${cadence ?? "none"}, interval=${interval ?? "none"}s`,
+    );
+  }
+}
+
 // --- Start server ---
 
 const port = Number(process.env.PORT || 3000);
-console.log(`ANIP Flight Service (TypeScript v0.2) listening on port ${port}`);
 
-serve({
-  fetch: app.fetch,
-  port,
-});
+if (process.env.VITEST === undefined) {
+  console.log(`ANIP Flight Service (TypeScript v0.3) listening on port ${port}`);
+
+  serve({
+    fetch: app.fetch,
+    port,
+  });
+}

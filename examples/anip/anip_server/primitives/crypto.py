@@ -202,16 +202,16 @@ class KeyManager:
     # Detached JWS
     # ------------------------------------------------------------------ #
 
-    def sign_jws_detached(self, payload: bytes) -> str:
-        """Create a detached JWS (header..signature with empty payload)."""
+    def _sign_jws_detached_with(self, payload: bytes, private_key, kid: str) -> str:
+        """Create a detached JWS using the specified key."""
         header = json.dumps(
-            {"alg": "ES256", "kid": self._kid}, separators=(",", ":")
+            {"alg": "ES256", "kid": kid}, separators=(",", ":")
         )
         header_b64 = _b64url_encode(header.encode("utf-8"))
         payload_b64 = _b64url_encode(payload)
 
         signing_input = f"{header_b64}.{payload_b64}".encode("ascii")
-        der_sig = self._private_key.sign(signing_input, ec.ECDSA(hashes.SHA256()))
+        der_sig = private_key.sign(signing_input, ec.ECDSA(hashes.SHA256()))
 
         # Convert DER signature to raw r||s (32 bytes each for P-256)
         r, s = decode_dss_signature(der_sig)
@@ -220,8 +220,16 @@ class KeyManager:
 
         return f"{header_b64}..{sig_b64}"
 
-    def verify_jws_detached(self, jws: str, payload: bytes) -> None:
-        """Verify a detached JWS against the provided payload."""
+    def sign_jws_detached(self, payload: bytes) -> str:
+        """Create a detached JWS with the delegation key (for manifests)."""
+        return self._sign_jws_detached_with(payload, self._private_key, self._kid)
+
+    def sign_jws_detached_audit(self, payload: bytes) -> str:
+        """Create a detached JWS with the audit key (for checkpoints)."""
+        return self._sign_jws_detached_with(payload, self._audit_private_key, self._audit_kid)
+
+    def _verify_jws_detached_with(self, jws: str, payload: bytes, public_key) -> None:
+        """Verify a detached JWS against the provided payload using the specified key."""
         parts = jws.split(".")
         if len(parts) != 3 or parts[1] != "":
             raise ValueError("Invalid detached JWS format: expected 'header..signature'")
@@ -235,4 +243,12 @@ class KeyManager:
         s = int.from_bytes(raw_sig[32:], "big")
         der_sig = encode_dss_signature(r, s)
 
-        self._public_key.verify(der_sig, signing_input, ec.ECDSA(hashes.SHA256()))
+        public_key.verify(der_sig, signing_input, ec.ECDSA(hashes.SHA256()))
+
+    def verify_jws_detached(self, jws: str, payload: bytes) -> None:
+        """Verify a detached JWS with the delegation public key (for manifests)."""
+        self._verify_jws_detached_with(jws, payload, self._public_key)
+
+    def verify_jws_detached_audit(self, jws: str, payload: bytes) -> None:
+        """Verify a detached JWS with the audit public key (for checkpoints)."""
+        self._verify_jws_detached_with(jws, payload, self._audit_public_key)

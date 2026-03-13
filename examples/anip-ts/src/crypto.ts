@@ -139,6 +139,15 @@ export class KeyManager {
     return `${header}..${signature}`;
   }
 
+  async signJWSDetachedAudit(payload: Uint8Array): Promise<string> {
+    await this._ready;
+    const jws = await new jose.CompactSign(payload)
+      .setProtectedHeader({ alg: "ES256", kid: this.auditKid })
+      .sign(this.auditPrivateKey);
+    const [header, , signature] = jws.split(".");
+    return `${header}..${signature}`;
+  }
+
   async signAuditEntry(
     entryData: Record<string, unknown>
   ): Promise<string> {

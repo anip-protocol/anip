@@ -14,7 +14,13 @@ from pydantic import BaseModel
 from starlette.responses import Response
 
 from .capabilities import book_flight, search_flights
-from .data.database import log_invocation, query_audit_log
+from .data.database import (
+    log_invocation,
+    query_audit_log,
+    get_checkpoint_by_id,
+    get_checkpoints,
+    rebuild_merkle_tree_to,
+)
 from .primitives.delegation import (
     acquire_exclusive_lock,
     get_chain_token_ids,
@@ -63,7 +69,7 @@ def set_trust_mode(mode: str) -> None:
 app = FastAPI(
     title="ANIP Flight Service",
     description="Reference implementation of the Agent-Native Interface Protocol",
-    version="0.2.0",
+    version="0.3.0",
 )
 
 # Server key pair — persisted to disk so restarts don't invalidate tokens.
@@ -81,6 +87,27 @@ set_audit_signer(_keys)
 
 # Build manifest once at startup
 _manifest = build_manifest()
+
+# Configure automatic checkpointing from environment variables
+from .primitives.checkpoint import CheckpointPolicy, CheckpointScheduler
+from .data.database import set_checkpoint_policy, create_checkpoint, has_new_entries_since_checkpoint
+
+_checkpoint_cadence = os.environ.get("ANIP_CHECKPOINT_CADENCE")
+_checkpoint_interval = os.environ.get("ANIP_CHECKPOINT_INTERVAL")
+_checkpoint_scheduler: CheckpointScheduler | None = None
+
+if _checkpoint_cadence or _checkpoint_interval:
+    _ckpt_policy = CheckpointPolicy(
+        entry_count=int(_checkpoint_cadence) if _checkpoint_cadence else None,
+        interval_seconds=int(_checkpoint_interval) if _checkpoint_interval else None,
+    )
+    set_checkpoint_policy(_ckpt_policy)
+
+if _checkpoint_interval:
+    _checkpoint_scheduler = CheckpointScheduler(
+        int(_checkpoint_interval), create_checkpoint, has_new_entries_since_checkpoint
+    )
+    _checkpoint_scheduler.start()
 
 # Capability registry — maps name to invoke function
 _capability_handlers = {
@@ -107,7 +134,7 @@ def discovery(request: Request):
             "description": cap.description,
             "side_effect": cap.side_effect.type.value,
             "minimum_scope": cap.minimum_scope,
-            "financial": cap.cost.financial is not None,
+            "financial": cap.cost is not None and cap.cost.financial is not None,
             "contract": cap.contract_version,
         }
         for name, cap in _manifest.capabilities.items()
@@ -131,6 +158,7 @@ def discovery(request: Request):
     return {
         "anip_discovery": {
             "protocol": _manifest.protocol,
+            "trust_level": _manifest.trust.level if _manifest.trust else "signed",
             "compliance": compliance,
             "base_url": base_url,
             "jwks_uri": f"{base_url}/.well-known/jwks.json",
@@ -150,6 +178,7 @@ def discovery(request: Request):
                 "jwks": "/.well-known/jwks.json",
                 "graph": "/anip/graph/{capability}",
                 "audit": "/anip/audit",
+                "checkpoints": "/anip/checkpoints",
                 "test": "/anip/test/{capability}",
             },
             "metadata": {
@@ -629,6 +658,91 @@ def get_audit_log(
         "capability_filter": capability,
         "since_filter": since,
     }
+
+
+# --- Checkpoints ---
+
+
+from fastapi.responses import JSONResponse
+
+
+@app.get("/anip/checkpoints")
+def list_checkpoints(limit: int = Query(10, le=100)):
+    """Return a list of checkpoints."""
+    checkpoints = get_checkpoints(limit=limit)
+    # Reshape to include nested range
+    results = []
+    for c in checkpoints:
+        results.append({
+            "checkpoint_id": c["checkpoint_id"],
+            "range": {
+                "first_sequence": c["first_sequence"],
+                "last_sequence": c["last_sequence"],
+            },
+            "merkle_root": c["merkle_root"],
+            "previous_checkpoint": c["previous_checkpoint"],
+            "timestamp": c["timestamp"],
+            "entry_count": c["entry_count"],
+            "signature": c["signature"],
+        })
+    return {"checkpoints": results}
+
+
+@app.get("/anip/checkpoints/{checkpoint_id}")
+def get_checkpoint(
+    checkpoint_id: str,
+    include_proof: bool = Query(False),
+    leaf_index: int | None = Query(None),
+    consistency_from: str | None = Query(None),
+):
+    """Return an individual checkpoint with optional proofs."""
+    ckpt = get_checkpoint_by_id(checkpoint_id)
+    if ckpt is None:
+        return JSONResponse(
+            status_code=404,
+            content={"error": f"checkpoint '{checkpoint_id}' not found"},
+        )
+
+    response: dict[str, Any] = {"checkpoint": ckpt}
+
+    # Inclusion proof: rebuild tree at checkpoint time
+    if include_proof and leaf_index is not None:
+        tree = rebuild_merkle_tree_to(ckpt["range"]["last_sequence"])
+        try:
+            path = tree.inclusion_proof(leaf_index)
+        except IndexError as e:
+            return JSONResponse(status_code=400, content={"error": str(e)})
+        response["inclusion_proof"] = {
+            "leaf_index": leaf_index,
+            "path": path,
+            "merkle_root": tree.root,
+            "leaf_count": tree.leaf_count,
+        }
+
+    # Consistency proof: rebuild trees at both checkpoint times
+    if consistency_from is not None:
+        old_ckpt = get_checkpoint_by_id(consistency_from)
+        if old_ckpt is None:
+            return JSONResponse(
+                status_code=404,
+                content={"error": f"old checkpoint '{consistency_from}' not found"},
+            )
+        old_tree = rebuild_merkle_tree_to(old_ckpt["range"]["last_sequence"])
+        new_tree = rebuild_merkle_tree_to(ckpt["range"]["last_sequence"])
+        raw_path = new_tree.consistency_proof(old_tree.leaf_count)
+        # Hex-encode raw bytes for JSON serialization
+        hex_path = [h.hex() for h in raw_path]
+        response["consistency_proof"] = {
+            "old_checkpoint_id": consistency_from,
+            "new_checkpoint_id": checkpoint_id,
+            "old_size": old_tree.leaf_count,
+            "new_size": new_tree.leaf_count,
+            "old_root": old_tree.root,
+            "new_root": new_tree.root,
+            "path": hex_path,
+        }
+
+    return response
 
 
 # --- Capability Graph ---

@@ -184,6 +184,28 @@ export const ANIPFailure = z.object({
 });
 export type ANIPFailure = z.infer<typeof ANIPFailure>;
 
+// --- Trust Posture (v0.3) ---
+
+export const AnchoringPolicy = z.object({
+  cadence: z.string().nullable().optional(),
+  max_lag: z.number().nullable().optional(),
+  sink: z.array(z.string()).nullable().optional(),
+});
+export type AnchoringPolicy = z.infer<typeof AnchoringPolicy>;
+
+export const TrustPolicyTrigger = z.object({
+  trigger: z.record(z.unknown()),
+  action: z.string(),
+});
+export type TrustPolicyTrigger = z.infer<typeof TrustPolicyTrigger>;
+
+export const TrustPosture = z.object({
+  level: z.enum(["signed", "anchored", "attested"]),
+  anchoring: AnchoringPolicy.nullable().optional(),
+  policies: z.array(TrustPolicyTrigger).nullable().optional(),
+});
+export type TrustPosture = z.infer<typeof TrustPosture>;
+
 // --- Manifest ---
 
 export const ProfileVersions = z.object({
@@ -215,11 +237,12 @@ export const ServiceIdentity = z.object({
 export type ServiceIdentity = z.infer<typeof ServiceIdentity>;
 
 export const ANIPManifest = z.object({
-  protocol: z.string().default("anip/0.2"),
+  protocol: z.string().default("anip/0.3"),
   profile: ProfileVersions,
   capabilities: z.record(CapabilityDeclaration),
   manifest_metadata: ManifestMetadata.nullable().default(null),
   service_identity: ServiceIdentity.nullable().default(null),
+  trust: TrustPosture.nullable().default(null),
 });
 export type ANIPManifest = z.infer<typeof ANIPManifest>;
 

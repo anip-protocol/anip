@@ -4,10 +4,18 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from datetime import datetime, timedelta, timezone
 
 from ..capabilities import search_flights, book_flight
-from .models import ANIPManifest, ManifestMetadata, ProfileVersions, ServiceIdentity
+from .models import (
+    ANIPManifest,
+    AnchoringPolicy,
+    ManifestMetadata,
+    ProfileVersions,
+    ServiceIdentity,
+    TrustPosture,
+)
 
 
 def build_manifest() -> ANIPManifest:
@@ -16,8 +24,39 @@ def build_manifest() -> ANIPManifest:
         "book_flight": book_flight.DECLARATION,
     }
 
+    # Build trust posture from environment
+    trust_level = os.environ.get("ANIP_TRUST_LEVEL", "signed")
+    anchoring = None
+    if trust_level in ("anchored", "attested"):
+        # cadence: ISO 8601 duration for max time between checkpoints
+        # Derived from ANIP_CHECKPOINT_INTERVAL (seconds) if set
+        interval_env = os.environ.get("ANIP_CHECKPOINT_INTERVAL")
+        cadence = f"PT{interval_env}S" if interval_env else None
+        # max_lag: max uncheckpointed entry count from ANIP_CHECKPOINT_CADENCE
+        cadence_env = os.environ.get("ANIP_CHECKPOINT_CADENCE")
+        max_lag = int(cadence_env) if cadence_env else None
+        # sink: qualifying URIs required for anchored (file:// is dev-only)
+        sink_env = os.environ.get("ANIP_CHECKPOINT_SINK")
+        sink = [s.strip() for s in sink_env.split(",")] if sink_env else None
+
+        # Validate: anchored/attested requires at least one qualifying sink
+        _QUALIFYING_SCHEMES = ("witness:", "https:")
+        qualifying = [s for s in (sink or []) if any(s.startswith(p) for p in _QUALIFYING_SCHEMES)]
+        if not qualifying:
+            raise ValueError(
+                f"ANIP_TRUST_LEVEL={trust_level} requires ANIP_CHECKPOINT_SINK with at least one "
+                f"qualifying sink URI (witness: or https:). file:// sinks are non-qualifying per spec §7.6."
+            )
+
+        anchoring = AnchoringPolicy(
+            cadence=cadence,
+            max_lag=max_lag,
+            sink=sink,
+        )
+    trust = TrustPosture(level=trust_level, anchoring=anchoring)
+
     manifest = ANIPManifest(
-        protocol="anip/0.2",
+        protocol="anip/0.3",
         profile=ProfileVersions(
             core="1.0",
             cost="1.0",
@@ -27,6 +66,7 @@ def build_manifest() -> ANIPManifest:
         ),
         capabilities=capabilities,
         service_identity=ServiceIdentity(),
+        trust=trust,
     )
 
     # Compute sha256 over capabilities (excluding metadata itself)
