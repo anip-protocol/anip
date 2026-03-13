@@ -26,6 +26,19 @@ export function buildManifest(): ANIPManifest {
     // sink: qualifying URIs required for anchored (file:// is dev-only)
     const sinkEnv = process.env.ANIP_CHECKPOINT_SINK ?? null;
     const sink = sinkEnv ? sinkEnv.split(",").map((s) => s.trim()) : null;
+
+    // Validate: anchored/attested requires at least one qualifying sink
+    const QUALIFYING_SCHEMES = ["witness:", "https:"];
+    const qualifying = (sink ?? []).filter((s) =>
+      QUALIFYING_SCHEMES.some((p) => s.startsWith(p))
+    );
+    if (qualifying.length === 0) {
+      throw new Error(
+        `ANIP_TRUST_LEVEL=${trustLevel} requires ANIP_CHECKPOINT_SINK with at least one ` +
+        `qualifying sink URI (witness: or https:). file:// sinks are non-qualifying per spec §7.6.`
+      );
+    }
+
     anchoring = { cadence, max_lag: maxLag, sink };
   }
   const trust: TrustPosture = { level: trustLevel, anchoring };

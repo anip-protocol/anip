@@ -38,6 +38,16 @@ def build_manifest() -> ANIPManifest:
         # sink: qualifying URIs required for anchored (file:// is dev-only)
         sink_env = os.environ.get("ANIP_CHECKPOINT_SINK")
         sink = [s.strip() for s in sink_env.split(",")] if sink_env else None
+
+        # Validate: anchored/attested requires at least one qualifying sink
+        _QUALIFYING_SCHEMES = ("witness:", "https:")
+        qualifying = [s for s in (sink or []) if any(s.startswith(p) for p in _QUALIFYING_SCHEMES)]
+        if not qualifying:
+            raise ValueError(
+                f"ANIP_TRUST_LEVEL={trust_level} requires ANIP_CHECKPOINT_SINK with at least one "
+                f"qualifying sink URI (witness: or https:). file:// sinks are non-qualifying per spec §7.6."
+            )
+
         anchoring = AnchoringPolicy(
             cadence=cadence,
             max_lag=max_lag,
