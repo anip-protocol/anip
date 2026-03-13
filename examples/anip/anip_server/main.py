@@ -14,7 +14,13 @@ from pydantic import BaseModel
 from starlette.responses import Response
 
 from .capabilities import book_flight, search_flights
-from .data.database import log_invocation, query_audit_log
+from .data.database import (
+    log_invocation,
+    query_audit_log,
+    get_checkpoint_by_id,
+    get_checkpoints,
+    rebuild_merkle_tree_to,
+)
 from .primitives.delegation import (
     acquire_exclusive_lock,
     get_chain_token_ids,
@@ -172,6 +178,7 @@ def discovery(request: Request):
                 "jwks": "/.well-known/jwks.json",
                 "graph": "/anip/graph/{capability}",
                 "audit": "/anip/audit",
+                "checkpoints": "/anip/checkpoints",
                 "test": "/anip/test/{capability}",
             },
             "metadata": {
@@ -651,6 +658,91 @@ def get_audit_log(
         "capability_filter": capability,
         "since_filter": since,
     }
+
+
+# --- Checkpoints ---
+
+
+from fastapi.responses import JSONResponse
+
+
+@app.get("/anip/checkpoints")
+def list_checkpoints(limit: int = Query(10, le=100)):
+    """Return a list of checkpoints."""
+    checkpoints = get_checkpoints(limit=limit)
+    # Reshape to include nested range
+    results = []
+    for c in checkpoints:
+        results.append({
+            "checkpoint_id": c["checkpoint_id"],
+            "range": {
+                "first_sequence": c["first_sequence"],
+                "last_sequence": c["last_sequence"],
+            },
+            "merkle_root": c["merkle_root"],
+            "previous_checkpoint": c["previous_checkpoint"],
+            "timestamp": c["timestamp"],
+            "entry_count": c["entry_count"],
+            "signature": c["signature"],
+        })
+    return {"checkpoints": results}
+
+
+@app.get("/anip/checkpoints/{checkpoint_id}")
+def get_checkpoint(
+    checkpoint_id: str,
+    include_proof: bool = Query(False),
+    leaf_index: int | None = Query(None),
+    consistency_from: str | None = Query(None),
+):
+    """Return an individual checkpoint with optional proofs."""
+    ckpt = get_checkpoint_by_id(checkpoint_id)
+    if ckpt is None:
+        return JSONResponse(
+            status_code=404,
+            content={"error": f"checkpoint '{checkpoint_id}' not found"},
+        )
+
+    response: dict[str, Any] = {"checkpoint": ckpt}
+
+    # Inclusion proof: rebuild tree at checkpoint time
+    if include_proof and leaf_index is not None:
+        tree = rebuild_merkle_tree_to(ckpt["range"]["last_sequence"])
+        try:
+            path = tree.inclusion_proof(leaf_index)
+        except IndexError as e:
+            return JSONResponse(status_code=400, content={"error": str(e)})
+        response["inclusion_proof"] = {
+            "leaf_index": leaf_index,
+            "path": path,
+            "merkle_root": tree.root,
+            "leaf_count": tree.leaf_count,
+        }
+
+    # Consistency proof: rebuild trees at both checkpoint times
+    if consistency_from is not None:
+        old_ckpt = get_checkpoint_by_id(consistency_from)
+        if old_ckpt is None:
+            return JSONResponse(
+                status_code=404,
+                content={"error": f"old checkpoint '{consistency_from}' not found"},
+            )
+        old_tree = rebuild_merkle_tree_to(old_ckpt["range"]["last_sequence"])
+        new_tree = rebuild_merkle_tree_to(ckpt["range"]["last_sequence"])
+        raw_path = new_tree.consistency_proof(old_tree.leaf_count)
+        # Hex-encode raw bytes for JSON serialization
+        hex_path = [h.hex() for h in raw_path]
+        response["consistency_proof"] = {
+            "old_checkpoint_id": consistency_from,
+            "new_checkpoint_id": checkpoint_id,
+            "old_size": old_tree.leaf_count,
+            "new_size": new_tree.leaf_count,
+            "old_root": old_tree.root,
+            "new_root": new_tree.root,
+            "path": hex_path,
+        }
+
+    return response
 
 
 # --- Capability Graph ---

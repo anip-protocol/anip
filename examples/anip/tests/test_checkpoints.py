@@ -66,6 +66,68 @@ class TestCheckpointPolicy:
         assert not policy.should_checkpoint(entries_since_last=1000)
 
 
+class TestCheckpointEndpoints:
+    def test_checkpoints_endpoint_returns_list(self, client):
+        token = _issue_token(client, "search_flights", ["travel.search"])
+        client.post("/anip/invoke/search_flights",
+                    json={"token": token, "parameters": {"origin": "SEA", "destination": "SFO", "date": "2026-04-01"}})
+        from anip_server.data.database import create_checkpoint
+        create_checkpoint()
+        resp = client.get("/anip/checkpoints")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "checkpoints" in data
+        assert len(data["checkpoints"]) >= 1
+        ckpt = data["checkpoints"][0]
+        assert "merkle_root" in ckpt
+        assert "range" in ckpt
+        assert "signature" in ckpt
+
+    def test_checkpoints_endpoint_with_limit(self, client):
+        resp = client.get("/anip/checkpoints?limit=1")
+        assert resp.status_code == 200
+        assert len(resp.json()["checkpoints"]) <= 1
+
+    def test_individual_checkpoint_with_inclusion_proof(self, client):
+        token = _issue_token(client, "search_flights", ["travel.search"])
+        from anip_server.data.database import create_checkpoint, get_checkpoints
+        for _ in range(3):
+            client.post("/anip/invoke/search_flights",
+                        json={"token": token, "parameters": {"origin": "SEA", "destination": "SFO", "date": "2026-04-01"}})
+        create_checkpoint()
+        checkpoints = get_checkpoints(limit=1)
+        ckpt_id = checkpoints[0]["checkpoint_id"]
+        resp = client.get(f"/anip/checkpoints/{ckpt_id}?include_proof=true&leaf_index=0")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "checkpoint" in data
+        assert "inclusion_proof" in data
+        assert "path" in data["inclusion_proof"]
+        assert "merkle_root" in data["inclusion_proof"]
+
+    def test_individual_checkpoint_with_consistency_proof(self, client):
+        token = _issue_token(client, "search_flights", ["travel.search"])
+        from anip_server.data.database import create_checkpoint, get_checkpoints
+        for _ in range(3):
+            client.post("/anip/invoke/search_flights",
+                        json={"token": token, "parameters": {"origin": "SEA", "destination": "SFO", "date": "2026-04-01"}})
+        create_checkpoint()
+        for _ in range(3):
+            client.post("/anip/invoke/search_flights",
+                        json={"token": token, "parameters": {"origin": "SEA", "destination": "SFO", "date": "2026-04-01"}})
+        create_checkpoint()
+        checkpoints = get_checkpoints(limit=10)
+        old_id = checkpoints[0]["checkpoint_id"]
+        new_id = checkpoints[1]["checkpoint_id"]
+        resp = client.get(f"/anip/checkpoints/{new_id}?consistency_from={old_id}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "consistency_proof" in data
+        assert "old_size" in data["consistency_proof"]
+        assert "new_size" in data["consistency_proof"]
+        assert "path" in data["consistency_proof"]
+
+
 class TestAutoCheckpoint:
     def test_auto_checkpoint_after_n_entries(self, client):
         """With entry_count policy=3, a checkpoint should be created after every 3 entries."""

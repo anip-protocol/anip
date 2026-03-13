@@ -594,3 +594,42 @@ def get_anchoring_lag() -> dict[str, Any]:
 def has_new_entries_since_checkpoint() -> bool:
     """Return True if there are audit entries since the last checkpoint."""
     return _entries_since_checkpoint > 0
+
+
+def get_checkpoint_by_id(checkpoint_id: str) -> dict[str, Any] | None:
+    conn = get_connection()
+    row = conn.execute("SELECT * FROM checkpoints WHERE checkpoint_id = ?", (checkpoint_id,)).fetchone()
+    if row is None:
+        return None
+    return {
+        "checkpoint_id": row["checkpoint_id"],
+        "range": {"first_sequence": row["first_sequence"], "last_sequence": row["last_sequence"]},
+        "merkle_root": row["merkle_root"],
+        "previous_checkpoint": row["previous_checkpoint"],
+        "timestamp": row["timestamp"],
+        "entry_count": row["entry_count"],
+        "signature": row["signature"],
+    }
+
+
+def rebuild_merkle_tree_to(sequence_number: int) -> MerkleTree:
+    """Rebuild Merkle tree from audit entries up to sequence_number."""
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT * FROM audit_log WHERE sequence_number <= ? ORDER BY sequence_number ASC",
+        (sequence_number,)
+    ).fetchall()
+    tree = MerkleTree()
+    for row in rows:
+        entry = dict(row)
+        for field in ("parameters", "result_summary", "cost_actual", "delegation_chain"):
+            if entry[field]:
+                entry[field] = json.loads(entry[field])
+        entry["success"] = bool(entry["success"])
+        canonical = json.dumps(
+            {k: v for k, v in sorted(entry.items()) if k not in ("signature", "id")},
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode()
+        tree.add_leaf(canonical)
+    return tree
