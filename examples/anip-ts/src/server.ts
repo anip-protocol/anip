@@ -945,38 +945,25 @@ app.get("/anip/checkpoints/:checkpoint_id", (c) => {
     });
     setCheckpointPolicy(policy);
 
-    // Set the sign function for auto-checkpoints once keys are ready
+    // Set the sign function for auto-checkpoints once keys are ready.
+    // Uses the audit key (not delegation key) for checkpoint signatures.
     keys.ready().then(async () => {
-      const jwks = await keys.getJWKS();
-      // Use the same detached-JWS helper the server uses for manifests
-      setCheckpointSignFn((payload: Buffer) => {
-        // Synchronous HMAC-SHA256 placeholder — real EC signing is async.
-        // For auto-checkpoints we use a deterministic detached JWS stub.
-        const header = Buffer.from(JSON.stringify({ alg: "ES256" })).toString("base64url");
-        const { createHash } = require("crypto");
-        const hash = createHash("sha256").update(payload).digest("base64url");
-        return `${header}..${hash}`;
-      });
+      setCheckpointSignFn((payload: Buffer) =>
+        keys.signJWSDetachedAudit(new Uint8Array(payload))
+      );
     }).catch(() => {
       // If key setup fails, auto-checkpoints will be skipped (no signFn)
     });
 
     if (interval !== undefined) {
-      let schedulerSignFn: ((payload: Buffer) => string) | null = null;
       keys.ready().then(async () => {
-        const header = Buffer.from(JSON.stringify({ alg: "ES256" })).toString("base64url");
-        schedulerSignFn = (payload: Buffer) => {
-          const { createHash } = require("crypto");
-          const hash = createHash("sha256").update(payload).digest("base64url");
-          return `${header}..${hash}`;
-        };
+        const signFn = (payload: Buffer) =>
+          keys.signJWSDetachedAudit(new Uint8Array(payload));
 
         const scheduler = new CheckpointScheduler(
           interval,
           () => {
-            if (schedulerSignFn) {
-              createCheckpoint(schedulerSignFn);
-            }
+            createCheckpoint(signFn).catch(() => {});
           },
           hasNewEntriesSinceCheckpoint,
         );

@@ -16,8 +16,8 @@ beforeAll(() => {
   process.env.ANIP_DB_PATH = ":memory:";
 });
 
-// For tests, create a mock sign function that returns a valid detached JWS format
-const mockSign = (payload: Buffer) => {
+// For tests, create a mock async sign function that returns a valid detached JWS format
+const mockSign = async (payload: Buffer): Promise<string> => {
   // Return a fake detached JWS: header..signature
   const header = Buffer.from('{"alg":"ES256"}').toString("base64url");
   const sig = Buffer.from("fakesig").toString("base64url");
@@ -40,11 +40,11 @@ function addAuditEntry() {
 }
 
 describe("Checkpoint", () => {
-  it("creates checkpoint with body and detached signature", () => {
+  it("creates checkpoint with body and detached signature", async () => {
     addAuditEntry();
     addAuditEntry();
     const snap = getMerkleSnapshot();
-    const [body, sig] = createCheckpoint(mockSign);
+    const [body, sig] = await createCheckpoint(mockSign);
     expect(body.merkle_root).toBe(snap.root);
     expect(body.range.last_sequence).toBe(snap.leaf_count);
     expect(body).not.toHaveProperty("signature");
@@ -52,18 +52,18 @@ describe("Checkpoint", () => {
     expect(sig.split(".")[1]).toBe("");
   });
 
-  it("stores checkpoint in database", () => {
+  it("stores checkpoint in database", async () => {
     addAuditEntry();
-    createCheckpoint(mockSign);
+    await createCheckpoint(mockSign);
     const checkpoints = getCheckpoints();
     expect(checkpoints.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("chains checkpoints", () => {
+  it("chains checkpoints", async () => {
     addAuditEntry();
-    createCheckpoint(mockSign);
+    await createCheckpoint(mockSign);
     addAuditEntry();
-    createCheckpoint(mockSign);
+    await createCheckpoint(mockSign);
     const checkpoints = getCheckpoints();
     expect(checkpoints[0].previous_checkpoint).toBeNull();
     expect(checkpoints[1].previous_checkpoint).not.toBeNull();
@@ -84,7 +84,7 @@ describe("CheckpointPolicy", () => {
 });
 
 describe("Auto-checkpointing", () => {
-  it("triggers checkpoint after N entries", () => {
+  it("triggers checkpoint after N entries", async () => {
     // Configure policy and sign function
     setCheckpointPolicy(new CheckpointPolicy({ entryCount: 3 }));
     setCheckpointSignFn(mockSign);
@@ -94,6 +94,9 @@ describe("Auto-checkpointing", () => {
     for (let i = 0; i < 3; i++) {
       addAuditEntry();
     }
+
+    // Auto-checkpoint is fire-and-forget async — wait for it to complete
+    await new Promise((r) => setTimeout(r, 50));
 
     const checkpoints = getCheckpoints();
     expect(checkpoints.length).toBeGreaterThan(initialCheckpoints);
@@ -113,9 +116,9 @@ describe("Auto-checkpointing", () => {
     expect(getCheckpoints().length).toBe(initialCheckpoints);
   });
 
-  it("hasNewEntriesSinceCheckpoint tracks state", () => {
+  it("hasNewEntriesSinceCheckpoint tracks state", async () => {
     // After a checkpoint, adding an entry should flip the flag
-    createCheckpoint(mockSign);
+    await createCheckpoint(mockSign);
     expect(hasNewEntriesSinceCheckpoint()).toBe(false);
 
     addAuditEntry();
@@ -131,7 +134,7 @@ describe("Auto-checkpointing", () => {
 
     const scheduler = new CheckpointScheduler(
       0.3, // 300ms interval
-      () => createCheckpoint(mockSign),
+      () => { createCheckpoint(mockSign).catch(() => {}); },
       hasNewEntriesSinceCheckpoint,
     );
     scheduler.start();
@@ -145,7 +148,7 @@ describe("Auto-checkpointing", () => {
 describe("Checkpoint endpoints", () => {
   it("GET /anip/checkpoints returns list", async () => {
     addAuditEntry();
-    createCheckpoint(mockSign);
+    await createCheckpoint(mockSign);
     const res = await app.request("/anip/checkpoints");
     expect(res.status).toBe(200);
     const data = await res.json();
@@ -164,7 +167,7 @@ describe("Checkpoint endpoints", () => {
 
   it("GET /anip/checkpoints/:id with inclusion proof", async () => {
     for (let i = 0; i < 3; i++) addAuditEntry();
-    createCheckpoint(mockSign);
+    await createCheckpoint(mockSign);
     const checkpoints = getCheckpoints();
     const id = checkpoints[checkpoints.length - 1].checkpoint_id;
     const res = await app.request(
@@ -181,9 +184,9 @@ describe("Checkpoint endpoints", () => {
 
   it("GET /anip/checkpoints/:id with consistency proof", async () => {
     for (let i = 0; i < 3; i++) addAuditEntry();
-    createCheckpoint(mockSign);
+    await createCheckpoint(mockSign);
     for (let i = 0; i < 3; i++) addAuditEntry();
-    createCheckpoint(mockSign);
+    await createCheckpoint(mockSign);
     const checkpoints = getCheckpoints();
     const oldId = checkpoints[checkpoints.length - 2].checkpoint_id;
     const newId = checkpoints[checkpoints.length - 1].checkpoint_id;

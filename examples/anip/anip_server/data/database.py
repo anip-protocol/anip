@@ -559,16 +559,17 @@ def create_checkpoint() -> tuple[dict[str, Any], str]:
         "entry_count": entry_count,
     }
 
-    # Sign with detached JWS using the audit signer
+    # Sign with detached JWS using the audit key (not the delegation key)
     canonical_bytes = json.dumps(body, separators=(",", ":"), sort_keys=True).encode()
     signature = ""
     if _audit_signer is not None:
-        signature = _audit_signer.sign_jws_detached(canonical_bytes)
+        signature = _audit_signer.sign_jws_detached_audit(canonical_bytes)
 
     store_checkpoint(body, signature)
 
-    # Publish to sink (async via background thread)
-    enqueue_for_sink(body)
+    # Publish to sink (async via background thread) — include signature so
+    # external witnesses can verify independently without querying the service.
+    enqueue_for_sink({"body": body, "signature": signature})
 
     # Reset entry counter after checkpoint creation
     global _entries_since_checkpoint

@@ -22,7 +22,7 @@ const merkleTree = new MerkleTree();
 let checkpointPolicy: CheckpointPolicy | null = null;
 let entriesSinceCheckpoint = 0;
 let lastCheckpointTime: number = Date.now();
-let currentSignFn: ((payload: Buffer) => string) | null = null;
+let currentSignFn: ((payload: Buffer) => Promise<string>) | null = null;
 
 /**
  * Configure the checkpoint policy used for auto-checkpointing on audit write.
@@ -34,7 +34,7 @@ export function setCheckpointPolicy(policy: CheckpointPolicy): void {
 /**
  * Set the signing function used for auto-checkpoints.
  */
-export function setCheckpointSignFn(signFn: (payload: Buffer) => string): void {
+export function setCheckpointSignFn(signFn: (payload: Buffer) => Promise<string>): void {
   currentSignFn = signFn;
 }
 
@@ -221,9 +221,8 @@ export function logAuditEntry(
   entriesSinceCheckpoint++;
   if (checkpointPolicy && checkpointPolicy.shouldCheckpoint(entriesSinceCheckpoint)) {
     if (currentSignFn) {
-      createCheckpoint(currentSignFn);
-      entriesSinceCheckpoint = 0;
-      lastCheckpointTime = Date.now();
+      // Fire-and-forget: checkpoint creation is async but shouldn't block the audit write path
+      createCheckpoint(currentSignFn).catch(() => {});
     }
   }
 
@@ -443,9 +442,9 @@ export function getCheckpoints(limit: number = 10): Array<{
   }));
 }
 
-export function createCheckpoint(
-  signFn: (payload: Buffer) => string,
-): [CheckpointBody, string] {
+export async function createCheckpoint(
+  signFn: (payload: Buffer) => Promise<string>,
+): Promise<[CheckpointBody, string]> {
   const snap = getMerkleSnapshot();
   const conn = getConnection();
 
@@ -502,14 +501,15 @@ export function createCheckpoint(
     entry_count: entryCount,
   };
 
-  // Sign with detached JWS
+  // Sign with detached JWS using the audit key
   const canonicalBytes = Buffer.from(canonicalJson(body));
-  const signature = signFn(canonicalBytes);
+  const signature = await signFn(canonicalBytes);
 
   storeCheckpoint(body, signature);
 
-  // Publish to sink (async via background drain loop)
-  enqueueForSink(body as unknown as Record<string, unknown>);
+  // Publish signed checkpoint to sink (body + signature) so external
+  // witnesses can verify independently without querying the service.
+  enqueueForSink({ body, signature } as unknown as Record<string, unknown>);
 
   // Reset auto-checkpoint counters
   entriesSinceCheckpoint = 0;

@@ -6,16 +6,23 @@ from typing import Any
 
 
 class CheckpointSink(ABC):
-    """Interface for publishing checkpoints to external storage."""
+    """Interface for publishing signed checkpoints to external storage."""
 
     @abstractmethod
-    def publish(self, checkpoint: dict[str, Any]) -> None:
-        """Publish a checkpoint. Should be idempotent."""
+    def publish(self, signed_checkpoint: dict[str, Any]) -> None:
+        """Publish a signed checkpoint (body + detached JWS signature).
+
+        The ``signed_checkpoint`` dict has two keys:
+        - ``body``: the checkpoint body (dict)
+        - ``signature``: the detached JWS string
+
+        Should be idempotent.
+        """
         ...
 
 
 class LocalFileSink(CheckpointSink):
-    """Writes checkpoints as JSON files to a local directory.
+    """Writes signed checkpoints as JSON files to a local directory.
 
     Reference implementation — not a real external anchor.
     """
@@ -24,8 +31,9 @@ class LocalFileSink(CheckpointSink):
         self._directory = directory
         os.makedirs(directory, exist_ok=True)
 
-    def publish(self, checkpoint: dict[str, Any]) -> None:
-        filename = f"{checkpoint['checkpoint_id']}.json"
+    def publish(self, signed_checkpoint: dict[str, Any]) -> None:
+        body = signed_checkpoint["body"]
+        filename = f"{body['checkpoint_id']}.json"
         path = os.path.join(self._directory, filename)
         with open(path, "w") as f:
-            json.dump(checkpoint, f, indent=2, sort_keys=True)
+            json.dump(signed_checkpoint, f, indent=2, sort_keys=True)
