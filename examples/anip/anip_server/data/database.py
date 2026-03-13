@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Generator
 
-from anip_server.primitives.checkpoint import CheckpointPolicy
+from anip_server.primitives.checkpoint import CheckpointPolicy, enqueue_for_sink, get_pending_sink_count
 from anip_server.primitives.merkle import MerkleTree
 
 # Database path — configurable via ANIP_DB_PATH environment variable
@@ -567,6 +567,9 @@ def create_checkpoint() -> tuple[dict[str, Any], str]:
 
     store_checkpoint(body, signature)
 
+    # Publish to sink (async via background thread)
+    enqueue_for_sink(body)
+
     # Reset entry counter after checkpoint creation
     global _entries_since_checkpoint
     _entries_since_checkpoint = 0
@@ -586,7 +589,7 @@ def get_anchoring_lag() -> dict[str, Any]:
     return {
         "entries_since_last_checkpoint": _entries_since_checkpoint,
         "seconds_since_last_checkpoint": seconds,
-        "pending_sink_publications": 0,  # placeholder for Task 13
+        "pending_sink_publications": get_pending_sink_count(),
         "max_lag_exceeded": False,  # placeholder
     }
 
