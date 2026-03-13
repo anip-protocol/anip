@@ -67,6 +67,24 @@ Agent queries manifest → profile handshake
 → Decides to proceed, executes with full context
 ```
 
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant ANIP as ANIP Service
+
+    Agent->>ANIP: GET /.well-known/anip
+    ANIP-->>Agent: discovery (capabilities, endpoints)
+
+    Agent->>ANIP: GET /anip/manifest
+    ANIP-->>Agent: full capability declarations
+
+    Agent->>ANIP: POST /anip/tokens (+ API key)
+    ANIP-->>Agent: signed JWT delegation token
+
+    Agent->>ANIP: POST /anip/invoke/search_flights (+ token)
+    ANIP-->>Agent: {success, result, cost_actual}
+```
+
 Every assumption that was implicit becomes explicit, typed, and queryable.
 
 **Five things an agent doesn't know with REST but does with ANIP:**
@@ -78,6 +96,27 @@ Every assumption that was implicit becomes explicit, typed, and queryable.
 5. **Who can fix a permission problem** — `resolution: { grantable_by: "human:samir@anip.dev" }`
 
 That last one is the killer feature. When a budget-exceeded failure comes back, it doesn't just say "denied" — it tells the agent exactly who can increase the budget. The agent can autonomously escalate to the right person. That's a capability that doesn't exist in REST, MCP, or OpenAPI.
+
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant ANIP as ANIP Service
+    participant Human
+
+    Agent->>ANIP: POST /anip/invoke/book_flight (+ token)
+    ANIP-->>Agent: budget_exceeded (grantable_by: human)
+
+    Agent->>Human: request_budget_increase ($380, UA205)
+    Human-->>Agent: approved
+
+    Human->>ANIP: POST /anip/tokens (higher budget)
+    ANIP-->>Human: new signed JWT
+
+    Human-->>Agent: new token
+
+    Agent->>ANIP: POST /anip/invoke/book_flight (+ new token)
+    ANIP-->>Agent: {success: true, booking: BK-0018}
+```
 
 **See it in action.** This is real output from an autonomous agent consuming the ANIP [reference server](examples/anip/). No scripting — the agent discovers its authority, searches flights, hits the budget wall, escalates, books, and verifies the audit trail, all from ANIP metadata.
 
