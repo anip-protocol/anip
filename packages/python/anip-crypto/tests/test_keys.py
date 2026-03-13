@@ -1,6 +1,5 @@
 """Tests for KeyManager and key operations."""
 
-import json
 import tempfile
 from pathlib import Path
 
