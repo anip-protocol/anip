@@ -100,6 +100,7 @@ class TestMerkleTree:
         root_at_10 = tree.root
         count_at_10 = tree.leaf_count
         proof = tree.consistency_proof(count_at_5)
+        assert isinstance(proof, list)
         # verify_consistency is static — uses only the proof, not tree internals
         assert MerkleTree.verify_consistency_static(
             root_at_5, count_at_5, root_at_10, count_at_10, proof
@@ -117,6 +118,19 @@ class TestMerkleTree:
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
             count_at_5, tree.root, tree.leaf_count, proof
         )
+
+    def test_rfc6962_test_vectors(self):
+        """Verify against known RFC 6962 test vectors.
+
+        IMPORTANT: The implementer MUST add test vectors from the RFC or
+        from a known-good implementation (e.g. google/trillian, certificate-
+        transparency-go) to verify both inclusion and consistency proofs
+        produce correct results for known inputs.
+        """
+        # TODO: Add concrete test vectors at implementation time.
+        # At minimum, verify the 7-leaf example from RFC 6962 §2.1.3
+        # and the consistency proof example from §2.1.4.
+        pass
 
     def test_leaf_count(self):
         tree = MerkleTree()
@@ -227,26 +241,48 @@ class MerkleTree:
                 current = _node_hash(current, sibling)
         return _hex(current) == expected_root
 
-    def consistency_proof(self, old_size: int) -> list[dict[str, Any]]:
-        """Generate a consistency proof from old_size to current size."""
+    def consistency_proof(self, old_size: int) -> list[bytes]:
+        """Generate a consistency proof from old_size to current size.
+
+        Returns a list of node hashes per RFC 6962 §2.1.4 PROOF(m, D[n]).
+        The proof is an ordered list of sibling hashes that, combined with
+        the decomposition of old_size and new_size into powers of 2, allows
+        reconstruction of both the old root (at old_size) and the new root
+        (at current size).
+
+        IMPORTANT: The generation and verification algorithms MUST follow
+        RFC 6962 §2.1.4 exactly. Do NOT hand-roll — use the reference
+        algorithm from the RFC or a known-good library (e.g. pymerkle,
+        merkle-tree-rs, or the Go reference in google/trillian).
+        """
         if old_size < 0 or old_size > len(self._leaves):
             raise ValueError(f"old_size {old_size} out of range")
-        if old_size == 0:
+        if old_size == 0 or old_size == len(self._leaves):
             return []
-        path: list[dict[str, Any]] = []
-        self._build_consistency_path(old_size, 0, len(self._leaves), path, True)
-        return path
+        # Implementation note: use RFC 6962 §2.1.4 SUBPROOF(m, D[n], true).
+        # The exact algorithm decomposes m and n into subtree ranges and
+        # collects the minimal set of node hashes needed to reconstruct
+        # both MTH(D[0:m]) and MTH(D[0:n]).
+        # See: https://www.rfc-editor.org/rfc/rfc6962#section-2.1.4
+        return self._rfc6962_subproof(old_size, 0, len(self._leaves), True)
 
     @staticmethod
     def verify_consistency_static(
         old_root: str, old_size: int, new_root: str, new_size: int,
-        proof: list[dict[str, Any]]
+        proof: list[bytes]
     ) -> bool:
-        """Verify that the tree grew consistently from old_root to new_root.
+        """Verify consistency proof per RFC 6962 §2.1.4.
 
-        Static verification — uses only the proof, not tree internals.
-        Given old_root at old_size and new_root at new_size, the proof must
-        reconstruct both roots from shared subtrees.
+        Static verification — uses only the proof hashes, old/new roots,
+        and old/new sizes. Does NOT access internal tree state.
+
+        IMPORTANT: The verification algorithm MUST follow RFC 6962 §2.1.4
+        exactly. The algorithm uses the binary decomposition of old_size
+        to determine which proof nodes contribute to the old root vs only
+        the new root. Do NOT hand-roll — use the reference algorithm from
+        the RFC or a known-good library.
+
+        See: https://www.rfc-editor.org/rfc/rfc6962#section-2.1.4
         """
         if old_size == 0:
             return True
@@ -254,29 +290,13 @@ class MerkleTree:
             return old_root == new_root
         if not proof:
             return False
-
-        # Separate old-tree and new-tree hash components from proof
-        old_hashes = [bytes.fromhex(p["hash"]) for p in proof if p["type"] == "old"]
-        new_hashes = [bytes.fromhex(p["hash"]) for p in proof if p["type"] == "new"]
-
-        # Reconstruct old root from old components
-        if not old_hashes:
-            return False
-        reconstructed_old = old_hashes[0]
-        for h in old_hashes[1:]:
-            reconstructed_old = _node_hash(h, reconstructed_old)
-        if _hex(reconstructed_old) != old_root:
-            return False
-
-        # Reconstruct new root from all components (old subtrees + new subtrees)
-        reconstructed_new = old_hashes[0]
-        for p in proof[1:]:
-            h = bytes.fromhex(p["hash"])
-            if p["type"] == "old":
-                reconstructed_new = _node_hash(h, reconstructed_new)
-            else:
-                reconstructed_new = _node_hash(reconstructed_new, h)
-        return _hex(reconstructed_new) == new_root
+        # Implementation deferred to implementation time — the plan
+        # requires RFC 6962 §2.1.4 compliance, verified by cross-
+        # implementation tests (Python ↔ TypeScript root agreement)
+        # and test vectors from the RFC.
+        raise NotImplementedError(
+            "Implement per RFC 6962 §2.1.4 — do not hand-roll"
+        )
 
     # --- internal tree computation ---
 
@@ -307,26 +327,18 @@ class MerkleTree:
             path.append({"hash": left.hex(), "side": "left"})
             self._build_inclusion_path(index, lo + split, hi, path)
 
-    def _build_consistency_path(
-        self,
-        old_size: int,
-        lo: int,
-        hi: int,
-        path: list[dict[str, Any]],
-        is_start: bool,
-    ) -> None:
-        n = hi - lo
-        if old_size - lo == n:
-            if not is_start:
-                path.append({"hash": self._compute_root(lo, hi).hex(), "type": "old"})
-            return
-        split = _largest_power_of_2_less_than(n)
-        if old_size - lo <= split:
-            self._build_consistency_path(old_size, lo, lo + split, path, is_start)
-            path.append({"hash": self._compute_root(lo + split, hi).hex(), "type": "new"})
-        else:
-            self._build_consistency_path(old_size, lo + split, hi, path, False)
-            path.append({"hash": self._compute_root(lo, lo + split).hex(), "type": "old"})
+    def _rfc6962_subproof(self, m: int, lo: int, hi: int, start: bool) -> list[bytes]:
+        """RFC 6962 §2.1.4 SUBPROOF(m, D[lo:hi], start).
+
+        IMPORTANT: Implement this following RFC 6962 §2.1.4 exactly.
+        The plan provides the method signature and recursive structure
+        but the implementer MUST verify against RFC test vectors.
+        Consider using a known-good library instead of hand-rolling.
+        """
+        raise NotImplementedError(
+            "Implement per RFC 6962 §2.1.4 SUBPROOF — see "
+            "https://www.rfc-editor.org/rfc/rfc6962#section-2.1.4"
+        )
 
 
 def _largest_power_of_2_less_than(n: int) -> int:
@@ -600,20 +612,21 @@ from anip_server.data.database import get_checkpoints, get_merkle_snapshot
 
 
 class TestCheckpointCreation:
-    def test_create_checkpoint_returns_signed_object(self, client):
-        """A checkpoint should contain merkle_root, range, timestamp, signature."""
-        # Generate some audit entries first
+    def test_create_checkpoint_returns_body_and_detached_signature(self, client):
+        """create_checkpoint() returns (body, signature) — detached JWS, same as manifests."""
         token = _issue_token(client, "search_flights", ["travel.search"])
         for _ in range(3):
             client.post("/anip/invoke/search_flights",
                         json={"origin": "SEA", "destination": "SFO", "date": "2026-04-01"},
                         headers={"Authorization": f"Bearer {token}"})
         snap = get_merkle_snapshot()
-        ckpt = create_checkpoint()
-        assert ckpt["merkle_root"] == snap["root"]
-        assert ckpt["range"]["last_sequence"] == snap["leaf_count"]
-        assert "signature" in ckpt
-        assert "timestamp" in ckpt
+        body, signature = create_checkpoint()
+        assert body["merkle_root"] == snap["root"]
+        assert body["range"]["last_sequence"] == snap["leaf_count"]
+        assert "timestamp" in body
+        assert "signature" not in body  # signature is detached, not embedded
+        assert signature.count(".") == 2  # detached JWS: header..signature
+        assert signature.split(".")[1] == ""  # empty payload section
 
     def test_checkpoint_stored_in_database(self, client):
         """Created checkpoints should be retrievable."""
@@ -663,8 +676,8 @@ Expected: FAIL — module not found
 Create `primitives/checkpoint.py`:
 - `CheckpointPolicy` dataclass: `entry_count: int | None`, `interval_seconds: int | None`
 - `should_checkpoint(entries_since_last, seconds_since_last)` method
-- `create_checkpoint()`: reads current Merkle snapshot, builds checkpoint object, signs with audit key (detached JWS), stores in `checkpoints` table, returns checkpoint dict
-- Checkpoint object shape matches the proposal:
+- `create_checkpoint()`: reads current Merkle snapshot, builds checkpoint body (no signature field), signs with audit key as detached JWS (same pattern as manifests — `header..signature` with empty payload), stores both body and signature in `checkpoints` table, returns `(body_dict, jws_signature_str)`
+- Checkpoint body shape (the signed artifact — no `signature` field):
 
 ```python
 {
@@ -676,9 +689,10 @@ Create `primitives/checkpoint.py`:
     "previous_checkpoint": str | None,
     "timestamp": str,
     "entry_count": int,
-    "signature": str,
 }
 ```
+
+The detached JWS signature is computed over the canonical JSON of the body (sorted keys, no whitespace) using the audit signing key (ES256). This is exactly the same signing model as manifests: the body is a standalone JSON object, the signature travels alongside it.
 
 Add `checkpoints` table to `database.py`:
 
@@ -692,11 +706,13 @@ CREATE TABLE IF NOT EXISTS checkpoints (
     previous_checkpoint TEXT,
     timestamp TEXT NOT NULL,
     entry_count INTEGER NOT NULL,
-    signature TEXT NOT NULL
+    signature TEXT NOT NULL  -- detached JWS (header..signature)
 )
 ```
 
-Add `get_checkpoints(limit=10)` and `store_checkpoint(ckpt)` functions.
+The `signature` column stores the detached JWS string. When serving checkpoints via the API, the signature is returned as a separate field (not embedded in the body), consistent with the manifest pattern.
+
+Add `get_checkpoints(limit=10)` and `store_checkpoint(body, signature)` functions.
 
 **Step 4: Run tests to verify they pass**
 
@@ -754,6 +770,25 @@ def test_auto_checkpoint_after_n_entries(client):
                     headers={"Authorization": f"Bearer {token}"})
     checkpoints = get_checkpoints()
     assert len(checkpoints) >= 1
+
+
+def test_time_based_checkpoint(client):
+    """With interval_seconds policy, a checkpoint should be created after the interval."""
+    import time
+    from anip_server.data.database import set_checkpoint_policy, get_checkpoints
+    from anip_server.primitives.checkpoint import CheckpointPolicy
+    set_checkpoint_policy(CheckpointPolicy(interval_seconds=1))
+    token = _issue_token(client, "search_flights", ["travel.search"])
+    client.post("/anip/invoke/search_flights",
+                json={"origin": "SEA", "destination": "SFO", "date": "2026-04-01"},
+                headers={"Authorization": f"Bearer {token}"})
+    time.sleep(1.5)
+    # Trigger another write to check the timer
+    client.post("/anip/invoke/search_flights",
+                json={"origin": "SEA", "destination": "SFO", "date": "2026-04-01"},
+                headers={"Authorization": f"Bearer {token}"})
+    checkpoints = get_checkpoints()
+    assert len(checkpoints) >= 1
 ```
 
 **Step 2: Implement auto-checkpointing**
@@ -761,9 +796,16 @@ def test_auto_checkpoint_after_n_entries(client):
 In `database.py`:
 - Add `_checkpoint_policy: CheckpointPolicy | None` module state
 - Add `_entries_since_checkpoint: int` counter
-- In `log_invocation()`, after writing entry and updating Merkle tree, check `_checkpoint_policy.should_checkpoint()` and call `create_checkpoint()` if triggered
+- Add `_last_checkpoint_time: float` timestamp
+- In `log_invocation()`, after writing entry and updating Merkle tree, check both triggers:
+  - Entry count: `_entries_since_checkpoint >= policy.entry_count`
+  - Time interval: `time.time() - _last_checkpoint_time >= policy.interval_seconds`
+  - Either trigger fires `create_checkpoint()` and resets both counters
 - Add `set_checkpoint_policy(policy)` function
-- In `main.py`, read `ANIP_CHECKPOINT_CADENCE` env var (e.g., `"10"` for every 10 entries) and set policy on startup
+- In `main.py`, read env vars and set policy on startup:
+  - `ANIP_CHECKPOINT_CADENCE` — entry count (e.g., `"10"` for every 10 entries)
+  - `ANIP_CHECKPOINT_INTERVAL` — time interval in seconds (e.g., `"300"` for every 5 minutes)
+  - Both can be set simultaneously — whichever triggers first wins
 
 **Step 3: Run tests, verify pass**
 
@@ -1226,7 +1268,7 @@ A service declares its trust level in both discovery (`trust_level` field) and t
 
 **Step 2: Add checkpoint format specification**
 
-Add the checkpoint object schema, detached JWS signing requirement, and Merkle tree algorithm (SHA-256, RFC 6962). Include the full checkpoint JSON schema:
+Add the checkpoint object schema, detached JWS signing model, and Merkle tree algorithm (SHA-256, RFC 6962). Include the full checkpoint JSON schema:
 
 ```json
 {
@@ -1237,10 +1279,11 @@ Add the checkpoint object schema, detached JWS signing requirement, and Merkle t
   "merkle_root": "sha256:<hex>",
   "previous_checkpoint": "sha256:<hex> | null",
   "timestamp": "<ISO 8601>",
-  "entry_count": "<int>",
-  "signature": "<detached JWS, signed by audit key>"
+  "entry_count": "<int>"
 }
 ```
+
+Note: the checkpoint body does NOT contain a `signature` field. The signature is a **detached JWS** (same pattern as manifests): `header..signature` with empty payload section, computed over the canonical JSON of the body using the audit signing key (ES256). When served via `GET /anip/checkpoints`, the response includes both `body` and `signature` as separate fields. When published to a sink, both artifacts are stored together.
 
 **Step 3: Add Merkle proof format specification**
 
