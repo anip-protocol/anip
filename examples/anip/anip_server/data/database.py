@@ -15,11 +15,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Generator
 
+from anip_server.primitives.merkle import MerkleTree
+
 # Database path — configurable via ANIP_DB_PATH environment variable
 DB_PATH = Path(os.environ.get("ANIP_DB_PATH", str(Path(__file__).parent / "anip.db")))
 
 _connection: sqlite3.Connection | None = None
 _audit_signer = None
+_merkle_tree = MerkleTree()
 
 
 def set_audit_signer(signer):
@@ -332,6 +335,14 @@ def log_invocation(
             "previous_hash": previous_hash,
         }
 
+        # Accumulate into Merkle tree (canonical bytes match _compute_entry_hash)
+        canonical_bytes = json.dumps(
+            {k: v for k, v in sorted(entry_dict.items()) if k not in ("signature", "id")},
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode()
+        _merkle_tree.add_leaf(canonical_bytes)
+
         # Sign audit entry with dedicated audit key
         signature = None
         if _audit_signer is not None:
@@ -401,3 +412,17 @@ def query_audit_log(
         results.append(entry)
 
     return results
+
+
+def get_merkle_snapshot() -> dict[str, Any]:
+    """Return the current Merkle tree snapshot (root hash and leaf count)."""
+    return _merkle_tree.snapshot()
+
+
+def get_merkle_inclusion_proof(index: int) -> dict[str, Any]:
+    """Return an inclusion proof for the leaf at *index*."""
+    return {
+        "path": _merkle_tree.inclusion_proof(index),
+        "root": _merkle_tree.root,
+        "leaf_count": _merkle_tree.leaf_count,
+    }
