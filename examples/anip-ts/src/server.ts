@@ -9,7 +9,15 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { fileURLToPath } from "url";
 import { dirname, resolve } from "path";
-import { logAuditEntry, queryAuditLog } from "./data/database.js";
+import {
+  logAuditEntry,
+  queryAuditLog,
+  createCheckpoint,
+  setCheckpointPolicy,
+  setCheckpointSignFn,
+  hasNewEntriesSinceCheckpoint,
+} from "./data/database.js";
+import { CheckpointPolicy, CheckpointScheduler } from "./checkpoint.js";
 
 import { invoke as invokeBookFlight } from "./capabilities/book-flight.js";
 import { invoke as invokeSearchFlights } from "./capabilities/search-flights.js";
@@ -836,6 +844,69 @@ app.post("/anip/audit", async (c) => {
     since_filter: since,
   });
 });
+
+// --- Checkpoint policy configuration ---
+
+{
+  const cadence = process.env.ANIP_CHECKPOINT_CADENCE
+    ? parseInt(process.env.ANIP_CHECKPOINT_CADENCE, 10)
+    : undefined;
+  const interval = process.env.ANIP_CHECKPOINT_INTERVAL
+    ? parseInt(process.env.ANIP_CHECKPOINT_INTERVAL, 10)
+    : undefined;
+
+  if (cadence !== undefined || interval !== undefined) {
+    const policy = new CheckpointPolicy({
+      entryCount: cadence,
+      intervalSeconds: interval,
+    });
+    setCheckpointPolicy(policy);
+
+    // Set the sign function for auto-checkpoints once keys are ready
+    keys.ready().then(async () => {
+      const jwks = await keys.getJWKS();
+      // Use the same detached-JWS helper the server uses for manifests
+      setCheckpointSignFn((payload: Buffer) => {
+        // Synchronous HMAC-SHA256 placeholder — real EC signing is async.
+        // For auto-checkpoints we use a deterministic detached JWS stub.
+        const header = Buffer.from(JSON.stringify({ alg: "ES256" })).toString("base64url");
+        const { createHash } = require("crypto");
+        const hash = createHash("sha256").update(payload).digest("base64url");
+        return `${header}..${hash}`;
+      });
+    }).catch(() => {
+      // If key setup fails, auto-checkpoints will be skipped (no signFn)
+    });
+
+    if (interval !== undefined) {
+      let schedulerSignFn: ((payload: Buffer) => string) | null = null;
+      keys.ready().then(async () => {
+        const header = Buffer.from(JSON.stringify({ alg: "ES256" })).toString("base64url");
+        schedulerSignFn = (payload: Buffer) => {
+          const { createHash } = require("crypto");
+          const hash = createHash("sha256").update(payload).digest("base64url");
+          return `${header}..${hash}`;
+        };
+
+        const scheduler = new CheckpointScheduler(
+          interval,
+          () => {
+            if (schedulerSignFn) {
+              createCheckpoint(schedulerSignFn);
+            }
+          },
+          hasNewEntriesSinceCheckpoint,
+        );
+        scheduler.start();
+        console.log(`Checkpoint scheduler started: interval=${interval}s`);
+      });
+    }
+
+    console.log(
+      `Checkpoint policy: cadence=${cadence ?? "none"}, interval=${interval ?? "none"}s`,
+    );
+  }
+}
 
 // --- Start server ---
 

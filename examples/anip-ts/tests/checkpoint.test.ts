@@ -1,6 +1,14 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { createCheckpoint, getCheckpoints, getMerkleSnapshot, logAuditEntry } from "../src/data/database";
-import { CheckpointPolicy } from "../src/checkpoint";
+import {
+  createCheckpoint,
+  getCheckpoints,
+  getMerkleSnapshot,
+  logAuditEntry,
+  setCheckpointPolicy,
+  setCheckpointSignFn,
+  hasNewEntriesSinceCheckpoint,
+} from "../src/data/database";
+import { CheckpointPolicy, CheckpointScheduler } from "../src/checkpoint";
 
 // Use an in-memory database for test isolation
 beforeAll(() => {
@@ -71,5 +79,64 @@ describe("CheckpointPolicy", () => {
   it("never triggers without policy", () => {
     const policy = new CheckpointPolicy({});
     expect(policy.shouldCheckpoint(1000)).toBe(false);
+  });
+});
+
+describe("Auto-checkpointing", () => {
+  it("triggers checkpoint after N entries", () => {
+    // Configure policy and sign function
+    setCheckpointPolicy(new CheckpointPolicy({ entryCount: 3 }));
+    setCheckpointSignFn(mockSign);
+
+    const initialCheckpoints = getCheckpoints().length;
+
+    for (let i = 0; i < 3; i++) {
+      addAuditEntry();
+    }
+
+    const checkpoints = getCheckpoints();
+    expect(checkpoints.length).toBeGreaterThan(initialCheckpoints);
+  });
+
+  it("does not trigger before threshold", () => {
+    setCheckpointPolicy(new CheckpointPolicy({ entryCount: 10 }));
+    setCheckpointSignFn(mockSign);
+
+    const initialCheckpoints = getCheckpoints().length;
+
+    // Add fewer entries than the threshold
+    for (let i = 0; i < 2; i++) {
+      addAuditEntry();
+    }
+
+    expect(getCheckpoints().length).toBe(initialCheckpoints);
+  });
+
+  it("hasNewEntriesSinceCheckpoint tracks state", () => {
+    // After a checkpoint, adding an entry should flip the flag
+    createCheckpoint(mockSign);
+    expect(hasNewEntriesSinceCheckpoint()).toBe(false);
+
+    addAuditEntry();
+    expect(hasNewEntriesSinceCheckpoint()).toBe(true);
+  });
+
+  it("scheduler fires on interval", async () => {
+    setCheckpointSignFn(mockSign);
+
+    // Add an entry so there's something to checkpoint
+    addAuditEntry();
+    const initial = getCheckpoints().length;
+
+    const scheduler = new CheckpointScheduler(
+      0.3, // 300ms interval
+      () => createCheckpoint(mockSign),
+      hasNewEntriesSinceCheckpoint,
+    );
+    scheduler.start();
+    await new Promise((r) => setTimeout(r, 500));
+    scheduler.stop();
+
+    expect(getCheckpoints().length).toBeGreaterThan(initial);
   });
 });

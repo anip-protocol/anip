@@ -10,11 +10,51 @@ import { createHash } from "crypto";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 import { MerkleTree } from "../merkle.js";
+import { CheckpointPolicy } from "../checkpoint.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 let db: Database.Database | null = null;
 const merkleTree = new MerkleTree();
+
+// --- Auto-checkpointing state ---
+
+let checkpointPolicy: CheckpointPolicy | null = null;
+let entriesSinceCheckpoint = 0;
+let lastCheckpointTime: number = Date.now();
+let currentSignFn: ((payload: Buffer) => string) | null = null;
+
+/**
+ * Configure the checkpoint policy used for auto-checkpointing on audit write.
+ */
+export function setCheckpointPolicy(policy: CheckpointPolicy): void {
+  checkpointPolicy = policy;
+}
+
+/**
+ * Set the signing function used for auto-checkpoints.
+ */
+export function setCheckpointSignFn(signFn: (payload: Buffer) => string): void {
+  currentSignFn = signFn;
+}
+
+/**
+ * Return true when at least one audit entry has been written since the last
+ * checkpoint.
+ */
+export function hasNewEntriesSinceCheckpoint(): boolean {
+  return entriesSinceCheckpoint > 0;
+}
+
+/**
+ * Return current anchoring lag — entries and seconds since the last checkpoint.
+ */
+export function getAnchoringLag(): { entries: number; seconds: number } {
+  return {
+    entries: entriesSinceCheckpoint,
+    seconds: Math.round((Date.now() - lastCheckpointTime) / 1000),
+  };
+}
 
 export interface AuditEntry {
   sequence_number: number;
@@ -175,6 +215,16 @@ export function logAuditEntry(
       entry.previous_hash,
       null,
     );
+
+  // Auto-checkpoint if policy threshold is met
+  entriesSinceCheckpoint++;
+  if (checkpointPolicy && checkpointPolicy.shouldCheckpoint(entriesSinceCheckpoint)) {
+    if (currentSignFn) {
+      createCheckpoint(currentSignFn);
+      entriesSinceCheckpoint = 0;
+      lastCheckpointTime = Date.now();
+    }
+  }
 
   // Sign asynchronously and update
   if (signFn !== null) {
@@ -393,6 +443,11 @@ export function createCheckpoint(
   const signature = signFn(canonicalBytes);
 
   storeCheckpoint(body, signature);
+
+  // Reset auto-checkpoint counters
+  entriesSinceCheckpoint = 0;
+  lastCheckpointTime = Date.now();
+
   return [body, signature];
 }
 

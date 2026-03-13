@@ -40,3 +40,39 @@ export class CheckpointPolicy {
     return false;
   }
 }
+
+/**
+ * Periodic checkpoint scheduler — fires at a fixed interval and creates a
+ * checkpoint whenever new audit entries have accumulated.
+ */
+export class CheckpointScheduler {
+  private interval: number;
+  private createFn: () => void;
+  private hasNewEntriesFn: () => boolean;
+  private timer: ReturnType<typeof setInterval> | null = null;
+
+  constructor(
+    intervalSeconds: number,
+    createFn: () => void,
+    hasNewEntriesFn: () => boolean,
+  ) {
+    this.interval = intervalSeconds * 1000;
+    this.createFn = createFn;
+    this.hasNewEntriesFn = hasNewEntriesFn;
+  }
+
+  start(): void {
+    this.timer = setInterval(() => {
+      if (this.hasNewEntriesFn()) {
+        this.createFn();
+      }
+    }, this.interval);
+  }
+
+  stop(): void {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+  }
+}
