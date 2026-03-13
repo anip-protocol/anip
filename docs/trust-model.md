@@ -1,8 +1,8 @@
-# ANIP v0.2 Trust Model
+# ANIP Trust Model
 
-> Cryptographic foundations for agent delegation, manifest integrity, and audit tamper-evidence.
+> Cryptographic foundations for agent delegation, manifest integrity, audit tamper-evidence, and anchored trust.
 
-This document describes the security architecture introduced in ANIP v0.2. For operational guidance (reporting vulnerabilities, deployment, trust modes), see [SECURITY.md](../SECURITY.md).
+This document describes the security architecture of ANIP. v0.2 introduced signed tokens, manifests, and hash-chain audit. v0.3 adds Merkle tree checkpoints, trust levels, and external anchoring. For operational guidance (reporting vulnerabilities, deployment, trust modes), see [SECURITY.md](../SECURITY.md).
 
 ---
 
@@ -262,3 +262,91 @@ These are explicitly not addressed in v0.2 and represent areas for future work:
 | **Key custody** | Signing keys are stored as plaintext PEM on disk. Production deployments should use HSMs or key management services. |
 | **Clock skew** | JWT expiry checks use the server's clock. There is no tolerance for clock skew between issuer and verifier (they are the same entity in v0.2). |
 | **Encrypted tokens** | JWTs are signed but not encrypted. Any party that intercepts a JWT can read its claims. TLS mitigates this in transit; at-rest encryption is the deployer's responsibility. |
+
+---
+
+## 8. Trust Levels (v0.3)
+
+v0.3 introduces three trust levels. Each level builds on the previous one — higher levels provide strictly stronger guarantees.
+
+| Level | Protocol Name | What It Proves |
+|-------|---------------|----------------|
+| Bronze | `signed` | Declarations come from the claimed service and haven't been tampered with (v0.2 baseline) |
+| Silver | `anchored` | Audit log entries are committed to Merkle tree checkpoints; agents can verify inclusion. Log tampering is detectable after the fact |
+| Gold | `attested` | A third-party auditor co-signs checkpoints, attesting that declared behavior matches observed behavior |
+
+A service declares its trust level in the discovery document's `trust_level` field. Services at `anchored` or `attested` MUST implement checkpoint endpoints. Trust levels are verifiable: agents confirm `signed` by checking JWS signatures, `anchored` by requesting Merkle inclusion proofs, and `attested` by verifying the co-signer's attestation.
+
+---
+
+## 9. Merkle Tree Checkpoints (v0.3)
+
+### Structure
+
+A checkpoint is a commitment over a contiguous range of audit log entries, structured as an RFC 6962-compatible Merkle tree.
+
+- **Leaf hash:** `SHA-256(0x00 || data)` — domain-separated to prevent second-preimage attacks
+- **Node hash:** `SHA-256(0x01 || left || right)` — interior nodes use a different prefix than leaves
+
+### Checkpoint Body
+
+```json
+{
+  "version": "0.3",
+  "service_id": "flights.example.com",
+  "checkpoint_id": "cp_00042",
+  "range": { "from": 1001, "to": 1500 },
+  "merkle_root": "sha256:3a7bd3e2360a8bb...",
+  "previous_checkpoint": "cp_00041",
+  "timestamp": "2026-03-12T06:00:00Z",
+  "entry_count": 500
+}
+```
+
+The checkpoint body does NOT contain a signature field. Checkpoints use the **detached JWS pattern** — the signature is carried in the `X-ANIP-Signature` response header, keeping the signed payload byte-identical to the response body.
+
+### Inclusion Proofs
+
+An inclusion proof demonstrates that a specific audit log entry is present in a checkpoint's Merkle tree:
+
+```json
+{
+  "leaf_index": 42,
+  "merkle_root": "sha256:3a7bd3e2360a8bb...",
+  "path": [
+    { "hash": "sha256:a1b2c3d4...", "side": "left" },
+    { "hash": "sha256:e5f6a7b8...", "side": "right" }
+  ]
+}
+```
+
+Verification: start with `SHA-256(0x00 || leaf_data)`, combine with each path element respecting `side` ordering using `SHA-256(0x01 || left || right)`, and confirm the result matches `merkle_root`.
+
+### Consistency Proofs
+
+Consistency proofs demonstrate that a newer checkpoint's Merkle tree is an append-only extension of an older one, following RFC 6962 §2.1.4 SUBPROOF algorithm. This ensures the service cannot retroactively modify or remove entries from earlier checkpoints.
+
+### Checkpoint Scheduling
+
+Checkpoints can be triggered by:
+- **Entry count** — checkpoint every N audit entries (e.g., every 100 writes)
+- **Time interval** — checkpoint every T seconds via a background scheduler
+- **Manual** — explicit API call
+
+The `CheckpointScheduler` runs as a background daemon thread (Python) or `setInterval` (TypeScript), firing independently of the audit write path.
+
+### Async Sink Publication
+
+After a checkpoint is created and stored locally, it is enqueued for asynchronous publication to external sinks. This keeps checkpoint creation fast (local DB write only) while allowing durable anchoring to external systems (filesystem, remote witnesses) via a background queue.
+
+---
+
+## 10. External Anchoring (v0.3, Future)
+
+The `attested` trust level requires external witnesses to co-sign checkpoints. This is specified but not yet implemented. Planned anchoring targets include:
+
+- **Transparency logs** — append-only public logs (e.g., Certificate Transparency-style)
+- **Blockchain timestamps** — hash anchoring to public blockchains
+- **Third-party auditors** — independent services that verify and co-sign checkpoint integrity
+
+External anchoring transforms the trust model from "trust the service not to tamper" to "tampering is publicly detectable."

@@ -224,22 +224,22 @@ ANIP defines 9 primitives in two tiers:
 
 ## Status
 
-ANIP is under active development. The spec is at v0.2 with cryptographic trust foundations in place. Trust verification — signed delegation tokens, signed manifests, and tamper-evident audit logs — is implemented in both reference servers. Multi-agent coordination and federated trust remain open. See [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v2) for the full breakdown.
+ANIP is under active development. The spec is at v0.3 with anchored trust in place. Trust verification — signed delegation tokens, signed manifests, tamper-evident audit logs, and Merkle tree checkpoints — is implemented in both reference servers. Multi-agent coordination and federated trust remain open. See [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v2) for the full breakdown.
 
-> **v0.2 adds cryptographic trust.** Delegation tokens are server-issued JWTs (ES256), manifests carry detached JWS signatures, and audit logs form a hash chain with per-entry signatures. A trust boundary verifies every signed claim against stored state, detecting both token forgery and store tampering. Trust-on-declaration mode remains available via `ANIP_TRUST_MODE=declaration` for development. Internet-scale trust federation (cross-service delegation, third-party attestation) is a future goal. See [SECURITY.md](SECURITY.md) for the trust model summary and [docs/trust-model-v0.2.md](docs/trust-model-v0.2.md) for the full architecture.
+> **v0.3 adds anchored trust.** Building on v0.2's cryptographic foundations (JWT/ES256 tokens, detached JWS manifests, hash-chain audit), v0.3 introduces three trust levels — `signed` (Bronze), `anchored` (Silver), and `attested` (Gold). Services at the `anchored` level publish RFC 6962 Merkle tree checkpoints over their audit logs, enabling agents to verify that specific interactions were recorded via inclusion proofs. Checkpoints are triggered by entry count or time interval, with async publication to external sinks. Trust-on-declaration mode remains available via `ANIP_TRUST_MODE=declaration` for development. See [SECURITY.md](SECURITY.md) for the trust model summary and [docs/trust-model.md](docs/trust-model.md) for the full architecture.
 
 This is a community effort. We'd rather define this standard thoughtfully and in the open than let it emerge ad-hoc.
 
 **What exists today:**
 - [Manifesto](MANIFESTO.md) — why this moment matters
-- [Spec](SPEC.md) — the technical design (v0.2)
+- [Spec](SPEC.md) — the technical design (v0.3)
 - [Guide](GUIDE.md) — walkthrough of the reference implementation with design rationale
 - [Reference implementation — Python](examples/anip/) — FastAPI + SQLite, full demo with audit logging
 - [Reference implementation — TypeScript](examples/anip-ts/) — Hono + Zod, same capabilities and endpoints
 - [Demo agent](examples/agent/) — an AI agent that consumes ANIP to reason before acting, handle budget failures, and verify audit trails
 - [JSON Schema](schema/) — validate any ANIP implementation against the spec
 - [Security policy](SECURITY.md) — vulnerability reporting, trust model summary, deployment guidance
-- [Trust model](docs/trust-model-v0.2.md) — deep dive on v0.2 cryptographic architecture
+- [Trust model](docs/trust-model.md) — deep dive on cryptographic architecture and anchored trust
 - [MCP adapter — Python](adapters/mcp-py/) — use ANIP with your existing MCP tooling today
 - [MCP adapter — TypeScript](adapters/mcp-ts/) — same adapter, TypeScript/Node implementation
 - [REST/OpenAPI adapter — Python](adapters/rest-py/) — expose ANIP as REST with auto-generated OpenAPI spec
