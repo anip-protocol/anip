@@ -202,13 +202,17 @@ The principle: each version extends trust guarantees without requiring the previ
 
 ---
 
-## Open Questions
+## Resolved Questions
 
-1. **Checkpoint format:** Should checkpoints be JWTs (consistent with v0.2 tokens) or a separate signed JSON format?
-2. **Merkle tree algorithm:** SHA-256 with RFC 6962 (Certificate Transparency) structure, or something simpler?
-3. **Trust level in discovery:** Should `/.well-known/anip` include the trust level, or only the manifest?
-4. **Anchoring verification endpoint:** Should the service expose a `/anip/checkpoints` endpoint for callers to verify anchoring, or is this purely external?
-5. **Backward compatibility:** Can a v0.2 service upgrade to Silver without breaking existing callers?
+1. **Checkpoint format:** Separate signed JSON with detached JWS — same pattern v0.2 uses for manifests. JWTs are bearer authorization tokens; checkpoints are archival artifacts. Different semantics, different format.
+
+2. **Merkle tree algorithm:** SHA-256 with RFC 6962 (Certificate Transparency) structure. Battle-tested, existing library support in Python and TypeScript, defines inclusion/consistency proof formats. The reference implementations already use SHA-256 for the hash chain.
+
+3. **Trust level in discovery:** Both surfaces, different granularity. `/.well-known/anip` exposes a compact `trust_level` summary (e.g. `"anchored"`) so callers can filter early. The manifest remains the source of truth for the full trust posture — anchoring policy, cadence, sink identifiers, policy hooks.
+
+4. **Anchoring verification endpoint:** `GET /anip/checkpoints` — a convenience/inspection surface exposing checkpoint metadata and receipts if available. This is a helper for callers to monitor checkpoint cadence and inspect proofs, **not the authoritative trust anchor itself**. Callers should verify checkpoint artifacts independently, not blindly trust the endpoint. Optional for `signed`, available for `anchored`.
+
+5. **Backward compatibility:** Fully additive. A v0.2 caller that doesn't understand trust levels sees no difference — new fields in discovery and manifest are optional. A v0.2 service remains a valid `signed` deployment with no changes.
 
 ---
 
