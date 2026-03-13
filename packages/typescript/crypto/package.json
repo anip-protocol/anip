@@ -1,0 +1,20 @@
+{
+  "name": "@anip/crypto",
+  "version": "0.3.0",
+  "description": "ANIP cryptographic primitives — key management, JWT, JWS, JWKS",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@anip/core": "0.3.0",
+    "jose": "^6.2.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.0"
+  }
+}
