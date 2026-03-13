@@ -4,6 +4,74 @@
  * Mirrors the Python reference implementation's checkpoint.py.
  */
 
+import type { CheckpointSink } from "./sinks.js";
+
+// --- Async sink publication queue ---
+
+let _sink: CheckpointSink | null = null;
+const _sinkQueue: Record<string, unknown>[] = [];
+let _drainTimer: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Configure the checkpoint sink used for async publication.
+ * Starts the background drain loop if not already running.
+ */
+export function setSink(sink: CheckpointSink): void {
+  _sink = sink;
+  if (_drainTimer === null) {
+    _drainTimer = setInterval(_drainSinkQueue, 50);
+    // Allow the process to exit even if the timer is running
+    if (_drainTimer && typeof _drainTimer === "object" && "unref" in _drainTimer) {
+      _drainTimer.unref();
+    }
+  }
+}
+
+/**
+ * Enqueue a checkpoint for async publication to the configured sink.
+ */
+export function enqueueForSink(checkpoint: Record<string, unknown>): void {
+  if (_sink !== null) {
+    _sinkQueue.push(checkpoint);
+  }
+}
+
+/**
+ * Return the number of checkpoints waiting to be published.
+ */
+export function getPendingSinkCount(): number {
+  return _sinkQueue.length;
+}
+
+function _drainSinkQueue(): void {
+  while (_sinkQueue.length > 0) {
+    const ckpt = _sinkQueue[0];
+    if (_sink) {
+      try {
+        _sink.publish(ckpt);
+        _sinkQueue.shift(); // Remove only after successful publish
+      } catch {
+        // Leave in queue for retry on next drain cycle
+        break;
+      }
+    } else {
+      _sinkQueue.shift();
+    }
+  }
+}
+
+/**
+ * Stop the drain timer and reset sink state. Useful for tests.
+ */
+export function resetSink(): void {
+  if (_drainTimer !== null) {
+    clearInterval(_drainTimer);
+    _drainTimer = null;
+  }
+  _sink = null;
+  _sinkQueue.length = 0;
+}
+
 export interface CheckpointPolicyOptions {
   entryCount?: number;
   intervalSeconds?: number;

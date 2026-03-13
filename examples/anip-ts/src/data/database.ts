@@ -10,7 +10,7 @@ import { createHash } from "crypto";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 import { MerkleTree } from "../merkle.js";
-import { CheckpointPolicy } from "../checkpoint.js";
+import { CheckpointPolicy, enqueueForSink, getPendingSinkCount } from "../checkpoint.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -49,10 +49,11 @@ export function hasNewEntriesSinceCheckpoint(): boolean {
 /**
  * Return current anchoring lag — entries and seconds since the last checkpoint.
  */
-export function getAnchoringLag(): { entries: number; seconds: number } {
+export function getAnchoringLag(): { entries: number; seconds: number; pending_sink_publications: number } {
   return {
     entries: entriesSinceCheckpoint,
     seconds: Math.round((Date.now() - lastCheckpointTime) / 1000),
+    pending_sink_publications: getPendingSinkCount(),
   };
 }
 
@@ -506,6 +507,9 @@ export function createCheckpoint(
   const signature = signFn(canonicalBytes);
 
   storeCheckpoint(body, signature);
+
+  // Publish to sink (async via background drain loop)
+  enqueueForSink(body as unknown as Record<string, unknown>);
 
   // Reset auto-checkpoint counters
   entriesSinceCheckpoint = 0;
