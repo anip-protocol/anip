@@ -1,0 +1,328 @@
+"""Storage abstraction and SQLite implementation for ANIP server.
+
+Provides a ``StorageBackend`` protocol and a concrete ``SQLiteStorage``
+class that persists delegation tokens, audit log entries, and checkpoints.
+"""
+
+from __future__ import annotations
+
+import json
+import sqlite3
+from datetime import datetime, timezone
+from typing import Any, Protocol, runtime_checkable
+
+
+@runtime_checkable
+class StorageBackend(Protocol):
+    """Abstract storage interface for ANIP server components."""
+
+    def store_token(self, token_data: dict[str, Any]) -> None: ...
+
+    def load_token(self, token_id: str) -> dict[str, Any] | None: ...
+
+    def store_audit_entry(self, entry: dict[str, Any]) -> None: ...
+
+    def query_audit_entries(
+        self,
+        *,
+        capability: str | None = None,
+        root_principal: str | None = None,
+        since: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]: ...
+
+    def get_last_audit_entry(self) -> dict[str, Any] | None: ...
+
+    def get_audit_entries_range(
+        self, first: int, last: int
+    ) -> list[dict[str, Any]]: ...
+
+    def store_checkpoint(self, body: dict[str, Any], signature: str) -> None: ...
+
+    def get_checkpoints(self, limit: int = 10) -> list[dict[str, Any]]: ...
+
+    def get_checkpoint_by_id(
+        self, checkpoint_id: str
+    ) -> dict[str, Any] | None: ...
+
+
+# ---------------------------------------------------------------------------
+# SQLite implementation
+# ---------------------------------------------------------------------------
+
+_SCHEMA = """\
+CREATE TABLE IF NOT EXISTS delegation_tokens (
+    token_id TEXT PRIMARY KEY,
+    issuer TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    scope TEXT NOT NULL,          -- JSON array
+    purpose TEXT,                 -- JSON object
+    parent TEXT,
+    expires TEXT NOT NULL,        -- ISO 8601
+    constraints TEXT,             -- JSON object
+    root_principal TEXT,
+    registered_at TEXT NOT NULL,
+    FOREIGN KEY (parent) REFERENCES delegation_tokens(token_id)
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sequence_number INTEGER NOT NULL,
+    timestamp TEXT NOT NULL,
+    capability TEXT NOT NULL,
+    token_id TEXT,
+    issuer TEXT,
+    subject TEXT,
+    root_principal TEXT,
+    parameters TEXT,               -- JSON
+    success INTEGER NOT NULL,
+    result_summary TEXT,           -- JSON (truncated)
+    failure_type TEXT,
+    cost_actual TEXT,              -- JSON
+    delegation_chain TEXT,         -- JSON array of token_ids
+    previous_hash TEXT NOT NULL,
+    signature TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_capability
+    ON audit_log(capability);
+CREATE INDEX IF NOT EXISTS idx_audit_timestamp
+    ON audit_log(timestamp);
+CREATE INDEX IF NOT EXISTS idx_audit_root_principal
+    ON audit_log(root_principal);
+
+CREATE TABLE IF NOT EXISTS checkpoints (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    checkpoint_id TEXT NOT NULL UNIQUE,
+    first_sequence INTEGER,
+    last_sequence INTEGER,
+    merkle_root TEXT NOT NULL,
+    previous_checkpoint TEXT,
+    timestamp TEXT,
+    entry_count INTEGER,
+    signature TEXT NOT NULL
+);
+"""
+
+_JSON_AUDIT_FIELDS = (
+    "parameters",
+    "result_summary",
+    "cost_actual",
+    "delegation_chain",
+)
+
+
+class SQLiteStorage:
+    """SQLite-backed implementation of :class:`StorageBackend`."""
+
+    def __init__(self, db_path: str = "anip.db") -> None:
+        self._conn = sqlite3.connect(db_path, check_same_thread=False)
+        self._conn.row_factory = sqlite3.Row
+        self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.execute("PRAGMA foreign_keys=ON")
+        self._conn.executescript(_SCHEMA)
+
+    # -- tokens -------------------------------------------------------------
+
+    def store_token(self, token_data: dict[str, Any]) -> None:
+        """Store a delegation token."""
+        self._conn.execute(
+            """INSERT INTO delegation_tokens
+               (token_id, issuer, subject, scope, purpose, parent,
+                expires, constraints, root_principal, registered_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                token_data["token_id"],
+                token_data["issuer"],
+                token_data["subject"],
+                json.dumps(token_data.get("scope", [])),
+                json.dumps(token_data.get("purpose")),
+                token_data.get("parent"),
+                token_data["expires"],
+                json.dumps(token_data.get("constraints")),
+                token_data.get("root_principal"),
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+        self._conn.commit()
+
+    def load_token(self, token_id: str) -> dict[str, Any] | None:
+        """Load a delegation token by ID."""
+        row = self._conn.execute(
+            "SELECT * FROM delegation_tokens WHERE token_id = ?",
+            (token_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "token_id": row["token_id"],
+            "issuer": row["issuer"],
+            "subject": row["subject"],
+            "scope": json.loads(row["scope"]),
+            "purpose": json.loads(row["purpose"]) if row["purpose"] else None,
+            "parent": row["parent"],
+            "expires": row["expires"],
+            "constraints": json.loads(row["constraints"]) if row["constraints"] else None,
+            "root_principal": row["root_principal"],
+        }
+
+    # -- audit log ----------------------------------------------------------
+
+    def store_audit_entry(self, entry: dict[str, Any]) -> None:
+        """Store an already-complete audit entry.
+
+        The caller is responsible for computing hashes, signatures, and
+        sequence numbers before calling this method.
+        """
+        self._conn.execute(
+            """INSERT INTO audit_log
+               (sequence_number, timestamp, capability, token_id, issuer,
+                subject, root_principal, parameters, success, result_summary,
+                failure_type, cost_actual, delegation_chain, previous_hash,
+                signature)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                entry["sequence_number"],
+                entry["timestamp"],
+                entry["capability"],
+                entry.get("token_id"),
+                entry.get("issuer"),
+                entry.get("subject"),
+                entry.get("root_principal"),
+                json.dumps(entry["parameters"]) if entry.get("parameters") is not None else None,
+                1 if entry["success"] else 0,
+                json.dumps(entry["result_summary"]) if entry.get("result_summary") is not None else None,
+                entry.get("failure_type"),
+                json.dumps(entry["cost_actual"]) if entry.get("cost_actual") is not None else None,
+                json.dumps(entry["delegation_chain"]) if entry.get("delegation_chain") is not None else None,
+                entry["previous_hash"],
+                entry.get("signature"),
+            ),
+        )
+        self._conn.commit()
+
+    def _parse_audit_row(self, row: sqlite3.Row) -> dict[str, Any]:
+        """Convert a raw audit_log row into a dict with parsed JSON fields."""
+        entry: dict[str, Any] = dict(row)
+        for field in _JSON_AUDIT_FIELDS:
+            if entry.get(field) is not None:
+                entry[field] = json.loads(entry[field])
+        entry["success"] = bool(entry["success"])
+        return entry
+
+    def query_audit_entries(
+        self,
+        *,
+        capability: str | None = None,
+        root_principal: str | None = None,
+        since: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """Query audit entries with optional filters."""
+        conditions: list[str] = []
+        params: list[Any] = []
+
+        if capability is not None:
+            conditions.append("capability = ?")
+            params.append(capability)
+        if root_principal is not None:
+            conditions.append("root_principal = ?")
+            params.append(root_principal)
+        if since is not None:
+            conditions.append("timestamp >= ?")
+            params.append(since)
+
+        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        rows = self._conn.execute(
+            f"SELECT * FROM audit_log {where} ORDER BY sequence_number DESC LIMIT ?",
+            [*params, limit],
+        ).fetchall()
+
+        return [self._parse_audit_row(r) for r in rows]
+
+    def get_last_audit_entry(self) -> dict[str, Any] | None:
+        """Return the audit entry with the highest sequence_number."""
+        row = self._conn.execute(
+            "SELECT * FROM audit_log ORDER BY sequence_number DESC LIMIT 1"
+        ).fetchone()
+        if row is None:
+            return None
+        return self._parse_audit_row(row)
+
+    def get_audit_entries_range(
+        self, first: int, last: int
+    ) -> list[dict[str, Any]]:
+        """Return audit entries with sequence_number BETWEEN first AND last."""
+        rows = self._conn.execute(
+            "SELECT * FROM audit_log WHERE sequence_number BETWEEN ? AND ? "
+            "ORDER BY sequence_number ASC",
+            (first, last),
+        ).fetchall()
+        return [self._parse_audit_row(r) for r in rows]
+
+    # -- checkpoints --------------------------------------------------------
+
+    def store_checkpoint(self, body: dict[str, Any], signature: str) -> None:
+        """Insert a checkpoint record."""
+        range_dict = body.get("range", {})
+        self._conn.execute(
+            """INSERT INTO checkpoints
+               (checkpoint_id, first_sequence, last_sequence, merkle_root,
+                previous_checkpoint, timestamp, entry_count, signature)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                body["checkpoint_id"],
+                range_dict.get("first_sequence", body.get("first_sequence")),
+                range_dict.get("last_sequence", body.get("last_sequence")),
+                body["merkle_root"],
+                body.get("previous_checkpoint"),
+                body.get("timestamp"),
+                body.get("entry_count"),
+                signature,
+            ),
+        )
+        self._conn.commit()
+
+    def get_checkpoints(self, limit: int = 10) -> list[dict[str, Any]]:
+        """Return checkpoints ordered by id ascending."""
+        rows = self._conn.execute(
+            "SELECT * FROM checkpoints ORDER BY id ASC LIMIT ?", (limit,)
+        ).fetchall()
+        results = []
+        for row in rows:
+            results.append({
+                "checkpoint_id": row["checkpoint_id"],
+                "range": {
+                    "first_sequence": row["first_sequence"],
+                    "last_sequence": row["last_sequence"],
+                },
+                "merkle_root": row["merkle_root"],
+                "previous_checkpoint": row["previous_checkpoint"],
+                "timestamp": row["timestamp"],
+                "entry_count": row["entry_count"],
+                "signature": row["signature"],
+            })
+        return results
+
+    def get_checkpoint_by_id(
+        self, checkpoint_id: str
+    ) -> dict[str, Any] | None:
+        """Return a single checkpoint by its checkpoint_id."""
+        row = self._conn.execute(
+            "SELECT * FROM checkpoints WHERE checkpoint_id = ?",
+            (checkpoint_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "checkpoint_id": row["checkpoint_id"],
+            "range": {
+                "first_sequence": row["first_sequence"],
+                "last_sequence": row["last_sequence"],
+            },
+            "merkle_root": row["merkle_root"],
+            "previous_checkpoint": row["previous_checkpoint"],
+            "timestamp": row["timestamp"],
+            "entry_count": row["entry_count"],
+            "signature": row["signature"],
+        }
