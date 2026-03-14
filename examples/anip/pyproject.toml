@@ -1,5 +1,5 @@
 [project]
-name = "anip-demo"
+name = "anip-flight-demo"
 version = "0.1.0"
 description = "ANIP reference implementation — flight booking service"
 requires-python = ">=3.11"
@@ -15,5 +15,5 @@ dependencies = [
 dev = ["pytest>=8.0"]
 
 [project.scripts]
-anip-server = "anip_server.main:run"
+anip-server = "anip_flight_demo.main:run"
 anip-demo = "demo:main"

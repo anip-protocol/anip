@@ -14,7 +14,7 @@ pip install -e .
 Start the server:
 
 ```bash
-uvicorn anip_server.main:app --reload
+uvicorn anip_flight_demo.main:app --reload
 ```
 
 Run the demo (in a separate terminal):

@@ -1,7 +1,7 @@
 import httpx
 import pytest
 from fastapi.testclient import TestClient
-from anip_server.main import app
+from anip_flight_demo.main import app
 
 
 @pytest.fixture

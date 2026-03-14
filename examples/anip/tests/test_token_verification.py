@@ -58,7 +58,7 @@ def test_invoke_rejects_tampered_store(client):
     """If the stored token's scope is mutated after issuance, invocation is rejected."""
     token_jwt, token_id = _issue_token(client, ["travel.search"], "search_flights")
     # Simulate store tampering: directly modify the stored token's scope
-    from anip_server.data.database import get_connection
+    from anip_flight_demo.data.database import get_connection
     import json
     conn = get_connection()
     conn.execute(

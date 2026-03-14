@@ -1,6 +1,6 @@
 """Tests for v0.2 audit log schema with hash chain."""
 
-from anip_server.data.database import (
+from anip_flight_demo.data.database import (
     get_connection,
     get_merkle_inclusion_proof,
     get_merkle_snapshot,

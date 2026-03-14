@@ -7,7 +7,7 @@ import threading
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from anip_server.primitives.sinks import CheckpointSink
+from anip_flight_demo.primitives.sinks import CheckpointSink
 
 _sink: CheckpointSink | None = None
 _sink_queue: queue.Queue = queue.Queue()

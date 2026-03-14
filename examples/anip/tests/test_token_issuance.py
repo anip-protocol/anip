@@ -53,7 +53,7 @@ def test_issued_token_is_verifiable_via_jwks(client):
 
     # Decode and verify claims (using PyJWT with the JWKS)
     from cryptography.hazmat.primitives.asymmetric import ec
-    from anip_server.main import _keys
+    from anip_flight_demo.main import _keys
 
     claims = _keys.verify_jwt(jwt_str)
     assert claims["sub"] == "agent:demo-agent"
@@ -78,7 +78,7 @@ def test_issued_token_has_server_controlled_fields(client):
     body = resp.json()
     assert body["issued"] is True
 
-    from anip_server.main import _keys
+    from anip_flight_demo.main import _keys
     claims = _keys.verify_jwt(body["token"])
 
     assert claims["iss"] == "anip-flight-service"
@@ -111,7 +111,7 @@ def test_issue_child_token_with_parent(client):
     assert "token" in child_body
 
     # Verify child claims include parent_token_id
-    from anip_server.main import _keys
+    from anip_flight_demo.main import _keys
     child_claims = _keys.verify_jwt(child_body["token"])
     assert child_claims["parent_token_id"] == parent_body["token_id"]
     # Root principal should trace back to the human
