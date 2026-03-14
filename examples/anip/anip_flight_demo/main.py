@@ -73,7 +73,7 @@ app = FastAPI(
 )
 
 # Server key pair — persisted to disk so restarts don't invalidate tokens.
-from .primitives.crypto import KeyManager
+from anip_crypto import KeyManager
 
 _key_path = os.environ.get(
     "ANIP_KEY_PATH",
@@ -276,7 +276,7 @@ def _resolve_jwt_token(token_jwt: str) -> DelegationToken | ANIPFailure:
     the request is rejected.
     """
     try:
-        claims = _keys.verify_jwt(token_jwt)
+        claims = _keys.verify_jwt(token_jwt, audience="anip-flight-service")
     except Exception as e:
         return ANIPFailure(
             type="invalid_token",
@@ -373,7 +373,7 @@ def issue_or_register_token(request: dict = Body(...), authorization: str | None
 
     if token_request.parent_token is not None:
         try:
-            parent_claims = _keys.verify_jwt(token_request.parent_token)
+            parent_claims = _keys.verify_jwt(token_request.parent_token, audience="anip-flight-service")
         except Exception as e:
             return {"issued": False, "error": f"invalid parent token: {e}"}
         parent_stored = get_token(parent_claims["jti"])
