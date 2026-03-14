@@ -22,7 +22,7 @@ def test_audit_entries_have_signatures():
 
 def test_audit_jwks_has_audit_key():
     """JWKS should contain both delegation and audit keys."""
-    from anip_flight_demo.primitives.crypto import KeyManager
+    from anip_crypto import KeyManager
     km = KeyManager()
     jwks = km.get_jwks()
     keys = jwks["keys"]

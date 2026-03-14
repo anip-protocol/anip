@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..data.flights import create_booking, get_flight
-from ..primitives.delegation import check_budget_authority, get_root_principal
+from .. import engine as sdk
 from anip_core import (
     ANIPFailure,
     CapabilityDeclaration,
@@ -98,7 +98,7 @@ def invoke(token: DelegationToken, parameters: dict) -> InvokeResponse:
 
     # Check budget authority in delegation chain
     total_cost = flight.price * passengers
-    budget_failure = check_budget_authority(token, total_cost)
+    budget_failure = sdk.engine.check_budget_authority(token, total_cost)
     if budget_failure is not None:
         return InvokeResponse(success=False, failure=budget_failure)
 
@@ -107,7 +107,7 @@ def invoke(token: DelegationToken, parameters: dict) -> InvokeResponse:
         flight=flight,
         passengers=passengers,
         booked_by=token.subject,
-        on_behalf_of=get_root_principal(token),
+        on_behalf_of=sdk.engine.get_root_principal(token),
     )
 
     # Calculate variance from the typical estimate

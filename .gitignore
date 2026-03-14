@@ -10,5 +10,6 @@ __pycache__/
 .venv/
 anip-keys.json
 dist/
+build/
 *.egg-info/
 .worktrees/
