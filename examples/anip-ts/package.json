@@ -9,6 +9,9 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
+    "@anip/core": "file:../../packages/typescript/core",
+    "@anip/crypto": "file:../../packages/typescript/crypto",
+    "@anip/server": "file:../../packages/typescript/server",
     "@hono/node-server": "^1.11.0",
     "better-sqlite3": "^12.6.2",
     "hono": "^4.4.0",
