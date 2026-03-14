@@ -180,7 +180,7 @@ class DelegationEngine:
         it for all downstream operations), or an :class:`ANIPFailure`.
         """
         # 0. Resolve to stored token (prevents forged inline fields)
-        resolved = self._resolve_registered_token(token)
+        resolved = self.resolve_registered_token(token)
         if isinstance(resolved, ANIPFailure):
             return resolved
         token = resolved
@@ -291,7 +291,7 @@ class DelegationEngine:
         chain = [token]
         current = token
         while current.parent is not None:
-            parent = self._get_token(current.parent)
+            parent = self.get_token(current.parent)
             if parent is None:
                 break
             chain.append(parent)
@@ -325,7 +325,7 @@ class DelegationEngine:
         if token.parent is None:
             return None
 
-        parent = self._get_token(token.parent)
+        parent = self.get_token(token.parent)
         if parent is None:
             return ANIPFailure(
                 type="parent_not_found",
@@ -409,7 +409,7 @@ class DelegationEngine:
         if token.parent is None:
             return None
 
-        parent = self._get_token(token.parent)
+        parent = self.get_token(token.parent)
         if parent is None:
             return None  # parent existence is checked separately
 
@@ -501,10 +501,10 @@ class DelegationEngine:
                 self._active_requests.discard(self.get_root_principal(token))
 
     # ------------------------------------------------------------------
-    # Internal helpers
+    # Token registration and lookup
     # ------------------------------------------------------------------
 
-    def _register_token(self, token: DelegationToken) -> None:
+    def register_token(self, token: DelegationToken) -> None:
         """Persist a delegation token to storage."""
         self._storage.store_token({
             "token_id": token.token_id,
@@ -518,14 +518,14 @@ class DelegationEngine:
             "root_principal": token.root_principal,
         })
 
-    def _get_token(self, token_id: str) -> DelegationToken | None:
+    def get_token(self, token_id: str) -> DelegationToken | None:
         """Load a delegation token from storage."""
         data = self._storage.load_token(token_id)
         if data is None:
             return None
         return DelegationToken(**data)
 
-    def _resolve_registered_token(
+    def resolve_registered_token(
         self, token: DelegationToken
     ) -> DelegationToken | ANIPFailure:
         """Look up the stored version of a token.
@@ -535,7 +535,7 @@ class DelegationEngine:
         all downstream operations — this prevents forged inline fields from
         bypassing registration-time validation.
         """
-        stored = self._get_token(token.token_id)
+        stored = self.get_token(token.token_id)
         if stored is None:
             return ANIPFailure(
                 type="token_not_registered",
@@ -603,5 +603,5 @@ class DelegationEngine:
             if constraint_failure is not None:
                 return constraint_failure  # type: ignore[return-value]
 
-        self._register_token(token)
+        self.register_token(token)
         return token, token_id
