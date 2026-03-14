@@ -54,14 +54,14 @@ class TestCheckpointCreation:
 
 class TestCheckpointPolicy:
     def test_cadence_policy_triggers(self):
-        from anip_flight_demo.primitives.checkpoint import CheckpointPolicy
+        from anip_server import CheckpointPolicy
         policy = CheckpointPolicy(entry_count=5)
         for i in range(4):
             assert not policy.should_checkpoint(entries_since_last=i + 1)
         assert policy.should_checkpoint(entries_since_last=5)
 
     def test_no_policy_never_triggers(self):
-        from anip_flight_demo.primitives.checkpoint import CheckpointPolicy
+        from anip_server import CheckpointPolicy
         policy = CheckpointPolicy()
         assert not policy.should_checkpoint(entries_since_last=1000)
 
@@ -132,7 +132,7 @@ class TestAutoCheckpoint:
     def test_auto_checkpoint_after_n_entries(self, client):
         """With entry_count policy=3, a checkpoint should be created after every 3 entries."""
         from anip_flight_demo.data.database import set_checkpoint_policy, get_checkpoints
-        from anip_flight_demo.primitives.checkpoint import CheckpointPolicy
+        from anip_server import CheckpointPolicy
         set_checkpoint_policy(CheckpointPolicy(entry_count=3))
         token = _issue_token(client, "search_flights", ["travel.search"])
         for _ in range(3):
@@ -154,7 +154,7 @@ class TestAutoCheckpoint:
             has_new_entries_since_checkpoint,
             create_checkpoint,
         )
-        from anip_flight_demo.primitives.checkpoint import CheckpointPolicy, CheckpointScheduler
+        from anip_server import CheckpointPolicy, CheckpointScheduler
         set_checkpoint_policy(CheckpointPolicy(interval_seconds=1))
         token = _issue_token(client, "search_flights", ["travel.search"])
         client.post(

@@ -11,12 +11,12 @@ import { MerkleTree, type Snapshot } from "./merkle.js";
 
 export class AuditLog {
   private _storage: StorageBackend;
-  private _signer: ((entry: Record<string, unknown>) => string) | null;
+  private _signer: ((entry: Record<string, unknown>) => string | Promise<string>) | null;
   private _merkle: MerkleTree;
 
   constructor(
     storage: StorageBackend,
-    signer?: (entry: Record<string, unknown>) => string,
+    signer?: (entry: Record<string, unknown>) => string | Promise<string>,
   ) {
     this._storage = storage;
     this._signer = signer ?? null;
@@ -34,7 +34,7 @@ export class AuditLog {
    * Returns the complete entry dict (with `sequence_number`, `timestamp`,
    * `previous_hash`, `signature`).
    */
-  logEntry(entryData: Record<string, unknown>): Record<string, unknown> {
+  async logEntry(entryData: Record<string, unknown>): Promise<Record<string, unknown>> {
     const last = this._storage.getLastAuditEntry();
     let sequenceNumber: number;
     let previousHash: string;
@@ -70,7 +70,7 @@ export class AuditLog {
     this._merkle.addLeaf(Buffer.from(canonicalBytes));
 
     // Sign if signer is provided
-    entry.signature = this._signer ? this._signer(entry) : null;
+    entry.signature = this._signer ? await this._signer(entry) : null;
 
     this._storage.storeAuditEntry(entry);
     return entry;

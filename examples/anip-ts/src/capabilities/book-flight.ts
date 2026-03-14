@@ -5,13 +5,15 @@
 import { createBooking, getFlight } from "../data/flights.js";
 import {
   checkBudgetAuthority,
-  getRootPrincipal,
-} from "../primitives/delegation.js";
+} from "../delegation-helpers.js";
+import { engine, ensureInit } from "../sdk.js";
 import type {
   CapabilityDeclaration,
   DelegationToken,
   InvokeResponse,
-} from "../types.js";
+} from "@anip/core";
+
+function getEngine() { ensureInit(); return engine; }
 
 export const DECLARATION: CapabilityDeclaration = {
   name: "book_flight",
@@ -149,7 +151,7 @@ export function invoke(
     flight,
     passengers,
     token.subject,
-    getRootPrincipal(token)
+    getEngine().getRootPrincipal(token)
   );
 
   // Calculate variance from the typical estimate

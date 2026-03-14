@@ -2,7 +2,7 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from anip_flight_demo.primitives.crypto import KeyManager
+from anip_crypto import KeyManager
 
 
 def test_generates_ec_p256_key():
@@ -36,7 +36,7 @@ def test_sign_and_verify_roundtrip():
     km = KeyManager()
     payload = {"sub": "agent-1", "aud": "anip-flight-service"}
     token = km.sign_jwt(payload)
-    decoded = km.verify_jwt(token)
+    decoded = km.verify_jwt(token, audience="anip-flight-service")
     assert decoded["sub"] == "agent-1"
 
 
@@ -50,7 +50,7 @@ def test_verify_rejects_tampered_token():
     tampered_sig = sig[:-4] + ("AAAA" if not sig.endswith("AAAA") else "BBBB")
     tampered_token = f"{parts[0]}.{parts[1]}.{tampered_sig}"
     with pytest.raises(jwt.exceptions.InvalidSignatureError):
-        km.verify_jwt(tampered_token)
+        km.verify_jwt(tampered_token, audience="anip-flight-service")
 
 
 def test_kid_is_stable_for_same_instance():
@@ -77,7 +77,7 @@ def test_persists_and_loads_keys(tmp_path):
     assert kid1 == kid2
 
     # Token from km1 should verify with km2
-    decoded = km2.verify_jwt(token)
+    decoded = km2.verify_jwt(token, audience="anip-flight-service")
     assert decoded["sub"] == "test"
 
 

@@ -7,7 +7,7 @@ import type {
   CapabilityDeclaration,
   DelegationToken,
   InvokeResponse,
-} from "../types.js";
+} from "@anip/core";
 
 export const DECLARATION: CapabilityDeclaration = {
   name: "search_flights",

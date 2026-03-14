@@ -55,7 +55,7 @@ def test_issued_token_is_verifiable_via_jwks(client):
     from cryptography.hazmat.primitives.asymmetric import ec
     from anip_flight_demo.main import _keys
 
-    claims = _keys.verify_jwt(jwt_str)
+    claims = _keys.verify_jwt(jwt_str, audience="anip-flight-service")
     assert claims["sub"] == "agent:demo-agent"
     assert claims["scope"] == ["travel.search"]
     assert claims["capability"] == "search_flights"
@@ -79,7 +79,7 @@ def test_issued_token_has_server_controlled_fields(client):
     assert body["issued"] is True
 
     from anip_flight_demo.main import _keys
-    claims = _keys.verify_jwt(body["token"])
+    claims = _keys.verify_jwt(body["token"], audience="anip-flight-service")
 
     assert claims["iss"] == "anip-flight-service"
     assert claims["exp"] - claims["iat"] == 4 * 3600
@@ -112,7 +112,7 @@ def test_issue_child_token_with_parent(client):
 
     # Verify child claims include parent_token_id
     from anip_flight_demo.main import _keys
-    child_claims = _keys.verify_jwt(child_body["token"])
+    child_claims = _keys.verify_jwt(child_body["token"], audience="anip-flight-service")
     assert child_claims["parent_token_id"] == parent_body["token_id"]
     # Root principal should trace back to the human
     assert child_claims["root_principal"] == "human:samir@example.com"

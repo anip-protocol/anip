@@ -7,9 +7,9 @@ beforeAll(() => {
 });
 
 describe("Merkle integration with audit log", () => {
-  it("merkle root advances with entries", () => {
+  it("merkle root advances with entries", async () => {
     const snap1 = getMerkleSnapshot();
-    logAuditEntry({
+    await logAuditEntry({
       capability: "test_merkle",
       timestamp: new Date().toISOString(),
       token_id: "test-merkle-1",
@@ -26,8 +26,8 @@ describe("Merkle integration with audit log", () => {
     expect(snap2.root).not.toBe(snap1.root);
   });
 
-  it("inclusion proof works for audit entry", () => {
-    logAuditEntry({
+  it("inclusion proof works for audit entry", async () => {
+    await logAuditEntry({
       capability: "test_merkle_proof",
       timestamp: new Date().toISOString(),
       token_id: "test-merkle-2",

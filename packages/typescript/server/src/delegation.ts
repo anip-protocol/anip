@@ -188,7 +188,7 @@ export class DelegationEngine {
     capabilityName: string,
   ): DelegationTokenType | ANIPFailureType {
     // 0. Resolve to stored token (prevents forged inline fields)
-    const resolved = this._resolveRegisteredToken(token);
+    const resolved = this.resolveRegisteredToken(token);
     if (_isFailure(resolved)) return resolved;
     token = resolved;
 
@@ -304,7 +304,7 @@ export class DelegationEngine {
     const chain: DelegationTokenType[] = [token];
     let current = token;
     while (current.parent !== null && current.parent !== undefined) {
-      const parent = this._getToken(current.parent);
+      const parent = this.getToken(current.parent);
       if (parent === null) break;
       chain.push(parent);
       current = parent;
@@ -328,10 +328,10 @@ export class DelegationEngine {
   }
 
   // ------------------------------------------------------------------
-  // Internal helpers
+  // Token storage helpers (public for direct access)
   // ------------------------------------------------------------------
 
-  private _registerToken(token: DelegationTokenType): void {
+  registerToken(token: DelegationTokenType): void {
     this._storage.storeToken({
       token_id: token.token_id,
       issuer: token.issuer,
@@ -345,16 +345,16 @@ export class DelegationEngine {
     });
   }
 
-  private _getToken(tokenId: string): DelegationTokenType | null {
+  getToken(tokenId: string): DelegationTokenType | null {
     const data = this._storage.loadToken(tokenId);
     if (data === null) return null;
     return data as unknown as DelegationTokenType;
   }
 
-  private _resolveRegisteredToken(
+  resolveRegisteredToken(
     token: DelegationTokenType,
   ): DelegationTokenType | ANIPFailureType {
-    const stored = this._getToken(token.token_id);
+    const stored = this.getToken(token.token_id);
     if (stored === null) {
       return {
         type: "token_not_registered",
@@ -416,7 +416,7 @@ export class DelegationEngine {
       root_principal: opts.rootPrincipal,
     };
 
-    this._registerToken(token);
+    this.registerToken(token);
     return { token, tokenId };
   }
 }

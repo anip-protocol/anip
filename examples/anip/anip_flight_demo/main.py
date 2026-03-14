@@ -10,9 +10,33 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import Body, FastAPI, Header, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.responses import Response
 
+from anip_core import (
+    ANIPFailure,
+    AnchoringPolicy,
+    DelegationToken,
+    InvokeRequest,
+    InvokeRequestV2,
+    InvokeResponse,
+    Resolution,
+    ServiceIdentity,
+    TokenRequest,
+    TrustPosture,
+)
+from anip_crypto import KeyManager
+from anip_server import (
+    CheckpointPolicy,
+    CheckpointScheduler,
+    DelegationEngine,
+    SQLiteStorage,
+    build_manifest,
+    discover_permissions,
+)
+
+from . import engine as sdk
 from .capabilities import book_flight, search_flights
 from .data.database import (
     log_invocation,
@@ -21,31 +45,6 @@ from .data.database import (
     get_checkpoints,
     rebuild_merkle_tree_to,
 )
-from .primitives.delegation import (
-    acquire_exclusive_lock,
-    get_chain_token_ids,
-    get_root_principal,
-    get_token,
-    issue_token,
-    register_token,
-    release_exclusive_lock,
-    resolve_registered_token,
-    validate_constraints_narrowing,
-    validate_delegation,
-    validate_parent_exists,
-    validate_scope_narrowing,
-)
-from .primitives.manifest import build_manifest
-from .primitives.models import (
-    ANIPFailure,
-    DelegationToken,
-    InvokeRequest,
-    InvokeRequestV2,
-    InvokeResponse,
-    Resolution,
-    TokenRequest,
-)
-from .primitives.permissions import discover_permissions
 
 logger = logging.getLogger("anip")
 
@@ -73,23 +72,57 @@ app = FastAPI(
 )
 
 # Server key pair — persisted to disk so restarts don't invalidate tokens.
-from .primitives.crypto import KeyManager
-
 _key_path = os.environ.get(
     "ANIP_KEY_PATH",
     str(Path(__file__).parent / "data" / "anip-keys.json"),
 )
 _keys = KeyManager(key_path=_key_path)
+sdk.keys = _keys
+
+# DelegationEngine backed by SQLite (same DB as the example's database.py)
+_db_path = os.environ.get(
+    "ANIP_DB_PATH",
+    str(Path(__file__).parent / "data" / "anip.db"),
+)
+_storage = SQLiteStorage(_db_path)
+_engine = DelegationEngine(_storage, service_id="anip-flight-service")
+sdk.storage = _storage
+sdk.engine = _engine
 
 # Wire audit signer so audit entries are signed with the dedicated audit key
 from .data.database import set_audit_signer
 set_audit_signer(_keys)
 
-# Build manifest once at startup
-_manifest = build_manifest()
+# Build manifest once at startup — parse env vars here (SDK's build_manifest
+# takes explicit args rather than reading env vars).
+_trust_level = os.environ.get("ANIP_TRUST_LEVEL", "signed")
+_anchoring = None
+if _trust_level in ("anchored", "attested"):
+    _interval_env = os.environ.get("ANIP_CHECKPOINT_INTERVAL")
+    _cadence_raw = f"PT{_interval_env}S" if _interval_env else None
+    _cadence_env = os.environ.get("ANIP_CHECKPOINT_CADENCE")
+    _max_lag = int(_cadence_env) if _cadence_env else None
+    _sink_env = os.environ.get("ANIP_CHECKPOINT_SINK")
+    _sink_list = [s.strip() for s in _sink_env.split(",")] if _sink_env else None
+    _QUALIFYING = ("witness:", "https:")
+    _qualifying = [s for s in (_sink_list or []) if any(s.startswith(p) for p in _QUALIFYING)]
+    if not _qualifying:
+        raise ValueError(
+            f"ANIP_TRUST_LEVEL={_trust_level} requires ANIP_CHECKPOINT_SINK with at least one "
+            f"qualifying sink URI (witness: or https:). file:// sinks are non-qualifying per spec §7.6."
+        )
+    _anchoring = AnchoringPolicy(cadence=_cadence_raw, max_lag=_max_lag, sink=_sink_list)
+
+_manifest = build_manifest(
+    capabilities={
+        "search_flights": search_flights.DECLARATION,
+        "book_flight": book_flight.DECLARATION,
+    },
+    trust=TrustPosture(level=_trust_level, anchoring=_anchoring),
+    service_identity=ServiceIdentity(),
+)
 
 # Configure automatic checkpointing from environment variables
-from .primitives.checkpoint import CheckpointPolicy, CheckpointScheduler
 from .data.database import set_checkpoint_policy, create_checkpoint, has_new_entries_since_checkpoint
 
 _checkpoint_cadence = os.environ.get("ANIP_CHECKPOINT_CADENCE")
@@ -253,7 +286,7 @@ def profile_handshake(requirements: ProfileRequirements):
 
 # --- API Key Authentication ---
 
-# API key → identity mapping
+# API key -> identity mapping
 _api_key_identities: dict[str, str] = {
     "demo-human-key": "human:samir@example.com",
     "demo-agent-key": "agent:demo-agent",
@@ -276,7 +309,7 @@ def _resolve_jwt_token(token_jwt: str) -> DelegationToken | ANIPFailure:
     the request is rejected.
     """
     try:
-        claims = _keys.verify_jwt(token_jwt)
+        claims = _keys.verify_jwt(token_jwt, audience="anip-flight-service")
     except Exception as e:
         return ANIPFailure(
             type="invalid_token",
@@ -292,7 +325,7 @@ def _resolve_jwt_token(token_jwt: str) -> DelegationToken | ANIPFailure:
             resolution=Resolution(action="present_valid_token"),
             retry=False,
         )
-    stored = get_token(token_id)
+    stored = _engine.get_token(token_id)
     if stored is None:
         return ANIPFailure(
             type="token_not_registered",
@@ -310,7 +343,7 @@ def _resolve_jwt_token(token_jwt: str) -> DelegationToken | ANIPFailure:
     if claims.get("capability") != stored.purpose.capability:
         mismatches.append(f"capability: jwt={claims.get('capability')} store={stored.purpose.capability}")
     jwt_root = claims.get("root_principal")
-    stored_root = get_root_principal(stored)
+    stored_root = _engine.get_root_principal(stored)
     if jwt_root is None:
         mismatches.append("root_principal: missing from JWT claims")
     elif jwt_root != stored_root:
@@ -337,6 +370,25 @@ def _resolve_jwt_token(token_jwt: str) -> DelegationToken | ANIPFailure:
     return stored
 
 
+def _validate_parent_exists(token: DelegationToken) -> ANIPFailure | None:
+    """Check that a token's declared parent exists in storage."""
+    if token.parent is None:
+        return None
+    parent = _engine.get_token(token.parent)
+    if parent is None:
+        return ANIPFailure(
+            type="parent_not_found",
+            detail=f"parent token '{token.parent}' is not registered",
+            resolution=Resolution(
+                action="register_parent_token_first",
+                requires=f"token '{token.parent}' must be registered before its children",
+                grantable_by=token.issuer,
+            ),
+            retry=True,
+        )
+    return None
+
+
 # --- Token Issuance ---
 
 
@@ -349,16 +401,16 @@ def issue_or_register_token(request: dict = Body(...), authorization: str | None
             token = DelegationToken(**request)
         except Exception as e:
             return {"registered": False, "error": str(e)}
-        parent_failure = validate_parent_exists(token)
+        parent_failure = _validate_parent_exists(token)
         if parent_failure is not None:
             return {"registered": False, "error": parent_failure.detail}
-        scope_failure = validate_scope_narrowing(token)
+        scope_failure = _engine.validate_scope_narrowing(token)
         if scope_failure is not None:
             return {"registered": False, "error": scope_failure.detail}
-        constraint_failure = validate_constraints_narrowing(token)
+        constraint_failure = _engine.validate_constraints_narrowing(token)
         if constraint_failure is not None:
             return {"registered": False, "error": constraint_failure.detail}
-        register_token(token)
+        _engine.register_token(token)
         return {"registered": True, "token_id": token.token_id}
 
     # v0.2 path: server-side JWT issuance
@@ -366,37 +418,49 @@ def issue_or_register_token(request: dict = Body(...), authorization: str | None
 
     caller_identity = _authenticate_caller(authorization)
     if caller_identity is None:
-        return {"issued": False, "error": "authentication required — provide Authorization: Bearer <key>"}
+        return {"issued": False, "error": "authentication required -- provide Authorization: Bearer <key>"}
 
     parent_token = None
     root_principal = caller_identity
 
     if token_request.parent_token is not None:
         try:
-            parent_claims = _keys.verify_jwt(token_request.parent_token)
+            parent_claims = _keys.verify_jwt(token_request.parent_token, audience="anip-flight-service")
         except Exception as e:
             return {"issued": False, "error": f"invalid parent token: {e}"}
-        parent_stored = get_token(parent_claims["jti"])
+        parent_stored = _engine.get_token(parent_claims["jti"])
         if parent_stored is None:
             return {"issued": False, "error": "parent token not found in store"}
         if caller_identity != parent_stored.subject:
-            return {"issued": False, "error": f"caller '{caller_identity}' is not the parent token's subject ('{parent_stored.subject}') — only the delegatee can sub-delegate"}
+            return {"issued": False, "error": f"caller '{caller_identity}' is not the parent token's subject ('{parent_stored.subject}') -- only the delegatee can sub-delegate"}
         parent_token = parent_stored
         root_principal = parent_claims.get("root_principal", parent_stored.root_principal)
 
-    try:
-        token, token_id = issue_token(
-            request_subject=token_request.subject,
-            request_scope=token_request.scope,
-            request_capability=token_request.capability,
-            issuer_id="anip-flight-service",
+    # Use the DelegationEngine's issue_root_token or delegate
+    if parent_token is None:
+        try:
+            token, token_id = _engine.issue_root_token(
+                authenticated_principal=root_principal,
+                subject=token_request.subject,
+                scope=token_request.scope,
+                capability=token_request.capability,
+                purpose_parameters=token_request.purpose_parameters,
+                ttl_hours=token_request.ttl_hours,
+            )
+        except ValueError as e:
+            return {"issued": False, "error": str(e)}
+    else:
+        result = _engine.delegate(
             parent_token=parent_token,
+            subject=token_request.subject,
+            scope=token_request.scope,
+            capability=token_request.capability,
             purpose_parameters=token_request.purpose_parameters,
             ttl_hours=token_request.ttl_hours,
-            root_principal=root_principal,
         )
-    except ValueError as e:
-        return {"issued": False, "error": str(e)}
+        if isinstance(result, ANIPFailure):
+            return {"issued": False, "error": result.detail}
+        token, token_id = result
 
     budget = None
     for s in token_request.scope:
@@ -440,7 +504,7 @@ def query_permissions(request: dict = Body(...)):
     """Discover what the agent can do given its delegation chain."""
     if _trust_mode == "declaration" and "token_id" in request:
         token = DelegationToken(**request)
-        resolved = resolve_registered_token(token)
+        resolved = _engine.resolve_registered_token(token)
         if isinstance(resolved, ANIPFailure):
             raise HTTPException(status_code=401, detail=resolved.detail)
         return discover_permissions(resolved, _manifest.capabilities)
@@ -474,7 +538,7 @@ def invoke_capability(capability_name: str, request: dict = Body(...)):
     if _trust_mode == "declaration" and "delegation_token" in request:
         invoke_req = InvokeRequest(**request)
         token = invoke_req.delegation_token
-        resolved = resolve_registered_token(token)
+        resolved = _engine.resolve_registered_token(token)
         if isinstance(resolved, ANIPFailure):
             return InvokeResponse(success=False, failure=resolved)
         token = resolved
@@ -491,7 +555,7 @@ def invoke_capability(capability_name: str, request: dict = Body(...)):
     cap_declaration = _manifest.capabilities[capability_name]
 
     # 4. Validate delegation chain
-    delegation_result = validate_delegation(
+    delegation_result = _engine.validate_delegation(
         token=token,
         minimum_scope=cap_declaration.minimum_scope,
         capability_name=capability_name,
@@ -502,7 +566,7 @@ def invoke_capability(capability_name: str, request: dict = Body(...)):
     token = delegation_result
 
     # 5. Acquire exclusive lock if needed
-    lock_failure = acquire_exclusive_lock(token)
+    lock_failure = _engine.acquire_exclusive_lock(token)
     if lock_failure is not None:
         _log_failure(capability_name, token, parameters, lock_failure.type)
         return InvokeResponse(success=False, failure=lock_failure)
@@ -516,7 +580,7 @@ def invoke_capability(capability_name: str, request: dict = Body(...)):
 
         return response
     finally:
-        release_exclusive_lock(token)
+        _engine.release_exclusive_lock(token)
 
 
 def _calculate_cost_variance(
@@ -576,13 +640,13 @@ def _log_invocation(
         token_id=token.token_id,
         issuer=token.issuer,
         subject=token.subject,
-        root_principal=get_root_principal(token),
+        root_principal=_engine.get_root_principal(token),
         parameters=parameters,
         success=response.success,
         result_summary=_summarize_result(response.result) if response.success else None,
         failure_type=response.failure.type if response.failure else None,
         cost_actual=cost_actual_data,
-        delegation_chain=get_chain_token_ids(token),
+        delegation_chain=_engine.get_chain_token_ids(token),
     )
 
 
@@ -598,11 +662,11 @@ def _log_failure(
         token_id=token.token_id,
         issuer=token.issuer,
         subject=token.subject,
-        root_principal=get_root_principal(token),
+        root_principal=_engine.get_root_principal(token),
         parameters=parameters,
         success=False,
         failure_type=failure_type,
-        delegation_chain=get_chain_token_ids(token),
+        delegation_chain=_engine.get_chain_token_ids(token),
     )
 
 
@@ -633,7 +697,7 @@ def get_audit_log(
     """Query the audit log."""
     if _trust_mode == "declaration" and "token_id" in request:
         token = DelegationToken(**request)
-        resolved = resolve_registered_token(token)
+        resolved = _engine.resolve_registered_token(token)
         if isinstance(resolved, ANIPFailure):
             raise HTTPException(status_code=401, detail=resolved.detail)
         token = resolved
@@ -644,7 +708,7 @@ def get_audit_log(
             raise HTTPException(status_code=401, detail=resolved.detail)
         token = resolved
 
-    root_principal = get_root_principal(token)
+    root_principal = _engine.get_root_principal(token)
     entries = query_audit_log(
         capability=capability,
         root_principal=root_principal,
@@ -661,9 +725,6 @@ def get_audit_log(
 
 
 # --- Checkpoints ---
-
-
-from fastapi.responses import JSONResponse
 
 
 @app.get("/anip/checkpoints")
@@ -750,7 +811,7 @@ def get_checkpoint(
 
 @app.get("/anip/graph/{capability_name}")
 def capability_graph(capability_name: str):
-    """Get the capability graph — prerequisites and composition."""
+    """Get the capability graph -- prerequisites and composition."""
     if capability_name not in _manifest.capabilities:
         return {"error": f"capability '{capability_name}' not found"}
 

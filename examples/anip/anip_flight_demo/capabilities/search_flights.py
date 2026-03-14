@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..data.flights import search_flights as do_search
-from ..primitives.models import (
+from anip_core import (
     ANIPFailure,
     CapabilityDeclaration,
     CapabilityInput,
