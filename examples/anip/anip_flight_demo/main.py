@@ -36,7 +36,7 @@ from .primitives.delegation import (
     validate_scope_narrowing,
 )
 from .primitives.manifest import build_manifest
-from .primitives.models import (
+from anip_core import (
     ANIPFailure,
     DelegationToken,
     InvokeRequest,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from ..data.flights import create_booking, get_flight
 from ..primitives.delegation import check_budget_authority, get_root_principal
-from ..primitives.models import (
+from anip_core import (
     ANIPFailure,
     CapabilityDeclaration,
     CapabilityInput,
