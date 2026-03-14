@@ -20,7 +20,7 @@ class TestCheckpointCreation:
         for _ in range(3):
             client.post("/anip/invoke/search_flights",
                         json={"token": token, "parameters": {"origin": "SEA", "destination": "SFO", "date": "2026-04-01"}})
-        from anip_server.data.database import get_merkle_snapshot, create_checkpoint
+        from anip_flight_demo.data.database import get_merkle_snapshot, create_checkpoint
         snap = get_merkle_snapshot()
         body, signature = create_checkpoint()
         assert body["merkle_root"] == snap["root"]
@@ -34,7 +34,7 @@ class TestCheckpointCreation:
         token = _issue_token(client, "search_flights", ["travel.search"])
         client.post("/anip/invoke/search_flights",
                     json={"token": token, "parameters": {"origin": "SEA", "destination": "SFO", "date": "2026-04-01"}})
-        from anip_server.data.database import create_checkpoint, get_checkpoints
+        from anip_flight_demo.data.database import create_checkpoint, get_checkpoints
         create_checkpoint()
         checkpoints = get_checkpoints()
         assert len(checkpoints) >= 1
@@ -42,7 +42,7 @@ class TestCheckpointCreation:
 
     def test_checkpoint_chains_to_previous(self, client):
         token = _issue_token(client, "search_flights", ["travel.search"])
-        from anip_server.data.database import create_checkpoint, get_checkpoints
+        from anip_flight_demo.data.database import create_checkpoint, get_checkpoints
         for _ in range(2):
             client.post("/anip/invoke/search_flights",
                         json={"token": token, "parameters": {"origin": "SEA", "destination": "SFO", "date": "2026-04-01"}})
@@ -54,14 +54,14 @@ class TestCheckpointCreation:
 
 class TestCheckpointPolicy:
     def test_cadence_policy_triggers(self):
-        from anip_server.primitives.checkpoint import CheckpointPolicy
+        from anip_flight_demo.primitives.checkpoint import CheckpointPolicy
         policy = CheckpointPolicy(entry_count=5)
         for i in range(4):
             assert not policy.should_checkpoint(entries_since_last=i + 1)
         assert policy.should_checkpoint(entries_since_last=5)
 
     def test_no_policy_never_triggers(self):
-        from anip_server.primitives.checkpoint import CheckpointPolicy
+        from anip_flight_demo.primitives.checkpoint import CheckpointPolicy
         policy = CheckpointPolicy()
         assert not policy.should_checkpoint(entries_since_last=1000)
 
@@ -71,7 +71,7 @@ class TestCheckpointEndpoints:
         token = _issue_token(client, "search_flights", ["travel.search"])
         client.post("/anip/invoke/search_flights",
                     json={"token": token, "parameters": {"origin": "SEA", "destination": "SFO", "date": "2026-04-01"}})
-        from anip_server.data.database import create_checkpoint
+        from anip_flight_demo.data.database import create_checkpoint
         create_checkpoint()
         resp = client.get("/anip/checkpoints")
         assert resp.status_code == 200
@@ -90,7 +90,7 @@ class TestCheckpointEndpoints:
 
     def test_individual_checkpoint_with_inclusion_proof(self, client):
         token = _issue_token(client, "search_flights", ["travel.search"])
-        from anip_server.data.database import create_checkpoint, get_checkpoints
+        from anip_flight_demo.data.database import create_checkpoint, get_checkpoints
         for _ in range(3):
             client.post("/anip/invoke/search_flights",
                         json={"token": token, "parameters": {"origin": "SEA", "destination": "SFO", "date": "2026-04-01"}})
@@ -107,7 +107,7 @@ class TestCheckpointEndpoints:
 
     def test_individual_checkpoint_with_consistency_proof(self, client):
         token = _issue_token(client, "search_flights", ["travel.search"])
-        from anip_server.data.database import create_checkpoint, get_checkpoints
+        from anip_flight_demo.data.database import create_checkpoint, get_checkpoints
         for _ in range(3):
             client.post("/anip/invoke/search_flights",
                         json={"token": token, "parameters": {"origin": "SEA", "destination": "SFO", "date": "2026-04-01"}})
@@ -131,8 +131,8 @@ class TestCheckpointEndpoints:
 class TestAutoCheckpoint:
     def test_auto_checkpoint_after_n_entries(self, client):
         """With entry_count policy=3, a checkpoint should be created after every 3 entries."""
-        from anip_server.data.database import set_checkpoint_policy, get_checkpoints
-        from anip_server.primitives.checkpoint import CheckpointPolicy
+        from anip_flight_demo.data.database import set_checkpoint_policy, get_checkpoints
+        from anip_flight_demo.primitives.checkpoint import CheckpointPolicy
         set_checkpoint_policy(CheckpointPolicy(entry_count=3))
         token = _issue_token(client, "search_flights", ["travel.search"])
         for _ in range(3):
@@ -148,13 +148,13 @@ class TestAutoCheckpoint:
     def test_time_based_checkpoint(self, client):
         """CheckpointScheduler fires independently — no subsequent write needed."""
         import time
-        from anip_server.data.database import (
+        from anip_flight_demo.data.database import (
             set_checkpoint_policy,
             get_checkpoints,
             has_new_entries_since_checkpoint,
             create_checkpoint,
         )
-        from anip_server.primitives.checkpoint import CheckpointPolicy, CheckpointScheduler
+        from anip_flight_demo.primitives.checkpoint import CheckpointPolicy, CheckpointScheduler
         set_checkpoint_policy(CheckpointPolicy(interval_seconds=1))
         token = _issue_token(client, "search_flights", ["travel.search"])
         client.post(

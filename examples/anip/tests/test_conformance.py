@@ -12,7 +12,7 @@ Usage:
     pytest tests/test_conformance.py -v --anip-url http://localhost:8000 --anip-api-key my-key
 """
 
-from anip_server.primitives.merkle import MerkleTree
+from anip_flight_demo.primitives.merkle import MerkleTree
 
 
 def _issue(service, scope, capability, auth_headers):
@@ -194,7 +194,7 @@ class TestCheckpointEndpoints:
         })
 
         # 2. Trigger a checkpoint via the database helper
-        from anip_server.data.database import create_checkpoint
+        from anip_flight_demo.data.database import create_checkpoint
         create_checkpoint()
 
         # 3. List checkpoints — should have at least one
@@ -220,7 +220,7 @@ class TestCheckpointEndpoints:
             "token": token,
             "parameters": {"origin": "SEA", "destination": "SFO", "date": "2026-03-10"},
         })
-        from anip_server.data.database import create_checkpoint
+        from anip_flight_demo.data.database import create_checkpoint
         create_checkpoint()
 
         # Get the latest checkpoint id
@@ -245,7 +245,7 @@ class TestCheckpointEndpoints:
             "token": token,
             "parameters": {"origin": "SEA", "destination": "SFO", "date": "2026-03-10"},
         })
-        from anip_server.data.database import create_checkpoint
+        from anip_flight_demo.data.database import create_checkpoint
         create_checkpoint()
 
         # Get the latest checkpoint
@@ -278,7 +278,7 @@ class TestCheckpointEndpoints:
             "token": token,
             "parameters": {"origin": "SEA", "destination": "SFO", "date": "2026-03-10"},
         })
-        from anip_server.data.database import create_checkpoint, rebuild_merkle_tree_to
+        from anip_flight_demo.data.database import create_checkpoint, rebuild_merkle_tree_to
         create_checkpoint()
 
         # Get checkpoint
@@ -308,7 +308,7 @@ class TestCheckpointEndpoints:
         # We need the original leaf data — rebuild gives us the tree,
         # and we can get the leaf data from the audit log entries
         import json as json_mod
-        from anip_server.data.database import get_connection
+        from anip_flight_demo.data.database import get_connection
         conn = get_connection()
         row = conn.execute(
             "SELECT * FROM audit_log WHERE sequence_number = 1"

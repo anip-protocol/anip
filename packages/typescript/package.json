@@ -1,0 +1,5 @@
+{
+  "name": "anip-sdk",
+  "private": true,
+  "workspaces": ["core", "crypto", "server"]
+}

@@ -68,7 +68,7 @@ The REST adapter auto-generates endpoints and an OpenAPI 3.1 spec with `x-anip-*
 |----------|--------|-------------|
 | `/anip/manifest` | GET | Full ANIP manifest with all capability declarations |
 | `/anip/handshake` | POST | Profile compatibility check |
-| `/anip/tokens` | POST | Register a delegation token |
+| `/anip/tokens` | POST | Issue or register a delegation token |
 | `/anip/permissions` | POST | Permission discovery given a delegation token |
 | `/anip/invoke/{capability}` | POST | Invoke a capability with delegation chain |
 | `/anip/graph/{capability}` | GET | Capability prerequisite graph |

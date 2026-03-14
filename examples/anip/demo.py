@@ -12,7 +12,7 @@ Demonstrates the full protocol flow:
 Run the server first:
     cd examples/anip
     pip install -e .
-    uvicorn anip_server.main:app --reload
+    uvicorn anip_flight_demo.main:app --reload
 
 Then run this demo:
     python demo.py

@@ -15,8 +15,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Generator
 
-from anip_server.primitives.checkpoint import CheckpointPolicy, enqueue_for_sink, get_pending_sink_count
-from anip_server.primitives.merkle import MerkleTree
+from anip_flight_demo.primitives.checkpoint import CheckpointPolicy, enqueue_for_sink, get_pending_sink_count
+from anip_flight_demo.primitives.merkle import MerkleTree
 
 # Database path — configurable via ANIP_DB_PATH environment variable
 DB_PATH = Path(os.environ.get("ANIP_DB_PATH", str(Path(__file__).parent / "anip.db")))

@@ -14,7 +14,7 @@ pip install -e .
 Start the server:
 
 ```bash
-uvicorn anip_server.main:app --reload
+uvicorn anip_flight_demo.main:app --reload
 ```
 
 Run the demo (in a separate terminal):
@@ -86,7 +86,7 @@ The REST adapter's OpenAPI spec includes `x-anip-*` extensions preserving ANIP m
 |----------|--------|-------------|
 | `/anip/manifest` | GET | Full ANIP manifest with all capability declarations |
 | `/anip/handshake` | POST | Profile compatibility check |
-| `/anip/tokens` | POST | Register a delegation token |
+| `/anip/tokens` | POST | Issue or register a delegation token |
 | `/anip/permissions` | POST | Permission discovery given a delegation token |
 | `/anip/invoke/{capability}` | POST | Invoke a capability with delegation chain |
 | `/anip/graph/{capability}` | GET | Capability prerequisite graph |

@@ -2,7 +2,7 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from anip_server.primitives.crypto import KeyManager
+from anip_flight_demo.primitives.crypto import KeyManager
 
 
 def test_generates_ec_p256_key():

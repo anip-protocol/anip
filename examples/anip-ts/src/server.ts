@@ -2,7 +2,7 @@
  * ANIP reference server — flight booking service.
  *
  * Hono-based TypeScript implementation of the Agent-Native Interface Protocol.
- * v0.2: JWT tokens, signed manifests, audit hash chain.
+ * v0.3: JWT tokens, signed manifests, audit hash chain, anchored trust.
  */
 
 import { serve } from "@hono/node-server";
