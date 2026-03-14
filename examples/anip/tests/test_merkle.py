@@ -1,6 +1,6 @@
 """Tests for RFC 6962 Merkle tree implementation."""
 import pytest
-from anip_flight_demo.primitives.merkle import MerkleTree
+from anip_server import MerkleTree
 
 
 class TestMerkleTree:

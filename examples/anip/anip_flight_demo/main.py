@@ -89,7 +89,7 @@ set_audit_signer(_keys)
 _manifest = build_manifest()
 
 # Configure automatic checkpointing from environment variables
-from .primitives.checkpoint import CheckpointPolicy, CheckpointScheduler
+from anip_server import CheckpointPolicy, CheckpointScheduler
 from .data.database import set_checkpoint_policy, create_checkpoint, has_new_entries_since_checkpoint
 
 _checkpoint_cadence = os.environ.get("ANIP_CHECKPOINT_CADENCE")

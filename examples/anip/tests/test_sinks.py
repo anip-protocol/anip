@@ -3,7 +3,7 @@ import json
 import os
 import tempfile
 
-from anip_flight_demo.primitives.sinks import LocalFileSink
+from anip_server import LocalFileSink
 
 
 class TestLocalFileSink:
