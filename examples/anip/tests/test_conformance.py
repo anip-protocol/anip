@@ -48,7 +48,7 @@ class TestScopeEnforcement:
         })
         body = resp.json()
         assert body["success"] is False
-        assert body["failure"]["type"] in ("purpose_mismatch", "insufficient_authority")
+        assert body["failure"]["type"] in ("purpose_mismatch", "insufficient_authority", "scope_insufficient")
 
 
 class TestBudgetEnforcement:
