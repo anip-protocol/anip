@@ -12,4 +12,4 @@ export type { CheckpointPolicyOpts, CreateCheckpointOpts } from "./checkpoint.js
 export type { CheckpointSink } from "./sinks.js";
 export { LocalFileSink } from "./sinks.js";
 export type { StorageBackend } from "./storage.js";
-export { InMemoryStorage } from "./storage.js";
+export { InMemoryStorage, SQLiteStorage } from "./storage.js";
