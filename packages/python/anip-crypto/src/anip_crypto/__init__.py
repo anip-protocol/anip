@@ -10,7 +10,7 @@ from .jws import (
 )
 from .jwt import sign_jwt, verify_jwt
 from .keys import KeyManager
-from .verify import verify_audit_entry_signature
+from .verify import verify_audit_entry_signature, verify_manifest_signature
 
 __all__ = [
     "KeyManager",
@@ -23,4 +23,5 @@ __all__ = [
     "verify_jws_detached_audit",
     "build_jwks",
     "verify_audit_entry_signature",
+    "verify_manifest_signature",
 ]

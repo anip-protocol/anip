@@ -35,3 +35,20 @@ export async function verifyAuditEntrySignature(
 
   return payload;
 }
+
+/**
+ * Verify a manifest's detached JWS signature using the delegation public key.
+ *
+ * `manifestBytes` is the raw JSON body returned by `GET /anip/manifest`.
+ * `signature` is the `X-ANIP-Signature` header value (detached JWS).
+ *
+ * Throws on verification failure.
+ */
+export async function verifyManifestSignature(
+  km: KeyManager,
+  manifestBytes: Uint8Array,
+  signature: string,
+): Promise<void> {
+  const { verifyJWSDetached } = await import("./jws.js");
+  await verifyJWSDetached(km, signature, manifestBytes);
+}

@@ -25,3 +25,16 @@ def verify_audit_entry_signature(
     if claims.get("audit_hash") != expected_hash:
         raise ValueError("Audit hash mismatch")
     return claims
+
+
+def verify_manifest_signature(
+    key_manager: KeyManager, manifest_bytes: bytes, signature: str
+) -> None:
+    """Verify a manifest's detached JWS signature using the delegation public key.
+
+    *manifest_bytes* is the raw JSON body returned by ``GET /anip/manifest``.
+    *signature* is the ``X-ANIP-Signature`` header value (detached JWS).
+
+    Raises on verification failure.
+    """
+    key_manager.verify_jws_detached(signature, manifest_bytes)

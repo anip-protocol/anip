@@ -10,6 +10,7 @@ import {
   buildJWKS,
   canonicalize,
   verifyAuditEntrySignature,
+  verifyManifestSignature,
 } from "../src/index.js";
 
 describe("KeyManager", () => {
@@ -109,5 +110,24 @@ describe("verifyAuditEntrySignature", () => {
     await expect(
       verifyAuditEntrySignature(km, entry, sig),
     ).rejects.toThrow("Audit hash mismatch");
+  });
+});
+
+describe("verifyManifestSignature", () => {
+  it("verifies a valid manifest signature", async () => {
+    const km = new KeyManager();
+    await km.ready();
+    const manifest = new TextEncoder().encode('{"protocol":"anip/0.3"}');
+    const sig = await signJWSDetached(km, manifest);
+    await verifyManifestSignature(km, manifest, sig);
+  });
+
+  it("rejects tampered manifest bytes", async () => {
+    const km = new KeyManager();
+    await km.ready();
+    const manifest = new TextEncoder().encode('{"protocol":"anip/0.3"}');
+    const sig = await signJWSDetached(km, manifest);
+    const tampered = new TextEncoder().encode("tampered");
+    await expect(verifyManifestSignature(km, tampered, sig)).rejects.toThrow();
   });
 });

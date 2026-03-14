@@ -14,6 +14,7 @@ from anip_crypto import (
     verify_jws_detached,
     verify_jws_detached_audit,
     verify_jwt,
+    verify_manifest_signature,
 )
 
 
@@ -75,3 +76,18 @@ def test_verify_audit_entry_signature():
     entry = {"capability": "test", "timestamp": "2026-01-01T00:00:00Z", "success": True}
     sig = km.sign_audit_entry(entry)
     verify_audit_entry_signature(km, entry, sig)
+
+
+def test_verify_manifest_signature():
+    km = KeyManager()
+    manifest_bytes = b'{"protocol":"anip/0.3","capabilities":{}}'
+    sig = sign_jws_detached(km, manifest_bytes)
+    verify_manifest_signature(km, manifest_bytes, sig)
+
+
+def test_verify_manifest_signature_wrong_bytes_fails():
+    km = KeyManager()
+    manifest_bytes = b'{"protocol":"anip/0.3"}'
+    sig = sign_jws_detached(km, manifest_bytes)
+    with pytest.raises(Exception):
+        verify_manifest_signature(km, b"tampered", sig)

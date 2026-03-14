@@ -8,4 +8,4 @@ export {
 } from "./jws.js";
 export { buildJWKS } from "./jwks.js";
 export { canonicalize } from "./canonicalize.js";
-export { verifyAuditEntrySignature } from "./verify.js";
+export { verifyAuditEntrySignature, verifyManifestSignature } from "./verify.js";
