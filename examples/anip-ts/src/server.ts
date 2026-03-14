@@ -125,11 +125,6 @@ function authenticateCaller(
   return apiKeyIdentities[key];
 }
 
-// Audit signing helper
-async function signAuditEntryFn(data: Record<string, unknown>): Promise<string> {
-  return getKeys().signAuditEntry(data);
-}
-
 function calculateCostVariance(
   capabilityName: string,
   response: InvokeResponse
@@ -803,23 +798,20 @@ app.post("/anip/invoke/:capability", async (c) => {
     // 7. Log to audit trail
     const chain = getEngine().getChain(token);
     const costVariance = calculateCostVariance(capabilityName, response);
-    logAuditEntry(
-      {
-        capability: capabilityName,
-        timestamp: new Date().toISOString(),
-        token_id: token.token_id,
-        root_principal: getEngine().getRootPrincipal(token),
-        success: response.success,
-        result_summary: response.success
-          ? summarizeResult(response.result as Record<string, unknown>)
-          : null,
-        failure_type: response.failure?.type ?? null,
-        cost_actual: response.cost_actual as Record<string, unknown> | null,
-        cost_variance: costVariance,
-        delegation_chain: chain.map((t) => t.token_id),
-      },
-      signAuditEntryFn,
-    );
+    await logAuditEntry({
+      capability: capabilityName,
+      timestamp: new Date().toISOString(),
+      token_id: token.token_id,
+      root_principal: getEngine().getRootPrincipal(token),
+      success: response.success,
+      result_summary: response.success
+        ? summarizeResult(response.result as Record<string, unknown>)
+        : null,
+      failure_type: response.failure?.type ?? null,
+      cost_actual: response.cost_actual as Record<string, unknown> | null,
+      cost_variance: costVariance,
+      delegation_chain: chain.map((t) => t.token_id),
+    });
 
     return c.json(response);
   } finally {

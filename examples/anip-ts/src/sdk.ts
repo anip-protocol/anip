@@ -96,8 +96,8 @@ export function initSDK(
   engine = new DelegationEngine(storage, { serviceId });
   merkleTree = new MerkleTree();
 
-  // AuditLog — signer is set up later once keys are ready (async)
-  auditLog = new AuditLog(storage);
+  // AuditLog — signer delegates to KeyManager (async; logEntry awaits it)
+  auditLog = new AuditLog(storage, (entry) => keys.signAuditEntry(entry));
 }
 
 /**

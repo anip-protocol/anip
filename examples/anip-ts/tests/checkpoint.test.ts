@@ -24,8 +24,8 @@ const mockSign = async (payload: Buffer): Promise<string> => {
   return `${header}..${sig}`;
 };
 
-function addAuditEntry() {
-  logAuditEntry({
+async function addAuditEntry() {
+  await logAuditEntry({
     capability: "test_cap",
     timestamp: new Date().toISOString(),
     token_id: "test-1",
@@ -41,8 +41,8 @@ function addAuditEntry() {
 
 describe("Checkpoint", () => {
   it("creates checkpoint with body and detached signature", async () => {
-    addAuditEntry();
-    addAuditEntry();
+    await addAuditEntry();
+    await addAuditEntry();
     const snap = getMerkleSnapshot();
     const [body, sig] = await createCheckpoint(mockSign);
     expect(body.merkle_root).toBe(snap.root);
@@ -53,16 +53,16 @@ describe("Checkpoint", () => {
   });
 
   it("stores checkpoint in database", async () => {
-    addAuditEntry();
+    await addAuditEntry();
     await createCheckpoint(mockSign);
     const checkpoints = getCheckpoints();
     expect(checkpoints.length).toBeGreaterThanOrEqual(1);
   });
 
   it("chains checkpoints", async () => {
-    addAuditEntry();
+    await addAuditEntry();
     await createCheckpoint(mockSign);
-    addAuditEntry();
+    await addAuditEntry();
     await createCheckpoint(mockSign);
     const checkpoints = getCheckpoints();
     expect(checkpoints[0].previous_checkpoint).toBeNull();
@@ -92,7 +92,7 @@ describe("Auto-checkpointing", () => {
     const initialCheckpoints = getCheckpoints().length;
 
     for (let i = 0; i < 3; i++) {
-      addAuditEntry();
+      await addAuditEntry();
     }
 
     // Auto-checkpoint is fire-and-forget async — wait for it to complete
@@ -102,7 +102,7 @@ describe("Auto-checkpointing", () => {
     expect(checkpoints.length).toBeGreaterThan(initialCheckpoints);
   });
 
-  it("does not trigger before threshold", () => {
+  it("does not trigger before threshold", async () => {
     setCheckpointPolicy(new CheckpointPolicy({ entryCount: 10 }));
     setCheckpointSignFn(mockSign);
 
@@ -110,7 +110,7 @@ describe("Auto-checkpointing", () => {
 
     // Add fewer entries than the threshold
     for (let i = 0; i < 2; i++) {
-      addAuditEntry();
+      await addAuditEntry();
     }
 
     expect(getCheckpoints().length).toBe(initialCheckpoints);
@@ -121,7 +121,7 @@ describe("Auto-checkpointing", () => {
     await createCheckpoint(mockSign);
     expect(hasNewEntriesSinceCheckpoint()).toBe(false);
 
-    addAuditEntry();
+    await addAuditEntry();
     expect(hasNewEntriesSinceCheckpoint()).toBe(true);
   });
 
@@ -129,7 +129,7 @@ describe("Auto-checkpointing", () => {
     setCheckpointSignFn(mockSign);
 
     // Add an entry so there's something to checkpoint
-    addAuditEntry();
+    await addAuditEntry();
     const initial = getCheckpoints().length;
 
     const scheduler = new CheckpointScheduler(
@@ -147,7 +147,7 @@ describe("Auto-checkpointing", () => {
 
 describe("Checkpoint endpoints", () => {
   it("GET /anip/checkpoints returns list", async () => {
-    addAuditEntry();
+    await addAuditEntry();
     await createCheckpoint(mockSign);
     const res = await app.request("/anip/checkpoints");
     expect(res.status).toBe(200);
@@ -166,7 +166,7 @@ describe("Checkpoint endpoints", () => {
   });
 
   it("GET /anip/checkpoints/:id with inclusion proof", async () => {
-    for (let i = 0; i < 3; i++) addAuditEntry();
+    for (let i = 0; i < 3; i++) await addAuditEntry();
     await createCheckpoint(mockSign);
     const checkpoints = getCheckpoints();
     const id = checkpoints[checkpoints.length - 1].checkpoint_id;
@@ -183,9 +183,9 @@ describe("Checkpoint endpoints", () => {
   });
 
   it("GET /anip/checkpoints/:id with consistency proof", async () => {
-    for (let i = 0; i < 3; i++) addAuditEntry();
+    for (let i = 0; i < 3; i++) await addAuditEntry();
     await createCheckpoint(mockSign);
-    for (let i = 0; i < 3; i++) addAuditEntry();
+    for (let i = 0; i < 3; i++) await addAuditEntry();
     await createCheckpoint(mockSign);
     const checkpoints = getCheckpoints();
     const oldId = checkpoints[checkpoints.length - 2].checkpoint_id;

@@ -55,14 +55,13 @@ export function getAnchoringLag(): { entries: number; seconds: number; pending_s
   };
 }
 
-export function logAuditEntry(
+export async function logAuditEntry(
   entryData: Omit<AuditEntry, "sequence_number" | "previous_hash" | "signature">,
-  signFn: ((data: Record<string, unknown>) => Promise<string>) | null = null,
-): AuditEntry {
+): Promise<AuditEntry> {
   ensureInit();
 
-  // Use the SDK's AuditLog to handle hash chain, sequence numbers, and Merkle
-  const sdkEntry = _auditLog.logEntry({
+  // Use the SDK's AuditLog to handle hash chain, sequence numbers, signing, and Merkle
+  const sdkEntry = await _auditLog.logEntry({
     capability: entryData.capability,
     token_id: entryData.token_id,
     root_principal: entryData.root_principal,
@@ -90,14 +89,6 @@ export function logAuditEntry(
     if (currentSignFn) {
       createCheckpoint(currentSignFn).catch(() => {});
     }
-  }
-
-  // Sign asynchronously and update storage
-  if (signFn !== null) {
-    const signData: Record<string, unknown> = { ...sdkEntry };
-    signFn(signData).then((sig) => {
-      sdkEntry.signature = sig;
-    }).catch(() => {});
   }
 
   return {
