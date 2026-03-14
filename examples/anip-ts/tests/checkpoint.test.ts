@@ -8,7 +8,7 @@ import {
   setCheckpointSignFn,
   hasNewEntriesSinceCheckpoint,
 } from "../src/data/database";
-import { CheckpointPolicy, CheckpointScheduler } from "../src/checkpoint";
+import { CheckpointPolicy, CheckpointScheduler } from "@anip/server";
 import { app } from "../src/server";
 
 // Use an in-memory database for test isolation

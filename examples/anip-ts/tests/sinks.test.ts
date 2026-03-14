@@ -2,8 +2,8 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtempSync, readdirSync, readFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
-import { LocalFileSink } from "../src/sinks";
-import { setSink, enqueueForSink, getPendingSinkCount, resetSink } from "../src/checkpoint";
+import { LocalFileSink } from "@anip/server";
+import { setSink, enqueueForSink, getPendingSinkCount, resetSink } from "../src/sink-queue";
 
 describe("LocalFileSink", () => {
   it("writes signed checkpoint file", () => {

@@ -1,61 +1,32 @@
 /**
- * SQLite-backed audit log with hash chain.
+ * Database layer — now delegates to the SDK's AuditLog and StorageBackend.
  *
- * Mirrors the Python reference server's database.py — persists audit entries
- * so that restarts don't drop the log, sequence numbers, or hash chain.
+ * Retains example-specific wiring: auto-checkpointing, sink publication,
+ * Merkle tree rebuild for proofs, and anchoring lag tracking.
  */
 
-import Database from "better-sqlite3";
 import { createHash } from "crypto";
-import { dirname, resolve } from "path";
-import { fileURLToPath } from "url";
-import { MerkleTree } from "../merkle.js";
-import { CheckpointPolicy, enqueueForSink, getPendingSinkCount } from "../checkpoint.js";
+import { MerkleTree } from "@anip/server";
+import {
+  ensureInit,
+  checkpointPolicy,
+  currentSignFn,
+  incrementEntriesSinceCheckpoint,
+  resetCheckpointCounters,
+  getEntriesSinceCheckpoint,
+  lastCheckpointTime,
+  auditLog as _auditLog,
+  storage as _storage,
+  merkleTree as _merkleTree,
+} from "../sdk.js";
+import { enqueueForSink, getPendingSinkCount } from "../sink-queue.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-let db: Database.Database | null = null;
-const merkleTree = new MerkleTree();
-
-// --- Auto-checkpointing state ---
-
-let checkpointPolicy: CheckpointPolicy | null = null;
-let entriesSinceCheckpoint = 0;
-let lastCheckpointTime: number = Date.now();
-let currentSignFn: ((payload: Buffer) => Promise<string>) | null = null;
-
-/**
- * Configure the checkpoint policy used for auto-checkpointing on audit write.
- */
-export function setCheckpointPolicy(policy: CheckpointPolicy): void {
-  checkpointPolicy = policy;
-}
-
-/**
- * Set the signing function used for auto-checkpoints.
- */
-export function setCheckpointSignFn(signFn: (payload: Buffer) => Promise<string>): void {
-  currentSignFn = signFn;
-}
-
-/**
- * Return true when at least one audit entry has been written since the last
- * checkpoint.
- */
-export function hasNewEntriesSinceCheckpoint(): boolean {
-  return entriesSinceCheckpoint > 0;
-}
-
-/**
- * Return current anchoring lag — entries and seconds since the last checkpoint.
- */
-export function getAnchoringLag(): { entries: number; seconds: number; pending_sink_publications: number } {
-  return {
-    entries: entriesSinceCheckpoint,
-    seconds: Math.round((Date.now() - lastCheckpointTime) / 1000),
-    pending_sink_publications: getPendingSinkCount(),
-  };
-}
+// Re-export SDK state accessors for server.ts and tests
+export {
+  setCheckpointPolicy,
+  setCheckpointSignFn,
+  hasNewEntriesSinceCheckpoint,
+} from "../sdk.js";
 
 export interface AuditEntry {
   sequence_number: number;
@@ -73,177 +44,77 @@ export interface AuditEntry {
   signature: string | null;
 }
 
-function getConnection(): Database.Database {
-  if (db !== null) return db;
-
-  const dbPath =
-    process.env.ANIP_DB_PATH ?? resolve(__dirname, "../../anip.db");
-  db = new Database(dbPath);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-  initSchema(db);
-  return db;
-}
-
-function initSchema(conn: Database.Database): void {
-  conn.exec(`
-    CREATE TABLE IF NOT EXISTS audit_log (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      sequence_number INTEGER NOT NULL,
-      timestamp TEXT NOT NULL,
-      capability TEXT NOT NULL,
-      token_id TEXT,
-      root_principal TEXT,
-      success INTEGER NOT NULL,
-      result_summary TEXT,
-      failure_type TEXT,
-      cost_actual TEXT,
-      cost_variance TEXT,
-      delegation_chain TEXT,
-      previous_hash TEXT NOT NULL,
-      signature TEXT
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_audit_capability ON audit_log(capability);
-    CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
-    CREATE INDEX IF NOT EXISTS idx_audit_root_principal ON audit_log(root_principal);
-
-    CREATE TABLE IF NOT EXISTS checkpoints (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      checkpoint_id TEXT NOT NULL UNIQUE,
-      first_sequence INTEGER NOT NULL,
-      last_sequence INTEGER NOT NULL,
-      merkle_root TEXT NOT NULL,
-      previous_checkpoint TEXT,
-      timestamp TEXT NOT NULL,
-      entry_count INTEGER NOT NULL,
-      signature TEXT NOT NULL
-    );
-  `);
-}
-
-function computeEntryHash(entry: Record<string, unknown>): string {
-  const filtered: Record<string, unknown> = {};
-  for (const key of Object.keys(entry).sort()) {
-    if (key !== "signature" && key !== "id") {
-      filtered[key] = entry[key];
-    }
-  }
-  const canonical = JSON.stringify(filtered);
-  return `sha256:${createHash("sha256").update(canonical).digest("hex")}`;
+/**
+ * Return current anchoring lag.
+ */
+export function getAnchoringLag(): { entries: number; seconds: number; pending_sink_publications: number } {
+  return {
+    entries: getEntriesSinceCheckpoint(),
+    seconds: Math.round((Date.now() - lastCheckpointTime) / 1000),
+    pending_sink_publications: getPendingSinkCount(),
+  };
 }
 
 export function logAuditEntry(
   entryData: Omit<AuditEntry, "sequence_number" | "previous_hash" | "signature">,
   signFn: ((data: Record<string, unknown>) => Promise<string>) | null = null,
 ): AuditEntry {
-  const conn = getConnection();
+  ensureInit();
 
-  // Get last entry for chain continuity
-  const lastRow = conn
-    .prepare(
-      "SELECT sequence_number, timestamp, capability, token_id, root_principal, " +
-        "success, result_summary, failure_type, cost_actual, cost_variance, " +
-        "delegation_chain, previous_hash, signature " +
-        "FROM audit_log ORDER BY sequence_number DESC LIMIT 1"
-    )
-    .get() as Record<string, unknown> | undefined;
+  // Use the SDK's AuditLog to handle hash chain, sequence numbers, and Merkle
+  const sdkEntry = _auditLog.logEntry({
+    capability: entryData.capability,
+    token_id: entryData.token_id,
+    root_principal: entryData.root_principal,
+    success: entryData.success,
+    result_summary: entryData.result_summary,
+    failure_type: entryData.failure_type,
+    cost_actual: entryData.cost_actual,
+    delegation_chain: entryData.delegation_chain,
+  });
 
-  let sequenceNumber: number;
-  let previousHash: string;
-
-  if (lastRow === undefined) {
-    sequenceNumber = 1;
-    previousHash = "sha256:0";
-  } else {
-    sequenceNumber = (lastRow.sequence_number as number) + 1;
-    // Reconstruct entry for hashing (parse JSON fields)
-    const lastEntry: Record<string, unknown> = {
-      ...lastRow,
-      success: Boolean(lastRow.success),
-    };
-    for (const field of [
-      "result_summary",
-      "failure_type",
-      "cost_actual",
-      "cost_variance",
-      "delegation_chain",
-    ]) {
-      if (typeof lastEntry[field] === "string") {
-        lastEntry[field] = JSON.parse(lastEntry[field] as string);
-      }
-    }
-    previousHash = computeEntryHash(lastEntry);
-  }
-
-  const entry: AuditEntry = {
-    sequence_number: sequenceNumber,
-    ...entryData,
-    previous_hash: previousHash,
-    signature: null,
-  };
-
-  // Accumulate into Merkle tree (canonical JSON with sorted keys, excluding signature and id)
+  // Also accumulate into the example-level Merkle tree for proof endpoints
   const merkleData: Record<string, unknown> = {};
-  for (const key of Object.keys(entry).sort()) {
+  for (const key of Object.keys(sdkEntry).sort()) {
     if (key !== "signature" && key !== "id") {
-      merkleData[key] = (entry as Record<string, unknown>)[key];
+      merkleData[key] = sdkEntry[key];
     }
   }
-  merkleTree.addLeaf(Buffer.from(JSON.stringify(merkleData)));
-
-  // Insert (signature is set asynchronously after if signFn provided)
-  conn
-    .prepare(
-      `INSERT INTO audit_log
-       (sequence_number, timestamp, capability, token_id, root_principal,
-        success, result_summary, failure_type, cost_actual, cost_variance,
-        delegation_chain, previous_hash, signature)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      entry.sequence_number,
-      entry.timestamp,
-      entry.capability,
-      entry.token_id,
-      entry.root_principal,
-      entry.success ? 1 : 0,
-      entry.result_summary ? JSON.stringify(entry.result_summary) : null,
-      entry.failure_type,
-      entry.cost_actual ? JSON.stringify(entry.cost_actual) : null,
-      entry.cost_variance ? JSON.stringify(entry.cost_variance) : null,
-      JSON.stringify(entry.delegation_chain),
-      entry.previous_hash,
-      null,
-    );
+  _merkleTree.addLeaf(Buffer.from(JSON.stringify(merkleData)));
 
   // Auto-checkpoint if policy threshold is met
-  entriesSinceCheckpoint++;
-  if (checkpointPolicy && checkpointPolicy.shouldCheckpoint(entriesSinceCheckpoint)) {
+  incrementEntriesSinceCheckpoint();
+  if (checkpointPolicy && checkpointPolicy.shouldCheckpoint(
+    getEntriesSinceCheckpoint()
+  )) {
     if (currentSignFn) {
-      // Fire-and-forget: checkpoint creation is async but shouldn't block the audit write path
       createCheckpoint(currentSignFn).catch(() => {});
     }
   }
 
-  // Sign asynchronously and update
+  // Sign asynchronously and update storage
   if (signFn !== null) {
-    const signData: Record<string, unknown> = { ...entry };
-    signFn(signData)
-      .then((sig) => {
-        entry.signature = sig;
-        conn
-          .prepare(
-            "UPDATE audit_log SET signature = ? WHERE sequence_number = ?"
-          )
-          .run(sig, entry.sequence_number);
-      })
-      .catch(() => {
-        // If signing fails, leave signature null
-      });
+    const signData: Record<string, unknown> = { ...sdkEntry };
+    signFn(signData).then((sig) => {
+      sdkEntry.signature = sig;
+    }).catch(() => {});
   }
 
-  return entry;
+  return {
+    sequence_number: sdkEntry.sequence_number as number,
+    capability: sdkEntry.capability as string,
+    timestamp: sdkEntry.timestamp as string,
+    token_id: sdkEntry.token_id as string,
+    root_principal: sdkEntry.root_principal as string,
+    success: sdkEntry.success as boolean,
+    result_summary: sdkEntry.result_summary as Record<string, unknown> | null,
+    failure_type: (sdkEntry.failure_type as string) ?? null,
+    cost_actual: sdkEntry.cost_actual as Record<string, unknown> | null,
+    cost_variance: (entryData.cost_variance as Record<string, unknown>) ?? null,
+    delegation_chain: (sdkEntry.delegation_chain as string[]) ?? [],
+    previous_hash: sdkEntry.previous_hash as string,
+    signature: (sdkEntry.signature as string) ?? null,
+  };
 }
 
 export function queryAuditLog(opts: {
@@ -252,129 +123,43 @@ export function queryAuditLog(opts: {
   since?: string | null;
   limit?: number;
 }): AuditEntry[] {
-  const conn = getConnection();
-  const conditions: string[] = ["root_principal = ?"];
-  const params: unknown[] = [opts.rootPrincipal];
+  ensureInit();
+  const entries = _auditLog.query({
+    rootPrincipal: opts.rootPrincipal,
+    capability: opts.capability ?? undefined,
+    since: opts.since ?? undefined,
+    limit: opts.limit,
+  });
 
-  if (opts.capability) {
-    conditions.push("capability = ?");
-    params.push(opts.capability);
-  }
-  if (opts.since) {
-    conditions.push("timestamp >= ?");
-    params.push(opts.since);
-  }
-
-  const limit = Math.min(opts.limit ?? 100, 1000);
-  const where = `WHERE ${conditions.join(" AND ")}`;
-
-  const rows = conn
-    .prepare(
-      `SELECT sequence_number, timestamp, capability, token_id, root_principal,
-              success, result_summary, failure_type, cost_actual, cost_variance,
-              delegation_chain, previous_hash, signature
-       FROM audit_log ${where} ORDER BY sequence_number DESC LIMIT ?`
-    )
-    .all(...params, limit) as Record<string, unknown>[];
-
-  return rows.map((row) => ({
+  return entries.map((row) => ({
     sequence_number: row.sequence_number as number,
     capability: row.capability as string,
     timestamp: row.timestamp as string,
     token_id: row.token_id as string,
     root_principal: row.root_principal as string,
     success: Boolean(row.success),
-    result_summary: row.result_summary
-      ? (JSON.parse(row.result_summary as string) as Record<string, unknown>)
-      : null,
+    result_summary: row.result_summary as Record<string, unknown> | null,
     failure_type: (row.failure_type as string) ?? null,
-    cost_actual: row.cost_actual
-      ? (JSON.parse(row.cost_actual as string) as Record<string, unknown>)
-      : null,
-    cost_variance: row.cost_variance
-      ? (JSON.parse(row.cost_variance as string) as Record<string, unknown>)
-      : null,
-    delegation_chain: row.delegation_chain
-      ? (JSON.parse(row.delegation_chain as string) as string[])
-      : [],
+    cost_actual: row.cost_actual as Record<string, unknown> | null,
+    cost_variance: (row.cost_variance as Record<string, unknown>) ?? null,
+    delegation_chain: (row.delegation_chain as string[]) ?? [],
     previous_hash: row.previous_hash as string,
     signature: (row.signature as string) ?? null,
   }));
 }
 
-export function getCheckpointById(checkpointId: string): {
-  checkpoint_id: string;
-  range: { first_sequence: number; last_sequence: number };
-  merkle_root: string;
-  previous_checkpoint: string | null;
-  timestamp: string;
-  entry_count: number;
-  signature: string;
-} | null {
-  const conn = getConnection();
-  const row = conn
-    .prepare("SELECT * FROM checkpoints WHERE checkpoint_id = ?")
-    .get(checkpointId) as Record<string, unknown> | undefined;
-  if (row === undefined) return null;
-  return {
-    checkpoint_id: row.checkpoint_id as string,
-    range: {
-      first_sequence: row.first_sequence as number,
-      last_sequence: row.last_sequence as number,
-    },
-    merkle_root: row.merkle_root as string,
-    previous_checkpoint: (row.previous_checkpoint as string) ?? null,
-    timestamp: row.timestamp as string,
-    entry_count: row.entry_count as number,
-    signature: row.signature as string,
-  };
-}
-
-export function rebuildMerkleTreeTo(sequenceNumber: number): MerkleTree {
-  const conn = getConnection();
-  const rows = conn
-    .prepare(
-      "SELECT * FROM audit_log WHERE sequence_number <= ? ORDER BY sequence_number ASC"
-    )
-    .all(sequenceNumber) as Record<string, unknown>[];
-
-  const tree = new MerkleTree();
-  for (const row of rows) {
-    const entry: Record<string, unknown> = { ...row };
-    entry.success = Boolean(entry.success);
-    for (const field of [
-      "result_summary",
-      "failure_type",
-      "cost_actual",
-      "cost_variance",
-      "delegation_chain",
-    ]) {
-      if (typeof entry[field] === "string") {
-        entry[field] = JSON.parse(entry[field] as string);
-      }
-    }
-    // Build canonical JSON (sorted keys, excluding signature and id)
-    const filtered: Record<string, unknown> = {};
-    for (const key of Object.keys(entry).sort()) {
-      if (key !== "signature" && key !== "id") {
-        filtered[key] = entry[key];
-      }
-    }
-    tree.addLeaf(Buffer.from(JSON.stringify(filtered)));
-  }
-  return tree;
-}
-
 export function getMerkleSnapshot() {
-  return merkleTree.snapshot();
+  ensureInit();
+  return _merkleTree.snapshot();
 }
 
 export function getMerkleInclusionProof(index: number) {
+  ensureInit();
   try {
     return {
-      path: merkleTree.inclusionProof(index),
-      root: merkleTree.root,
-      leaf_count: merkleTree.leafCount,
+      path: _merkleTree.inclusionProof(index),
+      root: _merkleTree.root,
+      leaf_count: _merkleTree.leafCount,
     };
   } catch {
     return null;
@@ -394,25 +179,49 @@ export interface CheckpointBody {
   entry_count: number;
 }
 
-export function storeCheckpoint(body: CheckpointBody, signature: string): void {
-  const conn = getConnection();
-  conn
-    .prepare(
-      `INSERT INTO checkpoints
-       (checkpoint_id, first_sequence, last_sequence, merkle_root,
-        previous_checkpoint, timestamp, entry_count, signature)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      body.checkpoint_id,
-      body.range.first_sequence,
-      body.range.last_sequence,
-      body.merkle_root,
-      body.previous_checkpoint,
-      body.timestamp,
-      body.entry_count,
-      signature,
-    );
+export function getCheckpointById(checkpointId: string): {
+  checkpoint_id: string;
+  range: { first_sequence: number; last_sequence: number };
+  merkle_root: string;
+  previous_checkpoint: string | null;
+  timestamp: string;
+  entry_count: number;
+  signature: string;
+} | null {
+  ensureInit();
+  const row = _storage.getCheckpointById(checkpointId);
+  if (row === null) return null;
+  const range = (row.range as Record<string, number>) ?? {};
+  return {
+    checkpoint_id: row.checkpoint_id as string,
+    range: {
+      first_sequence: (range.first_sequence ?? row.first_sequence) as number,
+      last_sequence: (range.last_sequence ?? row.last_sequence) as number,
+    },
+    merkle_root: row.merkle_root as string,
+    previous_checkpoint: (row.previous_checkpoint as string) ?? null,
+    timestamp: row.timestamp as string,
+    entry_count: row.entry_count as number,
+    signature: row.signature as string,
+  };
+}
+
+export function rebuildMerkleTreeTo(sequenceNumber: number): MerkleTree {
+  ensureInit();
+  const entries = _storage.getAuditEntriesRange(1, sequenceNumber);
+  const tree = new MerkleTree();
+  for (const row of entries) {
+    const entry: Record<string, unknown> = { ...row };
+    // Build canonical JSON (sorted keys, excluding signature and id)
+    const filtered: Record<string, unknown> = {};
+    for (const key of Object.keys(entry).sort()) {
+      if (key !== "signature" && key !== "id") {
+        filtered[key] = entry[key];
+      }
+    }
+    tree.addLeaf(Buffer.from(JSON.stringify(filtered)));
+  }
+  return tree;
 }
 
 export function getCheckpoints(limit: number = 10): Array<{
@@ -425,52 +234,71 @@ export function getCheckpoints(limit: number = 10): Array<{
   entry_count: number;
   signature: string;
 }> {
-  const conn = getConnection();
-  const rows = conn
-    .prepare("SELECT * FROM checkpoints ORDER BY id ASC LIMIT ?")
-    .all(limit) as Record<string, unknown>[];
+  ensureInit();
+  const rows = _storage.getCheckpoints(limit);
+  return rows.map((row) => {
+    const range = (row.range as Record<string, number>) ?? {};
+    return {
+      checkpoint_id: row.checkpoint_id as string,
+      first_sequence: (range.first_sequence ?? row.first_sequence) as number,
+      last_sequence: (range.last_sequence ?? row.last_sequence) as number,
+      merkle_root: row.merkle_root as string,
+      previous_checkpoint: (row.previous_checkpoint as string) ?? null,
+      timestamp: row.timestamp as string,
+      entry_count: row.entry_count as number,
+      signature: row.signature as string,
+    };
+  });
+}
 
-  return rows.map((row) => ({
-    checkpoint_id: row.checkpoint_id as string,
-    first_sequence: row.first_sequence as number,
-    last_sequence: row.last_sequence as number,
-    merkle_root: row.merkle_root as string,
-    previous_checkpoint: (row.previous_checkpoint as string) ?? null,
-    timestamp: row.timestamp as string,
-    entry_count: row.entry_count as number,
-    signature: row.signature as string,
-  }));
+/**
+ * Produce canonical JSON: sorted keys, no whitespace.
+ */
+function canonicalJson(obj: unknown): string {
+  if (obj === null || obj === undefined) return "null";
+  if (typeof obj === "string") return JSON.stringify(obj);
+  if (typeof obj === "number" || typeof obj === "boolean") return String(obj);
+  if (Array.isArray(obj)) {
+    return `[${obj.map(canonicalJson).join(",")}]`;
+  }
+  const ks = Object.keys(obj as Record<string, unknown>).sort();
+  const pairs = ks.map(
+    (k) => `${JSON.stringify(k)}:${canonicalJson((obj as Record<string, unknown>)[k])}`,
+  );
+  return `{${pairs.join(",")}}`;
 }
 
 export async function createCheckpoint(
   signFn: (payload: Buffer) => Promise<string>,
 ): Promise<[CheckpointBody, string]> {
+  ensureInit();
   const snap = getMerkleSnapshot();
-  const conn = getConnection();
 
   // Determine previous checkpoint (if any)
-  const prevRow = conn
-    .prepare("SELECT * FROM checkpoints ORDER BY id DESC LIMIT 1")
-    .get() as Record<string, unknown> | undefined;
+  const allCheckpoints = _storage.getCheckpoints(1000);
+  const prevRow = allCheckpoints.length > 0
+    ? allCheckpoints[allCheckpoints.length - 1]
+    : null;
 
   let firstSequence: number;
   let previousCheckpoint: string | null;
   let checkpointNumber: number;
 
-  if (prevRow === undefined) {
+  if (prevRow === null) {
     firstSequence = 1;
     previousCheckpoint = null;
     checkpointNumber = 1;
   } else {
-    firstSequence = (prevRow.last_sequence as number) + 1;
-    // Hash the previous checkpoint body (canonical JSON, sorted keys, no whitespace)
+    const prevRange = (prevRow.range as Record<string, number>) ?? {};
+    const prevLastSeq = (prevRange.last_sequence ?? prevRow.last_sequence) as number;
+    firstSequence = prevLastSeq + 1;
     const prevBody: CheckpointBody = {
       version: "0.3",
       service_id: process.env.ANIP_SERVICE_ID ?? "anip-reference-server",
       checkpoint_id: prevRow.checkpoint_id as string,
       range: {
-        first_sequence: prevRow.first_sequence as number,
-        last_sequence: prevRow.last_sequence as number,
+        first_sequence: (prevRange.first_sequence ?? prevRow.first_sequence) as number,
+        last_sequence: prevLastSeq,
       },
       merkle_root: prevRow.merkle_root as string,
       previous_checkpoint: (prevRow.previous_checkpoint as string) ?? null,
@@ -479,7 +307,6 @@ export async function createCheckpoint(
     };
     const prevCanonical = canonicalJson(prevBody);
     previousCheckpoint = `sha256:${createHash("sha256").update(prevCanonical).digest("hex")}`;
-    // Extract number from previous checkpoint_id
     const parts = (prevRow.checkpoint_id as string).split("-");
     checkpointNumber = parseInt(parts[1], 10) + 1;
   }
@@ -501,36 +328,14 @@ export async function createCheckpoint(
     entry_count: entryCount,
   };
 
-  // Sign with detached JWS using the audit key
   const canonicalBytes = Buffer.from(canonicalJson(body));
   const signature = await signFn(canonicalBytes);
 
-  storeCheckpoint(body, signature);
+  _storage.storeCheckpoint(body as unknown as Record<string, unknown>, signature);
 
-  // Publish signed checkpoint to sink (body + signature) so external
-  // witnesses can verify independently without querying the service.
   enqueueForSink({ body, signature } as unknown as Record<string, unknown>);
 
-  // Reset auto-checkpoint counters
-  entriesSinceCheckpoint = 0;
-  lastCheckpointTime = Date.now();
+  resetCheckpointCounters();
 
   return [body, signature];
-}
-
-/**
- * Produce canonical JSON: sorted keys, no whitespace.
- */
-function canonicalJson(obj: unknown): string {
-  if (obj === null || obj === undefined) return "null";
-  if (typeof obj === "string") return JSON.stringify(obj);
-  if (typeof obj === "number" || typeof obj === "boolean") return String(obj);
-  if (Array.isArray(obj)) {
-    return `[${obj.map(canonicalJson).join(",")}]`;
-  }
-  const keys = Object.keys(obj as Record<string, unknown>).sort();
-  const pairs = keys.map(
-    (k) => `${JSON.stringify(k)}:${canonicalJson((obj as Record<string, unknown>)[k])}`,
-  );
-  return `{${pairs.join(",")}}`;
 }

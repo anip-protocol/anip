@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { MerkleTree } from "../src/merkle";
+import { MerkleTree } from "@anip/server";
 
 describe("MerkleTree", () => {
   it("empty tree has known root", () => {
