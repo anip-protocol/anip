@@ -1,0 +1,64 @@
+name: CI — Python
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/python/**"
+      - "examples/anip/**"
+      - ".github/workflows/ci-python.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/python/**"
+      - "examples/anip/**"
+      - ".github/workflows/ci-python.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install packages in dependency order
+        run: |
+          pip install -e "./packages/python/anip-core[dev]"
+          pip install -e "./packages/python/anip-crypto[dev]"
+          pip install -e "./packages/python/anip-server[dev]"
+          pip install -e "./packages/python/anip-service[dev]"
+          pip install -e "./packages/python/anip-fastapi[dev]"
+
+      - name: Compile check
+        run: python -m compileall packages/python/ examples/anip/
+
+      - name: Test anip-core
+        run: pytest packages/python/anip-core/tests/ -v
+
+      - name: Test anip-crypto
+        run: pytest packages/python/anip-crypto/tests/ -v
+
+      - name: Test anip-server
+        run: pytest packages/python/anip-server/tests/ -v
+
+      - name: Test anip-service
+        run: pytest packages/python/anip-service/tests/ -v
+
+      - name: Test anip-fastapi
+        run: pytest packages/python/anip-fastapi/tests/ -v
+
+      - name: Install and test Python example
+        run: |
+          pip install -e "./examples/anip[dev]"
+          pytest examples/anip/tests/ -v
