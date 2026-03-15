@@ -1,0 +1,21 @@
+{
+  "name": "@anip/service",
+  "version": "0.3.0",
+  "description": "ANIP service runtime — configure and run an ANIP service",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@anip/core": "0.3.0",
+    "@anip/crypto": "0.3.0",
+    "@anip/server": "0.3.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.0"
+  }
+}
