@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import sqlite3
+import threading
 from datetime import datetime, timezone
 from typing import Any, Protocol, runtime_checkable
 
@@ -233,6 +234,7 @@ class SQLiteStorage:
     """
 
     def __init__(self, db_path: str = "anip.db") -> None:
+        self._lock = threading.Lock()
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
@@ -252,74 +254,77 @@ class SQLiteStorage:
     # -- sync internals (private) -------------------------------------------
 
     def _sync_store_token(self, token_data: dict[str, Any]) -> None:
-        self._conn.execute(
-            """INSERT INTO delegation_tokens
-               (token_id, issuer, subject, scope, purpose, parent,
-                expires, constraints, root_principal, registered_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                token_data["token_id"],
-                token_data["issuer"],
-                token_data["subject"],
-                json.dumps(token_data.get("scope", [])),
-                json.dumps(token_data.get("purpose")),
-                token_data.get("parent"),
-                token_data["expires"],
-                json.dumps(token_data.get("constraints")),
-                token_data.get("root_principal"),
-                datetime.now(timezone.utc).isoformat(),
-            ),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                """INSERT INTO delegation_tokens
+                   (token_id, issuer, subject, scope, purpose, parent,
+                    expires, constraints, root_principal, registered_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    token_data["token_id"],
+                    token_data["issuer"],
+                    token_data["subject"],
+                    json.dumps(token_data.get("scope", [])),
+                    json.dumps(token_data.get("purpose")),
+                    token_data.get("parent"),
+                    token_data["expires"],
+                    json.dumps(token_data.get("constraints")),
+                    token_data.get("root_principal"),
+                    datetime.now(timezone.utc).isoformat(),
+                ),
+            )
+            self._conn.commit()
 
     def _sync_load_token(self, token_id: str) -> dict[str, Any] | None:
-        row = self._conn.execute(
-            "SELECT * FROM delegation_tokens WHERE token_id = ?",
-            (token_id,),
-        ).fetchone()
-        if row is None:
-            return None
-        return {
-            "token_id": row["token_id"],
-            "issuer": row["issuer"],
-            "subject": row["subject"],
-            "scope": json.loads(row["scope"]),
-            "purpose": json.loads(row["purpose"]) if row["purpose"] else None,
-            "parent": row["parent"],
-            "expires": row["expires"],
-            "constraints": json.loads(row["constraints"]) if row["constraints"] else None,
-            "root_principal": row["root_principal"],
-        }
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM delegation_tokens WHERE token_id = ?",
+                (token_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            return {
+                "token_id": row["token_id"],
+                "issuer": row["issuer"],
+                "subject": row["subject"],
+                "scope": json.loads(row["scope"]),
+                "purpose": json.loads(row["purpose"]) if row["purpose"] else None,
+                "parent": row["parent"],
+                "expires": row["expires"],
+                "constraints": json.loads(row["constraints"]) if row["constraints"] else None,
+                "root_principal": row["root_principal"],
+            }
 
     def _sync_store_audit_entry(self, entry: dict[str, Any]) -> None:
-        self._conn.execute(
-            """INSERT INTO audit_log
-               (sequence_number, timestamp, capability, token_id, issuer,
-                subject, root_principal, parameters, success, result_summary,
-                failure_type, cost_actual, delegation_chain, invocation_id,
-                client_reference_id, previous_hash, signature)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                entry["sequence_number"],
-                entry["timestamp"],
-                entry["capability"],
-                entry.get("token_id"),
-                entry.get("issuer"),
-                entry.get("subject"),
-                entry.get("root_principal"),
-                json.dumps(entry["parameters"]) if entry.get("parameters") is not None else None,
-                1 if entry["success"] else 0,
-                json.dumps(entry["result_summary"]) if entry.get("result_summary") is not None else None,
-                entry.get("failure_type"),
-                json.dumps(entry["cost_actual"]) if entry.get("cost_actual") is not None else None,
-                json.dumps(entry["delegation_chain"]) if entry.get("delegation_chain") is not None else None,
-                entry.get("invocation_id"),
-                entry.get("client_reference_id"),
-                entry["previous_hash"],
-                entry.get("signature"),
-            ),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                """INSERT INTO audit_log
+                   (sequence_number, timestamp, capability, token_id, issuer,
+                    subject, root_principal, parameters, success, result_summary,
+                    failure_type, cost_actual, delegation_chain, invocation_id,
+                    client_reference_id, previous_hash, signature)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    entry["sequence_number"],
+                    entry["timestamp"],
+                    entry["capability"],
+                    entry.get("token_id"),
+                    entry.get("issuer"),
+                    entry.get("subject"),
+                    entry.get("root_principal"),
+                    json.dumps(entry["parameters"]) if entry.get("parameters") is not None else None,
+                    1 if entry["success"] else 0,
+                    json.dumps(entry["result_summary"]) if entry.get("result_summary") is not None else None,
+                    entry.get("failure_type"),
+                    json.dumps(entry["cost_actual"]) if entry.get("cost_actual") is not None else None,
+                    json.dumps(entry["delegation_chain"]) if entry.get("delegation_chain") is not None else None,
+                    entry.get("invocation_id"),
+                    entry.get("client_reference_id"),
+                    entry["previous_hash"],
+                    entry.get("signature"),
+                ),
+            )
+            self._conn.commit()
 
     def _parse_audit_row(self, row: sqlite3.Row) -> dict[str, Any]:
         """Convert a raw audit_log row into a dict with parsed JSON fields."""
@@ -360,55 +365,60 @@ class SQLiteStorage:
             params.append(client_reference_id)
 
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-        rows = self._conn.execute(
-            f"SELECT * FROM audit_log {where} ORDER BY sequence_number DESC LIMIT ?",
-            [*params, limit],
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                f"SELECT * FROM audit_log {where} ORDER BY sequence_number DESC LIMIT ?",
+                [*params, limit],
+            ).fetchall()
 
         return [self._parse_audit_row(r) for r in rows]
 
     def _sync_get_last_audit_entry(self) -> dict[str, Any] | None:
-        row = self._conn.execute(
-            "SELECT * FROM audit_log ORDER BY sequence_number DESC LIMIT 1"
-        ).fetchone()
-        if row is None:
-            return None
-        return self._parse_audit_row(row)
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM audit_log ORDER BY sequence_number DESC LIMIT 1"
+            ).fetchone()
+            if row is None:
+                return None
+            return self._parse_audit_row(row)
 
     def _sync_get_audit_entries_range(
         self, first: int, last: int
     ) -> list[dict[str, Any]]:
-        rows = self._conn.execute(
-            "SELECT * FROM audit_log WHERE sequence_number BETWEEN ? AND ? "
-            "ORDER BY sequence_number ASC",
-            (first, last),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM audit_log WHERE sequence_number BETWEEN ? AND ? "
+                "ORDER BY sequence_number ASC",
+                (first, last),
+            ).fetchall()
         return [self._parse_audit_row(r) for r in rows]
 
     def _sync_store_checkpoint(self, body: dict[str, Any], signature: str) -> None:
         range_dict = body.get("range", {})
-        self._conn.execute(
-            """INSERT INTO checkpoints
-               (checkpoint_id, first_sequence, last_sequence, merkle_root,
-                previous_checkpoint, timestamp, entry_count, signature)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                body["checkpoint_id"],
-                range_dict.get("first_sequence", body.get("first_sequence")),
-                range_dict.get("last_sequence", body.get("last_sequence")),
-                body["merkle_root"],
-                body.get("previous_checkpoint"),
-                body.get("timestamp"),
-                body.get("entry_count"),
-                signature,
-            ),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                """INSERT INTO checkpoints
+                   (checkpoint_id, first_sequence, last_sequence, merkle_root,
+                    previous_checkpoint, timestamp, entry_count, signature)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    body["checkpoint_id"],
+                    range_dict.get("first_sequence", body.get("first_sequence")),
+                    range_dict.get("last_sequence", body.get("last_sequence")),
+                    body["merkle_root"],
+                    body.get("previous_checkpoint"),
+                    body.get("timestamp"),
+                    body.get("entry_count"),
+                    signature,
+                ),
+            )
+            self._conn.commit()
 
     def _sync_get_checkpoints(self, limit: int = 10) -> list[dict[str, Any]]:
-        rows = self._conn.execute(
-            "SELECT * FROM checkpoints ORDER BY id ASC LIMIT ?", (limit,)
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM checkpoints ORDER BY id ASC LIMIT ?", (limit,)
+            ).fetchall()
         results = []
         for row in rows:
             results.append({
@@ -428,24 +438,25 @@ class SQLiteStorage:
     def _sync_get_checkpoint_by_id(
         self, checkpoint_id: str
     ) -> dict[str, Any] | None:
-        row = self._conn.execute(
-            "SELECT * FROM checkpoints WHERE checkpoint_id = ?",
-            (checkpoint_id,),
-        ).fetchone()
-        if row is None:
-            return None
-        return {
-            "checkpoint_id": row["checkpoint_id"],
-            "range": {
-                "first_sequence": row["first_sequence"],
-                "last_sequence": row["last_sequence"],
-            },
-            "merkle_root": row["merkle_root"],
-            "previous_checkpoint": row["previous_checkpoint"],
-            "timestamp": row["timestamp"],
-            "entry_count": row["entry_count"],
-            "signature": row["signature"],
-        }
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM checkpoints WHERE checkpoint_id = ?",
+                (checkpoint_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            return {
+                "checkpoint_id": row["checkpoint_id"],
+                "range": {
+                    "first_sequence": row["first_sequence"],
+                    "last_sequence": row["last_sequence"],
+                },
+                "merkle_root": row["merkle_root"],
+                "previous_checkpoint": row["previous_checkpoint"],
+                "timestamp": row["timestamp"],
+                "entry_count": row["entry_count"],
+                "signature": row["signature"],
+            }
 
     # -- async public interface ---------------------------------------------
 

@@ -351,3 +351,22 @@ async def test_audit_no_filters_returns_all():
         })
     entries = await s.query_audit_entries()
     assert len(entries) == 3
+
+
+# ---------------------------------------------------------------------------
+# Backend compliance suite (parametrized across both backends)
+# ---------------------------------------------------------------------------
+
+from .compliance import ALL_COMPLIANCE_TESTS
+
+
+@pytest.mark.parametrize("test_fn", ALL_COMPLIANCE_TESTS, ids=lambda f: f.__name__)
+async def test_in_memory_compliance(test_fn):
+    storage = InMemoryStorage()
+    await test_fn(storage)
+
+
+@pytest.mark.parametrize("test_fn", ALL_COMPLIANCE_TESTS, ids=lambda f: f.__name__)
+async def test_sqlite_compliance(test_fn, tmp_path):
+    storage = SQLiteStorage(str(tmp_path / "test.db"))
+    await test_fn(storage)
