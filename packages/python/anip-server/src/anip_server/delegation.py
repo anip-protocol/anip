@@ -45,7 +45,7 @@ class DelegationEngine:
     # Public API
     # ------------------------------------------------------------------
 
-    def issue_root_token(
+    async def issue_root_token(
         self,
         *,
         authenticated_principal: str,
@@ -63,7 +63,7 @@ class DelegationEngine:
 
         Returns ``(token, token_id)``.
         """
-        return self._create_token(
+        return await self._create_token(
             issuer=self._service_id,
             subject=subject,
             scope=scope,
@@ -75,7 +75,7 @@ class DelegationEngine:
             max_delegation_depth=max_delegation_depth,
         )
 
-    def delegate(
+    async def delegate(
         self,
         *,
         parent_token: DelegationToken,
@@ -93,7 +93,7 @@ class DelegationEngine:
         Returns ``(token, token_id)`` on success, or :class:`ANIPFailure` if
         scope widening or constraint escalation is detected.
         """
-        root_principal = self.get_root_principal(parent_token)
+        root_principal = await self.get_root_principal(parent_token)
 
         # Pre-validate scope narrowing before creating the token
         parent_scope_bases = {s.split(":")[0] for s in parent_token.scope}
@@ -153,7 +153,7 @@ class DelegationEngine:
                             retry=False,
                         )
 
-        return self._create_token(
+        return await self._create_token(
             issuer=parent_token.subject,
             subject=subject,
             scope=scope,
@@ -168,7 +168,7 @@ class DelegationEngine:
             ),
         )
 
-    def validate_delegation(
+    async def validate_delegation(
         self,
         token: DelegationToken,
         minimum_scope: list[str],
@@ -180,7 +180,7 @@ class DelegationEngine:
         it for all downstream operations), or an :class:`ANIPFailure`.
         """
         # 0. Resolve to stored token (prevents forged inline fields)
-        resolved = self.resolve_registered_token(token)
+        resolved = await self.resolve_registered_token(token)
         if isinstance(resolved, ANIPFailure):
             return resolved
         token = resolved
@@ -192,7 +192,7 @@ class DelegationEngine:
                 detail=f"delegation token {token.token_id} expired at {token.expires.isoformat()}",
                 resolution=Resolution(
                     action="request_new_delegation",
-                    grantable_by=self.get_root_principal(token),
+                    grantable_by=await self.get_root_principal(token),
                 ),
                 retry=True,
             )
@@ -209,7 +209,7 @@ class DelegationEngine:
             if not scope_matched:
                 missing_scopes.append(required_scope)
         if missing_scopes:
-            root_principal = self.get_root_principal(token)
+            root_principal = await self.get_root_principal(token)
             return ANIPFailure(
                 type="scope_insufficient",
                 detail=f"delegation chain lacks scope(s): {', '.join(missing_scopes)}",
@@ -231,13 +231,13 @@ class DelegationEngine:
                 ),
                 resolution=Resolution(
                     action="request_new_delegation",
-                    grantable_by=self.get_root_principal(token),
+                    grantable_by=await self.get_root_principal(token),
                 ),
                 retry=True,
             )
 
         # 4. Verify delegation chain is complete
-        chain = self.get_chain(token)
+        chain = await self.get_chain(token)
         if chain[0].parent is not None:
             return ANIPFailure(
                 type="broken_delegation_chain",
@@ -247,7 +247,7 @@ class DelegationEngine:
                 ),
                 resolution=Resolution(
                     action="register_missing_ancestor",
-                    grantable_by=self.get_root_principal(token),
+                    grantable_by=await self.get_root_principal(token),
                 ),
                 retry=True,
             )
@@ -262,7 +262,7 @@ class DelegationEngine:
                 resolution=Resolution(
                     action="reduce_delegation_depth",
                     requires=f"max_delegation_depth >= {actual_depth}",
-                    grantable_by=self.get_root_principal(token),
+                    grantable_by=await self.get_root_principal(token),
                 ),
                 retry=True,
             )
@@ -275,7 +275,7 @@ class DelegationEngine:
                     detail=f"ancestor token {ancestor.token_id} in delegation chain has expired",
                     resolution=Resolution(
                         action="refresh_delegation_chain",
-                        grantable_by=self.get_root_principal(token),
+                        grantable_by=await self.get_root_principal(token),
                     ),
                     retry=True,
                 )
@@ -286,35 +286,35 @@ class DelegationEngine:
     # Chain helpers
     # ------------------------------------------------------------------
 
-    def get_chain(self, token: DelegationToken) -> list[DelegationToken]:
+    async def get_chain(self, token: DelegationToken) -> list[DelegationToken]:
         """Walk the DAG upward from *token* to the root, returning root-first."""
         chain = [token]
         current = token
         while current.parent is not None:
-            parent = self.get_token(current.parent)
+            parent = await self.get_token(current.parent)
             if parent is None:
                 break
             chain.append(parent)
             current = parent
         return list(reversed(chain))
 
-    def get_root_principal(self, token: DelegationToken) -> str:
+    async def get_root_principal(self, token: DelegationToken) -> str:
         """Return the root principal (human) from the delegation chain."""
         if token.root_principal is not None:
             return token.root_principal
         # Fallback for v0.1 tokens without root_principal field
-        chain = self.get_chain(token)
+        chain = await self.get_chain(token)
         return chain[0].issuer
 
-    def get_chain_token_ids(self, token: DelegationToken) -> list[str]:
+    async def get_chain_token_ids(self, token: DelegationToken) -> list[str]:
         """Return token IDs in the delegation chain (for audit logging)."""
-        return [t.token_id for t in self.get_chain(token)]
+        return [t.token_id for t in await self.get_chain(token)]
 
     # ------------------------------------------------------------------
     # Scope / constraint validation helpers
     # ------------------------------------------------------------------
 
-    def validate_scope_narrowing(
+    async def validate_scope_narrowing(
         self, token: DelegationToken
     ) -> ANIPFailure | None:
         """Validate that a child token's scope is a subset of its parent's.
@@ -325,7 +325,7 @@ class DelegationEngine:
         if token.parent is None:
             return None
 
-        parent = self.get_token(token.parent)
+        parent = await self.get_token(token.parent)
         if parent is None:
             return ANIPFailure(
                 type="parent_not_found",
@@ -356,7 +356,7 @@ class DelegationEngine:
                     resolution=Resolution(
                         action="narrow_scope",
                         requires="child scope must be subset of parent scope",
-                        grantable_by=self.get_root_principal(parent),
+                        grantable_by=await self.get_root_principal(parent),
                     ),
                     retry=False,
                 )
@@ -376,7 +376,7 @@ class DelegationEngine:
                             resolution=Resolution(
                                 action="preserve_budget_constraint",
                                 requires=f"scope '{child_base}' must include budget <= ${parent_budget}",
-                                grantable_by=self.get_root_principal(parent),
+                                grantable_by=await self.get_root_principal(parent),
                             ),
                             retry=False,
                         )
@@ -391,14 +391,14 @@ class DelegationEngine:
                             resolution=Resolution(
                                 action="narrow_budget",
                                 requires=f"budget must be <= ${parent_budget}",
-                                grantable_by=self.get_root_principal(parent),
+                                grantable_by=await self.get_root_principal(parent),
                             ),
                             retry=False,
                         )
 
         return None
 
-    def validate_constraints_narrowing(
+    async def validate_constraints_narrowing(
         self, token: DelegationToken
     ) -> ANIPFailure | None:
         """Validate that a child token's constraints don't weaken its parent's.
@@ -409,7 +409,7 @@ class DelegationEngine:
         if token.parent is None:
             return None
 
-        parent = self.get_token(token.parent)
+        parent = await self.get_token(token.parent)
         if parent is None:
             return None  # parent existence is checked separately
 
@@ -423,7 +423,7 @@ class DelegationEngine:
                 resolution=Resolution(
                     action="narrow_constraints",
                     requires=f"max_delegation_depth must be <= {parent.constraints.max_delegation_depth}",
-                    grantable_by=self.get_root_principal(parent),
+                    grantable_by=await self.get_root_principal(parent),
                 ),
                 retry=False,
             )
@@ -438,14 +438,14 @@ class DelegationEngine:
                 resolution=Resolution(
                     action="preserve_constraint",
                     requires="concurrent_branches must remain 'exclusive'",
-                    grantable_by=self.get_root_principal(parent),
+                    grantable_by=await self.get_root_principal(parent),
                 ),
                 retry=False,
             )
 
         return None
 
-    def check_budget_authority(
+    async def check_budget_authority(
         self, token: DelegationToken, amount: float
     ) -> ANIPFailure | None:
         """Check if the delegation chain carries sufficient budget authority."""
@@ -459,7 +459,7 @@ class DelegationEngine:
                         resolution=Resolution(
                             action="request_budget_increase",
                             requires=f"delegation.scope budget raised to ${amount}",
-                            grantable_by=self.get_root_principal(token),
+                            grantable_by=await self.get_root_principal(token),
                         ),
                         retry=True,
                     )
@@ -469,7 +469,7 @@ class DelegationEngine:
     # Exclusive locking (concurrent_branches enforcement)
     # ------------------------------------------------------------------
 
-    def acquire_exclusive_lock(
+    async def acquire_exclusive_lock(
         self, token: DelegationToken
     ) -> ANIPFailure | None:
         """Atomically acquire the exclusive lock for a root principal.
@@ -479,7 +479,7 @@ class DelegationEngine:
         """
         if token.constraints.concurrent_branches != ConcurrentBranches.EXCLUSIVE:
             return None
-        root = self.get_root_principal(token)
+        root = await self.get_root_principal(token)
         with self._active_requests_lock:
             if root in self._active_requests:
                 return ANIPFailure(
@@ -494,19 +494,20 @@ class DelegationEngine:
             self._active_requests.add(root)
         return None
 
-    def release_exclusive_lock(self, token: DelegationToken) -> None:
+    async def release_exclusive_lock(self, token: DelegationToken) -> None:
         """Release the active request lock for a root principal."""
         if token.constraints.concurrent_branches == ConcurrentBranches.EXCLUSIVE:
+            root = await self.get_root_principal(token)
             with self._active_requests_lock:
-                self._active_requests.discard(self.get_root_principal(token))
+                self._active_requests.discard(root)
 
     # ------------------------------------------------------------------
     # Token registration and lookup
     # ------------------------------------------------------------------
 
-    def register_token(self, token: DelegationToken) -> None:
+    async def register_token(self, token: DelegationToken) -> None:
         """Persist a delegation token to storage."""
-        self._storage.store_token({
+        await self._storage.store_token({
             "token_id": token.token_id,
             "issuer": token.issuer,
             "subject": token.subject,
@@ -518,14 +519,14 @@ class DelegationEngine:
             "root_principal": token.root_principal,
         })
 
-    def get_token(self, token_id: str) -> DelegationToken | None:
+    async def get_token(self, token_id: str) -> DelegationToken | None:
         """Load a delegation token from storage."""
-        data = self._storage.load_token(token_id)
+        data = await self._storage.load_token(token_id)
         if data is None:
             return None
         return DelegationToken(**data)
 
-    def resolve_registered_token(
+    async def resolve_registered_token(
         self, token: DelegationToken
     ) -> DelegationToken | ANIPFailure:
         """Look up the stored version of a token.
@@ -535,7 +536,7 @@ class DelegationEngine:
         all downstream operations — this prevents forged inline fields from
         bypassing registration-time validation.
         """
-        stored = self.get_token(token.token_id)
+        stored = await self.get_token(token.token_id)
         if stored is None:
             return ANIPFailure(
                 type="token_not_registered",
@@ -552,7 +553,7 @@ class DelegationEngine:
             )
         return stored
 
-    def _create_token(
+    async def _create_token(
         self,
         *,
         issuer: str,
@@ -599,9 +600,9 @@ class DelegationEngine:
 
         # Validate narrowing for child tokens (post-creation, using stored parent)
         if parent_token is not None:
-            constraint_failure = self.validate_constraints_narrowing(token)
+            constraint_failure = await self.validate_constraints_narrowing(token)
             if constraint_failure is not None:
                 return constraint_failure  # type: ignore[return-value]
 
-        self.register_token(token)
+        await self.register_token(token)
         return token, token_id
