@@ -6,6 +6,8 @@
  * domain-level operations — no HTTP types.
  */
 
+import { randomUUID } from "node:crypto";
+
 import type {
   ANIPManifest,
   CapabilityDeclaration,
@@ -70,6 +72,7 @@ export interface ANIPService {
     capabilityName: string,
     token: DelegationToken,
     params: Record<string, unknown>,
+    opts?: { clientReferenceId?: string | null },
   ): Promise<Record<string, unknown>>;
   queryAudit(
     token: DelegationToken,
@@ -263,6 +266,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       failureType?: string | null;
       resultSummary?: Record<string, unknown> | null;
       costActual?: Record<string, unknown> | null;
+      invocationId?: string | null;
+      clientReferenceId?: string | null;
     },
   ): Promise<void> {
     const chain = engine.getChain(token);
@@ -275,6 +280,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       result_summary: auditOpts.resultSummary ?? null,
       cost_actual: auditOpts.costActual ?? null,
       delegation_chain: chain.map((t) => t.token_id),
+      invocation_id: auditOpts.invocationId ?? null,
+      client_reference_id: auditOpts.clientReferenceId ?? null,
     });
 
     entriesSinceCheckpoint++;
@@ -636,7 +643,11 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       capabilityName: string,
       token: DelegationToken,
       params: Record<string, unknown>,
+      opts?: { clientReferenceId?: string | null },
     ): Promise<Record<string, unknown>> {
+      const invocationId = `inv-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
+      const clientReferenceId = opts?.clientReferenceId ?? null;
+
       // 1. Check capability exists
       if (!capabilities.has(capabilityName)) {
         return {
@@ -645,6 +656,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             type: "unknown_capability",
             detail: `Capability '${capabilityName}' not found`,
           },
+          invocation_id: invocationId,
+          client_reference_id: clientReferenceId,
         };
       }
 
@@ -669,8 +682,15 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         await logAudit(capabilityName, token, {
           success: false,
           failureType: failure.type,
+          invocationId,
+          clientReferenceId,
         });
-        return { success: false, failure };
+        return {
+          success: false,
+          failure,
+          invocation_id: invocationId,
+          client_reference_id: clientReferenceId,
+        };
       }
 
       // Use the resolved/stored token from validation
@@ -686,6 +706,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         subject: resolvedToken.subject,
         scopes: resolvedToken.scope ?? [],
         delegationChain: chain.map((t) => t.token_id),
+        invocationId,
+        clientReferenceId,
         setCostActual(cost: Record<string, unknown>): void {
           costActual = cost;
         },
@@ -700,12 +722,16 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           success: true,
           resultSummary: summarizeResult(result),
           costActual,
+          invocationId,
+          clientReferenceId,
         });
 
         // 6. Build response
         const response: Record<string, unknown> = {
           success: true,
           result,
+          invocation_id: invocationId,
+          client_reference_id: clientReferenceId,
         };
         if (costActual) {
           response.cost_actual = costActual;
@@ -718,10 +744,14 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             success: false,
             failureType: err.errorType,
             resultSummary: { detail: err.detail },
+            invocationId,
+            clientReferenceId,
           });
           return {
             success: false,
             failure: { type: err.errorType, detail: err.detail },
+            invocation_id: invocationId,
+            client_reference_id: clientReferenceId,
           };
         }
 
@@ -729,10 +759,14 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         await logAudit(capabilityName, resolvedToken, {
           success: false,
           failureType: "internal_error",
+          invocationId,
+          clientReferenceId,
         });
         return {
           success: false,
           failure: { type: "internal_error", detail: "Internal error" },
+          invocation_id: invocationId,
+          client_reference_id: clientReferenceId,
         };
       }
     },
@@ -748,6 +782,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         rootPrincipal,
         capability: f.capability as string | undefined,
         since: f.since as string | undefined,
+        invocationId: f.invocation_id as string | undefined,
+        clientReferenceId: f.client_reference_id as string | undefined,
         limit: Math.min((f.limit as number) ?? 50, 1000),
       });
 

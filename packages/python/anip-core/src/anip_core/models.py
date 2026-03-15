@@ -247,21 +247,18 @@ class TokenPresentation(BaseModel):
     token: str  # JWT string
 
 
-class InvokeRequestV2(BaseModel):
-    """v0.2 invocation request with JWT token."""
+class InvokeRequest(BaseModel):
+    """Invocation request with JWT token."""
     token: str  # JWT string
     parameters: dict[str, Any] = Field(default_factory=dict)
     budget: dict[str, Any] | None = None
-
-
-class InvokeRequest(BaseModel):
-    delegation_token: DelegationToken
-    parameters: dict[str, Any] = Field(default_factory=dict)
-    budget: dict[str, Any] | None = None
+    client_reference_id: str | None = Field(default=None, max_length=256)
 
 
 class InvokeResponse(BaseModel):
     success: bool
+    invocation_id: str = Field(pattern=r"^inv-[0-9a-f]{12}$")
+    client_reference_id: str | None = None
     result: dict[str, Any] | None = None
     cost_actual: CostActual | None = None
     failure: ANIPFailure | None = None

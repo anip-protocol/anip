@@ -1,10 +1,10 @@
 [project]
 name = "anip-flask"
-version = "0.3.0"
+version = "0.4.0"
 description = "ANIP Flask bindings — mount an ANIPService as HTTP routes"
 requires-python = ">=3.11"
 dependencies = [
-    "anip-service>=0.3.0",
+    "anip-service>=0.4.0",
     "flask>=3.0.0",
 ]
 

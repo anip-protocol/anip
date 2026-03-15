@@ -56,7 +56,10 @@ export function mountAnip(
     const capability = c.req.param("capability");
     const body = await c.req.json();
     const params = body.parameters ?? body;
-    const result = await service.invoke(capability, token, params);
+    const clientReferenceId = body.client_reference_id ?? null;
+    const result = await service.invoke(capability, token, params, {
+      clientReferenceId,
+    });
     if (!result.success) {
       const failure = result.failure as Record<string, unknown>;
       return c.json(result, failureStatus(failure?.type as string));
@@ -72,6 +75,8 @@ export function mountAnip(
     const filters = {
       capability: url.searchParams.get("capability") ?? undefined,
       since: url.searchParams.get("since") ?? undefined,
+      invocation_id: url.searchParams.get("invocation_id") ?? undefined,
+      client_reference_id: url.searchParams.get("client_reference_id") ?? undefined,
       limit: parseInt(url.searchParams.get("limit") ?? "50", 10),
     };
     return c.json(service.queryAudit(token, filters));

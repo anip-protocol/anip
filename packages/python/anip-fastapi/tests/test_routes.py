@@ -21,12 +21,16 @@ def _greet_cap():
     )
 
 
+API_KEY = "test-key-123"
+
+
 @pytest.fixture
 def client():
     service = ANIPService(
         service_id="test-service",
         capabilities=[_greet_cap()],
         storage=":memory:",
+        authenticate=lambda bearer: "test-agent" if bearer == API_KEY else None,
     )
     app = FastAPI()
     mount_anip(app, service)
@@ -60,3 +64,43 @@ class TestDiscoveryRoutes:
     def test_checkpoint_not_found(self, client):
         resp = client.get("/anip/checkpoints/ckpt-nonexistent")
         assert resp.status_code == 404
+
+
+class TestInvokeRoutes:
+    def _get_token(self, client):
+        resp = client.post(
+            "/anip/tokens",
+            json={"scope": ["greet"], "capability": "greet"},
+            headers={"Authorization": f"Bearer {API_KEY}"},
+        )
+        assert resp.status_code == 200
+        return resp.json()["token"]
+
+    def test_invoke_response_has_invocation_id(self, client):
+        """Invoke response should include invocation_id."""
+        token = self._get_token(client)
+        resp = client.post(
+            "/anip/invoke/greet",
+            json={"parameters": {"name": "World"}},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert data["invocation_id"].startswith("inv-")
+
+    def test_invoke_passes_client_reference_id(self, client):
+        """Invoke should echo back client_reference_id when provided."""
+        token = self._get_token(client)
+        resp = client.post(
+            "/anip/invoke/greet",
+            json={
+                "parameters": {"name": "World"},
+                "client_reference_id": "my-ref-42",
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert data["client_reference_id"] == "my-ref-42"

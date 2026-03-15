@@ -265,14 +265,17 @@ export type ANIPManifest = z.infer<typeof ANIPManifest>;
 // ---------------------------------------------------------------------------
 
 export const InvokeRequest = z.object({
-  delegation_token: DelegationToken,
+  token: z.string(),
   parameters: z.record(z.any()).default({}),
   budget: z.record(z.any()).nullable().default(null),
+  client_reference_id: z.string().max(256).nullable().default(null),
 });
 export type InvokeRequest = z.infer<typeof InvokeRequest>;
 
 export const InvokeResponse = z.object({
   success: z.boolean(),
+  invocation_id: z.string().regex(/^inv-[0-9a-f]{12}$/),
+  client_reference_id: z.string().max(256).nullable().default(null),
   result: z.record(z.any()).nullable().default(null),
   cost_actual: CostActual.nullable().default(null),
   failure: ANIPFailure.nullable().default(null),
@@ -293,17 +296,6 @@ export const TokenRequest = z.object({
   ttl_hours: z.number().default(2),
 });
 export type TokenRequest = z.infer<typeof TokenRequest>;
-
-// ---------------------------------------------------------------------------
-// Invoke Request V2 (JWT-based)
-// ---------------------------------------------------------------------------
-
-export const InvokeRequestV2 = z.object({
-  token: z.string(),
-  parameters: z.record(z.any()).default({}),
-  budget: z.record(z.any()).nullable().default(null),
-});
-export type InvokeRequestV2 = z.infer<typeof InvokeRequestV2>;
 
 // ---------------------------------------------------------------------------
 // Checkpoint Body

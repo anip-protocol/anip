@@ -121,6 +121,64 @@ describe("Fastify routes", () => {
     expect(data.result.message).toBe("Hello, World!");
   });
 
+  it("invoke response has invocation_id", async () => {
+    const { app, stop } = makeApp();
+    stopFn = stop;
+
+    // Get a token first
+    const tokenRes = await app.inject({
+      method: "POST",
+      url: "/anip/tokens",
+      headers: { authorization: `Bearer ${API_KEY}` },
+      payload: { scope: ["greet"], capability: "greet" },
+    });
+    expect(tokenRes.statusCode).toBe(200);
+    const token = tokenRes.json().token;
+
+    // Invoke
+    const res = await app.inject({
+      method: "POST",
+      url: "/anip/invoke/greet",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { parameters: { name: "World" } },
+    });
+    expect(res.statusCode).toBe(200);
+    const data = res.json();
+    expect(data.success).toBe(true);
+    expect(data.invocation_id).toBeDefined();
+    expect(data.invocation_id).toMatch(/^inv-/);
+  });
+
+  it("invoke passes client_reference_id", async () => {
+    const { app, stop } = makeApp();
+    stopFn = stop;
+
+    // Get a token first
+    const tokenRes = await app.inject({
+      method: "POST",
+      url: "/anip/tokens",
+      headers: { authorization: `Bearer ${API_KEY}` },
+      payload: { scope: ["greet"], capability: "greet" },
+    });
+    expect(tokenRes.statusCode).toBe(200);
+    const token = tokenRes.json().token;
+
+    // Invoke with client_reference_id
+    const res = await app.inject({
+      method: "POST",
+      url: "/anip/invoke/greet",
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        parameters: { name: "World" },
+        client_reference_id: "my-ref-123",
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    const data = res.json();
+    expect(data.success).toBe(true);
+    expect(data.client_reference_id).toBe("my-ref-123");
+  });
+
   it("stop() can be called without error", () => {
     const { stop } = makeApp();
     stop(); // Should not throw

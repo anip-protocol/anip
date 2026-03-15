@@ -62,6 +62,8 @@ export class AuditLog {
       failure_type: entryData.failure_type ?? null,
       cost_actual: entryData.cost_actual ?? null,
       delegation_chain: entryData.delegation_chain ?? null,
+      invocation_id: entryData.invocation_id ?? null,
+      client_reference_id: entryData.client_reference_id ?? null,
       previous_hash: previousHash,
     };
 
@@ -81,6 +83,8 @@ export class AuditLog {
     capability?: string;
     rootPrincipal?: string;
     since?: string;
+    invocationId?: string;
+    clientReferenceId?: string;
     limit?: number;
   }): Record<string, unknown>[] {
     return this._storage.queryAuditEntries(opts);

@@ -197,6 +197,73 @@ describe("ANIPService invoke", () => {
     );
   });
 
+  it("response includes invocation_id", async () => {
+    const { service, storage } = makeService();
+    const token = issueTestToken(storage);
+    const result = await service.invoke("greet", token, { name: "World" });
+    expect(result.success).toBe(true);
+    expect(result.invocation_id).toBeDefined();
+    expect((result.invocation_id as string).startsWith("inv-")).toBe(true);
+    expect((result.invocation_id as string).length).toBe(16);
+  });
+
+  it("response echoes client_reference_id", async () => {
+    const { service, storage } = makeService();
+    const token = issueTestToken(storage);
+    const result = await service.invoke("greet", token, { name: "World" }, {
+      clientReferenceId: "task:42",
+    });
+    expect(result.client_reference_id).toBe("task:42");
+  });
+
+  it("client_reference_id null when absent", async () => {
+    const { service, storage } = makeService();
+    const token = issueTestToken(storage);
+    const result = await service.invoke("greet", token, { name: "World" });
+    expect(result.client_reference_id).toBeNull();
+  });
+
+  it("failure response still has invocation_id", async () => {
+    const { service, storage } = makeService();
+    const token = issueTestToken(storage);
+    const result = await service.invoke("nonexistent", token, {});
+    expect(result.success).toBe(false);
+    expect(result.invocation_id).toBeDefined();
+    expect((result.invocation_id as string).startsWith("inv-")).toBe(true);
+  });
+
+  it("handler context includes lineage", async () => {
+    let capturedCtx: Record<string, unknown> = {};
+    const ctxCap = defineCapability({
+      declaration: {
+        name: "ctx_cap",
+        description: "Captures context",
+        contract_version: "1.0",
+        inputs: [],
+        output: { type: "object", fields: [] },
+        side_effect: { type: "read", rollback_window: null },
+        minimum_scope: ["test"],
+      } as CapabilityDeclaration,
+      handler: (ctx, _params) => {
+        capturedCtx = {
+          invocationId: ctx.invocationId,
+          clientReferenceId: ctx.clientReferenceId,
+        };
+        return { ok: true };
+      },
+    });
+    const { service, storage } = makeService({ caps: [ctxCap] });
+    const token = issueTestToken(storage, {
+      scope: ["test"],
+      capability: "ctx_cap",
+    });
+    await service.invoke("ctx_cap", token, {}, {
+      clientReferenceId: "ref-abc",
+    });
+    expect((capturedCtx.invocationId as string).startsWith("inv-")).toBe(true);
+    expect(capturedCtx.clientReferenceId).toBe("ref-abc");
+  });
+
   it("cost tracking via setCostActual", async () => {
     const costCap = defineCapability({
       declaration: {

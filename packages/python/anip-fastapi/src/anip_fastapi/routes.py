@@ -89,7 +89,11 @@ def mount_anip(
 
         body = await request.json()
         params = body.get("parameters", body)
-        result = service.invoke(capability, token, params)
+        client_reference_id = body.get("client_reference_id")
+        result = service.invoke(
+            capability, token, params,
+            client_reference_id=client_reference_id,
+        )
 
         if not result.get("success"):
             status = _failure_status(result.get("failure", {}).get("type"))
@@ -108,6 +112,8 @@ def mount_anip(
         filters = {
             "capability": request.query_params.get("capability"),
             "since": request.query_params.get("since"),
+            "invocation_id": request.query_params.get("invocation_id"),
+            "client_reference_id": request.query_params.get("client_reference_id"),
             "limit": int(request.query_params.get("limit", "50")),
         }
         return service.query_audit(token, filters)

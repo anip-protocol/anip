@@ -114,6 +114,54 @@ describe("Express routes", () => {
     expect(res.body.result.message).toBe("Hello, World!");
   });
 
+  it("invoke response has invocation_id", async () => {
+    const { app, stop } = makeApp();
+    stopFn = stop;
+
+    // Get a token first
+    const tokenRes = await request(app)
+      .post("/anip/tokens")
+      .set("Authorization", `Bearer ${API_KEY}`)
+      .send({ scope: ["greet"], capability: "greet" });
+    expect(tokenRes.status).toBe(200);
+    const token = tokenRes.body.token;
+
+    // Invoke
+    const res = await request(app)
+      .post("/anip/invoke/greet")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ parameters: { name: "World" } });
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.invocation_id).toBeDefined();
+    expect(res.body.invocation_id).toMatch(/^inv-/);
+  });
+
+  it("invoke passes client_reference_id", async () => {
+    const { app, stop } = makeApp();
+    stopFn = stop;
+
+    // Get a token first
+    const tokenRes = await request(app)
+      .post("/anip/tokens")
+      .set("Authorization", `Bearer ${API_KEY}`)
+      .send({ scope: ["greet"], capability: "greet" });
+    expect(tokenRes.status).toBe(200);
+    const token = tokenRes.body.token;
+
+    // Invoke with client_reference_id
+    const res = await request(app)
+      .post("/anip/invoke/greet")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        parameters: { name: "World" },
+        client_reference_id: "my-ref-123",
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.client_reference_id).toBe("my-ref-123");
+  });
+
   it("stop() can be called without error", () => {
     const { stop } = makeApp();
     stop(); // Should not throw

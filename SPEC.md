@@ -569,9 +569,9 @@ ANIP defines the following standard endpoints. Core endpoints MUST be implemente
 | `/.well-known/anip` | GET | Discovery document — the single entry point |
 | `{manifest}` | GET | Full capability declarations with schemas |
 | `{handshake}` | POST | Profile compatibility check |
-| `{permissions}` | POST | Permission surface given a delegation token |
-| `{invoke}/{capability}` | POST | Invoke a capability with delegation chain and parameters |
-| `{tokens}` | POST | Register or validate delegation tokens |
+| `{permissions}` | POST | Permission surface for the bearer token's delegation scope |
+| `{invoke}/{capability}` | POST | Invoke a capability with parameters and optional lineage fields |
+| `{tokens}` | POST | Issue root or delegated tokens |
 
 #### Contextual Endpoints
 
@@ -664,36 +664,75 @@ missing:
 
 The handshake is the first substantive interaction. The agent declares what profiles it needs; the service responds with whether it can satisfy them. Tasks declare their own profile requirements — matching happens before any capability is invoked.
 
-#### Token Registration — `POST {tokens}`
+#### Token Issuance — `POST {tokens}`
 
-**Request:** A delegation token (see Section 4.3 for schema).
+**Authentication:** Bearer token in `Authorization` header. For root token issuance, the bearer value is the service's shared secret (bootstrap credential). For delegation, the bearer value is an existing JWT token issued by the service.
+
+**Request:**
+
+```yaml
+scope:
+  - "travel.search"
+  - "travel.book"
+subject: "agent-007"                # required for root issuance
+parent_token: "tok_root_001"        # present for delegation, absent for root issuance
+ttl_hours: 2                        # optional, default 2
+```
 
 **Response:**
 
 ```yaml
-registered: true
 token_id: "tok_root_001"
+token: "eyJhbGciOiJFUzI1NiIs..."    # signed JWT
+expires: "2026-03-15T14:00:00Z"
 ```
 
-In ANIP v0.2+ (signed mode, default), the service issues JWT tokens and verifies their ES256 signatures at every protected endpoint. A trust boundary (`_resolve_jwt_token()`) compares all signed JWT claims against stored state, detecting both token forgery and store tampering. Legacy trust-on-declaration mode is available via `ANIP_TRUST_MODE=declaration` for backward compatibility.
+The service issues ES256-signed JWT tokens. Every protected endpoint resolves the caller's identity from the `Authorization: Bearer <jwt>` header — the JWT claims are verified against stored state at a trust boundary, detecting both token forgery and store tampering.
 
 #### Permission Discovery — `POST {permissions}`
 
-**Request:** A delegation token.
+**Authentication:** Bearer JWT token in `Authorization` header. The service resolves the delegation token from the bearer credential.
 
 **Response:** The permission response (see Section 4.4 for schema) — available, restricted, and denied capabilities given the token's scope.
 
 #### Capability Invocation — `POST {invoke}/{capability}`
 
+**Authentication:** Bearer JWT token in `Authorization` header.
+
 **Request:**
 
 ```yaml
-delegation_token: { ... }
 parameters: { ... }
-budget: { ... }           # optional, for cost negotiation
+budget: { ... }                     # optional, for cost negotiation
+client_reference_id: "task:abc/3"   # optional, opaque, max 256 chars
 ```
 
-**Response:** An invocation response containing either a result or a failure object (see Section 4.5 for failure schema).
+The delegation token is resolved from the bearer credential, not carried in the request body.
+
+**Response:**
+
+```yaml
+success: true
+invocation_id: "inv-a1b2c3d4e5f6"  # always present, format inv-{hex12}
+client_reference_id: "task:abc/3"   # echoed if provided in request
+result: { ... }
+cost_actual: { ... }                # optional
+```
+
+Or on failure:
+
+```yaml
+success: false
+invocation_id: "inv-a1b2c3d4e5f6"  # present even on failure
+client_reference_id: "task:abc/3"   # echoed if provided
+failure:
+  type: "scope_insufficient"
+  detail: "Missing required scope"
+```
+
+The `invocation_id` is a server-generated canonical identifier for the invoke action, created before any validation. It is present in both success and failure responses, enabling end-to-end traceability. The `client_reference_id` is an optional caller-supplied opaque string (max 256 characters) echoed back in the response for caller-side correlation.
+
+Lineage begins at the service `invoke()` boundary. Bearer auth failures (HTTP 401) occur in framework bindings before `invoke()` is called — they are transport-level rejections and do not receive lineage fields.
 
 The service MUST validate the delegation token before processing. The service MUST return an ANIP failure object (not an HTTP error) for any authorization, budget, or purpose-binding failure.
 
@@ -707,9 +746,13 @@ The service MUST enforce budget constraints carried in the delegation token's sc
 
 #### Audit Log — `POST {audit}`
 
-**Request:** A delegation token in the body. Optional query parameters: `capability`, `since` (ISO 8601), `limit`.
+**Authentication:** Bearer JWT token in `Authorization` header. The service resolves the delegation token from the bearer credential and scopes results to its root principal.
 
-**Response:** Audit log entries filtered to the root principal of the provided delegation token. A service MUST NOT return audit entries belonging to other principals. This enforces the observability contract: each principal can only see their own audit trail.
+**Optional query parameters:** `capability`, `since` (ISO 8601), `invocation_id`, `client_reference_id`, `limit`.
+
+**Response:** Audit log entries filtered to the root principal of the caller's delegation token. A service MUST NOT return audit entries belonging to other principals. This enforces the observability contract: each principal can only see their own audit trail.
+
+The `invocation_id` filter returns the single entry for that invocation. The `client_reference_id` filter returns all entries matching that caller-supplied correlation value.
 
 ### 6.4 Agent Interaction Flow
 
@@ -719,7 +762,7 @@ The standard endpoints define a predictable interaction sequence:
 1. Agent discovers service          →  GET /.well-known/anip
 2. Agent checks compatibility       →  POST {handshake}
 3. Agent fetches full manifest       →  GET {manifest}
-4. Agent registers delegation token  →  POST {tokens}
+4. Agent requests delegation token    →  POST {tokens}
 5. Agent queries permissions         →  POST {permissions}
 6. Agent explores capability graph   →  GET {graph}/{capability}
 7. Agent invokes capability          →  POST {invoke}/{capability}
@@ -739,8 +782,8 @@ sequenceDiagram
     Agent->>ANIP: POST /anip/tokens (+ API key)
     ANIP-->>Agent: signed JWT delegation token
 
-    Agent->>ANIP: POST /anip/invoke/search_flights (+ token)
-    ANIP-->>Agent: {success, result, cost_actual}
+    Agent->>ANIP: POST /anip/invoke/search_flights (+ Bearer token)
+    ANIP-->>Agent: {success, invocation_id, result, cost_actual}
 ```
 
 #### Budget Escalation
@@ -753,19 +796,19 @@ sequenceDiagram
     participant ANIP as ANIP Service
     participant Human
 
-    Agent->>ANIP: POST /anip/invoke/book_flight (+ token)
-    ANIP-->>Agent: budget_exceeded (grantable_by: human)
+    Agent->>ANIP: POST /anip/invoke/book_flight (+ Bearer token)
+    ANIP-->>Agent: {success: false, invocation_id, failure: budget_exceeded}
 
     Agent->>Human: request_budget_increase ($380, UA205)
     Human-->>Agent: approved
 
-    Human->>ANIP: POST /anip/tokens (higher budget)
+    Human->>ANIP: POST /anip/tokens (+ Bearer API key, higher budget)
     ANIP-->>Human: new signed JWT
 
     Human-->>Agent: new token
 
-    Agent->>ANIP: POST /anip/invoke/book_flight (+ new token)
-    ANIP-->>Agent: {success: true, booking: BK-0018}
+    Agent->>ANIP: POST /anip/invoke/book_flight (+ Bearer new token)
+    ANIP-->>Agent: {success: true, invocation_id, booking: BK-0018}
 ```
 
 Not every interaction requires all steps. An agent that has previously interacted with a service may skip directly to step 4 if it has cached the manifest. An agent performing a read-only operation may skip the capability graph step. But the sequence above is the canonical flow for a first interaction.

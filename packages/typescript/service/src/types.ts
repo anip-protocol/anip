@@ -9,6 +9,8 @@ export interface InvocationContext {
   subject: string;
   scopes: string[];
   delegationChain: string[];
+  invocationId: string;
+  clientReferenceId: string | null;
   /** Set actual cost for variance tracking. */
   setCostActual(cost: Record<string, unknown>): void;
 }
