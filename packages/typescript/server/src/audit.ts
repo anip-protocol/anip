@@ -35,7 +35,7 @@ export class AuditLog {
    * `previous_hash`, `signature`).
    */
   async logEntry(entryData: Record<string, unknown>): Promise<Record<string, unknown>> {
-    const last = this._storage.getLastAuditEntry();
+    const last = await this._storage.getLastAuditEntry();
     let sequenceNumber: number;
     let previousHash: string;
     if (last === null) {
@@ -74,20 +74,20 @@ export class AuditLog {
     // Sign if signer is provided
     entry.signature = this._signer ? await this._signer(entry) : null;
 
-    this._storage.storeAuditEntry(entry);
+    await this._storage.storeAuditEntry(entry);
     return entry;
   }
 
   /** Query audit entries with optional filters. */
-  query(opts?: {
+  async query(opts?: {
     capability?: string;
     rootPrincipal?: string;
     since?: string;
     invocationId?: string;
     clientReferenceId?: string;
     limit?: number;
-  }): Record<string, unknown>[] {
-    return this._storage.queryAuditEntries(opts);
+  }): Promise<Record<string, unknown>[]> {
+    return await this._storage.queryAuditEntries(opts);
   }
 
   /** Return the current Merkle tree snapshot. */
