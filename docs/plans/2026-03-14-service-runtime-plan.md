@@ -374,16 +374,18 @@ class ANIPService:
         """Return the full capability manifest."""
         return self._manifest
 
-    def get_signed_manifest(self) -> tuple[dict[str, Any], str]:
-        """Return the manifest as a dict and its detached JWS signature.
+    def get_signed_manifest(self) -> tuple[bytes, str]:
+        """Return the manifest body bytes and its detached JWS signature.
 
-        The framework binding uses this to set the X-ANIP-Signature header.
-        Keeps key access inside the service boundary.
+        Returns (body_bytes, signature) where body_bytes is the exact
+        byte sequence that was signed. The framework binding MUST serve
+        body_bytes as the response body so that clients can verify
+        X-ANIP-Signature against the served content byte-for-byte.
         """
         manifest_dict = self._manifest.model_dump() if hasattr(self._manifest, "model_dump") else self._manifest
-        canonical = json.dumps(manifest_dict, sort_keys=True, separators=(",", ":"))
-        signature = self._keys.sign_jws_detached(canonical.encode())
-        return manifest_dict, signature
+        body_bytes = json.dumps(manifest_dict, sort_keys=True, separators=(",", ":")).encode()
+        signature = self._keys.sign_jws_detached(body_bytes)
+        return body_bytes, signature
 
     def get_jwks(self) -> dict[str, Any]:
         """Return the JWKS document for this service."""
@@ -1230,9 +1232,9 @@ def mount_anip(
 
     @app.get(f"{prefix}/anip/manifest")
     async def manifest():
-        manifest_dict, signature = service.get_signed_manifest()
+        body_bytes, signature = service.get_signed_manifest()
         return Response(
-            content=json.dumps(manifest_dict),
+            content=body_bytes,
             media_type="application/json",
             headers={"X-ANIP-Signature": signature},
         )
