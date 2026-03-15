@@ -12,9 +12,24 @@
 
 v0.4 removes the legacy `InvokeRequest` / `InvokeRequestV2` split. ANIP is pre-1.0 with no customers — no backward compatibility needed.
 
-- Delete `InvokeRequest` (embedded `DelegationToken` object form)
-- Rename `InvokeRequestV2` → `InvokeRequest` (JWT-based, canonical)
-- Update all references across both languages
+**What changes:**
+- Delete `InvokeRequest` (the old embedded-`DelegationToken`-object form with `delegation_token`, `parameters`, `budget`)
+- Rename `InvokeRequestV2` → `InvokeRequest` (the JWT-based form with `token`, `parameters`, `budget`)
+- The renamed `InvokeRequest` becomes the single canonical invoke request model
+
+**Files affected by the collapse:**
+
+| File | Change |
+|------|--------|
+| `packages/python/anip-core/src/anip_core/models.py` | Delete old `InvokeRequest` class (line 257), rename `InvokeRequestV2` → `InvokeRequest` (line 250) |
+| `packages/python/anip-core/src/anip_core/__init__.py` | Remove `InvokeRequestV2` from imports and `__all__`, keep `InvokeRequest` |
+| `packages/typescript/core/src/models.ts` | Delete old `InvokeRequest` Zod schema + type (lines 267-272), rename `InvokeRequestV2` → `InvokeRequest` (lines 301-306) |
+| `schema/generate.py` | Update `InvokeRequest` reference (already points to the right class after rename) |
+| `schema/README.md` | No change needed (already says `InvokeRequest`) |
+| `SPEC.md` | No change needed (already says `InvokeRequest`) |
+| `skills/anip-implementer.md` | Update `InvokeRequest` description to reflect JWT-based shape |
+
+**No runtime code imports these models directly** — the service layer and bindings work with dicts/parsed bodies, not typed `InvokeRequest` objects. The collapse is a model-definition and export cleanup.
 
 ## Core Models (anip-core / @anip/core)
 
