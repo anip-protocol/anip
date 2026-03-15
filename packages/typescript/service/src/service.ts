@@ -151,7 +151,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   // --- Storage ---
   let storage: StorageBackend;
   if (opts.storage === undefined || opts.storage === null) {
-    storage = new InMemoryStorage();
+    storage = new SQLiteStorage("anip.db");
   } else if (typeof opts.storage === "object" && "storeToken" in opts.storage) {
     // Already a StorageBackend instance
     storage = opts.storage as StorageBackend;
@@ -430,25 +430,14 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
       let claims: Record<string, unknown>;
       try {
-        claims = await keys.verifyJWT(jwtString);
+        claims = await keys.verifyJWT(jwtString, {
+          audience: serviceId,
+          issuer: serviceId,
+        });
       } catch (exc) {
         throw new ANIPError(
           "invalid_token",
           exc instanceof Error ? exc.message : String(exc),
-        );
-      }
-
-      // Verify issuer and audience match this service
-      if (claims.iss !== serviceId) {
-        throw new ANIPError(
-          "invalid_token",
-          `JWT issuer '${claims.iss}' does not match service '${serviceId}'`,
-        );
-      }
-      if (claims.aud !== undefined && claims.aud !== serviceId) {
-        throw new ANIPError(
-          "invalid_token",
-          `JWT audience '${claims.aud}' does not match service '${serviceId}'`,
         );
       }
 

@@ -35,9 +35,35 @@ describe("JWT", () => {
   it("signs and verifies", async () => {
     const km = new KeyManager();
     await km.ready();
-    const token = await signJWT(km, { sub: "agent" });
-    const claims = await verifyJWT(km, token);
+    const token = await signJWT(km, { sub: "agent", aud: "test" });
+    const claims = await verifyJWT(km, token, { audience: "test" });
     expect(claims.sub).toBe("agent");
+  });
+
+  it("rejects wrong audience", async () => {
+    const km = new KeyManager();
+    await km.ready();
+    const token = await signJWT(km, { sub: "agent", aud: "other-service" });
+    await expect(
+      verifyJWT(km, token, { audience: "my-service" }),
+    ).rejects.toThrow();
+  });
+
+  it("verifies with correct issuer", async () => {
+    const km = new KeyManager();
+    await km.ready();
+    const token = await signJWT(km, { sub: "agent", aud: "test", iss: "my-service" });
+    const claims = await verifyJWT(km, token, { audience: "test", issuer: "my-service" });
+    expect(claims.sub).toBe("agent");
+  });
+
+  it("rejects wrong issuer", async () => {
+    const km = new KeyManager();
+    await km.ready();
+    const token = await signJWT(km, { sub: "agent", aud: "test", iss: "other-service" });
+    await expect(
+      verifyJWT(km, token, { audience: "test", issuer: "my-service" }),
+    ).rejects.toThrow();
   });
 });
 

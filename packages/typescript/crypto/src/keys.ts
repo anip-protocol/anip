@@ -145,10 +145,15 @@ export class KeyManager {
       .sign(this.privateKey);
   }
 
-  async verifyJWT(token: string): Promise<jose.JWTPayload> {
+  async verifyJWT(
+    token: string,
+    opts: { audience: string; issuer?: string },
+  ): Promise<jose.JWTPayload> {
     await this._ready;
     const { payload } = await jose.jwtVerify(token, this.publicKey, {
       algorithms: ["ES256"],
+      audience: opts.audience,
+      issuer: opts.issuer,
     });
     return payload;
   }
