@@ -25,10 +25,11 @@ jobs:
           fetch-depth: 0
 
       - name: Validate ref is main
+        env:
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-          if [ "$CURRENT_BRANCH" != "main" ]; then
-            echo "::error::Release must run from main, got '$CURRENT_BRANCH'"
+          if [ "$REF_NAME" != "main" ]; then
+            echo "::error::Release must run from main, got '$REF_NAME'"
             exit 1
           fi
 

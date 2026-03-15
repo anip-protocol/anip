@@ -34,7 +34,7 @@ def mount_anip(
         GET  {prefix}/anip/checkpoints          → list checkpoints
         GET  {prefix}/anip/checkpoints/<id>     → get checkpoint
     """
-    bp = Blueprint("anip", __name__)
+    bp = Blueprint(f"anip_{id(service)}", __name__)
 
     # --- Discovery & Identity ---
 
