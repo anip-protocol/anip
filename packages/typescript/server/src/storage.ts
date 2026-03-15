@@ -3,10 +3,15 @@
  *
  * Provides a `StorageBackend` interface with two implementations:
  * - `InMemoryStorage` — suitable for testing and lightweight use.
- * - `SQLiteStorage` — persistent storage backed by better-sqlite3.
+ * - `SQLiteStorage` — persistent storage backed by better-sqlite3 in a
+ *   worker thread for genuine async I/O.
  */
 
-import Database from "better-sqlite3";
+import { Worker } from "node:worker_threads";
+import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { resolve, dirname } from "node:path";
 
 export interface StorageBackend {
   storeToken(tokenData: Record<string, unknown>): Promise<void>;
@@ -115,191 +120,90 @@ export class InMemoryStorage implements StorageBackend {
   }
 }
 
-// ---------------------------------------------------------------------------
-// JSON audit fields that need parse/stringify round-tripping
-// ---------------------------------------------------------------------------
-
-const JSON_AUDIT_FIELDS = [
-  "parameters",
-  "result_summary",
-  "cost_actual",
-  "delegation_chain",
-] as const;
-
-const SCHEMA = `
-CREATE TABLE IF NOT EXISTS delegation_tokens (
-    token_id TEXT PRIMARY KEY,
-    issuer TEXT NOT NULL,
-    subject TEXT NOT NULL,
-    scope TEXT NOT NULL,
-    purpose TEXT,
-    parent TEXT,
-    expires TEXT NOT NULL,
-    constraints TEXT,
-    root_principal TEXT,
-    registered_at TEXT NOT NULL,
-    FOREIGN KEY (parent) REFERENCES delegation_tokens(token_id)
-);
-
-CREATE TABLE IF NOT EXISTS audit_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sequence_number INTEGER NOT NULL,
-    timestamp TEXT NOT NULL,
-    capability TEXT NOT NULL,
-    token_id TEXT,
-    issuer TEXT,
-    subject TEXT,
-    root_principal TEXT,
-    parameters TEXT,
-    success INTEGER NOT NULL,
-    result_summary TEXT,
-    failure_type TEXT,
-    cost_actual TEXT,
-    delegation_chain TEXT,
-    invocation_id TEXT,
-    client_reference_id TEXT,
-    previous_hash TEXT NOT NULL,
-    signature TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_audit_capability ON audit_log(capability);
-CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
-CREATE INDEX IF NOT EXISTS idx_audit_root_principal ON audit_log(root_principal);
-CREATE INDEX IF NOT EXISTS idx_audit_invocation_id ON audit_log(invocation_id);
-CREATE INDEX IF NOT EXISTS idx_audit_client_reference_id ON audit_log(client_reference_id);
-
-CREATE TABLE IF NOT EXISTS checkpoints (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    checkpoint_id TEXT NOT NULL UNIQUE,
-    first_sequence INTEGER,
-    last_sequence INTEGER,
-    merkle_root TEXT NOT NULL,
-    previous_checkpoint TEXT,
-    timestamp TEXT,
-    entry_count INTEGER,
-    signature TEXT NOT NULL
-);
-`;
-
 /**
  * SQLite-backed implementation of {@link StorageBackend}.
  *
- * Persists delegation tokens, audit log entries, and checkpoints to a local
- * SQLite database via better-sqlite3.  Schema mirrors the Python SDK's
- * `SQLiteStorage`.
+ * Delegates all synchronous better-sqlite3 calls to a dedicated worker
+ * thread so that the main event loop is never blocked. The worker script
+ * (`sqlite-worker.ts` / `.js`) owns the database connection and schema.
  */
 export class SQLiteStorage implements StorageBackend {
-  private db: Database.Database;
+  private worker: Worker;
+  private pending = new Map<string, { resolve: Function; reject: Function }>();
+  private ready: Promise<void>;
 
   constructor(dbPath: string = "anip.db") {
-    this.db = new Database(dbPath);
-    this.db.pragma("journal_mode = WAL");
-    this.db.pragma("foreign_keys = ON");
-    this.db.exec(SCHEMA);
+    // Resolve the worker script relative to this module.
+    // In source / vitest context the .ts file exists; after tsc build
+    // only the .js file is present.  Prefer .ts so that tests work
+    // without a prior build step.
+    const dir = dirname(fileURLToPath(import.meta.url));
+    const tsPath = resolve(dir, "sqlite-worker.ts");
+    const jsPath = resolve(dir, "sqlite-worker.js");
+    const workerPath = existsSync(tsPath) ? tsPath : jsPath;
 
-    // Migration support for existing v0.3 databases
-    try {
-      this.db.exec("ALTER TABLE audit_log ADD COLUMN invocation_id TEXT");
-    } catch {
-      // Column may already exist
-    }
-    try {
-      this.db.exec("ALTER TABLE audit_log ADD COLUMN client_reference_id TEXT");
-    } catch {
-      // Column may already exist
-    }
+    this.worker = new Worker(workerPath, { workerData: { dbPath } });
+
+    // Wait for the worker to signal it has finished DB init.
+    this.ready = new Promise<void>((resolve) => {
+      const onReady = (msg: any) => {
+        if (msg.type === "ready") {
+          this.worker.off("message", onReady);
+          resolve();
+        }
+      };
+      this.worker.on("message", onReady);
+    });
+
+    // Route method responses to their pending promises.
+    this.worker.on("message", (msg: { id?: string; result?: unknown; error?: string }) => {
+      if (!msg.id) return; // skip non-RPC messages (e.g. "ready")
+      const p = this.pending.get(msg.id);
+      if (p) {
+        this.pending.delete(msg.id);
+        if (msg.error) p.reject(new Error(msg.error));
+        else p.resolve(msg.result);
+      }
+    });
+
+    // Allow the process to exit naturally when no RPC calls are in flight.
+    // The worker is ref'd while a call is pending and unref'd when idle.
+    this.worker.unref();
+  }
+
+  /**
+   * Send an RPC call to the worker and return a promise for the result.
+   * Waits for the worker to be ready before dispatching.
+   */
+  private async call(method: string, args: unknown[]): Promise<unknown> {
+    await this.ready;
+    const id = randomUUID();
+    // Keep the worker (and therefore the process) alive while a call
+    // is in flight; unref again once the promise settles.
+    this.worker.ref();
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, {
+        resolve: (v: unknown) => { this.worker.unref(); resolve(v); },
+        reject: (e: unknown) => { this.worker.unref(); reject(e); },
+      });
+      this.worker.postMessage({ id, method, args });
+    });
   }
 
   // -- tokens ---------------------------------------------------------------
 
   async storeToken(tokenData: Record<string, unknown>): Promise<void> {
-    this.db
-      .prepare(
-        `INSERT INTO delegation_tokens
-         (token_id, issuer, subject, scope, purpose, parent,
-          expires, constraints, root_principal, registered_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
-        tokenData.token_id as string,
-        tokenData.issuer as string,
-        tokenData.subject as string,
-        JSON.stringify(tokenData.scope ?? []),
-        JSON.stringify(tokenData.purpose ?? null),
-        (tokenData.parent as string) ?? null,
-        tokenData.expires as string,
-        JSON.stringify(tokenData.constraints ?? null),
-        (tokenData.root_principal as string) ?? null,
-        new Date().toISOString(),
-      );
+    await this.call("storeToken", [tokenData]);
   }
 
   async loadToken(tokenId: string): Promise<Record<string, unknown> | null> {
-    const row = this.db
-      .prepare("SELECT * FROM delegation_tokens WHERE token_id = ?")
-      .get(tokenId) as Record<string, unknown> | undefined;
-    if (row === undefined) return null;
-    return {
-      token_id: row.token_id,
-      issuer: row.issuer,
-      subject: row.subject,
-      scope: JSON.parse(row.scope as string),
-      purpose: row.purpose ? JSON.parse(row.purpose as string) : null,
-      parent: row.parent ?? null,
-      expires: row.expires,
-      constraints: row.constraints
-        ? JSON.parse(row.constraints as string)
-        : null,
-      root_principal: row.root_principal ?? null,
-    };
+    return (await this.call("loadToken", [tokenId])) as Record<string, unknown> | null;
   }
 
   // -- audit log ------------------------------------------------------------
 
   async storeAuditEntry(entry: Record<string, unknown>): Promise<void> {
-    this.db
-      .prepare(
-        `INSERT INTO audit_log
-         (sequence_number, timestamp, capability, token_id, issuer,
-          subject, root_principal, parameters, success, result_summary,
-          failure_type, cost_actual, delegation_chain, invocation_id,
-          client_reference_id, previous_hash, signature)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
-        entry.sequence_number as number,
-        entry.timestamp as string,
-        entry.capability as string,
-        (entry.token_id as string) ?? null,
-        (entry.issuer as string) ?? null,
-        (entry.subject as string) ?? null,
-        (entry.root_principal as string) ?? null,
-        entry.parameters != null ? JSON.stringify(entry.parameters) : null,
-        entry.success ? 1 : 0,
-        entry.result_summary != null
-          ? JSON.stringify(entry.result_summary)
-          : null,
-        (entry.failure_type as string) ?? null,
-        entry.cost_actual != null ? JSON.stringify(entry.cost_actual) : null,
-        entry.delegation_chain != null
-          ? JSON.stringify(entry.delegation_chain)
-          : null,
-        (entry.invocation_id as string) ?? null,
-        (entry.client_reference_id as string) ?? null,
-        entry.previous_hash as string,
-        (entry.signature as string) ?? null,
-      );
-  }
-
-  private parseAuditRow(row: Record<string, unknown>): Record<string, unknown> {
-    const entry: Record<string, unknown> = { ...row };
-    for (const field of JSON_AUDIT_FIELDS) {
-      if (entry[field] != null && typeof entry[field] === "string") {
-        entry[field] = JSON.parse(entry[field] as string);
-      }
-    }
-    entry.success = Boolean(entry.success);
-    return entry;
+    await this.call("storeAuditEntry", [entry]);
   }
 
   async queryAuditEntries(opts?: {
@@ -310,116 +214,38 @@ export class SQLiteStorage implements StorageBackend {
     clientReferenceId?: string;
     limit?: number;
   }): Promise<Record<string, unknown>[]> {
-    const conditions: string[] = [];
-    const params: unknown[] = [];
-
-    if (opts?.capability) {
-      conditions.push("capability = ?");
-      params.push(opts.capability);
-    }
-    if (opts?.rootPrincipal) {
-      conditions.push("root_principal = ?");
-      params.push(opts.rootPrincipal);
-    }
-    if (opts?.since) {
-      conditions.push("timestamp >= ?");
-      params.push(opts.since);
-    }
-    if (opts?.invocationId) {
-      conditions.push("invocation_id = ?");
-      params.push(opts.invocationId);
-    }
-    if (opts?.clientReferenceId) {
-      conditions.push("client_reference_id = ?");
-      params.push(opts.clientReferenceId);
-    }
-
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-    params.push(opts?.limit ?? 50);
-
-    const rows = this.db
-      .prepare(
-        `SELECT * FROM audit_log ${where} ORDER BY sequence_number DESC LIMIT ?`,
-      )
-      .all(...params) as Record<string, unknown>[];
-
-    return rows.map((r) => this.parseAuditRow(r));
+    return (await this.call("queryAuditEntries", [opts])) as Record<string, unknown>[];
   }
 
   async getLastAuditEntry(): Promise<Record<string, unknown> | null> {
-    const row = this.db
-      .prepare("SELECT * FROM audit_log ORDER BY sequence_number DESC LIMIT 1")
-      .get() as Record<string, unknown> | undefined;
-    if (row === undefined) return null;
-    return this.parseAuditRow(row);
+    return (await this.call("getLastAuditEntry", [])) as Record<string, unknown> | null;
   }
 
   async getAuditEntriesRange(first: number, last: number): Promise<Record<string, unknown>[]> {
-    const rows = this.db
-      .prepare(
-        "SELECT * FROM audit_log WHERE sequence_number BETWEEN ? AND ? ORDER BY sequence_number ASC",
-      )
-      .all(first, last) as Record<string, unknown>[];
-    return rows.map((r) => this.parseAuditRow(r));
+    return (await this.call("getAuditEntriesRange", [first, last])) as Record<string, unknown>[];
   }
 
   // -- checkpoints ----------------------------------------------------------
 
   async storeCheckpoint(body: Record<string, unknown>, signature: string): Promise<void> {
-    const range = (body.range as Record<string, unknown>) ?? {};
-    this.db
-      .prepare(
-        `INSERT INTO checkpoints
-         (checkpoint_id, first_sequence, last_sequence, merkle_root,
-          previous_checkpoint, timestamp, entry_count, signature)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
-        body.checkpoint_id as string,
-        (range.first_sequence as number) ?? (body.first_sequence as number),
-        (range.last_sequence as number) ?? (body.last_sequence as number),
-        body.merkle_root as string,
-        (body.previous_checkpoint as string) ?? null,
-        (body.timestamp as string) ?? null,
-        (body.entry_count as number) ?? null,
-        signature,
-      );
+    await this.call("storeCheckpoint", [body, signature]);
   }
 
   async getCheckpoints(limit: number = 10): Promise<Record<string, unknown>[]> {
-    const rows = this.db
-      .prepare("SELECT * FROM checkpoints ORDER BY id ASC LIMIT ?")
-      .all(limit) as Record<string, unknown>[];
-    return rows.map((row) => ({
-      checkpoint_id: row.checkpoint_id,
-      range: {
-        first_sequence: row.first_sequence,
-        last_sequence: row.last_sequence,
-      },
-      merkle_root: row.merkle_root,
-      previous_checkpoint: row.previous_checkpoint ?? null,
-      timestamp: row.timestamp,
-      entry_count: row.entry_count,
-      signature: row.signature,
-    }));
+    return (await this.call("getCheckpoints", [limit])) as Record<string, unknown>[];
   }
 
   async getCheckpointById(checkpointId: string): Promise<Record<string, unknown> | null> {
-    const row = this.db
-      .prepare("SELECT * FROM checkpoints WHERE checkpoint_id = ?")
-      .get(checkpointId) as Record<string, unknown> | undefined;
-    if (row === undefined) return null;
-    return {
-      checkpoint_id: row.checkpoint_id,
-      range: {
-        first_sequence: row.first_sequence,
-        last_sequence: row.last_sequence,
-      },
-      merkle_root: row.merkle_root,
-      previous_checkpoint: row.previous_checkpoint ?? null,
-      timestamp: row.timestamp,
-      entry_count: row.entry_count,
-      signature: row.signature,
-    };
+    return (await this.call("getCheckpointById", [checkpointId])) as Record<string, unknown> | null;
+  }
+
+  // -- lifecycle ------------------------------------------------------------
+
+  /**
+   * Terminate the worker thread. Call this in test teardown (afterEach /
+   * afterAll) to prevent vitest from hanging.
+   */
+  async terminate(): Promise<void> {
+    await this.worker.terminate();
   }
 }

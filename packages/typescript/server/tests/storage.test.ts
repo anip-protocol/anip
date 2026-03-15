@@ -12,7 +12,8 @@ describe("SQLiteStorage", () => {
     storage = new SQLiteStorage(TEST_DB);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await storage.terminate();
     try {
       unlinkSync(TEST_DB);
       unlinkSync(TEST_DB + "-wal");
