@@ -10,6 +10,8 @@
 
 **Design doc:** `docs/plans/2026-03-15-v04-lineage-design.md`
 
+**Lineage boundary:** Lineage starts when `service.invoke()` is called. Bearer token authentication happens in the framework bindings *before* `invoke()` — unauthenticated requests (401) are transport-level rejections and do not receive an `invocation_id` or audit entry. This is correct: a 401 is not an invocation. Lineage covers all paths *inside* `invoke()`: unknown capability, delegation validation failure, handler errors, and success.
+
 ---
 
 ## Task 1: Python Core Models — Collapse InvokeRequest + Add Lineage Fields
@@ -506,11 +508,21 @@ if client_reference_id is not None:
     params.append(client_reference_id)
 ```
 
-5. Update `_parse_audit_row()` to include the new columns in the parsed dict. The row indices will shift — add:
+5. `_parse_audit_row()` uses `dict(row)` which automatically picks up new columns — **no change needed**.
+
+6. Add migration support for existing v0.3 databases. After the `CREATE TABLE IF NOT EXISTS` block, add:
 ```python
-"invocation_id": row[16],  # after signature
-"client_reference_id": row[17],
+# Migrate existing v0.3 databases: add lineage columns if missing
+try:
+    self._conn.execute("ALTER TABLE audit_log ADD COLUMN invocation_id TEXT")
+except Exception:
+    pass  # column already exists
+try:
+    self._conn.execute("ALTER TABLE audit_log ADD COLUMN client_reference_id TEXT")
+except Exception:
+    pass  # column already exists
 ```
+This ensures both fresh and existing databases have the new columns.
 
 **Step 4: Update audit.py**
 
@@ -698,9 +710,11 @@ if (opts?.clientReferenceId) {
 }
 ```
 
-5. Update `parseAuditRow()` to include the new fields.
+5. Check `parseAuditRow()` — if it uses object spread or key-based access, new columns are picked up automatically. If it uses positional indices, add the new fields by name.
 
 6. **Also update `InMemoryStorage`** — its `storeAuditEntry()` and `queryAuditEntries()` must handle the new fields too. The in-memory store should filter by `invocation_id` and `client_reference_id` when queried.
+
+7. Add migration support for existing v0.3 SQLite databases. After the `CREATE TABLE IF NOT EXISTS` block, run `ALTER TABLE audit_log ADD COLUMN invocation_id TEXT` and `ALTER TABLE audit_log ADD COLUMN client_reference_id TEXT`, each wrapped in a try/catch (column may already exist).
 
 **Step 4: Update audit.ts**
 

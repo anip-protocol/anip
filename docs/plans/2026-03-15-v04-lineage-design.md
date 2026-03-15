@@ -73,7 +73,7 @@ invoke(capability, token, params, client_reference_id=None)
 3. Both added to `InvocationContext` — handlers can read them for their own correlation
 4. Both included in response (success and failure)
 5. Both passed to audit logging
-6. Lineage flows into response + audit even when token resolution fails (before `InvocationContext` exists)
+6. Lineage covers all paths inside `invoke()`: unknown capability, delegation validation failure, handler errors, and success. Bearer auth failures (401) happen in bindings before `invoke()` is called — they are transport-level rejections, not invocations, and do not receive lineage.
 
 ## Server Layer (anip-server / @anip/server)
 
