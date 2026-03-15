@@ -99,7 +99,7 @@ def test_invoke_request_has_token_field():
 
 def test_invoke_request_no_delegation_token_field():
     """InvokeRequest no longer accepts delegation_token."""
-    assert not hasattr(InvokeRequest.model_fields, "delegation_token")
+    assert "delegation_token" not in InvokeRequest.model_fields
     with pytest.raises(ValidationError):
         InvokeRequest(delegation_token={"token_id": "t"}, parameters={})
 
