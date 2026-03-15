@@ -16,6 +16,8 @@ export interface StorageBackend {
     capability?: string;
     rootPrincipal?: string;
     since?: string;
+    invocationId?: string;
+    clientReferenceId?: string;
     limit?: number;
   }): Record<string, unknown>[];
   getLastAuditEntry(): Record<string, unknown> | null;
@@ -52,6 +54,8 @@ export class InMemoryStorage implements StorageBackend {
     capability?: string;
     rootPrincipal?: string;
     since?: string;
+    invocationId?: string;
+    clientReferenceId?: string;
     limit?: number;
   }): Record<string, unknown>[] {
     let results = [...this.auditEntries];
@@ -63,6 +67,12 @@ export class InMemoryStorage implements StorageBackend {
     }
     if (opts?.since) {
       results = results.filter((e) => (e.timestamp as string) >= opts.since!);
+    }
+    if (opts?.invocationId) {
+      results = results.filter((e) => e.invocation_id === opts.invocationId);
+    }
+    if (opts?.clientReferenceId) {
+      results = results.filter((e) => e.client_reference_id === opts.clientReferenceId);
     }
     results.sort(
       (a, b) =>
@@ -146,6 +156,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
     failure_type TEXT,
     cost_actual TEXT,
     delegation_chain TEXT,
+    invocation_id TEXT,
+    client_reference_id TEXT,
     previous_hash TEXT NOT NULL,
     signature TEXT
 );
@@ -153,6 +165,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE INDEX IF NOT EXISTS idx_audit_capability ON audit_log(capability);
 CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
 CREATE INDEX IF NOT EXISTS idx_audit_root_principal ON audit_log(root_principal);
+CREATE INDEX IF NOT EXISTS idx_audit_invocation_id ON audit_log(invocation_id);
+CREATE INDEX IF NOT EXISTS idx_audit_client_reference_id ON audit_log(client_reference_id);
 
 CREATE TABLE IF NOT EXISTS checkpoints (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -182,6 +196,18 @@ export class SQLiteStorage implements StorageBackend {
     this.db.pragma("journal_mode = WAL");
     this.db.pragma("foreign_keys = ON");
     this.db.exec(SCHEMA);
+
+    // Migration support for existing v0.3 databases
+    try {
+      this.db.exec("ALTER TABLE audit_log ADD COLUMN invocation_id TEXT");
+    } catch {
+      // Column may already exist
+    }
+    try {
+      this.db.exec("ALTER TABLE audit_log ADD COLUMN client_reference_id TEXT");
+    } catch {
+      // Column may already exist
+    }
   }
 
   // -- tokens ---------------------------------------------------------------
@@ -236,9 +262,9 @@ export class SQLiteStorage implements StorageBackend {
         `INSERT INTO audit_log
          (sequence_number, timestamp, capability, token_id, issuer,
           subject, root_principal, parameters, success, result_summary,
-          failure_type, cost_actual, delegation_chain, previous_hash,
-          signature)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          failure_type, cost_actual, delegation_chain, invocation_id,
+          client_reference_id, previous_hash, signature)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         entry.sequence_number as number,
@@ -258,6 +284,8 @@ export class SQLiteStorage implements StorageBackend {
         entry.delegation_chain != null
           ? JSON.stringify(entry.delegation_chain)
           : null,
+        (entry.invocation_id as string) ?? null,
+        (entry.client_reference_id as string) ?? null,
         entry.previous_hash as string,
         (entry.signature as string) ?? null,
       );
@@ -278,6 +306,8 @@ export class SQLiteStorage implements StorageBackend {
     capability?: string;
     rootPrincipal?: string;
     since?: string;
+    invocationId?: string;
+    clientReferenceId?: string;
     limit?: number;
   }): Record<string, unknown>[] {
     const conditions: string[] = [];
@@ -294,6 +324,14 @@ export class SQLiteStorage implements StorageBackend {
     if (opts?.since) {
       conditions.push("timestamp >= ?");
       params.push(opts.since);
+    }
+    if (opts?.invocationId) {
+      conditions.push("invocation_id = ?");
+      params.push(opts.invocationId);
+    }
+    if (opts?.clientReferenceId) {
+      conditions.push("client_reference_id = ?");
+      params.push(opts.clientReferenceId);
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
