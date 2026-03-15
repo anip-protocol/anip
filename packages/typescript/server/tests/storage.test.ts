@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { SQLiteStorage } from "../src/storage.js";
+import { describe, it, expect, beforeEach, afterEach, afterAll } from "vitest";
+import { InMemoryStorage, SQLiteStorage } from "../src/storage.js";
 import { unlinkSync } from "fs";
 import { randomUUID } from "crypto";
+import { ALL_COMPLIANCE_TESTS } from "./compliance.js";
 
 const TEST_DB = `/tmp/anip-test-${randomUUID()}.db`;
 
@@ -110,4 +111,53 @@ describe("SQLiteStorage", () => {
     expect(byId).not.toBeNull();
     expect(byId!.merkle_root).toBe("sha256:abc");
   });
+});
+
+// ---------------------------------------------------------------------------
+// Backend compliance suite — InMemoryStorage
+// ---------------------------------------------------------------------------
+
+describe("InMemoryStorage compliance", () => {
+  for (const test of ALL_COMPLIANCE_TESTS) {
+    it(test.name, async () => {
+      const storage = new InMemoryStorage();
+      await test.fn(storage);
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Backend compliance suite — SQLiteStorage
+//
+// A single SQLiteStorage instance is shared across all compliance tests to
+// avoid repeated worker-thread create/terminate cycles.  The database is
+// cleared between tests via clearAll() so each test starts with a clean
+// slate.  This sidesteps a native-module flakiness issue with
+// better-sqlite3 + worker_threads on Node 25 inside vitest forks.
+// ---------------------------------------------------------------------------
+
+describe("SQLiteStorage compliance", () => {
+  const dbPath = `/tmp/anip-compliance-${randomUUID()}.db`;
+  const storage = new SQLiteStorage(dbPath);
+
+  afterEach(async () => {
+    await storage.clearAll();
+  });
+
+  afterAll(async () => {
+    await storage.terminate();
+    try {
+      unlinkSync(dbPath);
+      unlinkSync(dbPath + "-wal");
+      unlinkSync(dbPath + "-shm");
+    } catch {
+      // Files may not exist
+    }
+  });
+
+  for (const test of ALL_COMPLIANCE_TESTS) {
+    it(test.name, async () => {
+      await test.fn(storage);
+    });
+  }
 });

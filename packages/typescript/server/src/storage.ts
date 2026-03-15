@@ -242,10 +242,24 @@ export class SQLiteStorage implements StorageBackend {
   // -- lifecycle ------------------------------------------------------------
 
   /**
-   * Terminate the worker thread. Call this in test teardown (afterEach /
-   * afterAll) to prevent vitest from hanging.
+   * Delete all rows from every table.  Useful in test suites that
+   * share a single SQLiteStorage instance across multiple tests.
+   */
+  async clearAll(): Promise<void> {
+    await this.call("clearAll", []);
+  }
+
+  /**
+   * Gracefully close the database and terminate the worker thread.
+   * Call this in test teardown (afterEach / afterAll) to prevent
+   * vitest from hanging.
    */
   async terminate(): Promise<void> {
+    try {
+      await this.call("closeDb", []);
+    } catch {
+      // Worker may already be dead
+    }
     await this.worker.terminate();
   }
 }

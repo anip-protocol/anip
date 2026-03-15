@@ -317,6 +317,16 @@ function getCheckpointById(
 // Method dispatch table
 // ---------------------------------------------------------------------------
 
+function closeDb(): void {
+  db.close();
+}
+
+function clearAll(): void {
+  db.exec("DELETE FROM delegation_tokens");
+  db.exec("DELETE FROM audit_log");
+  db.exec("DELETE FROM checkpoints");
+}
+
 const methods: Record<string, (...args: any[]) => unknown> = {
   storeToken,
   loadToken,
@@ -327,6 +337,8 @@ const methods: Record<string, (...args: any[]) => unknown> = {
   storeCheckpoint,
   getCheckpoints,
   getCheckpointById,
+  closeDb,
+  clearAll,
 };
 
 // ---------------------------------------------------------------------------
