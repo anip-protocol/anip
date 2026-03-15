@@ -56,7 +56,10 @@ export function mountAnip(
     const capability = c.req.param("capability");
     const body = await c.req.json();
     const params = body.parameters ?? body;
-    const result = await service.invoke(capability, token, params);
+    const clientReferenceId = body.client_reference_id ?? null;
+    const result = await service.invoke(capability, token, params, {
+      clientReferenceId,
+    });
     if (!result.success) {
       const failure = result.failure as Record<string, unknown>;
       return c.json(result, failureStatus(failure?.type as string));

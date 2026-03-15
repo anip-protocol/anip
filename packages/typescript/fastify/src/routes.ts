@@ -54,7 +54,10 @@ export function mountAnip(
       if (!token) return reply.status(401).send({ error: "Authentication required" });
       const body = req.body as Record<string, unknown>;
       const params = (body.parameters as Record<string, unknown>) ?? body;
-      const result = await service.invoke(req.params.capability, token, params);
+      const clientReferenceId = (body.client_reference_id as string) ?? null;
+      const result = await service.invoke(req.params.capability, token, params, {
+        clientReferenceId,
+      });
       if (!result.success) {
         const failure = result.failure as Record<string, unknown>;
         return reply.status(failureStatus(failure?.type as string)).send(result);
