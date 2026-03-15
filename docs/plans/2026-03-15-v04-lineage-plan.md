@@ -29,7 +29,7 @@ v0.4 collapses these. The JWT-based shape becomes the only `InvokeRequest`.
 
 **Step 1: Write failing tests for the new model shapes**
 
-Create `packages/python/anip-core/tests/test_models.py`:
+Add to `packages/python/anip-core/tests/test_models.py` (extend the existing file — do not overwrite existing tests):
 
 ```python
 """Tests for v0.4 invoke model shapes."""
@@ -201,7 +201,7 @@ Same collapse as Python.
 
 **Step 1: Write failing tests**
 
-Create `packages/typescript/core/tests/models.test.ts`:
+Add to `packages/typescript/core/tests/models.test.ts` (extend the existing file — do not overwrite existing tests):
 
 ```typescript
 import { describe, it, expect } from "vitest";
