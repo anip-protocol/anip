@@ -1827,6 +1827,28 @@ Same binding responsibilities:
 - Map failures to HTTP status codes
 - Set response headers
 
+**Lifecycle management:** Hono has no built-in startup/shutdown hooks like FastAPI. `mountAnip` starts the service automatically and returns a cleanup function:
+
+```typescript
+export function mountAnip(
+  app: Hono,
+  service: ANIPService,
+  opts?: { prefix?: string },
+): { stop: () => void } {
+  // Mount all routes...
+
+  // Start service lifecycle (checkpoint scheduler, etc.)
+  service.start();
+
+  // Return cleanup handle for graceful shutdown
+  return {
+    stop: () => service.stop(),
+  };
+}
+```
+
+The developer wires the stop handle into their server's shutdown path (e.g., process signal handler). This keeps the mounting call just as simple as Python — one function call starts everything.
+
 `src/index.ts`:
 ```typescript
 export { mountAnip } from "./routes.js";
@@ -1895,20 +1917,25 @@ const service = createANIPService({
 });
 
 const app = new Hono();
-mountAnip(app, service);
+const { stop } = mountAnip(app, service);
 
-export { app, service };
+export { app, stop };
 ```
 
 **Step 3: Slim down `main.ts` to bootstrap**
 
 ```typescript
 import { serve } from "@hono/node-server";
-import { app, service } from "./app.js";
+import { app, stop } from "./app.js";
 
-service.start();
-serve({ fetch: app.fetch, port: 4100 }, (info) => {
+const server = serve({ fetch: app.fetch, port: 4100 }, (info) => {
   console.log(`ANIP Flight Service running on http://localhost:${info.port}`);
+});
+
+// Graceful shutdown
+process.on("SIGINT", () => {
+  stop();
+  server.close();
 });
 ```
 
