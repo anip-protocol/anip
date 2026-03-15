@@ -89,7 +89,11 @@ def mount_anip(
 
         body = await request.json()
         params = body.get("parameters", body)
-        result = service.invoke(capability, token, params)
+        client_reference_id = body.get("client_reference_id")
+        result = service.invoke(
+            capability, token, params,
+            client_reference_id=client_reference_id,
+        )
 
         if not result.get("success"):
             status = _failure_status(result.get("failure", {}).get("type"))

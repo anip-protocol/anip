@@ -75,15 +75,18 @@ class TestTokenRoutes:
 
 
 class TestInvokeRoutes:
-    def test_invoke_success(self, client):
-        # First get a token
+    def _get_token(self, client):
         resp = client.post(
             "/anip/tokens",
             json={"scope": ["greet"], "capability": "greet"},
             headers={"Authorization": f"Bearer {API_KEY}"},
         )
         assert resp.status_code == 200
-        token = resp.get_json()["token"]
+        return resp.get_json()["token"]
+
+    def test_invoke_success(self, client):
+        # First get a token
+        token = self._get_token(client)
 
         # Then invoke
         resp = client.post(
@@ -95,6 +98,35 @@ class TestInvokeRoutes:
         data = resp.get_json()
         assert data["success"] is True
         assert data["result"]["message"] == "Hello, World!"
+
+    def test_invoke_response_has_invocation_id(self, client):
+        """Invoke response should include invocation_id."""
+        token = self._get_token(client)
+        resp = client.post(
+            "/anip/invoke/greet",
+            json={"parameters": {"name": "World"}},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["success"] is True
+        assert data["invocation_id"].startswith("inv-")
+
+    def test_invoke_passes_client_reference_id(self, client):
+        """Invoke should echo back client_reference_id when provided."""
+        token = self._get_token(client)
+        resp = client.post(
+            "/anip/invoke/greet",
+            json={
+                "parameters": {"name": "World"},
+                "client_reference_id": "my-ref-42",
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["success"] is True
+        assert data["client_reference_id"] == "my-ref-42"
 
 
 class TestLifecycle:
