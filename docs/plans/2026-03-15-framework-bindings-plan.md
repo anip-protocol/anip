@@ -445,7 +445,7 @@ export { mountAnip } from "./routes.js";
 **Step 5: Create `src/routes.ts`**
 
 ```typescript
-import { Router } from "express";
+import express, { Router } from "express";
 import type { Express, Request, Response } from "express";
 import type { ANIPService } from "@anip/service";
 import { ANIPError } from "@anip/service";
@@ -456,6 +456,7 @@ export function mountAnip(
   opts?: { prefix?: string },
 ): { stop: () => void } {
   const router = Router();
+  router.use(express.json());
 
   // --- Discovery & Identity ---
   router.get("/.well-known/anip", (_req, res) => {
@@ -632,7 +633,6 @@ const API_KEY = "test-key-123";
 
 function makeApp() {
   const app = express();
-  app.use(express.json());
   const service = createANIPService({
     serviceId: "test-service",
     capabilities: [greetCap()],
@@ -732,7 +732,7 @@ describe("Express routes", () => {
 **Step 7: Install dependencies and run tests**
 
 ```bash
-cd packages/typescript && npm install
+cd packages/typescript && npm ci
 npx tsc -p core/tsconfig.json
 npx tsc -p crypto/tsconfig.json
 npx tsc -p server/tsconfig.json
@@ -1092,7 +1092,7 @@ describe("Fastify routes", () => {
 **Step 6: Install dependencies, build, and run tests**
 
 ```bash
-cd packages/typescript && npm install
+cd packages/typescript && npm ci
 npx tsc -p fastify/tsconfig.json
 npm test --workspace=@anip/fastify
 ```
