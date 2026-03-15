@@ -32,7 +32,7 @@ jobs:
             exit 1
           fi
 
-      - name: Validate version against all 10 packages
+      - name: Validate version against all 13 packages
         env:
           EXPECTED: ${{ inputs.version }}
         run: |
@@ -42,7 +42,7 @@ jobs:
           echo ""
 
           # Python packages
-          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi; do
+          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi anip-flask; do
             ACTUAL=$(python3 -c "
           import tomllib
           with open('packages/python/$pkg/pyproject.toml', 'rb') as f:
@@ -57,7 +57,7 @@ jobs:
           done
 
           # TypeScript packages
-          for pkg in core crypto server service hono; do
+          for pkg in core crypto server service hono express fastify; do
             ACTUAL=$(node -e "console.log(JSON.parse(require('fs').readFileSync('packages/typescript/$pkg/package.json','utf8')).version)")
             if [ "$ACTUAL" != "$EXPECTED" ]; then
               echo "::error::@anip/$pkg version is '$ACTUAL', expected '$EXPECTED'"
@@ -74,7 +74,7 @@ jobs:
           fi
 
           echo ""
-          echo "All 10 packages at version $EXPECTED"
+          echo "All 13 packages at version $EXPECTED"
 
       - name: Validate CI checks passed on this commit
         env:
