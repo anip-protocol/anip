@@ -25,14 +25,15 @@ jobs:
           fetch-depth: 0
 
       - name: Validate ref is main
+        env:
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-          if [ "$CURRENT_BRANCH" != "main" ]; then
-            echo "::error::Release must run from main, got '$CURRENT_BRANCH'"
+          if [ "$REF_NAME" != "main" ]; then
+            echo "::error::Release must run from main, got '$REF_NAME'"
             exit 1
           fi
 
-      - name: Validate version against all 10 packages
+      - name: Validate version against all 13 packages
         env:
           EXPECTED: ${{ inputs.version }}
         run: |
@@ -42,7 +43,7 @@ jobs:
           echo ""
 
           # Python packages
-          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi; do
+          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi anip-flask; do
             ACTUAL=$(python3 -c "
           import tomllib
           with open('packages/python/$pkg/pyproject.toml', 'rb') as f:
@@ -57,7 +58,7 @@ jobs:
           done
 
           # TypeScript packages
-          for pkg in core crypto server service hono; do
+          for pkg in core crypto server service hono express fastify; do
             ACTUAL=$(node -e "console.log(JSON.parse(require('fs').readFileSync('packages/typescript/$pkg/package.json','utf8')).version)")
             if [ "$ACTUAL" != "$EXPECTED" ]; then
               echo "::error::@anip/$pkg version is '$ACTUAL', expected '$EXPECTED'"
@@ -74,7 +75,7 @@ jobs:
           fi
 
           echo ""
-          echo "All 10 packages at version $EXPECTED"
+          echo "All 13 packages at version $EXPECTED"
 
       - name: Validate CI checks passed on this commit
         env:

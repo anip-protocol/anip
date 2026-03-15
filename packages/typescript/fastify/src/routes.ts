@@ -1,0 +1,142 @@
+import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import type { ANIPService } from "@anip/service";
+import { ANIPError } from "@anip/service";
+
+export function mountAnip(
+  app: FastifyInstance,
+  service: ANIPService,
+  opts?: { prefix?: string },
+): { stop: () => void } {
+  const p = opts?.prefix ?? "";
+
+  // --- Discovery & Identity ---
+  app.get(`${p}/.well-known/anip`, async () => {
+    return service.getDiscovery();
+  });
+
+  app.get(`${p}/.well-known/jwks.json`, async () => {
+    return service.getJwks();
+  });
+
+  app.get(`${p}/anip/manifest`, async (_req, reply) => {
+    const [bodyBytes, signature] = await service.getSignedManifest();
+    return reply
+      .header("Content-Type", "application/json")
+      .header("X-ANIP-Signature", signature)
+      .send(Buffer.from(bodyBytes));
+  });
+
+  // --- Tokens ---
+  app.post(`${p}/anip/tokens`, async (req, reply) => {
+    const principal = await extractPrincipal(req, service);
+    if (!principal) return reply.status(401).send({ error: "Authentication required" });
+    try {
+      const result = await service.issueToken(principal, req.body as Record<string, unknown>);
+      return result;
+    } catch (e) {
+      if (e instanceof ANIPError) return errorResponse(reply, e);
+      throw e;
+    }
+  });
+
+  // --- Permissions ---
+  app.post(`${p}/anip/permissions`, async (req, reply) => {
+    const token = await resolveToken(req, service);
+    if (!token) return reply.status(401).send({ error: "Authentication required" });
+    return service.discoverPermissions(token);
+  });
+
+  // --- Invoke ---
+  app.post<{ Params: { capability: string } }>(
+    `${p}/anip/invoke/:capability`,
+    async (req, reply) => {
+      const token = await resolveToken(req, service);
+      if (!token) return reply.status(401).send({ error: "Authentication required" });
+      const body = req.body as Record<string, unknown>;
+      const params = (body.parameters as Record<string, unknown>) ?? body;
+      const result = await service.invoke(req.params.capability, token, params);
+      if (!result.success) {
+        const failure = result.failure as Record<string, unknown>;
+        return reply.status(failureStatus(failure?.type as string)).send(result);
+      }
+      return result;
+    },
+  );
+
+  // --- Audit ---
+  app.post(`${p}/anip/audit`, async (req, reply) => {
+    const token = await resolveToken(req, service);
+    if (!token) return reply.status(401).send({ error: "Authentication required" });
+    const query = req.query as Record<string, string>;
+    const filters = {
+      capability: query.capability ?? undefined,
+      since: query.since ?? undefined,
+      limit: parseInt(query.limit ?? "50", 10),
+    };
+    return service.queryAudit(token, filters);
+  });
+
+  // --- Checkpoints ---
+  app.get(`${p}/anip/checkpoints`, async (req) => {
+    const query = req.query as Record<string, string>;
+    const limit = parseInt(query.limit ?? "10", 10);
+    return service.getCheckpoints(limit);
+  });
+
+  app.get<{ Params: { id: string } }>(`${p}/anip/checkpoints/:id`, async (req, reply) => {
+    const query = req.query as Record<string, string>;
+    const options = {
+      include_proof: query.include_proof === "true",
+      leaf_index: query.leaf_index ?? undefined,
+      consistency_from: query.consistency_from ?? undefined,
+    };
+    const result = service.getCheckpoint(req.params.id, options);
+    if (!result) return reply.status(404).send({ error: "Checkpoint not found" });
+    return result;
+  });
+
+  service.start();
+  return { stop: () => service.stop() };
+}
+
+// --- Helpers ---
+
+async function extractPrincipal(req: FastifyRequest, service: ANIPService): Promise<string | null> {
+  const auth = req.headers.authorization ?? "";
+  if (!auth.startsWith("Bearer ")) return null;
+  return service.authenticateBearer(auth.slice(7).trim());
+}
+
+async function resolveToken(req: FastifyRequest, service: ANIPService) {
+  const auth = req.headers.authorization ?? "";
+  if (!auth.startsWith("Bearer ")) return null;
+  try {
+    return await service.resolveBearerToken(auth.slice(7).trim());
+  } catch {
+    return null;
+  }
+}
+
+function failureStatus(type?: string): number {
+  const mapping: Record<string, number> = {
+    invalid_token: 401,
+    token_expired: 401,
+    scope_insufficient: 403,
+    insufficient_authority: 403,
+    purpose_mismatch: 403,
+    unknown_capability: 404,
+    not_found: 404,
+    unavailable: 409,
+    concurrent_lock: 409,
+    internal_error: 500,
+  };
+  return mapping[type ?? ""] ?? 400;
+}
+
+function errorResponse(reply: FastifyReply, error: ANIPError) {
+  const status = failureStatus(error.errorType);
+  return reply.status(status).send({
+    success: false,
+    failure: { type: error.errorType, detail: error.detail },
+  });
+}

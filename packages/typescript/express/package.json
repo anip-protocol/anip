@@ -1,0 +1,26 @@
+{
+  "name": "@anip/express",
+  "version": "0.3.0",
+  "description": "ANIP Express bindings — mount an ANIPService as HTTP routes",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@anip/service": "0.3.0",
+    "express": "^4.21.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/supertest": "^6.0.0",
+    "supertest": "^7.1.0",
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.0"
+  }
+}
