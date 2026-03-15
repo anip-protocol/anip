@@ -3,6 +3,9 @@
   "version": "0.3.0",
   "description": "ANIP protocol types, models, and constants",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
