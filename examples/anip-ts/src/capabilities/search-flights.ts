@@ -1,51 +1,17 @@
-/**
- * search_flights capability — read-only, no side effects.
- */
+import { defineCapability, ANIPError } from "@anip/service";
+import type { CapabilityDeclaration } from "@anip/core";
+import { searchFlights as doSearch } from "../domain/flights.js";
 
-import { searchFlights as doSearch } from "../data/flights.js";
-import type {
-  CapabilityDeclaration,
-  DelegationToken,
-  InvokeResponse,
-} from "@anip/core";
-
-export const DECLARATION: CapabilityDeclaration = {
+const DECLARATION: CapabilityDeclaration = {
   name: "search_flights",
   description: "Search available flights by origin, destination, and date",
   contract_version: "1.0",
   inputs: [
-    {
-      name: "origin",
-      type: "airport_code",
-      required: true,
-      default: null,
-      description: "Departure airport",
-    },
-    {
-      name: "destination",
-      type: "airport_code",
-      required: true,
-      default: null,
-      description: "Arrival airport",
-    },
-    {
-      name: "date",
-      type: "date",
-      required: true,
-      default: null,
-      description: "Travel date (YYYY-MM-DD)",
-    },
+    { name: "origin", type: "airport_code", required: true, default: null, description: "Departure airport" },
+    { name: "destination", type: "airport_code", required: true, default: null, description: "Arrival airport" },
+    { name: "date", type: "date", required: true, default: null, description: "Travel date (YYYY-MM-DD)" },
   ],
-  output: {
-    type: "flight_list",
-    fields: [
-      "flight_number",
-      "departure_time",
-      "arrival_time",
-      "price",
-      "stops",
-    ],
-  },
+  output: { type: "flight_list", fields: ["flight_number", "departure_time", "arrival_time", "price", "stops"] },
   side_effect: { type: "read", rollback_window: "not_applicable" },
   minimum_scope: ["travel.search"],
   cost: {
@@ -67,39 +33,19 @@ export const DECLARATION: CapabilityDeclaration = {
   },
 };
 
-export function invoke(
-  _token: DelegationToken,
-  parameters: Record<string, unknown>
-): InvokeResponse {
-  const origin = parameters["origin"] as string | undefined;
-  const destination = parameters["destination"] as string | undefined;
-  const date = parameters["date"] as string | undefined;
+export const searchFlights = defineCapability({
+  declaration: DECLARATION,
+  handler: (_ctx, params) => {
+    const origin = params.origin as string | undefined;
+    const destination = params.destination as string | undefined;
+    const date = params.date as string | undefined;
 
-  if (!origin || !destination || !date) {
+    if (!origin || !destination || !date) {
+      throw new ANIPError("invalid_parameters", "origin, destination, and date are all required");
+    }
+
+    const flights = doSearch(origin, destination, date);
     return {
-      success: false,
-      result: null,
-      cost_actual: null,
-      failure: {
-        type: "invalid_parameters",
-        detail: "origin, destination, and date are all required",
-        resolution: {
-          action: "fix_parameters",
-          requires: null,
-          grantable_by: null,
-          estimated_availability: null,
-        },
-        retry: true,
-      },
-      session: null,
-    };
-  }
-
-  const flights = doSearch(origin, destination, date);
-
-  return {
-    success: true,
-    result: {
       flights: flights.map((f) => ({
         flight_number: f.flight_number,
         departure_time: f.departure_time,
@@ -109,9 +55,6 @@ export function invoke(
         stops: f.stops,
       })),
       count: flights.length,
-    },
-    cost_actual: null,
-    failure: null,
-    session: null,
-  };
-}
+    };
+  },
+});
