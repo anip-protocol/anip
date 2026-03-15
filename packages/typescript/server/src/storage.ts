@@ -9,9 +9,9 @@
 import Database from "better-sqlite3";
 
 export interface StorageBackend {
-  storeToken(tokenData: Record<string, unknown>): void;
-  loadToken(tokenId: string): Record<string, unknown> | null;
-  storeAuditEntry(entry: Record<string, unknown>): void;
+  storeToken(tokenData: Record<string, unknown>): Promise<void>;
+  loadToken(tokenId: string): Promise<Record<string, unknown> | null>;
+  storeAuditEntry(entry: Record<string, unknown>): Promise<void>;
   queryAuditEntries(opts?: {
     capability?: string;
     rootPrincipal?: string;
@@ -19,12 +19,12 @@ export interface StorageBackend {
     invocationId?: string;
     clientReferenceId?: string;
     limit?: number;
-  }): Record<string, unknown>[];
-  getLastAuditEntry(): Record<string, unknown> | null;
-  getAuditEntriesRange(first: number, last: number): Record<string, unknown>[];
-  storeCheckpoint(body: Record<string, unknown>, signature: string): void;
-  getCheckpoints(limit?: number): Record<string, unknown>[];
-  getCheckpointById(checkpointId: string): Record<string, unknown> | null;
+  }): Promise<Record<string, unknown>[]>;
+  getLastAuditEntry(): Promise<Record<string, unknown> | null>;
+  getAuditEntriesRange(first: number, last: number): Promise<Record<string, unknown>[]>;
+  storeCheckpoint(body: Record<string, unknown>, signature: string): Promise<void>;
+  getCheckpoints(limit?: number): Promise<Record<string, unknown>[]>;
+  getCheckpointById(checkpointId: string): Promise<Record<string, unknown> | null>;
 }
 
 /**
@@ -38,26 +38,26 @@ export class InMemoryStorage implements StorageBackend {
   private auditEntries: Record<string, unknown>[] = [];
   private checkpoints: Record<string, unknown>[] = [];
 
-  storeToken(tokenData: Record<string, unknown>): void {
+  async storeToken(tokenData: Record<string, unknown>): Promise<void> {
     this.tokens.set(tokenData.token_id as string, { ...tokenData });
   }
 
-  loadToken(tokenId: string): Record<string, unknown> | null {
+  async loadToken(tokenId: string): Promise<Record<string, unknown> | null> {
     return this.tokens.get(tokenId) ?? null;
   }
 
-  storeAuditEntry(entry: Record<string, unknown>): void {
+  async storeAuditEntry(entry: Record<string, unknown>): Promise<void> {
     this.auditEntries.push({ ...entry });
   }
 
-  queryAuditEntries(opts?: {
+  async queryAuditEntries(opts?: {
     capability?: string;
     rootPrincipal?: string;
     since?: string;
     invocationId?: string;
     clientReferenceId?: string;
     limit?: number;
-  }): Record<string, unknown>[] {
+  }): Promise<Record<string, unknown>[]> {
     let results = [...this.auditEntries];
     if (opts?.capability) {
       results = results.filter((e) => e.capability === opts.capability);
@@ -81,14 +81,14 @@ export class InMemoryStorage implements StorageBackend {
     return results.slice(0, opts?.limit ?? 50);
   }
 
-  getLastAuditEntry(): Record<string, unknown> | null {
+  async getLastAuditEntry(): Promise<Record<string, unknown> | null> {
     if (this.auditEntries.length === 0) return null;
     return this.auditEntries.reduce((a, b) =>
       (a.sequence_number as number) > (b.sequence_number as number) ? a : b,
     );
   }
 
-  getAuditEntriesRange(first: number, last: number): Record<string, unknown>[] {
+  async getAuditEntriesRange(first: number, last: number): Promise<Record<string, unknown>[]> {
     return this.auditEntries
       .filter((e) => {
         const seq = e.sequence_number as number;
@@ -100,15 +100,15 @@ export class InMemoryStorage implements StorageBackend {
       );
   }
 
-  storeCheckpoint(body: Record<string, unknown>, signature: string): void {
+  async storeCheckpoint(body: Record<string, unknown>, signature: string): Promise<void> {
     this.checkpoints.push({ ...body, signature });
   }
 
-  getCheckpoints(limit: number = 10): Record<string, unknown>[] {
+  async getCheckpoints(limit: number = 10): Promise<Record<string, unknown>[]> {
     return this.checkpoints.slice(0, limit);
   }
 
-  getCheckpointById(checkpointId: string): Record<string, unknown> | null {
+  async getCheckpointById(checkpointId: string): Promise<Record<string, unknown> | null> {
     return (
       this.checkpoints.find((c) => c.checkpoint_id === checkpointId) ?? null
     );
@@ -212,7 +212,7 @@ export class SQLiteStorage implements StorageBackend {
 
   // -- tokens ---------------------------------------------------------------
 
-  storeToken(tokenData: Record<string, unknown>): void {
+  async storeToken(tokenData: Record<string, unknown>): Promise<void> {
     this.db
       .prepare(
         `INSERT INTO delegation_tokens
@@ -234,7 +234,7 @@ export class SQLiteStorage implements StorageBackend {
       );
   }
 
-  loadToken(tokenId: string): Record<string, unknown> | null {
+  async loadToken(tokenId: string): Promise<Record<string, unknown> | null> {
     const row = this.db
       .prepare("SELECT * FROM delegation_tokens WHERE token_id = ?")
       .get(tokenId) as Record<string, unknown> | undefined;
@@ -256,7 +256,7 @@ export class SQLiteStorage implements StorageBackend {
 
   // -- audit log ------------------------------------------------------------
 
-  storeAuditEntry(entry: Record<string, unknown>): void {
+  async storeAuditEntry(entry: Record<string, unknown>): Promise<void> {
     this.db
       .prepare(
         `INSERT INTO audit_log
@@ -302,14 +302,14 @@ export class SQLiteStorage implements StorageBackend {
     return entry;
   }
 
-  queryAuditEntries(opts?: {
+  async queryAuditEntries(opts?: {
     capability?: string;
     rootPrincipal?: string;
     since?: string;
     invocationId?: string;
     clientReferenceId?: string;
     limit?: number;
-  }): Record<string, unknown>[] {
+  }): Promise<Record<string, unknown>[]> {
     const conditions: string[] = [];
     const params: unknown[] = [];
 
@@ -346,7 +346,7 @@ export class SQLiteStorage implements StorageBackend {
     return rows.map((r) => this.parseAuditRow(r));
   }
 
-  getLastAuditEntry(): Record<string, unknown> | null {
+  async getLastAuditEntry(): Promise<Record<string, unknown> | null> {
     const row = this.db
       .prepare("SELECT * FROM audit_log ORDER BY sequence_number DESC LIMIT 1")
       .get() as Record<string, unknown> | undefined;
@@ -354,7 +354,7 @@ export class SQLiteStorage implements StorageBackend {
     return this.parseAuditRow(row);
   }
 
-  getAuditEntriesRange(first: number, last: number): Record<string, unknown>[] {
+  async getAuditEntriesRange(first: number, last: number): Promise<Record<string, unknown>[]> {
     const rows = this.db
       .prepare(
         "SELECT * FROM audit_log WHERE sequence_number BETWEEN ? AND ? ORDER BY sequence_number ASC",
@@ -365,7 +365,7 @@ export class SQLiteStorage implements StorageBackend {
 
   // -- checkpoints ----------------------------------------------------------
 
-  storeCheckpoint(body: Record<string, unknown>, signature: string): void {
+  async storeCheckpoint(body: Record<string, unknown>, signature: string): Promise<void> {
     const range = (body.range as Record<string, unknown>) ?? {};
     this.db
       .prepare(
@@ -386,7 +386,7 @@ export class SQLiteStorage implements StorageBackend {
       );
   }
 
-  getCheckpoints(limit: number = 10): Record<string, unknown>[] {
+  async getCheckpoints(limit: number = 10): Promise<Record<string, unknown>[]> {
     const rows = this.db
       .prepare("SELECT * FROM checkpoints ORDER BY id ASC LIMIT ?")
       .all(limit) as Record<string, unknown>[];
@@ -404,7 +404,7 @@ export class SQLiteStorage implements StorageBackend {
     }));
   }
 
-  getCheckpointById(checkpointId: string): Record<string, unknown> | null {
+  async getCheckpointById(checkpointId: string): Promise<Record<string, unknown> | null> {
     const row = this.db
       .prepare("SELECT * FROM checkpoints WHERE checkpoint_id = ?")
       .get(checkpointId) as Record<string, unknown> | undefined;
