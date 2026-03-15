@@ -55,6 +55,8 @@ class AuditLog:
             "failure_type": entry_data.get("failure_type"),
             "cost_actual": entry_data.get("cost_actual"),
             "delegation_chain": entry_data.get("delegation_chain"),
+            "invocation_id": entry_data.get("invocation_id"),
+            "client_reference_id": entry_data.get("client_reference_id"),
             "previous_hash": previous_hash,
         }
 

@@ -28,6 +28,8 @@ class StorageBackend(Protocol):
         capability: str | None = None,
         root_principal: str | None = None,
         since: str | None = None,
+        invocation_id: str | None = None,
+        client_reference_id: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]: ...
 
@@ -80,6 +82,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
     failure_type TEXT,
     cost_actual TEXT,              -- JSON
     delegation_chain TEXT,         -- JSON array of token_ids
+    invocation_id TEXT,
+    client_reference_id TEXT,
     previous_hash TEXT NOT NULL,
     signature TEXT
 );
@@ -90,6 +94,10 @@ CREATE INDEX IF NOT EXISTS idx_audit_timestamp
     ON audit_log(timestamp);
 CREATE INDEX IF NOT EXISTS idx_audit_root_principal
     ON audit_log(root_principal);
+CREATE INDEX IF NOT EXISTS idx_audit_invocation_id
+    ON audit_log(invocation_id);
+CREATE INDEX IF NOT EXISTS idx_audit_client_reference_id
+    ON audit_log(client_reference_id);
 
 CREATE TABLE IF NOT EXISTS checkpoints (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -121,6 +129,16 @@ class SQLiteStorage:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
         self._conn.executescript(_SCHEMA)
+
+        # Migrate existing v0.3 databases: add lineage columns if missing
+        try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN invocation_id TEXT")
+        except Exception:
+            pass  # column already exists
+        try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN client_reference_id TEXT")
+        except Exception:
+            pass  # column already exists
 
     # -- tokens -------------------------------------------------------------
 
@@ -178,9 +196,9 @@ class SQLiteStorage:
             """INSERT INTO audit_log
                (sequence_number, timestamp, capability, token_id, issuer,
                 subject, root_principal, parameters, success, result_summary,
-                failure_type, cost_actual, delegation_chain, previous_hash,
-                signature)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                failure_type, cost_actual, delegation_chain, invocation_id,
+                client_reference_id, previous_hash, signature)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 entry["sequence_number"],
                 entry["timestamp"],
@@ -195,6 +213,8 @@ class SQLiteStorage:
                 entry.get("failure_type"),
                 json.dumps(entry["cost_actual"]) if entry.get("cost_actual") is not None else None,
                 json.dumps(entry["delegation_chain"]) if entry.get("delegation_chain") is not None else None,
+                entry.get("invocation_id"),
+                entry.get("client_reference_id"),
                 entry["previous_hash"],
                 entry.get("signature"),
             ),
@@ -216,6 +236,8 @@ class SQLiteStorage:
         capability: str | None = None,
         root_principal: str | None = None,
         since: str | None = None,
+        invocation_id: str | None = None,
+        client_reference_id: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         """Query audit entries with optional filters."""
@@ -231,6 +253,12 @@ class SQLiteStorage:
         if since is not None:
             conditions.append("timestamp >= ?")
             params.append(since)
+        if invocation_id is not None:
+            conditions.append("invocation_id = ?")
+            params.append(invocation_id)
+        if client_reference_id is not None:
+            conditions.append("client_reference_id = ?")
+            params.append(client_reference_id)
 
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
         rows = self._conn.execute(
