@@ -542,6 +542,8 @@ class ANIPService:
             root_principal=root_principal,
             capability=filters.get("capability"),
             since=filters.get("since"),
+            invocation_id=filters.get("invocation_id"),
+            client_reference_id=filters.get("client_reference_id"),
             limit=min(filters.get("limit", 50), 1000),
         )
 

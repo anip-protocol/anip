@@ -82,6 +82,8 @@ export function mountAnip(
       const filters = {
         capability: (req.query.capability as string) ?? undefined,
         since: (req.query.since as string) ?? undefined,
+        invocation_id: (req.query.invocation_id as string) ?? undefined,
+        client_reference_id: (req.query.client_reference_id as string) ?? undefined,
         limit: parseInt((req.query.limit as string) ?? "50", 10),
       };
       res.json(service.queryAudit(token, filters));

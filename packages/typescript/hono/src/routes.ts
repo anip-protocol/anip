@@ -75,6 +75,8 @@ export function mountAnip(
     const filters = {
       capability: url.searchParams.get("capability") ?? undefined,
       since: url.searchParams.get("since") ?? undefined,
+      invocation_id: url.searchParams.get("invocation_id") ?? undefined,
+      client_reference_id: url.searchParams.get("client_reference_id") ?? undefined,
       limit: parseInt(url.searchParams.get("limit") ?? "50", 10),
     };
     return c.json(service.queryAudit(token, filters));

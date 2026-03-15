@@ -782,6 +782,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         rootPrincipal,
         capability: f.capability as string | undefined,
         since: f.since as string | undefined,
+        invocationId: f.invocation_id as string | undefined,
+        clientReferenceId: f.client_reference_id as string | undefined,
         limit: Math.min((f.limit as number) ?? 50, 1000),
       });
 

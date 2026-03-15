@@ -112,6 +112,8 @@ def mount_anip(
         filters = {
             "capability": request.args.get("capability"),
             "since": request.args.get("since"),
+            "invocation_id": request.args.get("invocation_id"),
+            "client_reference_id": request.args.get("client_reference_id"),
             "limit": int(request.args.get("limit", "50")),
         }
         return jsonify(service.query_audit(token, filters))

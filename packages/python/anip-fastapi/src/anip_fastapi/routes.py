@@ -112,6 +112,8 @@ def mount_anip(
         filters = {
             "capability": request.query_params.get("capability"),
             "since": request.query_params.get("since"),
+            "invocation_id": request.query_params.get("invocation_id"),
+            "client_reference_id": request.query_params.get("client_reference_id"),
             "limit": int(request.query_params.get("limit", "50")),
         }
         return service.query_audit(token, filters)
