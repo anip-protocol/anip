@@ -27,7 +27,7 @@ pip install -e ".[dev]"
 ## Run
 
 ```bash
-uvicorn anip_flight_demo.main:run --reload
+python -m anip_flight_demo.main
 ```
 
 ## Test
