@@ -11,6 +11,7 @@ export async function signJWT(
 export async function verifyJWT(
   km: KeyManager,
   token: string,
+  opts: { audience: string; issuer?: string },
 ): Promise<JWTPayload> {
-  return km.verifyJWT(token);
+  return km.verifyJWT(token, opts);
 }

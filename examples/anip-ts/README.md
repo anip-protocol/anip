@@ -1,6 +1,21 @@
 # ANIP Reference Implementation — Flight Booking Service (TypeScript)
 
-A working demonstration of the Agent-Native Interface Protocol, built with Hono + Zod.
+A working demonstration of the Agent-Native Interface Protocol using the `@anip/service` runtime.
+
+## What's Here
+
+The entire ANIP service is ~150 lines of business logic. All protocol plumbing — delegation, audit, signing, checkpoints — is handled by the service runtime.
+
+```
+src/
+  app.ts                        # createANIPService + mountAnip (26 lines)
+  main.ts                       # Hono server bootstrap (11 lines)
+  domain/flights.ts             # ANIP-free business logic
+  capabilities/search-flights.ts  # defineCapability declaration + handler
+  capabilities/book-flight.ts     # defineCapability declaration + handler
+tests/
+  flight-service.test.ts        # Integration tests (11 tests)
+```
 
 ## Setup
 
@@ -11,10 +26,14 @@ npm install
 
 ## Run
 
-Start the server:
+```bash
+npx tsx src/main.ts
+```
+
+## Test
 
 ```bash
-PORT=8001 npx tsx src/server.ts
+npx vitest run
 ```
 
 ## Adapter Surfaces
@@ -53,23 +72,18 @@ curl -X POST http://localhost:3003/api/book_flight \
 curl -X POST http://localhost:3004/graphql \
   -H "Content-Type: application/json" \
   -d '{"query": "{ searchFlights(origin: \"SEA\", destination: \"SFO\", date: \"2026-03-10\") { success result } }"}'
-
-# GraphQL — book flight
-curl -X POST http://localhost:3004/graphql \
-  -H "Content-Type: application/json" \
-  -d '{"query": "mutation { bookFlight(flightNumber: \"AA100\", date: \"2026-03-10\", passengers: 1) { success result costActual { financial { amount currency } } } }"}'
 ```
-
-The REST adapter auto-generates endpoints and an OpenAPI 3.1 spec with `x-anip-*` extensions. The GraphQL adapter auto-generates a schema with custom `@anip*` directives. No per-service code required — point any adapter at any ANIP service URL.
 
 ## Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/anip/manifest` | GET | Full ANIP manifest with all capability declarations |
-| `/anip/handshake` | POST | Profile compatibility check |
-| `/anip/tokens` | POST | Issue or register a delegation token |
-| `/anip/permissions` | POST | Permission discovery given a delegation token |
-| `/anip/invoke/{capability}` | POST | Invoke a capability with delegation chain |
-| `/anip/graph/{capability}` | GET | Capability prerequisite graph |
-| `/anip/audit` | POST | Audit log (requires delegation token, filtered by root principal) |
+| `/.well-known/anip` | GET | Discovery document |
+| `/.well-known/jwks.json` | GET | JSON Web Key Set |
+| `/anip/manifest` | GET | Signed manifest (X-ANIP-Signature header) |
+| `/anip/tokens` | POST | Issue delegation token |
+| `/anip/permissions` | POST | Permission discovery |
+| `/anip/invoke/{capability}` | POST | Invoke a capability |
+| `/anip/audit` | POST | Query audit log |
+| `/anip/checkpoints` | GET | List checkpoints |
+| `/anip/checkpoints/{id}` | GET | Get checkpoint with proofs |

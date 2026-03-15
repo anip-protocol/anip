@@ -9,6 +9,7 @@ __pycache__/
 *.db-shm
 .venv/
 anip-keys.json
+anip-keys
 dist/
 build/
 *.egg-info/
