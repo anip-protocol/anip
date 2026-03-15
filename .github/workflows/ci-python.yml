@@ -6,13 +6,13 @@ on:
     paths:
       - "packages/python/**"
       - "examples/anip/**"
-      - ".github/workflows/ci-python.yml"
+      - ".github/workflows/*.yml"
   pull_request:
     branches: [main]
     paths:
       - "packages/python/**"
       - "examples/anip/**"
-      - ".github/workflows/ci-python.yml"
+      - ".github/workflows/*.yml"
 
 jobs:
   test:

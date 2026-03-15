@@ -6,13 +6,13 @@ on:
     paths:
       - "packages/typescript/**"
       - "examples/anip-ts/**"
-      - ".github/workflows/ci-typescript.yml"
+      - ".github/workflows/*.yml"
   pull_request:
     branches: [main]
     paths:
       - "packages/typescript/**"
       - "examples/anip-ts/**"
-      - ".github/workflows/ci-typescript.yml"
+      - ".github/workflows/*.yml"
 
 jobs:
   test:
