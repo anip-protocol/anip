@@ -762,7 +762,7 @@ The standard endpoints define a predictable interaction sequence:
 1. Agent discovers service          →  GET /.well-known/anip
 2. Agent checks compatibility       →  POST {handshake}
 3. Agent fetches full manifest       →  GET {manifest}
-4. Agent registers delegation token  →  POST {tokens}
+4. Agent requests delegation token    →  POST {tokens}
 5. Agent queries permissions         →  POST {permissions}
 6. Agent explores capability graph   →  GET {graph}/{capability}
 7. Agent invokes capability          →  POST {invoke}/{capability}
@@ -782,8 +782,8 @@ sequenceDiagram
     Agent->>ANIP: POST /anip/tokens (+ API key)
     ANIP-->>Agent: signed JWT delegation token
 
-    Agent->>ANIP: POST /anip/invoke/search_flights (+ token)
-    ANIP-->>Agent: {success, result, cost_actual}
+    Agent->>ANIP: POST /anip/invoke/search_flights (+ Bearer token)
+    ANIP-->>Agent: {success, invocation_id, result, cost_actual}
 ```
 
 #### Budget Escalation
@@ -796,19 +796,19 @@ sequenceDiagram
     participant ANIP as ANIP Service
     participant Human
 
-    Agent->>ANIP: POST /anip/invoke/book_flight (+ token)
-    ANIP-->>Agent: budget_exceeded (grantable_by: human)
+    Agent->>ANIP: POST /anip/invoke/book_flight (+ Bearer token)
+    ANIP-->>Agent: {success: false, invocation_id, failure: budget_exceeded}
 
     Agent->>Human: request_budget_increase ($380, UA205)
     Human-->>Agent: approved
 
-    Human->>ANIP: POST /anip/tokens (higher budget)
+    Human->>ANIP: POST /anip/tokens (+ Bearer API key, higher budget)
     ANIP-->>Human: new signed JWT
 
     Human-->>Agent: new token
 
-    Agent->>ANIP: POST /anip/invoke/book_flight (+ new token)
-    ANIP-->>Agent: {success: true, booking: BK-0018}
+    Agent->>ANIP: POST /anip/invoke/book_flight (+ Bearer new token)
+    ANIP-->>Agent: {success: true, invocation_id, booking: BK-0018}
 ```
 
 Not every interaction requires all steps. An agent that has previously interacted with a service may skip directly to step 4 if it has cached the manifest. An agent performing a read-only operation may skip the capability graph step. But the sequence above is the canonical flow for a first interaction.
