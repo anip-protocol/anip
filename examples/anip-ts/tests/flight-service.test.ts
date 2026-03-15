@@ -88,6 +88,7 @@ describe("Invoke", () => {
     const data = await res.json();
     expect(data.success).toBe(true);
     expect(data.result.count).toBe(3);
+    expect(data.invocation_id).toMatch(/^inv-[0-9a-f]{12}$/);
   });
 
   it("returns empty for no matching flights", async () => {
@@ -125,6 +126,7 @@ describe("Invoke", () => {
     expect(data.success).toBe(true);
     expect(data.result.booking_id).toMatch(/^BK-/);
     expect(data.result.total_cost).toBe(420);
+    expect(data.invocation_id).toMatch(/^inv-[0-9a-f]{12}$/);
   });
 
   it("rejects unauthenticated invoke", async () => {
@@ -149,6 +151,7 @@ describe("Invoke", () => {
     expect(res.status).toBe(404);
     const data = await res.json();
     expect(data.success).toBe(false);
+    expect(data.invocation_id).toMatch(/^inv-[0-9a-f]{12}$/);
   });
 });
 
