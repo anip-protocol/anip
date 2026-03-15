@@ -109,6 +109,25 @@ function isANIPFailure(
 }
 
 // ---------------------------------------------------------------------------
+// Stable JSON serialization (recursive key-sorting)
+// ---------------------------------------------------------------------------
+
+function stableStringify(obj: unknown): string {
+  if (obj === null || obj === undefined) return "null";
+  if (typeof obj === "string") return JSON.stringify(obj);
+  if (typeof obj === "number" || typeof obj === "boolean") return String(obj);
+  if (Array.isArray(obj)) {
+    return `[${obj.map(stableStringify).join(",")}]`;
+  }
+  const keys = Object.keys(obj as Record<string, unknown>).sort();
+  const pairs = keys.map(
+    (k) =>
+      `${JSON.stringify(k)}:${stableStringify((obj as Record<string, unknown>)[k])}`,
+  );
+  return `{${pairs.join(",")}}`;
+}
+
+// ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
 
@@ -267,17 +286,22 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     }
   }
 
-  function createAndPublishCheckpoint(): void {
+  async function createAndPublishCheckpoint(): Promise<void> {
     try {
       const snapshot = audit.getMerkleSnapshot();
       const lastCkpt = getLastCheckpoint();
-      // createCheckpoint expects sync signFn — we pass a no-op for now
-      // In anchored mode, the sign function needs to be sync.
-      const { body, signature } = createCheckpoint({
+      // Get the checkpoint body without signing (signFn is sync, our signer is async)
+      const { body } = createCheckpoint({
         merkleSnapshot: snapshot,
         serviceId,
         previousCheckpoint: lastCkpt,
       });
+      // Sign asynchronously with the dedicated audit key
+      await ensureKeys();
+      const canonicalBytes = new TextEncoder().encode(stableStringify(body));
+      const signature = await keys.signJWSDetachedAudit(
+        new Uint8Array(canonicalBytes),
+      );
       storage.storeCheckpoint(body, signature);
       for (const sink of sinks) {
         sink.publish({ body, signature });
@@ -370,8 +394,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
     async getSignedManifest(): Promise<[Uint8Array, string]> {
       await ensureKeys();
-      const manifestObj = manifest as unknown as Record<string, unknown>;
-      const bodyStr = JSON.stringify(manifestObj, Object.keys(manifestObj).sort());
+      const bodyStr = stableStringify(manifest);
       const bodyBytes = new TextEncoder().encode(bodyStr);
       const signature = await keys.signJWSDetached(bodyBytes);
       return [bodyBytes, signature];
@@ -412,6 +435,20 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         throw new ANIPError(
           "invalid_token",
           exc instanceof Error ? exc.message : String(exc),
+        );
+      }
+
+      // Verify issuer and audience match this service
+      if (claims.iss !== serviceId) {
+        throw new ANIPError(
+          "invalid_token",
+          `JWT issuer '${claims.iss}' does not match service '${serviceId}'`,
+        );
+      }
+      if (claims.aud !== undefined && claims.aud !== serviceId) {
+        throw new ANIPError(
+          "invalid_token",
+          `JWT audience '${claims.aud}' does not match service '${serviceId}'`,
         );
       }
 
