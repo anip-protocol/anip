@@ -393,7 +393,8 @@ class ANIPService:
         """Resolve a bearer token to an authenticated principal.
 
         Tries bootstrap authentication first (API keys, external auth),
-        then falls back to ANIP JWT verification.
+        then falls back to full ANIP JWT verification via resolve_bearer_token()
+        which includes claim-vs-store integrity checks and expiry validation.
         Returns the principal string, or None if unauthenticated.
         """
         # Try bootstrap auth (API keys, external auth)
@@ -402,15 +403,11 @@ class ANIPService:
             if principal is not None:
                 return principal
 
-        # Try ANIP JWT
+        # Try ANIP JWT — reuse resolve_bearer_token() for full trust checks
         try:
-            claims = self._keys.verify_jwt(bearer_value, audience=self._service_id)
-            token_id = claims.get("jti")
-            if token_id:
-                stored = self._engine.get_token(token_id)
-                if stored:
-                    return stored.root_principal
-        except Exception:
+            stored = self.resolve_bearer_token(bearer_value)
+            return self._engine.get_root_principal(stored)
+        except ANIPError:
             pass
 
         return None
@@ -456,6 +453,20 @@ class ANIPService:
             mismatches.append("root_principal: missing from JWT claims")
         elif jwt_root != stored_root:
             mismatches.append(f"root_principal: jwt={jwt_root} store={stored_root}")
+        jwt_parent = claims.get("parent_token_id")
+        if jwt_parent != stored.parent:
+            mismatches.append(f"parent: jwt={jwt_parent} store={stored.parent}")
+        jwt_constraints = claims.get("constraints")
+        if jwt_constraints is None:
+            mismatches.append("constraints: missing from JWT claims")
+        else:
+            stored_constraints = (
+                stored.constraints.model_dump(mode="json")
+                if hasattr(stored.constraints, "model_dump")
+                else stored.constraints
+            )
+            if jwt_constraints != stored_constraints:
+                mismatches.append(f"constraints: jwt={jwt_constraints} store={stored_constraints}")
 
         if mismatches:
             raise ANIPError(
@@ -1190,9 +1201,9 @@ def mount_anip(
         GET  {prefix}/.well-known/jwks.json     → JWKS
         GET  {prefix}/anip/manifest             → full manifest (signed)
         POST {prefix}/anip/tokens               → issue token
-        GET  {prefix}/anip/permissions           → discover permissions
+        POST {prefix}/anip/permissions           → discover permissions
         POST {prefix}/anip/invoke/{capability}   → invoke capability
-        GET  {prefix}/anip/audit                → query audit log
+        POST {prefix}/anip/audit                → query audit log
         GET  {prefix}/anip/checkpoints          → list checkpoints
         GET  {prefix}/anip/checkpoints/{id}     → get checkpoint
     """
@@ -1243,7 +1254,7 @@ def mount_anip(
 
     # --- Permissions ---
 
-    @app.get(f"{prefix}/anip/permissions")
+    @app.post(f"{prefix}/anip/permissions")
     async def permissions(request: Request):
         token = _resolve_token(request, service)
         if token is None:
@@ -1270,7 +1281,7 @@ def mount_anip(
 
     # --- Audit ---
 
-    @app.get(f"{prefix}/anip/audit")
+    @app.post(f"{prefix}/anip/audit")
     async def audit(request: Request):
         token = _resolve_token(request, service)
         if token is None:
@@ -1802,9 +1813,9 @@ Same route table:
 - `GET /.well-known/jwks.json` → `service.getJwks()`
 - `GET /anip/manifest` → `service.getManifest()` with X-ANIP-Signature header
 - `POST /anip/tokens` → `service.issueToken()`
-- `GET /anip/permissions` → `service.discoverPermissions()`
+- `POST /anip/permissions` → `service.discoverPermissions()`
 - `POST /anip/invoke/:capability` → `service.invoke()`
-- `GET /anip/audit` → `service.queryAudit()`
+- `POST /anip/audit` → `service.queryAudit()`
 - `GET /anip/checkpoints` → `service.getCheckpoints()`
 - `GET /anip/checkpoints/:id` → `service.getCheckpoint()`
 

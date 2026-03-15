@@ -273,9 +273,9 @@ mountAnip(app, service);
 | `/.well-known/jwks.json` | GET | `service.get_jwks()` |
 | `/anip/manifest` | GET | `service.get_manifest()` |
 | `/anip/tokens` | POST | `service.issue_token(principal, request)` |
-| `/anip/permissions` | GET | `service.discover_permissions(token)` |
+| `/anip/permissions` | POST | `service.discover_permissions(token)` |
 | `/anip/invoke/{capability}` | POST | `service.invoke(capability, token, params)` |
-| `/anip/audit` | GET | `service.query_audit(token, filters)` |
+| `/anip/audit` | POST | `service.query_audit(token, filters)` |
 | `/anip/checkpoints` | GET | `service.get_checkpoints(...)` |
 | `/anip/checkpoints/{id}` | GET | `service.get_checkpoint(id, options)` |
 
