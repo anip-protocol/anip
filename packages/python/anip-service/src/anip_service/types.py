@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any, Awaitable, Callable
 
 from anip_core import CapabilityDeclaration, DelegationToken
 
@@ -24,8 +24,8 @@ class InvocationContext:
         self._cost_actual = cost
 
 
-# Handler type: (ctx, params) -> result dict
-Handler = Callable[[InvocationContext, dict[str, Any]], dict[str, Any]]
+# Handler type: (ctx, params) -> result dict (sync or async)
+Handler = Callable[[InvocationContext, dict[str, Any]], dict[str, Any] | Awaitable[dict[str, Any]]]
 
 
 @dataclass
