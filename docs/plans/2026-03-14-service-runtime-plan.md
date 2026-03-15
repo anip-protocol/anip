@@ -374,6 +374,17 @@ class ANIPService:
         """Return the full capability manifest."""
         return self._manifest
 
+    def get_signed_manifest(self) -> tuple[dict[str, Any], str]:
+        """Return the manifest as a dict and its detached JWS signature.
+
+        The framework binding uses this to set the X-ANIP-Signature header.
+        Keeps key access inside the service boundary.
+        """
+        manifest_dict = self._manifest.model_dump() if hasattr(self._manifest, "model_dump") else self._manifest
+        canonical = json.dumps(manifest_dict, sort_keys=True, separators=(",", ":"))
+        signature = self._keys.sign_jws_detached(canonical.encode())
+        return manifest_dict, signature
+
     def get_jwks(self) -> dict[str, Any]:
         """Return the JWKS document for this service."""
         return self._keys.get_jwks()
@@ -407,7 +418,13 @@ class ANIPService:
     def resolve_bearer_token(self, jwt_string: str) -> DelegationToken:
         """Verify a JWT and return the stored DelegationToken.
 
-        Raises ANIPError if token is invalid, expired, or unknown.
+        TRUST BOUNDARY: After verifying the JWT signature and loading the
+        stored token, compares ALL trust-critical signed claims against
+        stored values. This prevents a mutated storage record from being
+        accepted as valid.
+
+        Raises ANIPError if token is invalid, expired, unknown, or if
+        signed claims do not match stored token fields.
         """
         try:
             claims = self._keys.verify_jwt(jwt_string, audience=self._service_id)
@@ -421,6 +438,30 @@ class ANIPService:
         stored = self._engine.get_token(token_id)
         if stored is None:
             raise ANIPError("invalid_token", f"Unknown token: {token_id}")
+
+        # TRUST BOUNDARY: compare signed claims against stored token fields.
+        mismatches = []
+        if claims.get("sub") != stored.subject:
+            mismatches.append(f"sub: jwt={claims.get('sub')} store={stored.subject}")
+        if sorted(claims.get("scope", [])) != sorted(stored.scope or []):
+            mismatches.append(f"scope: jwt={claims.get('scope')} store={stored.scope}")
+        if claims.get("capability") != getattr(stored.purpose, "capability", None):
+            mismatches.append(
+                f"capability: jwt={claims.get('capability')} "
+                f"store={getattr(stored.purpose, 'capability', None)}"
+            )
+        jwt_root = claims.get("root_principal")
+        stored_root = self._engine.get_root_principal(stored)
+        if jwt_root is None:
+            mismatches.append("root_principal: missing from JWT claims")
+        elif jwt_root != stored_root:
+            mismatches.append(f"root_principal: jwt={jwt_root} store={stored_root}")
+
+        if mismatches:
+            raise ANIPError(
+                "invalid_token",
+                f"JWT/store mismatch: {'; '.join(mismatches)}",
+            )
 
         return stored
 
@@ -441,6 +482,14 @@ class ANIPService:
             parent = self._engine.get_token(parent_token_id)
             if parent is None:
                 raise ANIPError("invalid_token", f"Parent token not found: {parent_token_id}")
+
+            # TRUST BOUNDARY: only the delegatee (parent's subject) can sub-delegate.
+            if authenticated_principal != parent.subject:
+                raise ANIPError(
+                    "insufficient_authority",
+                    f"Caller '{authenticated_principal}' is not the parent token's "
+                    f"subject ('{parent.subject}') — only the delegatee can sub-delegate",
+                )
 
             result = self._engine.delegate(
                 parent_token=parent,
@@ -1051,13 +1100,14 @@ class TestANIPServiceInvoke:
 
     def _issue_test_token(self, service, scope=None, capability=None):
         """Helper to issue a root token for testing."""
+        cap = capability or "greet"
         result = service._engine.issue_root_token(
             authenticated_principal="human:test@example.com",
             subject="human:test@example.com",
             scope=scope or ["greet"],
-            capability=capability or "greet",
-            purpose={"capability": capability or "greet", "parameters": {}, "task_id": "test"},
-            ttl_seconds=3600,
+            capability=cap,
+            purpose_parameters={"task_id": "test"},
+            ttl_hours=1,
         )
         token, token_id = result
         return token
@@ -1119,6 +1169,7 @@ where = ["src"]
 """Mount ANIP routes onto a FastAPI application."""
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from fastapi import FastAPI, Request, Response
@@ -1168,20 +1219,12 @@ def mount_anip(
 
     @app.get(f"{prefix}/anip/manifest")
     async def manifest():
-        m = service.get_manifest()
-        manifest_dict = m.model_dump() if hasattr(m, "model_dump") else m
-        # Sign the manifest
-        try:
-            import json
-            canonical = json.dumps(manifest_dict, sort_keys=True, separators=(",", ":"))
-            sig = service._keys.sign_jws_detached(canonical.encode())
-            return Response(
-                content=json.dumps(manifest_dict),
-                media_type="application/json",
-                headers={"X-ANIP-Signature": sig},
-            )
-        except Exception:
-            return manifest_dict
+        manifest_dict, signature = service.get_signed_manifest()
+        return Response(
+            content=json.dumps(manifest_dict),
+            media_type="application/json",
+            headers={"X-ANIP-Signature": signature},
+        )
 
     # --- Tokens ---
 
