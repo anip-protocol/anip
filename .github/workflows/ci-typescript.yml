@@ -1,0 +1,69 @@
+name: CI — TypeScript
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/typescript/**"
+      - "examples/anip-ts/**"
+      - ".github/workflows/ci-typescript.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/typescript/**"
+      - "examples/anip-ts/**"
+      - ".github/workflows/ci-typescript.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install workspace dependencies
+        working-directory: packages/typescript
+        run: npm ci
+
+      - name: Build packages in dependency order
+        working-directory: packages/typescript
+        run: |
+          npx tsc -p core/tsconfig.json
+          npx tsc -p crypto/tsconfig.json
+          npx tsc -p server/tsconfig.json
+          npx tsc -p service/tsconfig.json
+          npx tsc -p hono/tsconfig.json
+
+      - name: Test @anip/core
+        working-directory: packages/typescript
+        run: npm test --workspace=@anip/core
+
+      - name: Test @anip/crypto
+        working-directory: packages/typescript
+        run: npm test --workspace=@anip/crypto
+
+      - name: Test @anip/server
+        working-directory: packages/typescript
+        run: npm test --workspace=@anip/server
+
+      - name: Test @anip/service
+        working-directory: packages/typescript
+        run: npm test --workspace=@anip/service
+
+      - name: Test @anip/hono
+        working-directory: packages/typescript
+        run: npm test --workspace=@anip/hono
+
+      - name: Install and test TypeScript example
+        working-directory: examples/anip-ts
+        run: |
+          npm ci
+          npm test
