@@ -1,0 +1,20 @@
+{
+  "name": "@anip/hono",
+  "version": "0.3.0",
+  "description": "ANIP Hono bindings — mount an ANIPService as HTTP routes",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@anip/service": "0.3.0",
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.0"
+  }
+}
