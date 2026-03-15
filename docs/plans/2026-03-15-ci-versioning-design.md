@@ -11,7 +11,7 @@ Establish reliable CI gates and a clear versioning policy for the ANIP package e
 - **Path filters**: each workflow scoped to its language's packages, examples, and own workflow file
 - **Approach**: build-chain with smart ordering (Approach A) — install and test everything sequentially in one job per matrix entry
 - **CI gates only** — no publish automation yet
-- **Lockstep versioning** at `0.3.x` across all 10 core packages
+- **Lockstep versioning** at `0.3.x` across all 13 core packages
 
 ## Workflow Structure
 
@@ -73,7 +73,7 @@ Steps:
 
 ## Versioning Policy
 
-- **Lockstep versioning**: all 10 core packages (5 Python + 5 TypeScript) share the same version
+- **Lockstep versioning**: all 13 core packages (6 Python + 7 TypeScript) share the same version
 - **Current version**: `0.3.0`
 - **Semver progression**: `0.3.x` for bugfixes, `0.4.0` for next protocol line
 - **Prerelease tags**: `0.3.1-dev.1`, `0.3.1-beta.1` for in-progress builds
