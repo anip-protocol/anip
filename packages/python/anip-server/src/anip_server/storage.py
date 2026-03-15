@@ -7,6 +7,7 @@ tokens, audit log entries, and checkpoints.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sqlite3
 from datetime import datetime, timezone
@@ -226,9 +227,9 @@ _JSON_AUDIT_FIELDS = (
 class SQLiteStorage:
     """SQLite-backed implementation of :class:`StorageBackend`.
 
-    Method signatures are async to satisfy the :class:`StorageBackend`
-    protocol.  Internal sqlite3 calls remain synchronous for now and will
-    be wrapped with ``asyncio.to_thread`` in a later migration step.
+    Synchronous sqlite3 calls are isolated in private ``_sync_*`` methods.
+    The public async methods delegate to them via ``asyncio.to_thread`` so
+    that database I/O never blocks the event loop.
     """
 
     def __init__(self, db_path: str = "anip.db") -> None:
@@ -248,10 +249,9 @@ class SQLiteStorage:
         except Exception:
             pass  # column already exists
 
-    # -- tokens -------------------------------------------------------------
+    # -- sync internals (private) -------------------------------------------
 
-    async def store_token(self, token_data: dict[str, Any]) -> None:
-        """Store a delegation token."""
+    def _sync_store_token(self, token_data: dict[str, Any]) -> None:
         self._conn.execute(
             """INSERT INTO delegation_tokens
                (token_id, issuer, subject, scope, purpose, parent,
@@ -272,8 +272,7 @@ class SQLiteStorage:
         )
         self._conn.commit()
 
-    async def load_token(self, token_id: str) -> dict[str, Any] | None:
-        """Load a delegation token by ID."""
+    def _sync_load_token(self, token_id: str) -> dict[str, Any] | None:
         row = self._conn.execute(
             "SELECT * FROM delegation_tokens WHERE token_id = ?",
             (token_id,),
@@ -292,14 +291,7 @@ class SQLiteStorage:
             "root_principal": row["root_principal"],
         }
 
-    # -- audit log ----------------------------------------------------------
-
-    async def store_audit_entry(self, entry: dict[str, Any]) -> None:
-        """Store an already-complete audit entry.
-
-        The caller is responsible for computing hashes, signatures, and
-        sequence numbers before calling this method.
-        """
+    def _sync_store_audit_entry(self, entry: dict[str, Any]) -> None:
         self._conn.execute(
             """INSERT INTO audit_log
                (sequence_number, timestamp, capability, token_id, issuer,
@@ -338,7 +330,7 @@ class SQLiteStorage:
         entry["success"] = bool(entry["success"])
         return entry
 
-    async def query_audit_entries(
+    def _sync_query_audit_entries(
         self,
         *,
         capability: str | None = None,
@@ -348,7 +340,6 @@ class SQLiteStorage:
         client_reference_id: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
-        """Query audit entries with optional filters."""
         conditions: list[str] = []
         params: list[Any] = []
 
@@ -376,8 +367,7 @@ class SQLiteStorage:
 
         return [self._parse_audit_row(r) for r in rows]
 
-    async def get_last_audit_entry(self) -> dict[str, Any] | None:
-        """Return the audit entry with the highest sequence_number."""
+    def _sync_get_last_audit_entry(self) -> dict[str, Any] | None:
         row = self._conn.execute(
             "SELECT * FROM audit_log ORDER BY sequence_number DESC LIMIT 1"
         ).fetchone()
@@ -385,10 +375,9 @@ class SQLiteStorage:
             return None
         return self._parse_audit_row(row)
 
-    async def get_audit_entries_range(
+    def _sync_get_audit_entries_range(
         self, first: int, last: int
     ) -> list[dict[str, Any]]:
-        """Return audit entries with sequence_number BETWEEN first AND last."""
         rows = self._conn.execute(
             "SELECT * FROM audit_log WHERE sequence_number BETWEEN ? AND ? "
             "ORDER BY sequence_number ASC",
@@ -396,10 +385,7 @@ class SQLiteStorage:
         ).fetchall()
         return [self._parse_audit_row(r) for r in rows]
 
-    # -- checkpoints --------------------------------------------------------
-
-    async def store_checkpoint(self, body: dict[str, Any], signature: str) -> None:
-        """Insert a checkpoint record."""
+    def _sync_store_checkpoint(self, body: dict[str, Any], signature: str) -> None:
         range_dict = body.get("range", {})
         self._conn.execute(
             """INSERT INTO checkpoints
@@ -419,8 +405,7 @@ class SQLiteStorage:
         )
         self._conn.commit()
 
-    async def get_checkpoints(self, limit: int = 10) -> list[dict[str, Any]]:
-        """Return checkpoints ordered by id ascending."""
+    def _sync_get_checkpoints(self, limit: int = 10) -> list[dict[str, Any]]:
         rows = self._conn.execute(
             "SELECT * FROM checkpoints ORDER BY id ASC LIMIT ?", (limit,)
         ).fetchall()
@@ -440,10 +425,9 @@ class SQLiteStorage:
             })
         return results
 
-    async def get_checkpoint_by_id(
+    def _sync_get_checkpoint_by_id(
         self, checkpoint_id: str
     ) -> dict[str, Any] | None:
-        """Return a single checkpoint by its checkpoint_id."""
         row = self._conn.execute(
             "SELECT * FROM checkpoints WHERE checkpoint_id = ?",
             (checkpoint_id,),
@@ -462,3 +446,66 @@ class SQLiteStorage:
             "entry_count": row["entry_count"],
             "signature": row["signature"],
         }
+
+    # -- async public interface ---------------------------------------------
+
+    async def store_token(self, token_data: dict[str, Any]) -> None:
+        """Store a delegation token."""
+        await asyncio.to_thread(self._sync_store_token, token_data)
+
+    async def load_token(self, token_id: str) -> dict[str, Any] | None:
+        """Load a delegation token by ID."""
+        return await asyncio.to_thread(self._sync_load_token, token_id)
+
+    async def store_audit_entry(self, entry: dict[str, Any]) -> None:
+        """Store an already-complete audit entry.
+
+        The caller is responsible for computing hashes, signatures, and
+        sequence numbers before calling this method.
+        """
+        await asyncio.to_thread(self._sync_store_audit_entry, entry)
+
+    async def query_audit_entries(
+        self,
+        *,
+        capability: str | None = None,
+        root_principal: str | None = None,
+        since: str | None = None,
+        invocation_id: str | None = None,
+        client_reference_id: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """Query audit entries with optional filters."""
+        return await asyncio.to_thread(
+            self._sync_query_audit_entries,
+            capability=capability,
+            root_principal=root_principal,
+            since=since,
+            invocation_id=invocation_id,
+            client_reference_id=client_reference_id,
+            limit=limit,
+        )
+
+    async def get_last_audit_entry(self) -> dict[str, Any] | None:
+        """Return the audit entry with the highest sequence_number."""
+        return await asyncio.to_thread(self._sync_get_last_audit_entry)
+
+    async def get_audit_entries_range(
+        self, first: int, last: int
+    ) -> list[dict[str, Any]]:
+        """Return audit entries with sequence_number BETWEEN first AND last."""
+        return await asyncio.to_thread(self._sync_get_audit_entries_range, first, last)
+
+    async def store_checkpoint(self, body: dict[str, Any], signature: str) -> None:
+        """Insert a checkpoint record."""
+        await asyncio.to_thread(self._sync_store_checkpoint, body, signature)
+
+    async def get_checkpoints(self, limit: int = 10) -> list[dict[str, Any]]:
+        """Return checkpoints ordered by id ascending."""
+        return await asyncio.to_thread(self._sync_get_checkpoints, limit)
+
+    async def get_checkpoint_by_id(
+        self, checkpoint_id: str
+    ) -> dict[str, Any] | None:
+        """Return a single checkpoint by its checkpoint_id."""
+        return await asyncio.to_thread(self._sync_get_checkpoint_by_id, checkpoint_id)
