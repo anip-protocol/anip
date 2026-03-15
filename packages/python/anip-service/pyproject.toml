@@ -1,0 +1,20 @@
+[project]
+name = "anip-service"
+version = "0.3.0"
+description = "ANIP service runtime — configure and run an ANIP service"
+requires-python = ">=3.11"
+dependencies = [
+    "anip-core>=0.3.0",
+    "anip-crypto>=0.3.0",
+    "anip-server>=0.3.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
