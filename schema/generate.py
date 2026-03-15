@@ -16,13 +16,9 @@ Usage:
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
-# Add the examples package to the path
-sys.path.insert(0, str(Path(__file__).parent.parent / "examples" / "anip"))
-
-from anip_server.primitives.models import (
+from anip_core import (
     ANIPFailure,
     ANIPManifest,
     AvailableCapability,
@@ -72,10 +68,10 @@ def generate_schemas() -> dict:
 
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "$id": "https://anip.dev/schema/v0.1/anip.schema.json",
+        "$id": "https://anip.dev/schema/v0.4/anip.schema.json",
         "title": "ANIP — Agent-Native Interface Protocol",
         "description": (
-            "Canonical JSON Schema for all ANIP v0.1 types as defined in SPEC.md. "
+            "Canonical JSON Schema for all ANIP v0.4 types as defined in SPEC.md. "
             "Use these schemas to validate ANIP documents, responses, and delegation tokens."
         ),
         "$defs": {**all_defs, **schemas},
