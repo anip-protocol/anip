@@ -6,7 +6,7 @@ from .audit import AuditLog
 from .merkle import MerkleTree
 from .checkpoint import create_checkpoint, CheckpointPolicy, CheckpointScheduler
 from .sinks import CheckpointSink, LocalFileSink
-from .storage import StorageBackend, SQLiteStorage
+from .storage import StorageBackend, SQLiteStorage, InMemoryStorage
 
 __all__ = [
     "DelegationEngine",
@@ -21,4 +21,5 @@ __all__ = [
     "LocalFileSink",
     "StorageBackend",
     "SQLiteStorage",
+    "InMemoryStorage",
 ]

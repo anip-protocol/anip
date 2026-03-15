@@ -1,7 +1,8 @@
-"""Storage abstraction and SQLite implementation for ANIP server.
+"""Storage abstraction and implementations for ANIP server.
 
-Provides a ``StorageBackend`` protocol and a concrete ``SQLiteStorage``
-class that persists delegation tokens, audit log entries, and checkpoints.
+Provides a ``StorageBackend`` protocol, an in-memory implementation for
+testing, and a concrete ``SQLiteStorage`` class that persists delegation
+tokens, audit log entries, and checkpoints.
 """
 
 from __future__ import annotations
@@ -14,15 +15,15 @@ from typing import Any, Protocol, runtime_checkable
 
 @runtime_checkable
 class StorageBackend(Protocol):
-    """Abstract storage interface for ANIP server components."""
+    """Abstract async storage interface for ANIP server components."""
 
-    def store_token(self, token_data: dict[str, Any]) -> None: ...
+    async def store_token(self, token_data: dict[str, Any]) -> None: ...
 
-    def load_token(self, token_id: str) -> dict[str, Any] | None: ...
+    async def load_token(self, token_id: str) -> dict[str, Any] | None: ...
 
-    def store_audit_entry(self, entry: dict[str, Any]) -> None: ...
+    async def store_audit_entry(self, entry: dict[str, Any]) -> None: ...
 
-    def query_audit_entries(
+    async def query_audit_entries(
         self,
         *,
         capability: str | None = None,
@@ -33,19 +34,121 @@ class StorageBackend(Protocol):
         limit: int = 50,
     ) -> list[dict[str, Any]]: ...
 
-    def get_last_audit_entry(self) -> dict[str, Any] | None: ...
+    async def get_last_audit_entry(self) -> dict[str, Any] | None: ...
 
-    def get_audit_entries_range(
+    async def get_audit_entries_range(
         self, first: int, last: int
     ) -> list[dict[str, Any]]: ...
 
-    def store_checkpoint(self, body: dict[str, Any], signature: str) -> None: ...
+    async def store_checkpoint(self, body: dict[str, Any], signature: str) -> None: ...
 
-    def get_checkpoints(self, limit: int = 10) -> list[dict[str, Any]]: ...
+    async def get_checkpoints(self, limit: int = 10) -> list[dict[str, Any]]: ...
 
-    def get_checkpoint_by_id(
+    async def get_checkpoint_by_id(
         self, checkpoint_id: str
     ) -> dict[str, Any] | None: ...
+
+
+# ---------------------------------------------------------------------------
+# In-memory implementation (for testing)
+# ---------------------------------------------------------------------------
+
+
+class InMemoryStorage:
+    """In-memory implementation of :class:`StorageBackend` for testing."""
+
+    def __init__(self) -> None:
+        self._tokens: dict[str, dict[str, Any]] = {}
+        self._audit_entries: list[dict[str, Any]] = []
+        self._checkpoints: list[dict[str, Any]] = []
+
+    # -- tokens -------------------------------------------------------------
+
+    async def store_token(self, token_data: dict[str, Any]) -> None:
+        """Store a delegation token."""
+        self._tokens[token_data["token_id"]] = dict(token_data)
+
+    async def load_token(self, token_id: str) -> dict[str, Any] | None:
+        """Load a delegation token by ID."""
+        token = self._tokens.get(token_id)
+        if token is None:
+            return None
+        return dict(token)
+
+    # -- audit log ----------------------------------------------------------
+
+    async def store_audit_entry(self, entry: dict[str, Any]) -> None:
+        """Store an already-complete audit entry."""
+        self._audit_entries.append(dict(entry))
+
+    async def query_audit_entries(
+        self,
+        *,
+        capability: str | None = None,
+        root_principal: str | None = None,
+        since: str | None = None,
+        invocation_id: str | None = None,
+        client_reference_id: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """Query audit entries with optional filters."""
+        results = list(self._audit_entries)
+
+        if capability is not None:
+            results = [e for e in results if e.get("capability") == capability]
+        if root_principal is not None:
+            results = [e for e in results if e.get("root_principal") == root_principal]
+        if since is not None:
+            results = [e for e in results if e.get("timestamp", "") >= since]
+        if invocation_id is not None:
+            results = [e for e in results if e.get("invocation_id") == invocation_id]
+        if client_reference_id is not None:
+            results = [
+                e for e in results
+                if e.get("client_reference_id") == client_reference_id
+            ]
+
+        # Sort by sequence_number descending
+        results.sort(key=lambda e: e.get("sequence_number", 0), reverse=True)
+        return [dict(e) for e in results[:limit]]
+
+    async def get_last_audit_entry(self) -> dict[str, Any] | None:
+        """Return the audit entry with the highest sequence_number."""
+        if not self._audit_entries:
+            return None
+        return dict(max(self._audit_entries, key=lambda e: e.get("sequence_number", 0)))
+
+    async def get_audit_entries_range(
+        self, first: int, last: int
+    ) -> list[dict[str, Any]]:
+        """Return audit entries with sequence_number BETWEEN first AND last."""
+        results = [
+            e for e in self._audit_entries
+            if first <= e.get("sequence_number", 0) <= last
+        ]
+        results.sort(key=lambda e: e.get("sequence_number", 0))
+        return [dict(e) for e in results]
+
+    # -- checkpoints --------------------------------------------------------
+
+    async def store_checkpoint(self, body: dict[str, Any], signature: str) -> None:
+        """Insert a checkpoint record."""
+        record = dict(body)
+        record["signature"] = signature
+        self._checkpoints.append(record)
+
+    async def get_checkpoints(self, limit: int = 10) -> list[dict[str, Any]]:
+        """Return checkpoints in insertion order, limited."""
+        return [dict(ckpt) for ckpt in self._checkpoints[:limit]]
+
+    async def get_checkpoint_by_id(
+        self, checkpoint_id: str
+    ) -> dict[str, Any] | None:
+        """Return a single checkpoint by its checkpoint_id."""
+        for ckpt in self._checkpoints:
+            if ckpt.get("checkpoint_id") == checkpoint_id:
+                return dict(ckpt)
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -121,7 +224,12 @@ _JSON_AUDIT_FIELDS = (
 
 
 class SQLiteStorage:
-    """SQLite-backed implementation of :class:`StorageBackend`."""
+    """SQLite-backed implementation of :class:`StorageBackend`.
+
+    Method signatures are async to satisfy the :class:`StorageBackend`
+    protocol.  Internal sqlite3 calls remain synchronous for now and will
+    be wrapped with ``asyncio.to_thread`` in a later migration step.
+    """
 
     def __init__(self, db_path: str = "anip.db") -> None:
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
@@ -142,7 +250,7 @@ class SQLiteStorage:
 
     # -- tokens -------------------------------------------------------------
 
-    def store_token(self, token_data: dict[str, Any]) -> None:
+    async def store_token(self, token_data: dict[str, Any]) -> None:
         """Store a delegation token."""
         self._conn.execute(
             """INSERT INTO delegation_tokens
@@ -164,7 +272,7 @@ class SQLiteStorage:
         )
         self._conn.commit()
 
-    def load_token(self, token_id: str) -> dict[str, Any] | None:
+    async def load_token(self, token_id: str) -> dict[str, Any] | None:
         """Load a delegation token by ID."""
         row = self._conn.execute(
             "SELECT * FROM delegation_tokens WHERE token_id = ?",
@@ -186,7 +294,7 @@ class SQLiteStorage:
 
     # -- audit log ----------------------------------------------------------
 
-    def store_audit_entry(self, entry: dict[str, Any]) -> None:
+    async def store_audit_entry(self, entry: dict[str, Any]) -> None:
         """Store an already-complete audit entry.
 
         The caller is responsible for computing hashes, signatures, and
@@ -230,7 +338,7 @@ class SQLiteStorage:
         entry["success"] = bool(entry["success"])
         return entry
 
-    def query_audit_entries(
+    async def query_audit_entries(
         self,
         *,
         capability: str | None = None,
@@ -268,7 +376,7 @@ class SQLiteStorage:
 
         return [self._parse_audit_row(r) for r in rows]
 
-    def get_last_audit_entry(self) -> dict[str, Any] | None:
+    async def get_last_audit_entry(self) -> dict[str, Any] | None:
         """Return the audit entry with the highest sequence_number."""
         row = self._conn.execute(
             "SELECT * FROM audit_log ORDER BY sequence_number DESC LIMIT 1"
@@ -277,7 +385,7 @@ class SQLiteStorage:
             return None
         return self._parse_audit_row(row)
 
-    def get_audit_entries_range(
+    async def get_audit_entries_range(
         self, first: int, last: int
     ) -> list[dict[str, Any]]:
         """Return audit entries with sequence_number BETWEEN first AND last."""
@@ -290,7 +398,7 @@ class SQLiteStorage:
 
     # -- checkpoints --------------------------------------------------------
 
-    def store_checkpoint(self, body: dict[str, Any], signature: str) -> None:
+    async def store_checkpoint(self, body: dict[str, Any], signature: str) -> None:
         """Insert a checkpoint record."""
         range_dict = body.get("range", {})
         self._conn.execute(
@@ -311,7 +419,7 @@ class SQLiteStorage:
         )
         self._conn.commit()
 
-    def get_checkpoints(self, limit: int = 10) -> list[dict[str, Any]]:
+    async def get_checkpoints(self, limit: int = 10) -> list[dict[str, Any]]:
         """Return checkpoints ordered by id ascending."""
         rows = self._conn.execute(
             "SELECT * FROM checkpoints ORDER BY id ASC LIMIT ?", (limit,)
@@ -332,7 +440,7 @@ class SQLiteStorage:
             })
         return results
 
-    def get_checkpoint_by_id(
+    async def get_checkpoint_by_id(
         self, checkpoint_id: str
     ) -> dict[str, Any] | None:
         """Return a single checkpoint by its checkpoint_id."""
