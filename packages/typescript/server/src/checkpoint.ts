@@ -4,6 +4,25 @@
 
 import { createHash } from "crypto";
 
+/**
+ * Recursively sorted JSON serialization — matches Python's
+ * json.dumps(obj, sort_keys=True, separators=(',', ':')).
+ */
+function canonicalJson(obj: unknown): string {
+  if (obj === null || obj === undefined) return "null";
+  if (typeof obj === "string") return JSON.stringify(obj);
+  if (typeof obj === "number" || typeof obj === "boolean") return String(obj);
+  if (Array.isArray(obj)) {
+    return `[${obj.map(canonicalJson).join(",")}]`;
+  }
+  const keys = Object.keys(obj as Record<string, unknown>).sort();
+  const pairs = keys.map(
+    (k) =>
+      `${JSON.stringify(k)}:${canonicalJson((obj as Record<string, unknown>)[k])}`,
+  );
+  return `{${pairs.join(",")}}`;
+}
+
 export interface CheckpointPolicyOpts {
   entryCount?: number;
   intervalSeconds?: number;
@@ -108,7 +127,7 @@ export function createCheckpoint(opts: CreateCheckpointOpts): {
     firstSequence =
       (prevRange.last_sequence ?? (previousCheckpoint.last_sequence as number) ?? 0) + 1;
 
-    const prevBodyCanonical = JSON.stringify(previousCheckpoint, Object.keys(previousCheckpoint).sort());
+    const prevBodyCanonical = canonicalJson(previousCheckpoint);
     const hash = createHash("sha256")
       .update(prevBodyCanonical)
       .digest("hex");
@@ -135,9 +154,7 @@ export function createCheckpoint(opts: CreateCheckpointOpts): {
     entry_count: entryCount,
   };
 
-  const canonicalBytes = Buffer.from(
-    JSON.stringify(body, Object.keys(body).sort()),
-  );
+  const canonicalBytes = Buffer.from(canonicalJson(body));
   const signature = signFn ? signFn(canonicalBytes) : "";
 
   return { body, signature };
