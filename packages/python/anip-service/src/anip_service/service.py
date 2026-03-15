@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
@@ -376,6 +377,8 @@ class ANIPService:
         capability_name: str,
         token: DelegationToken,
         params: dict[str, Any],
+        *,
+        client_reference_id: str | None = None,
     ) -> dict[str, Any]:
         """Invoke a capability with full validation, audit, and error handling.
 
@@ -387,6 +390,8 @@ class ANIPService:
         5. Logs to audit
         6. Handles checkpoint triggers
         """
+        invocation_id = f"inv-{uuid.uuid4().hex[:12]}"
+
         # 1. Check capability exists
         if capability_name not in self._capabilities:
             return {
@@ -395,6 +400,8 @@ class ANIPService:
                     "type": "unknown_capability",
                     "detail": f"Capability '{capability_name}' not found",
                 },
+                "invocation_id": invocation_id,
+                "client_reference_id": client_reference_id,
             }
 
         cap = self._capabilities[capability_name]
@@ -417,8 +424,14 @@ class ANIPService:
                 capability_name, token, success=False,
                 failure_type=failure["type"], result_summary=None,
                 cost_actual=None, cost_variance=None,
+                invocation_id=invocation_id, client_reference_id=client_reference_id,
             )
-            return {"success": False, "failure": failure}
+            return {
+                "success": False,
+                "failure": failure,
+                "invocation_id": invocation_id,
+                "client_reference_id": client_reference_id,
+            }
 
         # Use the resolved/stored token from validation
         resolved_token = validation_result
@@ -431,6 +444,8 @@ class ANIPService:
             subject=resolved_token.subject,
             scopes=resolved_token.scope or [],
             delegation_chain=[t.token_id for t in chain],
+            invocation_id=invocation_id,
+            client_reference_id=client_reference_id,
         )
 
         # 4. Acquire lock if configured
@@ -442,8 +457,14 @@ class ANIPService:
                     capability_name, resolved_token, success=False,
                     failure_type="concurrent_lock",
                     result_summary=None, cost_actual=None, cost_variance=None,
+                    invocation_id=invocation_id, client_reference_id=client_reference_id,
                 )
-                return {"success": False, "failure": {"type": lock_result.type, "detail": lock_result.detail}}
+                return {
+                    "success": False,
+                    "failure": {"type": lock_result.type, "detail": lock_result.detail},
+                    "invocation_id": invocation_id,
+                    "client_reference_id": client_reference_id,
+                }
             locked = True
 
         try:
@@ -456,20 +477,26 @@ class ANIPService:
                     failure_type=e.error_type,
                     result_summary={"detail": e.detail},
                     cost_actual=None, cost_variance=None,
+                    invocation_id=invocation_id, client_reference_id=client_reference_id,
                 )
                 return {
                     "success": False,
                     "failure": {"type": e.error_type, "detail": e.detail},
+                    "invocation_id": invocation_id,
+                    "client_reference_id": client_reference_id,
                 }
             except Exception:
                 self._log_audit(
                     capability_name, resolved_token, success=False,
                     failure_type="internal_error",
                     result_summary=None, cost_actual=None, cost_variance=None,
+                    invocation_id=invocation_id, client_reference_id=client_reference_id,
                 )
                 return {
                     "success": False,
                     "failure": {"type": "internal_error", "detail": "Internal error"},
+                    "invocation_id": invocation_id,
+                    "client_reference_id": client_reference_id,
                 }
 
             # 6. Compute cost variance
@@ -483,10 +510,16 @@ class ANIPService:
                 result_summary=self._summarize_result(result),
                 cost_actual=cost_actual,
                 cost_variance=cost_variance,
+                invocation_id=invocation_id, client_reference_id=client_reference_id,
             )
 
             # 8. Build response
-            response: dict[str, Any] = {"success": True, "result": result}
+            response: dict[str, Any] = {
+                "success": True,
+                "result": result,
+                "invocation_id": invocation_id,
+                "client_reference_id": client_reference_id,
+            }
             if cost_actual:
                 response["cost_actual"] = cost_actual
 
@@ -635,6 +668,8 @@ class ANIPService:
         result_summary: dict[str, Any] | None,
         cost_actual: dict[str, Any] | None,
         cost_variance: dict[str, Any] | None,
+        invocation_id: str | None = None,
+        client_reference_id: str | None = None,
     ) -> None:
         """Log an audit entry through the SDK's AuditLog."""
         chain = self._engine.get_chain(token)
@@ -647,6 +682,8 @@ class ANIPService:
             "result_summary": result_summary,
             "cost_actual": cost_actual,
             "delegation_chain": [t.token_id for t in chain],
+            "invocation_id": invocation_id,
+            "client_reference_id": client_reference_id,
         })
 
         self._entries_since_checkpoint += 1

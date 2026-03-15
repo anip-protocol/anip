@@ -15,6 +15,8 @@ class InvocationContext:
     subject: str
     scopes: list[str]
     delegation_chain: list[str]
+    invocation_id: str = ""
+    client_reference_id: str | None = None
     _cost_actual: dict[str, Any] | None = field(default=None, repr=False)
 
     def set_cost_actual(self, cost: dict[str, Any]) -> None:

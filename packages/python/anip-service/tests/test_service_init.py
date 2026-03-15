@@ -167,6 +167,67 @@ class TestANIPServiceInvoke:
         assert result["success"] is True
         assert result["cost_actual"]["financial"]["amount"] == 450.0
 
+    def test_invoke_response_includes_invocation_id(self):
+        service = self._make_service()
+        token = self._issue_test_token(service)
+        result = service.invoke("greet", token, {"name": "World"})
+        assert result["success"] is True
+        assert "invocation_id" in result
+        assert result["invocation_id"].startswith("inv-")
+        assert len(result["invocation_id"]) == 16  # "inv-" + 12 hex
+
+    def test_invoke_response_echoes_client_reference_id(self):
+        service = self._make_service()
+        token = self._issue_test_token(service)
+        result = service.invoke(
+            "greet", token, {"name": "World"},
+            client_reference_id="task:42",
+        )
+        assert result["client_reference_id"] == "task:42"
+
+    def test_invoke_response_client_reference_id_null_when_absent(self):
+        service = self._make_service()
+        token = self._issue_test_token(service)
+        result = service.invoke("greet", token, {"name": "World"})
+        assert result["client_reference_id"] is None
+
+    def test_invoke_failure_still_has_invocation_id(self):
+        service = self._make_service()
+        token = self._issue_test_token(service)
+        result = service.invoke("nonexistent", token, {})
+        assert result["success"] is False
+        assert "invocation_id" in result
+        assert result["invocation_id"].startswith("inv-")
+
+    def test_invocation_context_has_lineage(self):
+        """Handler should see invocation_id and client_reference_id in context."""
+        captured_ctx = {}
+
+        def capturing_handler(ctx, params):
+            captured_ctx["invocation_id"] = ctx.invocation_id
+            captured_ctx["client_reference_id"] = ctx.client_reference_id
+            return {"ok": True}
+
+        from anip_core import CapabilityDeclaration, CapabilityOutput, SideEffect, SideEffectType
+        from anip_service import Capability
+        cap = Capability(
+            declaration=CapabilityDeclaration(
+                name="ctx_cap",
+                description="Captures context",
+                contract_version="1.0",
+                inputs=[],
+                output=CapabilityOutput(type="object", fields=[]),
+                side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+                minimum_scope=["test"],
+            ),
+            handler=capturing_handler,
+        )
+        service = self._make_service(caps=[cap])
+        token = self._issue_test_token(service, scope=["test"], capability="ctx_cap")
+        result = service.invoke("ctx_cap", token, {}, client_reference_id="ref-abc")
+        assert captured_ctx["invocation_id"].startswith("inv-")
+        assert captured_ctx["client_reference_id"] == "ref-abc"
+
     def _issue_test_token(self, service, scope=None, capability=None):
         """Helper to issue a root token for testing."""
         cap = capability or "greet"
