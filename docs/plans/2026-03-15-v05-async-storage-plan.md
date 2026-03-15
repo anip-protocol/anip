@@ -314,11 +314,14 @@ async def compliance_audit_concurrent_ordering(storage) -> None:
 
 async def compliance_checkpoint_roundtrip(storage) -> None:
     """Checkpoint store/load roundtrip."""
-    body = {"checkpoint_id": "cp-1", "merkle_root": "sha256:abc", "sequence_number": 5}
+    body = {"checkpoint_id": "cp-1", "merkle_root": "sha256:abc",
+            "range": {"first_sequence": 1, "last_sequence": 5},
+            "timestamp": "2026-01-01T00:00:00Z", "entry_count": 5}
     await storage.store_checkpoint(body, "sig-123")
     loaded = await storage.get_checkpoint_by_id("cp-1")
     assert loaded is not None
-    assert loaded["body"]["checkpoint_id"] == "cp-1"
+    assert loaded["checkpoint_id"] == "cp-1"
+    assert loaded["merkle_root"] == "sha256:abc"
 
 
 async def compliance_checkpoint_not_found(storage) -> None:
@@ -528,32 +531,48 @@ git commit -m "feat(server/ts): convert DelegationEngine to async"
 ### Task 9: TypeScript SQLiteStorage → async via worker thread
 
 **Files:**
-- Modify: `packages/typescript/server/src/storage.ts` (SQLiteStorage class)
-- Create: `packages/typescript/server/src/sqlite-worker.ts` (worker thread script)
+- Modify: `packages/typescript/server/src/storage.ts` (SQLiteStorage class → async proxy)
+- Create: `packages/typescript/server/src/sqlite-worker.ts` (worker thread script with all SQL logic)
 
 **Context:** `better-sqlite3` is synchronous and blocks the event loop. Wrap it in a `Worker` thread. The worker receives method name + args via `parentPort`, executes the sync SQLite call, and sends back the result.
+
+**Build/test resolution strategy:**
+
+The worker file must be runnable in both test (vitest running from source) and built (tsc → dist/) contexts:
+
+1. **Source:** The worker imports `better-sqlite3` and uses `workerData` for config. It must be a standalone entry point — no re-exporting from `index.ts`. vitest resolves TypeScript natively via its transform pipeline, so `sqlite-worker.ts` works directly in tests.
+
+2. **Build:** `tsc` compiles `sqlite-worker.ts` → `dist/sqlite-worker.js`. The proxy class resolves the worker path relative to `import.meta.url`, which works for both `src/` (test) and `dist/` (built) because the relative path `./sqlite-worker.js` stays the same.
+
+3. **Worker instantiation:** Use `new URL("./sqlite-worker.js", import.meta.url)` in the built proxy. For tests, vitest's module resolution handles `.ts` → `.js` mapping. Add a `tsconfig.json` check: ensure `sqlite-worker.ts` is included in `include` so tsc compiles it. If vitest has trouble resolving the worker, add a small vitest plugin or use `fileURLToPath` + path resolution as a fallback.
+
+4. **Package exports:** `sqlite-worker.ts` is NOT exported from `index.ts` — it is an internal implementation detail. But it must be included in the published package files. Add `"dist/sqlite-worker.js"` to the `files` array in `package.json` if one exists, or ensure `dist/` is fully included.
 
 **Step 1: Create worker thread script**
 
 `sqlite-worker.ts` — a standalone script that:
-1. Receives `{ id, method, args }` messages from the parent
-2. Maintains a `better-sqlite3` database instance
-3. Executes the sync method
+1. Reads `workerData.dbPath` on startup, creates the `better-sqlite3` database (with same schema/migration logic currently in `SQLiteStorage`)
+2. Listens for `{ id, method, args }` messages from the parent via `parentPort`
+3. Dispatches to the appropriate sync storage method
 4. Posts back `{ id, result }` or `{ id, error }`
 
-The worker holds the sync `better-sqlite3` database and all the SQL logic that currently lives in `SQLiteStorage`.
+All the SQL logic (CREATE TABLE, INSERT, SELECT, migration) moves into this file. The `SQLiteStorage` class in `storage.ts` becomes a thin async proxy.
 
 **Step 2: Refactor `SQLiteStorage` to proxy calls to the worker**
 
 ```typescript
+import { Worker } from "node:worker_threads";
+import { randomUUID } from "node:crypto";
+
 class SQLiteStorage implements StorageBackend {
     private worker: Worker;
     private pending = new Map<string, { resolve: Function; reject: Function }>();
 
     constructor(dbPath: string = "anip.db") {
-        this.worker = new Worker(new URL("./sqlite-worker.js", import.meta.url), {
-            workerData: { dbPath },
-        });
+        this.worker = new Worker(
+            new URL("./sqlite-worker.js", import.meta.url),
+            { workerData: { dbPath } },
+        );
         this.worker.on("message", (msg) => {
             const p = this.pending.get(msg.id);
             if (p) {
@@ -987,11 +1006,19 @@ packages/typescript/express/package.json          → "0.5.0", deps "0.5.0"
 packages/typescript/fastify/package.json          → "0.5.0", deps "0.5.0"
 ```
 
-**Step 3: Bump example app**
+**Step 3: Bump example app and regenerate lockfile**
 
 ```
 examples/anip-ts/package.json                     → "0.5.0"
 ```
+
+Then regenerate the lockfile so CI's `npm ci` works:
+
+```bash
+cd examples/anip-ts && npm install --package-lock-only && cd ../..
+```
+
+This updates `package-lock.json` to reflect the new `@anip/*` versions from the local `file:` dependencies. Without this, `npm ci` will fail because the lockfile references 0.4.0 versions that no longer match the on-disk packages.
 
 **Step 4: Verify PROTOCOL_VERSION is unchanged**
 
