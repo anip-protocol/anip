@@ -4,19 +4,13 @@ version = "0.1.0"
 description = "ANIP reference implementation — flight booking service"
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi>=0.115.0",
+    "anip-service @ file:../../packages/python/anip-service",
+    "anip-fastapi @ file:../../packages/python/anip-fastapi",
     "uvicorn>=0.34.0",
-    "pydantic>=2.0.0",
-    "httpx>=0.27.0",
-    "PyJWT[crypto]>=2.8",
-    "anip-core @ file:../../packages/python/anip-core",
-    "anip-crypto @ file:../../packages/python/anip-crypto",
-    "anip-server @ file:../../packages/python/anip-server",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "httpx>=0.27.0"]
 
 [project.scripts]
 anip-server = "anip_flight_demo.main:run"
-anip-demo = "demo:main"

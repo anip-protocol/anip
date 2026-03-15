@@ -1,26 +1,10 @@
-"""book_flight capability — irreversible, financial side effect."""
-
-from __future__ import annotations
-
-from ..data.flights import create_booking, get_flight
-from .. import engine as sdk
+"""book_flight capability -- irreversible, financial side effect."""
+from anip_service import Capability, InvocationContext, ANIPError
 from anip_core import (
-    ANIPFailure,
-    CapabilityDeclaration,
-    CapabilityInput,
-    CapabilityOutput,
-    CapabilityRequirement,
-    Cost,
-    CostActual,
-    CostCertainty,
-    DelegationToken,
-    InvokeResponse,
-    ObservabilityContract,
-    Resolution,
-    SessionInfo,
-    SideEffect,
-    SideEffectType,
+    CapabilityDeclaration, CapabilityInput, CapabilityOutput, CapabilityRequirement,
+    Cost, CostCertainty, ObservabilityContract, SessionInfo, SideEffect, SideEffectType,
 )
+from anip_flight_demo.domain.flights import create_booking, get_flight
 
 DECLARATION = CapabilityDeclaration(
     name="book_flight",
@@ -34,10 +18,7 @@ DECLARATION = CapabilityDeclaration(
             description="Number of passengers",
         ),
     ],
-    output=CapabilityOutput(
-        type="booking_confirmation",
-        fields=["booking_id", "flight_number", "departure_time", "total_cost"],
-    ),
+    output=CapabilityOutput(type="booking_confirmation", fields=["booking_id", "flight_number", "departure_time", "total_cost"]),
     side_effect=SideEffect(type=SideEffectType.IRREVERSIBLE, rollback_window="none"),
     minimum_scope=["travel.book"],
     cost=Cost(
@@ -59,75 +40,42 @@ DECLARATION = CapabilityDeclaration(
     ],
     session=SessionInfo(),
     observability=ObservabilityContract(
-        logged=True,
-        retention="P90D",
+        logged=True, retention="P90D",
         fields_logged=["capability", "delegation_chain", "parameters", "result", "cost_actual"],
         audit_accessible_by=["delegation.root_principal"],
     ),
 )
 
 
-def invoke(token: DelegationToken, parameters: dict) -> InvokeResponse:
-    flight_number = parameters.get("flight_number")
-    date = parameters.get("date")
-    passengers = parameters.get("passengers", 1)
+def _handle_book(ctx: InvocationContext, params: dict) -> dict:
+    flight_number = params.get("flight_number")
+    date = params.get("date")
+    passengers = params.get("passengers", 1)
 
     if not flight_number or not date:
-        return InvokeResponse(
-            success=False,
-            failure=ANIPFailure(
-                type="invalid_parameters",
-                detail="flight_number and date are required",
-                resolution=Resolution(action="fix_parameters"),
-                retry=True,
-            ),
-        )
+        raise ANIPError("invalid_parameters", "flight_number and date are required")
 
-    # Look up the flight
     flight = get_flight(flight_number, date)
     if flight is None:
-        return InvokeResponse(
-            success=False,
-            failure=ANIPFailure(
-                type="capability_unavailable",
-                detail=f"flight {flight_number} on {date} not found",
-                resolution=Resolution(action="search_flights_first"),
-                retry=True,
-            ),
-        )
+        raise ANIPError("capability_unavailable", f"flight {flight_number} on {date} not found")
 
-    # Check budget authority in delegation chain
-    total_cost = flight.price * passengers
-    budget_failure = sdk.engine.check_budget_authority(token, total_cost)
-    if budget_failure is not None:
-        return InvokeResponse(success=False, failure=budget_failure)
-
-    # Book it
     booking = create_booking(
         flight=flight,
         passengers=passengers,
-        booked_by=token.subject,
-        on_behalf_of=sdk.engine.get_root_principal(token),
+        booked_by=ctx.subject,
+        on_behalf_of=ctx.root_principal,
     )
 
-    # Calculate variance from the typical estimate
-    typical_estimate = 420.0
-    variance_pct = ((booking.total_cost - typical_estimate) / typical_estimate) * 100
-    variance_str = f"{variance_pct:+.1f}%"
+    # Track actual cost via context
+    ctx.set_cost_actual({"financial": {"amount": booking.total_cost, "currency": booking.flight.currency}})
 
-    return InvokeResponse(
-        success=True,
-        result={
-            "booking_id": booking.booking_id,
-            "flight_number": booking.flight.flight_number,
-            "departure_time": booking.flight.departure_time,
-            "total_cost": booking.total_cost,
-            "currency": booking.flight.currency,
-            "side_effect_executed": "irreversible",
-            "rollback_window": "none",
-        },
-        cost_actual=CostActual(
-            financial={"amount": booking.total_cost, "currency": booking.flight.currency},
-            variance_from_estimate=variance_str,
-        ),
-    )
+    return {
+        "booking_id": booking.booking_id,
+        "flight_number": booking.flight.flight_number,
+        "departure_time": booking.flight.departure_time,
+        "total_cost": booking.total_cost,
+        "currency": booking.flight.currency,
+    }
+
+
+book_flight = Capability(declaration=DECLARATION, handler=_handle_book)

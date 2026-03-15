@@ -1,10 +1,8 @@
-"""Flight data — static inventory + SQLite-persisted bookings."""
-
+"""Flight data and booking logic -- pure business domain, ANIP-free."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-
-from .database import load_booking, next_booking_id, store_booking
+import uuid
 
 
 @dataclass
@@ -26,11 +24,11 @@ class Booking:
     flight: Flight
     passengers: int
     total_cost: float
-    booked_by: str  # delegation chain subject
-    on_behalf_of: str  # root principal
+    booked_by: str
+    on_behalf_of: str
 
 
-# Stub flight inventory (static — doesn't need persistence)
+# Static flight inventory
 FLIGHTS: list[Flight] = [
     Flight("AA100", "SEA", "SFO", "2026-03-10", "08:00", "10:15", 420.00),
     Flight("UA205", "SEA", "SFO", "2026-03-10", "11:30", "13:45", 380.00),
@@ -40,12 +38,11 @@ FLIGHTS: list[Flight] = [
     Flight("DL520", "SFO", "JFK", "2026-03-12", "06:00", "14:30", 580.00),
 ]
 
+_bookings: dict[str, Booking] = {}
+
 
 def search_flights(origin: str, destination: str, date: str) -> list[Flight]:
-    return [
-        f for f in FLIGHTS
-        if f.origin == origin and f.destination == destination and f.date == date
-    ]
+    return [f for f in FLIGHTS if f.origin == origin and f.destination == destination and f.date == date]
 
 
 def get_flight(flight_number: str, date: str) -> Flight | None:
@@ -55,34 +52,18 @@ def get_flight(flight_number: str, date: str) -> Flight | None:
     return None
 
 
-def create_booking(
-    flight: Flight,
-    passengers: int,
-    booked_by: str,
-    on_behalf_of: str,
-) -> Booking:
-    booking_id = next_booking_id()
+def create_booking(flight: Flight, passengers: int, booked_by: str, on_behalf_of: str) -> Booking:
     booking = Booking(
-        booking_id=booking_id,
+        booking_id=f"BK-{uuid.uuid4().hex[:8].upper()}",
         flight=flight,
         passengers=passengers,
         total_cost=flight.price * passengers,
         booked_by=booked_by,
         on_behalf_of=on_behalf_of,
     )
-    # Persist to SQLite
-    store_booking({
-        "booking_id": booking_id,
-        "flight_number": flight.flight_number,
-        "flight_date": flight.date,
-        "passengers": passengers,
-        "total_cost": booking.total_cost,
-        "currency": flight.currency,
-        "booked_by": booked_by,
-        "on_behalf_of": on_behalf_of,
-    })
+    _bookings[booking.booking_id] = booking
     return booking
 
 
-def get_booking(booking_id: str) -> dict | None:
-    return load_booking(booking_id)
+def get_booking(booking_id: str) -> Booking | None:
+    return _bookings.get(booking_id)
