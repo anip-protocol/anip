@@ -1,4 +1,3 @@
-import Fastify from "fastify";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type { ANIPService } from "@anip/service";
 import { ANIPError } from "@anip/service";
@@ -21,7 +20,7 @@ export function mountAnip(
 
   app.get(`${p}/anip/manifest`, async (_req, reply) => {
     const [bodyBytes, signature] = await service.getSignedManifest();
-    reply
+    return reply
       .header("Content-Type", "application/json")
       .header("X-ANIP-Signature", signature)
       .send(Buffer.from(bodyBytes));
