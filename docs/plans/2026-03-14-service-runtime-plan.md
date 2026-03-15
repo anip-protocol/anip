@@ -193,9 +193,10 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Callable
 
 from anip_core import (
+    ANIPFailure,
     ANIPManifest,
     CapabilityDeclaration,
     DelegationToken,
@@ -238,8 +239,15 @@ class ANIPService:
         trust: str | dict[str, Any] = "signed",
         checkpoint_policy: CheckpointPolicy | None = None,
         audit_signer: Any | None = None,
+        authenticate: Callable[[str], str | None] | None = None,
     ) -> None:
         self._service_id = service_id
+
+        # --- Bootstrap authentication ---
+        # Maps a bearer token string to an authenticated principal.
+        # Used for first-token issuance before any ANIP tokens exist.
+        # If not provided, only existing ANIP JWT tokens can authenticate.
+        self._authenticate = authenticate
 
         # --- Capability registry ---
         self._capabilities: dict[str, Capability] = {}
@@ -281,12 +289,21 @@ class ANIPService:
             trust_level = trust.get("level", "signed")
             anchoring_cfg = trust.get("anchoring")
             if anchoring_cfg:
+                self._sinks = anchoring_cfg.get("sinks", [])
+                # Derive sink URIs for the manifest from sink objects.
+                # Each sink must declare its URI scheme via a .uri property.
+                # LocalFileSink → "file://..." (non-qualifying, dev only).
+                sink_uris = []
+                for s in self._sinks:
+                    if hasattr(s, "uri"):
+                        sink_uris.append(s.uri)
+                    elif hasattr(s, "directory"):
+                        sink_uris.append(f"file://{s.directory}")
                 anchoring = AnchoringPolicy(
                     cadence=anchoring_cfg.get("cadence"),
                     max_lag=anchoring_cfg.get("max_lag"),
-                    sink=[],  # sink URIs derived from sink objects later
+                    sink=sink_uris or None,
                 )
-                self._sinks = anchoring_cfg.get("sinks", [])
             else:
                 anchoring = None
                 self._sinks = []
@@ -299,8 +316,9 @@ class ANIPService:
 
         # --- Manifest ---
         service_identity = ServiceIdentity(
-            service_id=service_id,
-            organization=service_id,
+            id=service_id,
+            jwks_uri="/.well-known/jwks.json",
+            issuer_mode="first-party",
         )
         self._manifest = build_manifest(
             capabilities=cap_declarations,
@@ -358,7 +376,33 @@ class ANIPService:
 
     def get_jwks(self) -> dict[str, Any]:
         """Return the JWKS document for this service."""
-        return self._keys.build_jwks()
+        return self._keys.get_jwks()
+
+    def authenticate_bearer(self, bearer_value: str) -> str | None:
+        """Resolve a bearer token to an authenticated principal.
+
+        Tries bootstrap authentication first (API keys, external auth),
+        then falls back to ANIP JWT verification.
+        Returns the principal string, or None if unauthenticated.
+        """
+        # Try bootstrap auth (API keys, external auth)
+        if self._authenticate:
+            principal = self._authenticate(bearer_value)
+            if principal is not None:
+                return principal
+
+        # Try ANIP JWT
+        try:
+            claims = self._keys.verify_jwt(bearer_value, audience=self._service_id)
+            token_id = claims.get("jti")
+            if token_id:
+                stored = self._engine.get_token(token_id)
+                if stored:
+                    return stored.root_principal
+        except Exception:
+            pass
+
+        return None
 
     def resolve_bearer_token(self, jwt_string: str) -> DelegationToken:
         """Verify a JWT and return the stored DelegationToken.
@@ -390,6 +434,7 @@ class ANIPService:
         Returns {token_id, token (JWT string), expires}.
         """
         parent_token_id = request.get("parent_token")
+        ttl_hours = request.get("ttl_hours", 2)
 
         if parent_token_id:
             # Delegation from existing token
@@ -399,13 +444,11 @@ class ANIPService:
 
             result = self._engine.delegate(
                 parent_token=parent,
-                authenticated_principal=authenticated_principal,
                 subject=request.get("subject", authenticated_principal),
                 scope=request.get("scope", []),
                 capability=request.get("capability"),
-                purpose=request.get("purpose"),
-                constraints=request.get("constraints"),
-                ttl_seconds=request.get("ttl", 3600),
+                purpose_parameters=request.get("purpose_parameters"),
+                ttl_hours=ttl_hours,
             )
         else:
             # Root token
@@ -414,22 +457,20 @@ class ANIPService:
                 subject=request.get("subject", authenticated_principal),
                 scope=request.get("scope", []),
                 capability=request.get("capability"),
-                purpose=request.get("purpose"),
-                constraints=request.get("constraints"),
-                ttl_seconds=request.get("ttl", 3600),
+                purpose_parameters=request.get("purpose_parameters"),
+                ttl_hours=ttl_hours,
             )
 
-        # Check for delegation failure
-        if isinstance(result, dict) and result.get("type"):
-            raise ANIPError(result["type"], result.get("detail", "Delegation failed"))
+        # Check for delegation failure (ANIPFailure is a Pydantic model)
+        if isinstance(result, ANIPFailure):
+            raise ANIPError(result.type, result.detail)
 
         token, token_id = result
 
         # Build and sign JWT
         from datetime import timedelta
-        ttl = request.get("ttl", 3600)
         now = datetime.now(timezone.utc)
-        expires = now + timedelta(seconds=ttl)
+        expires = now + timedelta(hours=ttl_hours)
 
         claims = {
             "jti": token_id,
@@ -442,11 +483,7 @@ class ANIPService:
             "root_principal": token.root_principal,
         }
         if token.purpose:
-            claims["purpose"] = {
-                "capability": token.purpose.capability,
-                "parameters": token.purpose.parameters,
-                "task_id": token.purpose.task_id,
-            } if hasattr(token.purpose, "capability") else token.purpose
+            claims["purpose"] = token.purpose.model_dump() if hasattr(token.purpose, "model_dump") else token.purpose
         if token.constraints:
             claims["constraints"] = token.constraints.model_dump() if hasattr(token.constraints, "model_dump") else token.constraints
 
@@ -498,9 +535,9 @@ class ANIPService:
             token, min_scope, capability_name,
         )
 
-        # Check for validation failure (returns ANIPFailure dict)
-        if isinstance(validation_result, dict) and validation_result.get("type"):
-            failure = validation_result
+        # Check for validation failure (ANIPFailure is a Pydantic model)
+        if isinstance(validation_result, ANIPFailure):
+            failure = {"type": validation_result.type, "detail": validation_result.detail}
             self._log_audit(
                 capability_name, token, success=False,
                 failure_type=failure["type"], result_summary=None,
@@ -532,7 +569,7 @@ class ANIPService:
                     failure_type="concurrent_lock",
                     result_summary=None, cost_actual=None, cost_variance=None,
                 )
-                return {"success": False, "failure": lock_result}
+                return {"success": False, "failure": {"type": lock_result.type, "detail": lock_result.detail}}
             locked = True
 
         try:
@@ -1109,6 +1146,16 @@ def mount_anip(
         GET  {prefix}/anip/checkpoints/{id}     → get checkpoint
     """
 
+    # --- Lifecycle: wire start/stop into FastAPI events ---
+
+    @app.on_event("startup")
+    async def _anip_startup():
+        service.start()
+
+    @app.on_event("shutdown")
+    async def _anip_shutdown():
+        service.stop()
+
     # --- Discovery & Identity ---
 
     @app.get(f"{prefix}/.well-known/anip")
@@ -1214,16 +1261,17 @@ def mount_anip(
 
 
 def _extract_principal(request: Request, service: ANIPService) -> str | None:
-    """Extract authenticated principal from the request."""
+    """Extract authenticated principal from the request.
+
+    Uses service.authenticate_bearer() which tries bootstrap auth (API keys,
+    external auth) first, then ANIP JWT verification. This is critical for
+    first-token issuance before any ANIP tokens exist.
+    """
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer "):
         return None
-    jwt_str = auth[7:].strip()
-    try:
-        token = service.resolve_bearer_token(jwt_str)
-        return token.root_principal
-    except ANIPError:
-        return None
+    bearer_value = auth[7:].strip()
+    return service.authenticate_bearer(bearer_value)
 
 
 def _resolve_token(request: Request, service: ANIPService):
@@ -1398,12 +1446,20 @@ from anip_fastapi import mount_anip
 from anip_flight_demo.capabilities.search_flights import search_flights
 from anip_flight_demo.capabilities.book_flight import book_flight
 
+# Bootstrap authentication: API keys → principal identities.
+# This is how first-token issuance works before any ANIP tokens exist.
+API_KEYS = {
+    "demo-human-key": "human:samir@example.com",
+    "demo-agent-key": "agent:demo-agent",
+}
+
 service = ANIPService(
     service_id=os.getenv("ANIP_SERVICE_ID", "anip-flight-service"),
     capabilities=[search_flights, book_flight],
     storage=f"sqlite:///{os.getenv('ANIP_DB_PATH', 'anip.db')}",
     trust=os.getenv("ANIP_TRUST_LEVEL", "signed"),
     key_path=os.getenv("ANIP_KEY_PATH", "./anip-keys"),
+    authenticate=lambda bearer: API_KEYS.get(bearer),
 )
 
 app = FastAPI(title="ANIP Flight Service")
@@ -1894,7 +1950,12 @@ cd packages/typescript/hono && npm install && npx tsc
 
 - **Python signing is sync, TS signing is async**: The service `invoke()` method must be async in TypeScript but can be sync in Python.
 - **DelegationEngine API differences**: Method names follow language conventions (`issue_root_token` in Python, `issueRootToken` in TypeScript). Follow the existing patterns.
-- **ANIPFailure detection**: In both SDKs, delegation failures are returned as dicts/objects with a `type` field, not exceptions. The service runtime must check for this pattern.
+- **DelegationEngine parameter names**: Use `purpose_parameters` (not `purpose`), `ttl_hours` (not `ttl_seconds`). TS uses `purposeParameters` and `ttlHours`. Neither SDK accepts `constraints` or `authenticated_principal` in `delegate()` — only in `issue_root_token()`.
+- **ANIPFailure is a Pydantic model**: Use `isinstance(result, ANIPFailure)`, not `isinstance(result, dict)`. Access fields as attributes: `result.type`, `result.detail`. In TypeScript, use duck-type checking: `"type" in result && "detail" in result && "resolution" in result`.
+- **KeyManager method names**: Python uses `get_jwks()` (not `build_jwks()`). TypeScript uses `getJWKS()`. Python `verify_jwt()` requires `audience=` keyword arg; TypeScript `verifyJWT()` does not take an audience parameter.
+- **ServiceIdentity fields**: `id`, `jwks_uri`, `issuer_mode` (not `service_id`, `organization`).
+- **Bootstrap authentication**: The `authenticate` callback is essential for first-token issuance. Without it, there's no way to get the first ANIP token (chicken-and-egg problem).
+- **Lifecycle management**: The framework binding must wire `service.start()`/`service.stop()` into app startup/shutdown events. Without this, the checkpoint scheduler never starts in anchored mode.
 - **Storage string parsing**: The `"sqlite:///path"` shorthand should work cross-platform.
 - **Test isolation**: Always use `:memory:` storage in tests to avoid state leakage.
 
