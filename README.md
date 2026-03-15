@@ -222,6 +222,72 @@ ANIP defines 9 primitives in two tiers:
 8. **State & Session Semantics** — stateless vs. continuation vs. multi-step workflow, explicitly declared
 9. **Observability Contract** — what's logged, how long it's retained, who can audit it
 
+## Quick Start
+
+ANIP ships a **service runtime** that handles all protocol plumbing — delegation, audit, signing, checkpoints — so you only write business logic.
+
+**Python** (`anip-service` + `anip-fastapi`):
+
+```python
+from anip_service import ANIPService, Capability
+from anip_fastapi import mount_anip
+from fastapi import FastAPI
+
+service = ANIPService(
+    service_id="my-service",
+    capabilities=[search_flights, book_flight],
+    storage="sqlite:///anip.db",
+    trust="signed",
+    authenticate=lambda bearer: API_KEYS.get(bearer),
+)
+
+app = FastAPI()
+mount_anip(app, service)
+```
+
+**TypeScript** (`@anip/service` + `@anip/hono`):
+
+```typescript
+import { createANIPService } from "@anip/service";
+import { mountAnip } from "@anip/hono";
+import { Hono } from "hono";
+
+const service = createANIPService({
+  serviceId: "my-service",
+  capabilities: [searchFlights, bookFlight],
+  storage: { type: "sqlite", path: "anip.db" },
+  trust: "signed",
+  authenticate: (bearer) => API_KEYS[bearer] ?? null,
+});
+
+const app = new Hono();
+const { stop } = mountAnip(app, service);
+```
+
+Capabilities are plain functions — declare what they do, handle the request, return data:
+
+```python
+from anip_service import Capability
+from anip_core import CapabilityDeclaration, CapabilityInput, CapabilityOutput, SideEffect, SideEffectType
+
+search_flights = Capability(
+    declaration=CapabilityDeclaration(
+        name="search_flights",
+        description="Search available flights",
+        contract_version="1.0",
+        inputs=[CapabilityInput(name="origin", type="airport_code", description="Departure airport")],
+        output=CapabilityOutput(type="flight_list", fields=["flight_number", "price"]),
+        side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+        minimum_scope=["travel.search"],
+    ),
+    handler=lambda ctx, params: {"flights": do_search(params["origin"], params["destination"], params["date"])},
+)
+```
+
+The runtime handles discovery, JWT tokens, signed manifests, delegation validation, audit logging, and Merkle checkpoints. See the [Python example](examples/anip/) and [TypeScript example](examples/anip-ts/) for complete working services.
+
+For advanced use cases that need direct access to the SDK primitives (KeyManager, DelegationEngine, AuditLog, MerkleTree), the underlying packages (`anip-core`/`anip-crypto`/`anip-server` and `@anip/core`/`@anip/crypto`/`@anip/server`) remain available.
+
 ## Status
 
 ANIP is under active development. The spec is at v0.3 with anchored trust in place. Trust verification — signed delegation tokens, signed manifests, tamper-evident audit logs, and Merkle tree checkpoints — is implemented in both reference servers. Multi-agent coordination and federated trust remain open. See [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v2) for the full breakdown.
@@ -234,8 +300,10 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 - [Manifesto](MANIFESTO.md) — why this moment matters
 - [Spec](SPEC.md) — the technical design (v0.3)
 - [Guide](GUIDE.md) — walkthrough of the reference implementation with design rationale
-- [Reference implementation — Python](examples/anip/) — FastAPI + SQLite, full demo with audit logging
-- [Reference implementation — TypeScript](examples/anip-ts/) — Hono + Zod, same capabilities and endpoints
+- [Reference implementation — Python](examples/anip/) — `anip-service` + FastAPI, ~150 lines of business logic
+- [Reference implementation — TypeScript](examples/anip-ts/) — `@anip/service` + Hono, same capabilities and endpoints
+- Python SDK packages: `anip-core`, `anip-crypto`, `anip-server`, `anip-service`, `anip-fastapi`
+- TypeScript SDK packages: `@anip/core`, `@anip/crypto`, `@anip/server`, `@anip/service`, `@anip/hono`
 - [Demo agent](examples/agent/) — an AI agent that consumes ANIP to reason before acting, handle budget failures, and verify audit trails
 - [JSON Schema](schema/) — validate any ANIP implementation against the spec
 - [Security policy](SECURITY.md) — vulnerability reporting, trust model summary, deployment guidance
