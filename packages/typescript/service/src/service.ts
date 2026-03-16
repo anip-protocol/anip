@@ -734,6 +734,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       const chain = await engine.getChain(resolvedToken);
       let costActual: Record<string, unknown> | null = null;
       let eventsEmitted = 0;
+      let eventsDelivered = 0;
+      let clientDisconnected = false;
       const streamStart = stream ? performance.now() : 0;
 
       const ctx: InvocationContext = {
@@ -757,8 +759,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
                 client_reference_id: clientReferenceId,
                 payload,
               });
+              eventsDelivered++;
             } catch {
-              // Transport failure — swallow to avoid aborting handler
+              clientDisconnected = true;
             }
           }
         },
@@ -774,9 +777,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           streamSummary = {
             response_mode: "streaming",
             events_emitted: eventsEmitted,
-            events_delivered: eventsEmitted,
+            events_delivered: eventsDelivered,
             duration_ms: Math.round(performance.now() - streamStart),
-            client_disconnected: false,
+            client_disconnected: clientDisconnected,
           };
         }
 

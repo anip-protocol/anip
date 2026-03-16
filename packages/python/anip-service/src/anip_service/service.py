@@ -462,10 +462,12 @@ class ANIPService:
 
         # Set up progress tracking for streaming
         events_emitted = 0
+        events_delivered = 0
+        client_disconnected = False
         stream_start = time.monotonic() if stream else 0
 
         async def _internal_progress_sink(payload: dict[str, Any]) -> None:
-            nonlocal events_emitted
+            nonlocal events_emitted, events_delivered, client_disconnected
             events_emitted += 1
             if _progress_sink is not None:
                 try:
@@ -474,8 +476,9 @@ class ANIPService:
                         "client_reference_id": client_reference_id,
                         "payload": payload,
                     })
+                    events_delivered += 1
                 except Exception:
-                    pass
+                    client_disconnected = True
 
         # 3. Build invocation context
         chain = await self._engine.get_chain(resolved_token)
@@ -521,9 +524,9 @@ class ANIPService:
                     fail_stream_summary = {
                         "response_mode": "streaming",
                         "events_emitted": events_emitted,
-                        "events_delivered": events_emitted,
+                        "events_delivered": events_delivered,
                         "duration_ms": int((time.monotonic() - stream_start) * 1000),
-                        "client_disconnected": False,
+                        "client_disconnected": client_disconnected,
                     }
                 await self._log_audit(
                     capability_name, resolved_token, success=False,
@@ -548,9 +551,9 @@ class ANIPService:
                     fail_stream_summary_exc = {
                         "response_mode": "streaming",
                         "events_emitted": events_emitted,
-                        "events_delivered": events_emitted,
+                        "events_delivered": events_delivered,
                         "duration_ms": int((time.monotonic() - stream_start) * 1000),
-                        "client_disconnected": False,
+                        "client_disconnected": client_disconnected,
                     }
                 await self._log_audit(
                     capability_name, resolved_token, success=False,
