@@ -4,7 +4,7 @@
 
 **Goal:** Add a `posture` block to `/.well-known/anip` that exposes audit, lineage, metadata policy, failure disclosure, and anchoring posture — making trust characteristics inspectable before invocation.
 
-**Architecture:** Posture is computed entirely from existing service configuration (trust level, anchoring policy, checkpoint config). No new constructor parameters needed. New typed models in both runtimes serialize into the discovery response dict. The posture block is OPTIONAL per schema — services MAY omit it, but reference implementations MUST include it.
+**Architecture:** Before adding posture, align the existing discovery response with its own schema and spec (the current implementations drift significantly). Then add typed posture models in both runtimes, computed from existing service configuration. The posture block is OPTIONAL per schema — services MAY omit it, but reference implementations MUST include it.
 
 **Tech Stack:** Python/Pydantic, TypeScript/Zod, JSON Schema (draft 2020-12)
 
@@ -20,103 +20,124 @@
 
 ## Task 1: Version Bumps
 
-Bump all version constants and package files from 0.6 → 0.7.
+Bump all version constants, package configs, model defaults, manifest builder, and test fixtures from 0.3/0.6 → 0.7.
 
 **Files:**
-- Modify: `packages/python/anip-core/src/anip_core/constants.py`
-- Modify: `packages/typescript/core/src/constants.ts`
-- Modify: `packages/python/anip-core/pyproject.toml`
-- Modify: `packages/python/anip-crypto/pyproject.toml`
-- Modify: `packages/python/anip-server/pyproject.toml`
-- Modify: `packages/python/anip-service/pyproject.toml`
-- Modify: `packages/python/anip-fastapi/pyproject.toml`
-- Modify: `packages/typescript/core/package.json`
-- Modify: `packages/typescript/crypto/package.json`
-- Modify: `packages/typescript/server/package.json`
-- Modify: `packages/typescript/service/package.json`
-- Modify: `packages/typescript/express/package.json`
-- Modify: `packages/typescript/fastify/package.json`
-- Modify: `packages/typescript/hono/package.json`
-- Modify: `packages/python/anip-core/src/anip_core/models.py` (default values referencing version)
-- Modify: `packages/typescript/core/src/models.ts` (default values referencing version)
-- Test: `packages/python/anip-core/tests/test_models.py`
-- Test: `packages/typescript/core/tests/models.test.ts`
 
-**Step 1: Update Python constants**
+Source constants:
+- Modify: `packages/python/anip-core/src/anip_core/constants.py:3-4`
+- Modify: `packages/typescript/core/src/constants.ts:1-2`
 
-In `packages/python/anip-core/src/anip_core/constants.py`:
+Model defaults:
+- Modify: `packages/python/anip-core/src/anip_core/models.py:207,240`
+- Modify: `packages/typescript/core/src/models.ts:241,258`
+
+Manifest builder:
+- Modify: `packages/typescript/server/src/manifest.ts:45` (hardcoded `"0.3.0"` — use `MANIFEST_VERSION` constant)
+
+Package configs (version field):
+- Modify: `packages/python/anip-core/pyproject.toml:3`
+- Modify: `packages/python/anip-crypto/pyproject.toml:3`
+- Modify: `packages/python/anip-server/pyproject.toml:3`
+- Modify: `packages/python/anip-service/pyproject.toml:3`
+- Modify: `packages/python/anip-fastapi/pyproject.toml:3`
+- Modify: `packages/typescript/core/package.json:3`
+- Modify: `packages/typescript/crypto/package.json:3`
+- Modify: `packages/typescript/server/package.json:3`
+- Modify: `packages/typescript/service/package.json:3`
+- Modify: `packages/typescript/express/package.json:3`
+- Modify: `packages/typescript/fastify/package.json:3`
+- Modify: `packages/typescript/hono/package.json:3`
+
+Package configs (inter-package dependency versions):
+- Modify: `packages/python/anip-crypto/pyproject.toml:7` (`anip-core>=0.6.0` → `>=0.7.0`)
+- Modify: `packages/python/anip-server/pyproject.toml:7-8` (`anip-core`, `anip-crypto` deps)
+- Modify: `packages/python/anip-service/pyproject.toml:7-8` (`anip-core`, `anip-crypto` deps)
+- Modify: `packages/typescript/crypto/package.json:16` (`@anip/core`)
+- Modify: `packages/typescript/server/package.json:16-17` (`@anip/core`, `@anip/crypto`)
+- Modify: `packages/typescript/service/package.json:16-18` (`@anip/core`, `@anip/crypto`, `@anip/server`)
+- Modify: `packages/typescript/express/package.json:16` (`@anip/service`)
+- Modify: `packages/typescript/fastify/package.json:16` (`@anip/service`)
+- Modify: `packages/typescript/hono/package.json:16` (`@anip/service`)
+
+JSON Schema `$id`:
+- Modify: `schema/anip.schema.json` (v0.6 → v0.7 in `$id`)
+- Modify: `schema/discovery.schema.json` (v0.6 → v0.7 in `$id`)
+
+Test fixtures:
+- Modify: `packages/python/anip-core/tests/test_models.py:16,104-105` (`anip/0.3` → `anip/0.7`)
+- Modify: `packages/python/anip-crypto/tests/test_jwt_jws.py:83,90` (`anip/0.3` → `anip/0.7`)
+- Modify: `packages/python/anip-server/tests/test_manifest.py:18` (`anip/0.3` → `anip/0.7`)
+- Modify: `packages/typescript/core/tests/models.test.ts:19,85` (`anip/0.3` → `anip/0.7`)
+- Modify: `packages/typescript/crypto/tests/crypto.test.ts:146,154` (`anip/0.3` → `anip/0.7`)
+
+**Step 1: Update source constants (Python + TypeScript)**
+
+`packages/python/anip-core/src/anip_core/constants.py`:
 ```python
 PROTOCOL_VERSION = "anip/0.7"
 MANIFEST_VERSION = "0.7.0"
 ```
 
-**Step 2: Update TypeScript constants**
-
-In `packages/typescript/core/src/constants.ts`:
+`packages/typescript/core/src/constants.ts`:
 ```typescript
 export const PROTOCOL_VERSION = "anip/0.7";
 export const MANIFEST_VERSION = "0.7.0";
 ```
 
-**Step 3: Update Python model defaults**
+**Step 2: Update model defaults**
 
-In `packages/python/anip-core/src/anip_core/models.py`:
-- `ManifestMetadata.version` default: `"0.3.0"` → `"0.7.0"` (line 207)
-- `ANIPManifest.protocol` default: `"anip/0.3"` → `"anip/0.7"` (line 240)
+`packages/python/anip-core/src/anip_core/models.py`:
+- Line 207: `version: str = "0.7.0"`
+- Line 240: `protocol: str = "anip/0.7"`
 
-**Step 4: Update TypeScript model defaults**
+`packages/typescript/core/src/models.ts`:
+- Line 241: `version: z.string().default("0.7.0"),`
+- Line 258: `protocol: z.string().default("anip/0.7"),`
 
-In `packages/typescript/core/src/models.ts`:
-- `ManifestMetadata.version` default: `"0.2.0"` → `"0.7.0"` (line 241)
-- `ANIPManifest.protocol` default: `"anip/0.3"` → `"anip/0.7"` (line 258)
+**Step 3: Fix TypeScript manifest builder to use constant instead of hardcoded string**
 
-**Step 5: Update all pyproject.toml versions**
-
-Change `version = "0.6.0"` to `version = "0.7.0"` in:
-- `packages/python/anip-core/pyproject.toml`
-- `packages/python/anip-crypto/pyproject.toml`
-- `packages/python/anip-server/pyproject.toml`
-- `packages/python/anip-service/pyproject.toml`
-- `packages/python/anip-fastapi/pyproject.toml`
-
-**Step 6: Update all package.json versions**
-
-Change `"version": "0.6.0"` to `"version": "0.7.0"` in:
-- `packages/typescript/core/package.json`
-- `packages/typescript/crypto/package.json`
-- `packages/typescript/server/package.json`
-- `packages/typescript/service/package.json`
-- `packages/typescript/express/package.json`
-- `packages/typescript/fastify/package.json`
-- `packages/typescript/hono/package.json`
-
-**Step 7: Update JSON Schema $id**
-
-In `schema/anip.schema.json` and `schema/discovery.schema.json`:
-Change `v0.6` to `v0.7` in the `$id` field.
-
-**Step 8: Fix test assertions that reference old version**
-
-In `packages/python/anip-core/tests/test_models.py`, find the test `test_protocol_version` and update:
-```python
-assert PROTOCOL_VERSION == "anip/0.7"
-```
-
-In `packages/typescript/core/tests/models.test.ts`, find the test for `PROTOCOL_VERSION` and update:
+`packages/typescript/server/src/manifest.ts` — add `MANIFEST_VERSION` to the import from `@anip/core` (line 9), then change line 45 from:
 ```typescript
-expect(PROTOCOL_VERSION).toBe("anip/0.7");
+version: "0.3.0",
+```
+to:
+```typescript
+version: MANIFEST_VERSION,
 ```
 
-**Step 9: Run all tests**
+**Step 4: Update all package versions**
+
+Use find-and-replace across all pyproject.toml files: `version = "0.6.0"` → `version = "0.7.0"`.
+Use find-and-replace across all package.json files: `"0.6.0"` → `"0.7.0"` (for `@anip/*` entries).
+Update all Python inter-package deps: `>=0.6.0` → `>=0.7.0`.
+
+**Step 5: Regenerate package-lock.json**
+
+```bash
+cd packages/typescript && npm install
+```
+
+**Step 6: Update JSON Schema `$id`**
+
+In `schema/anip.schema.json` and `schema/discovery.schema.json`: change `v0.6` → `v0.7` in the `$id` field.
+
+**Step 7: Update test fixtures**
+
+Search for all `"anip/0.3"` in test files and update to `"anip/0.7"`. Key locations:
+- Python: `test_models.py` (lines 16, 104-105), `test_jwt_jws.py` (lines 83, 90), `test_manifest.py` (line 18)
+- TypeScript: `models.test.ts` (lines 19, 85), `crypto.test.ts` (lines 146, 154)
+
+**Step 8: Run all tests**
 
 ```bash
 .venv/bin/python -m pytest packages/python -x -q
 cd packages/typescript && npx tsc -b core crypto server service express fastify hono && npx vitest run --reporter=verbose
 ```
 
-Expected: All 297 tests pass (152 Python + 145 TypeScript).
+Expected: All 297 tests pass.
 
-**Step 10: Commit**
+**Step 9: Commit**
 
 ```bash
 git add -A
@@ -125,7 +146,283 @@ git commit -m "chore: bump all versions to 0.7.0 for discovery posture release"
 
 ---
 
-## Task 2: Python Posture Models
+## Task 2: Discovery Contract Alignment
+
+Before adding posture, fix the existing discovery responses to conform to the spec (SPEC.md §6.1) and JSON schema. Currently both runtimes emit a minimal discovery document missing required fields (`protocol`, `compliance`, `base_url`, `auth`), with wrong `profile` shape (string `"full"` instead of versioned object), and incomplete capability summaries (missing `financial`, using `contract_version` instead of `contract`).
+
+**Files:**
+- Modify: `packages/python/anip-service/src/anip_service/service.py:152-179`
+- Modify: `packages/typescript/service/src/service.ts:375-403`
+- Modify: `packages/python/anip-service/tests/test_service_init.py`
+- Modify: `packages/typescript/service/tests/service.test.ts`
+- Modify: `packages/python/anip-fastapi/tests/test_routes.py` (if discovery assertions need updating)
+- Modify: `packages/typescript/express/tests/routes.test.ts` (if discovery assertions need updating)
+
+**Context:** The service layer is transport-agnostic and doesn't know the request URL. For `base_url` we accept it as a constructor parameter (OPTIONAL — when omitted, the field is absent from the response). The reference implementations already pass `service_id` at construction; `base_url` follows the same pattern.
+
+**Step 1: Write failing tests (Python)**
+
+Update and extend the `test_discovery_document` test in `packages/python/anip-service/tests/test_service_init.py`:
+
+```python
+def test_discovery_document(self):
+    service = ANIPService(
+        service_id="test-service",
+        capabilities=[_test_cap()],
+        storage=":memory:",
+    )
+    disc = service.get_discovery()
+    ad = disc["anip_discovery"]
+
+    # Required fields per SPEC.md §6.1
+    assert ad["protocol"] == "anip/0.7"
+    assert ad["compliance"] == "anip-complete"
+    assert ad["profile"]["core"] == "1.0"
+    assert ad["auth"]["delegation_token_required"] is True
+    assert ad["auth"]["minimum_scope_for_discovery"] == "none"
+
+    # Capability summary shape
+    greet = ad["capabilities"]["greet"]
+    assert greet["description"] == "Say hello"
+    assert greet["side_effect"] == "read"
+    assert greet["minimum_scope"] == ["greet"]
+    assert greet["financial"] is False
+    assert greet["contract"] == "1.0"
+    assert "contract_version" not in greet
+
+    # Trust and endpoints
+    assert ad["trust_level"] == "signed"
+    assert ad["endpoints"]["manifest"] == "/anip/manifest"
+    assert ad["endpoints"]["handshake"] == "/anip/handshake"
+
+def test_discovery_base_url(self):
+    service = ANIPService(
+        service_id="test-service",
+        capabilities=[_test_cap()],
+        storage=":memory:",
+        base_url="https://api.example.com",
+    )
+    disc = service.get_discovery()
+    assert disc["anip_discovery"]["base_url"] == "https://api.example.com"
+
+def test_discovery_no_base_url_by_default(self):
+    service = ANIPService(
+        service_id="test-service",
+        capabilities=[_test_cap()],
+        storage=":memory:",
+    )
+    disc = service.get_discovery()
+    assert "base_url" not in disc["anip_discovery"]
+```
+
+**Step 2: Run tests to verify they fail**
+
+```bash
+.venv/bin/python -m pytest packages/python/anip-service/tests/test_service_init.py::TestANIPServiceInit::test_discovery_document -x -q
+```
+
+Expected: KeyError — `protocol` not in discovery response.
+
+**Step 3: Update Python `ANIPService.__init__` to accept `base_url`**
+
+In `packages/python/anip-service/src/anip_service/service.py`, add `base_url: str | None = None` to the `__init__` signature (after `authenticate`):
+
+```python
+def __init__(
+    self,
+    *,
+    service_id: str,
+    capabilities: list[Capability],
+    storage: str | StorageBackend = "sqlite:///anip.db",
+    key_path: str = "./anip-keys",
+    trust: str | dict[str, Any] = "signed",
+    checkpoint_policy: CheckpointPolicy | None = None,
+    audit_signer: Any | None = None,
+    authenticate: Callable[[str], str | None] | None = None,
+    base_url: str | None = None,
+) -> None:
+```
+
+Store it: `self._base_url = base_url` (right after `self._service_id = service_id`).
+
+**Step 4: Rewrite Python `get_discovery()`**
+
+```python
+def get_discovery(self) -> dict[str, Any]:
+    """Return lightweight discovery document per SPEC.md §6.1."""
+    from anip_core import PROTOCOL_VERSION, DEFAULT_PROFILE
+
+    caps_summary = {}
+    for name, cap in self._capabilities.items():
+        decl = cap.declaration
+        caps_summary[name] = {
+            "description": decl.description,
+            "side_effect": decl.side_effect.type.value if decl.side_effect else None,
+            "minimum_scope": decl.minimum_scope,
+            "financial": decl.cost is not None and decl.cost.financial is not None,
+            "contract": decl.contract_version,
+        }
+
+    doc: dict[str, Any] = {
+        "protocol": PROTOCOL_VERSION,
+        "compliance": "anip-complete",
+        "profile": DEFAULT_PROFILE,
+        "auth": {
+            "delegation_token_required": True,
+            "supported_formats": ["anip-v1"],
+            "minimum_scope_for_discovery": "none",
+        },
+        "capabilities": caps_summary,
+        "trust_level": self._trust_level,
+        "endpoints": {
+            "manifest": "/anip/manifest",
+            "handshake": "/anip/handshake",
+            "permissions": "/anip/permissions",
+            "invoke": "/anip/invoke/{capability}",
+            "tokens": "/anip/tokens",
+            "audit": "/anip/audit",
+            "checkpoints": "/anip/checkpoints",
+            "jwks": "/.well-known/jwks.json",
+        },
+    }
+
+    if self._base_url is not None:
+        doc["base_url"] = self._base_url
+
+    return {"anip_discovery": doc}
+```
+
+**Step 5: Run Python tests**
+
+```bash
+.venv/bin/python -m pytest packages/python -x -q
+```
+
+Expected: All pass.
+
+**Step 6: Write failing tests (TypeScript)**
+
+Update `discovery document structure` test and add new tests in `packages/typescript/service/tests/service.test.ts`:
+
+```typescript
+it("discovery document structure", () => {
+  const { service } = makeService();
+  const disc = service.getDiscovery() as Record<string, any>;
+  const ad = disc.anip_discovery;
+
+  // Required fields per SPEC.md §6.1
+  expect(ad.protocol).toBe("anip/0.7");
+  expect(ad.compliance).toBe("anip-complete");
+  expect(ad.profile.core).toBe("1.0");
+  expect(ad.auth.delegation_token_required).toBe(true);
+  expect(ad.auth.minimum_scope_for_discovery).toBe("none");
+
+  // Capability summary shape
+  expect(ad.capabilities["greet"].description).toBe("Say hello");
+  expect(ad.capabilities["greet"].financial).toBe(false);
+  expect(ad.capabilities["greet"].contract).toBe("1.0");
+  expect(ad.capabilities["greet"].contract_version).toBeUndefined();
+
+  // Trust and endpoints
+  expect(ad.trust_level).toBe("signed");
+  expect(ad.endpoints.manifest).toBe("/anip/manifest");
+  expect(ad.endpoints.handshake).toBe("/anip/handshake");
+});
+
+it("discovery includes base_url when configured", () => {
+  const service = createANIPService({
+    serviceId: "test-service",
+    capabilities: [testCap()],
+    storage: { type: "memory" },
+    baseUrl: "https://api.example.com",
+  });
+  const disc = service.getDiscovery() as Record<string, any>;
+  expect(disc.anip_discovery.base_url).toBe("https://api.example.com");
+});
+
+it("discovery omits base_url when not configured", () => {
+  const { service } = makeService();
+  const disc = service.getDiscovery() as Record<string, any>;
+  expect(disc.anip_discovery.base_url).toBeUndefined();
+});
+```
+
+**Step 7: Update TypeScript `ANIPServiceOpts` and `createANIPService`**
+
+In `packages/typescript/service/src/service.ts`:
+
+Add `baseUrl?: string;` to `ANIPServiceOpts` interface (after `authenticate`).
+
+Extract it in `createANIPService`: `const baseUrl = opts.baseUrl ?? null;`
+
+**Step 8: Rewrite TypeScript `getDiscovery()`**
+
+```typescript
+getDiscovery(): Record<string, unknown> {
+  const capsSummary: Record<string, unknown> = {};
+  for (const [name, cap] of capabilities) {
+    const decl = cap.declaration;
+    capsSummary[name] = {
+      description: decl.description,
+      side_effect: decl.side_effect?.type ?? null,
+      minimum_scope: decl.minimum_scope,
+      financial: decl.cost?.financial != null,
+      contract: decl.contract_version,
+    };
+  }
+
+  const doc: Record<string, unknown> = {
+    protocol: PROTOCOL_VERSION,
+    compliance: "anip-complete",
+    profile: { ...DEFAULT_PROFILE },
+    auth: {
+      delegation_token_required: true,
+      supported_formats: ["anip-v1"],
+      minimum_scope_for_discovery: "none",
+    },
+    capabilities: capsSummary,
+    trust_level: trustLevel,
+    endpoints: {
+      manifest: "/anip/manifest",
+      handshake: "/anip/handshake",
+      permissions: "/anip/permissions",
+      invoke: "/anip/invoke/{capability}",
+      tokens: "/anip/tokens",
+      audit: "/anip/audit",
+      checkpoints: "/anip/checkpoints",
+      jwks: "/.well-known/jwks.json",
+    },
+  };
+
+  if (baseUrl !== null) {
+    doc.base_url = baseUrl;
+  }
+
+  return { anip_discovery: doc };
+},
+```
+
+Add `PROTOCOL_VERSION` and `DEFAULT_PROFILE` to the import from `@anip/core` if not already imported.
+
+**Step 9: Run all tests**
+
+```bash
+.venv/bin/python -m pytest packages/python -x -q
+cd packages/typescript && npx tsc -b core crypto server service express fastify hono && npx vitest run --reporter=verbose
+```
+
+Expected: All pass.
+
+**Step 10: Commit**
+
+```bash
+git add packages/python/anip-service/ packages/typescript/service/
+git commit -m "fix: align discovery response with SPEC.md §6.1 contract"
+```
+
+---
+
+## Task 3: Python Posture Models
 
 Add typed Pydantic models for the five posture sub-objects.
 
@@ -225,6 +522,20 @@ def test_discovery_posture_roundtrip():
     assert restored.anchoring.cadence == "PT30S"
 ```
 
+Also add the imports at the top of the test file:
+```python
+from anip_core import (
+    ...,
+    AuditPosture,
+    ClientReferenceIdPosture,
+    LineagePosture,
+    MetadataPolicy,
+    FailureDisclosure,
+    AnchoringPosture,
+    DiscoveryPosture,
+)
+```
+
 **Step 2: Run tests to verify they fail**
 
 ```bash
@@ -308,7 +619,7 @@ git commit -m "feat(core): add Python discovery posture models (v0.7)"
 
 ---
 
-## Task 3: TypeScript Posture Models
+## Task 4: TypeScript Posture Models
 
 Add Zod schemas for the five posture sub-objects.
 
@@ -421,6 +732,8 @@ describe("DiscoveryPosture", () => {
 });
 ```
 
+Add the necessary imports at the top of the test file.
+
 **Step 2: Run tests to verify they fail**
 
 ```bash
@@ -507,23 +820,24 @@ git commit -m "feat(core): add TypeScript discovery posture schemas (v0.7)"
 
 ---
 
-## Task 4: Python Service — Emit Posture in Discovery
+## Task 5: Python Service — Emit Posture in Discovery
 
-Update `get_discovery()` to compute and include the posture block from existing service state.
+Add the `posture` block to the Python discovery response, computed from existing service state.
 
 **Files:**
 - Modify: `packages/python/anip-service/src/anip_service/service.py`
 - Test: `packages/python/anip-service/tests/test_service_init.py`
 
-**Context:** The service already has all the data needed to compute posture:
-- `self._trust_level` → audit.signed, anchoring.enabled
+**Context:**
+- `self._trust_level` → determines anchoring.enabled
 - `self._manifest.trust.anchoring` → anchoring.cadence, anchoring.max_lag
-- `self._checkpoint_policy` → anchoring presence
-- Lineage, metadata_policy, failure_disclosure are protocol constants
+- `self._checkpoint_policy` → determines proofs_available (must be non-None AND anchored)
+
+**Critical:** `proofs_available` MUST be `True` only when BOTH `trust_level` is `"anchored"/"attested"` AND `self._checkpoint_policy is not None`. An anchored service without checkpoint scheduling cannot produce proofs.
 
 **Step 1: Write failing tests**
 
-Add to the `TestANIPServiceInit` class in `packages/python/anip-service/tests/test_service_init.py`:
+Add to `TestANIPServiceInit` in `packages/python/anip-service/tests/test_service_init.py`:
 
 ```python
 def test_discovery_includes_posture(self):
@@ -544,10 +858,11 @@ def test_discovery_includes_posture(self):
     assert posture["metadata_policy"]["freeform_context"] is False
     assert posture["failure_disclosure"]["detail_level"] == "redacted"
     assert posture["anchoring"]["enabled"] is False
+    assert posture["anchoring"]["proofs_available"] is False
 
-def test_discovery_posture_anchored(self):
+def test_discovery_posture_anchored_with_policy(self):
     from anip_server import LocalFileSink, CheckpointPolicy
-    import tempfile, os
+    import tempfile
     with tempfile.TemporaryDirectory() as tmpdir:
         service = ANIPService(
             service_id="test-service",
@@ -569,6 +884,19 @@ def test_discovery_posture_anchored(self):
         assert posture["anchoring"]["cadence"] == "PT30S"
         assert posture["anchoring"]["max_lag"] == 120
         assert posture["anchoring"]["proofs_available"] is True
+
+def test_discovery_posture_anchored_without_policy(self):
+    """Anchored trust without checkpoint policy — proofs NOT available."""
+    service = ANIPService(
+        service_id="test-service",
+        capabilities=[_test_cap()],
+        storage=":memory:",
+        trust={"level": "anchored", "anchoring": {"cadence": "PT30S", "max_lag": 120}},
+    )
+    disc = service.get_discovery()
+    posture = disc["anip_discovery"]["posture"]
+    assert posture["anchoring"]["enabled"] is True
+    assert posture["anchoring"]["proofs_available"] is False
 ```
 
 **Step 2: Run tests to verify they fail**
@@ -579,9 +907,9 @@ def test_discovery_posture_anchored(self):
 
 Expected: KeyError — `posture` not in discovery response.
 
-**Step 3: Update `get_discovery()` in `service.py`**
+**Step 3: Add posture to `get_discovery()` in `service.py`**
 
-Add import at top of `packages/python/anip-service/src/anip_service/service.py` (with existing anip_core imports):
+Add to imports at top of file:
 ```python
 from anip_core import (
     ...existing imports...,
@@ -590,22 +918,10 @@ from anip_core import (
 )
 ```
 
-Replace the `get_discovery()` method body (lines 152-179) with:
+In the `get_discovery()` method, after building `caps_summary` and before the `return` statement, add:
 
 ```python
-def get_discovery(self) -> dict[str, Any]:
-    """Return lightweight discovery document."""
-    caps_summary = {}
-    for name, cap in self._capabilities.items():
-        decl = cap.declaration
-        caps_summary[name] = {
-            "description": decl.description,
-            "side_effect": decl.side_effect.type.value if decl.side_effect else None,
-            "minimum_scope": decl.minimum_scope,
-            "contract_version": decl.contract_version,
-        }
-
-    # Build posture from existing service state
+    # Build posture from existing service state (v0.7)
     anchoring_src = self._manifest.trust.anchoring if self._manifest.trust else None
     is_anchored = self._trust_level in ("anchored", "attested")
     posture = DiscoveryPosture(
@@ -613,28 +929,12 @@ def get_discovery(self) -> dict[str, Any]:
             enabled=is_anchored,
             cadence=anchoring_src.cadence if anchoring_src else None,
             max_lag=anchoring_src.max_lag if anchoring_src else None,
-            proofs_available=is_anchored,
+            proofs_available=is_anchored and self._checkpoint_policy is not None,
         ),
     )
-
-    return {
-        "anip_discovery": {
-            "profile": "full",
-            "capabilities": caps_summary,
-            "trust_level": self._trust_level,
-            "posture": posture.model_dump(),
-            "endpoints": {
-                "manifest": "/anip/manifest",
-                "tokens": "/anip/tokens",
-                "invoke": "/anip/invoke/{capability}",
-                "permissions": "/anip/permissions",
-                "audit": "/anip/audit",
-                "checkpoints": "/anip/checkpoints",
-                "jwks": "/.well-known/jwks.json",
-            },
-        }
-    }
 ```
+
+Then add `"posture": posture.model_dump(),` to the `doc` dict (before endpoints).
 
 **Step 4: Run tests**
 
@@ -642,7 +942,7 @@ def get_discovery(self) -> dict[str, Any]:
 .venv/bin/python -m pytest packages/python -x -q
 ```
 
-Expected: All pass (existing tests should remain green — they don't assert the absence of `posture`).
+Expected: All pass.
 
 **Step 5: Commit**
 
@@ -653,15 +953,17 @@ git commit -m "feat(service): emit posture block in Python discovery response (v
 
 ---
 
-## Task 5: TypeScript Service — Emit Posture in Discovery
+## Task 6: TypeScript Service — Emit Posture in Discovery
 
-Update `getDiscovery()` to compute and include the posture block.
+Add the `posture` block to the TypeScript discovery response.
 
 **Files:**
 - Modify: `packages/typescript/service/src/service.ts`
 - Test: `packages/typescript/service/tests/service.test.ts`
 
-**Context:** The service closure already has `trustLevel` (string) and `anchoringPolicy` (object with cadence/max_lag). The `trustPosture` variable (line 230) is in scope but only used for `buildManifest`. We need to reference it inside `getDiscovery()`.
+**Context:** The `trustLevel` string, `anchoringPolicy` object, and `checkpointPolicy` are all in the `createANIPService` closure scope.
+
+**Critical:** Same as Python — `proofs_available` requires both anchored trust AND checkpoint policy.
 
 **Step 1: Write failing tests**
 
@@ -683,9 +985,32 @@ it("discovery includes posture block", () => {
   expect(posture.metadata_policy.freeform_context).toBe(false);
   expect(posture.failure_disclosure.detail_level).toBe("redacted");
   expect(posture.anchoring.enabled).toBe(false);
+  expect(posture.anchoring.proofs_available).toBe(false);
 });
 
-it("discovery posture reflects anchored trust", () => {
+it("discovery posture reflects anchored trust with checkpoint policy", () => {
+  const service = createANIPService({
+    serviceId: "test-service",
+    capabilities: [testCap()],
+    storage: { type: "memory" },
+    trust: {
+      level: "anchored",
+      anchoring: {
+        cadence: "PT30S",
+        maxLag: 120,
+      },
+    },
+    checkpointPolicy: { maxEntries: 100 },
+  });
+  const disc = service.getDiscovery() as Record<string, any>;
+  const posture = disc.anip_discovery.posture;
+  expect(posture.anchoring.enabled).toBe(true);
+  expect(posture.anchoring.cadence).toBe("PT30S");
+  expect(posture.anchoring.max_lag).toBe(120);
+  expect(posture.anchoring.proofs_available).toBe(true);
+});
+
+it("discovery posture: anchored without checkpoint policy has no proofs", () => {
   const service = createANIPService({
     serviceId: "test-service",
     capabilities: [testCap()],
@@ -701,9 +1026,7 @@ it("discovery posture reflects anchored trust", () => {
   const disc = service.getDiscovery() as Record<string, any>;
   const posture = disc.anip_discovery.posture;
   expect(posture.anchoring.enabled).toBe(true);
-  expect(posture.anchoring.cadence).toBe("PT30S");
-  expect(posture.anchoring.max_lag).toBe(120);
-  expect(posture.anchoring.proofs_available).toBe(true);
+  expect(posture.anchoring.proofs_available).toBe(false);
 });
 ```
 
@@ -715,76 +1038,51 @@ cd packages/typescript && npx tsc -b core crypto server service && npx vitest ru
 
 Expected: `posture` is undefined.
 
-**Step 3: Update `getDiscovery()` in `service.ts`**
+**Step 3: Add posture to `getDiscovery()` in `service.ts`**
 
-In `packages/typescript/service/src/service.ts`, replace the `getDiscovery()` method (lines 375-403):
+In the `getDiscovery()` method, add after building `capsSummary`:
 
 ```typescript
-getDiscovery(): Record<string, unknown> {
-  const capsSummary: Record<string, unknown> = {};
-  for (const [name, cap] of capabilities) {
-    const decl = cap.declaration;
-    capsSummary[name] = {
-      description: decl.description,
-      side_effect: decl.side_effect?.type ?? null,
-      minimum_scope: decl.minimum_scope,
-      contract_version: decl.contract_version,
-    };
-  }
-
   const isAnchored = trustLevel === "anchored" || trustLevel === "attested";
-
-  return {
-    anip_discovery: {
-      profile: "full",
-      capabilities: capsSummary,
-      trust_level: trustLevel,
-      posture: {
-        audit: {
-          enabled: true,
-          signed: true,
-          queryable: true,
-          retention: null,
-        },
-        lineage: {
-          invocation_id: true,
-          client_reference_id: {
-            supported: true,
-            max_length: 256,
-            opaque: true,
-            propagation: "bounded",
-          },
-        },
-        metadata_policy: {
-          bounded_lineage: true,
-          freeform_context: false,
-          downstream_propagation: "minimal",
-        },
-        failure_disclosure: {
-          detail_level: "redacted",
-        },
-        anchoring: {
-          enabled: isAnchored,
-          cadence: anchoringPolicy?.cadence ?? null,
-          max_lag: anchoringPolicy?.max_lag ?? null,
-          proofs_available: isAnchored,
-        },
-      },
-      endpoints: {
-        manifest: "/anip/manifest",
-        tokens: "/anip/tokens",
-        invoke: "/anip/invoke/{capability}",
-        permissions: "/anip/permissions",
-        audit: "/anip/audit",
-        checkpoints: "/anip/checkpoints",
-        jwks: "/.well-known/jwks.json",
-      },
-    },
-  };
-},
 ```
 
-**Step 4: Run tests**
+Then add `posture` to the `doc` object (before endpoints):
+
+```typescript
+    posture: {
+      audit: {
+        enabled: true,
+        signed: true,
+        queryable: true,
+        retention: null,
+      },
+      lineage: {
+        invocation_id: true,
+        client_reference_id: {
+          supported: true,
+          max_length: 256,
+          opaque: true,
+          propagation: "bounded",
+        },
+      },
+      metadata_policy: {
+        bounded_lineage: true,
+        freeform_context: false,
+        downstream_propagation: "minimal",
+      },
+      failure_disclosure: {
+        detail_level: "redacted",
+      },
+      anchoring: {
+        enabled: isAnchored,
+        cadence: anchoringPolicy?.cadence ?? null,
+        max_lag: anchoringPolicy?.max_lag ?? null,
+        proofs_available: isAnchored && checkpointPolicy !== null,
+      },
+    },
+```
+
+**Step 4: Run all tests**
 
 ```bash
 cd packages/typescript && npx tsc -b core crypto server service express fastify hono && npx vitest run --reporter=verbose
@@ -801,7 +1099,7 @@ git commit -m "feat(service): emit posture block in TypeScript discovery respons
 
 ---
 
-## Task 6: JSON Schema — Add Posture Block
+## Task 7: JSON Schema — Add Posture Block
 
 Add the `posture` property to the discovery JSON schema.
 
@@ -908,7 +1206,6 @@ Note: `posture` is NOT added to the top-level `required` array — it is OPTIONA
 **Step 2: Verify schema is valid JSON**
 
 ```bash
-cd /Users/samirski/Development/ANIP/.worktrees/v07-discovery-posture
 python3 -c "import json; json.load(open('schema/discovery.schema.json'))"
 ```
 
@@ -923,16 +1220,20 @@ git commit -m "feat(schema): add posture block to discovery JSON schema (v0.7)"
 
 ---
 
-## Task 7: SPEC.md — Discovery Posture Section
+## Task 8: SPEC.md — Discovery Posture Section
 
 Add normative specification language for the posture block.
 
 **Files:**
 - Modify: `SPEC.md`
 
-**Step 1: Add posture field to §6.1 discovery document example**
+**Step 1: Update spec title**
 
-In the YAML example in §6.1 (around line 496 after `trust_level: "anchored"`), add:
+Line 1: change `v0.6` to `v0.7`.
+
+**Step 2: Add posture field to §6.1 discovery document example**
+
+In the YAML example in §6.1 (after `trust_level: "anchored"` around line 496), add:
 
 ```yaml
   posture:                                    # OPTIONAL (v0.7) — governance posture summary
@@ -961,146 +1262,42 @@ In the YAML example in §6.1 (around line 496 after `trust_level: "anchored"`), 
       proofs_available: true
 ```
 
-**Step 2: Add posture field description**
+**Step 3: Add posture field description to Fields section**
 
-In the Fields section after the `trust_level` bullet (around line 524), add:
-
-```markdown
-- **posture** (OPTIONAL, v0.7) — governance posture summary. Exposes trust-relevant service characteristics that agents can inspect before invocation. Contains five sub-objects:
-  - `audit` — whether audit logging is active, signed, queryable, and for how long entries are retained
-  - `lineage` — whether invocation IDs and client reference IDs are supported, and how they propagate
-  - `metadata_policy` — whether lineage is bounded, whether freeform context is accepted, and how metadata propagates downstream
-  - `failure_disclosure` — how much error detail is surfaced to callers (`"full"`, `"redacted"`, or `"policy"`)
-  - `anchoring` — whether Merkle checkpoints are active, their cadence, maximum lag, and whether proofs are available
-
-  The posture block exposes governance semantics, not implementation trivia. Services MUST NOT expose internal infrastructure details (database engines, ORM types, queue implementations) in posture fields.
-
-  See Section 6.7 for full field definitions and semantics.
-```
-
-**Step 3: Add §6.7 Discovery Posture section**
-
-Insert a new section after §6.6 Streaming Invocations (after line 933):
+After the `trust_level` bullet (around line 524), add:
 
 ```markdown
-### 6.7 Discovery Posture (v0.7)
-
-The discovery posture block allows agents to inspect a service's governance characteristics before invocation. This is the bridge between the market conversation about agent-scale trust and the protocol reality of how a specific ANIP service behaves.
-
-The posture block is OPTIONAL. When present, it MUST conform to the schema defined in `schema/discovery.schema.json`.
-
-#### Posture vs. Manifest
-
-Discovery posture summarizes **service-level governance**. Manifest capabilities describe **per-capability contracts**. The distinction:
-
-- Discovery posture: "This service signs audit entries, bounds lineage, and redacts failure details."
-- Manifest capability: "The `book_flight` capability has side-effect `irreversible`, costs $50–$200, and requires scope `travel.book`."
-
-#### `posture.audit`
-
-Tells callers whether audit logging exists and how usable it is.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `enabled` | boolean | MUST | Whether audit logging is active |
-| `signed` | boolean | MUST | Whether audit entries carry per-entry signatures |
-| `queryable` | boolean | MUST | Whether the audit log is queryable via the audit endpoint |
-| `retention` | string \| null | MAY | ISO 8601 duration for audit log retention (e.g., `"P90D"`). Null means unspecified. |
-
-#### `posture.lineage`
-
-Tells callers whether cross-action correlation exists and how constrained it is.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `invocation_id` | boolean | MUST | Whether server-generated invocation IDs are assigned to every invocation |
-| `client_reference_id` | object | MAY | Client reference ID policy (see sub-fields below) |
-
-**`client_reference_id` sub-fields:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `supported` | boolean | MUST | Whether the service accepts caller-supplied reference IDs |
-| `max_length` | integer | MAY | Maximum length in characters (default: 256) |
-| `opaque` | boolean | MAY | Whether the service treats the value as opaque (does not interpret it) |
-| `propagation` | string | MAY | How the reference ID propagates: `"bounded"` (stored with the invocation only), `"local_only"` (not persisted), or `"policy"` (service-defined) |
-
-#### `posture.metadata_policy`
-
-Makes ANIP's bounded-lineage stance explicit. This is one of the most important posture fields — it tells adopters that ANIP is not silently turning metadata into an unbounded transport channel.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `bounded_lineage` | boolean | MUST | Whether lineage metadata is bounded (not an unbounded transport channel) |
-| `freeform_context` | boolean | MAY | Whether arbitrary freeform context fields are accepted in invocation requests |
-| `downstream_propagation` | string | MAY | How metadata propagates to downstream services: `"minimal"`, `"policy"`, or `"service_defined"` |
-
-#### `posture.failure_disclosure`
-
-Indicates how much error detail is surfaced to normal callers.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `detail_level` | string | MUST | Error detail level: `"full"` (raw error details), `"redacted"` (generic messages), or `"policy"` (service-defined) |
-
-A service claiming `"redacted"` MUST NOT include raw exception text, stack traces, or internal identifiers in error responses. This is enforced for streaming invocations (§6.6) and SHOULD be enforced for unary responses.
-
-#### `posture.anchoring`
-
-Summarizes service-level anchoring state without exposing internal sink details.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `enabled` | boolean | MUST | Whether Merkle checkpoints are active |
-| `cadence` | string \| null | MAY | ISO 8601 duration for checkpoint production cadence (e.g., `"PT30S"`) |
-| `max_lag` | integer \| null | MAY | Maximum seconds between newest audit entry and latest checkpoint |
-| `proofs_available` | boolean | MAY | Whether inclusion and consistency proofs are available via checkpoint endpoints |
-
-A service claiming `trust_level: "anchored"` MUST set `anchoring.enabled: true`. Services MUST NOT expose raw sink URIs, internal credentials, or private identifiers in posture fields.
-
-#### What posture MUST NOT expose
-
-Services MUST NOT include implementation internals in posture or any discovery field:
-
-- Database engines, ORM choices, or storage backends
-- Internal logging frameworks or queue implementations
-- Worker-thread details or local filesystem paths
-- Internal sink credentials or private identifiers
-
-Posture exposes governance semantics, not deployment topology.
+- **posture** (OPTIONAL, v0.7) — governance posture summary. Exposes trust-relevant service characteristics that agents can inspect before invocation. Contains five sub-objects: `audit`, `lineage`, `metadata_policy`, `failure_disclosure`, and `anchoring`. See Section 6.7 for full field definitions. Services MUST NOT expose internal infrastructure details (database engines, ORM types, queue implementations) in posture fields.
 ```
 
-**Step 4: Update §13 Roadmap**
+**Step 4: Add §6.7 Discovery Posture section**
 
-In the roadmap table (around line 1266), add a new row after the streaming row:
+Insert a new section after §6.6 Streaming Invocations (after line 933). Full section content:
 
-```markdown
-| **Discovery posture (§6.7)** | MAY — v0.7 | Implemented: posture block with audit, lineage, metadata_policy, failure_disclosure, and anchoring sub-objects | — |
-```
+- Purpose and rationale
+- Posture vs. Manifest distinction
+- `posture.audit` field table (enabled, signed, queryable, retention)
+- `posture.lineage` field table (invocation_id, client_reference_id with sub-fields)
+- `posture.metadata_policy` field table (bounded_lineage, freeform_context, downstream_propagation)
+- `posture.failure_disclosure` field table (detail_level) with enforcement note
+- `posture.anchoring` field table (enabled, cadence, max_lag, proofs_available) with constraint: `proofs_available` MUST be `true` only when the service has active checkpoint scheduling — anchored trust level alone is insufficient
+- "What posture MUST NOT expose" section
 
-Update the narrative paragraph after the table (around line 1269) to include v0.7:
+**Step 5: Update §13 Roadmap**
 
-Replace the sentence starting "v0.6 adds streaming invocations" to include: "v0.7 makes governance posture inspectable at discovery time — audit, lineage, metadata policy, failure disclosure, and anchoring characteristics are now visible before invocation."
+Add row: `| **Discovery posture (§6.7)** | MAY — v0.7 | Implemented: posture block with audit, lineage, metadata_policy, failure_disclosure, and anchoring sub-objects | — |`
 
-**Step 5: Update §14 Resolved Questions**
+Update the narrative paragraph to include v0.7.
 
-Add to the resolved list (around line 1297):
+**Step 6: Update §14 Resolved Questions**
 
-```markdown
-- **Governance posture visibility.** Discovery `posture` block exposes audit, lineage, metadata policy, failure disclosure, and anchoring characteristics at the service level. Posture describes governance semantics, not implementation internals. *(Resolved in v0.7)*
-```
+Add: `- **Governance posture visibility.** Discovery posture block exposes audit, lineage, metadata policy, failure disclosure, and anchoring characteristics. *(Resolved in v0.7)*`
 
-**Step 6: Update spec footer**
+**Step 7: Update spec footer**
 
-Update the footer (line 1301) to mention v0.7:
+Update to mention v0.7.
 
-```markdown
-*ANIP is an open specification under active development. This is v0.7 — discovery posture makes governance characteristics inspectable before invocation, building on v0.6's streaming, v0.3's anchored trust, v0.4's invocation lineage, and v0.5's async storage. Federated trust and cross-service delegation remain future goals. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
-```
-
-Update the title (line 1) from `v0.6` to `v0.7`.
-
-**Step 7: Commit**
+**Step 8: Commit**
 
 ```bash
 git add SPEC.md
@@ -1109,7 +1306,7 @@ git commit -m "spec: add §6.7 Discovery Posture normative language (v0.7)"
 
 ---
 
-## Task 8: Documentation Updates
+## Task 9: Documentation Updates
 
 Update README, SECURITY, CONTRIBUTING, and other docs for v0.7.
 
@@ -1126,40 +1323,36 @@ Update README, SECURITY, CONTRIBUTING, and other docs for v0.7.
 
 **Step 1: Update README.md**
 
-- Update the version/status line to mention v0.7 and discovery posture
-- Add posture to the feature list or "What's new" section
-- Update the "What's next" section
+- Update version/status to v0.7 with discovery posture mention
+- Add posture to feature list
+- Update "What's next" section
 
 **Step 2: Update SECURITY.md**
 
-- Add v0.7 to the version table: `| v0.7 | Current — discovery posture, governance visibility |`
-- Move v0.6 from "Current" to "Stable"
-- Add "What v0.7 Adds" section:
-  ```
-  - **Discovery posture (v0.7)** — `posture` block in `/.well-known/anip` exposes audit, lineage, metadata policy, failure disclosure, and anchoring characteristics at the service level
-  - Posture describes governance semantics, not implementation internals — no database engines, ORM types, or infrastructure details
-  ```
+- Add v0.7 row to version table: `| v0.7 | Current — discovery posture, governance visibility |`
+- Move v0.6 to "Stable"
+- Add "What v0.7 Adds" paragraph
 
 **Step 3: Update CONTRIBUTING.md**
 
-- Update the resolved questions list to include v0.7 (governance posture visibility)
+- Update resolved questions list to include v0.7
 
 **Step 4: Update GUIDE.md**
 
-- Update any version references from v0.6 to v0.7
+- Update version references from v0.6 to v0.7
 
 **Step 5: Update `schema/README.md`**
 
-- Bump schema version references from v0.6 to v0.7
-- Add `DiscoveryPosture` and sub-types row to the schema table
+- Bump version references
+- Add posture types to schema table
 
 **Step 6: Update skills files**
 
-- Update spec version references in `skills/anip-consumer.md`, `skills/anip-implementer.md`, `skills/anip-validator.md`
+- Update spec version headers in consumer, implementer, validator skills
 
 **Step 7: Update `docs/trust-model.md`**
 
-- Add discovery posture as a new section or mention in the trust model overview
+- Add discovery posture mention in trust model overview
 
 **Step 8: Commit**
 
