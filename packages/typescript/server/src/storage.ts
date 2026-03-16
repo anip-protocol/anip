@@ -133,25 +133,26 @@ export class SQLiteStorage implements StorageBackend {
   private ready: Promise<void>;
 
   constructor(dbPath: string = "anip.db") {
-    // Resolve the worker script relative to this module.
-    // In source context (vitest / tsx / ts-node) the .ts file exists;
-    // after tsc build only the .js file is present in dist/.
-    // Prefer .ts so that tests work without a prior build step.
+    // Resolve the worker script.  Prefer the built .js file because
+    // Node worker threads cannot load .ts files without an explicit
+    // TS loader (vitest's TS transforms don't propagate to workers).
+    //
+    // Resolution order:
+    //   1. sqlite-worker.js next to this file (production / dist)
+    //   2. ../dist/sqlite-worker.js (vitest runs from src/ after tsc)
+    //   3. sqlite-worker.ts next to this file (dev without build —
+    //      requires a TS-capable runtime like tsx)
     const dir = dirname(fileURLToPath(import.meta.url));
-    const tsPath = resolve(dir, "sqlite-worker.ts");
-    const jsPath = resolve(dir, "sqlite-worker.js");
-    const workerPath = existsSync(tsPath) ? tsPath : jsPath;
+    const jsHere = resolve(dir, "sqlite-worker.js");
+    const jsDist = resolve(dir, "../dist/sqlite-worker.js");
+    const tsHere = resolve(dir, "sqlite-worker.ts");
+    const workerPath = existsSync(jsHere)
+      ? jsHere
+      : existsSync(jsDist)
+        ? jsDist
+        : tsHere;
 
-    // When loading a .ts worker, explicitly forward the parent's
-    // execArgv so that any active TS loader (vitest, tsx, ts-node)
-    // is available inside the worker thread.  For .js workers this
-    // is harmless but unnecessary — omit to keep a clean argv.
-    const workerOpts: import("node:worker_threads").WorkerOptions = {
-      workerData: { dbPath },
-      ...(workerPath.endsWith(".ts") && { execArgv: process.execArgv }),
-    };
-
-    this.worker = new Worker(workerPath, workerOpts);
+    this.worker = new Worker(workerPath, { workerData: { dbPath } });
 
     // Wait for the worker to signal it has finished DB init.
     this.ready = new Promise<void>((resolve, reject) => {
