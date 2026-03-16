@@ -76,6 +76,27 @@ describe("AuditLog lineage fields", () => {
     expect(results[0].invocation_id).toBe("inv-aaa");
   });
 
+  it("persists stream_summary in audit entry", async () => {
+    await auditLog.logEntry({
+      capability: "analyze",
+      token_id: "tok-1",
+      root_principal: "human:alice",
+      success: true,
+      invocation_id: "inv-000000000001",
+      streamSummary: {
+        response_mode: "streaming",
+        events_emitted: 5,
+        events_delivered: 3,
+        duration_ms: 1200,
+        client_disconnected: true,
+      },
+    });
+    const entries = await auditLog.query();
+    expect(entries[0].stream_summary).toBeDefined();
+    expect((entries[0].stream_summary as any).events_emitted).toBe(5);
+    expect((entries[0].stream_summary as any).client_disconnected).toBe(true);
+  });
+
   it("query by client_reference_id", async () => {
     await auditLog.logEntry({
       capability: "search_flights",

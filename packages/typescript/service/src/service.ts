@@ -30,7 +30,7 @@ import {
 } from "@anip/server";
 
 import { ANIPError } from "./types.js";
-import type { CapabilityDef, Handler } from "./types.js";
+import type { CapabilityDef, Handler, InvocationContext } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -72,8 +72,13 @@ export interface ANIPService {
     capabilityName: string,
     token: DelegationToken,
     params: Record<string, unknown>,
-    opts?: { clientReferenceId?: string | null },
+    opts?: {
+      clientReferenceId?: string | null;
+      stream?: boolean;
+      progressSink?: (event: Record<string, unknown>) => Promise<void>;
+    },
   ): Promise<Record<string, unknown>>;
+  getCapabilityDeclaration(capabilityName: string): Record<string, unknown> | null;
   queryAudit(
     token: DelegationToken,
     filters?: Record<string, unknown>,
@@ -268,6 +273,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       costActual?: Record<string, unknown> | null;
       invocationId?: string | null;
       clientReferenceId?: string | null;
+      streamSummary?: Record<string, unknown> | null;
     },
   ): Promise<void> {
     const chain = await engine.getChain(token);
@@ -282,6 +288,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       delegation_chain: chain.map((t) => t.token_id),
       invocation_id: auditOpts.invocationId ?? null,
       client_reference_id: auditOpts.clientReferenceId ?? null,
+      streamSummary: auditOpts.streamSummary ?? null,
     });
 
     entriesSinceCheckpoint++;
@@ -639,11 +646,20 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       ) as unknown as Record<string, unknown>;
     },
 
+    getCapabilityDeclaration(capabilityName: string): Record<string, unknown> | null {
+      const cap = capabilities.get(capabilityName);
+      return cap ? (cap.declaration as Record<string, unknown>) : null;
+    },
+
     async invoke(
       capabilityName: string,
       token: DelegationToken,
       params: Record<string, unknown>,
-      opts?: { clientReferenceId?: string | null },
+      opts?: {
+        clientReferenceId?: string | null;
+        stream?: boolean;
+        progressSink?: (event: Record<string, unknown>) => Promise<void>;
+      },
     ): Promise<Record<string, unknown>> {
       const invocationId = `inv-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
       const clientReferenceId = opts?.clientReferenceId ?? null;
@@ -663,6 +679,24 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
       const cap = capabilities.get(capabilityName)!;
       const decl = cap.declaration;
+
+      // Check streaming support
+      const stream = opts?.stream ?? false;
+      const progressSink = opts?.progressSink ?? null;
+      if (stream) {
+        const responseModes = (decl as any).response_modes ?? ["unary"];
+        if (!responseModes.includes("streaming")) {
+          return {
+            success: false,
+            failure: {
+              type: "streaming_not_supported",
+              detail: `Capability '${capabilityName}' does not support streaming`,
+            },
+            invocation_id: invocationId,
+            client_reference_id: clientReferenceId,
+          };
+        }
+      }
 
       // 2. Validate delegation
       const minScope = decl.minimum_scope ?? [];
@@ -699,8 +733,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       // 3. Build invocation context
       const chain = await engine.getChain(resolvedToken);
       let costActual: Record<string, unknown> | null = null;
+      let eventsEmitted = 0;
+      let eventsDelivered = 0;
+      let clientDisconnected = false;
+      const streamStart = stream ? performance.now() : 0;
 
-      const ctx = {
+      const ctx: InvocationContext = {
         token: resolvedToken,
         rootPrincipal: await engine.getRootPrincipal(resolvedToken),
         subject: resolvedToken.subject,
@@ -711,22 +749,51 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         setCostActual(cost: Record<string, unknown>): void {
           costActual = cost;
         },
+        async emitProgress(payload: Record<string, unknown>): Promise<void> {
+          if (!stream) return;
+          eventsEmitted++;
+          if (progressSink) {
+            try {
+              await progressSink({
+                invocation_id: invocationId,
+                client_reference_id: clientReferenceId,
+                payload,
+              });
+              eventsDelivered++;
+            } catch {
+              clientDisconnected = true;
+            }
+          }
+        },
       };
 
       // 4. Call handler
       try {
         const result = await cap.handler(ctx, params);
 
-        // 5. Log audit (success)
+        // 5. Build stream summary (before audit so it can be persisted)
+        let streamSummary: Record<string, unknown> | null = null;
+        if (stream) {
+          streamSummary = {
+            response_mode: "streaming",
+            events_emitted: eventsEmitted,
+            events_delivered: eventsDelivered,
+            duration_ms: Math.round(performance.now() - streamStart),
+            client_disconnected: clientDisconnected,
+          };
+        }
+
+        // 6. Log audit (success)
         await logAudit(capabilityName, resolvedToken, {
           success: true,
           resultSummary: summarizeResult(result),
           costActual,
           invocationId,
           clientReferenceId,
+          streamSummary,
         });
 
-        // 6. Build response
+        // 7. Build response
         const response: Record<string, unknown> = {
           success: true,
           result,
@@ -736,9 +803,22 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         if (costActual) {
           response.cost_actual = costActual;
         }
+        if (streamSummary) {
+          response.stream_summary = streamSummary;
+        }
 
         return response;
       } catch (err) {
+        const failStreamSummary = stream
+          ? {
+              response_mode: "streaming",
+              events_emitted: eventsEmitted,
+              events_delivered: eventsDelivered,
+              duration_ms: Math.round(performance.now() - streamStart),
+              client_disconnected: clientDisconnected,
+            }
+          : null;
+
         if (err instanceof ANIPError) {
           await logAudit(capabilityName, resolvedToken, {
             success: false,
@@ -746,13 +826,18 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             resultSummary: { detail: err.detail },
             invocationId,
             clientReferenceId,
+            streamSummary: failStreamSummary,
           });
-          return {
+          const response: Record<string, unknown> = {
             success: false,
             failure: { type: err.errorType, detail: err.detail },
             invocation_id: invocationId,
             client_reference_id: clientReferenceId,
           };
+          if (failStreamSummary) {
+            response.stream_summary = failStreamSummary;
+          }
+          return response;
         }
 
         // Unexpected error — do NOT leak details
@@ -761,13 +846,18 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           failureType: "internal_error",
           invocationId,
           clientReferenceId,
+          streamSummary: failStreamSummary,
         });
-        return {
+        const response: Record<string, unknown> = {
           success: false,
           failure: { type: "internal_error", detail: "Internal error" },
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,
         };
+        if (failStreamSummary) {
+          response.stream_summary = failStreamSummary;
+        }
+        return response;
       }
     },
 

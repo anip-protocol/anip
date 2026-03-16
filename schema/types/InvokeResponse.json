@@ -101,9 +101,26 @@
       ],
       "title": "Resolution",
       "type": "object"
+    },
+    "StreamSummary": {
+      "properties": {
+        "response_mode": { "const": "streaming" },
+        "events_emitted": { "type": "integer", "minimum": 0 },
+        "events_delivered": { "type": "integer", "minimum": 0 },
+        "duration_ms": { "type": "integer", "minimum": 0 },
+        "client_disconnected": { "type": "boolean" }
+      },
+      "required": ["response_mode", "events_emitted", "events_delivered", "duration_ms", "client_disconnected"],
+      "title": "StreamSummary",
+      "type": "object"
     }
   },
   "properties": {
+    "invocation_id": {
+      "title": "Invocation Id",
+      "type": "string",
+      "pattern": "^inv-[0-9a-f]{12}$"
+    },
     "success": {
       "title": "Success",
       "type": "boolean"
@@ -155,9 +172,25 @@
       ],
       "default": null,
       "title": "Session"
+    },
+    "stream_summary": {
+      "anyOf": [
+        { "$ref": "#/$defs/StreamSummary" },
+        { "type": "null" }
+      ],
+      "default": null
+    },
+    "client_reference_id": {
+      "anyOf": [
+        { "type": "string", "maxLength": 256 },
+        { "type": "null" }
+      ],
+      "default": null,
+      "title": "Client Reference Id"
     }
   },
   "required": [
+    "invocation_id",
     "success"
   ],
   "title": "InvokeResponse",

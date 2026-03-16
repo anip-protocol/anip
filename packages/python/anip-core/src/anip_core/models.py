@@ -19,6 +19,11 @@ class SideEffectType(str, Enum):
     TRANSACTIONAL = "transactional"
 
 
+class ResponseMode(str, Enum):
+    UNARY = "unary"
+    STREAMING = "streaming"
+
+
 class SideEffect(BaseModel):
     type: SideEffectType
     rollback_window: str | None = None  # ISO 8601 duration or "none" or "not_applicable"
@@ -141,6 +146,7 @@ class CapabilityDeclaration(BaseModel):
     composes_with: list[CapabilityComposition] = Field(default_factory=list)
     session: SessionInfo = Field(default_factory=SessionInfo)
     observability: ObservabilityContract | None = None
+    response_modes: list[ResponseMode] = Field(default_factory=lambda: [ResponseMode.UNARY])
 
 
 # --- Permission Discovery ---
@@ -253,6 +259,16 @@ class InvokeRequest(BaseModel):
     parameters: dict[str, Any] = Field(default_factory=dict)
     budget: dict[str, Any] | None = None
     client_reference_id: str | None = Field(default=None, max_length=256)
+    stream: bool = False
+
+
+class StreamSummary(BaseModel):
+    """Runtime-managed metadata for streaming invocations."""
+    response_mode: str = "streaming"
+    events_emitted: int
+    events_delivered: int
+    duration_ms: int
+    client_disconnected: bool
 
 
 class InvokeResponse(BaseModel):
@@ -263,6 +279,7 @@ class InvokeResponse(BaseModel):
     cost_actual: CostActual | None = None
     failure: ANIPFailure | None = None
     session: dict[str, Any] | None = None
+    stream_summary: StreamSummary | None = None
 
 
 # --- Checkpoint ---

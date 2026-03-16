@@ -167,3 +167,85 @@ describe("Express routes", () => {
     stop(); // Should not throw
   });
 });
+
+function streamingCap() {
+  return defineCapability({
+    declaration: {
+      name: "analyze",
+      description: "Long-running analysis",
+      contract_version: "1.0",
+      inputs: [{ name: "target", type: "string", required: true, description: "target" }],
+      output: { type: "object", fields: ["result"] },
+      side_effect: { type: "read", rollback_window: "not_applicable" },
+      minimum_scope: ["analyze"],
+      response_modes: ["unary", "streaming"],
+    } as CapabilityDeclaration,
+    async handler(ctx, _params) {
+      await ctx.emitProgress({ step: 1, status: "working" });
+      return { result: "done" };
+    },
+  });
+}
+
+function makeStreamingApp() {
+  const app = express();
+  const service = createANIPService({
+    serviceId: "test-service",
+    capabilities: [greetCap(), streamingCap()],
+    storage: new InMemoryStorage(),
+    authenticate: (bearer) => (bearer === API_KEY ? "test-agent" : null),
+  });
+  const { stop } = mountAnip(app, service);
+  return { app, stop };
+}
+
+describe("Express streaming routes", () => {
+  let stopFn: (() => void) | undefined;
+
+  afterEach(() => {
+    stopFn?.();
+    stopFn = undefined;
+  });
+
+  it("stream:true returns text/event-stream with progress + completed", async () => {
+    const { app, stop } = makeStreamingApp();
+    stopFn = stop;
+
+    // Issue token
+    const tokenRes = await request(app)
+      .post("/anip/tokens")
+      .set("Authorization", `Bearer ${API_KEY}`)
+      .send({ subject: "test-agent", scope: ["analyze"], capability: "analyze" });
+    const jwt = tokenRes.body.token;
+
+    // Invoke with streaming
+    const res = await request(app)
+      .post("/anip/invoke/analyze")
+      .set("Authorization", `Bearer ${jwt}`)
+      .send({ parameters: { target: "x" }, stream: true });
+
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/event-stream");
+    expect(res.text).toContain("event: progress");
+    expect(res.text).toContain("event: completed");
+  });
+
+  it("stream:true on unary-only capability returns 400 JSON", async () => {
+    const { app, stop } = makeStreamingApp();
+    stopFn = stop;
+
+    const tokenRes = await request(app)
+      .post("/anip/tokens")
+      .set("Authorization", `Bearer ${API_KEY}`)
+      .send({ subject: "test-agent", scope: ["greet"], capability: "greet" });
+    const jwt = tokenRes.body.token;
+
+    const res = await request(app)
+      .post("/anip/invoke/greet")
+      .set("Authorization", `Bearer ${jwt}`)
+      .send({ parameters: { name: "world" }, stream: true });
+
+    expect(res.status).toBe(400);
+    expect(res.body.failure.type).toBe("streaming_not_supported");
+  });
+});

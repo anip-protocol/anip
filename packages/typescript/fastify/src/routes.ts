@@ -55,14 +55,62 @@ export function mountAnip(
       const body = req.body as Record<string, unknown>;
       const params = (body.parameters as Record<string, unknown>) ?? body;
       const clientReferenceId = (body.client_reference_id as string) ?? null;
-      const result = await service.invoke(req.params.capability, token, params, {
-        clientReferenceId,
-      });
-      if (!result.success) {
+
+      if (!body.stream) {
+        // Unary mode — existing behavior
+        const result = await service.invoke(req.params.capability, token, params, {
+          clientReferenceId,
+        });
+        if (!result.success) {
+          const failure = result.failure as Record<string, unknown>;
+          return reply.status(failureStatus(failure?.type as string)).send(result);
+        }
+        return result;
+      }
+
+      // Pre-validate streaming support (return JSON 400, not SSE)
+      const decl = service.getCapabilityDeclaration(req.params.capability);
+      const modes = (decl?.response_modes as string[]) ?? ["unary"];
+      if (!modes.includes("streaming")) {
+        const result = await service.invoke(req.params.capability, token, params, {
+          clientReferenceId, stream: true,
+        });
         const failure = result.failure as Record<string, unknown>;
         return reply.status(failureStatus(failure?.type as string)).send(result);
       }
-      return result;
+
+      // True streaming: reply.raw.write() as progress sink
+      // Call hijack() first so Fastify knows we manage the response
+      reply.hijack();
+      reply.raw.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+      });
+
+      const result = await service.invoke(req.params.capability, token, params, {
+        clientReferenceId,
+        stream: true,
+        progressSink: async (event) => {
+          const eventData = { ...event, timestamp: new Date().toISOString() };
+          reply.raw.write(`event: progress\ndata: ${JSON.stringify(eventData)}\n\n`);
+        },
+      });
+
+      const ts = new Date().toISOString();
+      const terminalType = result.success ? "completed" : "failed";
+      const terminalData = {
+        invocation_id: result.invocation_id,
+        client_reference_id: result.client_reference_id,
+        timestamp: ts,
+        success: result.success,
+        ...(result.success
+          ? { result: result.result, cost_actual: result.cost_actual }
+          : { failure: result.failure }),
+        ...(result.stream_summary ? { stream_summary: result.stream_summary } : {}),
+      };
+      reply.raw.write(`event: ${terminalType}\ndata: ${JSON.stringify(terminalData)}\n\n`);
+      reply.raw.end();
     },
   );
 

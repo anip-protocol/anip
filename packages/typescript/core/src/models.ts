@@ -127,6 +127,9 @@ export const ObservabilityContract = z.object({
 });
 export type ObservabilityContract = z.infer<typeof ObservabilityContract>;
 
+export const ResponseMode = z.enum(["unary", "streaming"]);
+export type ResponseMode = z.infer<typeof ResponseMode>;
+
 export const CapabilityDeclaration = z.object({
   name: z.string(),
   description: z.string(),
@@ -140,6 +143,7 @@ export const CapabilityDeclaration = z.object({
   composes_with: z.array(CapabilityComposition).default([]),
   session: SessionInfo.default({ type: "stateless" }),
   observability: ObservabilityContract.nullable().default(null),
+  response_modes: z.array(ResponseMode).min(1).default(["unary"]),
 });
 export type CapabilityDeclaration = z.infer<typeof CapabilityDeclaration>;
 
@@ -269,8 +273,18 @@ export const InvokeRequest = z.object({
   parameters: z.record(z.any()).default({}),
   budget: z.record(z.any()).nullable().default(null),
   client_reference_id: z.string().max(256).nullable().default(null),
+  stream: z.boolean().default(false),
 });
 export type InvokeRequest = z.infer<typeof InvokeRequest>;
+
+export const StreamSummary = z.object({
+  response_mode: z.literal("streaming"),
+  events_emitted: z.number().int(),
+  events_delivered: z.number().int(),
+  duration_ms: z.number().int(),
+  client_disconnected: z.boolean(),
+});
+export type StreamSummary = z.infer<typeof StreamSummary>;
 
 export const InvokeResponse = z.object({
   success: z.boolean(),
@@ -280,6 +294,7 @@ export const InvokeResponse = z.object({
   cost_actual: CostActual.nullable().default(null),
   failure: ANIPFailure.nullable().default(null),
   session: z.record(z.any()).nullable().default(null),
+  stream_summary: StreamSummary.nullable().default(null),
 });
 export type InvokeResponse = z.infer<typeof InvokeResponse>;
 

@@ -8,6 +8,7 @@ from anip_core import (
     ConcurrentBranches, PermissionResponse,
     ANIPFailure, PROTOCOL_VERSION,
     InvokeRequest, InvokeResponse,
+    ResponseMode, StreamSummary,
 )
 
 
@@ -43,6 +44,40 @@ def test_trust_posture_anchored():
     )
     assert tp.anchoring.max_lag == 100
     assert tp.anchoring.sink == ["witness:example.com"]
+
+
+def test_response_mode_enum():
+    assert ResponseMode.UNARY == "unary"
+    assert ResponseMode.STREAMING == "streaming"
+
+
+def test_capability_declaration_response_modes_default():
+    decl = CapabilityDeclaration(
+        name="test", description="Test", contract_version="1.0",
+        inputs=[], output={"type": "object", "fields": []},
+        side_effect={"type": "read"}, minimum_scope=["test"],
+    )
+    assert decl.response_modes == [ResponseMode.UNARY]
+
+
+def test_capability_declaration_response_modes_streaming():
+    decl = CapabilityDeclaration(
+        name="test", description="Test", contract_version="1.0",
+        inputs=[], output={"type": "object", "fields": []},
+        side_effect={"type": "read"}, minimum_scope=["test"],
+        response_modes=["streaming"],
+    )
+    assert decl.response_modes == [ResponseMode.STREAMING]
+
+
+def test_capability_declaration_response_modes_both():
+    decl = CapabilityDeclaration(
+        name="test", description="Test", contract_version="1.0",
+        inputs=[], output={"type": "object", "fields": []},
+        side_effect={"type": "read"}, minimum_scope=["test"],
+        response_modes=["unary", "streaming"],
+    )
+    assert len(decl.response_modes) == 2
 
 
 def test_capability_declaration():
@@ -190,3 +225,35 @@ def test_invoke_response_roundtrip():
     restored = InvokeResponse.model_validate(d)
     assert restored.invocation_id == resp.invocation_id
     assert restored.client_reference_id == resp.client_reference_id
+
+
+# --- Streaming ---
+
+
+def test_stream_summary():
+    ss = StreamSummary(
+        response_mode="streaming",
+        events_emitted=5,
+        events_delivered=3,
+        duration_ms=1200,
+        client_disconnected=True,
+    )
+    assert ss.events_emitted == 5
+    assert ss.client_disconnected is True
+
+
+def test_invoke_request_stream_default_false():
+    req = InvokeRequest(
+        token="jwt-string",
+        parameters={"x": 1},
+    )
+    assert req.stream is False
+
+
+def test_invoke_request_stream_true():
+    req = InvokeRequest(
+        token="jwt-string",
+        parameters={"x": 1},
+        stream=True,
+    )
+    assert req.stream is True

@@ -57,14 +57,85 @@ export function mountAnip(
     const body = await c.req.json();
     const params = body.parameters ?? body;
     const clientReferenceId = body.client_reference_id ?? null;
-    const result = await service.invoke(capability, token, params, {
-      clientReferenceId,
-    });
-    if (!result.success) {
+
+    if (!body.stream) {
+      // Unary mode — existing behavior
+      const result = await service.invoke(capability, token, params, {
+        clientReferenceId,
+      });
+      if (!result.success) {
+        const failure = result.failure as Record<string, unknown>;
+        return c.json(result, failureStatus(failure?.type as string));
+      }
+      return c.json(result);
+    }
+
+    // Pre-validate streaming support (return JSON 400, not SSE)
+    const decl = service.getCapabilityDeclaration(capability);
+    const modes = (decl?.response_modes as string[]) ?? ["unary"];
+    if (!modes.includes("streaming")) {
+      const result = await service.invoke(capability, token, params, {
+        clientReferenceId,
+        stream: true,
+      });
       const failure = result.failure as Record<string, unknown>;
       return c.json(result, failureStatus(failure?.type as string));
     }
-    return c.json(result);
+
+    // True streaming: TransformStream bridges sink → Response body
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
+    const encoder = new TextEncoder();
+
+    (async () => {
+      try {
+        const result = await service.invoke(capability, token, params, {
+          clientReferenceId,
+          stream: true,
+          progressSink: async (event) => {
+            const eventData = { ...event, timestamp: new Date().toISOString() };
+            await writer.write(
+              encoder.encode(`event: progress\ndata: ${JSON.stringify(eventData)}\n\n`),
+            );
+          },
+        });
+
+        const ts = new Date().toISOString();
+        const terminalType = result.success ? "completed" : "failed";
+        const terminalData: Record<string, unknown> = {
+          invocation_id: result.invocation_id,
+          client_reference_id: result.client_reference_id,
+          timestamp: ts,
+          success: result.success,
+          ...(result.success
+            ? { result: result.result, cost_actual: result.cost_actual }
+            : { failure: result.failure }),
+          ...(result.stream_summary ? { stream_summary: result.stream_summary } : {}),
+        };
+        await writer.write(
+          encoder.encode(`event: ${terminalType}\ndata: ${JSON.stringify(terminalData)}\n\n`),
+        );
+        await writer.close();
+      } catch (err) {
+        const errorData = {
+          timestamp: new Date().toISOString(),
+          success: false,
+          failure: { type: "internal_error", detail: "Internal error" },
+        };
+        await writer.write(
+          encoder.encode(`event: failed\ndata: ${JSON.stringify(errorData)}\n\n`),
+        );
+        await writer.close();
+      }
+    })();
+
+    return new Response(readable, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
   });
 
   // --- Audit ---

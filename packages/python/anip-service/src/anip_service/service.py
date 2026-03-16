@@ -3,15 +3,17 @@ from __future__ import annotations
 
 import inspect
 import json
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable
+from typing import Any, Awaitable, Callable
 
 from anip_core import (
     ANIPFailure,
     ANIPManifest,
     CapabilityDeclaration,
     DelegationToken,
+    ResponseMode,
     ServiceIdentity,
     TrustPosture,
     AnchoringPolicy,
@@ -373,6 +375,12 @@ class ANIPService:
         """Return the permissions granted by a token."""
         return discover_permissions(token, self._manifest.capabilities)
 
+    def get_capability_declaration(self, capability_name: str) -> CapabilityDeclaration | None:
+        """Return the capability declaration or None. Used by HTTP bindings for pre-validation."""
+        cap = self._capabilities.get(capability_name)
+        return cap.declaration if cap else None
+
+
     async def invoke(
         self,
         capability_name: str,
@@ -380,6 +388,8 @@ class ANIPService:
         params: dict[str, Any],
         *,
         client_reference_id: str | None = None,
+        stream: bool = False,
+        _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
     ) -> dict[str, Any]:
         """Invoke a capability with full validation, audit, and error handling.
 
@@ -407,6 +417,20 @@ class ANIPService:
 
         cap = self._capabilities[capability_name]
         decl = cap.declaration
+
+        # Check streaming support
+        if stream:
+            response_modes = [m.value if hasattr(m, 'value') else m for m in (decl.response_modes or ["unary"])]
+            if "streaming" not in response_modes:
+                return {
+                    "success": False,
+                    "failure": {
+                        "type": "streaming_not_supported",
+                        "detail": f"Capability '{capability_name}' does not support streaming",
+                    },
+                    "invocation_id": invocation_id,
+                    "client_reference_id": client_reference_id,
+                }
 
         # 2. Validate delegation
         min_scope = decl.minimum_scope or []
@@ -437,6 +461,26 @@ class ANIPService:
         # Use the resolved/stored token from validation
         resolved_token = validation_result
 
+        # Set up progress tracking for streaming
+        events_emitted = 0
+        events_delivered = 0
+        client_disconnected = False
+        stream_start = time.monotonic() if stream else 0
+
+        async def _internal_progress_sink(payload: dict[str, Any]) -> None:
+            nonlocal events_emitted, events_delivered, client_disconnected
+            events_emitted += 1
+            if _progress_sink is not None:
+                try:
+                    await _progress_sink({
+                        "invocation_id": invocation_id,
+                        "client_reference_id": client_reference_id,
+                        "payload": payload,
+                    })
+                    events_delivered += 1
+                except Exception:
+                    client_disconnected = True
+
         # 3. Build invocation context
         chain = await self._engine.get_chain(resolved_token)
         ctx = InvocationContext(
@@ -447,6 +491,7 @@ class ANIPService:
             delegation_chain=[t.token_id for t in chain],
             invocation_id=invocation_id,
             client_reference_id=client_reference_id,
+            _progress_sink=_internal_progress_sink if stream else None,
         )
 
         # 4. Acquire lock if configured
@@ -475,38 +520,75 @@ class ANIPService:
                 if inspect.isawaitable(result):
                     result = await result
             except ANIPError as e:
+                fail_stream_summary: dict[str, Any] | None = None
+                if stream:
+                    fail_stream_summary = {
+                        "response_mode": "streaming",
+                        "events_emitted": events_emitted,
+                        "events_delivered": events_delivered,
+                        "duration_ms": int((time.monotonic() - stream_start) * 1000),
+                        "client_disconnected": client_disconnected,
+                    }
                 await self._log_audit(
                     capability_name, resolved_token, success=False,
                     failure_type=e.error_type,
                     result_summary={"detail": e.detail},
                     cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
+                    stream_summary=fail_stream_summary,
                 )
-                return {
+                fail_response: dict[str, Any] = {
                     "success": False,
                     "failure": {"type": e.error_type, "detail": e.detail},
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
+                if fail_stream_summary:
+                    fail_response["stream_summary"] = fail_stream_summary
+                return fail_response
             except Exception:
+                fail_stream_summary_exc: dict[str, Any] | None = None
+                if stream:
+                    fail_stream_summary_exc = {
+                        "response_mode": "streaming",
+                        "events_emitted": events_emitted,
+                        "events_delivered": events_delivered,
+                        "duration_ms": int((time.monotonic() - stream_start) * 1000),
+                        "client_disconnected": client_disconnected,
+                    }
                 await self._log_audit(
                     capability_name, resolved_token, success=False,
                     failure_type="internal_error",
                     result_summary=None, cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
+                    stream_summary=fail_stream_summary_exc,
                 )
-                return {
+                fail_response_exc: dict[str, Any] = {
                     "success": False,
                     "failure": {"type": "internal_error", "detail": "Internal error"},
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
+                if fail_stream_summary_exc:
+                    fail_response_exc["stream_summary"] = fail_stream_summary_exc
+                return fail_response_exc
 
             # 6. Compute cost variance
             cost_actual = ctx._cost_actual
             cost_variance = self._compute_cost_variance(decl, cost_actual)
 
-            # 7. Log audit (success)
+            # 7. Build stream summary (before audit so it can be persisted)
+            stream_summary: dict[str, Any] | None = None
+            if stream:
+                stream_summary = {
+                    "response_mode": "streaming",
+                    "events_emitted": events_emitted,
+                    "events_delivered": events_delivered,
+                    "duration_ms": int((time.monotonic() - stream_start) * 1000),
+                    "client_disconnected": client_disconnected,
+                }
+
+            # 8. Log audit (success)
             await self._log_audit(
                 capability_name, resolved_token, success=True,
                 failure_type=None,
@@ -514,9 +596,10 @@ class ANIPService:
                 cost_actual=cost_actual,
                 cost_variance=cost_variance,
                 invocation_id=invocation_id, client_reference_id=client_reference_id,
+                stream_summary=stream_summary,
             )
 
-            # 8. Build response
+            # 9. Build response
             response: dict[str, Any] = {
                 "success": True,
                 "result": result,
@@ -525,6 +608,9 @@ class ANIPService:
             }
             if cost_actual:
                 response["cost_actual"] = cost_actual
+
+            if stream_summary:
+                response["stream_summary"] = stream_summary
 
             return response
 
@@ -675,6 +761,7 @@ class ANIPService:
         cost_variance: dict[str, Any] | None,
         invocation_id: str | None = None,
         client_reference_id: str | None = None,
+        stream_summary: dict[str, Any] | None = None,
     ) -> None:
         """Log an audit entry through the SDK's AuditLog."""
         chain = await self._engine.get_chain(token)
@@ -689,6 +776,7 @@ class ANIPService:
             "delegation_chain": [t.token_id for t in chain],
             "invocation_id": invocation_id,
             "client_reference_id": client_reference_id,
+            "stream_summary": stream_summary,
         })
 
         self._entries_since_checkpoint += 1

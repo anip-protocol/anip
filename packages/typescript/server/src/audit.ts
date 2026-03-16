@@ -64,6 +64,7 @@ export class AuditLog {
       delegation_chain: entryData.delegation_chain ?? null,
       invocation_id: entryData.invocation_id ?? null,
       client_reference_id: entryData.client_reference_id ?? null,
+      stream_summary: entryData.streamSummary ?? entryData.stream_summary ?? null,
       previous_hash: previousHash,
     };
 

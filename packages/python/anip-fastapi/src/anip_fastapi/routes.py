@@ -1,8 +1,12 @@
 """Mount ANIP routes onto a FastAPI application."""
 from __future__ import annotations
 
+import asyncio
+import json
+from datetime import datetime, timezone
+
 from fastapi import FastAPI, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from anip_service import ANIPService, ANIPError
 
@@ -27,14 +31,8 @@ def mount_anip(
     """
 
     # --- Lifecycle: wire start/stop into FastAPI events ---
-
-    @app.on_event("startup")
-    async def _anip_startup():
-        service.start()
-
-    @app.on_event("shutdown")
-    async def _anip_shutdown():
-        service.stop()
+    app.router.on_startup.append(service.start)
+    app.router.on_shutdown.append(service.stop)
 
     # --- Discovery & Identity ---
 
@@ -90,16 +88,110 @@ def mount_anip(
         body = await request.json()
         params = body.get("parameters", body)
         client_reference_id = body.get("client_reference_id")
-        result = await service.invoke(
-            capability, token, params,
-            client_reference_id=client_reference_id,
+        stream = body.get("stream", False)
+
+        if not stream:
+            # Unary mode — existing behavior
+            result = await service.invoke(
+                capability, token, params,
+                client_reference_id=client_reference_id,
+            )
+            if not result.get("success"):
+                status = _failure_status(result.get("failure", {}).get("type"))
+                return JSONResponse(result, status_code=status)
+            return result
+
+        # Streaming mode — pre-validate streaming support (return JSON 400, not SSE)
+        decl = service.get_capability_declaration(capability)
+        if decl is not None:
+            modes = [m.value if hasattr(m, 'value') else m
+                     for m in (decl.response_modes or ["unary"])]
+            if "streaming" not in modes:
+                result = await service.invoke(
+                    capability, token, params,
+                    client_reference_id=client_reference_id,
+                    stream=True,
+                )
+                status = _failure_status(result.get("failure", {}).get("type"))
+                return JSONResponse(result, status_code=status)
+
+        # True streaming: asyncio.Queue bridges sink -> SSE generator
+        queue: asyncio.Queue[dict] = asyncio.Queue()
+
+        async def progress_sink(event: dict) -> None:
+            await queue.put({"type": "progress", **event})
+
+        async def run_invoke():
+            try:
+                result = await service.invoke(
+                    capability, token, params,
+                    client_reference_id=client_reference_id,
+                    stream=True,
+                    _progress_sink=progress_sink,
+                )
+                await queue.put({"type": "terminal", "result": result})
+            except Exception as e:
+                await queue.put({"type": "error", "detail": "Internal error"})
+
+        async def sse_generator():
+            task = asyncio.create_task(run_invoke())
+            try:
+                while True:
+                    event = await queue.get()
+                    ts = datetime.now(timezone.utc).isoformat()
+
+                    if event["type"] == "progress":
+                        event_data = {
+                            "invocation_id": event["invocation_id"],
+                            "client_reference_id": event.get("client_reference_id"),
+                            "timestamp": ts,
+                            "payload": event["payload"],
+                        }
+                        yield f"event: progress\ndata: {json.dumps(event_data)}\n\n"
+
+                    elif event["type"] == "terminal":
+                        result = event["result"]
+                        if result.get("success"):
+                            event_data = {
+                                "invocation_id": result["invocation_id"],
+                                "client_reference_id": result.get("client_reference_id"),
+                                "timestamp": ts,
+                                "success": True,
+                                "result": result.get("result"),
+                                "cost_actual": result.get("cost_actual"),
+                            }
+                            if "stream_summary" in result:
+                                event_data["stream_summary"] = result["stream_summary"]
+                            yield f"event: completed\ndata: {json.dumps(event_data)}\n\n"
+                        else:
+                            event_data = {
+                                "invocation_id": result.get("invocation_id"),
+                                "client_reference_id": result.get("client_reference_id"),
+                                "timestamp": ts,
+                                "success": False,
+                                "failure": result.get("failure"),
+                            }
+                            if "stream_summary" in result:
+                                event_data["stream_summary"] = result["stream_summary"]
+                            yield f"event: failed\ndata: {json.dumps(event_data)}\n\n"
+                        break
+
+                    elif event["type"] == "error":
+                        event_data = {
+                            "timestamp": ts,
+                            "success": False,
+                            "failure": {"type": "internal_error", "detail": event["detail"]},
+                        }
+                        yield f"event: failed\ndata: {json.dumps(event_data)}\n\n"
+                        break
+            finally:
+                await task
+
+        return StreamingResponse(
+            sse_generator(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
         )
-
-        if not result.get("success"):
-            status = _failure_status(result.get("failure", {}).get("type"))
-            return JSONResponse(result, status_code=status)
-
-        return result
 
     # --- Audit ---
 
