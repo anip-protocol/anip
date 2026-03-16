@@ -134,15 +134,24 @@ export class SQLiteStorage implements StorageBackend {
 
   constructor(dbPath: string = "anip.db") {
     // Resolve the worker script relative to this module.
-    // In source / vitest context the .ts file exists; after tsc build
-    // only the .js file is present.  Prefer .ts so that tests work
-    // without a prior build step.
+    // In source context (vitest / tsx / ts-node) the .ts file exists;
+    // after tsc build only the .js file is present in dist/.
+    // Prefer .ts so that tests work without a prior build step.
     const dir = dirname(fileURLToPath(import.meta.url));
     const tsPath = resolve(dir, "sqlite-worker.ts");
     const jsPath = resolve(dir, "sqlite-worker.js");
     const workerPath = existsSync(tsPath) ? tsPath : jsPath;
 
-    this.worker = new Worker(workerPath, { workerData: { dbPath } });
+    // When loading a .ts worker, explicitly forward the parent's
+    // execArgv so that any active TS loader (vitest, tsx, ts-node)
+    // is available inside the worker thread.  For .js workers this
+    // is harmless but unnecessary — omit to keep a clean argv.
+    const workerOpts: import("node:worker_threads").WorkerOptions = {
+      workerData: { dbPath },
+      ...(workerPath.endsWith(".ts") && { execArgv: process.execArgv }),
+    };
+
+    this.worker = new Worker(workerPath, workerOpts);
 
     // Wait for the worker to signal it has finished DB init.
     this.ready = new Promise<void>((resolve) => {

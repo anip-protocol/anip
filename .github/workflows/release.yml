@@ -33,7 +33,7 @@ jobs:
             exit 1
           fi
 
-      - name: Validate version against all 13 packages
+      - name: Validate version against all 12 packages
         env:
           EXPECTED: ${{ inputs.version }}
         run: |
@@ -75,7 +75,7 @@ jobs:
           fi
 
           echo ""
-          echo "All 13 packages at version $EXPECTED"
+          echo "All 12 packages at version $EXPECTED"
 
       - name: Validate CI checks passed on this commit
         env:
