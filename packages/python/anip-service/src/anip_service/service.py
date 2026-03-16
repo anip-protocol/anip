@@ -3,15 +3,17 @@ from __future__ import annotations
 
 import inspect
 import json
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable
+from typing import Any, Awaitable, Callable
 
 from anip_core import (
     ANIPFailure,
     ANIPManifest,
     CapabilityDeclaration,
     DelegationToken,
+    ResponseMode,
     ServiceIdentity,
     TrustPosture,
     AnchoringPolicy,
@@ -373,6 +375,11 @@ class ANIPService:
         """Return the permissions granted by a token."""
         return discover_permissions(token, self._manifest.capabilities)
 
+    def get_capability_declaration(self, capability_name: str) -> CapabilityDeclaration | None:
+        """Return the capability declaration or None. Used by HTTP bindings for pre-validation."""
+        cap = self._capabilities.get(capability_name)
+        return cap.declaration if cap else None
+
     async def invoke(
         self,
         capability_name: str,
@@ -380,6 +387,8 @@ class ANIPService:
         params: dict[str, Any],
         *,
         client_reference_id: str | None = None,
+        stream: bool = False,
+        _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
     ) -> dict[str, Any]:
         """Invoke a capability with full validation, audit, and error handling.
 
@@ -407,6 +416,20 @@ class ANIPService:
 
         cap = self._capabilities[capability_name]
         decl = cap.declaration
+
+        # Check streaming support
+        if stream:
+            response_modes = [m.value if hasattr(m, 'value') else m for m in (decl.response_modes or ["unary"])]
+            if "streaming" not in response_modes:
+                return {
+                    "success": False,
+                    "failure": {
+                        "type": "streaming_not_supported",
+                        "detail": f"Capability '{capability_name}' does not support streaming",
+                    },
+                    "invocation_id": invocation_id,
+                    "client_reference_id": client_reference_id,
+                }
 
         # 2. Validate delegation
         min_scope = decl.minimum_scope or []
@@ -437,6 +460,20 @@ class ANIPService:
         # Use the resolved/stored token from validation
         resolved_token = validation_result
 
+        # Set up progress tracking for streaming
+        events_emitted = 0
+        stream_start = time.monotonic() if stream else 0
+
+        async def _internal_progress_sink(payload: dict[str, Any]) -> None:
+            nonlocal events_emitted
+            events_emitted += 1
+            if _progress_sink is not None:
+                await _progress_sink({
+                    "invocation_id": invocation_id,
+                    "client_reference_id": client_reference_id,
+                    "payload": payload,
+                })
+
         # 3. Build invocation context
         chain = await self._engine.get_chain(resolved_token)
         ctx = InvocationContext(
@@ -447,6 +484,7 @@ class ANIPService:
             delegation_chain=[t.token_id for t in chain],
             invocation_id=invocation_id,
             client_reference_id=client_reference_id,
+            _progress_sink=_internal_progress_sink if stream else None,
         )
 
         # 4. Acquire lock if configured
@@ -525,6 +563,15 @@ class ANIPService:
             }
             if cost_actual:
                 response["cost_actual"] = cost_actual
+
+            if stream:
+                response["stream_summary"] = {
+                    "response_mode": "streaming",
+                    "events_emitted": events_emitted,
+                    "events_delivered": events_emitted,
+                    "duration_ms": int((time.monotonic() - stream_start) * 1000),
+                    "client_disconnected": False,
+                }
 
             return response
 
