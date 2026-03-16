@@ -1278,9 +1278,9 @@ In the YAML example in §6.1 (around line 445–500), make these changes:
 
 In the fields list after the example:
 
-1. **`compliance`**: Clarify the two tiers — `"anip-compliant"` requires the 5 core primitives (manifest, permissions, invoke, tokens, audit); `"anip-complete"` requires all 9 (adds handshake, graph, test, checkpoints). A service MUST NOT claim `"anip-complete"` unless all 9 endpoints are implemented and functional.
+1. **`compliance`**: Cross-reference §3 without restating it. The `compliance` field indicates whether the service implements the 5 core primitives defined in §4 (`"anip-compliant"`) or all 9 primitives from §4 and §5 (`"anip-complete"`). Do NOT redefine compliance in endpoint terms — primitives are abstract capabilities, not HTTP endpoints. A service MUST NOT claim `"anip-complete"` unless it implements all 9 primitives.
 2. **`base_url`**: Add note that this field MUST be derived from the incoming HTTP request by the binding layer, not hardcoded or constructor-injected. It MAY be absent in service-layer output and populated at the HTTP boundary.
-3. **`endpoints`**: Clarify which endpoints are REQUIRED (manifest, permissions, invoke, tokens) vs OPTIONAL (handshake, graph, audit, test, checkpoints, jwks). A service MUST only advertise endpoints it actually implements.
+3. **`endpoints`**: Clarify which endpoints are REQUIRED (manifest, permissions, invoke, tokens) vs OPTIONAL (handshake, graph, audit, test, checkpoints, jwks). A service MUST only advertise endpoints it actually implements. Note: the endpoint set is orthogonal to compliance level — compliance is about primitives (§3–§5), not endpoint count.
 
 **Step 4: Add posture field to §6.1 discovery document example**
 
