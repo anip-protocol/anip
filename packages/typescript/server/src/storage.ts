@@ -181,7 +181,7 @@ export class SQLiteStorage implements StorageBackend {
 
     // If the worker crashes or exits unexpectedly, reject all in-flight
     // RPCs so callers fail fast instead of hanging indefinitely.
-    const rejectAll = (err: Error) => {
+    const rejectAll = (err: unknown) => {
       for (const [id, p] of this.pending) {
         this.pending.delete(id);
         this.worker.unref();
