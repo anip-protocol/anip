@@ -155,6 +155,8 @@ python test_adapter.py http://localhost:9100
 | Cost Signaling | `x-anip-cost` + `cost_actual` | Standard clients don't read extensions |
 | Capability Graph | Absent | Not discoverable from spec |
 | State & Session | Absent | No continuity |
+| Invocation Lineage | Partial — `invocation_id` and `client_reference_id` included in JSON response | Callers must extract and correlate manually |
+| Streaming | Absent | SSE progress events not proxied; adapter returns final response only |
 | Observability | Absent | No audit access |
 
 **When to use native ANIP instead:** These adapters translate the protocol surface but lose visibility into the delegation chain, cost signaling, and capability graph. For read and write capabilities this is sufficient. For irreversible financial operations, native ANIP is strongly recommended — it provides purpose-bound authority, multi-hop delegation, and the ability for the service to verify *why* an action is being invoked and on whose behalf.

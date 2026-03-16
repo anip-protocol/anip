@@ -89,7 +89,7 @@ This is more secure than a single shared token but less granular than native ANI
 
 1. **Discovery** — fetches `/.well-known/anip` from the ANIP service
 2. **Manifest** — fetches full capability declarations
-3. **Token setup** — none needed (v0.2 issues per-request tokens)
+3. **Token setup** — none needed (issues per-request tokens)
 4. **Tool generation** — converts each ANIP capability into an MCP tool
 5. **Invocation** — for each tool call, requests a signed token from the ANIP service and invokes the capability
 6. **Translation** — converts ANIP responses (success/failure, cost actuals) into MCP result strings
@@ -148,6 +148,8 @@ This table is the honest accounting of what ANIP adds over MCP and what survives
 | **Cost Signaling** | Partial — encoded in description | Programmatic budget checking, cost certainty levels |
 | **Capability Graph** | Partial — prerequisites encoded in description | Programmatic prerequisite traversal |
 | **State & Session** | Absent | Session continuity between invocations |
+| **Invocation Lineage** | Partial — `invocation_id` and `client_reference_id` passed through in result | Programmatic correlation; MCP clients treat these as opaque text |
+| **Streaming** | Absent | SSE progress events not supported by MCP transport |
 | **Observability Contract** | Absent | Audit access, retention guarantees |
 
 Every "Absent" or "Degraded" row is a reason to go ANIP native. The adapter gets you started; the full protocol is where the value lives.

@@ -205,7 +205,7 @@ for required in minimum_scope:
         break
 ```
 
-The `:` splits scope from constraints. The prefix matching (`startswith`) allows hierarchical scopes — `travel` would match `travel.search` and `travel.book`. Note: wildcard syntax (`travel.*`) is deliberately not defined in v0.1 (see [Spec §13, Open Question 6](SPEC.md)).
+The `:` splits scope from constraints. The prefix matching (`startswith`) allows hierarchical scopes — `travel` would match `travel.search` and `travel.book`. Note: wildcard syntax (`travel.*`) is deliberately not yet defined (see [Spec §14, Open Question 6](SPEC.md)).
 
 ### Budget Authority
 
@@ -219,9 +219,9 @@ def check_budget_authority(token: DelegationToken, amount: float) -> ANIPFailure
     return None
 ```
 
-Budget constraints live inside scope strings (`travel.book:max_$500`). This keeps the token schema simple — no extra fields for every possible constraint type. The tradeoff is that constraint parsing is convention-based, not schema-enforced. For v0.1, this is acceptable; a formal constraint language is a v2 concern.
+Budget constraints live inside scope strings (`travel.book:max_$500`). This keeps the token schema simple — no extra fields for every possible constraint type. The tradeoff is that constraint parsing is convention-based, not schema-enforced. For the current version, this is acceptable; a formal constraint language is a v1 concern.
 
-**Important:** In v0.1, the only defined constraint syntax is `:max_$N` for budget limits. Any other use of `:` in scope strings is undefined behavior and may break in future versions. Do not invent custom constraint syntaxes — two independent implementations using different conventions will create interoperability problems before v2 ships a formal constraint language.
+**Important:** The only defined constraint syntax is `:max_$N` for budget limits. Any other use of `:` in scope strings is undefined behavior and may break in future versions. Do not invent custom constraint syntaxes — two independent implementations using different conventions will create interoperability problems before v1 ships a formal constraint language.
 
 ### The Token Store
 
@@ -241,7 +241,7 @@ SQLite with WAL mode gives the reference implementation real persistence (tokens
 
 **What ANIP defines:** the token *semantics* (fields, validation rules, chain structure).
 
-**What ANIP does not define:** the token *format* (JWT, Verifiable Credentials, custom) or *storage* (database, cache, stateless verification). This is Open Question 5 in the spec.
+**What ANIP does not define:** the token *storage* (database, cache, stateless verification). The token format was resolved in v0.2: JWT with ES256 (ECDSA P-256), with the service as sole token issuer.
 
 ---
 
@@ -478,5 +478,5 @@ The demo runs all 7 phases and prints annotated output showing the full protocol
 
 - Read the [Spec](SPEC.md) for formal definitions of all primitives
 - Read the [agent skills](skills/) for machine-optimized interaction guides
-- Check [Open Questions](SPEC.md) §12 for areas where community input is needed
+- Check [Open Questions](SPEC.md#14-open-questions) for areas where community input is needed
 - See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get involved

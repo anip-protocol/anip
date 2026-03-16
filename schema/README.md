@@ -1,6 +1,6 @@
 # ANIP JSON Schema
 
-> Canonical JSON Schema for all ANIP v0.1 types. Use these to validate any ANIP implementation.
+> Canonical JSON Schema for all ANIP v0.6 types. Use these to validate any ANIP implementation.
 
 ## Files
 
@@ -24,6 +24,8 @@
 | `AvailableCapability` | Available capability in permission response | SPEC.md §4.4 |
 | `RestrictedCapability` | Restricted capability in permission response | SPEC.md §4.4 |
 | `DeniedCapability` | Denied capability in permission response | SPEC.md §4.4 |
+| `ResponseMode` | Enum of supported response modes (unary, streaming) | SPEC.md §6.6 |
+| `StreamSummary` | Streaming delivery accounting after invocation | SPEC.md §6.6 |
 
 ## Usage
 

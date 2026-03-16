@@ -12,14 +12,15 @@ ANIP is an early-stage protocol specification. We're looking for people who thin
 
 ## Where to Start
 
-The spec has [open questions](SPEC.md#11-open-questions) that need community input. These are genuine design decisions, not rhetorical questions:
+The spec has [open questions](SPEC.md#14-open-questions) that need community input. These are genuine design decisions, not rhetorical questions:
 
-1. Capability declaration format (JSON Schema baseline — what extensions does it need?)
-2. Relationship to existing standards (OpenAPI, JSON-LD, AsyncAPI)
-3. Registry model for ANIP services
-4. Side-effect type completeness
-5. Delegation chain auth format
-6. Service advertisement mechanism
+1. Relationship to existing standards (OpenAPI, JSON-LD, AsyncAPI)
+2. Registry model for ANIP services
+3. Side-effect type completeness
+4. Global service registry
+5. Wildcard scope matching
+
+Some earlier open questions have been resolved: capability declaration format (JSON Schema, resolved in v0.1), delegation chain auth format (JWT/ES256, resolved in v0.2), audit log verifiability (Merkle checkpoints, resolved in v0.3).
 
 Pick one that interests you and open an issue.
 

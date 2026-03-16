@@ -75,7 +75,7 @@ The agent must decide on its own to search first, handle the budget block, reque
 - Default: budget requests are auto-granted (simulated human)
 - `--human-in-the-loop`: pauses and prompts you to approve/deny/modify budget requests
 
-In all modes, the ANIP HTTP calls are real — the agent talks to the actual reference server.
+In all modes, the ANIP HTTP calls are real — the agent talks to the actual reference server. The protocol supports streaming invocations (v0.6), but this demo uses unary mode for simplicity.
 
 ## Example Output (`--agent`)
 

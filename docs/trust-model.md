@@ -2,13 +2,13 @@
 
 > Cryptographic foundations for agent delegation, manifest integrity, audit tamper-evidence, and anchored trust.
 
-This document describes the security architecture of ANIP. v0.2 introduced signed tokens, manifests, and hash-chain audit. v0.3 adds Merkle tree checkpoints, trust levels, and external anchoring. For operational guidance (reporting vulnerabilities, deployment, trust modes), see [SECURITY.md](../SECURITY.md).
+This document describes the security architecture of ANIP. v0.2 introduced signed tokens, manifests, and hash-chain audit. v0.3 added Merkle tree checkpoints, trust levels, and external anchoring. v0.4 added invocation lineage. v0.5 added async storage. v0.6 added streaming. For operational guidance (reporting vulnerabilities, deployment, trust modes), see [SECURITY.md](../SECURITY.md).
 
 ---
 
 ## 1. Threat Model
 
-ANIP v0.2 defends against a specific set of threats in the agent delegation model:
+ANIP defends against a specific set of threats in the agent delegation model:
 
 ### In Scope
 
@@ -31,7 +31,7 @@ ANIP v0.2 defends against a specific set of threats in the agent delegation mode
 | **Compromised service** | If the service is compromised, signing keys are exposed; ANIP does not protect against service-side compromise |
 | **Network eavesdropping** | ANIP signs but does not encrypt; TLS is required for confidentiality |
 | **Denial of service** | ANIP does not rate-limit; token budgets cap spending but not request volume |
-| **Cross-service delegation** | v0.2 uses a first-party issuer model; federated trust is a future goal |
+| **Cross-service delegation** | ANIP uses a first-party issuer model; federated trust is a future goal |
 
 ---
 
@@ -123,7 +123,7 @@ At each level:
 
 ## 3. Signed Manifests
 
-The manifest declares the service's capabilities, cost ranges, side-effect types, and other metadata. In v0.2, the manifest is signed to prevent tampering.
+The manifest declares the service's capabilities, cost ranges, side-effect types, and other metadata. The manifest is signed to prevent tampering.
 
 ### Signing Mechanism
 
@@ -139,7 +139,7 @@ The detached JWS format is `header..signature` (empty payload section), followin
 
 ### Manifest Metadata
 
-Every v0.2 manifest includes:
+Every manifest includes:
 
 ```json
 {
@@ -220,7 +220,7 @@ Separating keys limits blast radius: compromising the audit key does not allow f
 
 ## 5. Issuer and Audience Model
 
-v0.2 uses a **first-party issuer model**:
+Current ANIP uses a **first-party issuer model**:
 
 - The service that enforces capabilities is the same entity that issues tokens
 - `iss` and `aud` in JWTs are both the service's identity
@@ -240,7 +240,7 @@ The reference implementation uses a static API key map. Production deployments s
 
 The `/.well-known/anip` discovery endpoint advertises:
 
-- Protocol version (`anip/0.2`)
+- Protocol version (`anip/1.0`)
 - JWKS URI for public key retrieval
 - Supported auth formats (`jwt-es256`)
 - Endpoint paths (manifest, tokens, invoke, etc.)
@@ -251,7 +251,7 @@ This allows agents to bootstrap trust: discover the service, fetch its public ke
 
 ## 7. Non-Goals and Remaining Gaps
 
-These are explicitly not addressed in v0.2 and represent areas for future work:
+These are explicitly not yet addressed and represent areas for future work:
 
 | Gap | Description |
 |-----|-------------|
@@ -260,7 +260,7 @@ These are explicitly not addressed in v0.2 and represent areas for future work:
 | **Federated trust** | No cross-service token exchange. Each service is its own trust root. |
 | **Formal verification** | The trust model has not been formally verified. The reference implementations have test coverage but no third-party security audit. |
 | **Key custody** | Signing keys are stored as plaintext PEM on disk. Production deployments should use HSMs or key management services. |
-| **Clock skew** | JWT expiry checks use the server's clock. There is no tolerance for clock skew between issuer and verifier (they are the same entity in v0.2). |
+| **Clock skew** | JWT expiry checks use the server's clock. There is no tolerance for clock skew between issuer and verifier (they are the same entity in the first-party issuer model). |
 | **Encrypted tokens** | JWTs are signed but not encrypted. Any party that intercepts a JWT can read its claims. TLS mitigates this in transit; at-rest encryption is the deployer's responsibility. |
 
 ---
