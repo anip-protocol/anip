@@ -380,6 +380,7 @@ class ANIPService:
         cap = self._capabilities.get(capability_name)
         return cap.declaration if cap else None
 
+
     async def invoke(
         self,
         capability_name: str,

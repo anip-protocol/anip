@@ -30,6 +30,7 @@ class InvocationContext:
             await self._progress_sink(payload)
 
 
+
 # Handler type: (ctx, params) -> result dict (sync or async)
 Handler = Callable[[InvocationContext, dict[str, Any]], dict[str, Any] | Awaitable[dict[str, Any]]]
 

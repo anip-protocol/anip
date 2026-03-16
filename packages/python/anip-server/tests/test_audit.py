@@ -104,6 +104,7 @@ async def test_audit_entry_includes_stream_summary():
     assert entries[0]["stream_summary"]["client_disconnected"] is True
 
 
+
 async def test_audit_entry_with_sync_signer():
     """Sync signer callback produces a signature."""
     store = InMemoryStorage()
