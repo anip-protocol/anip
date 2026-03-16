@@ -8,7 +8,7 @@ from anip_core import (
     ConcurrentBranches, PermissionResponse,
     ANIPFailure, PROTOCOL_VERSION,
     InvokeRequest, InvokeResponse,
-    ResponseMode,
+    ResponseMode, StreamSummary,
 )
 
 
@@ -225,3 +225,35 @@ def test_invoke_response_roundtrip():
     restored = InvokeResponse.model_validate(d)
     assert restored.invocation_id == resp.invocation_id
     assert restored.client_reference_id == resp.client_reference_id
+
+
+# --- Streaming ---
+
+
+def test_stream_summary():
+    ss = StreamSummary(
+        response_mode="streaming",
+        events_emitted=5,
+        events_delivered=3,
+        duration_ms=1200,
+        client_disconnected=True,
+    )
+    assert ss.events_emitted == 5
+    assert ss.client_disconnected is True
+
+
+def test_invoke_request_stream_default_false():
+    req = InvokeRequest(
+        token="jwt-string",
+        parameters={"x": 1},
+    )
+    assert req.stream is False
+
+
+def test_invoke_request_stream_true():
+    req = InvokeRequest(
+        token="jwt-string",
+        parameters={"x": 1},
+        stream=True,
+    )
+    assert req.stream is True

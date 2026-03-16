@@ -259,6 +259,16 @@ class InvokeRequest(BaseModel):
     parameters: dict[str, Any] = Field(default_factory=dict)
     budget: dict[str, Any] | None = None
     client_reference_id: str | None = Field(default=None, max_length=256)
+    stream: bool = False
+
+
+class StreamSummary(BaseModel):
+    """Runtime-managed metadata for streaming invocations."""
+    response_mode: str = "streaming"
+    events_emitted: int
+    events_delivered: int
+    duration_ms: int
+    client_disconnected: bool
 
 
 class InvokeResponse(BaseModel):
@@ -269,6 +279,7 @@ class InvokeResponse(BaseModel):
     cost_actual: CostActual | None = None
     failure: ANIPFailure | None = None
     session: dict[str, Any] | None = None
+    stream_summary: StreamSummary | None = None
 
 
 # --- Checkpoint ---
