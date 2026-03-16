@@ -10,6 +10,8 @@ import {
   InvokeRequest,
   InvokeResponse,
   PROTOCOL_VERSION,
+  ResponseMode,
+  StreamSummary,
 } from "../src/index.js";
 
 describe("Protocol constants", () => {
@@ -217,5 +219,63 @@ describe("InvokeResponse", () => {
       client_reference_id: "x".repeat(257),
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("ResponseMode", () => {
+  it("accepts valid values", () => {
+    expect(ResponseMode.parse("unary")).toBe("unary");
+    expect(ResponseMode.parse("streaming")).toBe("streaming");
+  });
+
+  it("rejects invalid values", () => {
+    expect(() => ResponseMode.parse("invalid")).toThrow();
+  });
+});
+
+describe("StreamSummary", () => {
+  it("parses a valid stream summary", () => {
+    const ss = StreamSummary.parse({
+      response_mode: "streaming",
+      events_emitted: 5,
+      events_delivered: 3,
+      duration_ms: 1200,
+      client_disconnected: true,
+    });
+    expect(ss.events_emitted).toBe(5);
+    expect(ss.client_disconnected).toBe(true);
+  });
+});
+
+describe("CapabilityDeclaration with response_modes", () => {
+  it("defaults to unary", () => {
+    const decl = CapabilityDeclaration.parse({
+      name: "test", description: "Test", inputs: [],
+      output: { type: "object", fields: [] },
+      side_effect: { type: "read" }, minimum_scope: ["test"],
+    });
+    expect(decl.response_modes).toEqual(["unary"]);
+  });
+
+  it("accepts streaming", () => {
+    const decl = CapabilityDeclaration.parse({
+      name: "test", description: "Test", inputs: [],
+      output: { type: "object", fields: [] },
+      side_effect: { type: "read" }, minimum_scope: ["test"],
+      response_modes: ["unary", "streaming"],
+    });
+    expect(decl.response_modes).toEqual(["unary", "streaming"]);
+  });
+});
+
+describe("InvokeRequest with stream", () => {
+  it("defaults stream to false", () => {
+    const req = InvokeRequest.parse({ token: "jwt" });
+    expect(req.stream).toBe(false);
+  });
+
+  it("accepts stream true", () => {
+    const req = InvokeRequest.parse({ token: "jwt", stream: true });
+    expect(req.stream).toBe(true);
   });
 });
