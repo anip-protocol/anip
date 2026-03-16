@@ -64,10 +64,10 @@ export class DelegationEngine {
    * `issuer` is always `serviceId`.
    * `root_principal` is always `authenticatedPrincipal`.
    */
-  issueRootToken(opts: IssueRootTokenOpts): {
+  async issueRootToken(opts: IssueRootTokenOpts): Promise<{
     token: DelegationTokenType;
     tokenId: string;
-  } {
+  }> {
     return this._createToken({
       issuer: this._serviceId,
       subject: opts.subject,
@@ -90,10 +90,10 @@ export class DelegationEngine {
    * Returns `{ token, tokenId }` on success, or an `ANIPFailure` object if
    * scope widening or constraint escalation is detected.
    */
-  delegate(
+  async delegate(
     opts: DelegateOpts,
-  ): { token: DelegationTokenType; tokenId: string } | ANIPFailureType {
-    const rootPrincipal = this.getRootPrincipal(opts.parentToken);
+  ): Promise<{ token: DelegationTokenType; tokenId: string } | ANIPFailureType> {
+    const rootPrincipal = await this.getRootPrincipal(opts.parentToken);
 
     // Pre-validate scope narrowing before creating the token
     const parentScopeBases = new Set(
@@ -182,13 +182,13 @@ export class DelegationEngine {
    * Returns the stored `DelegationToken` if valid (callers MUST use it for
    * all downstream operations), or an `ANIPFailure`.
    */
-  validateDelegation(
+  async validateDelegation(
     token: DelegationTokenType,
     minimumScope: string[],
     capabilityName: string,
-  ): DelegationTokenType | ANIPFailureType {
+  ): Promise<DelegationTokenType | ANIPFailureType> {
     // 0. Resolve to stored token (prevents forged inline fields)
-    const resolved = this.resolveRegisteredToken(token);
+    const resolved = await this.resolveRegisteredToken(token);
     if (_isFailure(resolved)) return resolved;
     token = resolved;
 
@@ -200,7 +200,7 @@ export class DelegationEngine {
         detail: `delegation token ${token.token_id} expired at ${token.expires}`,
         resolution: {
           action: "request_new_delegation",
-          grantable_by: this.getRootPrincipal(token),
+          grantable_by: await this.getRootPrincipal(token),
         },
         retry: true,
       } as ANIPFailureType;
@@ -220,7 +220,7 @@ export class DelegationEngine {
       }
     }
     if (missingScopes.length > 0) {
-      const rootPrincipal = this.getRootPrincipal(token);
+      const rootPrincipal = await this.getRootPrincipal(token);
       return {
         type: "scope_insufficient",
         detail: `delegation chain lacks scope(s): ${missingScopes.join(", ")}`,
@@ -240,21 +240,21 @@ export class DelegationEngine {
         detail: `delegation token purpose is ${token.purpose.capability} but request is for ${capabilityName}`,
         resolution: {
           action: "request_new_delegation",
-          grantable_by: this.getRootPrincipal(token),
+          grantable_by: await this.getRootPrincipal(token),
         },
         retry: true,
       } as ANIPFailureType;
     }
 
     // 4. Verify delegation chain is complete
-    const chain = this.getChain(token);
+    const chain = await this.getChain(token);
     if (chain[0].parent !== null && chain[0].parent !== undefined) {
       return {
         type: "broken_delegation_chain",
         detail: `delegation chain is incomplete — ancestor token '${chain[0].parent}' is not registered`,
         resolution: {
           action: "register_missing_ancestor",
-          grantable_by: this.getRootPrincipal(token),
+          grantable_by: await this.getRootPrincipal(token),
         },
         retry: true,
       } as ANIPFailureType;
@@ -270,7 +270,7 @@ export class DelegationEngine {
         resolution: {
           action: "reduce_delegation_depth",
           requires: `max_delegation_depth >= ${actualDepth}`,
-          grantable_by: this.getRootPrincipal(token),
+          grantable_by: await this.getRootPrincipal(token),
         },
         retry: true,
       } as ANIPFailureType;
@@ -285,7 +285,7 @@ export class DelegationEngine {
           detail: `ancestor token ${ancestor.token_id} in delegation chain has expired`,
           resolution: {
             action: "refresh_delegation_chain",
-            grantable_by: this.getRootPrincipal(token),
+            grantable_by: await this.getRootPrincipal(token),
           },
           retry: true,
         } as ANIPFailureType;
@@ -300,11 +300,11 @@ export class DelegationEngine {
   // ------------------------------------------------------------------
 
   /** Walk the DAG upward from `token` to the root, returning root-first. */
-  getChain(token: DelegationTokenType): DelegationTokenType[] {
+  async getChain(token: DelegationTokenType): Promise<DelegationTokenType[]> {
     const chain: DelegationTokenType[] = [token];
     let current = token;
     while (current.parent !== null && current.parent !== undefined) {
-      const parent = this.getToken(current.parent);
+      const parent = await this.getToken(current.parent);
       if (parent === null) break;
       chain.push(parent);
       current = parent;
@@ -313,26 +313,26 @@ export class DelegationEngine {
   }
 
   /** Return the root principal (human) from the delegation chain. */
-  getRootPrincipal(token: DelegationTokenType): string {
+  async getRootPrincipal(token: DelegationTokenType): Promise<string> {
     if (token.root_principal !== null && token.root_principal !== undefined) {
       return token.root_principal;
     }
     // Fallback for v0.1 tokens without root_principal field
-    const chain = this.getChain(token);
+    const chain = await this.getChain(token);
     return chain[0].issuer;
   }
 
   /** Return token IDs in the delegation chain (for audit logging). */
-  getChainTokenIds(token: DelegationTokenType): string[] {
-    return this.getChain(token).map((t) => t.token_id);
+  async getChainTokenIds(token: DelegationTokenType): Promise<string[]> {
+    return (await this.getChain(token)).map((t) => t.token_id);
   }
 
   // ------------------------------------------------------------------
   // Token storage helpers (public for direct access)
   // ------------------------------------------------------------------
 
-  registerToken(token: DelegationTokenType): void {
-    this._storage.storeToken({
+  async registerToken(token: DelegationTokenType): Promise<void> {
+    await this._storage.storeToken({
       token_id: token.token_id,
       issuer: token.issuer,
       subject: token.subject,
@@ -345,16 +345,16 @@ export class DelegationEngine {
     });
   }
 
-  getToken(tokenId: string): DelegationTokenType | null {
-    const data = this._storage.loadToken(tokenId);
+  async getToken(tokenId: string): Promise<DelegationTokenType | null> {
+    const data = await this._storage.loadToken(tokenId);
     if (data === null) return null;
     return data as unknown as DelegationTokenType;
   }
 
-  resolveRegisteredToken(
+  async resolveRegisteredToken(
     token: DelegationTokenType,
-  ): DelegationTokenType | ANIPFailureType {
-    const stored = this.getToken(token.token_id);
+  ): Promise<DelegationTokenType | ANIPFailureType> {
+    const stored = await this.getToken(token.token_id);
     if (stored === null) {
       return {
         type: "token_not_registered",
@@ -370,7 +370,7 @@ export class DelegationEngine {
     return stored;
   }
 
-  private _createToken(opts: {
+  private async _createToken(opts: {
     issuer: string;
     subject: string;
     scope: string[];
@@ -380,7 +380,7 @@ export class DelegationEngine {
     purposeParameters: Record<string, unknown>;
     ttlHours: number;
     maxDelegationDepth: number;
-  }): { token: DelegationTokenType; tokenId: string } {
+  }): Promise<{ token: DelegationTokenType; tokenId: string }> {
     const tokenId = `anip-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
     const now = new Date();
     const expires = new Date(
@@ -416,7 +416,7 @@ export class DelegationEngine {
       root_principal: opts.rootPrincipal,
     };
 
-    this.registerToken(token);
+    await this.registerToken(token);
     return { token, tokenId };
   }
 }

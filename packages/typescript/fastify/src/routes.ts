@@ -78,14 +78,14 @@ export function mountAnip(
       client_reference_id: query.client_reference_id ?? undefined,
       limit: parseInt(query.limit ?? "50", 10),
     };
-    return service.queryAudit(token, filters);
+    return await service.queryAudit(token, filters);
   });
 
   // --- Checkpoints ---
   app.get(`${p}/anip/checkpoints`, async (req) => {
     const query = req.query as Record<string, string>;
     const limit = parseInt(query.limit ?? "10", 10);
-    return service.getCheckpoints(limit);
+    return await service.getCheckpoints(limit);
   });
 
   app.get<{ Params: { id: string } }>(`${p}/anip/checkpoints/:id`, async (req, reply) => {
@@ -95,7 +95,7 @@ export function mountAnip(
       leaf_index: query.leaf_index ?? undefined,
       consistency_from: query.consistency_from ?? undefined,
     };
-    const result = service.getCheckpoint(req.params.id, options);
+    const result = await service.getCheckpoint(req.params.id, options);
     if (!result) return reply.status(404).send({ error: "Checkpoint not found" });
     return result;
   });

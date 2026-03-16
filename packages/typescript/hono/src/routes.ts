@@ -79,17 +79,17 @@ export function mountAnip(
       client_reference_id: url.searchParams.get("client_reference_id") ?? undefined,
       limit: parseInt(url.searchParams.get("limit") ?? "50", 10),
     };
-    return c.json(service.queryAudit(token, filters));
+    return c.json(await service.queryAudit(token, filters));
   });
 
   // --- Checkpoints ---
-  app.get(`${p}/anip/checkpoints`, (c) => {
+  app.get(`${p}/anip/checkpoints`, async (c) => {
     const url = new URL(c.req.url);
     const limit = parseInt(url.searchParams.get("limit") ?? "10", 10);
-    return c.json(service.getCheckpoints(limit));
+    return c.json(await service.getCheckpoints(limit));
   });
 
-  app.get(`${p}/anip/checkpoints/:id`, (c) => {
+  app.get(`${p}/anip/checkpoints/:id`, async (c) => {
     const id = c.req.param("id");
     const url = new URL(c.req.url);
     const options = {
@@ -97,7 +97,7 @@ export function mountAnip(
       leaf_index: url.searchParams.get("leaf_index") ?? undefined,
       consistency_from: url.searchParams.get("consistency_from") ?? undefined,
     };
-    const result = service.getCheckpoint(id, options);
+    const result = await service.getCheckpoint(id, options);
     if (!result) return c.json({ error: "Checkpoint not found" }, 404);
     return c.json(result);
   });

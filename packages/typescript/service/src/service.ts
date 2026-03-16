@@ -77,12 +77,12 @@ export interface ANIPService {
   queryAudit(
     token: DelegationToken,
     filters?: Record<string, unknown>,
-  ): Record<string, unknown>;
-  getCheckpoints(limit?: number): Record<string, unknown>;
+  ): Promise<Record<string, unknown>>;
+  getCheckpoints(limit?: number): Promise<Record<string, unknown>>;
   getCheckpoint(
     checkpointId: string,
     options?: Record<string, unknown>,
-  ): Record<string, unknown> | null;
+  ): Promise<Record<string, unknown> | null>;
   start(): void;
   stop(): void;
 }
@@ -270,11 +270,11 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       clientReferenceId?: string | null;
     },
   ): Promise<void> {
-    const chain = engine.getChain(token);
+    const chain = await engine.getChain(token);
     await audit.logEntry({
       capability,
       token_id: token.token_id,
-      root_principal: engine.getRootPrincipal(token),
+      root_principal: await engine.getRootPrincipal(token),
       success: auditOpts.success,
       failure_type: auditOpts.failureType ?? null,
       result_summary: auditOpts.resultSummary ?? null,
@@ -296,7 +296,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   async function createAndPublishCheckpoint(): Promise<void> {
     try {
       const snapshot = audit.getMerkleSnapshot();
-      const lastCkpt = getLastCheckpoint();
+      const lastCkpt = await getLastCheckpoint();
       // Get the checkpoint body without signing (signFn is sync, our signer is async)
       const { body } = createCheckpoint({
         merkleSnapshot: snapshot,
@@ -309,7 +309,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       const signature = await keys.signJWSDetachedAudit(
         new Uint8Array(canonicalBytes),
       );
-      storage.storeCheckpoint(body, signature);
+      await storage.storeCheckpoint(body, signature);
       for (const sink of sinks) {
         sink.publish({ body, signature });
       }
@@ -319,8 +319,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     }
   }
 
-  function getLastCheckpoint(): Record<string, unknown> | null {
-    const rows = storage.getCheckpoints(10000);
+  async function getLastCheckpoint(): Promise<Record<string, unknown> | null> {
+    const rows = await storage.getCheckpoints(10000);
     return rows.length > 0 ? rows[rows.length - 1] : null;
   }
 
@@ -347,8 +347,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     return summary;
   }
 
-  function rebuildMerkleTo(sequenceNumber: number): MerkleTree {
-    const entries = storage.getAuditEntriesRange(1, sequenceNumber);
+  async function rebuildMerkleTo(sequenceNumber: number): Promise<MerkleTree> {
+    const entries = await storage.getAuditEntriesRange(1, sequenceNumber);
     const tree = new MerkleTree();
     for (const row of entries) {
       const filtered: Record<string, unknown> = {};
@@ -424,7 +424,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       // Try ANIP JWT
       try {
         const stored = await service.resolveBearerToken(bearerValue);
-        return engine.getRootPrincipal(stored);
+        return await engine.getRootPrincipal(stored);
       } catch {
         // Not a valid JWT
       }
@@ -453,7 +453,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         throw new ANIPError("invalid_token", "JWT missing jti claim");
       }
 
-      const stored = engine.getToken(tokenId);
+      const stored = await engine.getToken(tokenId);
       if (stored === null) {
         throw new ANIPError("invalid_token", `Unknown token: ${tokenId}`);
       }
@@ -486,7 +486,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       }
 
       const jwtRoot = claims.root_principal as string | undefined;
-      const storedRoot = engine.getRootPrincipal(stored);
+      const storedRoot = await engine.getRootPrincipal(stored);
       if (jwtRoot === undefined || jwtRoot === null) {
         mismatches.push("root_principal: missing from JWT claims");
       } else if (jwtRoot !== storedRoot) {
@@ -542,11 +542,11 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
       let result:
         | { token: DelegationToken; tokenId: string }
-        | ReturnType<DelegationEngine["delegate"]>;
+        | Awaited<ReturnType<DelegationEngine["delegate"]>>;
 
       if (parentTokenId) {
         // Delegation from existing token
-        const parent = engine.getToken(parentTokenId);
+        const parent = await engine.getToken(parentTokenId);
         if (parent === null) {
           throw new ANIPError(
             "invalid_token",
@@ -563,7 +563,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           );
         }
 
-        result = engine.delegate({
+        result = await engine.delegate({
           parentToken: parent,
           subject: (request.subject as string) ?? authenticatedPrincipal,
           scope: (request.scope as string[]) ?? [],
@@ -575,7 +575,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         });
       } else {
         // Root token
-        result = engine.issueRootToken({
+        result = await engine.issueRootToken({
           authenticatedPrincipal,
           subject: (request.subject as string) ?? authenticatedPrincipal,
           scope: (request.scope as string[]) ?? [],
@@ -666,7 +666,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
       // 2. Validate delegation
       const minScope = decl.minimum_scope ?? [];
-      const validationResult = engine.validateDelegation(
+      const validationResult = await engine.validateDelegation(
         token,
         minScope,
         capabilityName,
@@ -697,12 +697,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       const resolvedToken = validationResult as DelegationToken;
 
       // 3. Build invocation context
-      const chain = engine.getChain(resolvedToken);
+      const chain = await engine.getChain(resolvedToken);
       let costActual: Record<string, unknown> | null = null;
 
       const ctx = {
         token: resolvedToken,
-        rootPrincipal: engine.getRootPrincipal(resolvedToken),
+        rootPrincipal: await engine.getRootPrincipal(resolvedToken),
         subject: resolvedToken.subject,
         scopes: resolvedToken.scope ?? [],
         delegationChain: chain.map((t) => t.token_id),
@@ -771,14 +771,14 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       }
     },
 
-    queryAudit(
+    async queryAudit(
       token: DelegationToken,
       filters?: Record<string, unknown>,
-    ): Record<string, unknown> {
-      const rootPrincipal = engine.getRootPrincipal(token);
+    ): Promise<Record<string, unknown>> {
+      const rootPrincipal = await engine.getRootPrincipal(token);
       const f = filters ?? {};
 
-      const entries = audit.query({
+      const entries = await audit.query({
         rootPrincipal,
         capability: f.capability as string | undefined,
         since: f.since as string | undefined,
@@ -796,9 +796,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       };
     },
 
-    getCheckpoints(limit: number = 10): Record<string, unknown> {
+    async getCheckpoints(limit: number = 10): Promise<Record<string, unknown>> {
       const clampedLimit = Math.min(limit, 100);
-      const rows = storage.getCheckpoints(clampedLimit);
+      const rows = await storage.getCheckpoints(clampedLimit);
 
       const checkpoints = rows.map((row) => {
         const rng = (row.range as Record<string, number>) ?? {};
@@ -821,11 +821,11 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       return { checkpoints };
     },
 
-    getCheckpoint(
+    async getCheckpoint(
       checkpointId: string,
       options?: Record<string, unknown>,
-    ): Record<string, unknown> | null {
-      const row = storage.getCheckpointById(checkpointId);
+    ): Promise<Record<string, unknown> | null> {
+      const row = await storage.getCheckpointById(checkpointId);
       if (row === null) return null;
 
       const rng = (row.range as Record<string, number>) ?? {};
@@ -853,7 +853,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         const leafIndex = opts2.leaf_index as number;
         const lastSeq =
           rng.last_sequence ?? (row.last_sequence as number) ?? 0;
-        const tree = rebuildMerkleTo(lastSeq);
+        const tree = await rebuildMerkleTo(lastSeq);
         try {
           const proof = tree.inclusionProof(leafIndex);
           result.inclusion_proof = {
@@ -870,15 +870,15 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       // Consistency proof
       const consistencyFrom = opts2.consistency_from as string | undefined;
       if (consistencyFrom) {
-        const oldRow = storage.getCheckpointById(consistencyFrom);
+        const oldRow = await storage.getCheckpointById(consistencyFrom);
         if (oldRow) {
           const oldRng = (oldRow.range as Record<string, number>) ?? {};
           const oldLast =
             oldRng.last_sequence ?? (oldRow.last_sequence as number) ?? 0;
           const newLast =
             rng.last_sequence ?? (row.last_sequence as number) ?? 0;
-          const oldTree = rebuildMerkleTo(oldLast);
-          const newTree = rebuildMerkleTo(newLast);
+          const oldTree = await rebuildMerkleTo(oldLast);
+          const newTree = await rebuildMerkleTo(newLast);
           try {
             const path = newTree.consistencyProof(oldTree.leafCount);
             result.consistency_proof = {

@@ -84,21 +84,58 @@ class TestANIPServiceInvoke:
             storage=":memory:",
         )
 
-    def test_invoke_unknown_capability(self):
+    async def _issue_test_token(self, service, scope=None, capability=None):
+        """Helper to issue a root token for testing."""
+        cap = capability or "greet"
+        result = await service._engine.issue_root_token(
+            authenticated_principal="human:test@example.com",
+            subject="human:test@example.com",
+            scope=scope or ["greet"],
+            capability=cap,
+            purpose_parameters={"task_id": "test"},
+            ttl_hours=1,
+        )
+        token, token_id = result
+        return token
+
+    async def test_invoke_unknown_capability(self):
         service = self._make_service()
-        token = self._issue_test_token(service)
-        result = service.invoke("nonexistent", token, {})
+        token = await self._issue_test_token(service)
+        result = await service.invoke("nonexistent", token, {})
         assert result["success"] is False
         assert result["failure"]["type"] == "unknown_capability"
 
-    def test_invoke_success(self):
+    async def test_invoke_success(self):
         service = self._make_service()
-        token = self._issue_test_token(service)
-        result = service.invoke("greet", token, {"name": "World"})
+        token = await self._issue_test_token(service)
+        result = await service.invoke("greet", token, {"name": "World"})
         assert result["success"] is True
         assert result["result"]["message"] == "Hello, World!"
 
-    def test_invoke_handler_anip_error(self):
+    async def test_invoke_with_async_handler(self):
+        """Test that async handlers are properly awaited."""
+        async def async_handler(ctx, params):
+            return {"message": f"Async hello, {params['name']}!"}
+
+        cap = Capability(
+            declaration=CapabilityDeclaration(
+                name="async_greet",
+                description="Say hello asynchronously",
+                contract_version="1.0",
+                inputs=[CapabilityInput(name="name", type="string", required=True, description="Who to greet")],
+                output=CapabilityOutput(type="object", fields=["message"]),
+                side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+                minimum_scope=["greet"],
+            ),
+            handler=async_handler,
+        )
+        service = self._make_service(caps=[cap])
+        token = await self._issue_test_token(service, scope=["greet"], capability="async_greet")
+        result = await service.invoke("async_greet", token, {"name": "World"})
+        assert result["success"] is True
+        assert result["result"]["message"] == "Async hello, World!"
+
+    async def test_invoke_handler_anip_error(self):
         def failing_handler(ctx, params):
             raise ANIPError("not_found", "Thing not found")
 
@@ -115,12 +152,12 @@ class TestANIPServiceInvoke:
             handler=failing_handler,
         )
         service = self._make_service(caps=[cap])
-        token = self._issue_test_token(service, scope=["test"], capability="fail_cap")
-        result = service.invoke("fail_cap", token, {})
+        token = await self._issue_test_token(service, scope=["test"], capability="fail_cap")
+        result = await service.invoke("fail_cap", token, {})
         assert result["success"] is False
         assert result["failure"]["type"] == "not_found"
 
-    def test_invoke_handler_unexpected_error(self):
+    async def test_invoke_handler_unexpected_error(self):
         def crashing_handler(ctx, params):
             raise RuntimeError("boom")
 
@@ -137,14 +174,14 @@ class TestANIPServiceInvoke:
             handler=crashing_handler,
         )
         service = self._make_service(caps=[cap])
-        token = self._issue_test_token(service, scope=["test"], capability="crash_cap")
-        result = service.invoke("crash_cap", token, {})
+        token = await self._issue_test_token(service, scope=["test"], capability="crash_cap")
+        result = await service.invoke("crash_cap", token, {})
         assert result["success"] is False
         assert result["failure"]["type"] == "internal_error"
         # Detail should NOT leak the actual exception
         assert "boom" not in result["failure"]["detail"]
 
-    def test_invoke_cost_tracking(self):
+    async def test_invoke_cost_tracking(self):
         def handler_with_cost(ctx, params):
             ctx.set_cost_actual({"financial": {"amount": 450.0, "currency": "USD"}})
             return {"booked": True}
@@ -162,44 +199,44 @@ class TestANIPServiceInvoke:
             handler=handler_with_cost,
         )
         service = self._make_service(caps=[cap])
-        token = self._issue_test_token(service, scope=["test"], capability="cost_cap")
-        result = service.invoke("cost_cap", token, {})
+        token = await self._issue_test_token(service, scope=["test"], capability="cost_cap")
+        result = await service.invoke("cost_cap", token, {})
         assert result["success"] is True
         assert result["cost_actual"]["financial"]["amount"] == 450.0
 
-    def test_invoke_response_includes_invocation_id(self):
+    async def test_invoke_response_includes_invocation_id(self):
         service = self._make_service()
-        token = self._issue_test_token(service)
-        result = service.invoke("greet", token, {"name": "World"})
+        token = await self._issue_test_token(service)
+        result = await service.invoke("greet", token, {"name": "World"})
         assert result["success"] is True
         assert "invocation_id" in result
         assert result["invocation_id"].startswith("inv-")
         assert len(result["invocation_id"]) == 16  # "inv-" + 12 hex
 
-    def test_invoke_response_echoes_client_reference_id(self):
+    async def test_invoke_response_echoes_client_reference_id(self):
         service = self._make_service()
-        token = self._issue_test_token(service)
-        result = service.invoke(
+        token = await self._issue_test_token(service)
+        result = await service.invoke(
             "greet", token, {"name": "World"},
             client_reference_id="task:42",
         )
         assert result["client_reference_id"] == "task:42"
 
-    def test_invoke_response_client_reference_id_null_when_absent(self):
+    async def test_invoke_response_client_reference_id_null_when_absent(self):
         service = self._make_service()
-        token = self._issue_test_token(service)
-        result = service.invoke("greet", token, {"name": "World"})
+        token = await self._issue_test_token(service)
+        result = await service.invoke("greet", token, {"name": "World"})
         assert result["client_reference_id"] is None
 
-    def test_invoke_failure_still_has_invocation_id(self):
+    async def test_invoke_failure_still_has_invocation_id(self):
         service = self._make_service()
-        token = self._issue_test_token(service)
-        result = service.invoke("nonexistent", token, {})
+        token = await self._issue_test_token(service)
+        result = await service.invoke("nonexistent", token, {})
         assert result["success"] is False
         assert "invocation_id" in result
         assert result["invocation_id"].startswith("inv-")
 
-    def test_invocation_context_has_lineage(self):
+    async def test_invocation_context_has_lineage(self):
         """Handler should see invocation_id and client_reference_id in context."""
         captured_ctx = {}
 
@@ -223,24 +260,10 @@ class TestANIPServiceInvoke:
             handler=capturing_handler,
         )
         service = self._make_service(caps=[cap])
-        token = self._issue_test_token(service, scope=["test"], capability="ctx_cap")
-        result = service.invoke("ctx_cap", token, {}, client_reference_id="ref-abc")
+        token = await self._issue_test_token(service, scope=["test"], capability="ctx_cap")
+        result = await service.invoke("ctx_cap", token, {}, client_reference_id="ref-abc")
         assert captured_ctx["invocation_id"].startswith("inv-")
         assert captured_ctx["client_reference_id"] == "ref-abc"
-
-    def _issue_test_token(self, service, scope=None, capability=None):
-        """Helper to issue a root token for testing."""
-        cap = capability or "greet"
-        result = service._engine.issue_root_token(
-            authenticated_principal="human:test@example.com",
-            subject="human:test@example.com",
-            scope=scope or ["greet"],
-            capability=cap,
-            purpose_parameters={"task_id": "test"},
-            ttl_hours=1,
-        )
-        token, token_id = result
-        return token
 
 
 class TestANIPServiceTokenLifecycle:
@@ -252,9 +275,9 @@ class TestANIPServiceTokenLifecycle:
             authenticate=lambda bearer: {"test-key": "human:test@example.com"}.get(bearer),
         )
 
-    def test_issue_and_resolve_round_trip(self):
+    async def test_issue_and_resolve_round_trip(self):
         service = self._make_service()
-        issued = service.issue_token("human:test@example.com", {
+        issued = await service.issue_token("human:test@example.com", {
             "subject": "human:test@example.com",
             "scope": ["greet"],
             "capability": "greet",
@@ -264,22 +287,22 @@ class TestANIPServiceTokenLifecycle:
         assert "token" in issued
 
         # Round-trip: resolve the JWT we just issued
-        resolved = service.resolve_bearer_token(issued["token"])
+        resolved = await service.resolve_bearer_token(issued["token"])
         assert resolved.subject == "human:test@example.com"
 
-    def test_authenticate_bearer_with_api_key(self):
+    async def test_authenticate_bearer_with_api_key(self):
         service = self._make_service()
-        principal = service.authenticate_bearer("test-key")
+        principal = await service.authenticate_bearer("test-key")
         assert principal == "human:test@example.com"
 
-    def test_authenticate_bearer_unknown(self):
+    async def test_authenticate_bearer_unknown(self):
         service = self._make_service()
-        principal = service.authenticate_bearer("unknown-key")
+        principal = await service.authenticate_bearer("unknown-key")
         assert principal is None
 
-    def test_sub_delegation_guardrail(self):
+    async def test_sub_delegation_guardrail(self):
         service = self._make_service()
-        issued = service.issue_token("human:test@example.com", {
+        issued = await service.issue_token("human:test@example.com", {
             "subject": "agent:bot-1",
             "scope": ["greet"],
             "capability": "greet",
@@ -287,7 +310,7 @@ class TestANIPServiceTokenLifecycle:
         })
         # The wrong principal tries to sub-delegate
         with pytest.raises(ANIPError, match="insufficient_authority"):
-            service.issue_token("human:wrong@example.com", {
+            await service.issue_token("human:wrong@example.com", {
                 "parent_token": issued["token_id"],
                 "subject": "agent:bot-2",
                 "scope": ["greet"],

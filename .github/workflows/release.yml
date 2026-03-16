@@ -33,7 +33,7 @@ jobs:
             exit 1
           fi
 
-      - name: Validate version against all 13 packages
+      - name: Validate version against all 12 packages
         env:
           EXPECTED: ${{ inputs.version }}
         run: |
@@ -43,7 +43,7 @@ jobs:
           echo ""
 
           # Python packages
-          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi anip-flask; do
+          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi; do
             ACTUAL=$(python3 -c "
           import tomllib
           with open('packages/python/$pkg/pyproject.toml', 'rb') as f:
@@ -75,7 +75,7 @@ jobs:
           fi
 
           echo ""
-          echo "All 13 packages at version $EXPECTED"
+          echo "All 12 packages at version $EXPECTED"
 
       - name: Validate CI checks passed on this commit
         env:

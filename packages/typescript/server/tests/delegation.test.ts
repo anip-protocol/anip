@@ -7,9 +7,9 @@ function makeEngine() {
 }
 
 describe("DelegationEngine", () => {
-  it("issues root token and validates", () => {
+  it("issues root token and validates", async () => {
     const engine = makeEngine();
-    const { token } = engine.issueRootToken({
+    const { token } = await engine.issueRootToken({
       authenticatedPrincipal: "human:alice@example.com",
       subject: "agent",
       scope: ["travel.search"],
@@ -17,19 +17,19 @@ describe("DelegationEngine", () => {
     });
     expect(token.root_principal).toBe("human:alice@example.com");
     expect(token.issuer).toBe("test-svc");
-    const result = engine.validateDelegation(token, ["travel.search"], "search_flights");
+    const result = await engine.validateDelegation(token, ["travel.search"], "search_flights");
     expect(result).toHaveProperty("token_id");
   });
 
-  it("delegates from parent with derived trust context", () => {
+  it("delegates from parent with derived trust context", async () => {
     const engine = makeEngine();
-    const { token: parent } = engine.issueRootToken({
+    const { token: parent } = await engine.issueRootToken({
       authenticatedPrincipal: "human:alice@example.com",
       subject: "agent-a",
       scope: ["travel.search", "travel.book"],
       capability: "search_flights",
     });
-    const result = engine.delegate({
+    const result = await engine.delegate({
       parentToken: parent,
       subject: "agent-b",
       scope: ["travel.search"],
@@ -41,27 +41,27 @@ describe("DelegationEngine", () => {
     expect(child.issuer).toBe("agent-a");
   });
 
-  it("rejects insufficient scope", () => {
+  it("rejects insufficient scope", async () => {
     const engine = makeEngine();
-    const { token } = engine.issueRootToken({
+    const { token } = await engine.issueRootToken({
       authenticatedPrincipal: "human:alice@example.com",
       subject: "agent",
       scope: ["travel.search"],
       capability: "search_flights",
     });
-    const result = engine.validateDelegation(token, ["travel.book"], "book_flight");
+    const result = await engine.validateDelegation(token, ["travel.book"], "book_flight");
     expect(result).toHaveProperty("type", "scope_insufficient");
   });
 
-  it("rejects scope widening in delegation", () => {
+  it("rejects scope widening in delegation", async () => {
     const engine = makeEngine();
-    const { token: parent } = engine.issueRootToken({
+    const { token: parent } = await engine.issueRootToken({
       authenticatedPrincipal: "human:alice@example.com",
       subject: "agent",
       scope: ["travel.search"],
       capability: "search_flights",
     });
-    const result = engine.delegate({
+    const result = await engine.delegate({
       parentToken: parent,
       subject: "sub-agent",
       scope: ["travel.search", "travel.book"],

@@ -52,12 +52,12 @@ function makeService(opts?: {
   };
 }
 
-function issueTestToken(
+async function issueTestToken(
   storage: StorageBackend,
   opts?: { scope?: string[]; capability?: string },
-): DelegationToken {
+): Promise<DelegationToken> {
   const engine = new DelegationEngine(storage, { serviceId: "test-service" });
-  const { token } = engine.issueRootToken({
+  const { token } = await engine.issueRootToken({
     authenticatedPrincipal: "human:test@example.com",
     subject: "human:test@example.com",
     scope: opts?.scope ?? ["greet"],
@@ -123,7 +123,7 @@ describe("ANIPService construction", () => {
 describe("ANIPService invoke", () => {
   it("invoke success", async () => {
     const { service, storage } = makeService();
-    const token = issueTestToken(storage);
+    const token = await issueTestToken(storage);
     const result = await service.invoke("greet", token, { name: "World" });
     expect(result.success).toBe(true);
     expect((result.result as Record<string, any>).message).toBe(
@@ -133,7 +133,7 @@ describe("ANIPService invoke", () => {
 
   it("invoke unknown capability", async () => {
     const { service, storage } = makeService();
-    const token = issueTestToken(storage);
+    const token = await issueTestToken(storage);
     const result = await service.invoke("nonexistent", token, {});
     expect(result.success).toBe(false);
     expect((result.failure as Record<string, any>).type).toBe(
@@ -157,7 +157,7 @@ describe("ANIPService invoke", () => {
       },
     });
     const { service, storage } = makeService({ caps: [failCap] });
-    const token = issueTestToken(storage, {
+    const token = await issueTestToken(storage, {
       scope: ["test"],
       capability: "fail_cap",
     });
@@ -182,7 +182,7 @@ describe("ANIPService invoke", () => {
       },
     });
     const { service, storage } = makeService({ caps: [crashCap] });
-    const token = issueTestToken(storage, {
+    const token = await issueTestToken(storage, {
       scope: ["test"],
       capability: "crash_cap",
     });
@@ -199,7 +199,7 @@ describe("ANIPService invoke", () => {
 
   it("response includes invocation_id", async () => {
     const { service, storage } = makeService();
-    const token = issueTestToken(storage);
+    const token = await issueTestToken(storage);
     const result = await service.invoke("greet", token, { name: "World" });
     expect(result.success).toBe(true);
     expect(result.invocation_id).toBeDefined();
@@ -209,7 +209,7 @@ describe("ANIPService invoke", () => {
 
   it("response echoes client_reference_id", async () => {
     const { service, storage } = makeService();
-    const token = issueTestToken(storage);
+    const token = await issueTestToken(storage);
     const result = await service.invoke("greet", token, { name: "World" }, {
       clientReferenceId: "task:42",
     });
@@ -218,14 +218,14 @@ describe("ANIPService invoke", () => {
 
   it("client_reference_id null when absent", async () => {
     const { service, storage } = makeService();
-    const token = issueTestToken(storage);
+    const token = await issueTestToken(storage);
     const result = await service.invoke("greet", token, { name: "World" });
     expect(result.client_reference_id).toBeNull();
   });
 
   it("failure response still has invocation_id", async () => {
     const { service, storage } = makeService();
-    const token = issueTestToken(storage);
+    const token = await issueTestToken(storage);
     const result = await service.invoke("nonexistent", token, {});
     expect(result.success).toBe(false);
     expect(result.invocation_id).toBeDefined();
@@ -253,7 +253,7 @@ describe("ANIPService invoke", () => {
       },
     });
     const { service, storage } = makeService({ caps: [ctxCap] });
-    const token = issueTestToken(storage, {
+    const token = await issueTestToken(storage, {
       scope: ["test"],
       capability: "ctx_cap",
     });
@@ -283,7 +283,7 @@ describe("ANIPService invoke", () => {
       },
     });
     const { service, storage } = makeService({ caps: [costCap] });
-    const token = issueTestToken(storage, {
+    const token = await issueTestToken(storage, {
       scope: ["test"],
       capability: "cost_cap",
     });
@@ -380,7 +380,7 @@ describe("ANIPService async handler", () => {
       },
     });
     const { service, storage } = makeService({ caps: [asyncCap] });
-    const token = issueTestToken(storage, {
+    const token = await issueTestToken(storage, {
       scope: ["test"],
       capability: "async_cap",
     });

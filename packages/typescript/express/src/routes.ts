@@ -86,25 +86,29 @@ export function mountAnip(
         client_reference_id: (req.query.client_reference_id as string) ?? undefined,
         limit: parseInt((req.query.limit as string) ?? "50", 10),
       };
-      res.json(service.queryAudit(token, filters));
+      res.json(await service.queryAudit(token, filters));
     } catch (e) { next(e); }
   });
 
   // --- Checkpoints ---
-  router.get("/anip/checkpoints", (req, res) => {
-    const limit = parseInt((req.query.limit as string) ?? "10", 10);
-    res.json(service.getCheckpoints(limit));
+  router.get("/anip/checkpoints", async (req, res, next) => {
+    try {
+      const limit = parseInt((req.query.limit as string) ?? "10", 10);
+      res.json(await service.getCheckpoints(limit));
+    } catch (e) { next(e); }
   });
 
-  router.get("/anip/checkpoints/:id", (req, res) => {
-    const options = {
-      include_proof: req.query.include_proof === "true",
-      leaf_index: (req.query.leaf_index as string) ?? undefined,
-      consistency_from: (req.query.consistency_from as string) ?? undefined,
-    };
-    const result = service.getCheckpoint(req.params.id, options);
-    if (!result) { res.status(404).json({ error: "Checkpoint not found" }); return; }
-    res.json(result);
+  router.get("/anip/checkpoints/:id", async (req, res, next) => {
+    try {
+      const options = {
+        include_proof: req.query.include_proof === "true",
+        leaf_index: (req.query.leaf_index as string) ?? undefined,
+        consistency_from: (req.query.consistency_from as string) ?? undefined,
+      };
+      const result = await service.getCheckpoint(req.params.id, options);
+      if (!result) { res.status(404).json({ error: "Checkpoint not found" }); return; }
+      res.json(result);
+    } catch (e) { next(e); }
   });
 
   const prefix = opts?.prefix ?? "";

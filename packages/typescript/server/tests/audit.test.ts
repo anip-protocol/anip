@@ -47,7 +47,7 @@ describe("AuditLog lineage fields", () => {
       client_reference_id: "ref-persist-1",
     });
 
-    const results = auditLog.query({ capability: "search_flights" });
+    const results = await auditLog.query({ capability: "search_flights" });
     expect(results).toHaveLength(1);
     expect(results[0].invocation_id).toBe("inv-persist-1");
     expect(results[0].client_reference_id).toBe("ref-persist-1");
@@ -70,7 +70,7 @@ describe("AuditLog lineage fields", () => {
       invocation_id: "inv-bbb",
     });
 
-    const results = auditLog.query({ invocationId: "inv-aaa" });
+    const results = await auditLog.query({ invocationId: "inv-aaa" });
     expect(results).toHaveLength(1);
     expect(results[0].capability).toBe("search_flights");
     expect(results[0].invocation_id).toBe("inv-aaa");
@@ -101,7 +101,7 @@ describe("AuditLog lineage fields", () => {
       client_reference_id: "ref-different",
     });
 
-    const results = auditLog.query({ clientReferenceId: "ref-shared" });
+    const results = await auditLog.query({ clientReferenceId: "ref-shared" });
     expect(results).toHaveLength(2);
     expect(results.every((e) => e.client_reference_id === "ref-shared")).toBe(true);
   });
