@@ -4,6 +4,7 @@ import { createANIPService, defineCapability } from "@anip/service";
 import { mountAnip } from "../src/routes.js";
 import { InMemoryStorage } from "@anip/server";
 import type { CapabilityDeclaration } from "@anip/core";
+import type { InvocationContext } from "@anip/service";
 
 function greetCap() {
   return defineCapability({
@@ -135,5 +136,88 @@ describe("Hono routes", () => {
     const data = await res.json();
     expect(data.success).toBe(true);
     expect(data.client_reference_id).toBe("my-ref-123");
+  });
+});
+
+// --- Streaming helpers and tests ---
+
+function streamingCap() {
+  return defineCapability({
+    declaration: {
+      name: "analyze",
+      description: "Long-running analysis",
+      contract_version: "1.0",
+      inputs: [{ name: "target", type: "string", required: true, description: "target" }],
+      output: { type: "object", fields: ["result"] },
+      side_effect: { type: "read", rollback_window: "not_applicable" },
+      minimum_scope: ["analyze"],
+      response_modes: ["unary", "streaming"],
+    } as CapabilityDeclaration,
+    async handler(ctx: InvocationContext, _params: Record<string, unknown>) {
+      await ctx.emitProgress({ step: 1, status: "working" });
+      return { result: "done" };
+    },
+  });
+}
+
+function makeStreamingApp() {
+  const service = createANIPService({
+    serviceId: "test-service",
+    capabilities: [greetCap(), streamingCap()],
+    storage: new InMemoryStorage(),
+    authenticate: (bearer) => (bearer === API_KEY ? "test-agent" : null),
+  });
+  const app = new Hono();
+  const { stop } = mountAnip(app, service);
+  return { app, stop };
+}
+
+async function issueToken(app: Hono, scope: string[], capability: string): Promise<string> {
+  const res = await app.request("/anip/tokens", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${API_KEY}`,
+    },
+    body: JSON.stringify({ subject: "test-agent", scope, capability }),
+  });
+  const data = await res.json();
+  return data.token;
+}
+
+describe("Hono streaming routes", () => {
+  it("stream:true returns text/event-stream with progress + completed", async () => {
+    const { app } = makeStreamingApp();
+    const jwt = await issueToken(app, ["analyze"], "analyze");
+    const res = await app.request("/anip/invoke/analyze", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: JSON.stringify({ parameters: { target: "x" }, stream: true }),
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/event-stream");
+    const body = await res.text();
+    expect(body).toContain("event: progress");
+    expect(body).toContain("event: completed");
+    expect(body).toContain('"result":"done"');
+  });
+
+  it("stream:true on unary-only capability returns 400 JSON", async () => {
+    const { app } = makeStreamingApp();
+    const jwt = await issueToken(app, ["greet"], "greet");
+    const res = await app.request("/anip/invoke/greet", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: JSON.stringify({ parameters: { name: "world" }, stream: true }),
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.failure.type).toBe("streaming_not_supported");
   });
 });
