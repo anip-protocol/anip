@@ -19,6 +19,11 @@ class SideEffectType(str, Enum):
     TRANSACTIONAL = "transactional"
 
 
+class ResponseMode(str, Enum):
+    UNARY = "unary"
+    STREAMING = "streaming"
+
+
 class SideEffect(BaseModel):
     type: SideEffectType
     rollback_window: str | None = None  # ISO 8601 duration or "none" or "not_applicable"
@@ -141,6 +146,7 @@ class CapabilityDeclaration(BaseModel):
     composes_with: list[CapabilityComposition] = Field(default_factory=list)
     session: SessionInfo = Field(default_factory=SessionInfo)
     observability: ObservabilityContract | None = None
+    response_modes: list[ResponseMode] = Field(default_factory=lambda: [ResponseMode.UNARY])
 
 
 # --- Permission Discovery ---
