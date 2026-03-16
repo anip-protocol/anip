@@ -1,8 +1,8 @@
-# ANIP Streaming Implementation Plan
+# ANIP v0.6 Streaming Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Add progress-reporting streaming to ANIP via SSE, allowing capabilities to emit structured progress events during invocation while preserving the existing governance and audit model.
+**Goal:** Add progress-reporting streaming to ANIP via SSE and bump all packages to v0.6.0, allowing capabilities to emit structured progress events during invocation while preserving the existing governance and audit model.
 
 **Architecture:** Streaming extends the existing `/anip/invoke/{capability}` endpoint via a `stream: true` request field. Handlers call `ctx.emit_progress(payload)` (no-op in unary mode). The runtime emits SSE events (`progress`, `completed`, `failed`) and logs a single audit entry with an optional `stream_summary`. No new endpoints, no protocol version change.
 
@@ -1345,45 +1345,73 @@ git commit -m "feat(schema): add ResponseMode, StreamSummary, and stream field t
 
 ### Task 13: Version Bump to 0.6.0
 
-**Files:**
-- All `pyproject.toml` files (5 Python packages)
-- All `package.json` files (7 TypeScript packages)
-- Release workflow
+**Files (28 version references across 13 files):**
 
-**Step 1: Bump all Python package versions from 0.5.0 to 0.6.0**
+**Python packages — version field:**
+- `packages/python/anip-core/pyproject.toml` line 3: `version = "0.5.0"` → `"0.6.0"`
+- `packages/python/anip-crypto/pyproject.toml` line 3: `version = "0.5.0"` → `"0.6.0"`
+- `packages/python/anip-server/pyproject.toml` line 3: `version = "0.5.0"` → `"0.6.0"`
+- `packages/python/anip-service/pyproject.toml` line 3: `version = "0.5.0"` → `"0.6.0"`
+- `packages/python/anip-fastapi/pyproject.toml` line 3: `version = "0.5.0"` → `"0.6.0"`
 
-Update `version = "0.5.0"` → `version = "0.6.0"` in:
-- `packages/python/anip-core/pyproject.toml`
-- `packages/python/anip-crypto/pyproject.toml`
-- `packages/python/anip-server/pyproject.toml`
-- `packages/python/anip-service/pyproject.toml`
-- `packages/python/anip-fastapi/pyproject.toml`
+**Python packages — cross-package dependencies:**
+- `packages/python/anip-crypto/pyproject.toml` line 7: `anip-core>=0.5.0` → `>=0.6.0`
+- `packages/python/anip-server/pyproject.toml` line 7: `anip-core>=0.5.0` → `>=0.6.0`
+- `packages/python/anip-server/pyproject.toml` line 8: `anip-crypto>=0.5.0` → `>=0.6.0`
+- `packages/python/anip-service/pyproject.toml` line 7: `anip-core>=0.5.0` → `>=0.6.0`
+- `packages/python/anip-service/pyproject.toml` line 8: `anip-crypto>=0.5.0` → `>=0.6.0`
+- `packages/python/anip-service/pyproject.toml` line 9: `anip-server>=0.5.0` → `>=0.6.0`
+- `packages/python/anip-fastapi/pyproject.toml` line 7: `anip-service>=0.5.0` → `>=0.6.0`
 
-Also update cross-package dependency versions (e.g. `anip-core>=0.5.0` → `anip-core>=0.6.0`).
+**TypeScript packages — version field:**
+- `packages/typescript/core/package.json` line 3: `"version": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/crypto/package.json` line 3: `"version": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/server/package.json` line 3: `"version": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/service/package.json` line 3: `"version": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/hono/package.json` line 3: `"version": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/express/package.json` line 3: `"version": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/fastify/package.json` line 3: `"version": "0.5.0"` → `"0.6.0"`
 
-**Step 2: Bump all TypeScript package versions from 0.5.0 to 0.6.0**
+**TypeScript packages — cross-package dependencies:**
+- `packages/typescript/crypto/package.json` line 16: `"@anip/core": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/server/package.json` line 16: `"@anip/core": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/server/package.json` line 17: `"@anip/crypto": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/service/package.json` line 16: `"@anip/core": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/service/package.json` line 17: `"@anip/crypto": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/service/package.json` line 18: `"@anip/server": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/express/package.json` line 16: `"@anip/service": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/fastify/package.json` line 16: `"@anip/service": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/hono/package.json` line 16: `"@anip/service": "0.5.0"` → `"0.6.0"`
 
-Update `"version": "0.5.0"` → `"version": "0.6.0"` in:
-- `packages/typescript/core/package.json`
-- `packages/typescript/crypto/package.json`
-- `packages/typescript/server/package.json`
-- `packages/typescript/service/package.json`
-- `packages/typescript/hono/package.json`
-- `packages/typescript/express/package.json`
-- `packages/typescript/fastify/package.json`
+**Example app:**
+- `examples/anip-ts/package.json` line 3: `"version": "0.5.0"` → `"0.6.0"`
 
-Also update cross-package dependency versions.
+**Step 1: Replace all 0.5.0 version strings**
+
+Use find-and-replace across all files listed above. The simplest approach: replace `0.5.0` → `0.6.0` in each file. Every `0.5.0` in these files is a version reference.
+
+**Step 2: Reinstall TS dependencies**
+
+```bash
+cd packages/typescript && npm install
+```
+
+This updates the lockfile to reflect the new cross-package versions.
 
 **Step 3: Run all tests**
 
-Run: `pytest packages/python/ -x -q && cd packages/typescript && npx vitest run -v`
+```bash
+pytest packages/python/ -x -q
+cd packages/typescript && npx vitest run
+```
+
 Expected: All tests pass
 
 **Step 4: Commit**
 
 ```bash
-git add -A
-git commit -m "chore: bump all packages to v0.6.0"
+git add packages/ examples/
+git commit -m "chore: bump all 12 packages to v0.6.0"
 ```
 
 ---
