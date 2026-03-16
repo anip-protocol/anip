@@ -160,6 +160,12 @@ class StreamSummary(BaseModel):
     client_disconnected: bool
 ```
 
+Add `stream_summary` field to `InvokeResponse` (line 258-265), after `session`:
+
+```python
+    stream_summary: StreamSummary | None = None
+```
+
 Add `stream` field to `InvokeRequest` (line 250-255), after `client_reference_id`:
 
 ```python
@@ -295,6 +301,12 @@ Update `InvokeRequest` (line 267-272) to add after `client_reference_id`:
 
 ```typescript
   stream: z.boolean().default(false),
+```
+
+Update `InvokeResponse` (line 275-284) to add after `session`:
+
+```typescript
+  stream_summary: StreamSummary.nullable().default(null),
 ```
 
 **Step 4: Run test to verify it passes**
@@ -638,6 +650,16 @@ from typing import Callable, Awaitable
 from anip_core import ResponseMode
 ```
 
+Add a public method for streaming validation by HTTP bindings (avoids reaching
+into `_capabilities`). Add after the existing `discover_permissions` method:
+
+```python
+    def get_capability_declaration(self, capability_name: str) -> CapabilityDeclaration | None:
+        """Return the capability declaration or None. Used by HTTP bindings for pre-validation."""
+        cap = self._capabilities.get(capability_name)
+        return cap.declaration if cap else None
+```
+
 Update `invoke()` signature (line 376-383) to accept `stream` and `_progress_sink`:
 
 ```python
@@ -868,7 +890,32 @@ Expected: FAIL — `stream` not accepted by invoke opts
 
 In `packages/typescript/service/src/service.ts`:
 
-Update the `invoke()` method signature (around line 642-646) to accept `stream` and `progressSink`:
+First, update the exported `ANIPService` **interface** (line 71-76) so the TS bindings
+can pass the new options without a type error:
+
+```typescript
+  invoke(
+    capabilityName: string,
+    token: DelegationToken,
+    params: Record<string, unknown>,
+    opts?: {
+      clientReferenceId?: string | null;
+      stream?: boolean;
+      progressSink?: (event: Record<string, unknown>) => Promise<void>;
+    },
+  ): Promise<Record<string, unknown>>;
+```
+
+Also add a public method to the interface for streaming validation by bindings:
+
+```typescript
+  getCapabilityDeclaration(
+    capabilityName: string,
+  ): Record<string, unknown> | null;
+```
+
+Then update the concrete `invoke()` implementation signature (around line 642-646)
+to match the interface:
 
 ```typescript
     async invoke(
@@ -881,6 +928,16 @@ Update the `invoke()` method signature (around line 642-646) to accept `stream` 
         progressSink?: (event: Record<string, unknown>) => Promise<void>;
       },
     ): Promise<Record<string, unknown>> {
+```
+
+And add the `getCapabilityDeclaration` implementation (returns the parsed declaration
+or null):
+
+```typescript
+    getCapabilityDeclaration(capabilityName: string): Record<string, unknown> | null {
+      const cap = capabilities.get(capabilityName);
+      return cap ? (cap.declaration as Record<string, unknown>) : null;
+    },
 ```
 
 After the capability lookup (after `const decl = cap.declaration;`), add streaming validation:
@@ -1111,10 +1168,10 @@ Replace the invoke route handler (lines 84-102) with:
             return result
 
         # Streaming mode — pre-validate streaming support (return JSON 400, not SSE)
-        if capability in service._capabilities:
-            cap = service._capabilities[capability]
+        decl = service.get_capability_declaration(capability)
+        if decl is not None:
             modes = [m.value if hasattr(m, 'value') else m
-                     for m in (cap.declaration.response_modes or ["unary"])]
+                     for m in (decl.response_modes or ["unary"])]
             if "streaming" not in modes:
                 result = await service.invoke(
                     capability, token, params,
@@ -1253,7 +1310,7 @@ When `body.stream === true`:
 ```typescript
 if (body.stream) {
   // Pre-validate streaming support (return JSON 400, not SSE)
-  const decl = service.getCapability(capability)?.declaration;
+  const decl = service.getCapabilityDeclaration(capability);
   const modes = decl?.response_modes ?? ["unary"];
   if (!modes.includes("streaming")) {
     const result = await service.invoke(capability, token, params, {
@@ -1365,7 +1422,7 @@ When `body.stream === true`:
 ```typescript
 if (body.stream) {
   // Pre-validate streaming support (return JSON 400, not SSE)
-  const decl = service.getCapability(req.params.capability)?.declaration;
+  const decl = service.getCapabilityDeclaration(req.params.capability);
   const modes = decl?.response_modes ?? ["unary"];
   if (!modes.includes("streaming")) {
     const result = await service.invoke(req.params.capability, token, params, {
@@ -1455,7 +1512,7 @@ When `body.stream === true`:
 ```typescript
 if ((body as Record<string, unknown>).stream) {
   // Pre-validate streaming support (return JSON 400, not SSE)
-  const decl = service.getCapability(req.params.capability)?.declaration;
+  const decl = service.getCapabilityDeclaration(req.params.capability);
   const modes = decl?.response_modes ?? ["unary"];
   if (!modes.includes("streaming")) {
     const result = await service.invoke(req.params.capability, token, params, {
