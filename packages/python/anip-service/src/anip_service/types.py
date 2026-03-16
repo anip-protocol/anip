@@ -18,10 +18,16 @@ class InvocationContext:
     invocation_id: str = ""
     client_reference_id: str | None = None
     _cost_actual: dict[str, Any] | None = field(default=None, repr=False)
+    _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None = field(default=None, repr=False)
 
     def set_cost_actual(self, cost: dict[str, Any]) -> None:
         """Set actual cost for variance tracking against declared cost."""
         self._cost_actual = cost
+
+    async def emit_progress(self, payload: dict[str, Any]) -> None:
+        """Emit a progress event. No-op if no sink is attached (unary mode)."""
+        if self._progress_sink is not None:
+            await self._progress_sink(payload)
 
 
 # Handler type: (ctx, params) -> result dict (sync or async)

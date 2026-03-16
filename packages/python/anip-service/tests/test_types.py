@@ -1,3 +1,5 @@
+import asyncio
+
 from anip_service import Capability, InvocationContext, ANIPError
 from anip_core import CapabilityDeclaration, CapabilityInput, CapabilityOutput, SideEffect, SideEffectType
 
@@ -40,3 +42,35 @@ def test_anip_error():
     assert err.error_type == "not_found"
     assert err.detail == "Flight does not exist"
     assert "not_found" in str(err)
+
+
+def test_emit_progress_noop_without_sink():
+    """emit_progress is a no-op when no progress sink is attached."""
+    ctx = InvocationContext(
+        token=None,  # type: ignore
+        root_principal="human:alice@example.com",
+        subject="agent:bot-1",
+        scopes=["test.read"],
+        delegation_chain=["tok-1"],
+    )
+    # Should not raise
+    asyncio.run(ctx.emit_progress({"percent": 50}))
+
+
+def test_emit_progress_calls_sink():
+    """emit_progress forwards payload to attached sink."""
+    received = []
+
+    async def sink(payload):
+        received.append(payload)
+
+    ctx = InvocationContext(
+        token=None,  # type: ignore
+        root_principal="human:alice@example.com",
+        subject="agent:bot-1",
+        scopes=["test.read"],
+        delegation_chain=["tok-1"],
+        _progress_sink=sink,
+    )
+    asyncio.run(ctx.emit_progress({"percent": 50}))
+    assert received == [{"percent": 50}]
