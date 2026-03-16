@@ -104,3 +104,78 @@ class TestInvokeRoutes:
         data = resp.json()
         assert data["success"] is True
         assert data["client_reference_id"] == "my-ref-42"
+
+
+def _streaming_cap():
+    async def handler(ctx, params):
+        await ctx.emit_progress({"step": 1, "status": "working"})
+        return {"answer": 42}
+
+    return Capability(
+        declaration=CapabilityDeclaration(
+            name="analyze",
+            description="Analyze something",
+            contract_version="1.0",
+            inputs=[CapabilityInput(name="x", type="string", required=True, description="input")],
+            output=CapabilityOutput(type="object", fields=["answer"]),
+            side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+            minimum_scope=["analyze"],
+            response_modes=["unary", "streaming"],
+        ),
+        handler=handler,
+    )
+
+
+@pytest.fixture
+def streaming_client():
+    service = ANIPService(
+        service_id="test-service",
+        capabilities=[_greet_cap(), _streaming_cap()],
+        storage=":memory:",
+        authenticate=lambda bearer: "test-agent" if bearer == API_KEY else None,
+    )
+    app = FastAPI()
+    mount_anip(app, service)
+    return TestClient(app)
+
+
+class TestStreamingRoutes:
+    def test_streaming_returns_sse(self, streaming_client):
+        """POST with stream:true should return text/event-stream."""
+        resp = streaming_client.post(
+            "/anip/tokens",
+            json={"subject": "test-agent", "scope": ["analyze"], "capability": "analyze"},
+            headers={"Authorization": f"Bearer {API_KEY}"},
+        )
+        assert resp.status_code == 200
+        jwt_str = resp.json()["token"]
+
+        resp = streaming_client.post(
+            "/anip/invoke/analyze",
+            json={"parameters": {"x": "test"}, "stream": True},
+            headers={"Authorization": f"Bearer {jwt_str}"},
+        )
+        assert resp.status_code == 200
+        assert "text/event-stream" in resp.headers.get("content-type", "")
+        body = resp.text
+        assert "event: progress" in body
+        assert "event: completed" in body
+        assert '"answer": 42' in body or '"answer":42' in body
+
+    def test_streaming_rejected_for_unary_cap(self, streaming_client):
+        """stream:true on a unary-only capability should fail."""
+        resp = streaming_client.post(
+            "/anip/tokens",
+            json={"subject": "test-agent", "scope": ["greet"], "capability": "greet"},
+            headers={"Authorization": f"Bearer {API_KEY}"},
+        )
+        jwt_str = resp.json()["token"]
+
+        resp = streaming_client.post(
+            "/anip/invoke/greet",
+            json={"parameters": {"name": "world"}, "stream": True},
+            headers={"Authorization": f"Bearer {jwt_str}"},
+        )
+        assert resp.status_code == 400
+        data = resp.json()
+        assert data["failure"]["type"] == "streaming_not_supported"
