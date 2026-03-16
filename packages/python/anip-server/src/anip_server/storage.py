@@ -189,6 +189,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     delegation_chain TEXT,         -- JSON array of token_ids
     invocation_id TEXT,
     client_reference_id TEXT,
+    stream_summary TEXT,
     previous_hash TEXT NOT NULL,
     signature TEXT
 );
@@ -222,6 +223,7 @@ _JSON_AUDIT_FIELDS = (
     "result_summary",
     "cost_actual",
     "delegation_chain",
+    "stream_summary",
 )
 
 
@@ -248,6 +250,10 @@ class SQLiteStorage:
             pass  # column already exists
         try:
             self._conn.execute("ALTER TABLE audit_log ADD COLUMN client_reference_id TEXT")
+        except Exception:
+            pass  # column already exists
+        try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN stream_summary TEXT")
         except Exception:
             pass  # column already exists
 
@@ -302,8 +308,8 @@ class SQLiteStorage:
                    (sequence_number, timestamp, capability, token_id, issuer,
                     subject, root_principal, parameters, success, result_summary,
                     failure_type, cost_actual, delegation_chain, invocation_id,
-                    client_reference_id, previous_hash, signature)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    client_reference_id, stream_summary, previous_hash, signature)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     entry["sequence_number"],
                     entry["timestamp"],
@@ -320,6 +326,7 @@ class SQLiteStorage:
                     json.dumps(entry["delegation_chain"]) if entry.get("delegation_chain") is not None else None,
                     entry.get("invocation_id"),
                     entry.get("client_reference_id"),
+                    json.dumps(entry["stream_summary"]) if entry.get("stream_summary") is not None else None,
                     entry["previous_hash"],
                     entry.get("signature"),
                 ),

@@ -21,6 +21,7 @@ const JSON_AUDIT_FIELDS = [
   "result_summary",
   "cost_actual",
   "delegation_chain",
+  "stream_summary",
 ] as const;
 
 const SCHEMA = `
@@ -55,6 +56,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     delegation_chain TEXT,
     invocation_id TEXT,
     client_reference_id TEXT,
+    stream_summary TEXT,
     previous_hash TEXT NOT NULL,
     signature TEXT
 );
@@ -95,6 +97,11 @@ try {
 }
 try {
   db.exec("ALTER TABLE audit_log ADD COLUMN client_reference_id TEXT");
+} catch {
+  // Column may already exist
+}
+try {
+  db.exec("ALTER TABLE audit_log ADD COLUMN stream_summary TEXT");
 } catch {
   // Column may already exist
 }
@@ -149,8 +156,8 @@ function storeAuditEntry(entry: Record<string, unknown>): void {
      (sequence_number, timestamp, capability, token_id, issuer,
       subject, root_principal, parameters, success, result_summary,
       failure_type, cost_actual, delegation_chain, invocation_id,
-      client_reference_id, previous_hash, signature)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      client_reference_id, stream_summary, previous_hash, signature)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     entry.sequence_number as number,
     entry.timestamp as string,
@@ -171,6 +178,9 @@ function storeAuditEntry(entry: Record<string, unknown>): void {
       : null,
     (entry.invocation_id as string) ?? null,
     (entry.client_reference_id as string) ?? null,
+    entry.stream_summary != null
+      ? JSON.stringify(entry.stream_summary)
+      : null,
     entry.previous_hash as string,
     (entry.signature as string) ?? null,
   );

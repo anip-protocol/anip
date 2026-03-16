@@ -273,6 +273,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       costActual?: Record<string, unknown> | null;
       invocationId?: string | null;
       clientReferenceId?: string | null;
+      streamSummary?: Record<string, unknown> | null;
     },
   ): Promise<void> {
     const chain = await engine.getChain(token);
@@ -287,6 +288,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       delegation_chain: chain.map((t) => t.token_id),
       invocation_id: auditOpts.invocationId ?? null,
       client_reference_id: auditOpts.clientReferenceId ?? null,
+      streamSummary: auditOpts.streamSummary ?? null,
     });
 
     entriesSinceCheckpoint++;
@@ -762,16 +764,29 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       try {
         const result = await cap.handler(ctx, params);
 
-        // 5. Log audit (success)
+        // 5. Build stream summary (before audit so it can be persisted)
+        let streamSummary: Record<string, unknown> | null = null;
+        if (stream) {
+          streamSummary = {
+            response_mode: "streaming",
+            events_emitted: eventsEmitted,
+            events_delivered: eventsEmitted,
+            duration_ms: Math.round(performance.now() - streamStart),
+            client_disconnected: false,
+          };
+        }
+
+        // 6. Log audit (success)
         await logAudit(capabilityName, resolvedToken, {
           success: true,
           resultSummary: summarizeResult(result),
           costActual,
           invocationId,
           clientReferenceId,
+          streamSummary,
         });
 
-        // 6. Build response
+        // 7. Build response
         const response: Record<string, unknown> = {
           success: true,
           result,
@@ -781,14 +796,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         if (costActual) {
           response.cost_actual = costActual;
         }
-        if (stream) {
-          response.stream_summary = {
-            response_mode: "streaming",
-            events_emitted: eventsEmitted,
-            events_delivered: eventsEmitted,
-            duration_ms: Math.round(performance.now() - streamStart),
-            client_disconnected: false,
-          };
+        if (streamSummary) {
+          response.stream_summary = streamSummary;
         }
 
         return response;

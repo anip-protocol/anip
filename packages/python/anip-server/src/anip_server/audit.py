@@ -59,6 +59,7 @@ class AuditLog:
             "delegation_chain": entry_data.get("delegation_chain"),
             "invocation_id": entry_data.get("invocation_id"),
             "client_reference_id": entry_data.get("client_reference_id"),
+            "stream_summary": entry_data.get("stream_summary"),
             "previous_hash": previous_hash,
         }
 

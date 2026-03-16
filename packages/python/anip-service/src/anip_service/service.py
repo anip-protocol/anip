@@ -544,7 +544,18 @@ class ANIPService:
             cost_actual = ctx._cost_actual
             cost_variance = self._compute_cost_variance(decl, cost_actual)
 
-            # 7. Log audit (success)
+            # 7. Build stream summary (before audit so it can be persisted)
+            stream_summary: dict[str, Any] | None = None
+            if stream:
+                stream_summary = {
+                    "response_mode": "streaming",
+                    "events_emitted": events_emitted,
+                    "events_delivered": events_emitted,
+                    "duration_ms": int((time.monotonic() - stream_start) * 1000),
+                    "client_disconnected": False,
+                }
+
+            # 8. Log audit (success)
             await self._log_audit(
                 capability_name, resolved_token, success=True,
                 failure_type=None,
@@ -552,9 +563,10 @@ class ANIPService:
                 cost_actual=cost_actual,
                 cost_variance=cost_variance,
                 invocation_id=invocation_id, client_reference_id=client_reference_id,
+                stream_summary=stream_summary,
             )
 
-            # 8. Build response
+            # 9. Build response
             response: dict[str, Any] = {
                 "success": True,
                 "result": result,
@@ -564,14 +576,8 @@ class ANIPService:
             if cost_actual:
                 response["cost_actual"] = cost_actual
 
-            if stream:
-                response["stream_summary"] = {
-                    "response_mode": "streaming",
-                    "events_emitted": events_emitted,
-                    "events_delivered": events_emitted,
-                    "duration_ms": int((time.monotonic() - stream_start) * 1000),
-                    "client_disconnected": False,
-                }
+            if stream_summary:
+                response["stream_summary"] = stream_summary
 
             return response
 
@@ -722,6 +728,7 @@ class ANIPService:
         cost_variance: dict[str, Any] | None,
         invocation_id: str | None = None,
         client_reference_id: str | None = None,
+        stream_summary: dict[str, Any] | None = None,
     ) -> None:
         """Log an audit entry through the SDK's AuditLog."""
         chain = await self._engine.get_chain(token)
@@ -736,6 +743,7 @@ class ANIPService:
             "delegation_chain": [t.token_id for t in chain],
             "invocation_id": invocation_id,
             "client_reference_id": client_reference_id,
+            "stream_summary": stream_summary,
         })
 
         self._entries_since_checkpoint += 1

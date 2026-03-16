@@ -83,6 +83,27 @@ async def test_query_audit_by_client_reference_id():
     assert all(r["client_reference_id"] == "cref-shared" for r in results)
 
 
+async def test_audit_entry_includes_stream_summary():
+    """Audit entries should persist stream_summary when provided."""
+    store = InMemoryStorage()
+    audit = AuditLog(store)
+
+    await audit.log_entry(_make_entry(
+        invocation_id="inv-000000000001",
+        stream_summary={
+            "response_mode": "streaming",
+            "events_emitted": 5,
+            "events_delivered": 3,
+            "duration_ms": 1200,
+            "client_disconnected": True,
+        },
+    ))
+
+    entries = await audit.query(capability="test.action")
+    assert entries[0]["stream_summary"]["events_emitted"] == 5
+    assert entries[0]["stream_summary"]["client_disconnected"] is True
+
+
 async def test_audit_entry_with_sync_signer():
     """Sync signer callback produces a signature."""
     store = InMemoryStorage()
