@@ -53,6 +53,11 @@
       "type": "object",
       "description": "Purpose binding for a delegation token — which capability and task it authorizes. See SPEC.md §4.3."
     },
+    "ResponseMode": {
+      "enum": ["unary", "streaming"],
+      "title": "ResponseMode",
+      "type": "string"
+    },
     "CapabilityComposition": {
       "properties": {
         "capability": {
@@ -275,6 +280,18 @@
       ],
       "title": "SessionType",
       "type": "string"
+    },
+    "StreamSummary": {
+      "properties": {
+        "response_mode": { "const": "streaming" },
+        "events_emitted": { "type": "integer", "minimum": 0 },
+        "events_delivered": { "type": "integer", "minimum": 0 },
+        "duration_ms": { "type": "integer", "minimum": 0 },
+        "client_disconnected": { "type": "boolean" }
+      },
+      "required": ["response_mode", "events_emitted", "events_delivered", "duration_ms", "client_disconnected"],
+      "title": "StreamSummary",
+      "type": "object"
     },
     "SideEffect": {
       "properties": {
@@ -606,6 +623,16 @@
             }
           ],
           "default": null
+        },
+        "response_modes": {
+          "items": {
+            "$ref": "#/$defs/ResponseMode"
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "default": ["unary"],
+          "title": "Response Modes",
+          "type": "array"
         }
       },
       "required": [
@@ -709,8 +736,9 @@
     },
     "InvokeRequest": {
       "properties": {
-        "delegation_token": {
-          "$ref": "#/$defs/DelegationToken"
+        "token": {
+          "title": "Token",
+          "type": "string"
         },
         "parameters": {
           "additionalProperties": true,
@@ -729,16 +757,34 @@
           ],
           "default": null,
           "title": "Budget"
+        },
+        "stream": {
+          "default": false,
+          "title": "Stream",
+          "type": "boolean"
+        },
+        "client_reference_id": {
+          "anyOf": [
+            { "type": "string", "maxLength": 256 },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Client Reference Id"
         }
       },
       "required": [
-        "delegation_token"
+        "token"
       ],
       "title": "InvokeRequest",
       "type": "object"
     },
     "InvokeResponse": {
       "properties": {
+        "invocation_id": {
+          "title": "Invocation Id",
+          "type": "string",
+          "pattern": "^inv-[0-9a-f]{12}$"
+        },
         "success": {
           "title": "Success",
           "type": "boolean"
@@ -790,9 +836,25 @@
           ],
           "default": null,
           "title": "Session"
+        },
+        "stream_summary": {
+          "anyOf": [
+            { "$ref": "#/$defs/StreamSummary" },
+            { "type": "null" }
+          ],
+          "default": null
+        },
+        "client_reference_id": {
+          "anyOf": [
+            { "type": "string", "maxLength": 256 },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Client Reference Id"
         }
       },
       "required": [
+        "invocation_id",
         "success"
       ],
       "if": {

@@ -256,6 +256,11 @@
       ],
       "title": "SideEffectType",
       "type": "string"
+    },
+    "ResponseMode": {
+      "enum": ["unary", "streaming"],
+      "title": "ResponseMode",
+      "type": "string"
     }
   },
   "properties": {
@@ -330,6 +335,16 @@
         }
       ],
       "default": null
+    },
+    "response_modes": {
+      "items": {
+        "$ref": "#/$defs/ResponseMode"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "default": ["unary"],
+      "title": "Response Modes",
+      "type": "array"
     }
   },
   "required": [
