@@ -30,7 +30,7 @@ import {
 } from "@anip/server";
 
 import { ANIPError } from "./types.js";
-import type { CapabilityDef, Handler } from "./types.js";
+import type { CapabilityDef, Handler, InvocationContext } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -72,8 +72,13 @@ export interface ANIPService {
     capabilityName: string,
     token: DelegationToken,
     params: Record<string, unknown>,
-    opts?: { clientReferenceId?: string | null },
+    opts?: {
+      clientReferenceId?: string | null;
+      stream?: boolean;
+      progressSink?: (event: Record<string, unknown>) => Promise<void>;
+    },
   ): Promise<Record<string, unknown>>;
+  getCapabilityDeclaration(capabilityName: string): Record<string, unknown> | null;
   queryAudit(
     token: DelegationToken,
     filters?: Record<string, unknown>,
@@ -639,11 +644,20 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       ) as unknown as Record<string, unknown>;
     },
 
+    getCapabilityDeclaration(capabilityName: string): Record<string, unknown> | null {
+      const cap = capabilities.get(capabilityName);
+      return cap ? (cap.declaration as Record<string, unknown>) : null;
+    },
+
     async invoke(
       capabilityName: string,
       token: DelegationToken,
       params: Record<string, unknown>,
-      opts?: { clientReferenceId?: string | null },
+      opts?: {
+        clientReferenceId?: string | null;
+        stream?: boolean;
+        progressSink?: (event: Record<string, unknown>) => Promise<void>;
+      },
     ): Promise<Record<string, unknown>> {
       const invocationId = `inv-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
       const clientReferenceId = opts?.clientReferenceId ?? null;
@@ -663,6 +677,24 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
       const cap = capabilities.get(capabilityName)!;
       const decl = cap.declaration;
+
+      // Check streaming support
+      const stream = opts?.stream ?? false;
+      const progressSink = opts?.progressSink ?? null;
+      if (stream) {
+        const responseModes = (decl as any).response_modes ?? ["unary"];
+        if (!responseModes.includes("streaming")) {
+          return {
+            success: false,
+            failure: {
+              type: "streaming_not_supported",
+              detail: `Capability '${capabilityName}' does not support streaming`,
+            },
+            invocation_id: invocationId,
+            client_reference_id: clientReferenceId,
+          };
+        }
+      }
 
       // 2. Validate delegation
       const minScope = decl.minimum_scope ?? [];
@@ -699,8 +731,10 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       // 3. Build invocation context
       const chain = await engine.getChain(resolvedToken);
       let costActual: Record<string, unknown> | null = null;
+      let eventsEmitted = 0;
+      const streamStart = stream ? performance.now() : 0;
 
-      const ctx = {
+      const ctx: InvocationContext = {
         token: resolvedToken,
         rootPrincipal: await engine.getRootPrincipal(resolvedToken),
         subject: resolvedToken.subject,
@@ -711,8 +745,16 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         setCostActual(cost: Record<string, unknown>): void {
           costActual = cost;
         },
-        async emitProgress(_payload: Record<string, unknown>): Promise<void> {
-          // No-op in unary mode; streaming Task 7 will wire this up.
+        async emitProgress(payload: Record<string, unknown>): Promise<void> {
+          if (!stream) return;
+          eventsEmitted++;
+          if (progressSink) {
+            await progressSink({
+              invocation_id: invocationId,
+              client_reference_id: clientReferenceId,
+              payload,
+            });
+          }
         },
       };
 
@@ -738,6 +780,15 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         };
         if (costActual) {
           response.cost_actual = costActual;
+        }
+        if (stream) {
+          response.stream_summary = {
+            response_mode: "streaming",
+            events_emitted: eventsEmitted,
+            events_delivered: eventsEmitted,
+            duration_ms: Math.round(performance.now() - streamStart),
+            client_disconnected: false,
+          };
         }
 
         return response;
