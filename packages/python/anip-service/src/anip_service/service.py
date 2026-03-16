@@ -582,9 +582,9 @@ class ANIPService:
                 stream_summary = {
                     "response_mode": "streaming",
                     "events_emitted": events_emitted,
-                    "events_delivered": events_emitted,
+                    "events_delivered": events_delivered,
                     "duration_ms": int((time.monotonic() - stream_start) * 1000),
-                    "client_disconnected": False,
+                    "client_disconnected": client_disconnected,
                 }
 
             # 8. Log audit (success)

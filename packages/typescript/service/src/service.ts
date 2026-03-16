@@ -813,9 +813,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           ? {
               response_mode: "streaming",
               events_emitted: eventsEmitted,
-              events_delivered: eventsEmitted,
+              events_delivered: eventsDelivered,
               duration_ms: Math.round(performance.now() - streamStart),
-              client_disconnected: false,
+              client_disconnected: clientDisconnected,
             }
           : null;
 
