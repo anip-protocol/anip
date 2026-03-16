@@ -1,11 +1,11 @@
 [project]
 name = "anip-server"
-version = "0.4.0"
+version = "0.5.0"
 description = "ANIP server primitives — delegation, audit, checkpoints, Merkle trees"
 requires-python = ">=3.11"
 dependencies = [
-    "anip-core>=0.4.0",
-    "anip-crypto>=0.4.0",
+    "anip-core>=0.5.0",
+    "anip-crypto>=0.5.0",
 ]
 
 [project.optional-dependencies]

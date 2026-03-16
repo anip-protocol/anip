@@ -542,7 +542,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
       let result:
         | { token: DelegationToken; tokenId: string }
-        | ReturnType<DelegationEngine["delegate"]>;
+        | Awaited<ReturnType<DelegationEngine["delegate"]>>;
 
       if (parentTokenId) {
         // Delegation from existing token

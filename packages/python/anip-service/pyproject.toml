@@ -1,12 +1,12 @@
 [project]
 name = "anip-service"
-version = "0.4.0"
+version = "0.5.0"
 description = "ANIP service runtime — configure and run an ANIP service"
 requires-python = ">=3.11"
 dependencies = [
-    "anip-core>=0.4.0",
-    "anip-crypto>=0.4.0",
-    "anip-server>=0.4.0",
+    "anip-core>=0.5.0",
+    "anip-crypto>=0.5.0",
+    "anip-server>=0.5.0",
 ]
 
 [project.optional-dependencies]
