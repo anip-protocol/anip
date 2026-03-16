@@ -4,7 +4,7 @@
 
 **Goal:** Add a `posture` block to `/.well-known/anip` that exposes audit, lineage, metadata policy, failure disclosure, and anchoring posture — making trust characteristics inspectable before invocation.
 
-**Architecture:** Before adding posture, align the existing discovery response with its own schema and spec (the current implementations drift significantly). Then add typed posture models in both runtimes, computed from existing service configuration. The posture block is OPTIONAL per schema — services MAY omit it, but reference implementations MUST include it.
+**Architecture:** Before adding posture, align the existing discovery response with its own schema and spec (the current implementations drift significantly). Discovery uses `"anip-compliant"` compliance (5 core primitives) since the reference implementations do not implement handshake, graph, or test endpoints. `base_url` is derived from the incoming request at the HTTP binding layer — the service method accepts it as a parameter, and each binding extracts it from the request. Then add typed posture models in both runtimes, computed from existing service configuration. The posture block is OPTIONAL per schema — services MAY omit it, but reference implementations MUST include it.
 
 **Tech Stack:** Python/Pydantic, TypeScript/Zod, JSON Schema (draft 2020-12)
 
@@ -150,15 +150,20 @@ git commit -m "chore: bump all versions to 0.7.0 for discovery posture release"
 
 Before adding posture, fix the existing discovery responses to conform to the spec (SPEC.md §6.1) and JSON schema. Currently both runtimes emit a minimal discovery document missing required fields (`protocol`, `compliance`, `base_url`, `auth`), with wrong `profile` shape (string `"full"` instead of versioned object), and incomplete capability summaries (missing `financial`, using `contract_version` instead of `contract`).
 
+**Design decisions:**
+- **`compliance`**: Use `"anip-compliant"` (5 core primitives), NOT `"anip-complete"`. The reference implementations do not implement handshake, graph, or test endpoints — claiming `"anip-complete"` would be a contract violation per SPEC.md §3.
+- **`base_url`**: Derived from the incoming HTTP request at the binding layer, NOT a constructor parameter. The service method `get_discovery(base_url=...)` / `getDiscovery({ baseUrl })` accepts it as a call-time parameter. Each HTTP binding (FastAPI, Express, Hono, Fastify) extracts the origin from the request and passes it through. This satisfies the spec requirement that `base_url` be "derived from the incoming request, not hardcoded."
+- **`endpoints`**: Only list endpoints that actually exist in the HTTP bindings. No `handshake`, `graph`, or `test` — those are not implemented.
+
 **Files:**
-- Modify: `packages/python/anip-service/src/anip_service/service.py:152-179`
-- Modify: `packages/typescript/service/src/service.ts:375-403`
+- Modify: `packages/python/anip-service/src/anip_service/service.py:152-179` (get_discovery signature + body)
+- Modify: `packages/python/anip-fastapi/src/anip_fastapi/routes.py:39-41` (pass base_url from request)
+- Modify: `packages/typescript/service/src/service.ts:59-60,375-403` (ANIPService interface + getDiscovery)
+- Modify: `packages/typescript/express/src/routes.ts:15-17` (pass baseUrl from req)
+- Modify: `packages/typescript/hono/src/routes.ts:14` (pass baseUrl from req)
+- Modify: `packages/typescript/fastify/src/routes.ts:13-15` (pass baseUrl from req)
 - Modify: `packages/python/anip-service/tests/test_service_init.py`
 - Modify: `packages/typescript/service/tests/service.test.ts`
-- Modify: `packages/python/anip-fastapi/tests/test_routes.py` (if discovery assertions need updating)
-- Modify: `packages/typescript/express/tests/routes.test.ts` (if discovery assertions need updating)
-
-**Context:** The service layer is transport-agnostic and doesn't know the request URL. For `base_url` we accept it as a constructor parameter (OPTIONAL — when omitted, the field is absent from the response). The reference implementations already pass `service_id` at construction; `base_url` follows the same pattern.
 
 **Step 1: Write failing tests (Python)**
 
@@ -171,12 +176,13 @@ def test_discovery_document(self):
         capabilities=[_test_cap()],
         storage=":memory:",
     )
-    disc = service.get_discovery()
+    disc = service.get_discovery(base_url="https://test.example.com")
     ad = disc["anip_discovery"]
 
     # Required fields per SPEC.md §6.1
     assert ad["protocol"] == "anip/0.7"
-    assert ad["compliance"] == "anip-complete"
+    assert ad["compliance"] == "anip-compliant"
+    assert ad["base_url"] == "https://test.example.com"
     assert ad["profile"]["core"] == "1.0"
     assert ad["auth"]["delegation_token_required"] is True
     assert ad["auth"]["minimum_scope_for_discovery"] == "none"
@@ -190,29 +196,15 @@ def test_discovery_document(self):
     assert greet["contract"] == "1.0"
     assert "contract_version" not in greet
 
-    # Trust and endpoints
+    # Trust and endpoints — only actually implemented endpoints
     assert ad["trust_level"] == "signed"
     assert ad["endpoints"]["manifest"] == "/anip/manifest"
-    assert ad["endpoints"]["handshake"] == "/anip/handshake"
-
-def test_discovery_base_url(self):
-    service = ANIPService(
-        service_id="test-service",
-        capabilities=[_test_cap()],
-        storage=":memory:",
-        base_url="https://api.example.com",
-    )
-    disc = service.get_discovery()
-    assert disc["anip_discovery"]["base_url"] == "https://api.example.com"
-
-def test_discovery_no_base_url_by_default(self):
-    service = ANIPService(
-        service_id="test-service",
-        capabilities=[_test_cap()],
-        storage=":memory:",
-    )
-    disc = service.get_discovery()
-    assert "base_url" not in disc["anip_discovery"]
+    assert ad["endpoints"]["permissions"] == "/anip/permissions"
+    assert ad["endpoints"]["invoke"] == "/anip/invoke/{capability}"
+    assert ad["endpoints"]["tokens"] == "/anip/tokens"
+    assert ad["endpoints"]["audit"] == "/anip/audit"
+    assert ad["endpoints"]["checkpoints"] == "/anip/checkpoints"
+    assert "handshake" not in ad["endpoints"]  # not implemented
 ```
 
 **Step 2: Run tests to verify they fail**
@@ -221,34 +213,14 @@ def test_discovery_no_base_url_by_default(self):
 .venv/bin/python -m pytest packages/python/anip-service/tests/test_service_init.py::TestANIPServiceInit::test_discovery_document -x -q
 ```
 
-Expected: KeyError — `protocol` not in discovery response.
+Expected: TypeError or KeyError — `get_discovery()` doesn't accept `base_url` yet.
 
-**Step 3: Update Python `ANIPService.__init__` to accept `base_url`**
+**Step 3: Rewrite Python `get_discovery()` to accept `base_url` parameter**
 
-In `packages/python/anip-service/src/anip_service/service.py`, add `base_url: str | None = None` to the `__init__` signature (after `authenticate`):
-
-```python
-def __init__(
-    self,
-    *,
-    service_id: str,
-    capabilities: list[Capability],
-    storage: str | StorageBackend = "sqlite:///anip.db",
-    key_path: str = "./anip-keys",
-    trust: str | dict[str, Any] = "signed",
-    checkpoint_policy: CheckpointPolicy | None = None,
-    audit_signer: Any | None = None,
-    authenticate: Callable[[str], str | None] | None = None,
-    base_url: str | None = None,
-) -> None:
-```
-
-Store it: `self._base_url = base_url` (right after `self._service_id = service_id`).
-
-**Step 4: Rewrite Python `get_discovery()`**
+In `packages/python/anip-service/src/anip_service/service.py`, change the method signature and body:
 
 ```python
-def get_discovery(self) -> dict[str, Any]:
+def get_discovery(self, *, base_url: str | None = None) -> dict[str, Any]:
     """Return lightweight discovery document per SPEC.md §6.1."""
     from anip_core import PROTOCOL_VERSION, DEFAULT_PROFILE
 
@@ -265,7 +237,7 @@ def get_discovery(self) -> dict[str, Any]:
 
     doc: dict[str, Any] = {
         "protocol": PROTOCOL_VERSION,
-        "compliance": "anip-complete",
+        "compliance": "anip-compliant",
         "profile": DEFAULT_PROFILE,
         "auth": {
             "delegation_token_required": True,
@@ -276,7 +248,6 @@ def get_discovery(self) -> dict[str, Any]:
         "trust_level": self._trust_level,
         "endpoints": {
             "manifest": "/anip/manifest",
-            "handshake": "/anip/handshake",
             "permissions": "/anip/permissions",
             "invoke": "/anip/invoke/{capability}",
             "tokens": "/anip/tokens",
@@ -286,10 +257,21 @@ def get_discovery(self) -> dict[str, Any]:
         },
     }
 
-    if self._base_url is not None:
-        doc["base_url"] = self._base_url
+    if base_url is not None:
+        doc["base_url"] = base_url
 
     return {"anip_discovery": doc}
+```
+
+**Step 4: Update FastAPI route to pass `base_url` from request**
+
+In `packages/python/anip-fastapi/src/anip_fastapi/routes.py`, change the discovery route:
+
+```python
+@app.get(f"{prefix}/.well-known/anip")
+async def discovery(request: Request):
+    base_url = str(request.base_url).rstrip("/")
+    return service.get_discovery(base_url=base_url)
 ```
 
 **Step 5: Run Python tests**
@@ -298,21 +280,22 @@ def get_discovery(self) -> dict[str, Any]:
 .venv/bin/python -m pytest packages/python -x -q
 ```
 
-Expected: All pass.
+Expected: All pass. The FastAPI route test may need updating if it asserts on `base_url`.
 
 **Step 6: Write failing tests (TypeScript)**
 
-Update `discovery document structure` test and add new tests in `packages/typescript/service/tests/service.test.ts`:
+Update `discovery document structure` test in `packages/typescript/service/tests/service.test.ts`:
 
 ```typescript
 it("discovery document structure", () => {
   const { service } = makeService();
-  const disc = service.getDiscovery() as Record<string, any>;
+  const disc = service.getDiscovery({ baseUrl: "https://test.example.com" }) as Record<string, any>;
   const ad = disc.anip_discovery;
 
   // Required fields per SPEC.md §6.1
   expect(ad.protocol).toBe("anip/0.7");
-  expect(ad.compliance).toBe("anip-complete");
+  expect(ad.compliance).toBe("anip-compliant");
+  expect(ad.base_url).toBe("https://test.example.com");
   expect(ad.profile.core).toBe("1.0");
   expect(ad.auth.delegation_token_required).toBe(true);
   expect(ad.auth.minimum_scope_for_discovery).toBe("none");
@@ -323,42 +306,33 @@ it("discovery document structure", () => {
   expect(ad.capabilities["greet"].contract).toBe("1.0");
   expect(ad.capabilities["greet"].contract_version).toBeUndefined();
 
-  // Trust and endpoints
+  // Trust and endpoints — only implemented endpoints
   expect(ad.trust_level).toBe("signed");
   expect(ad.endpoints.manifest).toBe("/anip/manifest");
-  expect(ad.endpoints.handshake).toBe("/anip/handshake");
+  expect(ad.endpoints.permissions).toBe("/anip/permissions");
+  expect(ad.endpoints.handshake).toBeUndefined();
 });
 
-it("discovery includes base_url when configured", () => {
-  const service = createANIPService({
-    serviceId: "test-service",
-    capabilities: [testCap()],
-    storage: { type: "memory" },
-    baseUrl: "https://api.example.com",
-  });
-  const disc = service.getDiscovery() as Record<string, any>;
-  expect(disc.anip_discovery.base_url).toBe("https://api.example.com");
-});
-
-it("discovery omits base_url when not configured", () => {
+it("discovery omits base_url when not passed", () => {
   const { service } = makeService();
   const disc = service.getDiscovery() as Record<string, any>;
   expect(disc.anip_discovery.base_url).toBeUndefined();
 });
 ```
 
-**Step 7: Update TypeScript `ANIPServiceOpts` and `createANIPService`**
+**Step 7: Update TypeScript `ANIPService` interface and `getDiscovery()` implementation**
 
 In `packages/typescript/service/src/service.ts`:
 
-Add `baseUrl?: string;` to `ANIPServiceOpts` interface (after `authenticate`).
+Change the interface:
+```typescript
+getDiscovery(opts?: { baseUrl?: string }): Record<string, unknown>;
+```
 
-Extract it in `createANIPService`: `const baseUrl = opts.baseUrl ?? null;`
-
-**Step 8: Rewrite TypeScript `getDiscovery()`**
+Rewrite the implementation:
 
 ```typescript
-getDiscovery(): Record<string, unknown> {
+getDiscovery(opts?: { baseUrl?: string }): Record<string, unknown> {
   const capsSummary: Record<string, unknown> = {};
   for (const [name, cap] of capabilities) {
     const decl = cap.declaration;
@@ -373,7 +347,7 @@ getDiscovery(): Record<string, unknown> {
 
   const doc: Record<string, unknown> = {
     protocol: PROTOCOL_VERSION,
-    compliance: "anip-complete",
+    compliance: "anip-compliant",
     profile: { ...DEFAULT_PROFILE },
     auth: {
       delegation_token_required: true,
@@ -384,7 +358,6 @@ getDiscovery(): Record<string, unknown> {
     trust_level: trustLevel,
     endpoints: {
       manifest: "/anip/manifest",
-      handshake: "/anip/handshake",
       permissions: "/anip/permissions",
       invoke: "/anip/invoke/{capability}",
       tokens: "/anip/tokens",
@@ -394,8 +367,8 @@ getDiscovery(): Record<string, unknown> {
     },
   };
 
-  if (baseUrl !== null) {
-    doc.base_url = baseUrl;
+  if (opts?.baseUrl) {
+    doc.base_url = opts.baseUrl;
   }
 
   return { anip_discovery: doc };
@@ -404,6 +377,32 @@ getDiscovery(): Record<string, unknown> {
 
 Add `PROTOCOL_VERSION` and `DEFAULT_PROFILE` to the import from `@anip/core` if not already imported.
 
+**Step 8: Update HTTP bindings to pass `baseUrl` from request**
+
+Express (`packages/typescript/express/src/routes.ts`):
+```typescript
+router.get("/.well-known/anip", (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get("host")}`;
+  res.json(service.getDiscovery({ baseUrl }));
+});
+```
+
+Hono (`packages/typescript/hono/src/routes.ts`):
+```typescript
+app.get(`${p}/.well-known/anip`, (c) => {
+  const baseUrl = new URL(c.req.url).origin;
+  return c.json(service.getDiscovery({ baseUrl }));
+});
+```
+
+Fastify (`packages/typescript/fastify/src/routes.ts`):
+```typescript
+app.get(`${p}/.well-known/anip`, async (req) => {
+  const baseUrl = `${req.protocol}://${req.hostname}`;
+  return service.getDiscovery({ baseUrl });
+});
+```
+
 **Step 9: Run all tests**
 
 ```bash
@@ -411,13 +410,13 @@ Add `PROTOCOL_VERSION` and `DEFAULT_PROFILE` to the import from `@anip/core` if 
 cd packages/typescript && npx tsc -b core crypto server service express fastify hono && npx vitest run --reporter=verbose
 ```
 
-Expected: All pass.
+Expected: All pass. HTTP binding tests (Express/Hono/Fastify) will now see `base_url` in discovery output — update assertions if needed.
 
 **Step 10: Commit**
 
 ```bash
-git add packages/python/anip-service/ packages/typescript/service/
-git commit -m "fix: align discovery response with SPEC.md §6.1 contract"
+git add packages/python/anip-service/ packages/python/anip-fastapi/ packages/typescript/service/ packages/typescript/express/ packages/typescript/hono/ packages/typescript/fastify/
+git commit -m "fix: align discovery response with SPEC.md §6.1 — base_url from request, anip-compliant, correct endpoints"
 ```
 
 ---
@@ -918,7 +917,7 @@ from anip_core import (
 )
 ```
 
-In the `get_discovery()` method, after building `caps_summary` and before the `return` statement, add:
+In the `get_discovery()` method (which now accepts `*, base_url: str | None = None`), after building `caps_summary` and before building the `doc` dict, add:
 
 ```python
     # Build posture from existing service state (v0.7)
@@ -1040,7 +1039,7 @@ Expected: `posture` is undefined.
 
 **Step 3: Add posture to `getDiscovery()` in `service.ts`**
 
-In the `getDiscovery()` method, add after building `capsSummary`:
+In the `getDiscovery(opts?)` method (which now accepts `opts?: { baseUrl?: string }`), add after building `capsSummary`:
 
 ```typescript
   const isAnchored = trustLevel === "anchored" || trustLevel === "attested";
@@ -1099,14 +1098,18 @@ git commit -m "feat(service): emit posture block in TypeScript discovery respons
 
 ---
 
-## Task 7: JSON Schema — Add Posture Block
+## Task 7: JSON Schema — Add Posture Block and Fix `base_url` Requirement
 
-Add the `posture` property to the discovery JSON schema.
+Add the `posture` property and fix the `base_url` requirement in the discovery JSON schema. Currently `base_url` is in the `required` array, but since the service layer doesn't know the request URL and HTTP bindings inject it at call time, the schema should not require it for validation of the service-layer output. Move `base_url` out of the `required` array (it's still a schema-defined property — callers SHOULD expect it when served via HTTP, but the schema validates the service-layer shape).
 
 **Files:**
 - Modify: `schema/discovery.schema.json`
 
-**Step 1: Add `posture` property**
+**Step 1: Remove `base_url` from the `required` array**
+
+In `schema/discovery.schema.json`, the `anip_discovery.required` array currently includes `"base_url"`. Remove it. The resulting required array should be: `["protocol", "compliance", "profile", "auth", "capabilities", "endpoints"]`.
+
+**Step 2: Add `posture` property**
 
 Add a `posture` property inside `anip_discovery.properties` in `schema/discovery.schema.json`, after the `endpoints` property and before `metadata`:
 
