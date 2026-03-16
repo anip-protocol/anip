@@ -711,6 +711,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         setCostActual(cost: Record<string, unknown>): void {
           costActual = cost;
         },
+        async emitProgress(_payload: Record<string, unknown>): Promise<void> {
+          // No-op in unary mode; streaming Task 7 will wire this up.
+        },
       };
 
       // 4. Call handler
