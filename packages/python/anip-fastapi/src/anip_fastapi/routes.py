@@ -137,7 +137,7 @@ def mount_anip(
                 )
                 await queue.put({"type": "terminal", "result": result})
             except Exception as e:
-                await queue.put({"type": "error", "detail": str(e)})
+                await queue.put({"type": "error", "detail": "Internal error"})
 
         async def sse_generator():
             task = asyncio.create_task(run_invoke())

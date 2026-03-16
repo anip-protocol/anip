@@ -120,7 +120,7 @@ export function mountAnip(
         const errorData = {
           timestamp: new Date().toISOString(),
           success: false,
-          failure: { type: "internal_error", detail: String(err) },
+          failure: { type: "internal_error", detail: "Internal error" },
         };
         await writer.write(
           encoder.encode(`event: failed\ndata: ${JSON.stringify(errorData)}\n\n`),

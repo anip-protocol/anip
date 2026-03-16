@@ -468,11 +468,14 @@ class ANIPService:
             nonlocal events_emitted
             events_emitted += 1
             if _progress_sink is not None:
-                await _progress_sink({
-                    "invocation_id": invocation_id,
-                    "client_reference_id": client_reference_id,
-                    "payload": payload,
-                })
+                try:
+                    await _progress_sink({
+                        "invocation_id": invocation_id,
+                        "client_reference_id": client_reference_id,
+                        "payload": payload,
+                    })
+                except Exception:
+                    pass
 
         # 3. Build invocation context
         chain = await self._engine.get_chain(resolved_token)
@@ -513,32 +516,58 @@ class ANIPService:
                 if inspect.isawaitable(result):
                     result = await result
             except ANIPError as e:
+                fail_stream_summary: dict[str, Any] | None = None
+                if stream:
+                    fail_stream_summary = {
+                        "response_mode": "streaming",
+                        "events_emitted": events_emitted,
+                        "events_delivered": events_emitted,
+                        "duration_ms": int((time.monotonic() - stream_start) * 1000),
+                        "client_disconnected": False,
+                    }
                 await self._log_audit(
                     capability_name, resolved_token, success=False,
                     failure_type=e.error_type,
                     result_summary={"detail": e.detail},
                     cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
+                    stream_summary=fail_stream_summary,
                 )
-                return {
+                fail_response: dict[str, Any] = {
                     "success": False,
                     "failure": {"type": e.error_type, "detail": e.detail},
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
+                if fail_stream_summary:
+                    fail_response["stream_summary"] = fail_stream_summary
+                return fail_response
             except Exception:
+                fail_stream_summary_exc: dict[str, Any] | None = None
+                if stream:
+                    fail_stream_summary_exc = {
+                        "response_mode": "streaming",
+                        "events_emitted": events_emitted,
+                        "events_delivered": events_emitted,
+                        "duration_ms": int((time.monotonic() - stream_start) * 1000),
+                        "client_disconnected": False,
+                    }
                 await self._log_audit(
                     capability_name, resolved_token, success=False,
                     failure_type="internal_error",
                     result_summary=None, cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
+                    stream_summary=fail_stream_summary_exc,
                 )
-                return {
+                fail_response_exc: dict[str, Any] = {
                     "success": False,
                     "failure": {"type": "internal_error", "detail": "Internal error"},
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
+                if fail_stream_summary_exc:
+                    fail_response_exc["stream_summary"] = fail_stream_summary_exc
+                return fail_response_exc
 
             # 6. Compute cost variance
             cost_actual = ctx._cost_actual

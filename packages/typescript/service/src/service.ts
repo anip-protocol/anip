@@ -751,11 +751,15 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           if (!stream) return;
           eventsEmitted++;
           if (progressSink) {
-            await progressSink({
-              invocation_id: invocationId,
-              client_reference_id: clientReferenceId,
-              payload,
-            });
+            try {
+              await progressSink({
+                invocation_id: invocationId,
+                client_reference_id: clientReferenceId,
+                payload,
+              });
+            } catch {
+              // Transport failure — swallow to avoid aborting handler
+            }
           }
         },
       };
@@ -802,6 +806,16 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
         return response;
       } catch (err) {
+        const failStreamSummary = stream
+          ? {
+              response_mode: "streaming",
+              events_emitted: eventsEmitted,
+              events_delivered: eventsEmitted,
+              duration_ms: Math.round(performance.now() - streamStart),
+              client_disconnected: false,
+            }
+          : null;
+
         if (err instanceof ANIPError) {
           await logAudit(capabilityName, resolvedToken, {
             success: false,
@@ -809,13 +823,18 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             resultSummary: { detail: err.detail },
             invocationId,
             clientReferenceId,
+            streamSummary: failStreamSummary,
           });
-          return {
+          const response: Record<string, unknown> = {
             success: false,
             failure: { type: err.errorType, detail: err.detail },
             invocation_id: invocationId,
             client_reference_id: clientReferenceId,
           };
+          if (failStreamSummary) {
+            response.stream_summary = failStreamSummary;
+          }
+          return response;
         }
 
         // Unexpected error — do NOT leak details
@@ -824,13 +843,18 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           failureType: "internal_error",
           invocationId,
           clientReferenceId,
+          streamSummary: failStreamSummary,
         });
-        return {
+        const response: Record<string, unknown> = {
           success: false,
           failure: { type: "internal_error", detail: "Internal error" },
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,
         };
+        if (failStreamSummary) {
+          response.stream_summary = failStreamSummary;
+        }
+        return response;
       }
     },
 
