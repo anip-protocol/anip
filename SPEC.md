@@ -1,4 +1,4 @@
-# ANIP Specification v0.3
+# ANIP Specification v0.6
 
 > Agent-Native Interface Protocol — Draft
 
@@ -71,9 +71,10 @@ capability:
   side_effect:
     type: irreversible
     rollback_window: none
+  response_modes: [unary]             # default; streaming-capable: [unary, streaming]
 ```
 
-A service MUST declare all capabilities in its manifest. Each capability MUST include a name, description, inputs with types, output shape, and side-effect type.
+A service MUST declare all capabilities in its manifest. Each capability MUST include a name, description, inputs with types, output shape, and side-effect type. Capabilities MAY declare `response_modes` (default: `["unary"]`) to indicate support for streaming invocations (see §6.6).
 
 ANIP uses JSON Schema (draft 2020-12) for capability declarations. Canonical schemas are defined in Section 9 and validated across two reference implementations (Python/Pydantic and TypeScript/Zod).
 
@@ -705,11 +706,12 @@ The service issues ES256-signed JWT tokens. Every protected endpoint resolves th
 parameters: { ... }
 budget: { ... }                     # optional, for cost negotiation
 client_reference_id: "task:abc/3"   # optional, opaque, max 256 chars
+stream: false                       # optional, default false — request streaming response (§6.6)
 ```
 
 The delegation token is resolved from the bearer credential, not carried in the request body.
 
-**Response:**
+**Response (unary — `stream: false` or omitted):**
 
 ```yaml
 success: true
@@ -717,6 +719,7 @@ invocation_id: "inv-a1b2c3d4e5f6"  # always present, format inv-{hex12}
 client_reference_id: "task:abc/3"   # echoed if provided in request
 result: { ... }
 cost_actual: { ... }                # optional
+stream_summary: { ... }            # present when stream: true was requested (§6.6)
 ```
 
 Or on failure:
@@ -728,9 +731,12 @@ client_reference_id: "task:abc/3"   # echoed if provided
 failure:
   type: "scope_insufficient"
   detail: "Missing required scope"
+stream_summary: { ... }            # present when stream: true was requested (§6.6)
 ```
 
 The `invocation_id` is a server-generated canonical identifier for the invoke action, created before any validation. It is present in both success and failure responses, enabling end-to-end traceability. The `client_reference_id` is an optional caller-supplied opaque string (max 256 characters) echoed back in the response for caller-side correlation.
+
+When `stream: true` is requested and the capability declares `streaming` in its `response_modes`, the response switches to SSE transport (see §6.6). When `stream: true` is requested but the capability only supports `unary`, the service MUST return a JSON failure with type `streaming_not_supported`.
 
 Lineage begins at the service `invoke()` boundary. Bearer auth failures (HTTP 401) occur in framework bindings before `invoke()` is called — they are transport-level rejections and do not receive lineage fields.
 
@@ -860,6 +866,69 @@ Services at trust level `anchored` or `attested` MUST expose checkpoint endpoint
 Note: The checkpoint body does NOT contain a signature field. Checkpoints use the detached JWS pattern — the signature is carried in the `X-ANIP-Signature` header, not in the body. This keeps the signed payload identical to the response body, avoiding canonicalization issues.
 
 When `include_proof=true` and `leaf_index` is provided, the response includes an `inclusion_proof` field (see Section 7.4 for proof schemas).
+
+### 6.6 Streaming Invocations (v0.6)
+
+Capabilities that produce incremental results — search results, generation progress, multi-step computations — MAY declare `response_modes: ["unary", "streaming"]` in their capability declaration. This enables agents to request real-time progress events during invocation.
+
+#### Response Modes
+
+A capability's `response_modes` field declares which delivery modes it supports:
+
+- **`unary`** (default) — single JSON response after handler completes
+- **`streaming`** — SSE (Server-Sent Events) stream with progress events followed by a terminal event
+
+Every capability MUST support `unary`. A capability MAY additionally support `streaming`. The field defaults to `["unary"]` when omitted.
+
+#### SSE Transport
+
+When `stream: true` is sent in the invoke request and the capability supports `streaming`, the HTTP binding switches from a JSON response to an SSE (`text/event-stream`) response. The stream carries typed events:
+
+**Progress events** — emitted by the handler during execution:
+
+```
+event: progress
+data: {"invocation_id":"inv-a1b2c3d4e5f6","client_reference_id":"task:abc/3","timestamp":"2026-03-15T10:00:01Z","payload":{"partial_result":"..."}}
+```
+
+**Terminal event** — emitted exactly once when the handler completes:
+
+```
+event: completed
+data: {"invocation_id":"inv-a1b2c3d4e5f6","client_reference_id":"task:abc/3","timestamp":"2026-03-15T10:00:02Z","success":true,"result":{...},"cost_actual":{...},"stream_summary":{...}}
+```
+
+Or on failure:
+
+```
+event: failed
+data: {"invocation_id":"inv-a1b2c3d4e5f6","client_reference_id":"task:abc/3","timestamp":"2026-03-15T10:00:02Z","success":false,"failure":{"type":"internal_error","detail":"Internal error"},"stream_summary":{...}}
+```
+
+A stream MUST emit exactly one terminal event (`completed` or `failed`) as its final event. Progress events are optional — a stream with zero progress events followed by a terminal event is valid.
+
+#### StreamSummary
+
+When a streaming invocation completes (success or failure), the response (both the terminal SSE event and the unary response when `stream: true` was requested) includes a `stream_summary` object:
+
+```yaml
+stream_summary:
+  response_mode: "streaming"
+  events_emitted: 5          # progress events the handler produced
+  events_delivered: 5        # progress events successfully written to transport
+  duration_ms: 1200          # wall-clock time of the streaming invocation
+  client_disconnected: false # whether a transport write failure was detected
+```
+
+`events_delivered` tracks successful transport writes; `client_disconnected` is set to `true` if any transport write fails. This allows agents and audit systems to detect partial delivery — a stream where `events_emitted > events_delivered` indicates the client may have missed progress events.
+
+#### Sink Isolation
+
+Transport failures (e.g., client disconnect during streaming) MUST NOT abort the capability handler. The service MUST catch and swallow transport write errors in the progress sink so that the handler runs to completion regardless of transport state. This ensures the invocation outcome reflects the handler's result, not the client's connection state.
+
+#### Error Redaction
+
+When an unexpected error occurs during a streaming invocation, the SSE `failed` event MUST NOT include raw exception details. The `detail` field MUST use a generic message (e.g., `"Internal error"`) to prevent leaking server internals to clients.
 
 ---
 
@@ -1114,7 +1183,7 @@ The conformance test suite:
 
 The YAML examples throughout this specification (Sections 4–6) define the semantic structure of each ANIP type. Machine-readable JSON Schema definitions that formalize these structures are maintained alongside the spec:
 
-- **[`schema/anip.schema.json`](schema/anip.schema.json)** — Canonical schema for all ANIP types: `DelegationToken`, `CapabilityDeclaration`, `PermissionResponse`, `InvokeRequest`, `InvokeResponse`, `CostActual`, and `ANIPFailure`. Each type references the spec section that defines its semantics.
+- **[`schema/anip.schema.json`](schema/anip.schema.json)** — Canonical schema for all ANIP types: `DelegationToken`, `CapabilityDeclaration`, `PermissionResponse`, `InvokeRequest`, `InvokeResponse`, `CostActual`, `ANIPFailure`, `ResponseMode`, and `StreamSummary`. Each type references the spec section that defines its semantics.
 - **[`schema/discovery.schema.json`](schema/discovery.schema.json)** — Schema for the `/.well-known/anip` discovery document (Section 6.1), including `minimum_scope` array validation, `financial` boolean flag, and side-effect type enums.
 
 **Relationship between spec and schemas:**
@@ -1172,7 +1241,7 @@ The following are explicitly out of scope for ANIP v1:
 
 ---
 
-## 13. Roadmap: v0.1 → v2
+## 13. Roadmap: v0.1 → v1
 
 Not all gaps are equal. The critical distinction is between *protocol requirement level* (what the spec mandates), *reference implementation status* (what the code ships), and *future protocol work* (what requires interoperability design). Conflating these overpromises. Each feature below is categorized across all three dimensions — an empty cell means no claim is being made.
 
@@ -1192,9 +1261,12 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Policy hooks (§7.5)** | MUST for anchored — v0.3 | Implemented: cadence, max_lag, trigger/action pairs | Policy negotiation between agents and services |
 | **Sink publication (§7.6)** | MUST for anchored — v0.3 | Implemented: witness: and https: qualifying sinks, file: for dev | Standardized witness receipt format |
 | **Checkpoint endpoints (§6.5)** | MUST for anchored — v0.3 | Implemented: GET /anip/checkpoints (list) and GET /anip/checkpoints/{id} (detail with proofs) | — |
+| **Invocation lineage (§6.3)** | MUST — v0.4 core | Implemented: `invocation_id` (server-generated, `inv-{hex12}`) and `client_reference_id` (caller-supplied, max 256 chars) on every invoke request/response and audit entry | — |
+| **Async storage** | SHOULD — v0.5 | Implemented: fully async storage layer in both runtimes, non-blocking audit writes | — |
+| **Streaming invocations (§6.6)** | MAY — v0.6 | Implemented: `ResponseMode`, `StreamSummary`, SSE transport, progress sink with delivery tracking, sink isolation, error redaction | Backpressure signaling, binary payload support |
 | **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation across services, federated trust |
 
-The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
+The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
 
 **What solving these gaps unlocks.** When trust and verification become real — not declarative — agents can evaluate risk before acting. Delegated authority becomes expressible in ways current tool layers can't handle. Failures become operationally useful, not just descriptive. High-stakes actions — travel, procurement, finance ops, approvals, multi-step orchestration — become automatable with real control surfaces. At that point, ANIP solves one of the central coordination problems of agent deployment: how an agent knows what it's allowed to do, what will happen if it does it, and how to recover when something blocks it.
 
@@ -1221,10 +1293,12 @@ These are unresolved design questions where community input is needed:
 - **Capability declaration format.** ANIP uses JSON Schema (draft 2020-12). Canonical schemas are defined in Section 9 and validated across two reference implementations (Python/Pydantic and TypeScript/Zod). *(Resolved in v0.1)*
 - **Delegation chain auth format.** JWT with ES256 (ECDSA P-256). Server-issued tokens with JWKS discovery. *(Resolved in v0.2)*
 - **Audit log verifiability.** Merkle tree checkpoints with RFC 6962 hash scheme, inclusion and consistency proofs, detached JWS signatures, and external sink publication. Three trust levels: signed (Bronze), anchored (Silver), attested (Gold). *(Resolved in v0.3)*
+- **Invocation traceability.** Server-generated `invocation_id` and caller-supplied `client_reference_id` on every invoke response and audit entry, enabling end-to-end correlation. *(Resolved in v0.4)*
+- **Streaming delivery.** `ResponseMode` enum, SSE transport for progress events, `StreamSummary` with delivery accounting (`events_emitted` vs `events_delivered`, `client_disconnected`), transport fault isolation. *(Resolved in v0.6)*
 
 ---
 
-*ANIP is an open specification under active development. This is v0.3 — anchored trust with Merkle checkpoints, verifiable proofs, and external sink publication build on v0.2's cryptographic foundations. Federated trust and cross-service delegation remain future goals. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
+*ANIP is an open specification under active development. This is v0.6 — streaming invocations with SSE transport, delivery tracking, and transport fault isolation build on v0.3's anchored trust, v0.4's invocation lineage, and v0.5's async storage. Federated trust and cross-service delegation remain future goals. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
 
 ---
 

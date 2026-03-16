@@ -1,12 +1,15 @@
 # Security Policy
 
-ANIP v0.3 builds on v0.2's cryptographic foundations (signed tokens, manifests, hash-chain audit) with Merkle tree checkpoints, trust levels (`signed`/`anchored`/`attested`), and external anchoring. It does not by itself solve prompt injection, host sandboxing, or internet-scale trust federation.
+ANIP v0.6 builds on v0.3's anchored trust and v0.2's cryptographic foundations with invocation lineage (v0.4), async storage (v0.5), and streaming invocations with transport fault isolation (v0.6). It does not by itself solve prompt injection, host sandboxing, or internet-scale trust federation.
 
 ## Supported Versions
 
 | Version | Status |
 |---------|--------|
-| v0.3    | Current — anchored trust, Merkle checkpoints, trust levels |
+| v0.6    | Current — streaming invocations, SSE transport, delivery tracking |
+| v0.5    | Stable — async storage architecture |
+| v0.4    | Stable — invocation lineage (invocation_id, client_reference_id) |
+| v0.3    | Stable — anchored trust, Merkle checkpoints, trust levels |
 | v0.2    | Stable — signed tokens, signed manifests, hash-chain audit |
 | v0.1    | Legacy — declaration-only trust, no cryptographic verification |
 
@@ -74,6 +77,14 @@ Declaration mode accepts unsigned token dicts for backward compatibility with v0
 - **Checkpoint scheduling** — automatic checkpoints by entry count and/or time interval
 - **Async sink publication** — checkpoints published to external sinks via background queue
 - **Checkpoint endpoints** — `GET /anip/checkpoints` and `GET /anip/checkpoints/{id}` with proof support
+
+## What v0.4–v0.6 Adds
+
+- **Invocation lineage (v0.4)** — server-generated `invocation_id` and caller-supplied `client_reference_id` on every invoke response and audit entry for end-to-end traceability
+- **Async storage (v0.5)** — fully async storage layer in both runtimes, non-blocking audit writes
+- **Streaming invocations (v0.6)** — `ResponseMode` enum, SSE transport for progress events, `StreamSummary` with delivery accounting
+- **Sink isolation (v0.6)** — transport write failures are caught and swallowed; handler execution is never aborted by a client disconnect
+- **Error redaction (v0.6)** — streamed internal errors emit generic messages, never raw exception details
 
 ## What ANIP Does Not Yet Solve
 
