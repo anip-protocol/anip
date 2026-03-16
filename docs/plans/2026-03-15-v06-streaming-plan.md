@@ -489,6 +489,17 @@ git commit -m "feat(service): add emitProgress to TS InvocationContext interface
 
 ### Task 6: Python ANIPService — Streaming Invocation Support
 
+**Architecture note — true streaming, not buffered replay:**
+
+The service layer does NOT buffer progress events and replay them after handler completion.
+Instead, `invoke()` accepts an optional `_progress_sink` callable from the HTTP binding.
+When the handler calls `ctx.emit_progress(payload)`, the payload flows immediately through
+the sink to the SSE transport — the client receives each progress event in real time as
+the handler produces it.
+
+For the service-layer unit tests (no HTTP transport), progress events are collected via
+a test sink to verify the handler called `emit_progress` correctly.
+
 **Files:**
 - Modify: `packages/python/anip-service/src/anip_service/service.py`
 - Test: `packages/python/anip-service/tests/test_streaming.py` (create)
@@ -498,6 +509,7 @@ git commit -m "feat(service): add emitProgress to TS InvocationContext interface
 Create `packages/python/anip-service/tests/test_streaming.py`:
 
 ```python
+import asyncio
 import pytest
 from anip_service import ANIPService, Capability, InvocationContext
 from anip_core import (
@@ -509,6 +521,7 @@ from anip_core import (
 def _streaming_cap():
     async def handler(ctx: InvocationContext, params):
         await ctx.emit_progress({"step": 1, "message": "Starting"})
+        await asyncio.sleep(0.01)  # simulate work
         await ctx.emit_progress({"step": 2, "message": "Processing"})
         return {"result": "done"}
 
@@ -550,8 +563,13 @@ def service():
     )
 
 
-async def test_streaming_invocation_collects_progress(service):
-    """Streaming invocation should collect progress events and return them."""
+async def test_streaming_sink_called_during_handler(service):
+    """Progress sink receives events in real time during handler execution."""
+    received = []
+
+    async def sink(payload):
+        received.append(payload)
+
     token = await service.issue_token(
         issuer="test-service", subject="agent",
         scope=["analyze"], capability="analyze",
@@ -560,10 +578,17 @@ async def test_streaming_invocation_collects_progress(service):
     result = await service.invoke(
         "analyze", token, {"target": "x"},
         stream=True,
+        _progress_sink=sink,
     )
     assert result["success"] is True
     assert result["result"] == {"result": "done"}
-    assert result["stream_summary"] is not None
+    # Verify sink was called with structured events (not raw payloads)
+    assert len(received) == 2
+    assert received[0]["payload"] == {"step": 1, "message": "Starting"}
+    assert received[0]["invocation_id"].startswith("inv-")
+    assert received[0]["client_reference_id"] is None
+    assert received[1]["payload"] == {"step": 2, "message": "Processing"}
+    # Verify stream_summary
     assert result["stream_summary"]["events_emitted"] == 2
     assert result["stream_summary"]["response_mode"] == "streaming"
 
@@ -609,10 +634,11 @@ Add import at top (with existing imports):
 
 ```python
 import time
+from typing import Callable, Awaitable
 from anip_core import ResponseMode
 ```
 
-Update `invoke()` signature (line 376-383) to accept `stream`:
+Update `invoke()` signature (line 376-383) to accept `stream` and `_progress_sink`:
 
 ```python
     async def invoke(
@@ -623,10 +649,11 @@ Update `invoke()` signature (line 376-383) to accept `stream`:
         *,
         client_reference_id: str | None = None,
         stream: bool = False,
+        _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
     ) -> dict[str, Any]:
 ```
 
-After the capability lookup and before delegation validation (after line 409, after `decl = cap.declaration`), add streaming validation:
+After the capability lookup and before delegation validation (after `decl = cap.declaration`), add streaming validation:
 
 ```python
         # Check streaming support
@@ -644,15 +671,22 @@ After the capability lookup and before delegation validation (after line 409, af
                 }
 ```
 
-When building the InvocationContext (around line 442-450), wire up the progress sink:
+When building the InvocationContext, wire up the progress sink that forwards to the caller's sink in real time:
 
 ```python
-        # Set up progress sink for streaming
-        progress_events: list[dict[str, Any]] = []
-        stream_start = time.monotonic()
+        # Set up progress tracking for streaming
+        events_emitted = 0
+        stream_start = time.monotonic() if stream else 0
 
-        async def _progress_sink(payload: dict[str, Any]) -> None:
-            progress_events.append(payload)
+        async def _internal_progress_sink(payload: dict[str, Any]) -> None:
+            nonlocal events_emitted
+            events_emitted += 1
+            if _progress_sink is not None:
+                await _progress_sink({
+                    "invocation_id": invocation_id,
+                    "client_reference_id": client_reference_id,
+                    "payload": payload,
+                })
 
         ctx = InvocationContext(
             token=resolved_token,
@@ -662,18 +696,18 @@ When building the InvocationContext (around line 442-450), wire up the progress 
             delegation_chain=[t.token_id for t in chain],
             invocation_id=invocation_id,
             client_reference_id=client_reference_id,
-            _progress_sink=_progress_sink if stream else None,
+            _progress_sink=_internal_progress_sink if stream else None,
         )
 ```
 
-After building the success response (around line 519-529), add stream_summary if streaming:
+After building the success response, add stream_summary if streaming:
 
 ```python
             if stream:
                 response["stream_summary"] = {
                     "response_mode": "streaming",
-                    "events_emitted": len(progress_events),
-                    "events_delivered": len(progress_events),
+                    "events_emitted": events_emitted,
+                    "events_delivered": events_emitted,
                     "duration_ms": int((time.monotonic() - stream_start) * 1000),
                     "client_disconnected": False,
                 }
@@ -699,6 +733,14 @@ git commit -m "feat(service): add streaming invocation support to Python ANIPSer
 ---
 
 ### Task 7: TypeScript ANIPService — Streaming Invocation Support
+
+**Architecture note — true streaming, not buffered replay:**
+
+Like the Python service (Task 6), the TS service layer accepts an optional `progressSink`
+callback from the HTTP binding. When the handler calls `ctx.emitProgress(payload)`, the
+service wraps the payload with metadata (invocation_id, client_reference_id) and forwards
+the structured event to the sink in real time. The HTTP binding wires its SSE transport
+writer as the sink.
 
 **Files:**
 - Modify: `packages/typescript/service/src/service.ts`
@@ -761,7 +803,8 @@ describe("Streaming invocation", () => {
     await service.start();
   });
 
-  it("collects progress events and returns stream_summary", async () => {
+  it("calls progressSink with structured events in real time", async () => {
+    const received: Record<string, unknown>[] = [];
     const token = await service.issueToken({
       issuer: "test-service",
       subject: "agent",
@@ -771,9 +814,16 @@ describe("Streaming invocation", () => {
     });
     const result = await service.invoke("analyze", token, { target: "x" }, {
       stream: true,
+      progressSink: async (event) => { received.push(event); },
     });
     expect(result.success).toBe(true);
     expect(result.result).toEqual({ result: "done" });
+    // Verify sink received structured events (not raw payloads)
+    expect(received).toHaveLength(2);
+    expect(received[0].payload).toEqual({ step: 1, message: "Starting" });
+    expect((received[0].invocation_id as string).startsWith("inv-")).toBe(true);
+    expect(received[1].payload).toEqual({ step: 2, message: "Processing" });
+    // Verify stream_summary
     expect(result.stream_summary).toBeDefined();
     expect(result.stream_summary.events_emitted).toBe(2);
     expect(result.stream_summary.response_mode).toBe("streaming");
@@ -818,22 +868,27 @@ Expected: FAIL — `stream` not accepted by invoke opts
 
 In `packages/typescript/service/src/service.ts`:
 
-Update the `invoke()` method signature (around line 642-646) to accept `stream`:
+Update the `invoke()` method signature (around line 642-646) to accept `stream` and `progressSink`:
 
 ```typescript
     async invoke(
       capabilityName: string,
       token: DelegationToken,
       params: Record<string, unknown>,
-      opts?: { clientReferenceId?: string | null; stream?: boolean },
+      opts?: {
+        clientReferenceId?: string | null;
+        stream?: boolean;
+        progressSink?: (event: Record<string, unknown>) => Promise<void>;
+      },
     ): Promise<Record<string, unknown>> {
 ```
 
-After the capability lookup (after line 665), add streaming validation:
+After the capability lookup (after `const decl = cap.declaration;`), add streaming validation:
 
 ```typescript
       // Check streaming support
       const stream = opts?.stream ?? false;
+      const progressSink = opts?.progressSink ?? null;
       if (stream) {
         const responseModes = decl.response_modes ?? ["unary"];
         if (!responseModes.includes("streaming")) {
@@ -850,11 +905,12 @@ After the capability lookup (after line 665), add streaming validation:
       }
 ```
 
-When building the context (around line 703-714), wire up progress:
+When building the context (around line 703-714), wire up the progress sink that
+forwards structured events to the caller's sink in real time:
 
 ```typescript
-      const progressEvents: Record<string, unknown>[] = [];
-      const streamStart = performance.now();
+      let eventsEmitted = 0;
+      const streamStart = stream ? performance.now() : 0;
 
       const ctx: InvocationContext = {
         token: resolvedToken,
@@ -868,21 +924,27 @@ When building the context (around line 703-714), wire up progress:
           costActual = cost;
         },
         async emitProgress(payload: Record<string, unknown>): Promise<void> {
-          if (stream) {
-            progressEvents.push(payload);
+          if (!stream) return; // no-op in unary mode
+          eventsEmitted++;
+          if (progressSink) {
+            await progressSink({
+              invocation_id: invocationId,
+              client_reference_id: clientReferenceId,
+              payload,
+            });
           }
         },
       };
 ```
 
-After building the success response (around line 730-740), add stream_summary:
+After building the success response, add stream_summary if streaming:
 
 ```typescript
         if (stream) {
           response.stream_summary = {
             response_mode: "streaming",
-            events_emitted: progressEvents.length,
-            events_delivered: progressEvents.length,
+            events_emitted: eventsEmitted,
+            events_delivered: eventsEmitted,
             duration_ms: Math.round(performance.now() - streamStart),
             client_disconnected: false,
           };
@@ -908,7 +970,16 @@ git commit -m "feat(service): add streaming invocation support to TS ANIPService
 
 ---
 
-### Task 8: FastAPI SSE Binding
+### Task 8: FastAPI SSE Binding — True Real-Time Streaming
+
+**Architecture note — asyncio.Queue bridges handler and SSE transport:**
+
+The FastAPI route wires an `asyncio.Queue` as the bridge between the service layer's
+progress sink and the SSE generator. `service.invoke()` runs in a concurrent
+`asyncio.Task`. When the handler calls `ctx.emit_progress(payload)`, the service's
+internal sink puts a structured event onto the queue. The SSE generator reads from the
+queue and yields `event: progress` lines to the client **in real time** — the client
+receives each progress event as the handler produces it, not after handler completion.
 
 **Files:**
 - Modify: `packages/python/anip-fastapi/src/anip_fastapi/routes.py`
@@ -1039,70 +1110,11 @@ Replace the invoke route handler (lines 84-102) with:
                 return JSONResponse(result, status_code=status)
             return result
 
-        # Streaming mode — SSE response
-        # First check if streaming is even valid (non-streaming invocation to get error)
-        # We use stream=True to get stream_summary or streaming_not_supported error
-        invocation_id = None
-        progress_events: list[dict] = []
-
-        async def sse_generator():
-            nonlocal invocation_id
-
-            # Wire a real progress sink that yields SSE events
-            collected_progress: list[dict] = []
-
-            result = await service.invoke(
-                capability, token, params,
-                client_reference_id=client_reference_id,
-                stream=True,
-                _progress_callback=lambda payload: collected_progress.append(payload),
-            )
-
-            invocation_id = result.get("invocation_id")
-
-            # If the invocation failed before streaming started (e.g. streaming_not_supported),
-            # emit a single failed event
-            if not result.get("success"):
-                event_data = {
-                    "invocation_id": result.get("invocation_id"),
-                    "client_reference_id": client_reference_id,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "success": False,
-                    "failure": result["failure"],
-                }
-                if "stream_summary" in result:
-                    event_data["stream_summary"] = result["stream_summary"]
-                yield f"event: failed\ndata: {json.dumps(event_data)}\n\n"
-                return
-
-            # Emit collected progress events
-            for payload in collected_progress:
-                event_data = {
-                    "invocation_id": result["invocation_id"],
-                    "client_reference_id": client_reference_id,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "payload": payload,
-                }
-                yield f"event: progress\ndata: {json.dumps(event_data)}\n\n"
-
-            # Emit completed event
-            event_data = {
-                "invocation_id": result["invocation_id"],
-                "client_reference_id": client_reference_id,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "success": True,
-                "result": result.get("result"),
-                "cost_actual": result.get("cost_actual"),
-            }
-            if "stream_summary" in result:
-                event_data["stream_summary"] = result["stream_summary"]
-            yield f"event: completed\ndata: {json.dumps(event_data)}\n\n"
-
-        # For streaming_not_supported, we need to detect and return JSON instead
-        # Quick validation: check capability's response_modes before starting SSE
+        # Streaming mode — pre-validate streaming support (return JSON 400, not SSE)
         if capability in service._capabilities:
             cap = service._capabilities[capability]
-            modes = [m.value if hasattr(m, 'value') else m for m in (cap.declaration.response_modes or ["unary"])]
+            modes = [m.value if hasattr(m, 'value') else m
+                     for m in (cap.declaration.response_modes or ["unary"])]
             if "streaming" not in modes:
                 result = await service.invoke(
                     capability, token, params,
@@ -1112,26 +1124,88 @@ Replace the invoke route handler (lines 84-102) with:
                 status = _failure_status(result.get("failure", {}).get("type"))
                 return JSONResponse(result, status_code=status)
 
+        # True streaming: asyncio.Queue bridges sink → SSE generator.
+        # service.invoke() runs in a concurrent asyncio.Task.  When the
+        # handler calls ctx.emit_progress(), the internal sink puts a
+        # structured event onto the queue.  The SSE generator reads from
+        # the queue and yields SSE lines in real time.
+        queue: asyncio.Queue[dict] = asyncio.Queue()
+
+        async def progress_sink(event: dict) -> None:
+            """Called by service layer with structured events during handler execution."""
+            await queue.put({"type": "progress", **event})
+
+        async def run_invoke():
+            try:
+                result = await service.invoke(
+                    capability, token, params,
+                    client_reference_id=client_reference_id,
+                    stream=True,
+                    _progress_sink=progress_sink,
+                )
+                await queue.put({"type": "terminal", "result": result})
+            except Exception as e:
+                await queue.put({"type": "error", "detail": str(e)})
+
+        async def sse_generator():
+            task = asyncio.create_task(run_invoke())
+            try:
+                while True:
+                    event = await queue.get()
+                    ts = datetime.now(timezone.utc).isoformat()
+
+                    if event["type"] == "progress":
+                        event_data = {
+                            "invocation_id": event["invocation_id"],
+                            "client_reference_id": event.get("client_reference_id"),
+                            "timestamp": ts,
+                            "payload": event["payload"],
+                        }
+                        yield f"event: progress\ndata: {json.dumps(event_data)}\n\n"
+
+                    elif event["type"] == "terminal":
+                        result = event["result"]
+                        if result.get("success"):
+                            event_data = {
+                                "invocation_id": result["invocation_id"],
+                                "client_reference_id": result.get("client_reference_id"),
+                                "timestamp": ts,
+                                "success": True,
+                                "result": result.get("result"),
+                                "cost_actual": result.get("cost_actual"),
+                            }
+                            if "stream_summary" in result:
+                                event_data["stream_summary"] = result["stream_summary"]
+                            yield f"event: completed\ndata: {json.dumps(event_data)}\n\n"
+                        else:
+                            event_data = {
+                                "invocation_id": result.get("invocation_id"),
+                                "client_reference_id": result.get("client_reference_id"),
+                                "timestamp": ts,
+                                "success": False,
+                                "failure": result.get("failure"),
+                            }
+                            if "stream_summary" in result:
+                                event_data["stream_summary"] = result["stream_summary"]
+                            yield f"event: failed\ndata: {json.dumps(event_data)}\n\n"
+                        break
+
+                    elif event["type"] == "error":
+                        event_data = {
+                            "timestamp": ts,
+                            "success": False,
+                            "failure": {"type": "internal_error", "detail": event["detail"]},
+                        }
+                        yield f"event: failed\ndata: {json.dumps(event_data)}\n\n"
+                        break
+            finally:
+                await task
+
         return StreamingResponse(
             sse_generator(),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
         )
-```
-
-Also update `service.invoke()` in `service.py` to accept an optional `_progress_callback` parameter. Add to the invoke signature:
-
-```python
-        _progress_callback: Callable[[dict[str, Any]], None] | None = None,
-```
-
-And wire it into the progress sink:
-
-```python
-        async def _progress_sink(payload: dict[str, Any]) -> None:
-            progress_events.append(payload)
-            if _progress_callback is not None:
-                _progress_callback(payload)
 ```
 
 **Step 4: Run test to verify it passes**
@@ -1148,7 +1222,14 @@ git commit -m "feat(fastapi): add SSE streaming support to invoke route"
 
 ---
 
-### Task 9: Hono SSE Binding
+### Task 9: Hono SSE Binding — True Real-Time Streaming
+
+**Architecture note — TransformStream bridges sink → SSE response:**
+
+Hono returns `Response` objects (Web API). To stream SSE events in real time, we create a
+`TransformStream`, wire the writable side as the progress sink, and return the readable
+side as the response body. `service.invoke()` runs as a floating promise; each
+`emitProgress` call writes an SSE line to the stream immediately.
 
 **Files:**
 - Modify: `packages/typescript/hono/src/routes.ts`
@@ -1156,52 +1237,89 @@ git commit -m "feat(fastapi): add SSE streaming support to invoke route"
 
 **Step 1: Write the failing test**
 
-Add to `packages/typescript/hono/tests/routes.test.ts` (follow existing test patterns in the file):
-
-```typescript
-describe("Streaming", () => {
-  it("returns SSE for stream:true on streaming-capable capability", async () => {
-    // Issue a token, then invoke with stream: true
-    // Assert content-type is text/event-stream
-    // Assert body contains "event: progress" and "event: completed"
-  });
-});
-```
-
-The exact test implementation depends on the existing test setup pattern in the file. Read the existing test file to match its fixture/setup pattern, then add tests for:
+Add to `packages/typescript/hono/tests/routes.test.ts` (follow existing test patterns).
+Requires a streaming-capable capability registered in the test service with
+`response_modes: ["unary", "streaming"]` and a handler that calls `ctx.emitProgress()`.
+Read the existing test file to match its fixture/setup pattern before writing tests for:
 - `stream: true` returns `text/event-stream` with progress + completed events
 - `stream: true` on unary-only capability returns 400 JSON error
 
 **Step 2: Implement SSE in the Hono invoke route**
 
-In `packages/typescript/hono/src/routes.ts`, update the invoke handler (lines 53-68):
+In `packages/typescript/hono/src/routes.ts`, update the invoke handler (lines 53-68).
 
 When `body.stream === true`:
-1. Validate streaming support (return JSON 400 error if not supported)
-2. Call `service.invoke()` with `{ stream: true }` to get result + stream_summary
-3. Build SSE event strings for collected progress and terminal event
-4. Return `new Response(ReadableStream, { headers: { "Content-Type": "text/event-stream", ... } })`
-
-The pattern for the SSE response in Hono:
 
 ```typescript
-const encoder = new TextEncoder();
-const stream = new ReadableStream({
-  async start(controller) {
-    // Emit progress events
-    for (const payload of progressEvents) {
-      const eventData = { invocation_id: result.invocation_id, ... , payload };
-      controller.enqueue(encoder.encode(`event: progress\ndata: ${JSON.stringify(eventData)}\n\n`));
+if (body.stream) {
+  // Pre-validate streaming support (return JSON 400, not SSE)
+  const decl = service.getCapability(capability)?.declaration;
+  const modes = decl?.response_modes ?? ["unary"];
+  if (!modes.includes("streaming")) {
+    const result = await service.invoke(capability, token, params, {
+      clientReferenceId, stream: true,
+    });
+    const failure = result.failure as Record<string, unknown>;
+    return c.json(result, failureStatus(failure?.type as string));
+  }
+
+  // True streaming: TransformStream bridges sink → Response body
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+  const encoder = new TextEncoder();
+
+  // Run invoke in background — progress sink writes SSE events in real time
+  (async () => {
+    try {
+      const result = await service.invoke(capability, token, params, {
+        clientReferenceId,
+        stream: true,
+        progressSink: async (event) => {
+          const eventData = { ...event, timestamp: new Date().toISOString() };
+          await writer.write(
+            encoder.encode(`event: progress\ndata: ${JSON.stringify(eventData)}\n\n`),
+          );
+        },
+      });
+
+      // Write terminal event
+      const ts = new Date().toISOString();
+      const terminalType = result.success ? "completed" : "failed";
+      const terminalData = {
+        invocation_id: result.invocation_id,
+        client_reference_id: result.client_reference_id,
+        timestamp: ts,
+        success: result.success,
+        ...(result.success
+          ? { result: result.result, cost_actual: result.cost_actual }
+          : { failure: result.failure }),
+        ...(result.stream_summary ? { stream_summary: result.stream_summary } : {}),
+      };
+      await writer.write(
+        encoder.encode(`event: ${terminalType}\ndata: ${JSON.stringify(terminalData)}\n\n`),
+      );
+      await writer.close();
+    } catch (err) {
+      const errorData = {
+        timestamp: new Date().toISOString(),
+        success: false,
+        failure: { type: "internal_error", detail: String(err) },
+      };
+      await writer.write(
+        encoder.encode(`event: failed\ndata: ${JSON.stringify(errorData)}\n\n`),
+      );
+      await writer.close();
     }
-    // Emit terminal event
-    const terminalData = { invocation_id: result.invocation_id, ..., result: result.result, stream_summary: result.stream_summary };
-    controller.enqueue(encoder.encode(`event: completed\ndata: ${JSON.stringify(terminalData)}\n\n`));
-    controller.close();
-  },
-});
-return new Response(stream, {
-  headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", "Connection": "keep-alive" },
-});
+  })();
+
+  return new Response(readable, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+    },
+  });
+}
 ```
 
 **Step 3: Run tests**
@@ -1213,88 +1331,352 @@ Expected: PASS
 
 ```bash
 git add packages/typescript/hono/
-git commit -m "feat(hono): add SSE streaming support to invoke route"
+git commit -m "feat(hono): add true SSE streaming support to invoke route"
 ```
 
 ---
 
-### Task 10: Express SSE Binding
+### Task 10: Express SSE Binding — True Real-Time Streaming
+
+**Architecture note — res.write() as the progress sink:**
+
+Express gives us a Node.js `ServerResponse`. We set SSE headers, then pass a
+progress sink to `service.invoke()`. Each `emitProgress` call during handler execution
+triggers `res.write()` — the client receives the SSE event immediately. After `invoke()`
+returns, we write the terminal event and call `res.end()`.
 
 **Files:**
 - Modify: `packages/typescript/express/src/routes.ts`
 - Test: `packages/typescript/express/tests/routes.test.ts`
 
-**Step 1: Implement SSE in the Express invoke route**
+**Step 1: Write the failing test**
 
-In `packages/typescript/express/src/routes.ts`, update the invoke handler (lines 58-75):
+Add to `packages/typescript/express/tests/routes.test.ts` (follow existing patterns).
+Read the existing test file to match its fixture/setup pattern, then add tests for:
+- `stream: true` returns `text/event-stream` with progress + completed events
+- `stream: true` on unary-only capability returns 400 JSON error
+
+**Step 2: Implement SSE in the Express invoke route**
+
+In `packages/typescript/express/src/routes.ts`, update the invoke handler (lines 58-75).
 
 When `body.stream === true`:
-1. Validate streaming support (return JSON 400 if not)
-2. Call `service.invoke()` with `{ stream: true }`
-3. Write SSE events via `res.writeHead(200, { "Content-Type": "text/event-stream", ... })` + `res.write()` + `res.end()`
-
-Pattern:
 
 ```typescript
-res.writeHead(200, {
-  "Content-Type": "text/event-stream",
-  "Cache-Control": "no-cache",
-  "Connection": "keep-alive",
-});
-// ... write progress events and terminal event ...
-res.end();
+if (body.stream) {
+  // Pre-validate streaming support (return JSON 400, not SSE)
+  const decl = service.getCapability(req.params.capability)?.declaration;
+  const modes = decl?.response_modes ?? ["unary"];
+  if (!modes.includes("streaming")) {
+    const result = await service.invoke(req.params.capability, token, params, {
+      clientReferenceId, stream: true,
+    });
+    const failure = result.failure as Record<string, unknown>;
+    res.status(failureStatus(failure?.type as string)).json(result);
+    return;
+  }
+
+  // True streaming: res.write() as progress sink
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+  });
+
+  const result = await service.invoke(req.params.capability, token, params, {
+    clientReferenceId,
+    stream: true,
+    progressSink: async (event) => {
+      const eventData = { ...event, timestamp: new Date().toISOString() };
+      res.write(`event: progress\ndata: ${JSON.stringify(eventData)}\n\n`);
+    },
+  });
+
+  // Write terminal event
+  const ts = new Date().toISOString();
+  const terminalType = result.success ? "completed" : "failed";
+  const terminalData = {
+    invocation_id: result.invocation_id,
+    client_reference_id: result.client_reference_id,
+    timestamp: ts,
+    success: result.success,
+    ...(result.success
+      ? { result: result.result, cost_actual: result.cost_actual }
+      : { failure: result.failure }),
+    ...(result.stream_summary ? { stream_summary: result.stream_summary } : {}),
+  };
+  res.write(`event: ${terminalType}\ndata: ${JSON.stringify(terminalData)}\n\n`);
+  res.end();
+  return;
+}
 ```
 
-**Step 2: Run tests**
+**Step 3: Run tests**
 
 Run: `cd packages/typescript && npx vitest run express/tests/routes.test.ts -v`
 Expected: PASS
 
-**Step 3: Commit**
+**Step 4: Commit**
 
 ```bash
 git add packages/typescript/express/
-git commit -m "feat(express): add SSE streaming support to invoke route"
+git commit -m "feat(express): add true SSE streaming support to invoke route"
 ```
 
 ---
 
-### Task 11: Fastify SSE Binding
+### Task 11: Fastify SSE Binding — True Real-Time Streaming
+
+**Architecture note — reply.raw.write() as the progress sink:**
+
+Same pattern as Express but using Fastify's `reply.raw` to access the underlying
+Node.js `ServerResponse`. SSE headers are set via `reply.raw.writeHead()`, and
+progress events are written via `reply.raw.write()` during handler execution.
+After writing the terminal event, call `reply.hijack()` to tell Fastify we've
+taken over the response.
 
 **Files:**
 - Modify: `packages/typescript/fastify/src/routes.ts`
 - Test: `packages/typescript/fastify/tests/routes.test.ts`
 
-**Step 1: Implement SSE in the Fastify invoke route**
+**Step 1: Write the failing test**
 
-In `packages/typescript/fastify/src/routes.ts`, update the invoke handler (lines 50-67):
+Add to `packages/typescript/fastify/tests/routes.test.ts` (follow existing patterns).
+Read the existing test file to match its fixture/setup pattern, then add tests for:
+- `stream: true` returns `text/event-stream` with progress + completed events
+- `stream: true` on unary-only capability returns 400 JSON error
+
+**Step 2: Implement SSE in the Fastify invoke route**
+
+In `packages/typescript/fastify/src/routes.ts`, update the invoke handler (lines 50-67).
 
 When `body.stream === true`:
-1. Validate streaming support (return JSON 400 if not)
-2. Call `service.invoke()` with `{ stream: true }`
-3. Write SSE events via `reply.raw.writeHead(200, { ... })` + `reply.raw.write()` + `reply.raw.end()`
 
-**Step 2: Run tests**
+```typescript
+if ((body as Record<string, unknown>).stream) {
+  // Pre-validate streaming support (return JSON 400, not SSE)
+  const decl = service.getCapability(req.params.capability)?.declaration;
+  const modes = decl?.response_modes ?? ["unary"];
+  if (!modes.includes("streaming")) {
+    const result = await service.invoke(req.params.capability, token, params, {
+      clientReferenceId, stream: true,
+    });
+    const failure = result.failure as Record<string, unknown>;
+    return reply.status(failureStatus(failure?.type as string)).send(result);
+  }
+
+  // True streaming: reply.raw.write() as progress sink
+  reply.raw.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+  });
+
+  const result = await service.invoke(req.params.capability, token, params, {
+    clientReferenceId,
+    stream: true,
+    progressSink: async (event) => {
+      const eventData = { ...event, timestamp: new Date().toISOString() };
+      reply.raw.write(`event: progress\ndata: ${JSON.stringify(eventData)}\n\n`);
+    },
+  });
+
+  // Write terminal event
+  const ts = new Date().toISOString();
+  const terminalType = result.success ? "completed" : "failed";
+  const terminalData = {
+    invocation_id: result.invocation_id,
+    client_reference_id: result.client_reference_id,
+    timestamp: ts,
+    success: result.success,
+    ...(result.success
+      ? { result: result.result, cost_actual: result.cost_actual }
+      : { failure: result.failure }),
+    ...(result.stream_summary ? { stream_summary: result.stream_summary } : {}),
+  };
+  reply.raw.write(`event: ${terminalType}\ndata: ${JSON.stringify(terminalData)}\n\n`);
+  reply.raw.end();
+  reply.hijack();  // Tell Fastify we've taken over the response
+  return;
+}
+```
+
+**Step 3: Run tests**
 
 Run: `cd packages/typescript && npx vitest run fastify/tests/routes.test.ts -v`
 Expected: PASS
 
-**Step 3: Commit**
+**Step 4: Commit**
 
 ```bash
 git add packages/typescript/fastify/
-git commit -m "feat(fastify): add SSE streaming support to invoke route"
+git commit -m "feat(fastify): add true SSE streaming support to invoke route"
 ```
 
 ---
 
-### Task 12: JSON Schema Updates
+### Task 12: Audit & Storage — stream_summary Persistence
+
+**Files:**
+- Modify: `packages/python/anip-server/src/anip_server/audit.py`
+- Modify: `packages/typescript/server/src/audit.ts`
+- Modify: `packages/typescript/server/src/sqlite-worker.ts`
+- Modify: `packages/python/anip-service/src/anip_service/service.py` (pass stream_summary to audit)
+- Modify: `packages/typescript/service/src/service.ts` (pass stream_summary to audit)
+- Test: existing audit test suites
+
+**Step 1: Write the failing test**
+
+Add to the existing audit test files:
+
+Python (`packages/python/anip-server/tests/test_audit.py`):
+
+```python
+async def test_audit_entry_includes_stream_summary(audit_log):
+    """Audit entries should persist stream_summary when provided."""
+    await audit_log.log_entry({
+        "capability": "analyze",
+        "token_id": "tok-1",
+        "root_principal": "human:alice",
+        "success": True,
+        "invocation_id": "inv-000000000001",
+        "stream_summary": {
+            "response_mode": "streaming",
+            "events_emitted": 5,
+            "events_delivered": 3,
+            "duration_ms": 1200,
+            "client_disconnected": True,
+        },
+    })
+    entries = await audit_log.query_entries()
+    assert entries[0]["stream_summary"]["events_emitted"] == 5
+    assert entries[0]["stream_summary"]["client_disconnected"] is True
+```
+
+TypeScript (`packages/typescript/server/tests/audit.test.ts`):
+
+```typescript
+it("persists stream_summary in audit entry", async () => {
+  await auditLog.logEntry({
+    capability: "analyze",
+    tokenId: "tok-1",
+    rootPrincipal: "human:alice",
+    success: true,
+    invocationId: "inv-000000000001",
+    streamSummary: {
+      response_mode: "streaming",
+      events_emitted: 5,
+      events_delivered: 3,
+      duration_ms: 1200,
+      client_disconnected: true,
+    },
+  });
+  const entries = await auditLog.queryEntries();
+  expect(entries[0].stream_summary.events_emitted).toBe(5);
+  expect(entries[0].stream_summary.client_disconnected).toBe(true);
+});
+```
+
+**Step 2: Run tests to verify they fail**
+
+```bash
+pytest packages/python/anip-server/tests/test_audit.py -v -k "stream_summary"
+cd packages/typescript && npx vitest run server/tests/audit.test.ts -v
+```
+
+Expected: FAIL — stream_summary not persisted/returned
+
+**Step 3: Implement audit layer changes**
+
+In `packages/python/anip-server/src/anip_server/audit.py`, update `log_entry()` (line 46-63)
+to include `stream_summary` in the entry dict:
+
+```python
+        "stream_summary": entry_data.get("stream_summary"),
+```
+
+In `packages/typescript/server/src/audit.ts`, update the entry construction (line 51-67)
+to include `stream_summary`:
+
+```typescript
+      stream_summary: entryData.streamSummary ?? null,
+```
+
+In `packages/typescript/server/src/sqlite-worker.ts`:
+
+1. Add `"stream_summary"` to `JSON_AUDIT_FIELDS` array (line 19-24):
+   ```typescript
+   const JSON_AUDIT_FIELDS = [
+     "parameters",
+     "result_summary",
+     "cost_actual",
+     "delegation_chain",
+     "stream_summary",
+   ] as const;
+   ```
+
+2. Add `stream_summary TEXT` column to the `audit_log` CREATE TABLE statement.
+
+3. Add `stream_summary` to the INSERT statement in the `storeAuditEntry` handler (lines 146-177).
+
+**Step 4: Wire service layer to pass stream_summary to audit**
+
+In `packages/python/anip-service/src/anip_service/service.py`, update the audit call
+after building the success response to include `stream_summary` when streaming:
+
+```python
+        audit_data = {
+            "success": True,
+            "result_summary": self._summarize_result(handler_result),
+            "cost_actual": cost_actual,
+            "invocation_id": invocation_id,
+            "client_reference_id": client_reference_id,
+        }
+        if stream:
+            audit_data["stream_summary"] = response["stream_summary"]
+```
+
+In `packages/typescript/service/src/service.ts`, update the `logAudit()` call after
+building the success response to include `streamSummary` when streaming:
+
+```typescript
+      await logAudit(capabilityName, resolvedToken, {
+        success: true,
+        resultSummary: summarizeResult(result),
+        costActual,
+        invocationId,
+        clientReferenceId,
+        ...(stream ? { streamSummary: response.stream_summary } : {}),
+      });
+```
+
+**Step 5: Run tests**
+
+```bash
+pytest packages/python/anip-server/tests/ -v
+cd packages/typescript && npx vitest run server/tests/ -v
+```
+
+Expected: PASS (all tests including new stream_summary ones)
+
+**Step 6: Commit**
+
+```bash
+git add packages/python/anip-server/ packages/python/anip-service/ packages/typescript/server/ packages/typescript/service/
+git commit -m "feat(audit): persist stream_summary in audit entries and storage"
+```
+
+---
+
+### Task 13: JSON Schema Updates
 
 **Files:**
 - Modify: `schema/anip.schema.json`
 - Modify: `schema/types/CapabilityDeclaration.json`
+- Modify: `schema/types/InvokeRequest.json`
+- Modify: `schema/types/InvokeResponse.json`
 
-**Step 1: Update schemas**
+**Step 1: Update root schema**
 
 In `schema/anip.schema.json`, add to `$defs`:
 
@@ -1316,7 +1698,9 @@ In `schema/anip.schema.json`, add to `$defs`:
 }
 ```
 
-Update `CapabilityDeclaration` in the schema to add:
+**Step 2: Update per-type schemas**
+
+In `schema/types/CapabilityDeclaration.json`, add to `properties`:
 
 ```json
 "response_modes": {
@@ -1328,22 +1712,32 @@ Update `CapabilityDeclaration` in the schema to add:
 }
 ```
 
-Update `InvokeRequest` to add:
+And add `ResponseMode` to `$defs` (or reference from root schema).
+
+In `schema/types/InvokeRequest.json`, add to `properties`:
 
 ```json
 "stream": { "type": "boolean", "default": false }
 ```
 
-**Step 2: Commit**
+In `schema/types/InvokeResponse.json`, add to `properties`:
+
+```json
+"stream_summary": { "$ref": "#/$defs/StreamSummary" }
+```
+
+And add `StreamSummary` to `$defs` (or reference from root schema).
+
+**Step 3: Commit**
 
 ```bash
 git add schema/
-git commit -m "feat(schema): add ResponseMode, StreamSummary, and stream field to JSON schemas"
+git commit -m "feat(schema): add ResponseMode, StreamSummary, stream field to all JSON schemas"
 ```
 
 ---
 
-### Task 13: Version Bump to 0.6.0
+### Task 14: Version Bump to 0.6.0
 
 **Files (28 version references across 13 files):**
 
@@ -1416,7 +1810,7 @@ git commit -m "chore: bump all 12 packages to v0.6.0"
 
 ---
 
-### Task 14: Full Integration Test
+### Task 15: Full Integration Test
 
 **Files:**
 - Run all Python tests
@@ -1455,10 +1849,14 @@ Task 3 (TS core models) ──────→ Task 5 (TS ctx) ─→ Task 7 (TS 
                                                                          ├→ Task 10 (Express SSE)
                                                                          └→ Task 11 (Fastify SSE)
 
-Task 12 (JSON schema) ── independent
-Task 13 (version bump) ── after all other tasks
-Task 14 (integration) ── final verification
+Task 6 + Task 7 ──────────→ Task 12 (audit/storage stream_summary)
+
+Task 13 (JSON schema) ── independent
+Task 14 (version bump) ── after all other tasks
+Task 15 (integration) ── final verification
 ```
 
 Tasks 1-2 and Task 3 can run in parallel (Python and TypeScript core models are independent).
 Tasks 9, 10, 11 can run in parallel (independent HTTP bindings).
+Task 12 (audit) depends on Tasks 6 and 7 (needs stream_summary from service layer).
+Task 13 (schema) is independent and can run in parallel with Tasks 8-12.
