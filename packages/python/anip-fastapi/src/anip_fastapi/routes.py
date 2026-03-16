@@ -59,13 +59,13 @@ def mount_anip(
 
     @app.post(f"{prefix}/anip/tokens")
     async def issue_token(request: Request):
-        principal = _extract_principal(request, service)
+        principal = await _extract_principal(request, service)
         if principal is None:
             return JSONResponse({"error": "Authentication required"}, status_code=401)
 
         body = await request.json()
         try:
-            result = service.issue_token(principal, body)
+            result = await service.issue_token(principal, body)
             return result
         except ANIPError as e:
             return _error_response(e)
@@ -74,7 +74,7 @@ def mount_anip(
 
     @app.post(f"{prefix}/anip/permissions")
     async def permissions(request: Request):
-        token = _resolve_token(request, service)
+        token = await _resolve_token(request, service)
         if token is None:
             return JSONResponse({"error": "Authentication required"}, status_code=401)
         return service.discover_permissions(token)
@@ -83,14 +83,14 @@ def mount_anip(
 
     @app.post(f"{prefix}/anip/invoke/{{capability}}")
     async def invoke(capability: str, request: Request):
-        token = _resolve_token(request, service)
+        token = await _resolve_token(request, service)
         if token is None:
             return JSONResponse({"error": "Authentication required"}, status_code=401)
 
         body = await request.json()
         params = body.get("parameters", body)
         client_reference_id = body.get("client_reference_id")
-        result = service.invoke(
+        result = await service.invoke(
             capability, token, params,
             client_reference_id=client_reference_id,
         )
@@ -105,7 +105,7 @@ def mount_anip(
 
     @app.post(f"{prefix}/anip/audit")
     async def audit(request: Request):
-        token = _resolve_token(request, service)
+        token = await _resolve_token(request, service)
         if token is None:
             return JSONResponse({"error": "Authentication required"}, status_code=401)
 
@@ -116,14 +116,14 @@ def mount_anip(
             "client_reference_id": request.query_params.get("client_reference_id"),
             "limit": int(request.query_params.get("limit", "50")),
         }
-        return service.query_audit(token, filters)
+        return await service.query_audit(token, filters)
 
     # --- Checkpoints ---
 
     @app.get(f"{prefix}/anip/checkpoints")
     async def list_checkpoints(request: Request):
         limit = int(request.query_params.get("limit", "10"))
-        return service.get_checkpoints(limit)
+        return await service.get_checkpoints(limit)
 
     @app.get(f"{prefix}/anip/checkpoints/{{checkpoint_id}}")
     async def get_checkpoint(checkpoint_id: str, request: Request):
@@ -132,13 +132,13 @@ def mount_anip(
             "leaf_index": request.query_params.get("leaf_index"),
             "consistency_from": request.query_params.get("consistency_from"),
         }
-        result = service.get_checkpoint(checkpoint_id, options)
+        result = await service.get_checkpoint(checkpoint_id, options)
         if result is None:
             return JSONResponse({"error": "Checkpoint not found"}, status_code=404)
         return result
 
 
-def _extract_principal(request: Request, service: ANIPService) -> str | None:
+async def _extract_principal(request: Request, service: ANIPService) -> str | None:
     """Extract authenticated principal from the request.
 
     Uses service.authenticate_bearer() which tries bootstrap auth (API keys,
@@ -149,17 +149,17 @@ def _extract_principal(request: Request, service: ANIPService) -> str | None:
     if not auth.startswith("Bearer "):
         return None
     bearer_value = auth[7:].strip()
-    return service.authenticate_bearer(bearer_value)
+    return await service.authenticate_bearer(bearer_value)
 
 
-def _resolve_token(request: Request, service: ANIPService):
+async def _resolve_token(request: Request, service: ANIPService):
     """Resolve a bearer token from the Authorization header."""
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer "):
         return None
     jwt_str = auth[7:].strip()
     try:
-        return service.resolve_bearer_token(jwt_str)
+        return await service.resolve_bearer_token(jwt_str)
     except ANIPError:
         return None
 
