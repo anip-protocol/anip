@@ -43,7 +43,7 @@ jobs:
           echo ""
 
           # Python packages
-          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi anip-flask; do
+          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi; do
             ACTUAL=$(python3 -c "
           import tomllib
           with open('packages/python/$pkg/pyproject.toml', 'rb') as f:
