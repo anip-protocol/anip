@@ -1098,18 +1098,50 @@ git commit -m "feat(service): emit posture block in TypeScript discovery respons
 
 ---
 
-## Task 7: JSON Schema — Add Posture Block and Fix `base_url` Requirement
+## Task 7: JSON Schema — Align with Discovery Changes + Add Posture
 
-Add the `posture` property and fix the `base_url` requirement in the discovery JSON schema. Currently `base_url` is in the `required` array, but since the service layer doesn't know the request URL and HTTP bindings inject it at call time, the schema should not require it for validation of the service-layer output. Move `base_url` out of the `required` array (it's still a schema-defined property — callers SHOULD expect it when served via HTTP, but the schema validates the service-layer shape).
+Sync the discovery JSON schema with the contract changes made in Task 2, then add posture. Three schema fixes before adding posture:
+
+1. **`base_url`**: Remove from top-level `required` — it's binding-injected, not always present in service-layer output
+2. **`endpoints.handshake`**: Remove from `endpoints.required` — handshake is not implemented in the reference runtimes. It remains as an optional property in the schema.
+3. **`endpoints` optional properties**: Add `checkpoints` and `jwks` as optional properties (the reference implementations emit them but the schema didn't define them)
 
 **Files:**
 - Modify: `schema/discovery.schema.json`
 
-**Step 1: Remove `base_url` from the `required` array**
+**Step 1: Remove `base_url` from the top-level `required` array**
 
-In `schema/discovery.schema.json`, the `anip_discovery.required` array currently includes `"base_url"`. Remove it. The resulting required array should be: `["protocol", "compliance", "profile", "auth", "capabilities", "endpoints"]`.
+In `schema/discovery.schema.json`, the `anip_discovery.required` array currently is:
+```json
+["protocol", "compliance", "base_url", "profile", "auth", "capabilities", "endpoints"]
+```
+Change to:
+```json
+["protocol", "compliance", "profile", "auth", "capabilities", "endpoints"]
+```
 
-**Step 2: Add `posture` property**
+**Step 2: Remove `handshake` from `endpoints.required`**
+
+The `endpoints.required` array currently is:
+```json
+["manifest", "handshake", "permissions", "invoke", "tokens"]
+```
+Change to:
+```json
+["manifest", "permissions", "invoke", "tokens"]
+```
+
+`handshake` remains as an optional property in `endpoints.properties` — services that implement it can still advertise it.
+
+**Step 3: Add missing endpoint properties**
+
+Add `checkpoints` and `jwks` as optional string properties in `endpoints.properties` (alongside the existing `graph`, `audit`, `test`):
+```json
+"checkpoints": { "type": "string" },
+"jwks": { "type": "string" }
+```
+
+**Step 4: Add `posture` property**
 
 Add a `posture` property inside `anip_discovery.properties` in `schema/discovery.schema.json`, after the `endpoints` property and before `metadata`:
 
@@ -1223,9 +1255,9 @@ git commit -m "feat(schema): add posture block to discovery JSON schema (v0.7)"
 
 ---
 
-## Task 8: SPEC.md — Discovery Posture Section
+## Task 8: SPEC.md — Discovery Alignment + Posture Section
 
-Add normative specification language for the posture block.
+Update the spec to reflect all discovery contract changes (compliance semantics, endpoint requirements, base_url binding-injection) made in Task 2, then add normative posture language.
 
 **Files:**
 - Modify: `SPEC.md`
@@ -1234,9 +1266,25 @@ Add normative specification language for the posture block.
 
 Line 1: change `v0.6` to `v0.7`.
 
-**Step 2: Add posture field to §6.1 discovery document example**
+**Step 2: Align §6.1 discovery example with Task 2 contract changes**
 
-In the YAML example in §6.1 (after `trust_level: "anchored"` around line 496), add:
+In the YAML example in §6.1 (around line 445–500), make these changes:
+
+1. Change `compliance: "anip-complete"` → `compliance: "anip-compliant"` (reference implementations implement 5 core primitives, not all 9)
+2. Remove `handshake` from the `endpoints` block in the example (not implemented in reference runtimes)
+3. Add a comment on `base_url` noting it is injected by the HTTP binding layer at request time, not hardcoded
+
+**Step 3: Update §6.1 Fields descriptions for alignment changes**
+
+In the fields list after the example:
+
+1. **`compliance`**: Clarify the two tiers — `"anip-compliant"` requires the 5 core primitives (manifest, permissions, invoke, tokens, audit); `"anip-complete"` requires all 9 (adds handshake, graph, test, checkpoints). A service MUST NOT claim `"anip-complete"` unless all 9 endpoints are implemented and functional.
+2. **`base_url`**: Add note that this field MUST be derived from the incoming HTTP request by the binding layer, not hardcoded or constructor-injected. It MAY be absent in service-layer output and populated at the HTTP boundary.
+3. **`endpoints`**: Clarify which endpoints are REQUIRED (manifest, permissions, invoke, tokens) vs OPTIONAL (handshake, graph, audit, test, checkpoints, jwks). A service MUST only advertise endpoints it actually implements.
+
+**Step 4: Add posture field to §6.1 discovery document example**
+
+In the YAML example in §6.1 (after `trust_level` around line 496), add:
 
 ```yaml
   posture:                                    # OPTIONAL (v0.7) — governance posture summary
@@ -1265,15 +1313,15 @@ In the YAML example in §6.1 (after `trust_level: "anchored"` around line 496), 
       proofs_available: true
 ```
 
-**Step 3: Add posture field description to Fields section**
+**Step 5: Add posture field description to Fields section**
 
-After the `trust_level` bullet (around line 524), add:
+After the `trust_level` bullet, add:
 
 ```markdown
 - **posture** (OPTIONAL, v0.7) — governance posture summary. Exposes trust-relevant service characteristics that agents can inspect before invocation. Contains five sub-objects: `audit`, `lineage`, `metadata_policy`, `failure_disclosure`, and `anchoring`. See Section 6.7 for full field definitions. Services MUST NOT expose internal infrastructure details (database engines, ORM types, queue implementations) in posture fields.
 ```
 
-**Step 4: Add §6.7 Discovery Posture section**
+**Step 6: Add §6.7 Discovery Posture section**
 
 Insert a new section after §6.6 Streaming Invocations (after line 933). Full section content:
 
@@ -1286,25 +1334,25 @@ Insert a new section after §6.6 Streaming Invocations (after line 933). Full se
 - `posture.anchoring` field table (enabled, cadence, max_lag, proofs_available) with constraint: `proofs_available` MUST be `true` only when the service has active checkpoint scheduling — anchored trust level alone is insufficient
 - "What posture MUST NOT expose" section
 
-**Step 5: Update §13 Roadmap**
+**Step 7: Update §13 Roadmap**
 
 Add row: `| **Discovery posture (§6.7)** | MAY — v0.7 | Implemented: posture block with audit, lineage, metadata_policy, failure_disclosure, and anchoring sub-objects | — |`
 
 Update the narrative paragraph to include v0.7.
 
-**Step 6: Update §14 Resolved Questions**
+**Step 8: Update §14 Resolved Questions**
 
 Add: `- **Governance posture visibility.** Discovery posture block exposes audit, lineage, metadata policy, failure disclosure, and anchoring characteristics. *(Resolved in v0.7)*`
 
-**Step 7: Update spec footer**
+**Step 9: Update spec footer**
 
 Update to mention v0.7.
 
-**Step 8: Commit**
+**Step 10: Commit**
 
 ```bash
 git add SPEC.md
-git commit -m "spec: add §6.7 Discovery Posture normative language (v0.7)"
+git commit -m "spec: align §6.1 discovery contract + add §6.7 Discovery Posture (v0.7)"
 ```
 
 ---
