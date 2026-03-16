@@ -154,7 +154,7 @@ export class SQLiteStorage implements StorageBackend {
     this.worker = new Worker(workerPath, workerOpts);
 
     // Wait for the worker to signal it has finished DB init.
-    this.ready = new Promise<void>((resolve) => {
+    this.ready = new Promise<void>((resolve, reject) => {
       const onReady = (msg: any) => {
         if (msg.type === "ready") {
           this.worker.off("message", onReady);
@@ -162,6 +162,10 @@ export class SQLiteStorage implements StorageBackend {
         }
       };
       this.worker.on("message", onReady);
+      this.worker.on("error", reject);
+      this.worker.on("exit", (code) => {
+        if (code !== 0) reject(new Error(`SQLite worker exited with code ${code} during init`));
+      });
     });
 
     // Route method responses to their pending promises.
@@ -173,6 +177,20 @@ export class SQLiteStorage implements StorageBackend {
         if (msg.error) p.reject(new Error(msg.error));
         else p.resolve(msg.result);
       }
+    });
+
+    // If the worker crashes or exits unexpectedly, reject all in-flight
+    // RPCs so callers fail fast instead of hanging indefinitely.
+    const rejectAll = (err: Error) => {
+      for (const [id, p] of this.pending) {
+        this.pending.delete(id);
+        this.worker.unref();
+        p.reject(err);
+      }
+    };
+    this.worker.on("error", (err) => rejectAll(err));
+    this.worker.on("exit", (code) => {
+      if (code !== 0) rejectAll(new Error(`SQLite worker exited unexpectedly with code ${code}`));
     });
 
     // Allow the process to exit naturally when no RPC calls are in flight.
