@@ -223,6 +223,61 @@ export const TrustPosture = z.object({
 export type TrustPosture = z.infer<typeof TrustPosture>;
 
 // ---------------------------------------------------------------------------
+// Discovery Posture (v0.7)
+// ---------------------------------------------------------------------------
+
+export const AuditPosture = z.object({
+  enabled: z.boolean().default(true),
+  signed: z.boolean().default(true),
+  queryable: z.boolean().default(true),
+  retention: z.string().nullable().default(null),
+});
+export type AuditPosture = z.infer<typeof AuditPosture>;
+
+export const ClientReferenceIdPosture = z.object({
+  supported: z.boolean().default(true),
+  max_length: z.number().int().default(256),
+  opaque: z.boolean().default(true),
+  propagation: z.string().default("bounded"),
+});
+export type ClientReferenceIdPosture = z.infer<typeof ClientReferenceIdPosture>;
+
+export const LineagePosture = z.object({
+  invocation_id: z.boolean().default(true),
+  client_reference_id: ClientReferenceIdPosture.default({}),
+});
+export type LineagePosture = z.infer<typeof LineagePosture>;
+
+export const MetadataPolicy = z.object({
+  bounded_lineage: z.boolean().default(true),
+  freeform_context: z.boolean().default(false),
+  downstream_propagation: z.string().default("minimal"),
+});
+export type MetadataPolicy = z.infer<typeof MetadataPolicy>;
+
+export const FailureDisclosure = z.object({
+  detail_level: z.string().default("redacted"),
+});
+export type FailureDisclosure = z.infer<typeof FailureDisclosure>;
+
+export const AnchoringPosture = z.object({
+  enabled: z.boolean().default(false),
+  cadence: z.string().nullable().default(null),
+  max_lag: z.number().nullable().default(null),
+  proofs_available: z.boolean().default(false),
+});
+export type AnchoringPosture = z.infer<typeof AnchoringPosture>;
+
+export const DiscoveryPosture = z.object({
+  audit: AuditPosture.default({}),
+  lineage: LineagePosture.default({}),
+  metadata_policy: MetadataPolicy.default({}),
+  failure_disclosure: FailureDisclosure.default({}),
+  anchoring: AnchoringPosture.default({}),
+});
+export type DiscoveryPosture = z.infer<typeof DiscoveryPosture>;
+
+// ---------------------------------------------------------------------------
 // Manifest
 // ---------------------------------------------------------------------------
 
