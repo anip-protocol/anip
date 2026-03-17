@@ -20,7 +20,7 @@ The spec has [open questions](SPEC.md#14-open-questions) that need community inp
 4. Global service registry
 5. Wildcard scope matching
 
-Some earlier open questions have been resolved: capability declaration format (JSON Schema, resolved in v0.1), delegation chain auth format (JWT/ES256, resolved in v0.2), audit log verifiability (Merkle checkpoints, resolved in v0.3).
+Some earlier open questions have been resolved: capability declaration format (JSON Schema, resolved in v0.1), delegation chain auth format (JWT/ES256, resolved in v0.2), audit log verifiability (Merkle checkpoints, resolved in v0.3), discovery governance visibility (posture declaration, resolved in v0.7).
 
 Pick one that interests you and open an issue.
 

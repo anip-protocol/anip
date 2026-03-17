@@ -1,6 +1,6 @@
 # ANIP Consumer Skill
 
-> Spec version: ANIP v0.6 | Skill version: 1.1 | Last validated: 2026-03-08
+> Spec version: ANIP v0.7 | Skill version: 1.2 | Last validated: 2026-03-16
 
 > For agents that need to discover, negotiate with, and invoke ANIP-compliant services.
 

@@ -1,6 +1,6 @@
 # ANIP Implementer Skill
 
-> Spec version: ANIP v0.6 | Skill version: 1.1 | Last validated: 2026-03-08
+> Spec version: ANIP v0.7 | Skill version: 1.2 | Last validated: 2026-03-16
 
 > For agents building ANIP-compliant services. Covers what to implement, in what order, and the common mistakes that break conformance.
 
@@ -210,7 +210,7 @@ anip_discovery:
 - `travel.search` matches `minimum_scope: ["travel.search"]`
 - `travel.book:max_$500` matches `minimum_scope: ["travel.book"]` with a $500 budget constraint
 
-> **Open question:** Wildcard scope matching (e.g., `travel.*` matching all `travel.` scopes) is not defined in ANIP v0.6. Do not implement wildcards — two services implementing them differently will break agent interoperability. This is tracked as an open design question in Spec §13.
+> **Open question:** Wildcard scope matching (e.g., `travel.*` matching all `travel.` scopes) is not defined in ANIP v0.7. Do not implement wildcards — two services implementing them differently will break agent interoperability. This is tracked as an open design question in Spec §13.
 
 ---
 

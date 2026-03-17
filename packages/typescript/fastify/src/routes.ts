@@ -10,8 +10,9 @@ export function mountAnip(
   const p = opts?.prefix ?? "";
 
   // --- Discovery & Identity ---
-  app.get(`${p}/.well-known/anip`, async () => {
-    return service.getDiscovery();
+  app.get(`${p}/.well-known/anip`, async (req) => {
+    const baseUrl = `${req.protocol}://${req.host}`;
+    return service.getDiscovery({ baseUrl });
   });
 
   app.get(`${p}/.well-known/jwks.json`, async () => {

@@ -37,8 +37,9 @@ def mount_anip(
     # --- Discovery & Identity ---
 
     @app.get(f"{prefix}/.well-known/anip")
-    async def discovery():
-        return service.get_discovery()
+    async def discovery(request: Request):
+        base_url = str(request.base_url).rstrip("/")
+        return service.get_discovery(base_url=base_url)
 
     @app.get(f"{prefix}/.well-known/jwks.json")
     async def jwks():

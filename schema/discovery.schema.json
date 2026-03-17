@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anip.dev/schema/v0.6/discovery.schema.json",
+  "$id": "https://anip.dev/schema/v0.7/discovery.schema.json",
   "title": "ANIP Discovery Document",
   "description": "Schema for the /.well-known/anip discovery endpoint response. See SPEC.md §6.1.",
   "type": "object",
@@ -8,7 +8,7 @@
   "properties": {
     "anip_discovery": {
       "type": "object",
-      "required": ["protocol", "compliance", "base_url", "profile", "auth", "capabilities", "endpoints"],
+      "required": ["protocol", "compliance", "profile", "auth", "capabilities", "endpoints"],
       "properties": {
         "protocol": {
           "type": "string",
@@ -91,7 +91,7 @@
         },
         "endpoints": {
           "type": "object",
-          "required": ["manifest", "handshake", "permissions", "invoke", "tokens"],
+          "required": ["manifest", "permissions", "invoke", "tokens"],
           "properties": {
             "manifest": { "type": "string" },
             "handshake": { "type": "string" },
@@ -100,9 +100,99 @@
             "tokens": { "type": "string" },
             "graph": { "type": "string" },
             "audit": { "type": "string" },
-            "test": { "type": "string" }
+            "test": { "type": "string" },
+            "checkpoints": { "type": "string" },
+            "jwks": { "type": "string" }
           },
           "description": "URL paths for standard ANIP endpoints"
+        },
+        "posture": {
+          "type": "object",
+          "properties": {
+            "audit": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean", "description": "Whether audit logging is active" },
+                "signed": { "type": "boolean", "description": "Whether audit entries are signed" },
+                "queryable": { "type": "boolean", "description": "Whether audit log is queryable via endpoint" },
+                "retention": {
+                  "type": ["string", "null"],
+                  "description": "ISO 8601 duration for audit log retention (e.g., 'P90D'), or null if unspecified"
+                }
+              },
+              "required": ["enabled", "signed", "queryable"],
+              "additionalProperties": false
+            },
+            "lineage": {
+              "type": "object",
+              "properties": {
+                "invocation_id": { "type": "boolean", "description": "Whether server-generated invocation IDs are assigned" },
+                "client_reference_id": {
+                  "type": "object",
+                  "properties": {
+                    "supported": { "type": "boolean" },
+                    "max_length": { "type": "integer" },
+                    "opaque": { "type": "boolean", "description": "Whether client_reference_id is treated as opaque (not interpreted)" },
+                    "propagation": {
+                      "type": "string",
+                      "enum": ["bounded", "local_only", "policy"],
+                      "description": "How client_reference_id propagates"
+                    }
+                  },
+                  "required": ["supported"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["invocation_id"],
+              "additionalProperties": false
+            },
+            "metadata_policy": {
+              "type": "object",
+              "properties": {
+                "bounded_lineage": { "type": "boolean", "description": "Whether lineage metadata is bounded (not unbounded transport channel)" },
+                "freeform_context": { "type": "boolean", "description": "Whether arbitrary freeform context fields are accepted" },
+                "downstream_propagation": {
+                  "type": "string",
+                  "enum": ["minimal", "policy", "service_defined"],
+                  "description": "How metadata propagates downstream"
+                }
+              },
+              "required": ["bounded_lineage"],
+              "additionalProperties": false
+            },
+            "failure_disclosure": {
+              "type": "object",
+              "properties": {
+                "detail_level": {
+                  "type": "string",
+                  "enum": ["full", "redacted", "policy"],
+                  "description": "How much error detail is surfaced to callers"
+                }
+              },
+              "required": ["detail_level"],
+              "additionalProperties": false
+            },
+            "anchoring": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean", "description": "Whether Merkle checkpoints are active" },
+                "cadence": {
+                  "type": ["string", "null"],
+                  "description": "ISO 8601 duration for checkpoint cadence (e.g., 'PT30S')"
+                },
+                "max_lag": {
+                  "type": ["integer", "null"],
+                  "description": "Maximum seconds between newest audit entry and latest checkpoint"
+                },
+                "proofs_available": { "type": "boolean", "description": "Whether inclusion/consistency proofs are available" }
+              },
+              "required": ["enabled"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["audit", "lineage", "metadata_policy", "failure_disclosure", "anchoring"],
+          "additionalProperties": false,
+          "description": "Service governance posture — trust-relevant characteristics inspectable before invocation (v0.7)"
         },
         "metadata": {
           "type": "object",

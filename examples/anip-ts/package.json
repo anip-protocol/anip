@@ -1,6 +1,6 @@
 {
   "name": "anip-ts",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "TypeScript reference implementation of the ANIP protocol",
   "type": "module",
   "scripts": {

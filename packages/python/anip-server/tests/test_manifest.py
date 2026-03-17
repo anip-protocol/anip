@@ -15,7 +15,7 @@ def test_build_manifest():
     trust = TrustPosture(level="signed")
     identity = ServiceIdentity(id="test-svc", jwks_uri="/.well-known/jwks.json", issuer_mode="first-party")
     manifest = build_manifest(capabilities=caps, trust=trust, service_identity=identity)
-    assert manifest.protocol == "anip/0.3"
+    assert manifest.protocol == "anip/0.7"
     assert manifest.manifest_metadata is not None
     assert manifest.manifest_metadata.sha256 is not None
     assert "test_cap" in manifest.capabilities

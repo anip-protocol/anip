@@ -11,8 +11,12 @@ from typing import Any, Awaitable, Callable
 from anip_core import (
     ANIPFailure,
     ANIPManifest,
+    AnchoringPosture,
     CapabilityDeclaration,
+    DEFAULT_PROFILE,
     DelegationToken,
+    DiscoveryPosture,
+    PROTOCOL_VERSION,
     ResponseMode,
     ServiceIdentity,
     TrustPosture,
@@ -149,8 +153,8 @@ class ANIPService:
 
     # --- Public domain-level operations ---
 
-    def get_discovery(self) -> dict[str, Any]:
-        """Return lightweight discovery document."""
+    def get_discovery(self, *, base_url: str | None = None) -> dict[str, Any]:
+        """Return lightweight discovery document per SPEC.md §6.1."""
         caps_summary = {}
         for name, cap in self._capabilities.items():
             decl = cap.declaration
@@ -158,25 +162,49 @@ class ANIPService:
                 "description": decl.description,
                 "side_effect": decl.side_effect.type.value if decl.side_effect else None,
                 "minimum_scope": decl.minimum_scope,
-                "contract_version": decl.contract_version,
+                "financial": decl.cost is not None and decl.cost.financial is not None,
+                "contract": decl.contract_version,
             }
 
-        return {
-            "anip_discovery": {
-                "profile": "full",
-                "capabilities": caps_summary,
-                "trust_level": self._trust_level,
-                "endpoints": {
-                    "manifest": "/anip/manifest",
-                    "tokens": "/anip/tokens",
-                    "invoke": "/anip/invoke/{capability}",
-                    "permissions": "/anip/permissions",
-                    "audit": "/anip/audit",
-                    "checkpoints": "/anip/checkpoints",
-                    "jwks": "/.well-known/jwks.json",
-                },
-            }
+        # Build posture from existing service state (v0.7)
+        anchoring_src = self._manifest.trust.anchoring if self._manifest.trust else None
+        is_anchored = self._trust_level in ("anchored", "attested")
+        posture = DiscoveryPosture(
+            anchoring=AnchoringPosture(
+                enabled=is_anchored,
+                cadence=anchoring_src.cadence if anchoring_src else None,
+                max_lag=anchoring_src.max_lag if anchoring_src else None,
+                proofs_available=is_anchored and self._checkpoint_policy is not None,
+            ),
+        )
+
+        doc: dict[str, Any] = {
+            "protocol": PROTOCOL_VERSION,
+            "compliance": "anip-compliant",
+            "profile": {**DEFAULT_PROFILE},
+            "auth": {
+                "delegation_token_required": True,
+                "supported_formats": ["anip-v1"],
+                "minimum_scope_for_discovery": "none",
+            },
+            "capabilities": caps_summary,
+            "trust_level": self._trust_level,
+            "posture": posture.model_dump(),
+            "endpoints": {
+                "manifest": "/anip/manifest",
+                "permissions": "/anip/permissions",
+                "invoke": "/anip/invoke/{capability}",
+                "tokens": "/anip/tokens",
+                "audit": "/anip/audit",
+                "checkpoints": "/anip/checkpoints",
+                "jwks": "/.well-known/jwks.json",
+            },
         }
+
+        if base_url is not None:
+            doc["base_url"] = base_url
+
+        return {"anip_discovery": doc}
 
     def get_manifest(self) -> ANIPManifest:
         """Return the full capability manifest."""

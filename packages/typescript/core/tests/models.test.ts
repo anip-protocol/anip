@@ -12,11 +12,18 @@ import {
   PROTOCOL_VERSION,
   ResponseMode,
   StreamSummary,
+  AuditPosture,
+  ClientReferenceIdPosture,
+  LineagePosture,
+  MetadataPolicy,
+  FailureDisclosure,
+  AnchoringPosture,
+  DiscoveryPosture,
 } from "../src/index.js";
 
 describe("Protocol constants", () => {
   it("exports correct protocol version", () => {
-    expect(PROTOCOL_VERSION).toBe("anip/0.3");
+    expect(PROTOCOL_VERSION).toBe("anip/0.7");
   });
 });
 
@@ -82,7 +89,7 @@ describe("ANIPFailure", () => {
 describe("ANIPManifest", () => {
   it("parses minimal manifest", () => {
     const result = ANIPManifest.safeParse({
-      protocol: "anip/0.3",
+      protocol: "anip/0.7",
       profile: { core: "1.0" },
       capabilities: {},
     });
@@ -277,5 +284,104 @@ describe("InvokeRequest with stream", () => {
   it("accepts stream true", () => {
     const req = InvokeRequest.parse({ token: "jwt", stream: true });
     expect(req.stream).toBe(true);
+  });
+});
+
+// --- Discovery Posture (v0.7) ---
+
+describe("AuditPosture", () => {
+  it("defaults to enabled, signed, queryable", () => {
+    const ap = AuditPosture.parse({});
+    expect(ap.enabled).toBe(true);
+    expect(ap.signed).toBe(true);
+    expect(ap.queryable).toBe(true);
+    expect(ap.retention).toBeNull();
+  });
+
+  it("accepts retention", () => {
+    const ap = AuditPosture.parse({ retention: "P90D" });
+    expect(ap.retention).toBe("P90D");
+  });
+});
+
+describe("ClientReferenceIdPosture", () => {
+  it("defaults correctly", () => {
+    const crp = ClientReferenceIdPosture.parse({});
+    expect(crp.supported).toBe(true);
+    expect(crp.max_length).toBe(256);
+    expect(crp.opaque).toBe(true);
+    expect(crp.propagation).toBe("bounded");
+  });
+});
+
+describe("LineagePosture", () => {
+  it("defaults correctly", () => {
+    const lp = LineagePosture.parse({});
+    expect(lp.invocation_id).toBe(true);
+    expect(lp.client_reference_id.supported).toBe(true);
+  });
+});
+
+describe("MetadataPolicy", () => {
+  it("defaults correctly", () => {
+    const mp = MetadataPolicy.parse({});
+    expect(mp.bounded_lineage).toBe(true);
+    expect(mp.freeform_context).toBe(false);
+    expect(mp.downstream_propagation).toBe("minimal");
+  });
+});
+
+describe("FailureDisclosure", () => {
+  it("defaults to redacted", () => {
+    const fd = FailureDisclosure.parse({});
+    expect(fd.detail_level).toBe("redacted");
+  });
+
+  it("accepts full", () => {
+    const fd = FailureDisclosure.parse({ detail_level: "full" });
+    expect(fd.detail_level).toBe("full");
+  });
+});
+
+describe("AnchoringPosture", () => {
+  it("defaults to disabled", () => {
+    const ap = AnchoringPosture.parse({});
+    expect(ap.enabled).toBe(false);
+    expect(ap.cadence).toBeNull();
+    expect(ap.max_lag).toBeNull();
+    expect(ap.proofs_available).toBe(false);
+  });
+
+  it("accepts enabled with config", () => {
+    const ap = AnchoringPosture.parse({
+      enabled: true,
+      cadence: "PT30S",
+      max_lag: 120,
+      proofs_available: true,
+    });
+    expect(ap.enabled).toBe(true);
+    expect(ap.cadence).toBe("PT30S");
+    expect(ap.max_lag).toBe(120);
+    expect(ap.proofs_available).toBe(true);
+  });
+});
+
+describe("DiscoveryPosture", () => {
+  it("defaults fully", () => {
+    const dp = DiscoveryPosture.parse({});
+    expect(dp.audit.enabled).toBe(true);
+    expect(dp.lineage.invocation_id).toBe(true);
+    expect(dp.metadata_policy.bounded_lineage).toBe(true);
+    expect(dp.failure_disclosure.detail_level).toBe("redacted");
+    expect(dp.anchoring.enabled).toBe(false);
+  });
+
+  it("roundtrips with anchoring", () => {
+    const input = {
+      anchoring: { enabled: true, cadence: "PT30S", max_lag: 120, proofs_available: true },
+    };
+    const dp = DiscoveryPosture.parse(input);
+    expect(dp.anchoring.enabled).toBe(true);
+    expect(dp.anchoring.cadence).toBe("PT30S");
   });
 });

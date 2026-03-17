@@ -223,6 +223,61 @@ export const TrustPosture = z.object({
 export type TrustPosture = z.infer<typeof TrustPosture>;
 
 // ---------------------------------------------------------------------------
+// Discovery Posture (v0.7)
+// ---------------------------------------------------------------------------
+
+export const AuditPosture = z.object({
+  enabled: z.boolean().default(true),
+  signed: z.boolean().default(true),
+  queryable: z.boolean().default(true),
+  retention: z.string().nullable().default(null),
+});
+export type AuditPosture = z.infer<typeof AuditPosture>;
+
+export const ClientReferenceIdPosture = z.object({
+  supported: z.boolean().default(true),
+  max_length: z.number().int().default(256),
+  opaque: z.boolean().default(true),
+  propagation: z.enum(["bounded", "local_only", "policy"]).default("bounded"),
+});
+export type ClientReferenceIdPosture = z.infer<typeof ClientReferenceIdPosture>;
+
+export const LineagePosture = z.object({
+  invocation_id: z.boolean().default(true),
+  client_reference_id: ClientReferenceIdPosture.default({}),
+});
+export type LineagePosture = z.infer<typeof LineagePosture>;
+
+export const MetadataPolicy = z.object({
+  bounded_lineage: z.boolean().default(true),
+  freeform_context: z.boolean().default(false),
+  downstream_propagation: z.enum(["minimal", "policy", "service_defined"]).default("minimal"),
+});
+export type MetadataPolicy = z.infer<typeof MetadataPolicy>;
+
+export const FailureDisclosure = z.object({
+  detail_level: z.enum(["full", "redacted", "policy"]).default("redacted"),
+});
+export type FailureDisclosure = z.infer<typeof FailureDisclosure>;
+
+export const AnchoringPosture = z.object({
+  enabled: z.boolean().default(false),
+  cadence: z.string().nullable().default(null),
+  max_lag: z.number().nullable().default(null),
+  proofs_available: z.boolean().default(false),
+});
+export type AnchoringPosture = z.infer<typeof AnchoringPosture>;
+
+export const DiscoveryPosture = z.object({
+  audit: AuditPosture.default({}),
+  lineage: LineagePosture.default({}),
+  metadata_policy: MetadataPolicy.default({}),
+  failure_disclosure: FailureDisclosure.default({}),
+  anchoring: AnchoringPosture.default({}),
+});
+export type DiscoveryPosture = z.infer<typeof DiscoveryPosture>;
+
+// ---------------------------------------------------------------------------
 // Manifest
 // ---------------------------------------------------------------------------
 
@@ -238,7 +293,7 @@ export type ProfileVersions = z.infer<typeof ProfileVersions>;
 // --- Manifest Metadata (v0.2) ---
 
 export const ManifestMetadata = z.object({
-  version: z.string().default("0.2.0"),
+  version: z.string().default("0.7.0"),
   sha256: z.string(),
   issued_at: z.string(),
   expires_at: z.string(),
@@ -255,7 +310,7 @@ export const ServiceIdentity = z.object({
 export type ServiceIdentity = z.infer<typeof ServiceIdentity>;
 
 export const ANIPManifest = z.object({
-  protocol: z.string().default("anip/0.3"),
+  protocol: z.string().default("anip/0.7"),
   profile: ProfileVersions,
   capabilities: z.record(CapabilityDeclaration),
   manifest_metadata: ManifestMetadata.nullable().default(null),
