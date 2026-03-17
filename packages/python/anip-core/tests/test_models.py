@@ -9,6 +9,10 @@ from anip_core import (
     ANIPFailure, PROTOCOL_VERSION,
     InvokeRequest, InvokeResponse,
     ResponseMode, StreamSummary,
+    AuditPosture, ClientReferenceIdPosture,
+    LineagePosture, MetadataPolicy,
+    FailureDisclosure, AnchoringPosture,
+    DiscoveryPosture,
 )
 
 
@@ -257,3 +261,89 @@ def test_invoke_request_stream_true():
         stream=True,
     )
     assert req.stream is True
+
+
+# --- Discovery Posture (v0.7) ---
+
+
+def test_audit_posture_defaults():
+    ap = AuditPosture()
+    assert ap.enabled is True
+    assert ap.signed is True
+    assert ap.queryable is True
+    assert ap.retention is None
+
+
+def test_audit_posture_with_retention():
+    ap = AuditPosture(retention="P90D")
+    assert ap.retention == "P90D"
+
+
+def test_client_reference_id_posture_defaults():
+    crp = ClientReferenceIdPosture()
+    assert crp.supported is True
+    assert crp.max_length == 256
+    assert crp.opaque is True
+    assert crp.propagation == "bounded"
+
+
+def test_lineage_posture_defaults():
+    lp = LineagePosture()
+    assert lp.invocation_id is True
+    assert lp.client_reference_id is not None
+    assert lp.client_reference_id.supported is True
+
+
+def test_metadata_policy_defaults():
+    mp = MetadataPolicy()
+    assert mp.bounded_lineage is True
+    assert mp.freeform_context is False
+    assert mp.downstream_propagation == "minimal"
+
+
+def test_failure_disclosure_defaults():
+    fd = FailureDisclosure()
+    assert fd.detail_level == "redacted"
+
+
+def test_failure_disclosure_full():
+    fd = FailureDisclosure(detail_level="full")
+    assert fd.detail_level == "full"
+
+
+def test_anchoring_posture_defaults():
+    ap = AnchoringPosture()
+    assert ap.enabled is False
+    assert ap.cadence is None
+    assert ap.max_lag is None
+    assert ap.proofs_available is False
+
+
+def test_anchoring_posture_enabled():
+    ap = AnchoringPosture(enabled=True, cadence="PT30S", max_lag=120, proofs_available=True)
+    assert ap.enabled is True
+    assert ap.cadence == "PT30S"
+    assert ap.max_lag == 120
+    assert ap.proofs_available is True
+
+
+def test_discovery_posture_defaults():
+    dp = DiscoveryPosture()
+    assert dp.audit.enabled is True
+    assert dp.lineage.invocation_id is True
+    assert dp.metadata_policy.bounded_lineage is True
+    assert dp.failure_disclosure.detail_level == "redacted"
+    assert dp.anchoring.enabled is False
+
+
+def test_discovery_posture_roundtrip():
+    dp = DiscoveryPosture(
+        anchoring=AnchoringPosture(enabled=True, cadence="PT30S", max_lag=120, proofs_available=True),
+    )
+    d = dp.model_dump()
+    assert d["audit"]["enabled"] is True
+    assert d["anchoring"]["enabled"] is True
+    assert d["anchoring"]["cadence"] == "PT30S"
+    restored = DiscoveryPosture.model_validate(d)
+    assert restored.anchoring.enabled is True
+    assert restored.anchoring.cadence == "PT30S"

@@ -236,6 +236,53 @@ class TrustPosture(BaseModel):
     policies: list[TrustPolicyTrigger] | None = None
 
 
+# --- Discovery Posture (v0.7) ---
+
+
+class AuditPosture(BaseModel):
+    enabled: bool = True
+    signed: bool = True
+    queryable: bool = True
+    retention: str | None = None
+
+
+class ClientReferenceIdPosture(BaseModel):
+    supported: bool = True
+    max_length: int = 256
+    opaque: bool = True
+    propagation: str = "bounded"
+
+
+class LineagePosture(BaseModel):
+    invocation_id: bool = True
+    client_reference_id: ClientReferenceIdPosture = Field(default_factory=ClientReferenceIdPosture)
+
+
+class MetadataPolicy(BaseModel):
+    bounded_lineage: bool = True
+    freeform_context: bool = False
+    downstream_propagation: str = "minimal"
+
+
+class FailureDisclosure(BaseModel):
+    detail_level: str = "redacted"
+
+
+class AnchoringPosture(BaseModel):
+    enabled: bool = False
+    cadence: str | None = None
+    max_lag: int | None = None
+    proofs_available: bool = False
+
+
+class DiscoveryPosture(BaseModel):
+    audit: AuditPosture = Field(default_factory=AuditPosture)
+    lineage: LineagePosture = Field(default_factory=LineagePosture)
+    metadata_policy: MetadataPolicy = Field(default_factory=MetadataPolicy)
+    failure_disclosure: FailureDisclosure = Field(default_factory=FailureDisclosure)
+    anchoring: AnchoringPosture = Field(default_factory=AnchoringPosture)
+
+
 class ANIPManifest(BaseModel):
     protocol: str = "anip/0.7"
     profile: ProfileVersions
