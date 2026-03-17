@@ -133,6 +133,7 @@ export function mountAnip(
         since: (req.query.since as string) ?? undefined,
         invocation_id: (req.query.invocation_id as string) ?? undefined,
         client_reference_id: (req.query.client_reference_id as string) ?? undefined,
+        event_class: (req.query.event_class as string) ?? undefined,
         limit: parseInt((req.query.limit as string) ?? "50", 10),
       };
       res.json(await service.queryAudit(token, filters));

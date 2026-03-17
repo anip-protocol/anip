@@ -358,6 +358,157 @@ class TestANIPServiceInvoke:
         assert captured_ctx["client_reference_id"] == "ref-abc"
 
 
+class TestANIPServiceClassification:
+    """Verify that invoke() stores event_class, retention_tier, and expires_at in audit."""
+
+    def _make_service(self, caps=None):
+        return ANIPService(
+            service_id="test-service",
+            capabilities=caps or [_test_cap()],
+            storage=":memory:",
+        )
+
+    async def _issue_test_token(self, service, scope=None, capability=None):
+        cap = capability or "greet"
+        result = await service._engine.issue_root_token(
+            authenticated_principal="human:test@example.com",
+            subject="human:test@example.com",
+            scope=scope or ["greet"],
+            capability=cap,
+            purpose_parameters={"task_id": "test"},
+            ttl_hours=1,
+        )
+        token, token_id = result
+        return token
+
+    async def test_successful_read_stores_low_risk_success(self):
+        service = self._make_service()
+        token = await self._issue_test_token(service)
+        result = await service.invoke("greet", token, {"name": "World"})
+        assert result["success"] is True
+
+        audit_result = await service.query_audit(token)
+        entries = audit_result["entries"]
+        assert len(entries) >= 1
+        entry = entries[0]
+        assert entry["event_class"] == "low_risk_success"
+        assert entry["retention_tier"] == "short"
+        assert entry["expires_at"] is not None
+
+    async def test_failed_invocation_stores_event_class(self):
+        def failing_handler(ctx, params):
+            raise ANIPError("not_found", "Thing not found")
+
+        cap = Capability(
+            declaration=CapabilityDeclaration(
+                name="fail_cap",
+                description="Always fails",
+                contract_version="1.0",
+                inputs=[],
+                output=CapabilityOutput(type="object", fields=[]),
+                side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+                minimum_scope=["test"],
+            ),
+            handler=failing_handler,
+        )
+        service = self._make_service(caps=[cap])
+        token = await self._issue_test_token(service, scope=["test"], capability="fail_cap")
+        result = await service.invoke("fail_cap", token, {})
+        assert result["success"] is False
+
+        audit_result = await service.query_audit(token)
+        entries = audit_result["entries"]
+        assert len(entries) >= 1
+        entry = entries[0]
+        # "not_found" is not in MALFORMED_FAILURE_TYPES, so it's high_risk_denial
+        assert entry["event_class"] == "high_risk_denial"
+        assert entry["retention_tier"] == "medium"
+        assert entry["expires_at"] is not None
+
+    async def test_internal_error_stores_malformed_or_spam(self):
+        def crashing_handler(ctx, params):
+            raise RuntimeError("boom")
+
+        cap = Capability(
+            declaration=CapabilityDeclaration(
+                name="crash_cap",
+                description="Crashes",
+                contract_version="1.0",
+                inputs=[],
+                output=CapabilityOutput(type="object", fields=[]),
+                side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+                minimum_scope=["test"],
+            ),
+            handler=crashing_handler,
+        )
+        service = self._make_service(caps=[cap])
+        token = await self._issue_test_token(service, scope=["test"], capability="crash_cap")
+        result = await service.invoke("crash_cap", token, {})
+        assert result["success"] is False
+
+        audit_result = await service.query_audit(token)
+        entries = audit_result["entries"]
+        assert len(entries) >= 1
+        entry = entries[0]
+        # "internal_error" IS in MALFORMED_FAILURE_TYPES
+        assert entry["event_class"] == "malformed_or_spam"
+        assert entry["retention_tier"] == "short"
+        assert entry["expires_at"] is not None
+
+    async def test_write_capability_success_stores_high_risk(self):
+        cap = Capability(
+            declaration=CapabilityDeclaration(
+                name="write_cap",
+                description="A write capability",
+                contract_version="1.0",
+                inputs=[],
+                output=CapabilityOutput(type="object", fields=[]),
+                side_effect=SideEffect(type=SideEffectType.WRITE, rollback_window="PT1H"),
+                minimum_scope=["write"],
+            ),
+            handler=lambda ctx, params: {"written": True},
+        )
+        service = self._make_service(caps=[cap])
+        token = await self._issue_test_token(service, scope=["write"], capability="write_cap")
+        result = await service.invoke("write_cap", token, {})
+        assert result["success"] is True
+
+        audit_result = await service.query_audit(token)
+        entries = audit_result["entries"]
+        assert len(entries) >= 1
+        entry = entries[0]
+        assert entry["event_class"] == "high_risk_success"
+        assert entry["retention_tier"] == "long"
+        assert entry["expires_at"] is not None
+
+    async def test_query_audit_event_class_filter(self):
+        """Verify event_class filter works through query_audit."""
+        cap = Capability(
+            declaration=CapabilityDeclaration(
+                name="multi_cap",
+                description="Multi-use cap",
+                contract_version="1.0",
+                inputs=[CapabilityInput(name="name", type="string", required=True, description="name")],
+                output=CapabilityOutput(type="object", fields=["message"]),
+                side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+                minimum_scope=["test"],
+            ),
+            handler=lambda ctx, params: {"message": f"Hello, {params['name']}!"},
+        )
+        service = self._make_service(caps=[cap])
+        token = await self._issue_test_token(service, scope=["test"], capability="multi_cap")
+
+        # Successful invocation -> low_risk_success
+        await service.invoke("multi_cap", token, {"name": "World"})
+
+        # Query with event_class filter
+        result_filtered = await service.query_audit(token, {"event_class": "low_risk_success"})
+        assert result_filtered["count"] >= 1
+
+        result_filtered_empty = await service.query_audit(token, {"event_class": "high_risk_success"})
+        assert result_filtered_empty["count"] == 0
+
+
 class TestANIPServiceTokenLifecycle:
     def _make_service(self):
         return ANIPService(

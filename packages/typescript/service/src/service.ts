@@ -32,6 +32,8 @@ import {
 
 import { ANIPError } from "./types.js";
 import type { CapabilityDef, Handler, InvocationContext } from "./types.js";
+import { classifyEvent } from "./classification.js";
+import { RetentionPolicy } from "./retention.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -55,6 +57,7 @@ export interface ANIPServiceOpts {
       };
   checkpointPolicy?: CheckpointPolicy;
   authenticate?: (bearer: string) => string | null;
+  retentionPolicy?: RetentionPolicy;
 }
 
 export interface ANIPService {
@@ -147,6 +150,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     keyPath,
     authenticate: authenticateFn,
   } = opts;
+
+  // --- Retention policy (v0.8) ---
+  const retentionPolicy = opts.retentionPolicy ?? new RetentionPolicy();
 
   // --- Capability registry ---
   const capabilities = new Map<string, CapabilityDef>();
@@ -275,6 +281,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       invocationId?: string | null;
       clientReferenceId?: string | null;
       streamSummary?: Record<string, unknown> | null;
+      eventClass?: string | null;
+      retentionTier?: string | null;
+      expiresAt?: string | null;
     },
   ): Promise<void> {
     const chain = await engine.getChain(token);
@@ -290,6 +299,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       invocation_id: auditOpts.invocationId ?? null,
       client_reference_id: auditOpts.clientReferenceId ?? null,
       streamSummary: auditOpts.streamSummary ?? null,
+      event_class: auditOpts.eventClass ?? null,
+      retention_tier: auditOpts.retentionTier ?? null,
+      expires_at: auditOpts.expiresAt ?? null,
     });
 
     entriesSinceCheckpoint++;
@@ -759,11 +771,18 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           detail: validationResult.detail,
           resolution: validationResult.resolution,
         };
+        const sideEffectType = (decl as any).side_effect?.type ?? null;
+        const eventClass = classifyEvent(sideEffectType, false, failure.type);
+        const retTier = retentionPolicy.resolveTier(eventClass);
+        const expiresAt = retentionPolicy.computeExpiresAt(retTier);
         await logAudit(capabilityName, token, {
           success: false,
           failureType: failure.type,
           invocationId,
           clientReferenceId,
+          eventClass,
+          retentionTier: retTier,
+          expiresAt,
         });
         return {
           success: false,
@@ -830,6 +849,10 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         }
 
         // 6. Log audit (success)
+        const sideEffectTypeS = (decl as any).side_effect?.type ?? null;
+        const eventClassS = classifyEvent(sideEffectTypeS, true, null);
+        const retTierS = retentionPolicy.resolveTier(eventClassS);
+        const expiresAtS = retentionPolicy.computeExpiresAt(retTierS);
         await logAudit(capabilityName, resolvedToken, {
           success: true,
           resultSummary: summarizeResult(result),
@@ -837,6 +860,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           invocationId,
           clientReferenceId,
           streamSummary,
+          eventClass: eventClassS,
+          retentionTier: retTierS,
+          expiresAt: expiresAtS,
         });
 
         // 7. Build response
@@ -866,6 +892,10 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           : null;
 
         if (err instanceof ANIPError) {
+          const sideEffectTypeE = (decl as any).side_effect?.type ?? null;
+          const eventClassE = classifyEvent(sideEffectTypeE, false, err.errorType);
+          const retTierE = retentionPolicy.resolveTier(eventClassE);
+          const expiresAtE = retentionPolicy.computeExpiresAt(retTierE);
           await logAudit(capabilityName, resolvedToken, {
             success: false,
             failureType: err.errorType,
@@ -873,6 +903,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             invocationId,
             clientReferenceId,
             streamSummary: failStreamSummary,
+            eventClass: eventClassE,
+            retentionTier: retTierE,
+            expiresAt: expiresAtE,
           });
           const response: Record<string, unknown> = {
             success: false,
@@ -887,12 +920,19 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         }
 
         // Unexpected error — do NOT leak details
+        const sideEffectTypeU = (decl as any).side_effect?.type ?? null;
+        const eventClassU = classifyEvent(sideEffectTypeU, false, "internal_error");
+        const retTierU = retentionPolicy.resolveTier(eventClassU);
+        const expiresAtU = retentionPolicy.computeExpiresAt(retTierU);
         await logAudit(capabilityName, resolvedToken, {
           success: false,
           failureType: "internal_error",
           invocationId,
           clientReferenceId,
           streamSummary: failStreamSummary,
+          eventClass: eventClassU,
+          retentionTier: retTierU,
+          expiresAt: expiresAtU,
         });
         const response: Record<string, unknown> = {
           success: false,
@@ -920,6 +960,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         since: f.since as string | undefined,
         invocationId: f.invocation_id as string | undefined,
         clientReferenceId: f.client_reference_id as string | undefined,
+        eventClass: f.event_class as string | undefined,
         limit: Math.min((f.limit as number) ?? 50, 1000),
       });
 

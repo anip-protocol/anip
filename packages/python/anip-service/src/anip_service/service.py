@@ -37,6 +37,8 @@ from anip_server import (
     CheckpointSink,
 )
 
+from .classification import classify_event
+from .retention import RetentionPolicy
 from .types import ANIPError, Capability, InvocationContext
 
 
@@ -58,11 +60,15 @@ class ANIPService:
         checkpoint_policy: CheckpointPolicy | None = None,
         audit_signer: Any | None = None,
         authenticate: Callable[[str], str | None] | None = None,
+        retention_policy: RetentionPolicy | None = None,
     ) -> None:
         self._service_id = service_id
 
         # --- Bootstrap authentication ---
         self._authenticate = authenticate
+
+        # --- Retention policy (v0.8) ---
+        self._retention_policy = retention_policy or RetentionPolicy()
 
         # --- Capability registry ---
         self._capabilities: dict[str, Capability] = {}
@@ -473,11 +479,16 @@ class ANIPService:
                 "detail": validation_result.detail,
                 "resolution": validation_result.resolution.model_dump() if hasattr(validation_result.resolution, "model_dump") else validation_result.resolution,
             }
+            _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
+            _event_class = classify_event(_side_effect_type, False, failure["type"])
+            _retention_tier = self._retention_policy.resolve_tier(_event_class)
+            _expires_at = self._retention_policy.compute_expires_at(_retention_tier)
             await self._log_audit(
                 capability_name, token, success=False,
                 failure_type=failure["type"], result_summary=None,
                 cost_actual=None, cost_variance=None,
                 invocation_id=invocation_id, client_reference_id=client_reference_id,
+                event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
             )
             return {
                 "success": False,
@@ -527,11 +538,16 @@ class ANIPService:
         if cap.exclusive_lock:
             lock_result = await self._engine.acquire_exclusive_lock(resolved_token)
             if lock_result is not None:
+                _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
+                _event_class = classify_event(_side_effect_type, False, "concurrent_lock")
+                _retention_tier = self._retention_policy.resolve_tier(_event_class)
+                _expires_at = self._retention_policy.compute_expires_at(_retention_tier)
                 await self._log_audit(
                     capability_name, resolved_token, success=False,
                     failure_type="concurrent_lock",
                     result_summary=None, cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
+                    event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                 )
                 return {
                     "success": False,
@@ -557,6 +573,10 @@ class ANIPService:
                         "duration_ms": int((time.monotonic() - stream_start) * 1000),
                         "client_disconnected": client_disconnected,
                     }
+                _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
+                _event_class = classify_event(_side_effect_type, False, e.error_type)
+                _retention_tier = self._retention_policy.resolve_tier(_event_class)
+                _expires_at = self._retention_policy.compute_expires_at(_retention_tier)
                 await self._log_audit(
                     capability_name, resolved_token, success=False,
                     failure_type=e.error_type,
@@ -564,6 +584,7 @@ class ANIPService:
                     cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
                     stream_summary=fail_stream_summary,
+                    event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                 )
                 fail_response: dict[str, Any] = {
                     "success": False,
@@ -584,12 +605,17 @@ class ANIPService:
                         "duration_ms": int((time.monotonic() - stream_start) * 1000),
                         "client_disconnected": client_disconnected,
                     }
+                _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
+                _event_class = classify_event(_side_effect_type, False, "internal_error")
+                _retention_tier = self._retention_policy.resolve_tier(_event_class)
+                _expires_at = self._retention_policy.compute_expires_at(_retention_tier)
                 await self._log_audit(
                     capability_name, resolved_token, success=False,
                     failure_type="internal_error",
                     result_summary=None, cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
                     stream_summary=fail_stream_summary_exc,
+                    event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                 )
                 fail_response_exc: dict[str, Any] = {
                     "success": False,
@@ -617,6 +643,10 @@ class ANIPService:
                 }
 
             # 8. Log audit (success)
+            _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
+            _event_class = classify_event(_side_effect_type, True, None)
+            _retention_tier = self._retention_policy.resolve_tier(_event_class)
+            _expires_at = self._retention_policy.compute_expires_at(_retention_tier)
             await self._log_audit(
                 capability_name, resolved_token, success=True,
                 failure_type=None,
@@ -625,6 +655,7 @@ class ANIPService:
                 cost_variance=cost_variance,
                 invocation_id=invocation_id, client_reference_id=client_reference_id,
                 stream_summary=stream_summary,
+                event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
             )
 
             # 9. Build response
@@ -661,6 +692,7 @@ class ANIPService:
             since=filters.get("since"),
             invocation_id=filters.get("invocation_id"),
             client_reference_id=filters.get("client_reference_id"),
+            event_class=filters.get("event_class"),
             limit=min(filters.get("limit", 50), 1000),
         )
 
@@ -790,6 +822,9 @@ class ANIPService:
         invocation_id: str | None = None,
         client_reference_id: str | None = None,
         stream_summary: dict[str, Any] | None = None,
+        event_class: str | None = None,
+        retention_tier: str | None = None,
+        expires_at: str | None = None,
     ) -> None:
         """Log an audit entry through the SDK's AuditLog."""
         chain = await self._engine.get_chain(token)
@@ -805,6 +840,9 @@ class ANIPService:
             "invocation_id": invocation_id,
             "client_reference_id": client_reference_id,
             "stream_summary": stream_summary,
+            "event_class": event_class,
+            "retention_tier": retention_tier,
+            "expires_at": expires_at,
         })
 
         self._entries_since_checkpoint += 1
