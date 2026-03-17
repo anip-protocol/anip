@@ -10,7 +10,7 @@ export const DEFAULT_CLASS_TO_TIER: Record<string, string> = {
   high_risk_success: "long",
   high_risk_denial: "medium",
   low_risk_success: "short",
-  repeated_low_value_denial: "short",
+  repeated_low_value_denial: "aggregate_only",
   malformed_or_spam: "short",
 };
 
@@ -18,7 +18,7 @@ export const DEFAULT_TIER_TO_DURATION: Record<string, string | null> = {
   long: "P365D",
   medium: "P90D",
   short: "P7D",
-  aggregate_only: "P7D", // v0.8 placeholder
+  aggregate_only: "P1D",
 };
 
 const DURATION_RE = /^P(\d+)D$/;
