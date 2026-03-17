@@ -763,20 +763,119 @@ git commit -m "feat: update retention defaults — aggregate_only P1D, repeated_
 
 ---
 
-## Task 4: Audit Aggregation — Service Integration
+## Task 4: Audit Aggregation — Audit Layer + Schema Extension
+
+**Files:**
+- Modify: `packages/python/anip-server/src/anip_server/audit.py:27` (the `log_entry` field whitelist)
+- Modify: `packages/python/anip-server/src/anip_server/storage.py:191` (the `audit_log` CREATE TABLE)
+- Modify: `packages/typescript/server/src/audit.ts:37` (the `logEntry` field whitelist)
+- Modify: `packages/typescript/server/src/sqlite-worker.ts:42` (the `audit_log` CREATE TABLE)
+
+**Context:** The audit layer in both runtimes builds a hardcoded field dict when logging entries (`audit.py:46-66`, `audit.ts:51-71`). New fields like `entry_type`, `grouping_key`, `window`, `count`, `representative_detail`, and `storage_redacted` would be silently dropped because they are not in the whitelist. The SQL schema also has no columns for them. This task extends both the audit layer and the storage schema BEFORE integrating the aggregator or storage-side redaction.
+
+**Step 1: Python — Add columns to audit_log DDL**
+
+In `packages/python/anip-server/src/anip_server/storage.py:191`, add these columns to the `CREATE TABLE IF NOT EXISTS audit_log` block (after `expires_at TEXT`):
+
+```sql
+    storage_redacted INTEGER DEFAULT 0,
+    entry_type TEXT,
+    grouping_key TEXT,              -- JSON
+    aggregation_window TEXT,        -- JSON {start, end}
+    aggregation_count INTEGER,
+    first_seen TEXT,
+    last_seen TEXT,
+    representative_detail TEXT
+```
+
+Add migration support (after existing ALTER TABLE migrations) for existing databases:
+
+```python
+ALTER TABLE audit_log ADD COLUMN storage_redacted INTEGER DEFAULT 0
+ALTER TABLE audit_log ADD COLUMN entry_type TEXT
+ALTER TABLE audit_log ADD COLUMN grouping_key TEXT
+ALTER TABLE audit_log ADD COLUMN aggregation_window TEXT
+ALTER TABLE audit_log ADD COLUMN aggregation_count INTEGER
+ALTER TABLE audit_log ADD COLUMN first_seen TEXT
+ALTER TABLE audit_log ADD COLUMN last_seen TEXT
+ALTER TABLE audit_log ADD COLUMN representative_detail TEXT
+```
+
+Each wrapped in try/except (column may already exist), matching the existing migration pattern.
+
+**Step 2: TypeScript — Same columns in sqlite-worker.ts**
+
+In `packages/typescript/server/src/sqlite-worker.ts:42`, add the same columns. Add ALTER TABLE migration statements matching the existing pattern at `sqlite-worker.ts:97`.
+
+**Step 3: Python — Extend audit.py field whitelist**
+
+In `packages/python/anip-server/src/anip_server/audit.py`, within the `log_entry` method's entry dict construction (`audit.py:46-66`), add the new fields:
+
+```python
+    "storage_redacted": entry_data.get("storage_redacted", False),
+    "entry_type": entry_data.get("entry_type"),
+    "grouping_key": entry_data.get("grouping_key"),
+    "aggregation_window": entry_data.get("aggregation_window"),
+    "aggregation_count": entry_data.get("aggregation_count"),
+    "first_seen": entry_data.get("first_seen"),
+    "last_seen": entry_data.get("last_seen"),
+    "representative_detail": entry_data.get("representative_detail"),
+```
+
+Also add `"grouping_key"` and `"aggregation_window"` to `_JSON_AUDIT_FIELDS` in `storage.py:244` so they are JSON-serialized on write and deserialized on read.
+
+**Step 4: TypeScript — Extend audit.ts field whitelist**
+
+Same additions in `packages/typescript/server/src/audit.ts:51-71`:
+
+```typescript
+    storage_redacted: entryData.storage_redacted ?? false,
+    entry_type: entryData.entry_type ?? null,
+    grouping_key: entryData.grouping_key ?? null,
+    aggregation_window: entryData.aggregation_window ?? null,
+    aggregation_count: entryData.aggregation_count ?? null,
+    first_seen: entryData.first_seen ?? null,
+    last_seen: entryData.last_seen ?? null,
+    representative_detail: entryData.representative_detail ?? null,
+```
+
+**Step 5: Run full test suites**
+
+Run: `cd packages/python && python -m pytest -v`
+Run: `cd packages/typescript && npx vitest run`
+Expected: PASS (schema additions are backward-compatible; existing tests should not break)
+
+**Step 6: Commit**
+
+```bash
+git add packages/python/anip-server/src/anip_server/audit.py packages/python/anip-server/src/anip_server/storage.py packages/typescript/server/src/audit.ts packages/typescript/server/src/sqlite-worker.ts
+git commit -m "feat: extend audit layer and schema with aggregation and storage_redacted fields"
+```
+
+---
+
+## Task 5: Audit Aggregation — Service Integration
 
 **Files:**
 - Modify: `packages/python/anip-service/src/anip_service/service.py`
 - Modify: `packages/typescript/service/src/service.ts`
 - Modify: `packages/python/anip-service/src/anip_service/__init__.py`
 - Modify: `packages/typescript/service/src/index.ts`
+- Modify: `packages/python/anip-fastapi/src/anip_fastapi/routes.py`
 
 **Context:** Wire the aggregator into the service's audit logging flow. Low-value denial events (classified as `malformed_or_spam` or with pre-auth failures) are routed through the aggregator instead of being logged immediately. Aggregated entries are emitted on closed-window flush. The aggregator is optional — services that don't want aggregation can skip it.
 
 **Important: Flush durability.** The aggregator buffers events until a window closes. To avoid losing the last bucket of denials during quiet periods or process shutdown, the service MUST:
 1. Run a **background flush timer** (similar to the existing RetentionEnforcer pattern) that calls `aggregator.flush(now)` on a periodic interval (e.g., every `window_seconds`).
-2. Call `aggregator.flush(now)` in the service's **`stop()` method** to persist any remaining buffered events before shutdown.
+2. Provide an **async shutdown hook** that flushes and persists remaining buffered events.
 3. Optionally flush on each `invoke()` call as well, but this is a convenience — the background timer and shutdown hook are the durability guarantees.
+
+**Important: Lifecycle contract change.** The current `start()` and `stop()` methods are synchronous (`def start(self) -> None` / `start(): void`). The final flush needs to persist buffered entries, which is async work (it calls `self._audit.log_entry()` which is async). Two options:
+
+- **Option A (recommended):** Add a separate `async def shutdown(self)` / `async shutdown()` method that flushes the aggregator, then have FastAPI/Express wire it into their async shutdown hooks. The sync `stop()` cancels timers only.
+- **Option B:** Change `stop()` to be async. This is a breaking API change.
+
+Use **Option A** to avoid breaking the existing sync lifecycle contract.
 
 **Step 1: Python — Add aggregator to service constructor**
 
@@ -785,40 +884,59 @@ In `service.py`, add:
 - Add `aggregation_window: int | None = None` to `__init__` (None = disabled, integer = window seconds)
 - If enabled, create `self._aggregator = AuditAggregator(window_seconds=aggregation_window)`
 - Modify `_log_audit` to check: if aggregator is enabled and event_class is `malformed_or_spam`, route through aggregator instead of immediate logging
-- Add `_flush_aggregator` method that calls `self._aggregator.flush(now)` and persists each result via `self._audit.log_entry()`
+- Add `async def _flush_aggregator(self)` method that calls `self._aggregator.flush(now)` and persists each result via `self._audit.log_entry()` (mapping `AggregatedEntry.to_audit_dict()` fields to the entry_data shape the audit layer expects)
 - In `start()`: create a background `asyncio.create_task` that periodically flushes (every `aggregation_window` seconds), similar to the retention enforcer pattern
-- In `stop()`: cancel the flush task, then call `_flush_aggregator()` one final time to persist any remaining buffered events
+- In `stop()`: cancel the background flush task (sync, no persistence)
+- Add `async def shutdown(self)`: call `_flush_aggregator()` to persist remaining buffered events. This is separate from `stop()`.
 
-**Step 2: TypeScript — Add aggregator to service**
+**Step 2: Python — Update FastAPI routes**
+
+In `packages/python/anip-fastapi/src/anip_fastapi/routes.py:34`, the current pattern is:
+```python
+app.router.on_startup.append(service.start)
+app.router.on_shutdown.append(service.stop)
+```
+
+Add `service.shutdown` to the shutdown hooks:
+```python
+app.router.on_startup.append(service.start)
+app.router.on_shutdown.append(service.shutdown)  # async flush first
+app.router.on_shutdown.append(service.stop)       # sync timer cleanup
+```
+
+FastAPI's `on_shutdown` supports both sync and async callables, so `service.shutdown` (async) and `service.stop` (sync) both work.
+
+**Step 3: TypeScript — Add aggregator to service**
 
 Same pattern in `service.ts`:
 - Import `AuditAggregator` from `./aggregation.js`
 - Add `aggregationWindow?: number` to `ANIPServiceOpts`
 - Wire into `logAudit` flow
 - In `start()`: create a `setInterval` timer (with `.unref()`) that periodically flushes, matching the RetentionEnforcer pattern
-- In `stop()`: clear the interval, then flush remaining buffered events synchronously
+- In `stop()`: clear the interval (sync, no persistence)
+- Add `async shutdown()`: flush remaining buffered events and persist them
 
-**Step 3: Export new types**
+**Step 4: Export new types**
 
 In `packages/python/anip-service/src/anip_service/__init__.py`, add `AuditAggregator` to `__all__`.
 In `packages/typescript/service/src/index.ts`, add `export { AuditAggregator } from "./aggregation.js"`.
 
-**Step 4: Run full test suites**
+**Step 5: Run full test suites**
 
 Run: `cd packages/python/anip-service && python -m pytest -v`
 Run: `cd packages/typescript/service && npx vitest run`
 Expected: PASS
 
-**Step 5: Commit**
+**Step 6: Commit**
 
 ```bash
-git add packages/python/anip-service/src/anip_service/service.py packages/python/anip-service/src/anip_service/__init__.py packages/typescript/service/src/service.ts packages/typescript/service/src/index.ts
-git commit -m "feat: integrate audit aggregator into service invoke flow with flush durability"
+git add packages/python/anip-service/src/anip_service/service.py packages/python/anip-service/src/anip_service/__init__.py packages/python/anip-fastapi/src/anip_fastapi/routes.py packages/typescript/service/src/service.ts packages/typescript/service/src/index.ts
+git commit -m "feat: integrate audit aggregator with async shutdown hook for flush durability"
 ```
 
 ---
 
-## Task 5: Storage-Side Redaction — Python
+## Task 6: Storage-Side Redaction — Python
 
 **Files:**
 - Create: `packages/python/anip-service/src/anip_service/storage_redaction.py`
@@ -944,7 +1062,7 @@ git commit -m "feat(python): add storage-side redaction for low-value audit entr
 
 ---
 
-## Task 6: Storage-Side Redaction — TypeScript
+## Task 7: Storage-Side Redaction — TypeScript
 
 **Files:**
 - Create: `packages/typescript/service/src/storage-redaction.ts`
@@ -1069,7 +1187,7 @@ git commit -m "feat(typescript): add storage-side redaction for low-value audit 
 
 ---
 
-## Task 7: Storage-Side Redaction — Service Integration
+## Task 8: Storage-Side Redaction — Service Integration
 
 **Files:**
 - Modify: `packages/python/anip-service/src/anip_service/service.py`
@@ -1110,7 +1228,7 @@ git commit -m "feat: integrate storage-side redaction into audit logging flow"
 
 ---
 
-## Task 8: Caller-Class-Aware Redaction — Python
+## Task 9: Caller-Class-Aware Redaction — Python
 
 **Files:**
 - Create: `packages/python/anip-service/src/anip_service/disclosure.py`
@@ -1288,7 +1406,7 @@ git commit -m "feat(python): add caller-class-aware disclosure resolution"
 
 ---
 
-## Task 9: Caller-Class-Aware Redaction — TypeScript
+## Task 10: Caller-Class-Aware Redaction — TypeScript
 
 **Files:**
 - Create: `packages/typescript/service/src/disclosure.ts`
@@ -1425,15 +1543,18 @@ git commit -m "feat(typescript): add caller-class-aware disclosure resolution"
 
 ---
 
-## Task 10: Caller-Class Redaction — Service Integration + Discovery
+## Task 11: Caller-Class Redaction — Service Integration + Discovery
 
 **Files:**
-- Modify: `packages/python/anip-service/src/anip_service/service.py`
-- Modify: `packages/typescript/service/src/service.ts`
-- Modify: `packages/python/anip-core/src/anip_core/models.py`
-- Modify: `packages/typescript/core/src/models.ts`
+- Modify: `packages/python/anip-core/src/anip_core/models.py` (DelegationToken + FailureDisclosure)
+- Modify: `packages/typescript/core/src/models.ts` (DelegationToken + FailureDisclosure)
+- Modify: `packages/python/anip-server/src/anip_server/storage.py:177` (delegation_tokens DDL — add `caller_class TEXT` column)
+- Modify: `packages/typescript/server/src/sqlite-worker.ts:28` (delegation_tokens DDL — add `caller_class TEXT` column)
+- Modify: `packages/python/anip-service/src/anip_service/service.py` (token issuance at ~line 393, invoke flow, discovery)
+- Modify: `packages/typescript/service/src/service.ts` (token issuance at ~line 685, invoke flow, discovery)
+- Modify: `packages/python/anip-core/src/anip_core/models.py` (TokenRequest — add optional `caller_class`)
 
-**Context:** Wire the disclosure resolver into the service. The service gets a new optional `disclosure_policy` config. When `disclosure_level` is `"policy"`, the resolver is called per-invocation with the token's claims. The discovery posture now reports `caller_classes` when in policy mode.
+**Context:** Wire the disclosure resolver into the service. The `caller_class` field must be plumbed through the full token lifecycle: model → issuance → storage → JWT construction → verification → invoke flow → disclosure resolution. The file list above covers every surface in this pipeline.
 
 **Step 1: Python — Add `caller_class` field to DelegationToken model**
 
@@ -1501,13 +1622,13 @@ Expected: PASS
 **Step 7: Commit**
 
 ```bash
-git add packages/python/anip-service/src/anip_service/service.py packages/python/anip-core/src/anip_core/models.py packages/typescript/service/src/service.ts packages/typescript/core/src/models.ts
-git commit -m "feat: integrate caller-class disclosure into service and discovery posture"
+git add packages/python/anip-core/src/anip_core/models.py packages/typescript/core/src/models.ts packages/python/anip-server/src/anip_server/storage.py packages/typescript/server/src/sqlite-worker.ts packages/python/anip-service/src/anip_service/service.py packages/typescript/service/src/service.ts
+git commit -m "feat: integrate caller-class disclosure across full token pipeline and discovery"
 ```
 
 ---
 
-## Task 11: `proof_unavailable` Client Semantics — Schema + Response Model
+## Task 12: `proof_unavailable` Client Semantics — Schema + Response Model
 
 **Files:**
 - Modify: `schema/anip.schema.json`
@@ -1680,7 +1801,7 @@ git commit -m "feat: add CheckpointDetailResponse with expires_hint (separate fr
 
 ---
 
-## Task 12: `proof_unavailable` — Service-Side `expires_hint` Computation
+## Task 13: `proof_unavailable` — Service-Side `expires_hint` Computation
 
 **Files:**
 - Modify: `packages/python/anip-service/src/anip_service/service.py`
@@ -1726,7 +1847,7 @@ git commit -m "feat: compute and include expires_hint on checkpoint responses"
 
 ---
 
-## Task 13: SPEC.md Updates
+## Task 14: SPEC.md Updates
 
 **Files:**
 - Modify: `SPEC.md`
@@ -1792,7 +1913,7 @@ git commit -m "docs: update SPEC.md for v0.9 protocol follow-up"
 
 ---
 
-## Task 14: Schema Updates
+## Task 15: Schema Updates
 
 **Files:**
 - Modify: `schema/anip.schema.json`
@@ -1821,7 +1942,7 @@ git commit -m "docs: update JSON schemas for v0.9"
 
 ---
 
-## Task 15: Protocol Version Bump
+## Task 16: Protocol Version Bump
 
 **Files:**
 - Modify: `packages/python/anip-core/src/anip_core/constants.py` (or wherever PROTOCOL_VERSION lives)
@@ -1867,7 +1988,7 @@ git commit -m "feat: bump protocol version to anip/0.9"
 
 ---
 
-## Task 16: Final Verification
+## Task 17: Final Verification
 
 **Files:** None (verification only)
 
