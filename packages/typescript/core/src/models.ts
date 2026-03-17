@@ -254,7 +254,7 @@ export const AuditPosture = z.object({
   enabled: z.boolean().default(true),
   signed: z.boolean().default(true),
   queryable: z.boolean().default(true),
-  retention: z.string().nullable().default(null),
+  retention: z.string().default("P90D"),
   retention_enforced: z.boolean().default(false),
 });
 export type AuditPosture = z.infer<typeof AuditPosture>;

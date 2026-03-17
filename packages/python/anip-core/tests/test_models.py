@@ -272,12 +272,12 @@ def test_audit_posture_defaults():
     assert ap.enabled is True
     assert ap.signed is True
     assert ap.queryable is True
-    assert ap.retention is None
+    assert ap.retention == "P90D"
 
 
 def test_audit_posture_with_retention():
-    ap = AuditPosture(retention="P90D")
-    assert ap.retention == "P90D"
+    ap = AuditPosture(retention="P365D")
+    assert ap.retention == "P365D"
 
 
 def test_client_reference_id_posture_defaults():

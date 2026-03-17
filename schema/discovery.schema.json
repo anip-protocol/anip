@@ -116,8 +116,8 @@
                 "signed": { "type": "boolean", "description": "Whether audit entries are signed" },
                 "queryable": { "type": "boolean", "description": "Whether audit log is queryable via endpoint" },
                 "retention": {
-                  "type": ["string", "null"],
-                  "description": "ISO 8601 duration for audit log retention (e.g., 'P90D'), or null if unspecified"
+                  "type": "string",
+                  "description": "ISO 8601 duration for audit log retention (e.g., 'P90D')"
                 },
                 "retention_enforced": {
                   "type": "boolean",

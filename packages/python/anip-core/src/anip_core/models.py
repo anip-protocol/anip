@@ -267,7 +267,7 @@ class AuditPosture(BaseModel):
     enabled: bool = True
     signed: bool = True
     queryable: bool = True
-    retention: str | None = None
+    retention: str = "P90D"
     retention_enforced: bool = False
 
 

@@ -298,12 +298,12 @@ describe("AuditPosture", () => {
     expect(ap.enabled).toBe(true);
     expect(ap.signed).toBe(true);
     expect(ap.queryable).toBe(true);
-    expect(ap.retention).toBeNull();
+    expect(ap.retention).toBe("P90D");
   });
 
-  it("accepts retention", () => {
-    const ap = AuditPosture.parse({ retention: "P90D" });
-    expect(ap.retention).toBe("P90D");
+  it("accepts custom retention", () => {
+    const ap = AuditPosture.parse({ retention: "P365D" });
+    expect(ap.retention).toBe("P365D");
   });
 });
 
