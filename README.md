@@ -290,15 +290,15 @@ For advanced use cases that need direct access to the SDK primitives (KeyManager
 
 ## Status
 
-ANIP is under active development. The spec is at v0.6 with streaming invocations, invocation lineage, async storage, anchored trust, and cryptographic enforcement in place. Multi-agent coordination and federated trust remain open. See [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v1) for the full breakdown.
+ANIP is under active development. The spec is at v0.7 with discovery posture, streaming invocations, invocation lineage, async storage, anchored trust, and cryptographic enforcement in place. Multi-agent coordination and federated trust remain open. See [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v1) for the full breakdown.
 
-> **v0.6 adds real-time streaming.** Capabilities can declare `response_modes: ["unary", "streaming"]` and emit SSE progress events during execution. Agents receive incremental results in real time, with a `StreamSummary` tracking delivery state (`events_emitted` vs `events_delivered`, `client_disconnected`). Transport failures are isolated from handler execution — a disconnected client doesn't abort the invocation. Building on v0.4's invocation lineage (`invocation_id` + `client_reference_id` for end-to-end traceability), v0.5's async storage architecture, and v0.3's anchored trust (Merkle checkpoints, inclusion proofs, trust levels). See [SPEC.md §6.6](SPEC.md) for the streaming protocol.
+> **v0.7 adds discovery posture.** Services declare their governance stance — `open`, `gated`, `restricted`, or `closed` — in the discovery document, so agents know the engagement model before requesting tokens. Posture includes human-readable `description`, machine-readable `access` rules, and an optional `contact` for access requests. Building on v0.6's streaming invocations, v0.4's invocation lineage, v0.5's async storage, and v0.3's anchored trust. See [SPEC.md §6.7](SPEC.md) for the posture protocol.
 
 This is a community effort. We'd rather define this standard thoughtfully and in the open than let it emerge ad-hoc.
 
 **What exists today:**
 - [Manifesto](MANIFESTO.md) — why this moment matters
-- [Spec](SPEC.md) — the technical design (v0.6)
+- [Spec](SPEC.md) — the technical design (v0.7)
 - [Guide](GUIDE.md) — walkthrough of the reference implementation with design rationale
 - [Reference implementation — Python](examples/anip/) — `anip-service` + FastAPI, ~150 lines of business logic
 - [Reference implementation — TypeScript](examples/anip-ts/) — `@anip/service` + Hono, same capabilities and endpoints
@@ -323,6 +323,7 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 - Federated trust — cross-service delegation chains and token exchange
 - Side-effect contract testing — sandbox infrastructure for verifying behavioral declarations
 - Streaming backpressure — flow control signaling between agents and services
+- Posture-aware agent behavior — agents adapting interaction strategies based on service posture
 
 If this resonates, star the repo, open an issue, or [contribute](CONTRIBUTING.md). If you think we're wrong, tell us why — that's equally valuable.
 
