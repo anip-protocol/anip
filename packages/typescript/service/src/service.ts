@@ -432,6 +432,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             signed: true,
             queryable: true,
             retention: null,
+            retention_enforced: true,
           },
           lineage: {
             invocation_id: true,

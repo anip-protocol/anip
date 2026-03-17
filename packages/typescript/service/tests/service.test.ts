@@ -177,6 +177,14 @@ describe("ANIPService construction", () => {
     expect(posture.anchoring.proofs_available).toBe(true);
   });
 
+  it("discovery posture includes retention_enforced", () => {
+    const { service } = makeService();
+    const doc = service.getDiscovery();
+    const posture = (doc.anip_discovery as Record<string, unknown>).posture as Record<string, unknown>;
+    const audit = posture.audit as Record<string, unknown>;
+    expect(audit.retention_enforced).toBe(true);
+  });
+
   it("discovery posture: anchored without checkpoint policy has no proofs", () => {
     const service = createANIPService({
       serviceId: "test-service",

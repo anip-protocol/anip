@@ -154,6 +154,17 @@ class TestANIPServiceInit:
             assert posture["anchoring"]["max_lag"] == 120
             assert posture["anchoring"]["proofs_available"] is True
 
+    def test_discovery_posture_includes_retention_enforced(self):
+        """v0.8: discovery posture.audit includes retention_enforced: true."""
+        service = ANIPService(
+            service_id="test-service",
+            capabilities=[_test_cap()],
+            storage=":memory:",
+        )
+        doc = service.get_discovery()
+        posture = doc["anip_discovery"]["posture"]
+        assert posture["audit"]["retention_enforced"] is True
+
     def test_discovery_posture_anchored_without_policy(self):
         """Anchored trust without checkpoint policy — proofs NOT available."""
         service = ANIPService(

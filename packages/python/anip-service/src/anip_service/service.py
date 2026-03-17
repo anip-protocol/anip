@@ -12,6 +12,7 @@ from anip_core import (
     ANIPFailure,
     ANIPManifest,
     AnchoringPosture,
+    AuditPosture,
     CapabilityDeclaration,
     DEFAULT_PROFILE,
     DelegationToken,
@@ -183,6 +184,7 @@ class ANIPService:
         anchoring_src = self._manifest.trust.anchoring if self._manifest.trust else None
         is_anchored = self._trust_level in ("anchored", "attested")
         posture = DiscoveryPosture(
+            audit=AuditPosture(retention_enforced=True),
             anchoring=AnchoringPosture(
                 enabled=is_anchored,
                 cadence=anchoring_src.cadence if anchoring_src else None,
