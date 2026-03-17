@@ -34,6 +34,7 @@ import {
 import { ANIPError } from "./types.js";
 import type { CapabilityDef, Handler, InvocationContext } from "./types.js";
 import { classifyEvent } from "./classification.js";
+import { redactFailure } from "./redaction.js";
 import { RetentionPolicy } from "./retention.js";
 
 // ---------------------------------------------------------------------------
@@ -59,6 +60,7 @@ export interface ANIPServiceOpts {
   checkpointPolicy?: CheckpointPolicy;
   authenticate?: (bearer: string) => string | null;
   retentionPolicy?: RetentionPolicy;
+  disclosureLevel?: string;
 }
 
 export interface ANIPService {
@@ -151,6 +153,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     keyPath,
     authenticate: authenticateFn,
   } = opts;
+
+  // --- Disclosure level (v0.8) ---
+  const disclosureLevel = opts.disclosureLevel ?? "full";
 
   // --- Retention policy (v0.8) ---
   const retentionPolicy = opts.retentionPolicy ?? new RetentionPolicy();
@@ -736,10 +741,10 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       if (!capabilities.has(capabilityName)) {
         return {
           success: false,
-          failure: {
+          failure: redactFailure({
             type: "unknown_capability",
             detail: `Capability '${capabilityName}' not found`,
-          },
+          }, disclosureLevel),
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,
         };
@@ -756,10 +761,10 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         if (!responseModes.includes("streaming")) {
           return {
             success: false,
-            failure: {
+            failure: redactFailure({
               type: "streaming_not_supported",
               detail: `Capability '${capabilityName}' does not support streaming`,
-            },
+            }, disclosureLevel),
             invocation_id: invocationId,
             client_reference_id: clientReferenceId,
           };
@@ -796,7 +801,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         });
         return {
           success: false,
-          failure,
+          failure: redactFailure(failure, disclosureLevel),
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,
         };
@@ -919,7 +924,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           });
           const response: Record<string, unknown> = {
             success: false,
-            failure: { type: err.errorType, detail: err.detail },
+            failure: redactFailure({ type: err.errorType, detail: err.detail }, disclosureLevel),
             invocation_id: invocationId,
             client_reference_id: clientReferenceId,
           };
@@ -946,7 +951,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         });
         const response: Record<string, unknown> = {
           success: false,
-          failure: { type: "internal_error", detail: "Internal error" },
+          failure: redactFailure({ type: "internal_error", detail: "Internal error" }, disclosureLevel),
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,
         };

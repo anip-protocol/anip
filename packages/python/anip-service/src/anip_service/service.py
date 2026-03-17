@@ -39,6 +39,7 @@ from anip_server import (
 )
 
 from .classification import classify_event
+from .redaction import redact_failure
 from .retention import RetentionPolicy
 from .types import ANIPError, Capability, InvocationContext
 
@@ -62,8 +63,10 @@ class ANIPService:
         audit_signer: Any | None = None,
         authenticate: Callable[[str], str | None] | None = None,
         retention_policy: RetentionPolicy | None = None,
+        disclosure_level: str = "full",
     ) -> None:
         self._service_id = service_id
+        self._disclosure_level = disclosure_level
 
         # --- Bootstrap authentication ---
         self._authenticate = authenticate
@@ -445,10 +448,10 @@ class ANIPService:
         if capability_name not in self._capabilities:
             return {
                 "success": False,
-                "failure": {
+                "failure": redact_failure({
                     "type": "unknown_capability",
                     "detail": f"Capability '{capability_name}' not found",
-                },
+                }, self._disclosure_level),
                 "invocation_id": invocation_id,
                 "client_reference_id": client_reference_id,
             }
@@ -462,10 +465,10 @@ class ANIPService:
             if "streaming" not in response_modes:
                 return {
                     "success": False,
-                    "failure": {
+                    "failure": redact_failure({
                         "type": "streaming_not_supported",
                         "detail": f"Capability '{capability_name}' does not support streaming",
-                    },
+                    }, self._disclosure_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
@@ -496,7 +499,7 @@ class ANIPService:
             )
             return {
                 "success": False,
-                "failure": failure,
+                "failure": redact_failure(failure, self._disclosure_level),
                 "invocation_id": invocation_id,
                 "client_reference_id": client_reference_id,
             }
@@ -555,7 +558,7 @@ class ANIPService:
                 )
                 return {
                     "success": False,
-                    "failure": {"type": lock_result.type, "detail": lock_result.detail},
+                    "failure": redact_failure({"type": lock_result.type, "detail": lock_result.detail}, self._disclosure_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
@@ -592,7 +595,7 @@ class ANIPService:
                 )
                 fail_response: dict[str, Any] = {
                     "success": False,
-                    "failure": {"type": e.error_type, "detail": e.detail},
+                    "failure": redact_failure({"type": e.error_type, "detail": e.detail}, self._disclosure_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
@@ -623,7 +626,7 @@ class ANIPService:
                 )
                 fail_response_exc: dict[str, Any] = {
                     "success": False,
-                    "failure": {"type": "internal_error", "detail": "Internal error"},
+                    "failure": redact_failure({"type": "internal_error", "detail": "Internal error"}, self._disclosure_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
