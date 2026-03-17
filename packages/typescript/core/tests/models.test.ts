@@ -19,6 +19,9 @@ import {
   FailureDisclosure,
   AnchoringPosture,
   DiscoveryPosture,
+  EventClass,
+  RetentionTier,
+  DisclosureLevel,
 } from "../src/index.js";
 
 describe("Protocol constants", () => {
@@ -383,5 +386,71 @@ describe("DiscoveryPosture", () => {
     const dp = DiscoveryPosture.parse(input);
     expect(dp.anchoring.enabled).toBe(true);
     expect(dp.anchoring.cadence).toBe("PT30S");
+  });
+});
+
+// --- v0.8 Security Hardening Enums ---
+
+describe("EventClass", () => {
+  it("parses all valid values", () => {
+    const values = [
+      "high_risk_success",
+      "high_risk_denial",
+      "low_risk_success",
+      "repeated_low_value_denial",
+      "malformed_or_spam",
+    ];
+    for (const v of values) {
+      expect(EventClass.parse(v)).toBe(v);
+    }
+  });
+
+  it("rejects invalid values", () => {
+    expect(() => EventClass.parse("invalid")).toThrow();
+  });
+});
+
+describe("RetentionTier", () => {
+  it("parses all valid values", () => {
+    const values = ["long", "medium", "short", "aggregate_only"];
+    for (const v of values) {
+      expect(RetentionTier.parse(v)).toBe(v);
+    }
+  });
+
+  it("rejects invalid values", () => {
+    expect(() => RetentionTier.parse("invalid")).toThrow();
+  });
+});
+
+describe("DisclosureLevel", () => {
+  it("parses all valid values", () => {
+    const values = ["full", "reduced", "redacted"];
+    for (const v of values) {
+      expect(DisclosureLevel.parse(v)).toBe(v);
+    }
+  });
+
+  it("rejects invalid values", () => {
+    expect(() => DisclosureLevel.parse("invalid")).toThrow();
+  });
+});
+
+describe("AuditPosture with retention_enforced", () => {
+  it("defaults retention_enforced to false", () => {
+    const ap = AuditPosture.parse({});
+    expect(ap.retention_enforced).toBe(false);
+  });
+
+  it("accepts retention_enforced true", () => {
+    const ap = AuditPosture.parse({ retention_enforced: true });
+    expect(ap.retention_enforced).toBe(true);
+  });
+});
+
+describe("FailureDisclosure with reduced", () => {
+  it("accepts reduced detail_level", () => {
+    const fd = FailureDisclosure.parse({ detail_level: "reduced" });
+    expect(fd.detail_level).toBe("reduced");
   });
 });

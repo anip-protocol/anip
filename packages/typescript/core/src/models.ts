@@ -223,6 +223,30 @@ export const TrustPosture = z.object({
 export type TrustPosture = z.infer<typeof TrustPosture>;
 
 // ---------------------------------------------------------------------------
+// Security Hardening Enums (v0.8)
+// ---------------------------------------------------------------------------
+
+export const EventClass = z.enum([
+  "high_risk_success",
+  "high_risk_denial",
+  "low_risk_success",
+  "repeated_low_value_denial",
+  "malformed_or_spam",
+]);
+export type EventClass = z.infer<typeof EventClass>;
+
+export const RetentionTier = z.enum([
+  "long",
+  "medium",
+  "short",
+  "aggregate_only",
+]);
+export type RetentionTier = z.infer<typeof RetentionTier>;
+
+export const DisclosureLevel = z.enum(["full", "reduced", "redacted"]);
+export type DisclosureLevel = z.infer<typeof DisclosureLevel>;
+
+// ---------------------------------------------------------------------------
 // Discovery Posture (v0.7)
 // ---------------------------------------------------------------------------
 
@@ -231,6 +255,7 @@ export const AuditPosture = z.object({
   signed: z.boolean().default(true),
   queryable: z.boolean().default(true),
   retention: z.string().nullable().default(null),
+  retention_enforced: z.boolean().default(false),
 });
 export type AuditPosture = z.infer<typeof AuditPosture>;
 
@@ -256,7 +281,7 @@ export const MetadataPolicy = z.object({
 export type MetadataPolicy = z.infer<typeof MetadataPolicy>;
 
 export const FailureDisclosure = z.object({
-  detail_level: z.enum(["full", "redacted", "policy"]).default("redacted"),
+  detail_level: z.enum(["full", "reduced", "redacted", "policy"]).default("redacted"),
 });
 export type FailureDisclosure = z.infer<typeof FailureDisclosure>;
 

@@ -13,6 +13,7 @@ from anip_core import (
     LineagePosture, MetadataPolicy,
     FailureDisclosure, AnchoringPosture,
     DiscoveryPosture,
+    EventClass, RetentionTier, DisclosureLevel,
 )
 
 
@@ -347,3 +348,42 @@ def test_discovery_posture_roundtrip():
     restored = DiscoveryPosture.model_validate(d)
     assert restored.anchoring.enabled is True
     assert restored.anchoring.cadence == "PT30S"
+
+
+# --- v0.8 Security Hardening Enums ---
+
+
+def test_event_class_enum_values():
+    assert EventClass.HIGH_RISK_SUCCESS == "high_risk_success"
+    assert EventClass.HIGH_RISK_DENIAL == "high_risk_denial"
+    assert EventClass.LOW_RISK_SUCCESS == "low_risk_success"
+    assert EventClass.REPEATED_LOW_VALUE_DENIAL == "repeated_low_value_denial"
+    assert EventClass.MALFORMED_OR_SPAM == "malformed_or_spam"
+    assert len(EventClass) == 5
+
+
+def test_retention_tier_enum_values():
+    assert RetentionTier.LONG == "long"
+    assert RetentionTier.MEDIUM == "medium"
+    assert RetentionTier.SHORT == "short"
+    assert RetentionTier.AGGREGATE_ONLY == "aggregate_only"
+    assert len(RetentionTier) == 4
+
+
+def test_disclosure_level_enum_values():
+    assert DisclosureLevel.FULL == "full"
+    assert DisclosureLevel.REDUCED == "reduced"
+    assert DisclosureLevel.REDACTED == "redacted"
+    assert len(DisclosureLevel) == 3
+
+
+def test_audit_posture_retention_enforced():
+    ap = AuditPosture()
+    assert ap.retention_enforced is False
+    ap2 = AuditPosture(retention_enforced=True)
+    assert ap2.retention_enforced is True
+
+
+def test_failure_disclosure_accepts_reduced():
+    fd = FailureDisclosure(detail_level="reduced")
+    assert fd.detail_level == "reduced"

@@ -236,6 +236,30 @@ class TrustPosture(BaseModel):
     policies: list[TrustPolicyTrigger] | None = None
 
 
+# --- Security Hardening Enums (v0.8) ---
+
+
+class EventClass(str, Enum):
+    HIGH_RISK_SUCCESS = "high_risk_success"
+    HIGH_RISK_DENIAL = "high_risk_denial"
+    LOW_RISK_SUCCESS = "low_risk_success"
+    REPEATED_LOW_VALUE_DENIAL = "repeated_low_value_denial"
+    MALFORMED_OR_SPAM = "malformed_or_spam"
+
+
+class RetentionTier(str, Enum):
+    LONG = "long"
+    MEDIUM = "medium"
+    SHORT = "short"
+    AGGREGATE_ONLY = "aggregate_only"
+
+
+class DisclosureLevel(str, Enum):
+    FULL = "full"
+    REDUCED = "reduced"
+    REDACTED = "redacted"
+
+
 # --- Discovery Posture (v0.7) ---
 
 
@@ -244,6 +268,7 @@ class AuditPosture(BaseModel):
     signed: bool = True
     queryable: bool = True
     retention: str | None = None
+    retention_enforced: bool = False
 
 
 class ClientReferenceIdPosture(BaseModel):
@@ -265,7 +290,7 @@ class MetadataPolicy(BaseModel):
 
 
 class FailureDisclosure(BaseModel):
-    detail_level: Literal["full", "redacted", "policy"] = "redacted"
+    detail_level: Literal["full", "reduced", "redacted", "policy"] = "redacted"
 
 
 class AnchoringPosture(BaseModel):
