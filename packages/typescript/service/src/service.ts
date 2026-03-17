@@ -386,6 +386,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         };
       }
 
+      const isAnchored = trustLevel === "anchored" || trustLevel === "attested";
+
       const doc: Record<string, unknown> = {
         protocol: PROTOCOL_VERSION,
         compliance: "anip-compliant",
@@ -397,6 +399,37 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         },
         capabilities: capsSummary,
         trust_level: trustLevel,
+        posture: {
+          audit: {
+            enabled: true,
+            signed: true,
+            queryable: true,
+            retention: null,
+          },
+          lineage: {
+            invocation_id: true,
+            client_reference_id: {
+              supported: true,
+              max_length: 256,
+              opaque: true,
+              propagation: "bounded",
+            },
+          },
+          metadata_policy: {
+            bounded_lineage: true,
+            freeform_context: false,
+            downstream_propagation: "minimal",
+          },
+          failure_disclosure: {
+            detail_level: "redacted",
+          },
+          anchoring: {
+            enabled: isAnchored,
+            cadence: anchoringPolicy?.cadence ?? null,
+            max_lag: anchoringPolicy?.max_lag ?? null,
+            proofs_available: isAnchored && checkpointPolicy !== null,
+          },
+        },
         endpoints: {
           manifest: "/anip/manifest",
           permissions: "/anip/permissions",

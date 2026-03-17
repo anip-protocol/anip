@@ -6,7 +6,7 @@ import {
 } from "../src/index.js";
 import type { CapabilityDef, InvocationContext } from "../src/index.js";
 import type { CapabilityDeclaration, DelegationToken } from "@anip/core";
-import { InMemoryStorage, DelegationEngine } from "@anip/server";
+import { InMemoryStorage, DelegationEngine, CheckpointPolicy } from "@anip/server";
 import type { StorageBackend } from "@anip/server";
 
 // ---------------------------------------------------------------------------
@@ -135,6 +135,65 @@ describe("ANIPService construction", () => {
         trust: "attested" as any,
       }),
     ).toThrow("not yet supported");
+  });
+
+  it("discovery includes posture block", () => {
+    const { service } = makeService();
+    const disc = service.getDiscovery() as Record<string, any>;
+    const posture = disc.anip_discovery.posture;
+    expect(posture).toBeDefined();
+    expect(posture.audit.enabled).toBe(true);
+    expect(posture.audit.signed).toBe(true);
+    expect(posture.audit.queryable).toBe(true);
+    expect(posture.lineage.invocation_id).toBe(true);
+    expect(posture.lineage.client_reference_id.supported).toBe(true);
+    expect(posture.lineage.client_reference_id.max_length).toBe(256);
+    expect(posture.metadata_policy.bounded_lineage).toBe(true);
+    expect(posture.metadata_policy.freeform_context).toBe(false);
+    expect(posture.failure_disclosure.detail_level).toBe("redacted");
+    expect(posture.anchoring.enabled).toBe(false);
+    expect(posture.anchoring.proofs_available).toBe(false);
+  });
+
+  it("discovery posture reflects anchored trust with checkpoint policy", () => {
+    const service = createANIPService({
+      serviceId: "test-service",
+      capabilities: [testCap()],
+      storage: { type: "memory" },
+      trust: {
+        level: "anchored",
+        anchoring: {
+          cadence: "PT30S",
+          maxLag: 120,
+        },
+      },
+      checkpointPolicy: new CheckpointPolicy({ entryCount: 100 }),
+    });
+    const disc = service.getDiscovery() as Record<string, any>;
+    const posture = disc.anip_discovery.posture;
+    expect(posture.anchoring.enabled).toBe(true);
+    expect(posture.anchoring.cadence).toBe("PT30S");
+    expect(posture.anchoring.max_lag).toBe(120);
+    expect(posture.anchoring.proofs_available).toBe(true);
+  });
+
+  it("discovery posture: anchored without checkpoint policy has no proofs", () => {
+    const service = createANIPService({
+      serviceId: "test-service",
+      capabilities: [testCap()],
+      storage: { type: "memory" },
+      trust: {
+        level: "anchored",
+        anchoring: {
+          cadence: "PT30S",
+          maxLag: 120,
+        },
+      },
+    });
+    const disc = service.getDiscovery() as Record<string, any>;
+    const posture = disc.anip_discovery.posture;
+    expect(posture.anchoring.enabled).toBe(true);
+    expect(posture.anchoring.proofs_available).toBe(false);
   });
 });
 
