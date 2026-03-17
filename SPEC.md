@@ -1,4 +1,4 @@
-# ANIP Specification v0.6
+# ANIP Specification v0.7
 
 > Agent-Native Interface Protocol — Draft
 
@@ -458,8 +458,8 @@ The discovery document MUST conform to this schema:
 # GET /.well-known/anip
 anip_discovery:
   protocol: "anip/1.0"
-  compliance: "anip-complete"              # or "anip-compliant"
-  base_url: "https://flights.example.com"
+  compliance: "anip-compliant"              # or "anip-complete" — see §3
+  base_url: "https://flights.example.com"  # injected by HTTP binding layer at request time, not hardcoded
   profile:
     core: "1.0"
     cost: "1.0"
@@ -485,7 +485,6 @@ anip_discovery:
       contract: "1.0"
   endpoints:
     manifest: "/anip/manifest"
-    handshake: "/anip/handshake"
     permissions: "/anip/permissions"
     invoke: "/anip/invoke/{capability}"
     tokens: "/anip/tokens"
@@ -494,6 +493,30 @@ anip_discovery:
     test: "/anip/test/{capability}"
     checkpoints: "/anip/checkpoints"           # v0.3: MAY for signed, MUST for anchored/attested
   trust_level: "anchored"                    # one of: signed, anchored, attested (see Section 7.1)
+  posture:                                    # OPTIONAL (v0.7) — governance posture summary
+    audit:
+      enabled: true
+      signed: true
+      queryable: true
+      retention: "P90D"
+    lineage:
+      invocation_id: true
+      client_reference_id:
+        supported: true
+        max_length: 256
+        opaque: true
+        propagation: "bounded"
+    metadata_policy:
+      bounded_lineage: true
+      freeform_context: false
+      downstream_propagation: "minimal"
+    failure_disclosure:
+      detail_level: "redacted"
+    anchoring:
+      enabled: true
+      cadence: "PT30S"
+      max_lag: 120
+      proofs_available: true
   metadata:
     service_name: "Flight Booking Service"
     service_description: "ANIP-compliant flight search and booking"
@@ -511,8 +534,8 @@ anip_discovery:
 **Fields:**
 
 - **protocol** (REQUIRED) — the ANIP protocol version this service implements
-- **compliance** (REQUIRED) — `"anip-compliant"` (5 core primitives) or `"anip-complete"` (all 9). A service MUST NOT claim `anip-complete` unless all four contextual profile keys (`cost`, `capability_graph`, `state_session`, `observability`) are present in its `profile` block. Agents MUST NOT infer compliance level from counting profile keys — this field is the source of truth.
-- **base_url** (REQUIRED) — the absolute base URL for resolving endpoint paths. Agents MUST NOT infer this from the request URL. Explicit over inferred.
+- **compliance** (REQUIRED) — indicates whether the service implements the 5 core primitives defined in §4 (`"anip-compliant"`) or all 9 primitives from §4 and §5 (`"anip-complete"`). See Section 3 for full definitions. A service MUST NOT claim `"anip-complete"` unless it implements all 9 primitives. Compliance is defined in terms of primitives — abstract capabilities — not HTTP endpoints. Agents MUST NOT infer compliance level from counting profile keys or endpoints; this field is the source of truth.
+- **base_url** (REQUIRED) — the absolute base URL for resolving endpoint paths. This field MUST be derived from the incoming HTTP request by the binding layer, not hardcoded or constructor-injected. It MAY be absent in service-layer output and populated at the HTTP boundary. Agents MUST NOT infer this from the request URL. Explicit over inferred.
 - **profile** (REQUIRED) — which profile extensions are implemented, each independently versioned
 - **auth** (REQUIRED) — what authentication the service requires, whether tokens are needed for discovery, and which token formats are supported. An agent MUST be able to determine from this field alone whether it can proceed without a delegation token.
 - **capabilities** (REQUIRED) — map of capability names to lightweight metadata. Not full declarations — those live at the manifest endpoint. Each entry includes:
@@ -522,7 +545,8 @@ anip_discovery:
   - `financial` — whether this capability involves financial cost. The `financial` flag MUST be `true` for any capability whose `cost.financial` field is non-null in the manifest, regardless of cost certainty level (`fixed`, `estimated`, or `dynamic`). Implementations MUST NOT use the presence or value of an `amount` key to determine this flag. Capabilities with no financial cost MUST set `cost.financial` to `null` (not a zero-amount object). Lets agents distinguish "irreversible and costs money" from "irreversible but free" — a distinction that matters for authorization handling. When `true`, agents should check cost signaling and budget authority before attempting invocation.
   - `contract` — the current contract version. An agent with a cached manifest can check whether contracts have changed without refetching.
 - **trust_level** (REQUIRED, v0.3) — the trust level this service claims: `"signed"`, `"anchored"`, or `"attested"` (see Section 7.1). Agents use this to determine what verification guarantees the service provides. A service claiming `"anchored"` or `"attested"` MUST implement the checkpoint endpoints (Section 6.5).
-- **endpoints** (REQUIRED) — URLs for each standard endpoint (see Section 6.2)
+- **posture** (OPTIONAL, v0.7) — governance posture summary. Exposes trust-relevant service characteristics that agents can inspect before invocation. Contains five sub-objects: `audit`, `lineage`, `metadata_policy`, `failure_disclosure`, and `anchoring`. See Section 6.7 for full field definitions. Services MUST NOT expose internal infrastructure details (database engines, ORM types, queue implementations) in posture fields.
+- **endpoints** (REQUIRED) — URLs for each standard endpoint (see Section 6.2). REQUIRED endpoints: `manifest`, `permissions`, `invoke`, `tokens`. OPTIONAL endpoints: `handshake`, `graph`, `audit`, `test`, `checkpoints`, `jwks`. A service MUST only advertise endpoints it actually implements. Note: the endpoint set is orthogonal to compliance level — compliance is about primitives (§3–§5), not endpoint count.
 - **metadata** (RECOMMENDED) — service-level metadata that lets agents make decisions without fetching the full manifest
 
 **Cache validity:**
@@ -930,6 +954,84 @@ Transport failures (e.g., client disconnect during streaming) MUST NOT abort the
 
 When an unexpected error occurs during a streaming invocation, the SSE `failed` event MUST NOT include raw exception details. The `detail` field MUST use a generic message (e.g., `"Internal error"`) to prevent leaking server internals to clients.
 
+### 6.7 Discovery Posture (v0.7)
+
+The discovery document's `posture` block exposes trust-relevant service characteristics that agents can inspect before invocation. Its purpose is to let agents make informed trust and governance decisions without trial-and-error probing or out-of-band documentation.
+
+**Posture vs. Manifest:** The manifest (§6.3) declares *what a service can do* — capabilities, inputs, outputs, side-effect types. Posture declares *how the service governs itself* — audit retention, lineage propagation, failure disclosure policy, and anchoring behavior. Posture is metadata about operational governance; it does not duplicate or replace capability declarations.
+
+The `posture` block is OPTIONAL. When present, all sub-objects included MUST accurately reflect the service's actual behavior. A service MUST NOT advertise posture characteristics it does not implement.
+
+#### posture.audit
+
+Describes the service's audit log characteristics.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `enabled` | boolean | MUST | Whether the service maintains an audit log. |
+| `signed` | boolean | MUST | Whether audit entries are cryptographically signed (per §7). |
+| `queryable` | boolean | MUST | Whether the audit log is queryable via the `{audit}` endpoint (§6.3). |
+| `retention` | string | MUST | ISO 8601 duration for how long audit entries are retained (e.g., `"P90D"` for 90 days). |
+
+A service declaring `queryable: true` MUST advertise the `audit` endpoint in its `endpoints` block.
+
+#### posture.lineage
+
+Describes how the service handles invocation lineage fields (§6.3).
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `invocation_id` | boolean | MUST | Whether the service generates `invocation_id` on every invocation. |
+| `client_reference_id` | object | MUST | Sub-object describing `client_reference_id` handling. |
+| `client_reference_id.supported` | boolean | MUST | Whether the service accepts and echoes `client_reference_id`. |
+| `client_reference_id.max_length` | integer | SHOULD | Maximum character length accepted. |
+| `client_reference_id.opaque` | boolean | SHOULD | Whether the service treats the value as opaque (no parsing or interpretation). |
+| `client_reference_id.propagation` | string | SHOULD | How lineage propagates: `"bounded"` (within this service only) or `"forwarded"` (passed to downstream services). |
+
+#### posture.metadata_policy
+
+Describes the service's policy on metadata handling and propagation.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `bounded_lineage` | boolean | MUST | Whether lineage metadata is bounded to this service and not forwarded unboundedly. |
+| `freeform_context` | boolean | MUST | Whether the service accepts arbitrary freeform context fields in invocation requests. `false` means only declared fields are accepted. |
+| `downstream_propagation` | string | MUST | How much metadata is propagated to downstream services: `"none"`, `"minimal"`, or `"full"`. |
+
+#### posture.failure_disclosure
+
+Describes how much detail the service exposes in failure responses.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `detail_level` | string | MUST | One of: `"full"` (detailed error messages including stack context), `"redacted"` (structured errors with generic messages, no internals), or `"minimal"` (error type only, no detail). |
+
+Services SHOULD use `"redacted"` in production. Failure responses MUST conform to the failure semantics in §4.5 regardless of disclosure level — `detail_level` governs the verbosity of the `detail` field, not the structure of the failure object.
+
+#### posture.anchoring
+
+Describes the service's checkpoint anchoring behavior (§7).
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `enabled` | boolean | MUST | Whether the service produces Merkle checkpoints. |
+| `cadence` | string | SHOULD | ISO 8601 duration between checkpoint productions (e.g., `"PT30S"` for every 30 seconds). |
+| `max_lag` | integer | SHOULD | Maximum seconds of audit entries that may not yet be covered by a checkpoint. |
+| `proofs_available` | boolean | MUST | Whether inclusion/consistency proofs can be requested via checkpoint endpoints (§6.5). |
+
+`proofs_available` MUST be `true` only when the service has active checkpoint scheduling — claiming `anchored` trust level (§7.1) alone is insufficient. A service that declares `proofs_available: true` without active checkpoint production is non-conformant.
+
+#### What posture MUST NOT expose
+
+Posture fields describe governance-relevant service characteristics. They MUST NOT expose internal infrastructure details. Specifically:
+
+- Database engines, storage backends, or ORM implementations
+- Queue or message broker technologies
+- Internal network topology or service mesh details
+- Language runtimes, framework versions, or dependency information
+
+These details are operational concerns that do not inform agent trust decisions and could create security exposure.
+
 ---
 
 ## 7. Trust Model
@@ -1264,9 +1366,10 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Invocation lineage (§6.3)** | MUST — v0.4 core | Implemented: `invocation_id` (server-generated, `inv-{hex12}`) and `client_reference_id` (caller-supplied, max 256 chars) on every invoke request/response and audit entry | — |
 | **Async storage** | SHOULD — v0.5 | Implemented: fully async storage layer in both runtimes, non-blocking audit writes | — |
 | **Streaming invocations (§6.6)** | MAY — v0.6 | Implemented: `ResponseMode`, `StreamSummary`, SSE transport, progress sink with delivery tracking, sink isolation, error redaction | Backpressure signaling, binary payload support |
+| **Discovery posture (§6.7)** | MAY — v0.7 | Implemented: posture block with audit, lineage, metadata_policy, failure_disclosure, and anchoring sub-objects | — |
 | **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation across services, federated trust |
 
-The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
+The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
 
 **What solving these gaps unlocks.** When trust and verification become real — not declarative — agents can evaluate risk before acting. Delegated authority becomes expressible in ways current tool layers can't handle. Failures become operationally useful, not just descriptive. High-stakes actions — travel, procurement, finance ops, approvals, multi-step orchestration — become automatable with real control surfaces. At that point, ANIP solves one of the central coordination problems of agent deployment: how an agent knows what it's allowed to do, what will happen if it does it, and how to recover when something blocks it.
 
@@ -1295,10 +1398,11 @@ These are unresolved design questions where community input is needed:
 - **Audit log verifiability.** Merkle tree checkpoints with RFC 6962 hash scheme, inclusion and consistency proofs, detached JWS signatures, and external sink publication. Three trust levels: signed (Bronze), anchored (Silver), attested (Gold). *(Resolved in v0.3)*
 - **Invocation traceability.** Server-generated `invocation_id` and caller-supplied `client_reference_id` on every invoke response and audit entry, enabling end-to-end correlation. *(Resolved in v0.4)*
 - **Streaming delivery.** `ResponseMode` enum, SSE transport for progress events, `StreamSummary` with delivery accounting (`events_emitted` vs `events_delivered`, `client_disconnected`), transport fault isolation. *(Resolved in v0.6)*
+- **Governance posture visibility.** Discovery posture block exposes audit, lineage, metadata policy, failure disclosure, and anchoring characteristics. *(Resolved in v0.7)*
 
 ---
 
-*ANIP is an open specification under active development. This is v0.6 — streaming invocations with SSE transport, delivery tracking, and transport fault isolation build on v0.3's anchored trust, v0.4's invocation lineage, and v0.5's async storage. Federated trust and cross-service delegation remain future goals. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
+*ANIP is an open specification under active development. This is v0.7 — discovery posture exposes governance-relevant service characteristics for pre-invocation trust decisions, building on v0.6's streaming invocations, v0.3's anchored trust, v0.4's invocation lineage, and v0.5's async storage. Federated trust and cross-service delegation remain future goals. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
 
 ---
 
