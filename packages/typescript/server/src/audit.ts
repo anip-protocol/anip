@@ -65,6 +65,9 @@ export class AuditLog {
       invocation_id: entryData.invocation_id ?? null,
       client_reference_id: entryData.client_reference_id ?? null,
       stream_summary: entryData.streamSummary ?? entryData.stream_summary ?? null,
+      event_class: entryData.event_class ?? null,
+      retention_tier: entryData.retention_tier ?? null,
+      expires_at: entryData.expires_at ?? null,
       previous_hash: previousHash,
     };
 
@@ -86,6 +89,7 @@ export class AuditLog {
     since?: string;
     invocationId?: string;
     clientReferenceId?: string;
+    eventClass?: string;
     limit?: number;
   }): Promise<Record<string, unknown>[]> {
     return await this._storage.queryAuditEntries(opts);

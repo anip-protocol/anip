@@ -12,10 +12,12 @@ from anip_core import (
     ANIPFailure,
     ANIPManifest,
     AnchoringPosture,
+    AuditPosture,
     CapabilityDeclaration,
     DEFAULT_PROFILE,
     DelegationToken,
     DiscoveryPosture,
+    FailureDisclosure,
     PROTOCOL_VERSION,
     ResponseMode,
     ServiceIdentity,
@@ -29,6 +31,7 @@ from anip_server import (
     CheckpointScheduler,
     DelegationEngine,
     MerkleTree,
+    RetentionEnforcer,
     SQLiteStorage,
     StorageBackend,
     build_manifest,
@@ -37,6 +40,9 @@ from anip_server import (
     CheckpointSink,
 )
 
+from .classification import classify_event
+from .redaction import redact_failure
+from .retention import RetentionPolicy
 from .types import ANIPError, Capability, InvocationContext
 
 
@@ -58,11 +64,17 @@ class ANIPService:
         checkpoint_policy: CheckpointPolicy | None = None,
         audit_signer: Any | None = None,
         authenticate: Callable[[str], str | None] | None = None,
+        retention_policy: RetentionPolicy | None = None,
+        disclosure_level: str = "full",
     ) -> None:
         self._service_id = service_id
+        self._disclosure_level = disclosure_level
 
         # --- Bootstrap authentication ---
         self._authenticate = authenticate
+
+        # --- Retention policy (v0.8) ---
+        self._retention_policy = retention_policy or RetentionPolicy()
 
         # --- Capability registry ---
         self._capabilities: dict[str, Capability] = {}
@@ -151,6 +163,9 @@ class ANIPService:
                 has_new_entries_fn=lambda: self._entries_since_checkpoint > 0,
             )
 
+        # --- Retention enforcer (v0.8) ---
+        self._retention_enforcer = RetentionEnforcer(self._storage, interval_seconds=60)
+
     # --- Public domain-level operations ---
 
     def get_discovery(self, *, base_url: str | None = None) -> dict[str, Any]:
@@ -170,6 +185,11 @@ class ANIPService:
         anchoring_src = self._manifest.trust.anchoring if self._manifest.trust else None
         is_anchored = self._trust_level in ("anchored", "attested")
         posture = DiscoveryPosture(
+            audit=AuditPosture(
+                retention=self._retention_policy.default_retention,
+                retention_enforced=self._retention_enforcer.is_running,
+            ),
+            failure_disclosure=FailureDisclosure(detail_level=self._disclosure_level),
             anchoring=AnchoringPosture(
                 enabled=is_anchored,
                 cadence=anchoring_src.cadence if anchoring_src else None,
@@ -435,10 +455,10 @@ class ANIPService:
         if capability_name not in self._capabilities:
             return {
                 "success": False,
-                "failure": {
+                "failure": redact_failure({
                     "type": "unknown_capability",
                     "detail": f"Capability '{capability_name}' not found",
-                },
+                }, self._disclosure_level),
                 "invocation_id": invocation_id,
                 "client_reference_id": client_reference_id,
             }
@@ -452,10 +472,10 @@ class ANIPService:
             if "streaming" not in response_modes:
                 return {
                     "success": False,
-                    "failure": {
+                    "failure": redact_failure({
                         "type": "streaming_not_supported",
                         "detail": f"Capability '{capability_name}' does not support streaming",
-                    },
+                    }, self._disclosure_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
@@ -473,15 +493,20 @@ class ANIPService:
                 "detail": validation_result.detail,
                 "resolution": validation_result.resolution.model_dump() if hasattr(validation_result.resolution, "model_dump") else validation_result.resolution,
             }
+            _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
+            _event_class = classify_event(_side_effect_type, False, failure["type"])
+            _retention_tier = self._retention_policy.resolve_tier(_event_class)
+            _expires_at = self._retention_policy.compute_expires_at(_retention_tier)
             await self._log_audit(
                 capability_name, token, success=False,
                 failure_type=failure["type"], result_summary=None,
                 cost_actual=None, cost_variance=None,
                 invocation_id=invocation_id, client_reference_id=client_reference_id,
+                event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
             )
             return {
                 "success": False,
-                "failure": failure,
+                "failure": redact_failure(failure, self._disclosure_level),
                 "invocation_id": invocation_id,
                 "client_reference_id": client_reference_id,
             }
@@ -527,15 +552,20 @@ class ANIPService:
         if cap.exclusive_lock:
             lock_result = await self._engine.acquire_exclusive_lock(resolved_token)
             if lock_result is not None:
+                _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
+                _event_class = classify_event(_side_effect_type, False, "concurrent_lock")
+                _retention_tier = self._retention_policy.resolve_tier(_event_class)
+                _expires_at = self._retention_policy.compute_expires_at(_retention_tier)
                 await self._log_audit(
                     capability_name, resolved_token, success=False,
                     failure_type="concurrent_lock",
                     result_summary=None, cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
+                    event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                 )
                 return {
                     "success": False,
-                    "failure": {"type": lock_result.type, "detail": lock_result.detail},
+                    "failure": redact_failure({"type": lock_result.type, "detail": lock_result.detail}, self._disclosure_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
@@ -557,6 +587,10 @@ class ANIPService:
                         "duration_ms": int((time.monotonic() - stream_start) * 1000),
                         "client_disconnected": client_disconnected,
                     }
+                _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
+                _event_class = classify_event(_side_effect_type, False, e.error_type)
+                _retention_tier = self._retention_policy.resolve_tier(_event_class)
+                _expires_at = self._retention_policy.compute_expires_at(_retention_tier)
                 await self._log_audit(
                     capability_name, resolved_token, success=False,
                     failure_type=e.error_type,
@@ -564,10 +598,11 @@ class ANIPService:
                     cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
                     stream_summary=fail_stream_summary,
+                    event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                 )
                 fail_response: dict[str, Any] = {
                     "success": False,
-                    "failure": {"type": e.error_type, "detail": e.detail},
+                    "failure": redact_failure({"type": e.error_type, "detail": e.detail}, self._disclosure_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
@@ -584,16 +619,21 @@ class ANIPService:
                         "duration_ms": int((time.monotonic() - stream_start) * 1000),
                         "client_disconnected": client_disconnected,
                     }
+                _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
+                _event_class = classify_event(_side_effect_type, False, "internal_error")
+                _retention_tier = self._retention_policy.resolve_tier(_event_class)
+                _expires_at = self._retention_policy.compute_expires_at(_retention_tier)
                 await self._log_audit(
                     capability_name, resolved_token, success=False,
                     failure_type="internal_error",
                     result_summary=None, cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
                     stream_summary=fail_stream_summary_exc,
+                    event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                 )
                 fail_response_exc: dict[str, Any] = {
                     "success": False,
-                    "failure": {"type": "internal_error", "detail": "Internal error"},
+                    "failure": redact_failure({"type": "internal_error", "detail": "Internal error"}, self._disclosure_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
@@ -617,6 +657,10 @@ class ANIPService:
                 }
 
             # 8. Log audit (success)
+            _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
+            _event_class = classify_event(_side_effect_type, True, None)
+            _retention_tier = self._retention_policy.resolve_tier(_event_class)
+            _expires_at = self._retention_policy.compute_expires_at(_retention_tier)
             await self._log_audit(
                 capability_name, resolved_token, success=True,
                 failure_type=None,
@@ -625,6 +669,7 @@ class ANIPService:
                 cost_variance=cost_variance,
                 invocation_id=invocation_id, client_reference_id=client_reference_id,
                 stream_summary=stream_summary,
+                event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
             )
 
             # 9. Build response
@@ -661,6 +706,7 @@ class ANIPService:
             since=filters.get("since"),
             invocation_id=filters.get("invocation_id"),
             client_reference_id=filters.get("client_reference_id"),
+            event_class=filters.get("event_class"),
             limit=min(filters.get("limit", 50), 1000),
         )
 
@@ -727,17 +773,20 @@ class ANIPService:
         if options.get("include_proof") and options.get("leaf_index") is not None:
             leaf_index = int(options["leaf_index"])
             last_seq = rng.get("last_sequence", row.get("last_sequence", 0))
-            tree = await self._rebuild_merkle_to(last_seq)
             try:
-                proof = tree.inclusion_proof(leaf_index)
-                result["inclusion_proof"] = {
-                    "leaf_index": leaf_index,
-                    "path": proof,
-                    "merkle_root": tree.root,
-                    "leaf_count": tree.leaf_count,
-                }
-            except (IndexError, ValueError):
-                pass
+                tree = await self._rebuild_merkle_to(last_seq)
+                try:
+                    proof = tree.inclusion_proof(leaf_index)
+                    result["inclusion_proof"] = {
+                        "leaf_index": leaf_index,
+                        "path": proof,
+                        "merkle_root": tree.root,
+                        "leaf_count": tree.leaf_count,
+                    }
+                except (IndexError, ValueError):
+                    pass
+            except ValueError:
+                result["proof_unavailable"] = "audit_entries_expired"
 
         # Consistency proof
         consistency_from = options.get("consistency_from")
@@ -747,33 +796,38 @@ class ANIPService:
                 old_rng = old_row.get("range", {})
                 old_last = old_rng.get("last_sequence", old_row.get("last_sequence", 0))
                 new_last = rng.get("last_sequence", row.get("last_sequence", 0))
-                old_tree = await self._rebuild_merkle_to(old_last)
-                new_tree = await self._rebuild_merkle_to(new_last)
                 try:
-                    path = new_tree.consistency_proof(old_tree.leaf_count)
-                    result["consistency_proof"] = {
-                        "old_checkpoint_id": consistency_from,
-                        "new_checkpoint_id": checkpoint_id,
-                        "old_size": old_tree.leaf_count,
-                        "new_size": new_tree.leaf_count,
-                        "old_root": old_tree.root,
-                        "new_root": new_tree.root,
-                        "path": path,
-                    }
-                except (IndexError, ValueError):
-                    pass
+                    old_tree = await self._rebuild_merkle_to(old_last)
+                    new_tree = await self._rebuild_merkle_to(new_last)
+                    try:
+                        path = new_tree.consistency_proof(old_tree.leaf_count)
+                        result["consistency_proof"] = {
+                            "old_checkpoint_id": consistency_from,
+                            "new_checkpoint_id": checkpoint_id,
+                            "old_size": old_tree.leaf_count,
+                            "new_size": new_tree.leaf_count,
+                            "old_root": old_tree.root,
+                            "new_root": new_tree.root,
+                            "path": path,
+                        }
+                    except (IndexError, ValueError):
+                        pass
+                except ValueError:
+                    result["proof_unavailable"] = "audit_entries_expired"
 
         return result
 
     def start(self) -> None:
-        """Start background services (checkpoint scheduler)."""
+        """Start background services (checkpoint scheduler, retention enforcer)."""
         if self._scheduler:
             self._scheduler.start()
+        self._retention_enforcer.start()
 
     def stop(self) -> None:
         """Stop background services."""
         if self._scheduler:
             self._scheduler.stop()
+        self._retention_enforcer.stop()
 
     # --- Internal helpers ---
 
@@ -790,6 +844,9 @@ class ANIPService:
         invocation_id: str | None = None,
         client_reference_id: str | None = None,
         stream_summary: dict[str, Any] | None = None,
+        event_class: str | None = None,
+        retention_tier: str | None = None,
+        expires_at: str | None = None,
     ) -> None:
         """Log an audit entry through the SDK's AuditLog."""
         chain = await self._engine.get_chain(token)
@@ -805,6 +862,9 @@ class ANIPService:
             "invocation_id": invocation_id,
             "client_reference_id": client_reference_id,
             "stream_summary": stream_summary,
+            "event_class": event_class,
+            "retention_tier": retention_tier,
+            "expires_at": expires_at,
         })
 
         self._entries_since_checkpoint += 1
@@ -839,6 +899,11 @@ class ANIPService:
     async def _rebuild_merkle_to(self, sequence_number: int) -> MerkleTree:
         """Rebuild a Merkle tree from audit entries 1..sequence_number."""
         entries = await self._storage.get_audit_entries_range(1, sequence_number)
+        if len(entries) < sequence_number:
+            raise ValueError(
+                f"Cannot rebuild proof: audit entries have been deleted by retention enforcement. "
+                f"Expected {sequence_number} entries, found {len(entries)}."
+            )
         tree = MerkleTree()
         for row in entries:
             filtered = {

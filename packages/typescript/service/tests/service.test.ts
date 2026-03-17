@@ -93,7 +93,7 @@ describe("ANIPService construction", () => {
     const ad = disc.anip_discovery;
 
     // Required fields per SPEC.md §6.1
-    expect(ad.protocol).toBe("anip/0.7");
+    expect(ad.protocol).toBe("anip/0.8");
     expect(ad.compliance).toBe("anip-compliant");
     expect(ad.base_url).toBe("https://test.example.com");
     expect(ad.profile.core).toBe("1.0");
@@ -150,7 +150,7 @@ describe("ANIPService construction", () => {
     expect(posture.lineage.client_reference_id.max_length).toBe(256);
     expect(posture.metadata_policy.bounded_lineage).toBe(true);
     expect(posture.metadata_policy.freeform_context).toBe(false);
-    expect(posture.failure_disclosure.detail_level).toBe("redacted");
+    expect(posture.failure_disclosure.detail_level).toBe("full");
     expect(posture.anchoring.enabled).toBe(false);
     expect(posture.anchoring.proofs_available).toBe(false);
   });
@@ -175,6 +175,14 @@ describe("ANIPService construction", () => {
     expect(posture.anchoring.cadence).toBe("PT30S");
     expect(posture.anchoring.max_lag).toBe(120);
     expect(posture.anchoring.proofs_available).toBe(true);
+  });
+
+  it("discovery posture retention_enforced false before start", () => {
+    const { service } = makeService();
+    const doc = service.getDiscovery();
+    const posture = (doc.anip_discovery as Record<string, unknown>).posture as Record<string, unknown>;
+    const audit = posture.audit as Record<string, unknown>;
+    expect(audit.retention_enforced).toBe(false);
   });
 
   it("discovery posture: anchored without checkpoint policy has no proofs", () => {
@@ -437,6 +445,138 @@ describe("ANIPService token lifecycle", () => {
         capability: "greet",
       }),
     ).rejects.toThrow("insufficient_authority");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Event classification in audit (v0.8)
+// ---------------------------------------------------------------------------
+
+describe("ANIPService event classification in audit", () => {
+  it("successful read invocation stores low_risk_success", async () => {
+    const { service, storage } = makeService();
+    const token = await issueTestToken(storage);
+    const result = await service.invoke("greet", token, { name: "World" });
+    expect(result.success).toBe(true);
+
+    const auditResult = await service.queryAudit(token);
+    const entries = (auditResult as any).entries as Record<string, unknown>[];
+    expect(entries.length).toBeGreaterThanOrEqual(1);
+    const entry = entries[0];
+    expect(entry.event_class).toBe("low_risk_success");
+    expect(entry.retention_tier).toBe("short");
+    expect(entry.expires_at).toBeDefined();
+    expect(entry.expires_at).not.toBeNull();
+  });
+
+  it("failed invocation (ANIPError) stores correct event_class", async () => {
+    const failCap = defineCapability({
+      declaration: {
+        name: "fail_cap",
+        description: "Always fails",
+        contract_version: "1.0",
+        inputs: [],
+        output: { type: "object", fields: [] },
+        side_effect: { type: "read", rollback_window: null },
+        minimum_scope: ["test"],
+      } as CapabilityDeclaration,
+      handler: () => {
+        throw new ANIPError("not_found", "Thing not found");
+      },
+    });
+    const { service, storage } = makeService({ caps: [failCap] });
+    const token = await issueTestToken(storage, {
+      scope: ["test"],
+      capability: "fail_cap",
+    });
+    const result = await service.invoke("fail_cap", token, {});
+    expect(result.success).toBe(false);
+
+    const auditResult = await service.queryAudit(token);
+    const entries = (auditResult as any).entries as Record<string, unknown>[];
+    expect(entries.length).toBeGreaterThanOrEqual(1);
+    const entry = entries[0];
+    // "not_found" is not in MALFORMED_FAILURE_TYPES -> high_risk_denial
+    expect(entry.event_class).toBe("high_risk_denial");
+    expect(entry.retention_tier).toBe("medium");
+    expect(entry.expires_at).not.toBeNull();
+  });
+
+  it("unexpected error stores malformed_or_spam", async () => {
+    const crashCap = defineCapability({
+      declaration: {
+        name: "crash_cap",
+        description: "Crashes",
+        contract_version: "1.0",
+        inputs: [],
+        output: { type: "object", fields: [] },
+        side_effect: { type: "read", rollback_window: null },
+        minimum_scope: ["test"],
+      } as CapabilityDeclaration,
+      handler: () => {
+        throw new Error("boom");
+      },
+    });
+    const { service, storage } = makeService({ caps: [crashCap] });
+    const token = await issueTestToken(storage, {
+      scope: ["test"],
+      capability: "crash_cap",
+    });
+    const result = await service.invoke("crash_cap", token, {});
+    expect(result.success).toBe(false);
+
+    const auditResult = await service.queryAudit(token);
+    const entries = (auditResult as any).entries as Record<string, unknown>[];
+    expect(entries.length).toBeGreaterThanOrEqual(1);
+    const entry = entries[0];
+    // "internal_error" IS in MALFORMED_FAILURE_TYPES -> malformed_or_spam
+    expect(entry.event_class).toBe("malformed_or_spam");
+    expect(entry.retention_tier).toBe("short");
+    expect(entry.expires_at).not.toBeNull();
+  });
+
+  it("write capability success stores high_risk_success", async () => {
+    const writeCap = defineCapability({
+      declaration: {
+        name: "write_cap",
+        description: "A write capability",
+        contract_version: "1.0",
+        inputs: [],
+        output: { type: "object", fields: [] },
+        side_effect: { type: "write", rollback_window: "PT1H" },
+        minimum_scope: ["write"],
+      } as CapabilityDeclaration,
+      handler: () => ({ written: true }),
+    });
+    const { service, storage } = makeService({ caps: [writeCap] });
+    const token = await issueTestToken(storage, {
+      scope: ["write"],
+      capability: "write_cap",
+    });
+    const result = await service.invoke("write_cap", token, {});
+    expect(result.success).toBe(true);
+
+    const auditResult = await service.queryAudit(token);
+    const entries = (auditResult as any).entries as Record<string, unknown>[];
+    expect(entries.length).toBeGreaterThanOrEqual(1);
+    const entry = entries[0];
+    expect(entry.event_class).toBe("high_risk_success");
+    expect(entry.retention_tier).toBe("long");
+    expect(entry.expires_at).not.toBeNull();
+  });
+
+  it("queryAudit event_class filter works", async () => {
+    const { service, storage } = makeService();
+    const token = await issueTestToken(storage);
+
+    // Successful invocation -> low_risk_success
+    await service.invoke("greet", token, { name: "World" });
+
+    const filtered = await service.queryAudit(token, { event_class: "low_risk_success" });
+    expect((filtered as any).count).toBeGreaterThanOrEqual(1);
+
+    const filteredEmpty = await service.queryAudit(token, { event_class: "high_risk_success" });
+    expect((filteredEmpty as any).count).toBe(0);
   });
 });
 

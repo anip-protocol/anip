@@ -29,7 +29,9 @@ from .models import (
     DelegationConstraints,
     DelegationToken,
     DeniedCapability,
+    DisclosureLevel,
     DiscoveryPosture,
+    EventClass,
     FailureDisclosure,
     InvokeRequest,
     InvokeResponse,
@@ -43,6 +45,7 @@ from .models import (
     Resolution,
     ResponseMode,
     RestrictedCapability,
+    RetentionTier,
     ServiceIdentity,
     SessionInfo,
     SessionType,
@@ -66,7 +69,10 @@ __all__ = [
     # Enums
     "ConcurrentBranches",
     "CostCertainty",
+    "DisclosureLevel",
+    "EventClass",
     "ResponseMode",
+    "RetentionTier",
     "SessionType",
     "SideEffectType",
     # Models

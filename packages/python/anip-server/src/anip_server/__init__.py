@@ -7,6 +7,7 @@ from .merkle import MerkleTree
 from .checkpoint import create_checkpoint, CheckpointPolicy, CheckpointScheduler
 from .sinks import CheckpointSink, LocalFileSink
 from .storage import StorageBackend, SQLiteStorage, InMemoryStorage
+from .retention_enforcer import RetentionEnforcer
 
 __all__ = [
     "DelegationEngine",
@@ -22,4 +23,5 @@ __all__ = [
     "StorageBackend",
     "SQLiteStorage",
     "InMemoryStorage",
+    "RetentionEnforcer",
 ]

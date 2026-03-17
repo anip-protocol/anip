@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anip.dev/schema/v0.7/discovery.schema.json",
+  "$id": "https://anip.dev/schema/v0.8/discovery.schema.json",
   "title": "ANIP Discovery Document",
   "description": "Schema for the /.well-known/anip discovery endpoint response. See SPEC.md §6.1.",
   "type": "object",
@@ -116,8 +116,12 @@
                 "signed": { "type": "boolean", "description": "Whether audit entries are signed" },
                 "queryable": { "type": "boolean", "description": "Whether audit log is queryable via endpoint" },
                 "retention": {
-                  "type": ["string", "null"],
-                  "description": "ISO 8601 duration for audit log retention (e.g., 'P90D'), or null if unspecified"
+                  "type": "string",
+                  "description": "ISO 8601 duration for audit log retention (e.g., 'P90D')"
+                },
+                "retention_enforced": {
+                  "type": "boolean",
+                  "description": "Whether the service actively deletes expired audit entries (v0.8)"
                 }
               },
               "required": ["enabled", "signed", "queryable"],
@@ -165,7 +169,7 @@
               "properties": {
                 "detail_level": {
                   "type": "string",
-                  "enum": ["full", "redacted", "policy"],
+                  "enum": ["full", "reduced", "redacted", "policy"],
                   "description": "How much error detail is surfaced to callers"
                 }
               },

@@ -204,7 +204,7 @@ class ProfileVersions(BaseModel):
 
 
 class ManifestMetadata(BaseModel):
-    version: str = "0.7.0"
+    version: str = "0.8.0"
     sha256: str = ""  # Set at build time
     issued_at: str = ""  # Set at build time
     expires_at: str = ""  # Set at build time
@@ -236,6 +236,30 @@ class TrustPosture(BaseModel):
     policies: list[TrustPolicyTrigger] | None = None
 
 
+# --- Security Hardening Enums (v0.8) ---
+
+
+class EventClass(str, Enum):
+    HIGH_RISK_SUCCESS = "high_risk_success"
+    HIGH_RISK_DENIAL = "high_risk_denial"
+    LOW_RISK_SUCCESS = "low_risk_success"
+    REPEATED_LOW_VALUE_DENIAL = "repeated_low_value_denial"
+    MALFORMED_OR_SPAM = "malformed_or_spam"
+
+
+class RetentionTier(str, Enum):
+    LONG = "long"
+    MEDIUM = "medium"
+    SHORT = "short"
+    AGGREGATE_ONLY = "aggregate_only"
+
+
+class DisclosureLevel(str, Enum):
+    FULL = "full"
+    REDUCED = "reduced"
+    REDACTED = "redacted"
+
+
 # --- Discovery Posture (v0.7) ---
 
 
@@ -243,7 +267,8 @@ class AuditPosture(BaseModel):
     enabled: bool = True
     signed: bool = True
     queryable: bool = True
-    retention: str | None = None
+    retention: str = "P90D"
+    retention_enforced: bool = False
 
 
 class ClientReferenceIdPosture(BaseModel):
@@ -265,7 +290,7 @@ class MetadataPolicy(BaseModel):
 
 
 class FailureDisclosure(BaseModel):
-    detail_level: Literal["full", "redacted", "policy"] = "redacted"
+    detail_level: Literal["full", "reduced", "redacted", "policy"] = "redacted"
 
 
 class AnchoringPosture(BaseModel):
@@ -284,7 +309,7 @@ class DiscoveryPosture(BaseModel):
 
 
 class ANIPManifest(BaseModel):
-    protocol: str = "anip/0.7"
+    protocol: str = "anip/0.8"
     profile: ProfileVersions
     capabilities: dict[str, CapabilityDeclaration]
     manifest_metadata: ManifestMetadata | None = None

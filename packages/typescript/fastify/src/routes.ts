@@ -125,6 +125,7 @@ export function mountAnip(
       since: query.since ?? undefined,
       invocation_id: query.invocation_id ?? undefined,
       client_reference_id: query.client_reference_id ?? undefined,
+      event_class: query.event_class ?? undefined,
       limit: parseInt(query.limit ?? "50", 10),
     };
     return await service.queryAudit(token, filters);

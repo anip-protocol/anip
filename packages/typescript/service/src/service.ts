@@ -25,6 +25,7 @@ import {
   discoverPermissions,
   InMemoryStorage,
   MerkleTree,
+  RetentionEnforcer,
   SQLiteStorage,
   type CheckpointSink,
   type StorageBackend,
@@ -32,6 +33,9 @@ import {
 
 import { ANIPError } from "./types.js";
 import type { CapabilityDef, Handler, InvocationContext } from "./types.js";
+import { classifyEvent } from "./classification.js";
+import { redactFailure } from "./redaction.js";
+import { RetentionPolicy } from "./retention.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -55,6 +59,8 @@ export interface ANIPServiceOpts {
       };
   checkpointPolicy?: CheckpointPolicy;
   authenticate?: (bearer: string) => string | null;
+  retentionPolicy?: RetentionPolicy;
+  disclosureLevel?: string;
 }
 
 export interface ANIPService {
@@ -147,6 +153,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     keyPath,
     authenticate: authenticateFn,
   } = opts;
+
+  // --- Disclosure level (v0.8) ---
+  const disclosureLevel = opts.disclosureLevel ?? "full";
+
+  // --- Retention policy (v0.8) ---
+  const retentionPolicy = opts.retentionPolicy ?? new RetentionPolicy();
 
   // --- Capability registry ---
   const capabilities = new Map<string, CapabilityDef>();
@@ -258,6 +270,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     );
   }
 
+  // --- Retention enforcer (v0.8) ---
+  const retentionEnforcer = new RetentionEnforcer(storage, 60);
+
   // --- Internal helpers ---
 
   async function ensureKeys(): Promise<void> {
@@ -275,6 +290,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       invocationId?: string | null;
       clientReferenceId?: string | null;
       streamSummary?: Record<string, unknown> | null;
+      eventClass?: string | null;
+      retentionTier?: string | null;
+      expiresAt?: string | null;
     },
   ): Promise<void> {
     const chain = await engine.getChain(token);
@@ -290,6 +308,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       invocation_id: auditOpts.invocationId ?? null,
       client_reference_id: auditOpts.clientReferenceId ?? null,
       streamSummary: auditOpts.streamSummary ?? null,
+      event_class: auditOpts.eventClass ?? null,
+      retention_tier: auditOpts.retentionTier ?? null,
+      expires_at: auditOpts.expiresAt ?? null,
     });
 
     entriesSinceCheckpoint++;
@@ -357,6 +378,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
   async function rebuildMerkleTo(sequenceNumber: number): Promise<MerkleTree> {
     const entries = await storage.getAuditEntriesRange(1, sequenceNumber);
+    if (entries.length < sequenceNumber) {
+      throw new Error(
+        `Cannot rebuild proof: audit entries have been deleted by retention enforcement. ` +
+        `Expected ${sequenceNumber} entries, found ${entries.length}.`
+      );
+    }
     const tree = new MerkleTree();
     for (const row of entries) {
       const filtered: Record<string, unknown> = {};
@@ -404,7 +431,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             enabled: true,
             signed: true,
             queryable: true,
-            retention: null,
+            retention: retentionPolicy.defaultRetention,
+            retention_enforced: retentionEnforcer.isRunning(),
           },
           lineage: {
             invocation_id: true,
@@ -421,7 +449,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             downstream_propagation: "minimal",
           },
           failure_disclosure: {
-            detail_level: "redacted",
+            detail_level: disclosureLevel,
           },
           anchoring: {
             enabled: isAnchored,
@@ -714,10 +742,10 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       if (!capabilities.has(capabilityName)) {
         return {
           success: false,
-          failure: {
+          failure: redactFailure({
             type: "unknown_capability",
             detail: `Capability '${capabilityName}' not found`,
-          },
+          }, disclosureLevel),
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,
         };
@@ -734,10 +762,10 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         if (!responseModes.includes("streaming")) {
           return {
             success: false,
-            failure: {
+            failure: redactFailure({
               type: "streaming_not_supported",
               detail: `Capability '${capabilityName}' does not support streaming`,
-            },
+            }, disclosureLevel),
             invocation_id: invocationId,
             client_reference_id: clientReferenceId,
           };
@@ -759,15 +787,22 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           detail: validationResult.detail,
           resolution: validationResult.resolution,
         };
+        const sideEffectType = (decl as any).side_effect?.type ?? null;
+        const eventClass = classifyEvent(sideEffectType, false, failure.type);
+        const retTier = retentionPolicy.resolveTier(eventClass);
+        const expiresAt = retentionPolicy.computeExpiresAt(retTier);
         await logAudit(capabilityName, token, {
           success: false,
           failureType: failure.type,
           invocationId,
           clientReferenceId,
+          eventClass,
+          retentionTier: retTier,
+          expiresAt,
         });
         return {
           success: false,
-          failure,
+          failure: redactFailure(failure, disclosureLevel),
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,
         };
@@ -830,6 +865,10 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         }
 
         // 6. Log audit (success)
+        const sideEffectTypeS = (decl as any).side_effect?.type ?? null;
+        const eventClassS = classifyEvent(sideEffectTypeS, true, null);
+        const retTierS = retentionPolicy.resolveTier(eventClassS);
+        const expiresAtS = retentionPolicy.computeExpiresAt(retTierS);
         await logAudit(capabilityName, resolvedToken, {
           success: true,
           resultSummary: summarizeResult(result),
@@ -837,6 +876,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           invocationId,
           clientReferenceId,
           streamSummary,
+          eventClass: eventClassS,
+          retentionTier: retTierS,
+          expiresAt: expiresAtS,
         });
 
         // 7. Build response
@@ -866,6 +908,10 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           : null;
 
         if (err instanceof ANIPError) {
+          const sideEffectTypeE = (decl as any).side_effect?.type ?? null;
+          const eventClassE = classifyEvent(sideEffectTypeE, false, err.errorType);
+          const retTierE = retentionPolicy.resolveTier(eventClassE);
+          const expiresAtE = retentionPolicy.computeExpiresAt(retTierE);
           await logAudit(capabilityName, resolvedToken, {
             success: false,
             failureType: err.errorType,
@@ -873,10 +919,13 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             invocationId,
             clientReferenceId,
             streamSummary: failStreamSummary,
+            eventClass: eventClassE,
+            retentionTier: retTierE,
+            expiresAt: expiresAtE,
           });
           const response: Record<string, unknown> = {
             success: false,
-            failure: { type: err.errorType, detail: err.detail },
+            failure: redactFailure({ type: err.errorType, detail: err.detail }, disclosureLevel),
             invocation_id: invocationId,
             client_reference_id: clientReferenceId,
           };
@@ -887,16 +936,23 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         }
 
         // Unexpected error — do NOT leak details
+        const sideEffectTypeU = (decl as any).side_effect?.type ?? null;
+        const eventClassU = classifyEvent(sideEffectTypeU, false, "internal_error");
+        const retTierU = retentionPolicy.resolveTier(eventClassU);
+        const expiresAtU = retentionPolicy.computeExpiresAt(retTierU);
         await logAudit(capabilityName, resolvedToken, {
           success: false,
           failureType: "internal_error",
           invocationId,
           clientReferenceId,
           streamSummary: failStreamSummary,
+          eventClass: eventClassU,
+          retentionTier: retTierU,
+          expiresAt: expiresAtU,
         });
         const response: Record<string, unknown> = {
           success: false,
-          failure: { type: "internal_error", detail: "Internal error" },
+          failure: redactFailure({ type: "internal_error", detail: "Internal error" }, disclosureLevel),
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,
         };
@@ -920,6 +976,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         since: f.since as string | undefined,
         invocationId: f.invocation_id as string | undefined,
         clientReferenceId: f.client_reference_id as string | undefined,
+        eventClass: f.event_class as string | undefined,
         limit: Math.min((f.limit as number) ?? 50, 1000),
       });
 
@@ -989,17 +1046,25 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         const leafIndex = opts2.leaf_index as number;
         const lastSeq =
           rng.last_sequence ?? (row.last_sequence as number) ?? 0;
-        const tree = await rebuildMerkleTo(lastSeq);
         try {
-          const proof = tree.inclusionProof(leafIndex);
-          result.inclusion_proof = {
-            leaf_index: leafIndex,
-            path: proof,
-            merkle_root: tree.root,
-            leaf_count: tree.leafCount,
-          };
-        } catch {
-          // index out of range — skip
+          const tree = await rebuildMerkleTo(lastSeq);
+          try {
+            const proof = tree.inclusionProof(leafIndex);
+            result.inclusion_proof = {
+              leaf_index: leafIndex,
+              path: proof,
+              merkle_root: tree.root,
+              leaf_count: tree.leafCount,
+            };
+          } catch {
+            // index out of range — skip
+          }
+        } catch (err: unknown) {
+          if (err instanceof Error && err.message.includes("audit entries have been deleted")) {
+            result.proof_unavailable = "audit_entries_expired";
+          } else {
+            throw err;
+          }
         }
       }
 
@@ -1013,21 +1078,29 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             oldRng.last_sequence ?? (oldRow.last_sequence as number) ?? 0;
           const newLast =
             rng.last_sequence ?? (row.last_sequence as number) ?? 0;
-          const oldTree = await rebuildMerkleTo(oldLast);
-          const newTree = await rebuildMerkleTo(newLast);
           try {
-            const path = newTree.consistencyProof(oldTree.leafCount);
-            result.consistency_proof = {
-              old_checkpoint_id: consistencyFrom,
-              new_checkpoint_id: checkpointId,
-              old_size: oldTree.leafCount,
-              new_size: newTree.leafCount,
-              old_root: oldTree.root,
-              new_root: newTree.root,
-              path,
-            };
-          } catch {
-            // skip
+            const oldTree = await rebuildMerkleTo(oldLast);
+            const newTree = await rebuildMerkleTo(newLast);
+            try {
+              const path = newTree.consistencyProof(oldTree.leafCount);
+              result.consistency_proof = {
+                old_checkpoint_id: consistencyFrom,
+                new_checkpoint_id: checkpointId,
+                old_size: oldTree.leafCount,
+                new_size: newTree.leafCount,
+                old_root: oldTree.root,
+                new_root: newTree.root,
+                path,
+              };
+            } catch {
+              // skip
+            }
+          } catch (err: unknown) {
+            if (err instanceof Error && err.message.includes("audit entries have been deleted")) {
+              result.proof_unavailable = "audit_entries_expired";
+            } else {
+              throw err;
+            }
           }
         }
       }
@@ -1039,12 +1112,14 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       if (scheduler) {
         scheduler.start();
       }
+      retentionEnforcer.start();
     },
 
     stop(): void {
       if (scheduler) {
         scheduler.stop();
       }
+      retentionEnforcer.stop();
     },
   };
 

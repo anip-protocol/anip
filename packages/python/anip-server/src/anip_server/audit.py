@@ -60,6 +60,9 @@ class AuditLog:
             "invocation_id": entry_data.get("invocation_id"),
             "client_reference_id": entry_data.get("client_reference_id"),
             "stream_summary": entry_data.get("stream_summary"),
+            "event_class": entry_data.get("event_class"),
+            "retention_tier": entry_data.get("retention_tier"),
+            "expires_at": entry_data.get("expires_at"),
             "previous_hash": previous_hash,
         }
 

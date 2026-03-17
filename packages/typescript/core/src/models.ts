@@ -223,6 +223,30 @@ export const TrustPosture = z.object({
 export type TrustPosture = z.infer<typeof TrustPosture>;
 
 // ---------------------------------------------------------------------------
+// Security Hardening Enums (v0.8)
+// ---------------------------------------------------------------------------
+
+export const EventClass = z.enum([
+  "high_risk_success",
+  "high_risk_denial",
+  "low_risk_success",
+  "repeated_low_value_denial",
+  "malformed_or_spam",
+]);
+export type EventClass = z.infer<typeof EventClass>;
+
+export const RetentionTier = z.enum([
+  "long",
+  "medium",
+  "short",
+  "aggregate_only",
+]);
+export type RetentionTier = z.infer<typeof RetentionTier>;
+
+export const DisclosureLevel = z.enum(["full", "reduced", "redacted"]);
+export type DisclosureLevel = z.infer<typeof DisclosureLevel>;
+
+// ---------------------------------------------------------------------------
 // Discovery Posture (v0.7)
 // ---------------------------------------------------------------------------
 
@@ -230,7 +254,8 @@ export const AuditPosture = z.object({
   enabled: z.boolean().default(true),
   signed: z.boolean().default(true),
   queryable: z.boolean().default(true),
-  retention: z.string().nullable().default(null),
+  retention: z.string().default("P90D"),
+  retention_enforced: z.boolean().default(false),
 });
 export type AuditPosture = z.infer<typeof AuditPosture>;
 
@@ -256,7 +281,7 @@ export const MetadataPolicy = z.object({
 export type MetadataPolicy = z.infer<typeof MetadataPolicy>;
 
 export const FailureDisclosure = z.object({
-  detail_level: z.enum(["full", "redacted", "policy"]).default("redacted"),
+  detail_level: z.enum(["full", "reduced", "redacted", "policy"]).default("redacted"),
 });
 export type FailureDisclosure = z.infer<typeof FailureDisclosure>;
 
@@ -293,7 +318,7 @@ export type ProfileVersions = z.infer<typeof ProfileVersions>;
 // --- Manifest Metadata (v0.2) ---
 
 export const ManifestMetadata = z.object({
-  version: z.string().default("0.7.0"),
+  version: z.string().default("0.8.0"),
   sha256: z.string(),
   issued_at: z.string(),
   expires_at: z.string(),
@@ -310,7 +335,7 @@ export const ServiceIdentity = z.object({
 export type ServiceIdentity = z.infer<typeof ServiceIdentity>;
 
 export const ANIPManifest = z.object({
-  protocol: z.string().default("anip/0.7"),
+  protocol: z.string().default("anip/0.8"),
   profile: ProfileVersions,
   capabilities: z.record(CapabilityDeclaration),
   manifest_metadata: ManifestMetadata.nullable().default(null),

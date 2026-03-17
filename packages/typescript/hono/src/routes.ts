@@ -151,6 +151,7 @@ export function mountAnip(
       since: url.searchParams.get("since") ?? undefined,
       invocation_id: url.searchParams.get("invocation_id") ?? undefined,
       client_reference_id: url.searchParams.get("client_reference_id") ?? undefined,
+      event_class: url.searchParams.get("event_class") ?? undefined,
       limit: parseInt(url.searchParams.get("limit") ?? "50", 10),
     };
     return c.json(await service.queryAudit(token, filters));

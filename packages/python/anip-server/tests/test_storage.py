@@ -357,6 +357,148 @@ async def test_audit_no_filters_returns_all():
 # Backend compliance suite (parametrized across both backends)
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# v0.8: event_class, retention_tier, expires_at tests — SQLiteStorage
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_sqlite_store_and_query_audit_entry_with_event_class(tmp_path):
+    """v0.8: audit entries include event_class, retention_tier, expires_at."""
+    storage = SQLiteStorage(str(tmp_path / "test.db"))
+    entry = {
+        "sequence_number": 1, "timestamp": "2026-03-16T12:00:00Z",
+        "capability": "test.cap", "token_id": "t1", "issuer": "svc",
+        "subject": "agent", "root_principal": "human", "parameters": None,
+        "success": True, "result_summary": None, "failure_type": None,
+        "cost_actual": None, "delegation_chain": None, "invocation_id": "inv-1",
+        "client_reference_id": None, "stream_summary": None,
+        "previous_hash": "sha256:0000", "signature": None,
+        "event_class": "high_risk_success", "retention_tier": "long",
+        "expires_at": "2027-03-16T12:00:00Z",
+    }
+    await storage.store_audit_entry(entry)
+    rows = await storage.query_audit_entries(capability="test.cap")
+    assert len(rows) == 1
+    assert rows[0]["event_class"] == "high_risk_success"
+    assert rows[0]["retention_tier"] == "long"
+    assert rows[0]["expires_at"] == "2027-03-16T12:00:00Z"
+
+
+@pytest.mark.asyncio
+async def test_sqlite_query_audit_entries_by_event_class(tmp_path):
+    storage = SQLiteStorage(str(tmp_path / "test.db"))
+    base = {
+        "timestamp": "2026-03-16T12:00:00Z", "capability": "test.cap",
+        "token_id": "t1", "issuer": "svc", "subject": "agent",
+        "root_principal": "human", "parameters": None, "success": True,
+        "result_summary": None, "failure_type": None, "cost_actual": None,
+        "delegation_chain": None, "invocation_id": None,
+        "client_reference_id": None, "stream_summary": None,
+        "previous_hash": "sha256:0000", "signature": None,
+        "retention_tier": "short", "expires_at": "2026-03-23T12:00:00Z",
+    }
+    await storage.store_audit_entry({**base, "sequence_number": 1, "event_class": "high_risk_success"})
+    await storage.store_audit_entry({**base, "sequence_number": 2, "event_class": "malformed_or_spam"})
+    await storage.store_audit_entry({**base, "sequence_number": 3, "event_class": "high_risk_success"})
+    rows = await storage.query_audit_entries(event_class="high_risk_success")
+    assert len(rows) == 2
+    assert all(r["event_class"] == "high_risk_success" for r in rows)
+
+
+@pytest.mark.asyncio
+async def test_sqlite_delete_expired_audit_entries(tmp_path):
+    storage = SQLiteStorage(str(tmp_path / "test.db"))
+    base = {
+        "timestamp": "2026-03-16T12:00:00Z", "capability": "test.cap",
+        "token_id": "t1", "issuer": "svc", "subject": "agent",
+        "root_principal": "human", "parameters": None, "success": True,
+        "result_summary": None, "failure_type": None, "cost_actual": None,
+        "delegation_chain": None, "invocation_id": None,
+        "client_reference_id": None, "stream_summary": None,
+        "previous_hash": "sha256:0000", "signature": None,
+        "event_class": "malformed_or_spam", "retention_tier": "short",
+    }
+    await storage.store_audit_entry({**base, "sequence_number": 1, "expires_at": "2026-03-10T00:00:00Z"})
+    await storage.store_audit_entry({**base, "sequence_number": 2, "expires_at": "2026-03-20T00:00:00Z"})
+    await storage.store_audit_entry({**base, "sequence_number": 3, "expires_at": None})
+    deleted = await storage.delete_expired_audit_entries("2026-03-16T12:00:00Z")
+    assert deleted == 1
+    remaining = await storage.query_audit_entries()
+    assert len(remaining) == 2
+
+
+# ---------------------------------------------------------------------------
+# v0.8: event_class, retention_tier, expires_at tests — InMemoryStorage
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_inmemory_store_and_query_audit_entry_with_event_class():
+    """v0.8: audit entries include event_class, retention_tier, expires_at."""
+    storage = InMemoryStorage()
+    entry = {
+        "sequence_number": 1, "timestamp": "2026-03-16T12:00:00Z",
+        "capability": "test.cap", "token_id": "t1", "issuer": "svc",
+        "subject": "agent", "root_principal": "human", "parameters": None,
+        "success": True, "result_summary": None, "failure_type": None,
+        "cost_actual": None, "delegation_chain": None, "invocation_id": "inv-1",
+        "client_reference_id": None, "stream_summary": None,
+        "previous_hash": "sha256:0000", "signature": None,
+        "event_class": "high_risk_success", "retention_tier": "long",
+        "expires_at": "2027-03-16T12:00:00Z",
+    }
+    await storage.store_audit_entry(entry)
+    rows = await storage.query_audit_entries(capability="test.cap")
+    assert len(rows) == 1
+    assert rows[0]["event_class"] == "high_risk_success"
+    assert rows[0]["retention_tier"] == "long"
+    assert rows[0]["expires_at"] == "2027-03-16T12:00:00Z"
+
+
+@pytest.mark.asyncio
+async def test_inmemory_query_audit_entries_by_event_class():
+    storage = InMemoryStorage()
+    base = {
+        "timestamp": "2026-03-16T12:00:00Z", "capability": "test.cap",
+        "token_id": "t1", "issuer": "svc", "subject": "agent",
+        "root_principal": "human", "parameters": None, "success": True,
+        "result_summary": None, "failure_type": None, "cost_actual": None,
+        "delegation_chain": None, "invocation_id": None,
+        "client_reference_id": None, "stream_summary": None,
+        "previous_hash": "sha256:0000", "signature": None,
+        "retention_tier": "short", "expires_at": "2026-03-23T12:00:00Z",
+    }
+    await storage.store_audit_entry({**base, "sequence_number": 1, "event_class": "high_risk_success"})
+    await storage.store_audit_entry({**base, "sequence_number": 2, "event_class": "malformed_or_spam"})
+    await storage.store_audit_entry({**base, "sequence_number": 3, "event_class": "high_risk_success"})
+    rows = await storage.query_audit_entries(event_class="high_risk_success")
+    assert len(rows) == 2
+    assert all(r["event_class"] == "high_risk_success" for r in rows)
+
+
+@pytest.mark.asyncio
+async def test_inmemory_delete_expired_audit_entries():
+    storage = InMemoryStorage()
+    base = {
+        "timestamp": "2026-03-16T12:00:00Z", "capability": "test.cap",
+        "token_id": "t1", "issuer": "svc", "subject": "agent",
+        "root_principal": "human", "parameters": None, "success": True,
+        "result_summary": None, "failure_type": None, "cost_actual": None,
+        "delegation_chain": None, "invocation_id": None,
+        "client_reference_id": None, "stream_summary": None,
+        "previous_hash": "sha256:0000", "signature": None,
+        "event_class": "malformed_or_spam", "retention_tier": "short",
+    }
+    await storage.store_audit_entry({**base, "sequence_number": 1, "expires_at": "2026-03-10T00:00:00Z"})
+    await storage.store_audit_entry({**base, "sequence_number": 2, "expires_at": "2026-03-20T00:00:00Z"})
+    await storage.store_audit_entry({**base, "sequence_number": 3, "expires_at": None})
+    deleted = await storage.delete_expired_audit_entries("2026-03-16T12:00:00Z")
+    assert deleted == 1
+    remaining = await storage.query_audit_entries()
+    assert len(remaining) == 2
+
+
 from .compliance import ALL_COMPLIANCE_TESTS
 
 

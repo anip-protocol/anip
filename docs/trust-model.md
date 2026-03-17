@@ -2,7 +2,7 @@
 
 > Cryptographic foundations for agent delegation, manifest integrity, audit tamper-evidence, and anchored trust.
 
-This document describes the security architecture of ANIP. v0.2 introduced signed tokens, manifests, and hash-chain audit. v0.3 added Merkle tree checkpoints, trust levels, and external anchoring. v0.4 added invocation lineage. v0.5 added async storage. v0.6 added streaming. v0.7 added discovery posture for governance visibility. For operational guidance (reporting vulnerabilities, deployment, trust modes), see [SECURITY.md](../SECURITY.md).
+This document describes the security architecture of ANIP. v0.2 introduced signed tokens, manifests, and hash-chain audit. v0.3 added Merkle tree checkpoints, trust levels, and external anchoring. v0.4 added invocation lineage. v0.5 added async storage. v0.6 added streaming. v0.7 added discovery posture for governance visibility. v0.8 added security hardening with event classification, retention policies, and failure detail redaction. For operational guidance (reporting vulnerabilities, deployment, trust modes), see [SECURITY.md](../SECURITY.md).
 
 ---
 
