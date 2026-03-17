@@ -1,4 +1,4 @@
-# ANIP Specification v0.7
+# ANIP Specification v0.8
 
 > Agent-Native Interface Protocol — Draft
 
@@ -891,6 +891,24 @@ Note: The checkpoint body does NOT contain a signature field. Checkpoints use th
 
 When `include_proof=true` and `leaf_index` is provided, the response includes an `inclusion_proof` field (see Section 7.4 for proof schemas).
 
+When `include_proof` is `true` but the audit entries required for proof generation have been deleted by retention enforcement (§6.8), the response MUST still return the checkpoint data with HTTP 200. The `inclusion_proof` or `consistency_proof` field MUST be omitted, and the response MUST include a `proof_unavailable` field with value `"audit_entries_expired"`. Checkpoint data (sequence ranges, Merkle roots, signatures) was computed at checkpoint time and remains valid; only proof regeneration — which requires replaying audit entries from live storage — is affected.
+
+Example response when proof is unavailable:
+
+```json
+{
+  "version": "0.3",
+  "service_id": "flights.example.com",
+  "checkpoint_id": "cp_00042",
+  "range": { "from": 1001, "to": 1500 },
+  "merkle_root": "sha256:3a7bd3e2360a8bb...",
+  "previous_checkpoint": "cp_00041",
+  "timestamp": "2026-03-12T06:00:00Z",
+  "entry_count": 500,
+  "proof_unavailable": "audit_entries_expired"
+}
+```
+
 ### 6.6 Streaming Invocations (v0.6)
 
 Capabilities that produce incremental results — search results, generation progress, multi-step computations — MAY declare `response_modes: ["unary", "streaming"]` in their capability declaration. This enables agents to request real-time progress events during invocation.
@@ -972,6 +990,7 @@ Describes the service's audit log characteristics.
 | `signed` | boolean | MUST | Whether audit entries are cryptographically signed (per §7). |
 | `queryable` | boolean | MUST | Whether the audit log is queryable via the `{audit}` endpoint (§6.3). |
 | `retention` | string | MUST | ISO 8601 duration for how long audit entries are retained (e.g., `"P90D"` for 90 days). |
+| `retention_enforced` | boolean | MUST | Whether the service actively deletes expired audit entries. The operational credibility signal: the difference between declaring retention and enforcing it (v0.8). |
 
 A service declaring `queryable: true` MUST advertise the `audit` endpoint in its `endpoints` block.
 
@@ -1004,7 +1023,7 @@ Describes how much detail the service exposes in failure responses.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `detail_level` | string | MUST | One of: `"full"` (detailed error messages including stack context), `"redacted"` (structured errors with generic messages, no internals), or `"minimal"` (error type only, no detail). |
+| `detail_level` | string | MUST | One of: `"full"` (detailed error messages including stack context), `"reduced"` (truncated detail, resolution hints without internal authority structure), `"redacted"` (generic messages per failure type, minimal resolution hints), or `"policy"` (behavior determined by caller class — treated as `"redacted"` in v0.8). |
 
 Services SHOULD use `"redacted"` in production. Failure responses MUST conform to the failure semantics in §4.5 regardless of disclosure level — `detail_level` governs the verbosity of the `detail` field, not the structure of the failure object.
 
@@ -1031,6 +1050,105 @@ Posture fields describe governance-relevant service characteristics. They MUST N
 - Language runtimes, framework versions, or dependency information
 
 These details are operational concerns that do not inform agent trust decisions and could create security exposure.
+
+### 6.8 Security Hardening (v0.8)
+
+v0.8 turns v0.7's declared governance posture into enforceable behavior. Services MUST classify audit events, enforce retention, and redact failure responses based on disclosure level.
+
+#### Event Classification
+
+Every audit entry MUST be assigned an `event_class`. The classification is a pure function of the side-effect type, success/failure outcome, and failure type.
+
+**EventClass values:** `high_risk_success`, `high_risk_denial`, `low_risk_success`, `repeated_low_value_denial`, `malformed_or_spam`.
+
+**Classification table:**
+
+| Side-effect type | Success | Failure (auth/scope/purpose) | Failure (malformed/unknown) |
+|---|---|---|---|
+| `irreversible`, `transactional`, `write` | `high_risk_success` | `high_risk_denial` | `malformed_or_spam` |
+| `read` | `low_risk_success` | `high_risk_denial` | `malformed_or_spam` |
+
+All auth/scope/purpose denials are `high_risk_denial` regardless of side-effect type — a denied read is still an authority boundary event. Failures before capability resolution (invalid token, unknown capability) are `malformed_or_spam`.
+
+`repeated_low_value_denial` exists in the enum but is not assigned by the v0.8 classifier. It is reserved for v0.9 aggregation.
+
+#### Retention Enforcement
+
+Services MUST assign a `retention_tier` and compute an `expires_at` for every audit entry using a two-layer policy model:
+
+```
+classifyEvent(sideEffectType, success, failureType) → EventClass
+RetentionClassPolicy:   EventClass    → RetentionTier
+RetentionTierPolicy:    RetentionTier → Duration | null
+```
+
+**RetentionTier values:** `long`, `medium`, `short`, `aggregate_only`.
+
+**Default class → tier mapping:**
+
+| Event class | Default tier |
+|---|---|
+| `high_risk_success` | `long` |
+| `high_risk_denial` | `medium` |
+| `low_risk_success` | `short` |
+| `repeated_low_value_denial` | `short` |
+| `malformed_or_spam` | `short` |
+
+**Default tier → duration mapping:**
+
+| Tier | Default duration |
+|---|---|
+| `long` | P365D |
+| `medium` | P90D |
+| `short` | P7D |
+| `aggregate_only` | P7D (v0.8 placeholder) |
+
+Both layers are configurable per deployment. `aggregate_only` is a v0.8 compatibility placeholder — treated identically to `short`. True aggregation semantics are deferred to v0.9.
+
+Services SHOULD enforce retention via periodic background cleanup that deletes entries where `expires_at < now()`. When `posture.audit.retention_enforced` is `true` in the discovery document, the service MUST be actively running a retention sweep.
+
+**Checkpoint interaction:** Checkpoints continue to include all entries regardless of event class. Past checkpoint verification remains valid. However, when retention deletes rows that fall within a checkpoint's sequence range, proof generation from live storage is no longer possible. See §6.5 for the `proof_unavailable` response contract.
+
+#### Failure Redaction
+
+Services MUST apply disclosure-level redaction to failure responses at the response boundary — after audit logging, before returning to the caller. Audit storage always records the full unredacted failure.
+
+**DisclosureLevel values:** `full`, `reduced`, `redacted`, `policy`.
+
+**Redaction behavior:**
+
+| Field | `full` | `reduced` | `redacted` |
+|---|---|---|---|
+| `failure.type` | as-is | as-is | as-is |
+| `failure.detail` | as-is | truncated to 200 chars | generic message per failure type |
+| `failure.retry` | as-is | as-is | as-is |
+| `resolution.action` | as-is | as-is | as-is |
+| `resolution.requires` | as-is | as-is | `null` |
+| `resolution.grantable_by` | as-is | `null` | `null` |
+| `resolution.estimated_availability` | as-is | as-is | `null` |
+
+`failure.type` is never redacted — callers always need the failure category for programmatic handling. `reduced` strips internal authority structure (`grantable_by`) while keeping actionable detail. `redacted` replaces `detail` with a fixed generic message per failure type and strips all resolution hints except `action`. Generic messages are a static map in the service, not caller-controlled.
+
+The service owns a single `DisclosureLevel` config value, set at construction. `"policy"` is accepted but treated as `"redacted"` in v0.8 — per-caller disclosure is deferred to v0.9.
+
+#### Audit Entry Fields (v0.8)
+
+Every audit entry MUST include the following fields in addition to existing fields:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `event_class` | EventClass | MUST | Classification of the event. |
+| `retention_tier` | RetentionTier | MUST | Retention tier assigned by class policy. |
+| `expires_at` | string (ISO 8601) or null | MUST | When the entry will be deleted, or null for indefinite retention. |
+
+The `event_class` field MUST be queryable — `query_audit_entries()` accepts an optional `event_class` filter.
+
+#### Explicit Deferrals (v0.9+)
+
+- **Audit aggregation** — collapsing repeated identical low-value failures into summary records. `repeated_low_value_denial` and `aggregate_only` exist as placeholders.
+- **Caller-class-aware redaction** — per-caller disclosure levels. v0.8 applies a single service-wide level.
+- **Storage-side redaction** — filtering persisted fields for low-value events. v0.8 always stores full-fidelity records.
+- **Selective checkpointing** — filtering which events enter the Merkle tree by event class.
 
 ---
 
@@ -1367,9 +1485,10 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Async storage** | SHOULD — v0.5 | Implemented: fully async storage layer in both runtimes, non-blocking audit writes | — |
 | **Streaming invocations (§6.6)** | MAY — v0.6 | Implemented: `ResponseMode`, `StreamSummary`, SSE transport, progress sink with delivery tracking, sink isolation, error redaction | Backpressure signaling, binary payload support |
 | **Discovery posture (§6.7)** | MAY — v0.7 | Implemented: posture block with audit, lineage, metadata_policy, failure_disclosure, and anchoring sub-objects | — |
+| **Security hardening (§6.8)** | MAY — v0.8 | Implemented: event classification, two-layer retention enforcement, failure redaction, proof safety guard | Audit aggregation, caller-class-aware redaction, storage-side redaction |
 | **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation across services, federated trust |
 
-The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
+The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
 
 **What solving these gaps unlocks.** When trust and verification become real — not declarative — agents can evaluate risk before acting. Delegated authority becomes expressible in ways current tool layers can't handle. Failures become operationally useful, not just descriptive. High-stakes actions — travel, procurement, finance ops, approvals, multi-step orchestration — become automatable with real control surfaces. At that point, ANIP solves one of the central coordination problems of agent deployment: how an agent knows what it's allowed to do, what will happen if it does it, and how to recover when something blocks it.
 
@@ -1402,7 +1521,7 @@ These are unresolved design questions where community input is needed:
 
 ---
 
-*ANIP is an open specification under active development. This is v0.7 — discovery posture exposes governance-relevant service characteristics for pre-invocation trust decisions, building on v0.6's streaming invocations, v0.3's anchored trust, v0.4's invocation lineage, and v0.5's async storage. Federated trust and cross-service delegation remain future goals. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
+*ANIP is an open specification under active development. This is v0.8 — security hardening turns declared governance posture into enforceable behavior via event classification, retention enforcement, and failure redaction, building on v0.7's discovery posture, v0.6's streaming invocations, v0.3's anchored trust, v0.4's invocation lineage, and v0.5's async storage. Federated trust and cross-service delegation remain future goals. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
 
 ---
 
