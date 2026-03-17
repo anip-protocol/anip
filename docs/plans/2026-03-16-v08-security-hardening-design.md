@@ -114,7 +114,7 @@ A `RetentionEnforcer` class (both runtimes) that periodically deletes expired au
 - Checkpoints continue to include all entries regardless of event class (no selective checkpointing in v0.8)
 - Past checkpoint verification remains valid — checkpoint proofs reference sequence ranges and Merkle roots computed at checkpoint time
 - However, live storage is no longer a full source of historical reconstruction once retention deletes rows. Deployments requiring full historical replay should configure `long` tier or null duration for relevant event classes.
-- **Proof safety guard:** `_rebuild_merkle_to()` verifies that all expected rows exist before building the tree. If rows have been deleted by retention, proof generation returns a clear `audit_entries_expired` error instead of a silently wrong Merkle root.
+- **Proof safety guard:** `_rebuild_merkle_to()` verifies that all expected rows exist before building the tree. If rows have been deleted by retention, proof generation fails with a clear error. The service-level `get_checkpoint()` catches this and returns the checkpoint with `"proof_unavailable": "audit_entries_expired"` instead of the proof — the checkpoint data is still valid (200 response), but proof generation is gracefully omitted.
 
 ### Audit Entry Fields at Log Time
 

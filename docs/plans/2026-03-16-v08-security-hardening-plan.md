@@ -1438,8 +1438,19 @@ class RetentionEnforcer:
         return await self._storage.delete_expired_audit_entries(now)
 
     def start(self) -> None:
-        """Start background cleanup as an asyncio task."""
-        self._task = asyncio.create_task(self._run())
+        """Start background cleanup as an asyncio task.
+
+        Must be called from within a running event loop (e.g., ASGI startup).
+        The entire ANIPService API is async; this is not a new constraint.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            raise RuntimeError(
+                "RetentionEnforcer.start() requires a running event loop. "
+                "Call from an async context (e.g., ASGI startup hook)."
+            )
+        self._task = loop.create_task(self._run())
 
     def stop(self) -> None:
         """Cancel the background cleanup task."""
@@ -1492,6 +1503,10 @@ export class RetentionEnforcer {
     this._timer = setInterval(() => {
       this.sweep().catch(() => {});
     }, this._interval * 1000);
+    // Allow the timer to not prevent process exit (matches CheckpointScheduler pattern)
+    if (this._timer && typeof this._timer === "object" && "unref" in this._timer) {
+      (this._timer as NodeJS.Timeout).unref();
+    }
   }
 
   stop(): void {
@@ -1513,7 +1528,9 @@ In both runtimes, instantiate `RetentionEnforcer` in the service constructor and
 
 Retention deletes rows from `audit_log`. The existing `_rebuild_merkle_to()` replays from `getAuditEntriesRange(1, N)` — if rows are missing, the Merkle tree will be wrong and proof verification will fail silently.
 
-**Fix:** Before building the tree, verify the replay is complete. If rows are missing, raise/throw a clear error.
+**Fix:** Handle at the `get_checkpoint()` / `getCheckpoint()` service layer, NOT in `_rebuild_merkle_to()` itself. The checkpoint data (sequence numbers, merkle roots, signatures) was computed at checkpoint time and is still valid — only proof generation (which requires replaying entries) fails. So the checkpoint should still be returned with 200; proofs that depend on deleted entries are gracefully omitted with a reason field.
+
+**Approach:** Keep `_rebuild_merkle_to()` throwing a `ValueError`/`Error` on gap detection. In `get_checkpoint()`, wrap the `_rebuild_merkle_to()` calls in try-except/try-catch. On gap error, omit the proof and add `"proof_unavailable": "audit_entries_expired"` to the response. This keeps the error handling at the service layer — no route handler changes needed.
 
 In Python `service.py` `_rebuild_merkle_to()`:
 
@@ -1524,8 +1541,7 @@ async def _rebuild_merkle_to(self, sequence_number: int) -> MerkleTree:
     if len(entries) < sequence_number:
         raise ValueError(
             f"Cannot rebuild proof: audit entries have been deleted by retention enforcement. "
-            f"Expected {sequence_number} entries, found {len(entries)}. "
-            f"Past checkpoints remain independently verifiable."
+            f"Expected {sequence_number} entries, found {len(entries)}."
         )
     tree = MerkleTree()
     for row in entries:
@@ -1537,33 +1553,41 @@ async def _rebuild_merkle_to(self, sequence_number: int) -> MerkleTree:
     return tree
 ```
 
-In TypeScript `service.ts` `rebuildMerkleTo()`:
+In Python `get_checkpoint()`, wrap the existing `_rebuild_merkle_to()` calls:
 
-```typescript
-async function rebuildMerkleTo(sequenceNumber: number): Promise<MerkleTree> {
-  const entries = await storage.getAuditEntriesRange(1, sequenceNumber);
-  if (entries.length < sequenceNumber) {
-    throw new Error(
-      `Cannot rebuild proof: audit entries have been deleted by retention enforcement. ` +
-      `Expected ${sequenceNumber} entries, found ${entries.length}. ` +
-      `Past checkpoints remain independently verifiable.`
-    );
-  }
-  const tree = new MerkleTree();
-  for (const row of entries) {
-    const filtered: Record<string, unknown> = {};
-    for (const key of Object.keys(row).sort()) {
-      if (key !== "signature" && key !== "id") {
-        filtered[key] = row[key];
-      }
-    }
-    tree.addLeaf(Buffer.from(JSON.stringify(filtered)));
-  }
-  return tree;
-}
+```python
+# Inclusion proof
+if options.get("include_proof") and options.get("leaf_index") is not None:
+    leaf_index = int(options["leaf_index"])
+    last_seq = rng.get("last_sequence", row.get("last_sequence", 0))
+    try:
+        tree = await self._rebuild_merkle_to(last_seq)
+        try:
+            proof = tree.inclusion_proof(leaf_index)
+            result["inclusion_proof"] = { ... }
+        except (IndexError, ValueError):
+            pass
+    except ValueError:
+        result["proof_unavailable"] = "audit_entries_expired"
+
+# Consistency proof — same pattern
+if consistency_from:
+    ...
+    try:
+        old_tree = await self._rebuild_merkle_to(old_last)
+        new_tree = await self._rebuild_merkle_to(new_last)
+        try:
+            path = new_tree.consistency_proof(old_tree.leaf_count)
+            result["consistency_proof"] = { ... }
+        except (IndexError, ValueError):
+            pass
+    except ValueError:
+        result["proof_unavailable"] = "audit_entries_expired"
 ```
 
-Add tests for this guard in both runtimes: insert entries, delete some via the storage method, then verify that calling the proof endpoint returns the expected error.
+Apply the same pattern in TypeScript `service.ts` `getCheckpoint()`.
+
+Add tests: insert entries, delete some via storage, then verify that `get_checkpoint()` with `include_proof=True` returns the checkpoint with `proof_unavailable: "audit_entries_expired"` and HTTP 200 (not 500).
 
 **Step 6: Run all tests**
 
@@ -1975,5 +1999,5 @@ Throughout implementation, maintain these invariants:
 5. Response redaction is separate from storage -- callers may see less than stored
 6. `aggregate_only` tier is a placeholder -- treated as `short` in v0.8
 7. `repeated_low_value_denial` exists in enum but is not assigned by classifier
-8. Proof generation fails cleanly if retention has deleted entries from the replay range -- past checkpoints remain independently verifiable, but the service will not generate new proofs over gaps
-9. Python retention enforcement runs in the service's event loop (asyncio task), not a background thread
+8. Proof generation fails gracefully if retention has deleted entries from the replay range -- checkpoint is still returned (200) with `proof_unavailable: "audit_entries_expired"` instead of the proof; past checkpoints remain independently verifiable
+9. Python retention enforcement runs in the service's event loop (asyncio task, not a background thread) and requires a running event loop at `start()` time
