@@ -29,6 +29,7 @@ from anip_server import (
     CheckpointScheduler,
     DelegationEngine,
     MerkleTree,
+    RetentionEnforcer,
     SQLiteStorage,
     StorageBackend,
     build_manifest,
@@ -156,6 +157,9 @@ class ANIPService:
                 create_fn=lambda: self._create_and_publish_checkpoint(),
                 has_new_entries_fn=lambda: self._entries_since_checkpoint > 0,
             )
+
+        # --- Retention enforcer (v0.8) ---
+        self._retention_enforcer = RetentionEnforcer(self._storage, interval_seconds=60)
 
     # --- Public domain-level operations ---
 
@@ -759,17 +763,20 @@ class ANIPService:
         if options.get("include_proof") and options.get("leaf_index") is not None:
             leaf_index = int(options["leaf_index"])
             last_seq = rng.get("last_sequence", row.get("last_sequence", 0))
-            tree = await self._rebuild_merkle_to(last_seq)
             try:
-                proof = tree.inclusion_proof(leaf_index)
-                result["inclusion_proof"] = {
-                    "leaf_index": leaf_index,
-                    "path": proof,
-                    "merkle_root": tree.root,
-                    "leaf_count": tree.leaf_count,
-                }
-            except (IndexError, ValueError):
-                pass
+                tree = await self._rebuild_merkle_to(last_seq)
+                try:
+                    proof = tree.inclusion_proof(leaf_index)
+                    result["inclusion_proof"] = {
+                        "leaf_index": leaf_index,
+                        "path": proof,
+                        "merkle_root": tree.root,
+                        "leaf_count": tree.leaf_count,
+                    }
+                except (IndexError, ValueError):
+                    pass
+            except ValueError:
+                result["proof_unavailable"] = "audit_entries_expired"
 
         # Consistency proof
         consistency_from = options.get("consistency_from")
@@ -779,33 +786,38 @@ class ANIPService:
                 old_rng = old_row.get("range", {})
                 old_last = old_rng.get("last_sequence", old_row.get("last_sequence", 0))
                 new_last = rng.get("last_sequence", row.get("last_sequence", 0))
-                old_tree = await self._rebuild_merkle_to(old_last)
-                new_tree = await self._rebuild_merkle_to(new_last)
                 try:
-                    path = new_tree.consistency_proof(old_tree.leaf_count)
-                    result["consistency_proof"] = {
-                        "old_checkpoint_id": consistency_from,
-                        "new_checkpoint_id": checkpoint_id,
-                        "old_size": old_tree.leaf_count,
-                        "new_size": new_tree.leaf_count,
-                        "old_root": old_tree.root,
-                        "new_root": new_tree.root,
-                        "path": path,
-                    }
-                except (IndexError, ValueError):
-                    pass
+                    old_tree = await self._rebuild_merkle_to(old_last)
+                    new_tree = await self._rebuild_merkle_to(new_last)
+                    try:
+                        path = new_tree.consistency_proof(old_tree.leaf_count)
+                        result["consistency_proof"] = {
+                            "old_checkpoint_id": consistency_from,
+                            "new_checkpoint_id": checkpoint_id,
+                            "old_size": old_tree.leaf_count,
+                            "new_size": new_tree.leaf_count,
+                            "old_root": old_tree.root,
+                            "new_root": new_tree.root,
+                            "path": path,
+                        }
+                    except (IndexError, ValueError):
+                        pass
+                except ValueError:
+                    result["proof_unavailable"] = "audit_entries_expired"
 
         return result
 
     def start(self) -> None:
-        """Start background services (checkpoint scheduler)."""
+        """Start background services (checkpoint scheduler, retention enforcer)."""
         if self._scheduler:
             self._scheduler.start()
+        self._retention_enforcer.start()
 
     def stop(self) -> None:
         """Stop background services."""
         if self._scheduler:
             self._scheduler.stop()
+        self._retention_enforcer.stop()
 
     # --- Internal helpers ---
 
@@ -877,6 +889,11 @@ class ANIPService:
     async def _rebuild_merkle_to(self, sequence_number: int) -> MerkleTree:
         """Rebuild a Merkle tree from audit entries 1..sequence_number."""
         entries = await self._storage.get_audit_entries_range(1, sequence_number)
+        if len(entries) < sequence_number:
+            raise ValueError(
+                f"Cannot rebuild proof: audit entries have been deleted by retention enforcement. "
+                f"Expected {sequence_number} entries, found {len(entries)}."
+            )
         tree = MerkleTree()
         for row in entries:
             filtered = {

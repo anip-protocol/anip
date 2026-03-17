@@ -25,6 +25,7 @@ import {
   discoverPermissions,
   InMemoryStorage,
   MerkleTree,
+  RetentionEnforcer,
   SQLiteStorage,
   type CheckpointSink,
   type StorageBackend,
@@ -264,6 +265,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     );
   }
 
+  // --- Retention enforcer (v0.8) ---
+  const retentionEnforcer = new RetentionEnforcer(storage, 60);
+
   // --- Internal helpers ---
 
   async function ensureKeys(): Promise<void> {
@@ -369,6 +373,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
   async function rebuildMerkleTo(sequenceNumber: number): Promise<MerkleTree> {
     const entries = await storage.getAuditEntriesRange(1, sequenceNumber);
+    if (entries.length < sequenceNumber) {
+      throw new Error(
+        `Cannot rebuild proof: audit entries have been deleted by retention enforcement. ` +
+        `Expected ${sequenceNumber} entries, found ${entries.length}.`
+      );
+    }
     const tree = new MerkleTree();
     for (const row of entries) {
       const filtered: Record<string, unknown> = {};
@@ -1030,17 +1040,21 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         const leafIndex = opts2.leaf_index as number;
         const lastSeq =
           rng.last_sequence ?? (row.last_sequence as number) ?? 0;
-        const tree = await rebuildMerkleTo(lastSeq);
         try {
-          const proof = tree.inclusionProof(leafIndex);
-          result.inclusion_proof = {
-            leaf_index: leafIndex,
-            path: proof,
-            merkle_root: tree.root,
-            leaf_count: tree.leafCount,
-          };
+          const tree = await rebuildMerkleTo(lastSeq);
+          try {
+            const proof = tree.inclusionProof(leafIndex);
+            result.inclusion_proof = {
+              leaf_index: leafIndex,
+              path: proof,
+              merkle_root: tree.root,
+              leaf_count: tree.leafCount,
+            };
+          } catch {
+            // index out of range — skip
+          }
         } catch {
-          // index out of range — skip
+          result.proof_unavailable = "audit_entries_expired";
         }
       }
 
@@ -1054,21 +1068,25 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             oldRng.last_sequence ?? (oldRow.last_sequence as number) ?? 0;
           const newLast =
             rng.last_sequence ?? (row.last_sequence as number) ?? 0;
-          const oldTree = await rebuildMerkleTo(oldLast);
-          const newTree = await rebuildMerkleTo(newLast);
           try {
-            const path = newTree.consistencyProof(oldTree.leafCount);
-            result.consistency_proof = {
-              old_checkpoint_id: consistencyFrom,
-              new_checkpoint_id: checkpointId,
-              old_size: oldTree.leafCount,
-              new_size: newTree.leafCount,
-              old_root: oldTree.root,
-              new_root: newTree.root,
-              path,
-            };
+            const oldTree = await rebuildMerkleTo(oldLast);
+            const newTree = await rebuildMerkleTo(newLast);
+            try {
+              const path = newTree.consistencyProof(oldTree.leafCount);
+              result.consistency_proof = {
+                old_checkpoint_id: consistencyFrom,
+                new_checkpoint_id: checkpointId,
+                old_size: oldTree.leafCount,
+                new_size: newTree.leafCount,
+                old_root: oldTree.root,
+                new_root: newTree.root,
+                path,
+              };
+            } catch {
+              // skip
+            }
           } catch {
-            // skip
+            result.proof_unavailable = "audit_entries_expired";
           }
         }
       }
@@ -1080,12 +1098,14 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       if (scheduler) {
         scheduler.start();
       }
+      retentionEnforcer.start();
     },
 
     stop(): void {
       if (scheduler) {
         scheduler.stop();
       }
+      retentionEnforcer.stop();
     },
   };
 
