@@ -109,6 +109,64 @@ class TestANIPServiceInit:
         )
         assert service._storage is not None
 
+    def test_discovery_includes_posture(self):
+        service = ANIPService(
+            service_id="test-service",
+            capabilities=[_test_cap()],
+            storage=":memory:",
+        )
+        disc = service.get_discovery()
+        posture = disc["anip_discovery"]["posture"]
+        assert posture["audit"]["enabled"] is True
+        assert posture["audit"]["signed"] is True
+        assert posture["audit"]["queryable"] is True
+        assert posture["lineage"]["invocation_id"] is True
+        assert posture["lineage"]["client_reference_id"]["supported"] is True
+        assert posture["lineage"]["client_reference_id"]["max_length"] == 256
+        assert posture["metadata_policy"]["bounded_lineage"] is True
+        assert posture["metadata_policy"]["freeform_context"] is False
+        assert posture["failure_disclosure"]["detail_level"] == "redacted"
+        assert posture["anchoring"]["enabled"] is False
+        assert posture["anchoring"]["proofs_available"] is False
+
+    def test_discovery_posture_anchored_with_policy(self):
+        from anip_server import LocalFileSink, CheckpointPolicy
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            service = ANIPService(
+                service_id="test-service",
+                capabilities=[_test_cap()],
+                storage=":memory:",
+                trust={
+                    "level": "anchored",
+                    "anchoring": {
+                        "cadence": "PT30S",
+                        "max_lag": 120,
+                        "sinks": [LocalFileSink(directory=tmpdir)],
+                    },
+                },
+                checkpoint_policy=CheckpointPolicy(entry_count=100),
+            )
+            disc = service.get_discovery()
+            posture = disc["anip_discovery"]["posture"]
+            assert posture["anchoring"]["enabled"] is True
+            assert posture["anchoring"]["cadence"] == "PT30S"
+            assert posture["anchoring"]["max_lag"] == 120
+            assert posture["anchoring"]["proofs_available"] is True
+
+    def test_discovery_posture_anchored_without_policy(self):
+        """Anchored trust without checkpoint policy — proofs NOT available."""
+        service = ANIPService(
+            service_id="test-service",
+            capabilities=[_test_cap()],
+            storage=":memory:",
+            trust={"level": "anchored", "anchoring": {"cadence": "PT30S", "max_lag": 120}},
+        )
+        disc = service.get_discovery()
+        posture = disc["anip_discovery"]["posture"]
+        assert posture["anchoring"]["enabled"] is True
+        assert posture["anchoring"]["proofs_available"] is False
+
 
 class TestANIPServiceInvoke:
     def _make_service(self, caps=None):

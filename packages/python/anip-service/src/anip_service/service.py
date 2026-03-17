@@ -11,9 +11,11 @@ from typing import Any, Awaitable, Callable
 from anip_core import (
     ANIPFailure,
     ANIPManifest,
+    AnchoringPosture,
     CapabilityDeclaration,
     DEFAULT_PROFILE,
     DelegationToken,
+    DiscoveryPosture,
     PROTOCOL_VERSION,
     ResponseMode,
     ServiceIdentity,
@@ -164,6 +166,18 @@ class ANIPService:
                 "contract": decl.contract_version,
             }
 
+        # Build posture from existing service state (v0.7)
+        anchoring_src = self._manifest.trust.anchoring if self._manifest.trust else None
+        is_anchored = self._trust_level in ("anchored", "attested")
+        posture = DiscoveryPosture(
+            anchoring=AnchoringPosture(
+                enabled=is_anchored,
+                cadence=anchoring_src.cadence if anchoring_src else None,
+                max_lag=anchoring_src.max_lag if anchoring_src else None,
+                proofs_available=is_anchored and self._checkpoint_policy is not None,
+            ),
+        )
+
         doc: dict[str, Any] = {
             "protocol": PROTOCOL_VERSION,
             "compliance": "anip-compliant",
@@ -175,6 +189,7 @@ class ANIPService:
             },
             "capabilities": caps_summary,
             "trust_level": self._trust_level,
+            "posture": posture.model_dump(),
             "endpoints": {
                 "manifest": "/anip/manifest",
                 "permissions": "/anip/permissions",
