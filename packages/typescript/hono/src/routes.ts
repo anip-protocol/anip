@@ -11,7 +11,10 @@ export function mountAnip(
   const p = opts?.prefix ?? "";
 
   // --- Discovery & Identity ---
-  app.get(`${p}/.well-known/anip`, (c) => c.json(service.getDiscovery()));
+  app.get(`${p}/.well-known/anip`, (c) => {
+    const baseUrl = new URL(c.req.url).origin;
+    return c.json(service.getDiscovery({ baseUrl }));
+  });
 
   app.get(`${p}/.well-known/jwks.json`, async (c) => {
     const jwks = await service.getJwks();

@@ -43,10 +43,44 @@ class TestANIPServiceInit:
             capabilities=[_test_cap()],
             storage=":memory:",
         )
+        disc = service.get_discovery(base_url="https://test.example.com")
+        ad = disc["anip_discovery"]
+
+        # Required fields per SPEC.md §6.1
+        assert ad["protocol"] == "anip/0.7"
+        assert ad["compliance"] == "anip-compliant"
+        assert ad["base_url"] == "https://test.example.com"
+        assert ad["profile"]["core"] == "1.0"
+        assert ad["auth"]["delegation_token_required"] is True
+        assert ad["auth"]["minimum_scope_for_discovery"] == "none"
+
+        # Capability summary shape
+        greet = ad["capabilities"]["greet"]
+        assert greet["description"] == "Say hello"
+        assert greet["side_effect"] == "read"
+        assert greet["minimum_scope"] == ["greet"]
+        assert greet["financial"] is False
+        assert greet["contract"] == "1.0"
+        assert "contract_version" not in greet
+
+        # Trust and endpoints — only actually implemented endpoints
+        assert ad["trust_level"] == "signed"
+        assert ad["endpoints"]["manifest"] == "/anip/manifest"
+        assert ad["endpoints"]["permissions"] == "/anip/permissions"
+        assert ad["endpoints"]["invoke"] == "/anip/invoke/{capability}"
+        assert ad["endpoints"]["tokens"] == "/anip/tokens"
+        assert ad["endpoints"]["audit"] == "/anip/audit"
+        assert ad["endpoints"]["checkpoints"] == "/anip/checkpoints"
+        assert "handshake" not in ad["endpoints"]  # not implemented
+
+    def test_discovery_omits_base_url_when_not_passed(self):
+        service = ANIPService(
+            service_id="test-service",
+            capabilities=[_test_cap()],
+            storage=":memory:",
+        )
         disc = service.get_discovery()
-        assert "anip_discovery" in disc
-        assert "greet" in disc["anip_discovery"]["capabilities"]
-        assert disc["anip_discovery"]["trust_level"] == "signed"
+        assert "base_url" not in disc["anip_discovery"]
 
     def test_jwks_available(self):
         service = ANIPService(

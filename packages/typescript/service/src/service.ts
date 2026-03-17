@@ -13,6 +13,7 @@ import type {
   CapabilityDeclaration,
   DelegationToken,
 } from "@anip/core";
+import { PROTOCOL_VERSION, DEFAULT_PROFILE } from "@anip/core";
 import { KeyManager } from "@anip/crypto";
 import {
   AuditLog,
@@ -57,7 +58,7 @@ export interface ANIPServiceOpts {
 }
 
 export interface ANIPService {
-  getDiscovery(): Record<string, unknown>;
+  getDiscovery(opts?: { baseUrl?: string }): Record<string, unknown>;
   getManifest(): ANIPManifest;
   getSignedManifest(): Promise<[Uint8Array, string]>;
   getJwks(): Promise<Record<string, unknown>>;
@@ -372,7 +373,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   // --- Build service object ---
 
   const service: ANIPService = {
-    getDiscovery(): Record<string, unknown> {
+    getDiscovery(opts?: { baseUrl?: string }): Record<string, unknown> {
       const capsSummary: Record<string, unknown> = {};
       for (const [name, cap] of capabilities) {
         const decl = cap.declaration;
@@ -380,26 +381,38 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           description: decl.description,
           side_effect: decl.side_effect?.type ?? null,
           minimum_scope: decl.minimum_scope,
-          contract_version: decl.contract_version,
+          financial: decl.cost?.financial != null,
+          contract: decl.contract_version,
         };
       }
 
-      return {
-        anip_discovery: {
-          profile: "full",
-          capabilities: capsSummary,
-          trust_level: trustLevel,
-          endpoints: {
-            manifest: "/anip/manifest",
-            tokens: "/anip/tokens",
-            invoke: "/anip/invoke/{capability}",
-            permissions: "/anip/permissions",
-            audit: "/anip/audit",
-            checkpoints: "/anip/checkpoints",
-            jwks: "/.well-known/jwks.json",
-          },
+      const doc: Record<string, unknown> = {
+        protocol: PROTOCOL_VERSION,
+        compliance: "anip-compliant",
+        profile: { ...DEFAULT_PROFILE },
+        auth: {
+          delegation_token_required: true,
+          supported_formats: ["anip-v1"],
+          minimum_scope_for_discovery: "none",
+        },
+        capabilities: capsSummary,
+        trust_level: trustLevel,
+        endpoints: {
+          manifest: "/anip/manifest",
+          permissions: "/anip/permissions",
+          invoke: "/anip/invoke/{capability}",
+          tokens: "/anip/tokens",
+          audit: "/anip/audit",
+          checkpoints: "/anip/checkpoints",
+          jwks: "/.well-known/jwks.json",
         },
       };
+
+      if (opts?.baseUrl) {
+        doc.base_url = opts.baseUrl;
+      }
+
+      return { anip_discovery: doc };
     },
 
     getManifest(): ANIPManifest {

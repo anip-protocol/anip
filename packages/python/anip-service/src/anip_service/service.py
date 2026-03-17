@@ -149,8 +149,10 @@ class ANIPService:
 
     # --- Public domain-level operations ---
 
-    def get_discovery(self) -> dict[str, Any]:
-        """Return lightweight discovery document."""
+    def get_discovery(self, *, base_url: str | None = None) -> dict[str, Any]:
+        """Return lightweight discovery document per SPEC.md §6.1."""
+        from anip_core import PROTOCOL_VERSION, DEFAULT_PROFILE
+
         caps_summary = {}
         for name, cap in self._capabilities.items():
             decl = cap.declaration
@@ -158,25 +160,36 @@ class ANIPService:
                 "description": decl.description,
                 "side_effect": decl.side_effect.type.value if decl.side_effect else None,
                 "minimum_scope": decl.minimum_scope,
-                "contract_version": decl.contract_version,
+                "financial": decl.cost is not None and decl.cost.financial is not None,
+                "contract": decl.contract_version,
             }
 
-        return {
-            "anip_discovery": {
-                "profile": "full",
-                "capabilities": caps_summary,
-                "trust_level": self._trust_level,
-                "endpoints": {
-                    "manifest": "/anip/manifest",
-                    "tokens": "/anip/tokens",
-                    "invoke": "/anip/invoke/{capability}",
-                    "permissions": "/anip/permissions",
-                    "audit": "/anip/audit",
-                    "checkpoints": "/anip/checkpoints",
-                    "jwks": "/.well-known/jwks.json",
-                },
-            }
+        doc: dict[str, Any] = {
+            "protocol": PROTOCOL_VERSION,
+            "compliance": "anip-compliant",
+            "profile": DEFAULT_PROFILE,
+            "auth": {
+                "delegation_token_required": True,
+                "supported_formats": ["anip-v1"],
+                "minimum_scope_for_discovery": "none",
+            },
+            "capabilities": caps_summary,
+            "trust_level": self._trust_level,
+            "endpoints": {
+                "manifest": "/anip/manifest",
+                "permissions": "/anip/permissions",
+                "invoke": "/anip/invoke/{capability}",
+                "tokens": "/anip/tokens",
+                "audit": "/anip/audit",
+                "checkpoints": "/anip/checkpoints",
+                "jwks": "/.well-known/jwks.json",
+            },
         }
+
+        if base_url is not None:
+            doc["base_url"] = base_url
+
+        return {"anip_discovery": doc}
 
     def get_manifest(self) -> ANIPManifest:
         """Return the full capability manifest."""

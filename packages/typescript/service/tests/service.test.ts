@@ -89,12 +89,34 @@ describe("ANIPService construction", () => {
 
   it("discovery document structure", () => {
     const { service } = makeService();
+    const disc = service.getDiscovery({ baseUrl: "https://test.example.com" }) as Record<string, any>;
+    const ad = disc.anip_discovery;
+
+    // Required fields per SPEC.md §6.1
+    expect(ad.protocol).toBe("anip/0.7");
+    expect(ad.compliance).toBe("anip-compliant");
+    expect(ad.base_url).toBe("https://test.example.com");
+    expect(ad.profile.core).toBe("1.0");
+    expect(ad.auth.delegation_token_required).toBe(true);
+    expect(ad.auth.minimum_scope_for_discovery).toBe("none");
+
+    // Capability summary shape
+    expect(ad.capabilities["greet"].description).toBe("Say hello");
+    expect(ad.capabilities["greet"].financial).toBe(false);
+    expect(ad.capabilities["greet"].contract).toBe("1.0");
+    expect(ad.capabilities["greet"].contract_version).toBeUndefined();
+
+    // Trust and endpoints — only implemented endpoints
+    expect(ad.trust_level).toBe("signed");
+    expect(ad.endpoints.manifest).toBe("/anip/manifest");
+    expect(ad.endpoints.permissions).toBe("/anip/permissions");
+    expect(ad.endpoints.handshake).toBeUndefined();
+  });
+
+  it("discovery omits base_url when not passed", () => {
+    const { service } = makeService();
     const disc = service.getDiscovery() as Record<string, any>;
-    expect(disc.anip_discovery).toBeDefined();
-    expect(disc.anip_discovery.capabilities["greet"]).toBeDefined();
-    expect(disc.anip_discovery.trust_level).toBe("signed");
-    expect(disc.anip_discovery.endpoints).toBeDefined();
-    expect(disc.anip_discovery.endpoints.manifest).toBe("/anip/manifest");
+    expect(disc.anip_discovery.base_url).toBeUndefined();
   });
 
   it("JWKS available", async () => {

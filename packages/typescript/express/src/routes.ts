@@ -12,8 +12,9 @@ export function mountAnip(
   router.use(express.json());
 
   // --- Discovery & Identity ---
-  router.get("/.well-known/anip", (_req, res) => {
-    res.json(service.getDiscovery());
+  router.get("/.well-known/anip", (req, res) => {
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    res.json(service.getDiscovery({ baseUrl }));
   });
 
   router.get("/.well-known/jwks.json", async (_req, res, next) => {
