@@ -81,5 +81,8 @@ describe("redactFailure", () => {
     const failure = { type: "internal_error", detail: "Something broke", retry: false };
     const result = redactFailure(failure, "redacted");
     expect(result.type).toBe("internal_error");
+    expect(result.detail).toBe("Internal error");
+    expect(result.retry).toBe(false);
+    expect(result.resolution).toBeUndefined();
   });
 });

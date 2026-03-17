@@ -44,25 +44,28 @@ def redact_failure(
         disclosure_level = "redacted"
 
     if disclosure_level == "full":
-        return failure
+        return {**failure}
 
     result = {**failure}
-    resolution = {**(failure.get("resolution") or {})}
+    has_resolution = "resolution" in failure and failure["resolution"] is not None
 
     if disclosure_level == "reduced":
-        resolution["grantable_by"] = None
-        detail = result.get("detail", "")
+        detail = result.get("detail") or ""
         if len(detail) > 200:
             result["detail"] = detail[:200]
+        if has_resolution:
+            resolution = {**failure["resolution"]}
+            resolution["grantable_by"] = None
+            result["resolution"] = resolution
 
     elif disclosure_level == "redacted":
         failure_type = result.get("type", "")
         result["detail"] = _GENERIC_MESSAGES.get(failure_type, _DEFAULT_GENERIC)
-        resolution["requires"] = None
-        resolution["grantable_by"] = None
-        resolution["estimated_availability"] = None
-
-    if resolution:
-        result["resolution"] = resolution
+        if has_resolution:
+            resolution = {**failure["resolution"]}
+            resolution["requires"] = None
+            resolution["grantable_by"] = None
+            resolution["estimated_availability"] = None
+            result["resolution"] = resolution
 
     return result

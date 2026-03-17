@@ -32,28 +32,33 @@ export function redactFailure(
   }
 
   if (level === "full") {
-    return failure;
+    return { ...failure };
   }
 
   const result = { ...failure };
-  const resolution = { ...((failure.resolution as Record<string, unknown>) || {}) };
+  const hasResolution =
+    failure.resolution != null && typeof failure.resolution === "object";
 
   if (level === "reduced") {
-    resolution.grantable_by = null;
-    const detail = (result.detail as string) || "";
+    const detail = String(result.detail ?? "");
     if (detail.length > 200) {
       result.detail = detail.slice(0, 200);
+    }
+    if (hasResolution) {
+      const resolution = { ...(failure.resolution as Record<string, unknown>) };
+      resolution.grantable_by = null;
+      result.resolution = resolution;
     }
   } else if (level === "redacted") {
     const failureType = (result.type as string) || "";
     result.detail = GENERIC_MESSAGES[failureType] || DEFAULT_GENERIC;
-    resolution.requires = null;
-    resolution.grantable_by = null;
-    resolution.estimated_availability = null;
-  }
-
-  if (Object.keys(resolution).length > 0) {
-    result.resolution = resolution;
+    if (hasResolution) {
+      const resolution = { ...(failure.resolution as Record<string, unknown>) };
+      resolution.requires = null;
+      resolution.grantable_by = null;
+      resolution.estimated_availability = null;
+      result.resolution = resolution;
+    }
   }
 
   return result;

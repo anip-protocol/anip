@@ -71,3 +71,6 @@ class TestRedactFailure:
         failure = {"type": "internal_error", "detail": "Something broke", "retry": False}
         result = redact_failure(failure, "redacted")
         assert result["type"] == "internal_error"
+        assert result["detail"] == "Internal error"
+        assert result["retry"] is False
+        assert "resolution" not in result
