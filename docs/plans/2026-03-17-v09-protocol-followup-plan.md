@@ -771,7 +771,12 @@ git commit -m "feat: update retention defaults — aggregate_only P1D, repeated_
 - Modify: `packages/python/anip-service/src/anip_service/__init__.py`
 - Modify: `packages/typescript/service/src/index.ts`
 
-**Context:** Wire the aggregator into the service's audit logging flow. Low-value denial events (classified as `malformed_or_spam` or with pre-auth failures) are routed through the aggregator instead of being logged immediately. A periodic flush emits aggregated entries. The aggregator is optional — services that don't want aggregation can skip it.
+**Context:** Wire the aggregator into the service's audit logging flow. Low-value denial events (classified as `malformed_or_spam` or with pre-auth failures) are routed through the aggregator instead of being logged immediately. Aggregated entries are emitted on closed-window flush. The aggregator is optional — services that don't want aggregation can skip it.
+
+**Important: Flush durability.** The aggregator buffers events until a window closes. To avoid losing the last bucket of denials during quiet periods or process shutdown, the service MUST:
+1. Run a **background flush timer** (similar to the existing RetentionEnforcer pattern) that calls `aggregator.flush(now)` on a periodic interval (e.g., every `window_seconds`).
+2. Call `aggregator.flush(now)` in the service's **`stop()` method** to persist any remaining buffered events before shutdown.
+3. Optionally flush on each `invoke()` call as well, but this is a convenience — the background timer and shutdown hook are the durability guarantees.
 
 **Step 1: Python — Add aggregator to service constructor**
 
@@ -780,7 +785,9 @@ In `service.py`, add:
 - Add `aggregation_window: int | None = None` to `__init__` (None = disabled, integer = window seconds)
 - If enabled, create `self._aggregator = AuditAggregator(window_seconds=aggregation_window)`
 - Modify `_log_audit` to check: if aggregator is enabled and event_class is `malformed_or_spam`, route through aggregator instead of immediate logging
-- Add `_flush_aggregator` method called periodically (on each invoke, flush closed windows)
+- Add `_flush_aggregator` method that calls `self._aggregator.flush(now)` and persists each result via `self._audit.log_entry()`
+- In `start()`: create a background `asyncio.create_task` that periodically flushes (every `aggregation_window` seconds), similar to the retention enforcer pattern
+- In `stop()`: cancel the flush task, then call `_flush_aggregator()` one final time to persist any remaining buffered events
 
 **Step 2: TypeScript — Add aggregator to service**
 
@@ -788,6 +795,8 @@ Same pattern in `service.ts`:
 - Import `AuditAggregator` from `./aggregation.js`
 - Add `aggregationWindow?: number` to `ANIPServiceOpts`
 - Wire into `logAudit` flow
+- In `start()`: create a `setInterval` timer (with `.unref()`) that periodically flushes, matching the RetentionEnforcer pattern
+- In `stop()`: clear the interval, then flush remaining buffered events synchronously
 
 **Step 3: Export new types**
 
@@ -804,7 +813,7 @@ Expected: PASS
 
 ```bash
 git add packages/python/anip-service/src/anip_service/service.py packages/python/anip-service/src/anip_service/__init__.py packages/typescript/service/src/service.ts packages/typescript/service/src/index.ts
-git commit -m "feat: integrate audit aggregator into service invoke flow"
+git commit -m "feat: integrate audit aggregator into service invoke flow with flush durability"
 ```
 
 ---
@@ -1082,9 +1091,9 @@ In `service.ts`:
 
 **Step 3: Add `storage_redacted` column to storage schema**
 
-In both runtimes' SQLite storage:
-- `packages/python/anip-server/src/anip_server/storage.py` — add `storage_redacted INTEGER DEFAULT 0` to the audit_entries CREATE TABLE
-- `packages/typescript/server/src/storage.ts` — same column addition
+In both runtimes' SQLite storage, add `storage_redacted INTEGER DEFAULT 0` to the `audit_log` CREATE TABLE statement:
+- Python: `packages/python/anip-server/src/anip_server/storage.py:191` (the `CREATE TABLE IF NOT EXISTS audit_log` block)
+- TypeScript: `packages/typescript/server/src/sqlite-worker.ts:42` (the `CREATE TABLE IF NOT EXISTS audit_log` block — note: the DDL lives in `sqlite-worker.ts`, not `storage.ts`)
 
 **Step 4: Run full test suites**
 
@@ -1426,22 +1435,46 @@ git commit -m "feat(typescript): add caller-class-aware disclosure resolution"
 
 **Context:** Wire the disclosure resolver into the service. The service gets a new optional `disclosure_policy` config. When `disclosure_level` is `"policy"`, the resolver is called per-invocation with the token's claims. The discovery posture now reports `caller_classes` when in policy mode.
 
-**Step 1: Python — Add disclosure_policy to service constructor**
+**Step 1: Python — Add `caller_class` field to DelegationToken model**
+
+The live `DelegationToken` model (`packages/python/anip-core/src/anip_core/models.py:51`) only carries fixed fields (token_id, issuer, subject, scope, purpose, parent, expires, constraints, root_principal). There is no arbitrary claims field. To support `anip:caller_class`, add an optional `caller_class` field to `DelegationToken`:
+
+```python
+class DelegationToken(BaseModel):
+    # ... existing fields ...
+    caller_class: str | None = None  # optional, issuer-supplied, not trusted alone
+```
+
+Also update the TypeScript `DelegationToken` Zod schema (`packages/typescript/core/src/models.ts:48`):
+
+```typescript
+export const DelegationToken = z.object({
+  // ... existing fields ...
+  caller_class: z.string().nullable().default(null),
+});
+```
+
+This field must also be plumbed through:
+- Token issuance: `TokenRequest` model gets optional `caller_class` field
+- Token storage: the stored token row includes `caller_class`
+- Token verification: the verified `DelegationToken` carries `caller_class` through to the invoke flow
+
+**Step 2: Python — Add disclosure_policy to service constructor**
 
 In `service.py`:
 - Add `disclosure_policy: dict[str, str] | None = None` to `__init__`
 - Store as `self._disclosure_policy`
 - Import `resolve_disclosure_level` from `anip_service.disclosure`
-- Replace `self._disclosure_level` usage in `invoke()`: instead of passing fixed level to `redact_failure`, call `resolve_disclosure_level(self._disclosure_level, token_claims=token_claims, disclosure_policy=self._disclosure_policy)`
-- Extract token claims from the DelegationToken (subject, scope, and any extra claims)
+- Replace `self._disclosure_level` usage in `invoke()`: instead of passing fixed level to `redact_failure`, call `resolve_disclosure_level(self._disclosure_level, token_claims={"anip:caller_class": token.caller_class, "scope": token.scope}, disclosure_policy=self._disclosure_policy)`
+- The token claims dict is built from the `DelegationToken`'s known fields — `caller_class` and `scope` — not from arbitrary JWT claims
 
-**Step 2: Python — Update discovery posture**
+**Step 3: Python — Update discovery posture**
 
 In `get_discovery()`, when `self._disclosure_level == "policy"`:
 - Set `detail_level: "policy"`
 - Add `caller_classes: list(self._disclosure_policy.keys())` if policy exists
 
-**Step 3: Python — Update FailureDisclosure model**
+**Step 4: Python — Update FailureDisclosure model**
 
 In `models.py`, add optional `caller_classes` field:
 ```python
@@ -1450,21 +1483,22 @@ class FailureDisclosure(BaseModel):
     caller_classes: list[str] | None = None
 ```
 
-**Step 4: TypeScript — Same changes**
+**Step 5: TypeScript — Same changes**
 
 Mirror all changes in `service.ts` and `models.ts`:
+- Add `caller_class` to `DelegationToken` Zod schema (see Step 1)
 - Add `disclosurePolicy?: Record<string, string>` to `ANIPServiceOpts`
 - Wire `resolveDisclosureLevel` into invoke flow
 - Update discovery posture
 - Add `caller_classes` to `FailureDisclosure` Zod schema
 
-**Step 5: Run full test suites**
+**Step 6: Run full test suites**
 
 Run: `cd packages/python && python -m pytest -v`
 Run: `cd packages/typescript && npx vitest run`
 Expected: PASS
 
-**Step 6: Commit**
+**Step 7: Commit**
 
 ```bash
 git add packages/python/anip-service/src/anip_service/service.py packages/python/anip-core/src/anip_core/models.py packages/typescript/service/src/service.ts packages/typescript/core/src/models.ts
@@ -1473,7 +1507,7 @@ git commit -m "feat: integrate caller-class disclosure into service and discover
 
 ---
 
-## Task 11: `proof_unavailable` Client Semantics — Schema + Models
+## Task 11: `proof_unavailable` Client Semantics — Schema + Response Model
 
 **Files:**
 - Modify: `schema/anip.schema.json`
@@ -1482,60 +1516,81 @@ git commit -m "feat: integrate caller-class disclosure into service and discover
 - Test: `packages/python/anip-core/tests/test_models.py`
 - Test: `packages/typescript/core/tests/models.test.ts`
 
-**Context:** Add `expires_hint` as an optional field on checkpoint responses. This is a best-effort, informational ISO 8601 timestamp indicating the earliest expected expiration of audit entries in the checkpoint's range.
+**Context:** Add `expires_hint` as an optional field on the **checkpoint response wrapper**, NOT on `CheckpointBody`. `CheckpointBody` is the signed/stored canonical checkpoint artifact created by `create_checkpoint()` — baking a non-contractual, retention-derived hint into it would corrupt the signed form. Instead, `expires_hint` belongs on the response wrapper that the service returns from `get_checkpoint()` / `getCheckpoint()`.
+
+Create a new `CheckpointDetailResponse` model that wraps `CheckpointBody` with response-only fields:
 
 **Step 1: Write failing tests (Python)**
 
 Add to `test_models.py`:
 
 ```python
-def test_checkpoint_body_expires_hint_optional():
-    """expires_hint is optional on CheckpointBody."""
-    body = CheckpointBody(
-        service_id="svc-1",
-        checkpoint_id="ckpt-1",
-        range={"first_sequence": 1, "last_sequence": 10},
-        merkle_root="sha256:abc",
-        timestamp="2026-01-01T00:00:00Z",
-        entry_count=10,
+def test_checkpoint_detail_response_expires_hint_optional():
+    """expires_hint is optional on CheckpointDetailResponse."""
+    from anip_core import CheckpointDetailResponse
+    resp = CheckpointDetailResponse(
+        checkpoint={
+            "service_id": "svc-1",
+            "checkpoint_id": "ckpt-1",
+            "range": {"first_sequence": 1, "last_sequence": 10},
+            "merkle_root": "sha256:abc",
+            "timestamp": "2026-01-01T00:00:00Z",
+            "entry_count": 10,
+        },
     )
-    assert body.expires_hint is None
+    assert resp.expires_hint is None
 
 
-def test_checkpoint_body_expires_hint_set():
+def test_checkpoint_detail_response_expires_hint_set():
     """expires_hint can be set to an ISO 8601 timestamp."""
-    body = CheckpointBody(
-        service_id="svc-1",
-        checkpoint_id="ckpt-1",
-        range={"first_sequence": 1, "last_sequence": 10},
-        merkle_root="sha256:abc",
-        timestamp="2026-01-01T00:00:00Z",
-        entry_count=10,
+    from anip_core import CheckpointDetailResponse
+    resp = CheckpointDetailResponse(
+        checkpoint={
+            "service_id": "svc-1",
+            "checkpoint_id": "ckpt-1",
+            "range": {"first_sequence": 1, "last_sequence": 10},
+            "merkle_root": "sha256:abc",
+            "timestamp": "2026-01-01T00:00:00Z",
+            "entry_count": 10,
+        },
         expires_hint="2026-04-01T00:00:00Z",
     )
-    assert body.expires_hint == "2026-04-01T00:00:00Z"
+    assert resp.expires_hint == "2026-04-01T00:00:00Z"
+
+
+def test_checkpoint_body_unchanged():
+    """CheckpointBody does NOT have expires_hint — it is the signed canonical form."""
+    body = CheckpointBody(
+        service_id="svc-1",
+        checkpoint_id="ckpt-1",
+        range={"first_sequence": 1, "last_sequence": 10},
+        merkle_root="sha256:abc",
+        timestamp="2026-01-01T00:00:00Z",
+        entry_count=10,
+    )
+    assert not hasattr(body, "expires_hint") or "expires_hint" not in body.model_fields
 ```
 
 **Step 2: Run tests to verify they fail**
 
-Run: `cd packages/python/anip-core && python -m pytest tests/test_models.py::test_checkpoint_body_expires_hint_optional tests/test_models.py::test_checkpoint_body_expires_hint_set -v`
-Expected: FAIL (no `expires_hint` field on CheckpointBody)
+Run: `cd packages/python/anip-core && python -m pytest tests/test_models.py::test_checkpoint_detail_response_expires_hint_optional tests/test_models.py::test_checkpoint_detail_response_expires_hint_set -v`
+Expected: FAIL (no `CheckpointDetailResponse` model)
 
-**Step 3: Add expires_hint to Python model**
+**Step 3: Add CheckpointDetailResponse to Python models**
 
-In `models.py`, update `CheckpointBody`:
+In `models.py`, add a new model AFTER `CheckpointBody` (do NOT modify `CheckpointBody`):
+
 ```python
-class CheckpointBody(BaseModel):
-    version: str = "1.0"
-    service_id: str
-    checkpoint_id: str
-    range: dict[str, int]
-    merkle_root: str
-    previous_checkpoint: str | None = None
-    timestamp: str
-    entry_count: int
-    expires_hint: str | None = None  # best-effort, informational
+class CheckpointDetailResponse(BaseModel):
+    """Response wrapper for checkpoint detail endpoint. Separate from the signed CheckpointBody."""
+    checkpoint: dict[str, Any]
+    inclusion_proof: dict[str, Any] | None = None
+    consistency_proof: dict[str, Any] | None = None
+    proof_unavailable: str | None = None
+    expires_hint: str | None = None  # best-effort, informational, not part of signed body
 ```
+
+Export `CheckpointDetailResponse` from `__init__.py`.
 
 **Step 4: Run tests to verify they pass**
 
@@ -1547,30 +1602,34 @@ Expected: PASS
 Add to `models.test.ts`:
 
 ```typescript
-describe("CheckpointBody with expires_hint", () => {
+describe("CheckpointDetailResponse", () => {
   it("defaults expires_hint to null", () => {
-    const body = CheckpointBody.parse({
-      service_id: "svc-1",
-      checkpoint_id: "ckpt-1",
-      range: { first_sequence: 1, last_sequence: 10 },
-      merkle_root: "sha256:abc",
-      timestamp: "2026-01-01T00:00:00Z",
-      entry_count: 10,
+    const resp = CheckpointDetailResponse.parse({
+      checkpoint: {
+        service_id: "svc-1",
+        checkpoint_id: "ckpt-1",
+        range: { first_sequence: 1, last_sequence: 10 },
+        merkle_root: "sha256:abc",
+        timestamp: "2026-01-01T00:00:00Z",
+        entry_count: 10,
+      },
     });
-    expect(body.expires_hint).toBeNull();
+    expect(resp.expires_hint).toBeNull();
   });
 
   it("accepts expires_hint", () => {
-    const body = CheckpointBody.parse({
-      service_id: "svc-1",
-      checkpoint_id: "ckpt-1",
-      range: { first_sequence: 1, last_sequence: 10 },
-      merkle_root: "sha256:abc",
-      timestamp: "2026-01-01T00:00:00Z",
-      entry_count: 10,
+    const resp = CheckpointDetailResponse.parse({
+      checkpoint: {
+        service_id: "svc-1",
+        checkpoint_id: "ckpt-1",
+        range: { first_sequence: 1, last_sequence: 10 },
+        merkle_root: "sha256:abc",
+        timestamp: "2026-01-01T00:00:00Z",
+        entry_count: 10,
+      },
       expires_hint: "2026-04-01T00:00:00Z",
     });
-    expect(body.expires_hint).toBe("2026-04-01T00:00:00Z");
+    expect(resp.expires_hint).toBe("2026-04-01T00:00:00Z");
   });
 });
 ```
@@ -1580,25 +1639,22 @@ describe("CheckpointBody with expires_hint", () => {
 Run: `cd packages/typescript/core && npx vitest run tests/models.test.ts`
 Expected: FAIL
 
-**Step 7: Add expires_hint to TypeScript model**
+**Step 7: Add CheckpointDetailResponse to TypeScript models**
 
-In `models.ts`, update `CheckpointBody`:
+In `models.ts`, add a new schema AFTER `CheckpointBody` (do NOT modify `CheckpointBody`):
+
 ```typescript
-export const CheckpointBody = z.object({
-  version: z.string().default("1.0"),
-  service_id: z.string(),
-  checkpoint_id: z.string(),
-  range: z.object({
-    first_sequence: z.number(),
-    last_sequence: z.number(),
-  }),
-  merkle_root: z.string(),
-  previous_checkpoint: z.string().nullable().default(null),
-  timestamp: z.string(),
-  entry_count: z.number(),
+export const CheckpointDetailResponse = z.object({
+  checkpoint: z.record(z.unknown()),
+  inclusion_proof: z.record(z.unknown()).nullable().default(null),
+  consistency_proof: z.record(z.unknown()).nullable().default(null),
+  proof_unavailable: z.string().nullable().default(null),
   expires_hint: z.string().nullable().default(null),
 });
+export type CheckpointDetailResponse = z.infer<typeof CheckpointDetailResponse>;
 ```
+
+Export from `index.ts`.
 
 **Step 8: Run tests to verify they pass**
 
@@ -1607,19 +1663,19 @@ Expected: PASS
 
 **Step 9: Update JSON schema**
 
-In `schema/anip.schema.json`, add `expires_hint` to the `CheckpointResponse` definition:
+In `schema/anip.schema.json`, add `expires_hint` to the `CheckpointResponse` definition (the response wrapper, not `CheckpointBody`):
 ```json
 "expires_hint": {
   "type": ["string", "null"],
-  "description": "Best-effort ISO 8601 timestamp of earliest expected audit entry expiration in this checkpoint's range. Informational, not contractual."
+  "description": "Best-effort ISO 8601 timestamp of earliest expected audit entry expiration in this checkpoint's range. Informational, not contractual. Not part of the signed checkpoint body."
 }
 ```
 
 **Step 10: Commit**
 
 ```bash
-git add schema/anip.schema.json packages/python/anip-core/src/anip_core/models.py packages/typescript/core/src/models.ts packages/python/anip-core/tests/test_models.py packages/typescript/core/tests/models.test.ts
-git commit -m "feat: add expires_hint to checkpoint response schema and models"
+git add schema/anip.schema.json packages/python/anip-core/src/anip_core/models.py packages/python/anip-core/src/anip_core/__init__.py packages/typescript/core/src/models.ts packages/typescript/core/src/index.ts packages/python/anip-core/tests/test_models.py packages/typescript/core/tests/models.test.ts
+git commit -m "feat: add CheckpointDetailResponse with expires_hint (separate from signed CheckpointBody)"
 ```
 
 ---
@@ -1647,12 +1703,13 @@ TypeScript (`packages/typescript/server/src/storage.ts`):
 getEarliestExpiryInRange(firstSeq: number, lastSeq: number): Promise<string | null>;
 ```
 
-**Step 2: Wire into checkpoint response**
+**Step 2: Wire into checkpoint response wrapper**
 
 In both runtimes' `getCheckpoint` / `get_checkpoint` methods:
 - After fetching the checkpoint body, query `get_earliest_expiry_in_range(body.range.first_sequence, body.range.last_sequence)`
-- If non-null, include `expires_hint` in the response
-- If null (no entries have expiry), omit `expires_hint`
+- Include `expires_hint` in the **response wrapper** (the `CheckpointDetailResponse`), NOT in the signed `CheckpointBody`
+- If non-null, set `expires_hint` on the response
+- If null (no entries have expiry), leave `expires_hint` as null
 
 **Step 3: Run full test suites**
 
