@@ -1,6 +1,6 @@
 # ANIP Validator Skill
 
-> Spec version: ANIP v0.7 | Skill version: 1.1 | Last validated: 2026-03-16
+> Spec version: ANIP v0.8 | Skill version: 1.2 | Last validated: 2026-03-17
 
 > For agents that need to test, validate, or audit ANIP-compliant services for conformance.
 

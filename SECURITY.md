@@ -1,12 +1,13 @@
 # Security Policy
 
-ANIP v0.7 builds on v0.3's anchored trust and v0.2's cryptographic foundations with invocation lineage (v0.4), async storage (v0.5), streaming invocations with transport fault isolation (v0.6), and discovery posture for governance visibility (v0.7). It does not by itself solve prompt injection, host sandboxing, or internet-scale trust federation.
+ANIP v0.8 builds on v0.3's anchored trust and v0.2's cryptographic foundations with invocation lineage (v0.4), async storage (v0.5), streaming invocations with transport fault isolation (v0.6), discovery posture for governance visibility (v0.7), and security hardening with event classification, retention policies, and failure redaction (v0.8). It does not by itself solve prompt injection, host sandboxing, or internet-scale trust federation.
 
 ## Supported Versions
 
 | Version | Status |
 |---------|--------|
-| v0.7    | Current — discovery posture, governance visibility |
+| v0.8    | Current — security hardening, event classification, retention, redaction |
+| v0.7    | Stable — discovery posture, governance visibility |
 | v0.6    | Stable — streaming invocations, SSE transport, delivery tracking |
 | v0.5    | Stable — async storage architecture |
 | v0.4    | Stable — invocation lineage (invocation_id, client_reference_id) |
@@ -91,6 +92,13 @@ Declaration mode accepts unsigned token dicts for backward compatibility with v0
 
 - **Discovery posture** — services declare a governance stance (`open`, `gated`, `restricted`, `closed`) in the discovery document, letting agents understand the engagement model before requesting tokens
 - **Posture metadata** — human-readable `description`, machine-readable `access` rules, and optional `contact` for access requests
+
+## What v0.8 Adds
+
+- **Event classification** — audit events tagged by sensitivity (`public`, `internal`, `confidential`, `restricted`) for data governance
+- **Retention policies** — configurable TTLs per retention tier (`ephemeral`, `short`, `standard`, `extended`, `permanent`) with automatic `expires_at` on audit entries
+- **Failure detail redaction** — internal error details stripped from client-facing failure responses based on event class
+- **Proof safety guards** — retention enforcer prevents serving expired or retention-violating audit proofs
 
 ## What ANIP Does Not Yet Solve
 
