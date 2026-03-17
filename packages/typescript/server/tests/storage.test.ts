@@ -114,6 +114,156 @@ describe("SQLiteStorage", () => {
 });
 
 // ---------------------------------------------------------------------------
+// v0.8: event_class, retention_tier, expires_at tests — SQLiteStorage
+// ---------------------------------------------------------------------------
+
+describe("SQLiteStorage v0.8 audit fields", () => {
+  let storage: SQLiteStorage;
+
+  beforeEach(() => {
+    storage = new SQLiteStorage(TEST_DB);
+  });
+
+  afterEach(async () => {
+    await storage.terminate();
+    try {
+      unlinkSync(TEST_DB);
+      unlinkSync(TEST_DB + "-wal");
+      unlinkSync(TEST_DB + "-shm");
+    } catch {
+      // Files may not exist
+    }
+  });
+
+  it("stores and queries audit entry with event_class, retention_tier, expires_at", async () => {
+    const entry = {
+      sequence_number: 1, timestamp: "2026-03-16T12:00:00Z",
+      capability: "test.cap", token_id: "t1", issuer: "svc",
+      subject: "agent", root_principal: "human", parameters: null,
+      success: true, result_summary: null, failure_type: null,
+      cost_actual: null, delegation_chain: null, invocation_id: "inv-1",
+      client_reference_id: null, stream_summary: null,
+      previous_hash: "sha256:0000", signature: null,
+      event_class: "high_risk_success", retention_tier: "long",
+      expires_at: "2027-03-16T12:00:00Z",
+    };
+    await storage.storeAuditEntry(entry);
+    const rows = await storage.queryAuditEntries({ capability: "test.cap" });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].event_class).toBe("high_risk_success");
+    expect(rows[0].retention_tier).toBe("long");
+    expect(rows[0].expires_at).toBe("2027-03-16T12:00:00Z");
+  });
+
+  it("queries audit entries by event_class", async () => {
+    const base = {
+      timestamp: "2026-03-16T12:00:00Z", capability: "test.cap",
+      token_id: "t1", issuer: "svc", subject: "agent",
+      root_principal: "human", parameters: null, success: true,
+      result_summary: null, failure_type: null, cost_actual: null,
+      delegation_chain: null, invocation_id: null,
+      client_reference_id: null, stream_summary: null,
+      previous_hash: "sha256:0000", signature: null,
+      retention_tier: "short", expires_at: "2026-03-23T12:00:00Z",
+    };
+    await storage.storeAuditEntry({ ...base, sequence_number: 1, event_class: "high_risk_success" });
+    await storage.storeAuditEntry({ ...base, sequence_number: 2, event_class: "malformed_or_spam" });
+    await storage.storeAuditEntry({ ...base, sequence_number: 3, event_class: "high_risk_success" });
+    const rows = await storage.queryAuditEntries({ eventClass: "high_risk_success" });
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r.event_class === "high_risk_success")).toBe(true);
+  });
+
+  it("deletes expired audit entries", async () => {
+    const base = {
+      timestamp: "2026-03-16T12:00:00Z", capability: "test.cap",
+      token_id: "t1", issuer: "svc", subject: "agent",
+      root_principal: "human", parameters: null, success: true,
+      result_summary: null, failure_type: null, cost_actual: null,
+      delegation_chain: null, invocation_id: null,
+      client_reference_id: null, stream_summary: null,
+      previous_hash: "sha256:0000", signature: null,
+      event_class: "malformed_or_spam", retention_tier: "short",
+    };
+    await storage.storeAuditEntry({ ...base, sequence_number: 1, expires_at: "2026-03-10T00:00:00Z" });
+    await storage.storeAuditEntry({ ...base, sequence_number: 2, expires_at: "2026-03-20T00:00:00Z" });
+    await storage.storeAuditEntry({ ...base, sequence_number: 3, expires_at: null });
+    const deleted = await storage.deleteExpiredAuditEntries("2026-03-16T12:00:00Z");
+    expect(deleted).toBe(1);
+    const remaining = await storage.queryAuditEntries();
+    expect(remaining).toHaveLength(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// v0.8: event_class, retention_tier, expires_at tests — InMemoryStorage
+// ---------------------------------------------------------------------------
+
+describe("InMemoryStorage v0.8 audit fields", () => {
+  it("stores and queries audit entry with event_class, retention_tier, expires_at", async () => {
+    const storage = new InMemoryStorage();
+    const entry = {
+      sequence_number: 1, timestamp: "2026-03-16T12:00:00Z",
+      capability: "test.cap", token_id: "t1", issuer: "svc",
+      subject: "agent", root_principal: "human", parameters: null,
+      success: true, result_summary: null, failure_type: null,
+      cost_actual: null, delegation_chain: null, invocation_id: "inv-1",
+      client_reference_id: null, stream_summary: null,
+      previous_hash: "sha256:0000", signature: null,
+      event_class: "high_risk_success", retention_tier: "long",
+      expires_at: "2027-03-16T12:00:00Z",
+    };
+    await storage.storeAuditEntry(entry);
+    const rows = await storage.queryAuditEntries({ capability: "test.cap" });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].event_class).toBe("high_risk_success");
+    expect(rows[0].retention_tier).toBe("long");
+    expect(rows[0].expires_at).toBe("2027-03-16T12:00:00Z");
+  });
+
+  it("queries audit entries by event_class", async () => {
+    const storage = new InMemoryStorage();
+    const base = {
+      timestamp: "2026-03-16T12:00:00Z", capability: "test.cap",
+      token_id: "t1", issuer: "svc", subject: "agent",
+      root_principal: "human", parameters: null, success: true,
+      result_summary: null, failure_type: null, cost_actual: null,
+      delegation_chain: null, invocation_id: null,
+      client_reference_id: null, stream_summary: null,
+      previous_hash: "sha256:0000", signature: null,
+      retention_tier: "short", expires_at: "2026-03-23T12:00:00Z",
+    };
+    await storage.storeAuditEntry({ ...base, sequence_number: 1, event_class: "high_risk_success" });
+    await storage.storeAuditEntry({ ...base, sequence_number: 2, event_class: "malformed_or_spam" });
+    await storage.storeAuditEntry({ ...base, sequence_number: 3, event_class: "high_risk_success" });
+    const rows = await storage.queryAuditEntries({ eventClass: "high_risk_success" });
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r.event_class === "high_risk_success")).toBe(true);
+  });
+
+  it("deletes expired audit entries", async () => {
+    const storage = new InMemoryStorage();
+    const base = {
+      timestamp: "2026-03-16T12:00:00Z", capability: "test.cap",
+      token_id: "t1", issuer: "svc", subject: "agent",
+      root_principal: "human", parameters: null, success: true,
+      result_summary: null, failure_type: null, cost_actual: null,
+      delegation_chain: null, invocation_id: null,
+      client_reference_id: null, stream_summary: null,
+      previous_hash: "sha256:0000", signature: null,
+      event_class: "malformed_or_spam", retention_tier: "short",
+    };
+    await storage.storeAuditEntry({ ...base, sequence_number: 1, expires_at: "2026-03-10T00:00:00Z" });
+    await storage.storeAuditEntry({ ...base, sequence_number: 2, expires_at: "2026-03-20T00:00:00Z" });
+    await storage.storeAuditEntry({ ...base, sequence_number: 3, expires_at: null });
+    const deleted = await storage.deleteExpiredAuditEntries("2026-03-16T12:00:00Z");
+    expect(deleted).toBe(1);
+    const remaining = await storage.queryAuditEntries();
+    expect(remaining).toHaveLength(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Backend compliance suite — InMemoryStorage
 // ---------------------------------------------------------------------------
 

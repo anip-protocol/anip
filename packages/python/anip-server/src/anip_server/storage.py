@@ -33,10 +33,13 @@ class StorageBackend(Protocol):
         since: str | None = None,
         invocation_id: str | None = None,
         client_reference_id: str | None = None,
+        event_class: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]: ...
 
     async def get_last_audit_entry(self) -> dict[str, Any] | None: ...
+
+    async def delete_expired_audit_entries(self, now_iso: str) -> int: ...
 
     async def get_audit_entries_range(
         self, first: int, last: int
@@ -91,6 +94,7 @@ class InMemoryStorage:
         since: str | None = None,
         invocation_id: str | None = None,
         client_reference_id: str | None = None,
+        event_class: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         """Query audit entries with optional filters."""
@@ -109,10 +113,22 @@ class InMemoryStorage:
                 e for e in results
                 if e.get("client_reference_id") == client_reference_id
             ]
+        if event_class is not None:
+            results = [e for e in results if e.get("event_class") == event_class]
 
         # Sort by sequence_number descending
         results.sort(key=lambda e: e.get("sequence_number", 0), reverse=True)
         return [dict(e) for e in results[:limit]]
+
+    async def delete_expired_audit_entries(self, now_iso: str) -> int:
+        """Delete audit entries where expires_at is not None and < now_iso."""
+        expired = [
+            e for e in self._audit_entries
+            if e.get("expires_at") is not None and e["expires_at"] < now_iso
+        ]
+        for e in expired:
+            self._audit_entries.remove(e)
+        return len(expired)
 
     async def get_last_audit_entry(self) -> dict[str, Any] | None:
         """Return the audit entry with the highest sequence_number."""
@@ -191,7 +207,10 @@ CREATE TABLE IF NOT EXISTS audit_log (
     client_reference_id TEXT,
     stream_summary TEXT,
     previous_hash TEXT NOT NULL,
-    signature TEXT
+    signature TEXT,
+    event_class TEXT,
+    retention_tier TEXT,
+    expires_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_audit_capability
@@ -204,6 +223,10 @@ CREATE INDEX IF NOT EXISTS idx_audit_invocation_id
     ON audit_log(invocation_id);
 CREATE INDEX IF NOT EXISTS idx_audit_client_reference_id
     ON audit_log(client_reference_id);
+CREATE INDEX IF NOT EXISTS idx_audit_event_class
+    ON audit_log(event_class);
+CREATE INDEX IF NOT EXISTS idx_audit_expires_at
+    ON audit_log(expires_at);
 
 CREATE TABLE IF NOT EXISTS checkpoints (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -256,6 +279,18 @@ class SQLiteStorage:
             self._conn.execute("ALTER TABLE audit_log ADD COLUMN stream_summary TEXT")
         except Exception:
             pass  # column already exists
+        try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN event_class TEXT")
+        except Exception:
+            pass
+        try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN retention_tier TEXT")
+        except Exception:
+            pass
+        try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN expires_at TEXT")
+        except Exception:
+            pass
 
     # -- sync internals (private) -------------------------------------------
 
@@ -308,8 +343,9 @@ class SQLiteStorage:
                    (sequence_number, timestamp, capability, token_id, issuer,
                     subject, root_principal, parameters, success, result_summary,
                     failure_type, cost_actual, delegation_chain, invocation_id,
-                    client_reference_id, stream_summary, previous_hash, signature)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    client_reference_id, stream_summary, previous_hash, signature,
+                    event_class, retention_tier, expires_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     entry["sequence_number"],
                     entry["timestamp"],
@@ -329,6 +365,9 @@ class SQLiteStorage:
                     json.dumps(entry["stream_summary"]) if entry.get("stream_summary") is not None else None,
                     entry["previous_hash"],
                     entry.get("signature"),
+                    entry.get("event_class"),
+                    entry.get("retention_tier"),
+                    entry.get("expires_at"),
                 ),
             )
             self._conn.commit()
@@ -350,6 +389,7 @@ class SQLiteStorage:
         since: str | None = None,
         invocation_id: str | None = None,
         client_reference_id: str | None = None,
+        event_class: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         conditions: list[str] = []
@@ -370,6 +410,9 @@ class SQLiteStorage:
         if client_reference_id is not None:
             conditions.append("client_reference_id = ?")
             params.append(client_reference_id)
+        if event_class is not None:
+            conditions.append("event_class = ?")
+            params.append(event_class)
 
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
         with self._lock:
@@ -399,6 +442,15 @@ class SQLiteStorage:
                 (first, last),
             ).fetchall()
         return [self._parse_audit_row(r) for r in rows]
+
+    def _sync_delete_expired_audit_entries(self, now_iso: str) -> int:
+        with self._lock:
+            cursor = self._conn.execute(
+                "DELETE FROM audit_log WHERE expires_at IS NOT NULL AND expires_at < ?",
+                (now_iso,),
+            )
+            self._conn.commit()
+            return cursor.rowcount
 
     def _sync_store_checkpoint(self, body: dict[str, Any], signature: str) -> None:
         range_dict = body.get("range", {})
@@ -491,6 +543,7 @@ class SQLiteStorage:
         since: str | None = None,
         invocation_id: str | None = None,
         client_reference_id: str | None = None,
+        event_class: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         """Query audit entries with optional filters."""
@@ -501,6 +554,7 @@ class SQLiteStorage:
             since=since,
             invocation_id=invocation_id,
             client_reference_id=client_reference_id,
+            event_class=event_class,
             limit=limit,
         )
 
@@ -513,6 +567,10 @@ class SQLiteStorage:
     ) -> list[dict[str, Any]]:
         """Return audit entries with sequence_number BETWEEN first AND last."""
         return await asyncio.to_thread(self._sync_get_audit_entries_range, first, last)
+
+    async def delete_expired_audit_entries(self, now_iso: str) -> int:
+        """Delete audit entries whose expires_at is before now_iso."""
+        return await asyncio.to_thread(self._sync_delete_expired_audit_entries, now_iso)
 
     async def store_checkpoint(self, body: dict[str, Any], signature: str) -> None:
         """Insert a checkpoint record."""

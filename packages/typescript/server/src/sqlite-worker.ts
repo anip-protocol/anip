@@ -58,7 +58,10 @@ CREATE TABLE IF NOT EXISTS audit_log (
     client_reference_id TEXT,
     stream_summary TEXT,
     previous_hash TEXT NOT NULL,
-    signature TEXT
+    signature TEXT,
+    event_class TEXT,
+    retention_tier TEXT,
+    expires_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_audit_capability ON audit_log(capability);
@@ -66,6 +69,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
 CREATE INDEX IF NOT EXISTS idx_audit_root_principal ON audit_log(root_principal);
 CREATE INDEX IF NOT EXISTS idx_audit_invocation_id ON audit_log(invocation_id);
 CREATE INDEX IF NOT EXISTS idx_audit_client_reference_id ON audit_log(client_reference_id);
+CREATE INDEX IF NOT EXISTS idx_audit_event_class ON audit_log(event_class);
+CREATE INDEX IF NOT EXISTS idx_audit_expires_at ON audit_log(expires_at);
 
 CREATE TABLE IF NOT EXISTS checkpoints (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -102,6 +107,21 @@ try {
 }
 try {
   db.exec("ALTER TABLE audit_log ADD COLUMN stream_summary TEXT");
+} catch {
+  // Column may already exist
+}
+try {
+  db.exec("ALTER TABLE audit_log ADD COLUMN event_class TEXT");
+} catch {
+  // Column may already exist
+}
+try {
+  db.exec("ALTER TABLE audit_log ADD COLUMN retention_tier TEXT");
+} catch {
+  // Column may already exist
+}
+try {
+  db.exec("ALTER TABLE audit_log ADD COLUMN expires_at TEXT");
 } catch {
   // Column may already exist
 }
@@ -156,8 +176,9 @@ function storeAuditEntry(entry: Record<string, unknown>): void {
      (sequence_number, timestamp, capability, token_id, issuer,
       subject, root_principal, parameters, success, result_summary,
       failure_type, cost_actual, delegation_chain, invocation_id,
-      client_reference_id, stream_summary, previous_hash, signature)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      client_reference_id, stream_summary, previous_hash, signature,
+      event_class, retention_tier, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     entry.sequence_number as number,
     entry.timestamp as string,
@@ -183,6 +204,9 @@ function storeAuditEntry(entry: Record<string, unknown>): void {
       : null,
     entry.previous_hash as string,
     (entry.signature as string) ?? null,
+    (entry.event_class as string) ?? null,
+    (entry.retention_tier as string) ?? null,
+    (entry.expires_at as string) ?? null,
   );
 }
 
@@ -203,6 +227,7 @@ function queryAuditEntries(opts?: {
   since?: string;
   invocationId?: string;
   clientReferenceId?: string;
+  eventClass?: string;
   limit?: number;
 }): Record<string, unknown>[] {
   const conditions: string[] = [];
@@ -227,6 +252,10 @@ function queryAuditEntries(opts?: {
   if (opts?.clientReferenceId) {
     conditions.push("client_reference_id = ?");
     params.push(opts.clientReferenceId);
+  }
+  if (opts?.eventClass) {
+    conditions.push("event_class = ?");
+    params.push(opts.eventClass);
   }
 
   const where =
@@ -323,6 +352,13 @@ function getCheckpointById(
   };
 }
 
+function deleteExpiredAuditEntries(nowIso: string): number {
+  const result = db.prepare(
+    "DELETE FROM audit_log WHERE expires_at IS NOT NULL AND expires_at < ?",
+  ).run(nowIso);
+  return result.changes;
+}
+
 // ---------------------------------------------------------------------------
 // Method dispatch table
 // ---------------------------------------------------------------------------
@@ -344,6 +380,7 @@ const methods: Record<string, (...args: any[]) => unknown> = {
   queryAuditEntries,
   getLastAuditEntry,
   getAuditEntriesRange,
+  deleteExpiredAuditEntries,
   storeCheckpoint,
   getCheckpoints,
   getCheckpointById,

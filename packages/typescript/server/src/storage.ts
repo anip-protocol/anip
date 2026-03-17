@@ -23,10 +23,12 @@ export interface StorageBackend {
     since?: string;
     invocationId?: string;
     clientReferenceId?: string;
+    eventClass?: string;
     limit?: number;
   }): Promise<Record<string, unknown>[]>;
   getLastAuditEntry(): Promise<Record<string, unknown> | null>;
   getAuditEntriesRange(first: number, last: number): Promise<Record<string, unknown>[]>;
+  deleteExpiredAuditEntries(nowIso: string): Promise<number>;
   storeCheckpoint(body: Record<string, unknown>, signature: string): Promise<void>;
   getCheckpoints(limit?: number): Promise<Record<string, unknown>[]>;
   getCheckpointById(checkpointId: string): Promise<Record<string, unknown> | null>;
@@ -61,6 +63,7 @@ export class InMemoryStorage implements StorageBackend {
     since?: string;
     invocationId?: string;
     clientReferenceId?: string;
+    eventClass?: string;
     limit?: number;
   }): Promise<Record<string, unknown>[]> {
     let results = [...this.auditEntries];
@@ -79,11 +82,22 @@ export class InMemoryStorage implements StorageBackend {
     if (opts?.clientReferenceId) {
       results = results.filter((e) => e.client_reference_id === opts.clientReferenceId);
     }
+    if (opts?.eventClass) {
+      results = results.filter((e) => e.event_class === opts.eventClass);
+    }
     results.sort(
       (a, b) =>
         (b.sequence_number as number) - (a.sequence_number as number),
     );
     return results.slice(0, opts?.limit ?? 50);
+  }
+
+  async deleteExpiredAuditEntries(nowIso: string): Promise<number> {
+    const before = this.auditEntries.length;
+    this.auditEntries = this.auditEntries.filter(
+      (e) => e.expires_at == null || (e.expires_at as string) >= nowIso,
+    );
+    return before - this.auditEntries.length;
   }
 
   async getLastAuditEntry(): Promise<Record<string, unknown> | null> {
@@ -240,6 +254,7 @@ export class SQLiteStorage implements StorageBackend {
     since?: string;
     invocationId?: string;
     clientReferenceId?: string;
+    eventClass?: string;
     limit?: number;
   }): Promise<Record<string, unknown>[]> {
     return (await this.call("queryAuditEntries", [opts])) as Record<string, unknown>[];
@@ -251,6 +266,10 @@ export class SQLiteStorage implements StorageBackend {
 
   async getAuditEntriesRange(first: number, last: number): Promise<Record<string, unknown>[]> {
     return (await this.call("getAuditEntriesRange", [first, last])) as Record<string, unknown>[];
+  }
+
+  async deleteExpiredAuditEntries(nowIso: string): Promise<number> {
+    return (await this.call("deleteExpiredAuditEntries", [nowIso])) as number;
   }
 
   // -- checkpoints ----------------------------------------------------------
