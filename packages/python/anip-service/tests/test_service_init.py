@@ -47,7 +47,7 @@ class TestANIPServiceInit:
         ad = disc["anip_discovery"]
 
         # Required fields per SPEC.md §6.1
-        assert ad["protocol"] == "anip/0.7"
+        assert ad["protocol"] == "anip/0.8"
         assert ad["compliance"] == "anip-compliant"
         assert ad["base_url"] == "https://test.example.com"
         assert ad["profile"]["core"] == "1.0"

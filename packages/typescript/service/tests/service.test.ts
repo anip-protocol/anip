@@ -93,7 +93,7 @@ describe("ANIPService construction", () => {
     const ad = disc.anip_discovery;
 
     // Required fields per SPEC.md §6.1
-    expect(ad.protocol).toBe("anip/0.7");
+    expect(ad.protocol).toBe("anip/0.8");
     expect(ad.compliance).toBe("anip-compliant");
     expect(ad.base_url).toBe("https://test.example.com");
     expect(ad.profile.core).toBe("1.0");
