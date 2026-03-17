@@ -7,6 +7,7 @@
 import { createHash } from "crypto";
 import {
   PROTOCOL_VERSION,
+  MANIFEST_VERSION,
   DEFAULT_PROFILE,
 } from "@anip/core";
 import type {
@@ -42,7 +43,7 @@ export function buildManifest(opts: BuildManifestOpts): ANIPManifestType {
     profile: { ...DEFAULT_PROFILE },
     capabilities,
     manifest_metadata: {
-      version: "0.3.0",
+      version: MANIFEST_VERSION,
       sha256,
       issued_at: now.toISOString(),
       expires_at: expiresAt.toISOString(),

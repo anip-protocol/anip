@@ -204,7 +204,7 @@ class ProfileVersions(BaseModel):
 
 
 class ManifestMetadata(BaseModel):
-    version: str = "0.3.0"
+    version: str = "0.7.0"
     sha256: str = ""  # Set at build time
     issued_at: str = ""  # Set at build time
     expires_at: str = ""  # Set at build time
@@ -237,7 +237,7 @@ class TrustPosture(BaseModel):
 
 
 class ANIPManifest(BaseModel):
-    protocol: str = "anip/0.3"
+    protocol: str = "anip/0.7"
     profile: ProfileVersions
     capabilities: dict[str, CapabilityDeclaration]
     manifest_metadata: ManifestMetadata | None = None

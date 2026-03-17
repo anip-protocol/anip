@@ -80,14 +80,14 @@ def test_verify_audit_entry_signature():
 
 def test_verify_manifest_signature():
     km = KeyManager()
-    manifest_bytes = b'{"protocol":"anip/0.3","capabilities":{}}'
+    manifest_bytes = b'{"protocol":"anip/0.7","capabilities":{}}'
     sig = sign_jws_detached(km, manifest_bytes)
     verify_manifest_signature(km, manifest_bytes, sig)
 
 
 def test_verify_manifest_signature_wrong_bytes_fails():
     km = KeyManager()
-    manifest_bytes = b'{"protocol":"anip/0.3"}'
+    manifest_bytes = b'{"protocol":"anip/0.7"}'
     sig = sign_jws_detached(km, manifest_bytes)
     with pytest.raises(Exception):
         verify_manifest_signature(km, b"tampered", sig)
