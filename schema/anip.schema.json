@@ -943,8 +943,8 @@
     },
     "AuditEntry": {
       "properties": {
-        "sequence": {
-          "title": "Sequence",
+        "sequence_number": {
+          "title": "Sequence Number",
           "type": "integer"
         },
         "timestamp": {
@@ -981,33 +981,51 @@
           "description": "When this entry will be deleted by retention enforcement, or null for indefinite retention"
         }
       },
-      "required": ["sequence", "timestamp", "capability", "success", "event_class", "retention_tier"],
+      "required": ["sequence_number", "timestamp", "capability", "success", "event_class", "retention_tier"],
       "title": "AuditEntry",
       "type": "object",
       "description": "An entry in the audit log with v0.8 classification and retention fields. See SPEC.md §6.5 and §6.8."
     },
     "CheckpointResponse": {
       "properties": {
-        "checkpoint_id": {
-          "title": "Checkpoint ID",
-          "type": "string"
-        },
-        "sequence_from": {
-          "title": "Sequence From",
-          "type": "integer"
-        },
-        "sequence_to": {
-          "title": "Sequence To",
-          "type": "integer"
-        },
-        "merkle_root": {
-          "title": "Merkle Root",
-          "type": "string"
-        },
-        "timestamp": {
-          "title": "Timestamp",
-          "type": "string",
-          "format": "date-time"
+        "checkpoint": {
+          "type": "object",
+          "properties": {
+            "checkpoint_id": {
+              "title": "Checkpoint ID",
+              "type": "string"
+            },
+            "range": {
+              "type": "object",
+              "properties": {
+                "first_sequence": { "type": "integer" },
+                "last_sequence": { "type": "integer" }
+              },
+              "required": ["first_sequence", "last_sequence"]
+            },
+            "merkle_root": {
+              "title": "Merkle Root",
+              "type": "string"
+            },
+            "previous_checkpoint": {
+              "title": "Previous Checkpoint",
+              "type": ["string", "null"]
+            },
+            "timestamp": {
+              "title": "Timestamp",
+              "type": "string",
+              "format": "date-time"
+            },
+            "entry_count": {
+              "title": "Entry Count",
+              "type": "integer"
+            },
+            "signature": {
+              "title": "Signature",
+              "type": "string"
+            }
+          },
+          "required": ["checkpoint_id", "range", "merkle_root", "timestamp", "entry_count"]
         },
         "proof_unavailable": {
           "title": "Proof Unavailable",
@@ -1015,7 +1033,7 @@
           "description": "Present when proof cannot be generated, e.g. 'audit_entries_expired' when retention has deleted entries needed for proof. The checkpoint data is still valid."
         }
       },
-      "required": ["checkpoint_id", "sequence_from", "sequence_to", "merkle_root", "timestamp"],
+      "required": ["checkpoint"],
       "title": "CheckpointResponse",
       "type": "object",
       "description": "A Merkle checkpoint with optional proof. proof_unavailable indicates why proof generation failed. See SPEC.md §6.6 and §6.8."

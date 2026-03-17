@@ -150,7 +150,7 @@ describe("ANIPService construction", () => {
     expect(posture.lineage.client_reference_id.max_length).toBe(256);
     expect(posture.metadata_policy.bounded_lineage).toBe(true);
     expect(posture.metadata_policy.freeform_context).toBe(false);
-    expect(posture.failure_disclosure.detail_level).toBe("redacted");
+    expect(posture.failure_disclosure.detail_level).toBe("full");
     expect(posture.anchoring.enabled).toBe(false);
     expect(posture.anchoring.proofs_available).toBe(false);
   });
@@ -177,12 +177,12 @@ describe("ANIPService construction", () => {
     expect(posture.anchoring.proofs_available).toBe(true);
   });
 
-  it("discovery posture includes retention_enforced", () => {
+  it("discovery posture retention_enforced false before start", () => {
     const { service } = makeService();
     const doc = service.getDiscovery();
     const posture = (doc.anip_discovery as Record<string, unknown>).posture as Record<string, unknown>;
     const audit = posture.audit as Record<string, unknown>;
-    expect(audit.retention_enforced).toBe(true);
+    expect(audit.retention_enforced).toBe(false);
   });
 
   it("discovery posture: anchored without checkpoint policy has no proofs", () => {

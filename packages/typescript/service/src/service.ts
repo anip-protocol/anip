@@ -432,7 +432,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             signed: true,
             queryable: true,
             retention: null,
-            retention_enforced: true,
+            retention_enforced: retentionEnforcer.isRunning(),
           },
           lineage: {
             invocation_id: true,
@@ -449,7 +449,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             downstream_propagation: "minimal",
           },
           failure_disclosure: {
-            detail_level: "redacted",
+            detail_level: disclosureLevel,
           },
           anchoring: {
             enabled: isAnchored,
@@ -1059,8 +1059,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           } catch {
             // index out of range — skip
           }
-        } catch {
-          result.proof_unavailable = "audit_entries_expired";
+        } catch (err: unknown) {
+          if (err instanceof Error && err.message.includes("audit entries have been deleted")) {
+            result.proof_unavailable = "audit_entries_expired";
+          } else {
+            throw err;
+          }
         }
       }
 
@@ -1091,8 +1095,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             } catch {
               // skip
             }
-          } catch {
-            result.proof_unavailable = "audit_entries_expired";
+          } catch (err: unknown) {
+            if (err instanceof Error && err.message.includes("audit entries have been deleted")) {
+              result.proof_unavailable = "audit_entries_expired";
+            } else {
+              throw err;
+            }
           }
         }
       }

@@ -23,6 +23,10 @@ class RetentionEnforcer:
         self._interval = interval_seconds
         self._task: asyncio.Task[None] | None = None
 
+    @property
+    def is_running(self) -> bool:
+        return self._task is not None and not self._task.done()
+
     async def sweep(self) -> int:
         """Run one cleanup sweep. Returns number of deleted entries."""
         now = datetime.now(timezone.utc).isoformat()

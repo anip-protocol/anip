@@ -13,6 +13,10 @@ export class RetentionEnforcer {
     this._interval = intervalSeconds;
   }
 
+  isRunning(): boolean {
+    return this._timer !== null;
+  }
+
   async sweep(): Promise<number> {
     const now = new Date().toISOString();
     return this._storage.deleteExpiredAuditEntries(now);
