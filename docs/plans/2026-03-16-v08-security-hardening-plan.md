@@ -1882,6 +1882,8 @@ In `schema/anip.schema.json`:
 
 3. Add `event_class`, `retention_tier`, `expires_at` fields to the audit entry definition (if one exists — otherwise add them alongside the existing audit-related definitions).
 
+4. Add `proof_unavailable` as an optional string field on the checkpoint response definition, with `"audit_entries_expired"` as the documented value.
+
 **Step 5: Update Python get_discovery()**
 
 In `packages/python/anip-service/src/anip_service/service.py`, update the posture construction in `get_discovery()` to include `AuditPosture(retention_enforced=True)`.
@@ -1932,15 +1934,30 @@ Add `### 6.8 Security Hardening (v0.8)` with subsections:
 
 See design doc for exact normative language.
 
-**Step 3: Update posture.audit table in 6.7**
+**Step 3: Update checkpoint endpoint contract for proof unavailability**
+
+In the existing checkpoint endpoint section (currently §6.5 or similar, around line 892), add:
+
+> When `include_proof` is `true` but the audit entries required for proof generation have been deleted by retention enforcement, the response MUST still return the checkpoint data with HTTP 200. The `inclusion_proof` or `consistency_proof` field MUST be omitted, and the response MUST include a `proof_unavailable` field with value `"audit_entries_expired"`. Checkpoint data (sequence ranges, Merkle roots, signatures) was computed at checkpoint time and remains valid; only proof regeneration — which requires replaying audit entries from live storage — is affected.
+
+Example response shape when proof is unavailable:
+
+```json
+{
+  "checkpoint": { ... },
+  "proof_unavailable": "audit_entries_expired"
+}
+```
+
+**Step 4: Update posture.audit table in 6.7**
 
 Add `retention_enforced` field.
 
-**Step 4: Update roadmap**
+**Step 5: Update roadmap**
 
 Add security hardening row.
 
-**Step 5: Run all tests and commit**
+**Step 6: Run all tests and commit**
 
 ```
 git add SPEC.md
