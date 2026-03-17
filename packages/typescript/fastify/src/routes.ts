@@ -11,7 +11,7 @@ export function mountAnip(
 
   // --- Discovery & Identity ---
   app.get(`${p}/.well-known/anip`, async (req) => {
-    const baseUrl = `${req.protocol}://${req.hostname}`;
+    const baseUrl = `${req.protocol}://${req.host}`;
     return service.getDiscovery({ baseUrl });
   });
 

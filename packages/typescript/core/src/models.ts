@@ -238,7 +238,7 @@ export const ClientReferenceIdPosture = z.object({
   supported: z.boolean().default(true),
   max_length: z.number().int().default(256),
   opaque: z.boolean().default(true),
-  propagation: z.string().default("bounded"),
+  propagation: z.enum(["bounded", "local_only", "policy"]).default("bounded"),
 });
 export type ClientReferenceIdPosture = z.infer<typeof ClientReferenceIdPosture>;
 
@@ -251,12 +251,12 @@ export type LineagePosture = z.infer<typeof LineagePosture>;
 export const MetadataPolicy = z.object({
   bounded_lineage: z.boolean().default(true),
   freeform_context: z.boolean().default(false),
-  downstream_propagation: z.string().default("minimal"),
+  downstream_propagation: z.enum(["minimal", "policy", "service_defined"]).default("minimal"),
 });
 export type MetadataPolicy = z.infer<typeof MetadataPolicy>;
 
 export const FailureDisclosure = z.object({
-  detail_level: z.string().default("redacted"),
+  detail_level: z.enum(["full", "redacted", "policy"]).default("redacted"),
 });
 export type FailureDisclosure = z.infer<typeof FailureDisclosure>;
 

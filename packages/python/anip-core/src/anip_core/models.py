@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -250,7 +250,7 @@ class ClientReferenceIdPosture(BaseModel):
     supported: bool = True
     max_length: int = 256
     opaque: bool = True
-    propagation: str = "bounded"
+    propagation: Literal["bounded", "local_only", "policy"] = "bounded"
 
 
 class LineagePosture(BaseModel):
@@ -261,11 +261,11 @@ class LineagePosture(BaseModel):
 class MetadataPolicy(BaseModel):
     bounded_lineage: bool = True
     freeform_context: bool = False
-    downstream_propagation: str = "minimal"
+    downstream_propagation: Literal["minimal", "policy", "service_defined"] = "minimal"
 
 
 class FailureDisclosure(BaseModel):
-    detail_level: str = "redacted"
+    detail_level: Literal["full", "redacted", "policy"] = "redacted"
 
 
 class AnchoringPosture(BaseModel):
