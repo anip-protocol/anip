@@ -4,7 +4,7 @@
 
 **Goal:** Implement event classification, retention enforcement, and failure redaction for ANIP v0.8, turning v0.7's declared governance posture into enforceable behavior.
 
-**Architecture:** Add EventClass, RetentionTier, and DisclosureLevel enums to core models (both runtimes). Classify every audit entry at invocation time using side-effect type and outcome. Enforce retention via a background sweep that deletes expired entries. Redact failure responses at the response boundary based on a service-wide disclosure level. Update the spec, discovery schema, and discovery document to reflect the new capabilities.
+**Architecture:** Add EventClass, RetentionTier, and DisclosureLevel enums to core models (both runtimes). Classify every audit entry at invocation time using side-effect type and outcome. Enforce retention via a background sweep that hard-deletes expired entries. Guard proof generation against gaps — `_rebuild_merkle_to()` returns a clear error if deleted rows create an incomplete replay range. Use asyncio tasks for the Python enforcer (not threads) to stay compatible with async storage backends. Redact failure responses at the response boundary based on a service-wide disclosure level. Thread `event_class` as a queryable filter through storage, service `query_audit()`, and route handlers. Update the spec, discovery schema, canonical ANIP schema, and discovery document to reflect the new capabilities.
 
 **Tech Stack:** Python (Pydantic, pytest, asyncio), TypeScript (Zod, vitest, better-sqlite3), JSON Schema
 
@@ -1194,13 +1194,15 @@ git commit -m "feat(server): add event_class, retention_tier, expires_at to audi
 
 ---
 
-### Task 6: Wire Classification and Retention into Service invoke()
+### Task 6: Wire Classification, Retention, and event_class Query Filter into Service
 
-Update both service runtimes to classify events at invocation time, compute retention tier and expires_at, and pass them to the audit log. Accept retention policy config at service construction.
+Update both service runtimes to classify events at invocation time, compute retention tier and expires_at, and pass them to the audit log. Accept retention policy config at service construction. Thread `event_class` as a queryable filter through `query_audit()` and route handlers.
 
 **Files:**
 - Modify: `packages/python/anip-service/src/anip_service/service.py`
 - Modify: `packages/typescript/service/src/service.ts`
+- Modify: `packages/python/anip-server/src/anip_server/routes.py` (or equivalent binding)
+- Modify: `packages/typescript/express/src/index.ts` (and fastify/hono equivalents)
 - Test: `packages/python/anip-service/tests/test_service_init.py`
 - Test: `packages/typescript/service/tests/service.test.ts`
 
@@ -1258,27 +1260,63 @@ Same pattern:
 
 Add test to `packages/typescript/service/tests/service.test.ts` verifying audit entries contain `event_class`, `retention_tier`, `expires_at`.
 
-**Step 6: Run all tests**
+**Step 6: Thread event_class filter through service query_audit()**
+
+In Python `service.py` `query_audit()` (currently line 649), add `event_class` to the filter passthrough:
+
+```python
+entries = await self._audit.query(
+    root_principal=root_principal,
+    capability=filters.get("capability"),
+    since=filters.get("since"),
+    invocation_id=filters.get("invocation_id"),
+    client_reference_id=filters.get("client_reference_id"),
+    event_class=filters.get("event_class"),  # v0.8
+    limit=min(filters.get("limit", 50), 1000),
+)
+```
+
+In TypeScript `service.ts` `queryAudit()` (currently line 910), add same:
+
+```typescript
+const entries = await audit.query({
+  rootPrincipal,
+  capability: f.capability as string | undefined,
+  since: f.since as string | undefined,
+  invocationId: f.invocation_id as string | undefined,
+  clientReferenceId: f.client_reference_id as string | undefined,
+  eventClass: f.event_class as string | undefined,  // v0.8
+  limit: Math.min((f.limit as number) ?? 50, 1000),
+});
+```
+
+**Step 7: Thread event_class through route handlers**
+
+In the Python route handler that serves `/audit`, parse `event_class` from query parameters and pass it into the filters dict.
+
+In each TypeScript binding (express, fastify, hono), parse `event_class` from `req.query` and pass it through. Follow the existing pattern for how `capability`, `since`, etc. are parsed and forwarded.
+
+**Step 8: Run all tests**
 
 Run: `.venv/bin/python -m pytest packages/python -x -q`
 Run: `cd packages/typescript && npx tsc -b core crypto server service express fastify hono && npx vitest run --reporter=verbose`
 Expected: All pass
 
-**Step 7: Commit**
+**Step 9: Commit**
 
 ```
 git add packages/python/anip-service/src/anip_service/service.py \
        packages/python/anip-service/tests/test_service_init.py \
        packages/typescript/service/src/service.ts \
        packages/typescript/service/tests/service.test.ts
-git commit -m "feat(service): wire event classification and retention into invoke (v0.8)"
+git commit -m "feat(service): wire event classification, retention, and event_class query filter into invoke (v0.8)"
 ```
 
 ---
 
-### Task 7: Retention Enforcer (Background Cleanup)
+### Task 7: Retention Enforcer (Background Cleanup) + Proof Safety Guard
 
-Implement a `RetentionEnforcer` class in both runtimes that periodically deletes expired audit entries. Wire it into the service lifecycle.
+Implement a `RetentionEnforcer` class in both runtimes that periodically deletes expired audit entries. Wire it into the service lifecycle. **Python must use `asyncio.create_task` with a sleep loop — NOT a background thread** (the storage backend is async; calling it from a foreign event loop breaks loop-affine backends like asyncpg). Add a safety guard to `_rebuild_merkle_to()` that detects gaps from deleted rows and returns an error instead of a silently wrong Merkle tree.
 
 **Files:**
 - Create: `packages/python/anip-server/src/anip_server/retention_enforcer.py`
@@ -1362,17 +1400,18 @@ async def test_enforcer_start_stop(storage):
 
 Create `packages/python/anip-server/src/anip_server/retention_enforcer.py`:
 
+**IMPORTANT:** Do NOT use `threading.Thread` + `asyncio.new_event_loop()`. The storage backend is async and may be loop-affine (asyncpg, SQLAlchemy async). Use `asyncio.create_task` with a sleep loop so the enforcer runs in the service's own event loop.
+
 ```python
 """Retention enforcer -- background cleanup of expired audit entries (v0.8).
 
 Periodically deletes audit entries whose expires_at timestamp has passed.
-Modeled after CheckpointScheduler.
+Uses asyncio tasks (not threads) to stay compatible with async storage backends.
 """
 
 from __future__ import annotations
 
 import asyncio
-import threading
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
@@ -1391,8 +1430,7 @@ class RetentionEnforcer:
     ) -> None:
         self._storage = storage
         self._interval = interval_seconds
-        self._stop_event = threading.Event()
-        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._task: asyncio.Task[None] | None = None
 
     async def sweep(self) -> int:
         """Run one cleanup sweep. Returns number of deleted entries."""
@@ -1400,21 +1438,24 @@ class RetentionEnforcer:
         return await self._storage.delete_expired_audit_entries(now)
 
     def start(self) -> None:
-        """Start background cleanup thread."""
-        self._thread.start()
+        """Start background cleanup as an asyncio task."""
+        self._task = asyncio.create_task(self._run())
 
     def stop(self) -> None:
-        """Stop background cleanup thread."""
-        self._stop_event.set()
+        """Cancel the background cleanup task."""
+        if self._task is not None:
+            self._task.cancel()
+            self._task = None
 
-    def _run(self) -> None:
-        loop = asyncio.new_event_loop()
-        while not self._stop_event.wait(self._interval):
+    async def _run(self) -> None:
+        while True:
+            await asyncio.sleep(self._interval)
             try:
-                loop.run_until_complete(self.sweep())
+                await self.sweep()
+            except asyncio.CancelledError:
+                raise
             except Exception:
-                pass
-        loop.close()
+                pass  # Sweep failures are non-fatal
 ```
 
 **Step 3: Write failing tests and implement -- TypeScript**
@@ -1468,13 +1509,69 @@ Create `packages/typescript/server/tests/retention-enforcer.test.ts` with matchi
 
 In both runtimes, instantiate `RetentionEnforcer` in the service constructor and call `start()`/`stop()` in the service lifecycle methods.
 
-**Step 5: Run all tests**
+**Step 5: Add proof safety guard to `_rebuild_merkle_to()`**
+
+Retention deletes rows from `audit_log`. The existing `_rebuild_merkle_to()` replays from `getAuditEntriesRange(1, N)` — if rows are missing, the Merkle tree will be wrong and proof verification will fail silently.
+
+**Fix:** Before building the tree, verify the replay is complete. If rows are missing, raise/throw a clear error.
+
+In Python `service.py` `_rebuild_merkle_to()`:
+
+```python
+async def _rebuild_merkle_to(self, sequence_number: int) -> MerkleTree:
+    """Rebuild a Merkle tree from audit entries 1..sequence_number."""
+    entries = await self._storage.get_audit_entries_range(1, sequence_number)
+    if len(entries) < sequence_number:
+        raise ValueError(
+            f"Cannot rebuild proof: audit entries have been deleted by retention enforcement. "
+            f"Expected {sequence_number} entries, found {len(entries)}. "
+            f"Past checkpoints remain independently verifiable."
+        )
+    tree = MerkleTree()
+    for row in entries:
+        filtered = {
+            k: v for k, v in sorted(row.items())
+            if k not in ("signature", "id")
+        }
+        tree.add_leaf(json.dumps(filtered, separators=(",", ":"), sort_keys=True).encode())
+    return tree
+```
+
+In TypeScript `service.ts` `rebuildMerkleTo()`:
+
+```typescript
+async function rebuildMerkleTo(sequenceNumber: number): Promise<MerkleTree> {
+  const entries = await storage.getAuditEntriesRange(1, sequenceNumber);
+  if (entries.length < sequenceNumber) {
+    throw new Error(
+      `Cannot rebuild proof: audit entries have been deleted by retention enforcement. ` +
+      `Expected ${sequenceNumber} entries, found ${entries.length}. ` +
+      `Past checkpoints remain independently verifiable.`
+    );
+  }
+  const tree = new MerkleTree();
+  for (const row of entries) {
+    const filtered: Record<string, unknown> = {};
+    for (const key of Object.keys(row).sort()) {
+      if (key !== "signature" && key !== "id") {
+        filtered[key] = row[key];
+      }
+    }
+    tree.addLeaf(Buffer.from(JSON.stringify(filtered)));
+  }
+  return tree;
+}
+```
+
+Add tests for this guard in both runtimes: insert entries, delete some via the storage method, then verify that calling the proof endpoint returns the expected error.
+
+**Step 6: Run all tests**
 
 Run: `.venv/bin/python -m pytest packages/python -x -q`
 Run: `cd packages/typescript && npx tsc -b core crypto server service express fastify hono && npx vitest run --reporter=verbose`
 Expected: All pass
 
-**Step 6: Commit**
+**Step 7: Commit**
 
 ```
 git add packages/python/anip-server/src/anip_server/retention_enforcer.py \
@@ -1483,7 +1580,7 @@ git add packages/python/anip-server/src/anip_server/retention_enforcer.py \
        packages/typescript/server/tests/retention-enforcer.test.ts \
        packages/python/anip-service/src/anip_service/service.py \
        packages/typescript/service/src/service.ts
-git commit -m "feat(server): add RetentionEnforcer background cleanup (v0.8)"
+git commit -m "feat(server): add RetentionEnforcer background cleanup + proof safety guard (v0.8)"
 ```
 
 ---
@@ -1686,12 +1783,13 @@ git commit -m "feat(service): add failure detail redaction at response boundary 
 
 ---
 
-### Task 9: Update Discovery Posture and Schema
+### Task 9: Update Discovery Posture, Discovery Schema, and Canonical ANIP Schema
 
-Update the discovery document to include `retention_enforced` in the posture.audit block. Update the discovery schema. Update the service's `get_discovery()` to reflect the new field.
+Update the discovery document to include `retention_enforced` in the posture.audit block. Update both JSON Schema files: `discovery.schema.json` (add `retention_enforced`, add `"reduced"` to `failure_disclosure.detail_level`) and `anip.schema.json` (add `EventClass`, `RetentionTier`, `DisclosureLevel` enum definitions; add `event_class`, `retention_tier`, `expires_at` to audit entry definitions; bump `$id` to v0.8). Update the service's `get_discovery()` to reflect the new field.
 
 **Files:**
 - Modify: `schema/discovery.schema.json`
+- Modify: `schema/anip.schema.json`
 - Modify: `packages/python/anip-service/src/anip_service/service.py`
 - Modify: `packages/typescript/service/src/service.ts`
 - Test: `packages/python/anip-service/tests/test_service_init.py`
@@ -1711,7 +1809,9 @@ def test_discovery_posture_includes_retention_enforced(service):
 
 **Step 2: Update discovery schema**
 
-In `schema/discovery.schema.json`, in the `posture.audit` properties, add:
+In `schema/discovery.schema.json`:
+
+1. In the `posture.audit` properties, add:
 
 ```json
 "retention_enforced": {
@@ -1720,29 +1820,68 @@ In `schema/discovery.schema.json`, in the `posture.audit` properties, add:
 }
 ```
 
-**Step 3: Update Python get_discovery()**
+2. In the `failure_disclosure.detail_level` enum (currently `["full", "redacted", "policy"]`), add `"reduced"`:
+
+```json
+"detail_level": {
+  "type": "string",
+  "enum": ["full", "reduced", "redacted", "policy"],
+  "description": "How much error detail is surfaced to callers"
+}
+```
+
+**Step 3: Update canonical ANIP schema**
+
+In `schema/anip.schema.json`:
+
+1. Bump `$id` from `v0.7` to `v0.8`.
+
+2. Add enum definitions for the new protocol-visible types:
+
+```json
+"EventClass": {
+  "type": "string",
+  "enum": ["high_risk_success", "high_risk_denial", "low_risk_success", "repeated_low_value_denial", "malformed_or_spam"],
+  "description": "Classification of an audit event by risk level (v0.8)"
+},
+"RetentionTier": {
+  "type": "string",
+  "enum": ["long", "medium", "short", "aggregate_only"],
+  "description": "Retention tier governing how long an audit entry is kept (v0.8)"
+},
+"DisclosureLevel": {
+  "type": "string",
+  "enum": ["full", "reduced", "redacted", "policy"],
+  "description": "How much failure detail is surfaced to callers (v0.8)"
+}
+```
+
+3. Add `event_class`, `retention_tier`, `expires_at` fields to the audit entry definition (if one exists — otherwise add them alongside the existing audit-related definitions).
+
+**Step 5: Update Python get_discovery()**
 
 In `packages/python/anip-service/src/anip_service/service.py`, update the posture construction in `get_discovery()` to include `AuditPosture(retention_enforced=True)`.
 
-**Step 4: Update TypeScript getDiscovery()**
+**Step 6: Update TypeScript getDiscovery()**
 
 In `packages/typescript/service/src/service.ts`, update the posture.audit block to include `retention_enforced: true`.
 
-**Step 5: Write TypeScript test and run all tests**
+**Step 7: Write TypeScript test and run all tests**
 
 Run: `.venv/bin/python -m pytest packages/python -x -q`
 Run: `cd packages/typescript && npx tsc -b core crypto server service express fastify hono && npx vitest run --reporter=verbose`
 Expected: All pass
 
-**Step 6: Commit**
+**Step 8: Commit**
 
 ```
 git add schema/discovery.schema.json \
+       schema/anip.schema.json \
        packages/python/anip-service/src/anip_service/service.py \
        packages/typescript/service/src/service.ts \
        packages/python/anip-service/tests/test_service_init.py \
        packages/typescript/service/tests/service.test.ts
-git commit -m "feat(discovery): add retention_enforced to posture.audit (v0.8)"
+git commit -m "feat(discovery,schema): add retention_enforced, reduced disclosure, and v0.8 enum definitions"
 ```
 
 ---
@@ -1830,9 +1969,11 @@ git commit -m "docs: update all references to v0.8"
 Throughout implementation, maintain these invariants:
 
 1. Full-fidelity audit still exists -- all events stored with complete detail
-2. Retention limits lifetime -- expired entries deleted by background sweep
+2. Retention limits lifetime -- expired entries hard-deleted by background sweep
 3. Aggregation is not happening yet -- each event is a distinct record
 4. Checkpoints still cover all entries -- no selective checkpointing
 5. Response redaction is separate from storage -- callers may see less than stored
 6. `aggregate_only` tier is a placeholder -- treated as `short` in v0.8
 7. `repeated_low_value_denial` exists in enum but is not assigned by classifier
+8. Proof generation fails cleanly if retention has deleted entries from the replay range -- past checkpoints remain independently verifiable, but the service will not generate new proofs over gaps
+9. Python retention enforcement runs in the service's event loop (asyncio task), not a background thread

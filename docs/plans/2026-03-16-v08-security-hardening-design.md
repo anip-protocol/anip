@@ -89,11 +89,13 @@ A deployment wanting to keep denied reads longer overrides layer 1: `high_risk_d
 
 ### Background Cleanup Sweep
 
-A `RetentionEnforcer` class (both runtimes) that periodically deletes expired audit entries. Modeled after the existing `CheckpointScheduler` pattern.
+A `RetentionEnforcer` class (both runtimes) that periodically deletes expired audit entries.
 
 - Constructed with a `StorageBackend` and an interval (default: 60 seconds)
 - On each tick: `DELETE FROM audit_log WHERE expires_at IS NOT NULL AND expires_at < now()`
 - Started/stopped by the service lifecycle (`service.start()` / `service.stop()`)
+- **Python:** Uses `asyncio.create_task` with a sleep loop (NOT a background thread) to stay compatible with async/loop-affine storage backends
+- **TypeScript:** Uses `setInterval` (already event-loop-native)
 
 ### Storage Changes
 
@@ -104,6 +106,7 @@ A `RetentionEnforcer` class (both runtimes) that periodically deletes expired au
 ### Audit Query Changes
 
 - `query_audit_entries()` gains an optional `event_class` filter parameter
+- `event_class` is threaded through all layers: storage, service `query_audit()`, and route handlers
 - No change to existing filters (capability, since, invocation_id, client_reference_id, limit)
 
 ### Checkpoint Interaction
@@ -111,6 +114,7 @@ A `RetentionEnforcer` class (both runtimes) that periodically deletes expired au
 - Checkpoints continue to include all entries regardless of event class (no selective checkpointing in v0.8)
 - Past checkpoint verification remains valid — checkpoint proofs reference sequence ranges and Merkle roots computed at checkpoint time
 - However, live storage is no longer a full source of historical reconstruction once retention deletes rows. Deployments requiring full historical replay should configure `long` tier or null duration for relevant event classes.
+- **Proof safety guard:** `_rebuild_merkle_to()` verifies that all expected rows exist before building the tree. If rows have been deleted by retention, proof generation returns a clear `audit_entries_expired` error instead of a silently wrong Merkle root.
 
 ### Audit Entry Fields at Log Time
 
