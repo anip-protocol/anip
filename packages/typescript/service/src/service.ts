@@ -408,7 +408,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         },
       };
 
-      if (opts?.baseUrl) {
+      if (opts?.baseUrl != null) {
         doc.base_url = opts.baseUrl;
       }
 

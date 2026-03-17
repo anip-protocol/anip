@@ -12,7 +12,9 @@ from anip_core import (
     ANIPFailure,
     ANIPManifest,
     CapabilityDeclaration,
+    DEFAULT_PROFILE,
     DelegationToken,
+    PROTOCOL_VERSION,
     ResponseMode,
     ServiceIdentity,
     TrustPosture,
@@ -151,8 +153,6 @@ class ANIPService:
 
     def get_discovery(self, *, base_url: str | None = None) -> dict[str, Any]:
         """Return lightweight discovery document per SPEC.md §6.1."""
-        from anip_core import PROTOCOL_VERSION, DEFAULT_PROFILE
-
         caps_summary = {}
         for name, cap in self._capabilities.items():
             decl = cap.declaration
@@ -167,7 +167,7 @@ class ANIPService:
         doc: dict[str, Any] = {
             "protocol": PROTOCOL_VERSION,
             "compliance": "anip-compliant",
-            "profile": DEFAULT_PROFILE,
+            "profile": {**DEFAULT_PROFILE},
             "auth": {
                 "delegation_token_required": True,
                 "supported_formats": ["anip-v1"],
