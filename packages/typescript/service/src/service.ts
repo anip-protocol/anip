@@ -431,7 +431,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             enabled: true,
             signed: true,
             queryable: true,
-            retention: null,
+            retention: retentionPolicy.defaultRetention,
             retention_enforced: retentionEnforcer.isRunning(),
           },
           lineage: {

@@ -185,7 +185,10 @@ class ANIPService:
         anchoring_src = self._manifest.trust.anchoring if self._manifest.trust else None
         is_anchored = self._trust_level in ("anchored", "attested")
         posture = DiscoveryPosture(
-            audit=AuditPosture(retention_enforced=self._retention_enforcer.is_running),
+            audit=AuditPosture(
+                retention=self._retention_policy.default_retention,
+                retention_enforced=self._retention_enforcer.is_running,
+            ),
             failure_disclosure=FailureDisclosure(detail_level=self._disclosure_level),
             anchoring=AnchoringPosture(
                 enabled=is_anchored,

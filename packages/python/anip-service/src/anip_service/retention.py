@@ -45,6 +45,11 @@ class RetentionPolicy:
         self._class_to_tier = {**DEFAULT_CLASS_TO_TIER, **(class_to_tier or {})}
         self._tier_to_duration = {**DEFAULT_TIER_TO_DURATION, **(tier_to_duration or {})}
 
+    @property
+    def default_retention(self) -> str | None:
+        """The medium-tier duration, used as the representative retention for discovery."""
+        return self._tier_to_duration.get("medium")
+
     def resolve_tier(self, event_class: str) -> str:
         return self._class_to_tier.get(event_class, "short")
 

@@ -45,6 +45,11 @@ export class RetentionPolicy {
     this.tierToDuration = { ...DEFAULT_TIER_TO_DURATION, ...(opts?.tierToDuration ?? {}) };
   }
 
+  /** The medium-tier duration, used as the representative retention for discovery. */
+  get defaultRetention(): string | null {
+    return this.tierToDuration["medium"] ?? null;
+  }
+
   resolveTier(eventClass: string): string {
     return this.classToTier[eventClass] ?? "short";
   }
