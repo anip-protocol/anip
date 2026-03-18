@@ -3,6 +3,9 @@
  */
 
 import { createHash } from "crypto";
+import type { StorageBackend } from "./storage.js";
+import { MerkleTree } from "./merkle.js";
+import { canonicalBytes } from "./hashing.js";
 
 /**
  * Recursively sorted JSON serialization — matches Python's
@@ -59,30 +62,31 @@ export class CheckpointPolicy {
 
 /**
  * Periodically triggers checkpoint creation using `setInterval`.
+ *
+ * The `createFn` callback is async — the caller is responsible for
+ * leader acquisition and "has new entries" checks inside the callback.
  */
 export class CheckpointScheduler {
   private _interval: number;
-  private _createFn: () => void;
-  private _hasNewEntriesFn: () => boolean;
+  private _createFn: () => Promise<void>;
   private _timer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     intervalSeconds: number,
-    createFn: () => void,
-    hasNewEntriesFn: () => boolean,
+    createFn: () => Promise<void>,
   ) {
     this._interval = intervalSeconds;
     this._createFn = createFn;
-    this._hasNewEntriesFn = hasNewEntriesFn;
   }
 
   start(): void {
-    this._timer = setInterval(() => {
-      if (this._hasNewEntriesFn()) {
-        this._createFn();
+    this._timer = setInterval(async () => {
+      try {
+        await this._createFn();
+      } catch {
+        // Non-fatal
       }
     }, this._interval * 1000);
-    // Allow the timer to not prevent process exit
     if (this._timer && typeof this._timer === "object" && "unref" in this._timer) {
       (this._timer as NodeJS.Timeout).unref();
     }
@@ -154,8 +158,87 @@ export function createCheckpoint(opts: CreateCheckpointOpts): {
     entry_count: entryCount,
   };
 
-  const canonicalBytes = Buffer.from(canonicalJson(body));
-  const signature = signFn ? signFn(canonicalBytes) : "";
+  const canonicalBodyBytes = Buffer.from(canonicalJson(body));
+  const signature = signFn ? signFn(canonicalBodyBytes) : "";
 
   return { body, signature };
+}
+
+/**
+ * Build a checkpoint by reading ALL audit entries from storage and
+ * reconstructing the Merkle tree from scratch (cumulative, not delta).
+ *
+ * Returns `null` when there are no entries or no new entries since the
+ * last stored checkpoint.
+ */
+export async function reconstructAndCreateCheckpoint(opts: {
+  storage: StorageBackend;
+  serviceId: string;
+  signFn?: (data: Buffer) => string;
+}): Promise<{ body: Record<string, unknown>; signature: string } | null> {
+  const { storage, serviceId, signFn } = opts;
+
+  const maxSeq = await storage.getMaxAuditSequence();
+  if (maxSeq === null) return null;
+
+  // Find the most-recent checkpoint to determine what is already covered.
+  // getCheckpoints returns results in insertion order (oldest first),
+  // so fetch all and take the last.
+  const checkpoints = await storage.getCheckpoints(1_000_000);
+  const lastCp =
+    checkpoints.length > 0 ? checkpoints[checkpoints.length - 1] : null;
+  const lastCovered = lastCp
+    ? ((lastCp.range as Record<string, number>)?.last_sequence ??
+        (lastCp.last_sequence as number) ??
+        0)
+    : 0;
+
+  if (maxSeq <= lastCovered) return null;
+
+  // Full reconstruction from entry 1
+  const entries = await storage.getAuditEntriesRange(1, maxSeq);
+
+  // Rebuild Merkle tree over every entry
+  const tree = new MerkleTree();
+  for (const entry of entries) {
+    tree.addLeaf(Buffer.from(canonicalBytes(entry)));
+  }
+
+  const snapshot = tree.snapshot();
+
+  // For cumulative checkpoints the range always starts at 1 because the
+  // Merkle tree is rebuilt from the very first entry.  createCheckpoint
+  // would normally compute firstSequence from the previous checkpoint's
+  // last_sequence, so we pass a synthetic copy with last_sequence=0 to
+  // force firstSequence=1 while keeping checkpoint_id for numbering.
+  let syntheticPrev: Record<string, unknown> | null = null;
+  if (lastCp !== null) {
+    syntheticPrev = {
+      ...lastCp,
+      range: { ...(lastCp.range as Record<string, unknown>), last_sequence: 0 },
+    };
+  }
+
+  const result = createCheckpoint({
+    merkleSnapshot: snapshot,
+    serviceId,
+    previousCheckpoint: syntheticPrev,
+    signFn,
+  });
+
+  // Restore the correct previous_checkpoint hash (computed from the real
+  // stored checkpoint, not the synthetic copy).
+  if (lastCp !== null) {
+    const prevBodyCanonical = canonicalJson(lastCp);
+    const hash = createHash("sha256").update(prevBodyCanonical).digest("hex");
+    result.body.previous_checkpoint = `sha256:${hash}`;
+
+    // Re-sign with the corrected body if a signFn was provided.
+    if (signFn) {
+      const correctedBytes = Buffer.from(canonicalJson(result.body));
+      result.signature = signFn(correctedBytes);
+    }
+  }
+
+  return result;
 }

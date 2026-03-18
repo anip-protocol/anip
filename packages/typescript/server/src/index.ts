@@ -7,7 +7,7 @@ export type { BuildManifestOpts } from "./manifest.js";
 export { AuditLog } from "./audit.js";
 export { MerkleTree } from "./merkle.js";
 export type { InclusionStep, Snapshot } from "./merkle.js";
-export { createCheckpoint, CheckpointPolicy, CheckpointScheduler } from "./checkpoint.js";
+export { createCheckpoint, reconstructAndCreateCheckpoint, CheckpointPolicy, CheckpointScheduler } from "./checkpoint.js";
 export type { CheckpointPolicyOpts, CreateCheckpointOpts } from "./checkpoint.js";
 export type { CheckpointSink } from "./sinks.js";
 export { LocalFileSink } from "./sinks.js";

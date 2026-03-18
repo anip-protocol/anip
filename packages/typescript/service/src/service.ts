@@ -272,8 +272,11 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   if (trustLevel === "anchored" && checkpointPolicy) {
     scheduler = new CheckpointScheduler(
       60, // default interval
-      () => createAndPublishCheckpoint(),
-      () => entriesSinceCheckpoint > 0,
+      async () => {
+        if (entriesSinceCheckpoint > 0) {
+          createAndPublishCheckpoint();
+        }
+      },
     );
   }
 
