@@ -8,11 +8,26 @@ tokens, audit log entries, and checkpoints.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Protocol, runtime_checkable
+
+
+def compute_entry_hash(entry: dict[str, Any]) -> str:
+    """Compute the SHA-256 hash of an audit entry for hash-chain linking.
+
+    Excludes 'signature' and 'id' fields, produces canonical JSON, and
+    returns a ``sha256:<hex>`` prefixed string.
+    """
+    canonical = json.dumps(
+        {k: v for k, v in sorted(entry.items()) if k not in ("signature", "id")},
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode()
+    return f"sha256:{hashlib.sha256(canonical).hexdigest()}"
 
 
 @runtime_checkable
@@ -106,6 +121,7 @@ class InMemoryStorage:
         self._tokens: dict[str, dict[str, Any]] = {}
         self._audit_entries: list[dict[str, Any]] = []
         self._checkpoints: list[dict[str, Any]] = []
+        self._exclusive_leases: dict[str, tuple[str, datetime]] = {}
 
     # -- tokens -------------------------------------------------------------
 
@@ -221,6 +237,59 @@ class InMemoryStorage:
         if not candidates:
             return None
         return min(candidates)
+
+    # -- horizontal-scaling: audit append / signature / sequence -------------
+
+    async def append_audit_entry(self, entry_data: dict[str, Any]) -> dict[str, Any]:
+        """Atomically append an audit entry, assigning sequence_number and previous_hash."""
+        last = self._audit_entries[-1] if self._audit_entries else None
+        if last is None:
+            seq = 1
+            prev_hash = "sha256:0"
+        else:
+            seq = last["sequence_number"] + 1
+            prev_hash = compute_entry_hash(last)
+        entry = {**entry_data, "sequence_number": seq, "previous_hash": prev_hash}
+        self._audit_entries.append(entry)
+        return entry
+
+    async def update_audit_signature(self, sequence_number: int, signature: str) -> None:
+        """Set the signature on an already-appended audit entry."""
+        for entry in self._audit_entries:
+            if entry["sequence_number"] == sequence_number:
+                entry["signature"] = signature
+                return
+
+    async def get_max_audit_sequence(self) -> int | None:
+        """Return the highest sequence_number in the audit log, or None if empty."""
+        if not self._audit_entries:
+            return None
+        return max(e["sequence_number"] for e in self._audit_entries)
+
+    # -- horizontal-scaling: exclusive leases --------------------------------
+
+    async def try_acquire_exclusive(self, key: str, holder: str, ttl_seconds: int) -> bool:
+        """Attempt to acquire an exclusive lease. Returns True if acquired."""
+        now = datetime.now(timezone.utc)
+        existing = self._exclusive_leases.get(key)
+        if existing is None or existing[1] < now or existing[0] == holder:
+            self._exclusive_leases[key] = (holder, now + timedelta(seconds=ttl_seconds))
+            return True
+        return False
+
+    async def release_exclusive(self, key: str, holder: str) -> None:
+        """Release an exclusive lease if held by the given holder."""
+        existing = self._exclusive_leases.get(key)
+        if existing is not None and existing[0] == holder:
+            del self._exclusive_leases[key]
+
+    async def try_acquire_leader(self, role: str, holder: str, ttl_seconds: int) -> bool:
+        """Attempt to acquire a leader lease for a background role."""
+        return await self.try_acquire_exclusive(f"leader:{role}", holder, ttl_seconds)
+
+    async def release_leader(self, role: str, holder: str) -> None:
+        """Release a leader lease if held by the given holder."""
+        await self.release_exclusive(f"leader:{role}", holder)
 
 
 # ---------------------------------------------------------------------------
@@ -392,6 +461,9 @@ class SQLiteStorage:
             self._conn.execute("ALTER TABLE delegation_tokens ADD COLUMN caller_class TEXT")
         except Exception:
             pass
+
+        # In-memory leases (single-process is fine for SQLite)
+        self._exclusive_leases: dict[str, tuple[str, datetime]] = {}
 
     # -- sync internals (private) -------------------------------------------
 
@@ -716,3 +788,116 @@ class SQLiteStorage:
     ) -> dict[str, Any] | None:
         """Return a single checkpoint by its checkpoint_id."""
         return await asyncio.to_thread(self._sync_get_checkpoint_by_id, checkpoint_id)
+
+    # -- horizontal-scaling: audit append / signature / sequence -------------
+
+    async def append_audit_entry(self, entry_data: dict[str, Any]) -> dict[str, Any]:
+        """Atomically append an audit entry, assigning sequence_number and previous_hash."""
+        return await asyncio.to_thread(self._sync_append_audit_entry, entry_data)
+
+    def _sync_append_audit_entry(self, entry_data: dict[str, Any]) -> dict[str, Any]:
+        with self._lock:
+            # Inline last-entry lookup to avoid re-acquiring the lock
+            row = self._conn.execute(
+                "SELECT * FROM audit_log ORDER BY sequence_number DESC LIMIT 1"
+            ).fetchone()
+            if row is None:
+                seq = 1
+                prev_hash = "sha256:0"
+            else:
+                last = self._parse_audit_row(row)
+                seq = last["sequence_number"] + 1
+                prev_hash = compute_entry_hash(last)
+            entry = {**entry_data, "sequence_number": seq, "previous_hash": prev_hash}
+            # Inline store to avoid re-acquiring the lock
+            self._conn.execute(
+                """INSERT INTO audit_log
+                   (sequence_number, timestamp, capability, token_id, issuer,
+                    subject, root_principal, parameters, success, result_summary,
+                    failure_type, cost_actual, delegation_chain, invocation_id,
+                    client_reference_id, stream_summary, previous_hash, signature,
+                    event_class, retention_tier, expires_at,
+                    storage_redacted, entry_type, grouping_key,
+                    aggregation_window, aggregation_count, first_seen,
+                    last_seen, representative_detail)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    entry["sequence_number"],
+                    entry.get("timestamp"),
+                    entry.get("capability"),
+                    entry.get("token_id"),
+                    entry.get("issuer"),
+                    entry.get("subject"),
+                    entry.get("root_principal"),
+                    json.dumps(entry["parameters"]) if entry.get("parameters") is not None else None,
+                    1 if entry.get("success") else 0,
+                    json.dumps(entry["result_summary"]) if entry.get("result_summary") is not None else None,
+                    entry.get("failure_type"),
+                    json.dumps(entry["cost_actual"]) if entry.get("cost_actual") is not None else None,
+                    json.dumps(entry["delegation_chain"]) if entry.get("delegation_chain") is not None else None,
+                    entry.get("invocation_id"),
+                    entry.get("client_reference_id"),
+                    json.dumps(entry["stream_summary"]) if entry.get("stream_summary") is not None else None,
+                    entry["previous_hash"],
+                    entry.get("signature"),
+                    entry.get("event_class"),
+                    entry.get("retention_tier"),
+                    entry.get("expires_at"),
+                    1 if entry.get("storage_redacted") else 0,
+                    entry.get("entry_type"),
+                    json.dumps(entry["grouping_key"]) if entry.get("grouping_key") is not None else None,
+                    json.dumps(entry["aggregation_window"]) if entry.get("aggregation_window") is not None else None,
+                    entry.get("aggregation_count"),
+                    entry.get("first_seen"),
+                    entry.get("last_seen"),
+                    entry.get("representative_detail"),
+                ),
+            )
+            self._conn.commit()
+            return entry
+
+    async def update_audit_signature(self, sequence_number: int, signature: str) -> None:
+        """Set the signature on an already-appended audit entry."""
+        await asyncio.to_thread(self._sync_update_audit_signature, sequence_number, signature)
+
+    def _sync_update_audit_signature(self, sequence_number: int, signature: str) -> None:
+        with self._lock:
+            self._conn.execute(
+                "UPDATE audit_log SET signature = ? WHERE sequence_number = ?",
+                (signature, sequence_number),
+            )
+            self._conn.commit()
+
+    async def get_max_audit_sequence(self) -> int | None:
+        """Return the highest sequence_number in the audit log, or None if empty."""
+        return await asyncio.to_thread(self._sync_get_max_audit_sequence)
+
+    def _sync_get_max_audit_sequence(self) -> int | None:
+        with self._lock:
+            row = self._conn.execute("SELECT MAX(sequence_number) FROM audit_log").fetchone()
+            return row[0] if row and row[0] is not None else None
+
+    # -- horizontal-scaling: exclusive leases --------------------------------
+
+    async def try_acquire_exclusive(self, key: str, holder: str, ttl_seconds: int) -> bool:
+        """Attempt to acquire an exclusive lease. Returns True if acquired."""
+        now = datetime.now(timezone.utc)
+        existing = self._exclusive_leases.get(key)
+        if existing is None or existing[1] < now or existing[0] == holder:
+            self._exclusive_leases[key] = (holder, now + timedelta(seconds=ttl_seconds))
+            return True
+        return False
+
+    async def release_exclusive(self, key: str, holder: str) -> None:
+        """Release an exclusive lease if held by the given holder."""
+        existing = self._exclusive_leases.get(key)
+        if existing is not None and existing[0] == holder:
+            del self._exclusive_leases[key]
+
+    async def try_acquire_leader(self, role: str, holder: str, ttl_seconds: int) -> bool:
+        """Attempt to acquire a leader lease for a background role."""
+        return await self.try_acquire_exclusive(f"leader:{role}", holder, ttl_seconds)
+
+    async def release_leader(self, role: str, holder: str) -> None:
+        """Release a leader lease if held by the given holder."""
+        await self.release_exclusive(f"leader:{role}", holder)
