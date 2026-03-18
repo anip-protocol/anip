@@ -37,13 +37,18 @@ Shift sequencing and hash-chain responsibility into the storage layer.
 append_audit_entry(entry_data) -> complete_entry
   # Entry arrives WITHOUT sequence_number or previous_hash
   # Storage assigns both atomically
-  # Returns the fully populated entry
+  # Returns the fully populated entry (unsigned)
+
+# Two-phase signing support
+update_audit_signature(sequence_number, signature) -> void
+  # Called after append to attach the cryptographic signature
+  # The entry is briefly unsigned between append and update
 
 # Distributed exclusivity (lease-style)
 try_acquire_exclusive(key: str, holder: str, ttl_seconds: int) -> bool
 release_exclusive(key: str, holder: str) -> void
 
-# Leader coordination for background jobs
+# Leader coordination (lease-style, same pattern as exclusivity)
 try_acquire_leader(role: str, holder: str, ttl_seconds: int) -> bool
 release_leader(role: str, holder: str) -> void
 
@@ -53,7 +58,11 @@ get_max_audit_sequence() -> int | None
 
 ### AuditLog changes
 
-- `log_entry()` stops doing `get_last_audit_entry()` + increment. Calls `append_audit_entry()` and receives the complete entry back.
+- `log_entry()` stops doing `get_last_audit_entry()` + increment. Uses the new two-phase append:
+  1. Calls `append_audit_entry(entry_data)` — storage allocates `sequence_number` and `previous_hash`, persists the unsigned entry, returns it
+  2. Signs the complete entry (now that all fields are known) via the signer callback
+  3. Calls `update_audit_signature(sequence_number, signature)` — attaches the signature to the stored entry
+- There is a brief window between steps 1 and 3 where the entry exists unsigned in storage. This is acceptable: the window is within a single `log_entry()` call (microseconds), and any reader seeing an unsigned entry can treat it as in-flight.
 - Process-local `MerkleTree` instance is removed from `AuditLog`. Merkle accumulation is no longer part of the append hot path — it moves to checkpoint generation (Section 2).
 - `get_merkle_snapshot()` is removed from the checkpointing path.
 
@@ -78,8 +87,11 @@ get_max_audit_sequence() -> int | None
 - Crash recovery: expired leases are naturally reclaimable by any replica
 
 **Leader coordination:**
-- `pg_try_advisory_lock(role_hash)` — session-scoped, held for the lifetime of the checkpoint worker's connection
-- Requires a dedicated connection for the leader role, not a pooled connection, so request traffic cannot accidentally release it
+- Same lease-table pattern as exclusivity: `leader_leases` table with `(role TEXT PRIMARY KEY, holder TEXT, expires_at TIMESTAMPTZ)`
+- Acquire: `INSERT ... ON CONFLICT (role) DO UPDATE SET holder=$holder, expires_at=now()+$ttl WHERE leader_leases.expires_at < now() OR leader_leases.holder = $holder`
+- Release: `DELETE WHERE role=$role AND holder=$holder`
+- Checkpoint scheduler renews its lease at `ttl/2` intervals
+- No dedicated connection required — lease is time-based, not session-scoped
 
 ### SQLiteStorage implementation (updated)
 
@@ -98,7 +110,7 @@ Each `AuditLog` instance keeps a process-local `MerkleTree` with an in-memory `_
 
 ### Solution
 
-Checkpoint generation reconstructs the full cumulative Merkle tree from shared storage. One replica holds an advisory lock and does the work.
+Checkpoint generation reconstructs the full cumulative Merkle tree from shared storage. One replica holds a leader lease and does the work.
 
 ### Correctness model
 
@@ -116,7 +128,7 @@ v0.10 takes the simple/correct approach: always rebuild from entry 1.
 6. Rebuilds full Merkle tree: `get_audit_entries_range(1, current_max)`
 7. Computes `canonical_bytes` → `leaf_hash` for each entry in canonical order
 8. Builds `CheckpointBody` with the cumulative Merkle root, signs, stores, publishes to sinks
-9. Releases leadership (or lets advisory lock persist for next tick)
+9. Releases leadership (or lets lease persist for next tick — renewed at ttl/2)
 
 ### Service layer changes
 
@@ -136,6 +148,7 @@ v0.10 takes the simple/correct approach: always rebuild from entry 1.
 - Full reconstruction reads all entries from storage each cycle
 - Bounded in practice: for early adoption, audit logs in the thousands to low tens of thousands are well within a single indexed query
 - **Deferred to post-v0.10:** Store Merkle frontier state with each checkpoint, enabling incremental reconstruction from `prior_frontier + new_entries`. v0.10 explicitly does not do this — correctness first.
+- **Retention constraint:** Because v0.10 always rebuilds from entry 1, audit entry retention is disabled in cluster deployments. See Section 4 (Retention enforcer) for details.
 
 ---
 
@@ -215,6 +228,7 @@ No general-purpose cluster job framework. Each job gets its natural strategy:
 - Runs on all replicas — safe because `DELETE WHERE expires_at < now()` is idempotent
 - Multiple replicas executing the same sweep is harmless — no coordination needed
 - Document this explicitly as an intentionally concurrent job
+- **Cluster constraint:** In cluster deployments (Postgres), retention must NOT delete audit entries that fall within the cumulative checkpoint range. Since v0.10 always rebuilds from entry 1, this means audit entry retention is effectively disabled in cluster mode. Tokens and other non-audit data can still be cleaned up. This limitation is a direct consequence of deferring Merkle frontier storage to post-v0.10 — once frontier state is stored with each checkpoint, retention can safely delete entries covered by a finalized checkpoint.
 
 ### Aggregator flush
 
@@ -240,7 +254,7 @@ Standalone `docs/deployment-guide.md`. SPEC.md carries only a concise note point
 **Cluster** (production, horizontal scaling):
 - Postgres storage backend
 - Stateless API replicas behind a load balancer
-- Checkpoint leadership via advisory lock (automatic, per-tick)
+- Checkpoint leadership via lease table (automatic, per-tick renewal)
 - Retention runs on all replicas (idempotent)
 - Aggregation is per-replica
 
@@ -253,9 +267,9 @@ Load Balancer ──────┼─→ Replica 2 (API + retention + aggregato
                     │
                     └─→ Replica N (API + retention + aggregator)
 
-                    * Advisory lock determines leader per tick; any replica can take over
+                    * Leader lease determines leader per tick; any replica can take over
 
-Shared: PostgreSQL (audit, tokens, checkpoints, leases, append head)
+Shared: PostgreSQL (audit, tokens, checkpoints, leases, leader leases, append head)
 Shared: Signing key material (mounted secret or KMS)
 ```
 
@@ -268,13 +282,13 @@ All replicas need the same signing key for manifest signing and checkpoint signi
 
 ### Monitoring guidance
 
-- Which replica holds the checkpoint advisory lock
+- Which replica holds the checkpoint leader lease
 - Lease table state for exclusivity
 - Audit append head progression
 
 ### Graceful shutdown
 
-- Release advisory locks
+- Release leader leases
 - Release exclusive leases
 - Flush aggregator buffer (existing `shutdown()` path)
 
@@ -307,7 +321,8 @@ All replicas need the same signing key for manifest signing and checkpoint signi
 
 ## What v0.10 Explicitly Defers
 
-- Merkle frontier state / incremental checkpoint reconstruction
+- Merkle frontier state / incremental checkpoint reconstruction (blocks cluster-mode audit retention)
+- Audit entry retention in cluster deployments (requires Merkle frontier first)
 - Cluster-global aggregation (aggregation stays per-replica)
 - General-purpose distributed job framework
 - Multi-region consensus

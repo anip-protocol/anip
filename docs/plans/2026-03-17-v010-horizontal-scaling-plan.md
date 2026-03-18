@@ -4,7 +4,7 @@
 
 **Goal:** Make ANIP's audit and trust guarantees remain correct when one logical service runs across multiple replicas with shared storage.
 
-**Architecture:** Refactor `StorageBackend` so it owns atomic audit append and cluster coordination primitives. Ship a PostgreSQL backend as the reference shared-storage implementation. Shift checkpoint generation from process-local Merkle snapshots to full storage-derived reconstruction with advisory-lock leader coordination. Add lease-based distributed exclusivity. All changes in both Python and TypeScript runtimes.
+**Architecture:** Refactor `StorageBackend` so it owns atomic audit append and cluster coordination primitives. Ship a PostgreSQL backend as the reference shared-storage implementation. Shift checkpoint generation from process-local Merkle snapshots to full storage-derived reconstruction with lease-based leader coordination. Add lease-based distributed exclusivity. All changes in both Python and TypeScript runtimes.
 
 **Tech Stack:** Python (asyncpg, pytest, Pydantic), TypeScript (pg/node-postgres, vitest, Zod), PostgreSQL 15+, SQLite (unchanged for dev)
 
@@ -740,7 +740,7 @@ Create `PostgresStorage` implementing the full `StorageBackend` protocol using `
   5. `COMMIT`
 - `sequence_number` column is `GENERATED ALWAYS AS IDENTITY`
 - Exclusive leases use `exclusive_leases` table with TTL-based acquire/release
-- Leader leases use `pg_try_advisory_lock`
+- Leader leases use `leader_leases` table (same pattern as exclusive leases)
 
 **Tables:**
 
@@ -777,6 +777,12 @@ CREATE TABLE IF NOT EXISTS exclusive_leases (
     holder TEXT NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS leader_leases (
+    role TEXT PRIMARY KEY,
+    holder TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL
+);
 ```
 
 **Class skeleton:**
@@ -788,8 +794,6 @@ class PostgresStorage:
     def __init__(self, dsn: str) -> None:
         self._dsn = dsn
         self._pool: asyncpg.Pool | None = None
-        # Dedicated connection for advisory locks (leader role)
-        self._leader_conn: asyncpg.Connection | None = None
 
     async def initialize(self) -> None:
         """Create connection pool and ensure schema exists. Must be called before use."""
@@ -799,8 +803,6 @@ class PostgresStorage:
 
     async def close(self) -> None:
         """Close all connections."""
-        if self._leader_conn:
-            await self._leader_conn.close()
         if self._pool:
             await self._pool.close()
 ```
@@ -1454,17 +1456,17 @@ Write `docs/deployment-guide.md` covering:
    - Shared signer service is out of scope for v0.10
 
 5. **Background job strategies:**
-   - Checkpoint scheduler: leader-coordinated (automatic via advisory lock)
-   - Retention enforcer: runs on all replicas (idempotent)
+   - Checkpoint scheduler: leader-coordinated (automatic via leader lease)
+   - Retention enforcer: runs on all replicas (idempotent); **audit entry retention disabled in cluster mode** (requires Merkle frontier, deferred)
    - Aggregator flush: per-replica (explicitly not cluster-global)
 
 6. **Monitoring guidance:**
-   - Checkpoint leader identity
-   - Lease table state
+   - Checkpoint leader identity (leader_leases table)
+   - Exclusive lease table state
    - Audit append head progression
 
 7. **Graceful shutdown:**
-   - Release advisory locks
+   - Release leader leases
    - Release exclusive leases
    - Flush aggregator buffer
 
