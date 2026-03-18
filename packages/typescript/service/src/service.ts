@@ -33,6 +33,7 @@ import {
 
 import { ANIPError } from "./types.js";
 import type { CapabilityDef, Handler, InvocationContext } from "./types.js";
+import { AuditAggregator, type AggregatedEntry } from "./aggregation.js";
 import { classifyEvent } from "./classification.js";
 import { redactFailure } from "./redaction.js";
 import { RetentionPolicy } from "./retention.js";
@@ -61,6 +62,7 @@ export interface ANIPServiceOpts {
   authenticate?: (bearer: string) => string | null;
   retentionPolicy?: RetentionPolicy;
   disclosureLevel?: string;
+  aggregationWindow?: number;
 }
 
 export interface ANIPService {
@@ -97,6 +99,7 @@ export interface ANIPService {
   ): Promise<Record<string, unknown> | null>;
   start(): void;
   stop(): void;
+  shutdown(): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -273,6 +276,14 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   // --- Retention enforcer (v0.8) ---
   const retentionEnforcer = new RetentionEnforcer(storage, 60);
 
+  // --- Audit aggregation (v0.9) ---
+  const aggregator: AuditAggregator | null =
+    opts.aggregationWindow != null
+      ? new AuditAggregator({ windowSeconds: opts.aggregationWindow })
+      : null;
+  const aggregationWindow = opts.aggregationWindow ?? null;
+  let flushTimer: ReturnType<typeof setInterval> | null = null;
+
   // --- Internal helpers ---
 
   async function ensureKeys(): Promise<void> {
@@ -296,7 +307,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     },
   ): Promise<void> {
     const chain = await engine.getChain(token);
-    await audit.logEntry({
+    const entryData: Record<string, unknown> = {
       capability,
       token_id: token.token_id,
       root_principal: await engine.getRootPrincipal(token),
@@ -311,7 +322,16 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       event_class: auditOpts.eventClass ?? null,
       retention_tier: auditOpts.retentionTier ?? null,
       expires_at: auditOpts.expiresAt ?? null,
-    });
+    };
+
+    // Route low-value denials through the aggregator when enabled
+    if (aggregator && auditOpts.eventClass === "malformed_or_spam") {
+      entryData.timestamp = new Date().toISOString();
+      aggregator.submit(entryData);
+      return;
+    }
+
+    await audit.logEntry(entryData);
 
     entriesSinceCheckpoint++;
     if (
@@ -319,6 +339,18 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       checkpointPolicy.shouldCheckpoint(entriesSinceCheckpoint)
     ) {
       createAndPublishCheckpoint();
+    }
+  }
+
+  async function flushAggregator(): Promise<void> {
+    if (!aggregator) return;
+    const results = aggregator.flush(new Date());
+    for (const item of results) {
+      if (typeof item === "object" && item !== null && "toAuditDict" in item) {
+        await audit.logEntry((item as AggregatedEntry).toAuditDict());
+      } else {
+        await audit.logEntry(item as Record<string, unknown>);
+      }
     }
   }
 
@@ -1113,6 +1145,13 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         scheduler.start();
       }
       retentionEnforcer.start();
+
+      if (aggregator && aggregationWindow != null) {
+        flushTimer = setInterval(() => {
+          flushAggregator().catch(() => {});
+        }, aggregationWindow * 1000);
+        flushTimer.unref();
+      }
     },
 
     stop(): void {
@@ -1120,6 +1159,16 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         scheduler.stop();
       }
       retentionEnforcer.stop();
+      if (flushTimer !== null) {
+        clearInterval(flushTimer);
+        flushTimer = null;
+      }
+    },
+
+    async shutdown(): Promise<void> {
+      if (aggregator) {
+        await flushAggregator();
+      }
     },
   };
 

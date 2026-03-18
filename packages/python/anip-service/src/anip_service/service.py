@@ -1,6 +1,7 @@
 """ANIP service runtime — the main developer-facing class."""
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import time
@@ -40,6 +41,7 @@ from anip_server import (
     CheckpointSink,
 )
 
+from .aggregation import AggregatedEntry, AuditAggregator
 from .classification import classify_event
 from .redaction import redact_failure
 from .retention import RetentionPolicy
@@ -66,6 +68,7 @@ class ANIPService:
         authenticate: Callable[[str], str | None] | None = None,
         retention_policy: RetentionPolicy | None = None,
         disclosure_level: str = "full",
+        aggregation_window: int | None = None,
     ) -> None:
         self._service_id = service_id
         self._disclosure_level = disclosure_level
@@ -165,6 +168,15 @@ class ANIPService:
 
         # --- Retention enforcer (v0.8) ---
         self._retention_enforcer = RetentionEnforcer(self._storage, interval_seconds=60)
+
+        # --- Audit aggregation (v0.9) ---
+        if aggregation_window is not None:
+            self._aggregator: AuditAggregator | None = AuditAggregator(window_seconds=aggregation_window)
+            self._aggregation_window = aggregation_window
+        else:
+            self._aggregator = None
+            self._aggregation_window = None
+        self._flush_task: asyncio.Task[None] | None = None
 
     # --- Public domain-level operations ---
 
@@ -818,16 +830,46 @@ class ANIPService:
         return result
 
     def start(self) -> None:
-        """Start background services (checkpoint scheduler, retention enforcer)."""
+        """Start background services (checkpoint scheduler, retention enforcer, aggregation flush)."""
         if self._scheduler:
             self._scheduler.start()
         self._retention_enforcer.start()
 
+        if self._aggregator is not None and self._aggregation_window is not None:
+            async def _periodic_flush() -> None:
+                try:
+                    while True:
+                        await asyncio.sleep(self._aggregation_window)  # type: ignore[arg-type]
+                        await self._flush_aggregator()
+                except asyncio.CancelledError:
+                    pass
+
+            self._flush_task = asyncio.get_event_loop().create_task(_periodic_flush())
+
     def stop(self) -> None:
-        """Stop background services."""
+        """Stop background services (sync, no persistence)."""
         if self._scheduler:
             self._scheduler.stop()
         self._retention_enforcer.stop()
+        if self._flush_task is not None:
+            self._flush_task.cancel()
+            self._flush_task = None
+
+    async def shutdown(self) -> None:
+        """Flush remaining aggregated events and stop background services."""
+        if self._aggregator is not None:
+            await self._flush_aggregator()
+
+    async def _flush_aggregator(self) -> None:
+        """Flush closed aggregation windows and persist each result."""
+        if self._aggregator is None:
+            return
+        results = self._aggregator.flush(datetime.now(timezone.utc))
+        for item in results:
+            if isinstance(item, AggregatedEntry):
+                await self._audit.log_entry(item.to_audit_dict())
+            else:
+                await self._audit.log_entry(item)
 
     # --- Internal helpers ---
 
@@ -848,9 +890,14 @@ class ANIPService:
         retention_tier: str | None = None,
         expires_at: str | None = None,
     ) -> None:
-        """Log an audit entry through the SDK's AuditLog."""
+        """Log an audit entry through the SDK's AuditLog.
+
+        When the aggregator is enabled and the event_class is
+        ``malformed_or_spam``, the event is routed through the aggregator
+        instead of being persisted immediately.
+        """
         chain = await self._engine.get_chain(token)
-        await self._audit.log_entry({
+        entry_data = {
             "capability": capability,
             "token_id": token.token_id,
             "root_principal": await self._engine.get_root_principal(token),
@@ -865,7 +912,15 @@ class ANIPService:
             "event_class": event_class,
             "retention_tier": retention_tier,
             "expires_at": expires_at,
-        })
+        }
+
+        # Route low-value denials through the aggregator when enabled
+        if self._aggregator is not None and event_class == "malformed_or_spam":
+            entry_data["timestamp"] = datetime.now(timezone.utc).isoformat()
+            self._aggregator.submit(entry_data)
+            return
+
+        await self._audit.log_entry(entry_data)
 
         self._entries_since_checkpoint += 1
         if self._checkpoint_policy and self._checkpoint_policy.should_checkpoint(
