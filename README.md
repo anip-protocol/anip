@@ -261,7 +261,7 @@ const service = createANIPService({
 });
 
 const app = new Hono();
-const { stop } = mountAnip(app, service);
+const { shutdown, stop } = mountAnip(app, service);
 ```
 
 Capabilities are plain functions — declare what they do, handle the request, return data:
@@ -290,15 +290,15 @@ For advanced use cases that need direct access to the SDK primitives (KeyManager
 
 ## Status
 
-ANIP is under active development. The spec is at v0.8 with security hardening, discovery posture, streaming invocations, invocation lineage, async storage, anchored trust, and cryptographic enforcement in place. Multi-agent coordination and federated trust remain open. See [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v1) for the full breakdown.
+ANIP is under active development. The spec is at v0.9 with audit aggregation, storage-side redaction, caller-class-aware disclosure, and proof lifecycle semantics in place — building on v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, and earlier foundations. Multi-agent coordination and federated trust remain open. See [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v1) for the full breakdown.
 
-> **v0.8 adds security hardening.** Event classification, retention policies, failure detail redaction, and proof safety guards — so services control what data is stored, for how long, and what error details leak to callers. Building on v0.7's discovery posture, v0.6's streaming invocations, v0.4's invocation lineage, v0.5's async storage, and v0.3's anchored trust. See [SPEC.md §7](SPEC.md) for the hardening primitives.
+> **v0.9 completes the observability story.** Audit aggregation collapses repeated low-value denials into summary records (§6.9). Storage-side redaction strips parameters from persisted entries for configurable event classes (§6.10). Caller-class-aware disclosure lets services vary failure detail by caller type — fixed level or policy-driven (§6.8). And `proof_unavailable` on checkpoint responses gives clients expiry hints for cache management (§6.5). Building on v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, v0.4's invocation lineage, v0.5's async storage, and v0.3's anchored trust.
 
 This is a community effort. We'd rather define this standard thoughtfully and in the open than let it emerge ad-hoc.
 
 **What exists today:**
 - [Manifesto](MANIFESTO.md) — why this moment matters
-- [Spec](SPEC.md) — the technical design (v0.8)
+- [Spec](SPEC.md) — the technical design (v0.9)
 - [Guide](GUIDE.md) — walkthrough of the reference implementation with design rationale
 - [Reference implementation — Python](examples/anip/) — `anip-service` + FastAPI, ~150 lines of business logic
 - [Reference implementation — TypeScript](examples/anip-ts/) — `@anip/service` + Hono, same capabilities and endpoints

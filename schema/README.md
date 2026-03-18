@@ -1,6 +1,6 @@
 # ANIP JSON Schema
 
-> Canonical JSON Schema for all ANIP v0.8 types. Use these to validate any ANIP implementation.
+> Canonical JSON Schema for all ANIP v0.9 types. Use these to validate any ANIP implementation.
 
 ## Files
 
@@ -28,6 +28,8 @@
 | `StreamSummary` | Streaming delivery accounting after invocation | SPEC.md §6.6 |
 | `DiscoveryPosture` | Service governance posture in discovery document | SPEC.md §6.7 |
 | `PostureType` | Enum of posture types (open, gated, restricted, closed) | SPEC.md §6.7 |
+| `AggregatedAuditEntry` | Summary record for repeated low-value audit denials | SPEC.md §6.9 |
+| `CheckpointDetailResponse` | Checkpoint response with `expires_hint` for cache management | SPEC.md §6.5 |
 
 ## Usage
 
