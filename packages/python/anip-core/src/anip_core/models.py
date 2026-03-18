@@ -370,3 +370,12 @@ class CheckpointBody(BaseModel):
     previous_checkpoint: str | None = None
     timestamp: str
     entry_count: int
+
+
+class CheckpointDetailResponse(BaseModel):
+    """Response wrapper for checkpoint detail endpoint. Separate from the signed CheckpointBody."""
+    checkpoint: dict[str, Any]
+    inclusion_proof: dict[str, Any] | None = None
+    consistency_proof: dict[str, Any] | None = None
+    proof_unavailable: str | None = None
+    expires_hint: str | None = None  # best-effort, informational, not part of signed body

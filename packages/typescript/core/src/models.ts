@@ -413,3 +413,16 @@ export const CheckpointBody = z.object({
   entry_count: z.number(),
 });
 export type CheckpointBody = z.infer<typeof CheckpointBody>;
+
+// ---------------------------------------------------------------------------
+// Checkpoint Detail Response (response wrapper, NOT the signed body)
+// ---------------------------------------------------------------------------
+
+export const CheckpointDetailResponse = z.object({
+  checkpoint: z.record(z.unknown()),
+  inclusion_proof: z.record(z.unknown()).nullable().default(null),
+  consistency_proof: z.record(z.unknown()).nullable().default(null),
+  proof_unavailable: z.string().nullable().default(null),
+  expires_hint: z.string().nullable().default(null),
+});
+export type CheckpointDetailResponse = z.infer<typeof CheckpointDetailResponse>;

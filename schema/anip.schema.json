@@ -1027,16 +1027,39 @@
           },
           "required": ["checkpoint_id", "range", "merkle_root", "timestamp", "entry_count"]
         },
+        "inclusion_proof": {
+          "anyOf": [
+            { "additionalProperties": true, "type": "object" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Inclusion Proof"
+        },
+        "consistency_proof": {
+          "anyOf": [
+            { "additionalProperties": true, "type": "object" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Consistency Proof"
+        },
         "proof_unavailable": {
+          "type": ["string", "null"],
+          "default": null,
           "title": "Proof Unavailable",
-          "type": "string",
           "description": "Present when proof cannot be generated, e.g. 'audit_entries_expired' when retention has deleted entries needed for proof. The checkpoint data is still valid."
+        },
+        "expires_hint": {
+          "type": ["string", "null"],
+          "default": null,
+          "title": "Expires Hint",
+          "description": "Best-effort ISO 8601 timestamp of earliest expected audit entry expiration in this checkpoint's range. Informational, not contractual. Not part of the signed checkpoint body."
         }
       },
       "required": ["checkpoint"],
       "title": "CheckpointResponse",
       "type": "object",
-      "description": "A Merkle checkpoint with optional proof. proof_unavailable indicates why proof generation failed. See SPEC.md §6.6 and §6.8."
+      "description": "A Merkle checkpoint with optional proof. proof_unavailable indicates why proof generation failed. expires_hint is best-effort, informational. See SPEC.md §6.6 and §6.8."
     }
   }
 }
