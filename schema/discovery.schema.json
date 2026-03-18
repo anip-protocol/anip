@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anip.dev/schema/v0.8/discovery.schema.json",
+  "$id": "https://anip.dev/schema/v0.9/discovery.schema.json",
   "title": "ANIP Discovery Document",
   "description": "Schema for the /.well-known/anip discovery endpoint response. See SPEC.md §6.1.",
   "type": "object",
@@ -171,6 +171,11 @@
                   "type": "string",
                   "enum": ["full", "reduced", "redacted", "policy"],
                   "description": "How much error detail is surfaced to callers"
+                },
+                "caller_classes": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Known caller class identifiers. Informational only — does not reveal the class-to-level mapping."
                 }
               },
               "required": ["detail_level"],
