@@ -37,6 +37,7 @@ import { AuditAggregator, type AggregatedEntry } from "./aggregation.js";
 import { classifyEvent } from "./classification.js";
 import { redactFailure } from "./redaction.js";
 import { RetentionPolicy } from "./retention.js";
+import { storageRedactEntry } from "./storage-redaction.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -324,14 +325,17 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       expires_at: auditOpts.expiresAt ?? null,
     };
 
+    // Apply storage-side redaction (after classification, before persistence)
+    const redactedEntry = storageRedactEntry(entryData);
+
     // Route low-value denials through the aggregator when enabled
     if (aggregator && auditOpts.eventClass === "malformed_or_spam") {
-      entryData.timestamp = new Date().toISOString();
-      aggregator.submit(entryData);
+      redactedEntry.timestamp = new Date().toISOString();
+      aggregator.submit(redactedEntry);
       return;
     }
 
-    await audit.logEntry(entryData);
+    await audit.logEntry(redactedEntry);
 
     entriesSinceCheckpoint++;
     if (
@@ -346,11 +350,13 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     if (!aggregator) return;
     const results = aggregator.flush(new Date());
     for (const item of results) {
+      let entry: Record<string, unknown>;
       if (typeof item === "object" && item !== null && "toAuditDict" in item) {
-        await audit.logEntry((item as AggregatedEntry).toAuditDict());
+        entry = storageRedactEntry((item as AggregatedEntry).toAuditDict());
       } else {
-        await audit.logEntry(item as Record<string, unknown>);
+        entry = storageRedactEntry(item as Record<string, unknown>);
       }
+      await audit.logEntry(entry);
     }
   }
 

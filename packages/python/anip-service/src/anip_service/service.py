@@ -45,6 +45,7 @@ from .aggregation import AggregatedEntry, AuditAggregator
 from .classification import classify_event
 from .redaction import redact_failure
 from .retention import RetentionPolicy
+from .storage_redaction import storage_redact_entry
 from .types import ANIPError, Capability, InvocationContext
 
 
@@ -867,9 +868,10 @@ class ANIPService:
         results = self._aggregator.flush(datetime.now(timezone.utc))
         for item in results:
             if isinstance(item, AggregatedEntry):
-                await self._audit.log_entry(item.to_audit_dict())
+                entry = storage_redact_entry(item.to_audit_dict())
             else:
-                await self._audit.log_entry(item)
+                entry = storage_redact_entry(item)
+            await self._audit.log_entry(entry)
 
     # --- Internal helpers ---
 
@@ -913,6 +915,9 @@ class ANIPService:
             "retention_tier": retention_tier,
             "expires_at": expires_at,
         }
+
+        # Apply storage-side redaction (after classification, before persistence)
+        entry_data = storage_redact_entry(entry_data)
 
         # Route low-value denials through the aggregator when enabled
         if self._aggregator is not None and event_class == "malformed_or_spam":
