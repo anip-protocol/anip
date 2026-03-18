@@ -101,7 +101,7 @@ export interface ANIPService {
     checkpointId: string,
     options?: Record<string, unknown>,
   ): Promise<Record<string, unknown> | null>;
-  start(): void;
+  start(): Promise<void>;
   stop(): void;
   shutdown(): Promise<void>;
 }
@@ -1207,7 +1207,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       return result;
     },
 
-    start(): void {
+    async start(): Promise<void> {
+      // Initialise storage (PostgresStorage needs pool + schema setup).
+      if (typeof (storage as Record<string, unknown>).initialize === "function") {
+        await (storage as unknown as { initialize(): Promise<void> }).initialize();
+      }
+
       if (scheduler) {
         scheduler.start();
       }

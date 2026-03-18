@@ -22,7 +22,7 @@ function greetCap() {
 
 const API_KEY = "test-key-123";
 
-function makeApp() {
+async function makeApp() {
   const app = Fastify();
   const service = createANIPService({
     serviceId: "test-service",
@@ -30,7 +30,7 @@ function makeApp() {
     storage: new InMemoryStorage(),
     authenticate: (bearer) => (bearer === API_KEY ? "test-agent" : null),
   });
-  const { stop } = mountAnip(app, service);
+  const { stop } = await mountAnip(app, service);
   return { app, stop };
 }
 
@@ -43,7 +43,7 @@ describe("Fastify routes", () => {
   });
 
   it("GET /.well-known/anip returns discovery", async () => {
-    const { app, stop } = makeApp();
+    const { app, stop } = await makeApp();
     stopFn = stop;
     const res = await app.inject({ method: "GET", url: "/.well-known/anip" });
     expect(res.statusCode).toBe(200);
@@ -53,7 +53,7 @@ describe("Fastify routes", () => {
   });
 
   it("GET /.well-known/jwks.json returns keys", async () => {
-    const { app, stop } = makeApp();
+    const { app, stop } = await makeApp();
     stopFn = stop;
     const res = await app.inject({ method: "GET", url: "/.well-known/jwks.json" });
     expect(res.statusCode).toBe(200);
@@ -61,7 +61,7 @@ describe("Fastify routes", () => {
   });
 
   it("GET /anip/manifest returns signed manifest", async () => {
-    const { app, stop } = makeApp();
+    const { app, stop } = await makeApp();
     stopFn = stop;
     const res = await app.inject({ method: "GET", url: "/anip/manifest" });
     expect(res.statusCode).toBe(200);
@@ -69,7 +69,7 @@ describe("Fastify routes", () => {
   });
 
   it("GET /anip/checkpoints returns list", async () => {
-    const { app, stop } = makeApp();
+    const { app, stop } = await makeApp();
     stopFn = stop;
     const res = await app.inject({ method: "GET", url: "/anip/checkpoints" });
     expect(res.statusCode).toBe(200);
@@ -77,14 +77,14 @@ describe("Fastify routes", () => {
   });
 
   it("GET /anip/checkpoints/:id returns 404 for unknown", async () => {
-    const { app, stop } = makeApp();
+    const { app, stop } = await makeApp();
     stopFn = stop;
     const res = await app.inject({ method: "GET", url: "/anip/checkpoints/ckpt-nonexistent" });
     expect(res.statusCode).toBe(404);
   });
 
   it("POST /anip/tokens without auth returns 401", async () => {
-    const { app, stop } = makeApp();
+    const { app, stop } = await makeApp();
     stopFn = stop;
     const res = await app.inject({
       method: "POST",
@@ -95,7 +95,7 @@ describe("Fastify routes", () => {
   });
 
   it("POST /anip/invoke/:capability with valid token succeeds", async () => {
-    const { app, stop } = makeApp();
+    const { app, stop } = await makeApp();
     stopFn = stop;
 
     // Get a token first
@@ -122,7 +122,7 @@ describe("Fastify routes", () => {
   });
 
   it("invoke response has invocation_id", async () => {
-    const { app, stop } = makeApp();
+    const { app, stop } = await makeApp();
     stopFn = stop;
 
     // Get a token first
@@ -150,7 +150,7 @@ describe("Fastify routes", () => {
   });
 
   it("invoke passes client_reference_id", async () => {
-    const { app, stop } = makeApp();
+    const { app, stop } = await makeApp();
     stopFn = stop;
 
     // Get a token first
@@ -179,8 +179,8 @@ describe("Fastify routes", () => {
     expect(data.client_reference_id).toBe("my-ref-123");
   });
 
-  it("stop() can be called without error", () => {
-    const { stop } = makeApp();
+  it("stop() can be called without error", async () => {
+    const { stop } = await makeApp();
     stop(); // Should not throw
   });
 });
@@ -204,7 +204,7 @@ function streamingCap() {
   });
 }
 
-function makeStreamingApp() {
+async function makeStreamingApp() {
   const app = Fastify();
   const service = createANIPService({
     serviceId: "test-service",
@@ -212,7 +212,7 @@ function makeStreamingApp() {
     storage: new InMemoryStorage(),
     authenticate: (bearer) => (bearer === API_KEY ? "test-agent" : null),
   });
-  const { stop } = mountAnip(app, service);
+  const { stop } = await mountAnip(app, service);
   return { app, stop };
 }
 
@@ -225,7 +225,7 @@ describe("Fastify streaming routes", () => {
   });
 
   it("stream:true returns text/event-stream with progress + completed", async () => {
-    const { app, stop } = makeStreamingApp();
+    const { app, stop } = await makeStreamingApp();
     stopFn = stop;
 
     // Issue token
@@ -258,7 +258,7 @@ describe("Fastify streaming routes", () => {
   });
 
   it("stream:true on unary-only capability returns 400 JSON", async () => {
-    const { app, stop } = makeStreamingApp();
+    const { app, stop } = await makeStreamingApp();
     stopFn = stop;
 
     const tokenRes = await app.inject({

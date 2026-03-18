@@ -3,11 +3,11 @@ import type { Express, Request, Response } from "express";
 import type { ANIPService } from "@anip/service";
 import { ANIPError } from "@anip/service";
 
-export function mountAnip(
+export async function mountAnip(
   app: Express,
   service: ANIPService,
   opts?: { prefix?: string },
-): { shutdown: () => Promise<void>; stop: () => void } {
+): Promise<{ shutdown: () => Promise<void>; stop: () => void }> {
   const router = Router();
   router.use(express.json());
 
@@ -168,7 +168,7 @@ export function mountAnip(
     app.use(router);
   }
 
-  service.start();
+  await service.start();
   return {
     async shutdown() { await service.shutdown(); },
     stop() { service.stop(); },
