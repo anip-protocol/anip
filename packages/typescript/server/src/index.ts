@@ -13,5 +13,6 @@ export type { CheckpointSink } from "./sinks.js";
 export { LocalFileSink } from "./sinks.js";
 export type { StorageBackend } from "./storage.js";
 export { InMemoryStorage, SQLiteStorage } from "./storage.js";
+export { PostgresStorage } from "./postgres.js";
 export { RetentionEnforcer } from "./retention-enforcer.js";
 export { computeEntryHash, canonicalBytes } from "./hashing.js";
