@@ -10,6 +10,11 @@ from .storage import StorageBackend, SQLiteStorage, InMemoryStorage
 from .hashing import compute_entry_hash, canonical_bytes
 from .retention_enforcer import RetentionEnforcer
 
+try:
+    from .postgres import PostgresStorage
+except ImportError:
+    pass  # asyncpg not installed
+
 __all__ = [
     "DelegationEngine",
     "discover_permissions",
@@ -24,6 +29,7 @@ __all__ = [
     "StorageBackend",
     "SQLiteStorage",
     "InMemoryStorage",
+    "PostgresStorage",
     "RetentionEnforcer",
     "compute_entry_hash",
     "canonical_bytes",
