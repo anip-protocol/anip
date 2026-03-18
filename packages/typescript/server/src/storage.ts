@@ -8,27 +8,11 @@
  */
 
 import { Worker } from "node:worker_threads";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
-
-/**
- * Compute a SHA-256 hash of an audit entry for hash-chain linking.
- * Excludes "signature" and "id" fields, sorts remaining keys, and
- * returns "sha256:<hex>".
- */
-function computeEntryHash(entry: Record<string, unknown>): string {
-  const filtered: Record<string, unknown> = {};
-  for (const key of Object.keys(entry).sort()) {
-    if (key !== "signature" && key !== "id") {
-      filtered[key] = entry[key];
-    }
-  }
-  const canonical = JSON.stringify(filtered);
-  const hash = createHash("sha256").update(canonical).digest("hex");
-  return `sha256:${hash}`;
-}
+import { computeEntryHash } from "./hashing.js";
 
 export interface StorageBackend {
   storeToken(tokenData: Record<string, unknown>): Promise<void>;

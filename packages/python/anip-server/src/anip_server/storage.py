@@ -8,26 +8,13 @@ tokens, audit log entries, and checkpoints.
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import sqlite3
 import threading
 from datetime import datetime, timedelta, timezone
 from typing import Any, Protocol, runtime_checkable
 
-
-def compute_entry_hash(entry: dict[str, Any]) -> str:
-    """Compute the SHA-256 hash of an audit entry for hash-chain linking.
-
-    Excludes 'signature' and 'id' fields, produces canonical JSON, and
-    returns a ``sha256:<hex>`` prefixed string.
-    """
-    canonical = json.dumps(
-        {k: v for k, v in sorted(entry.items()) if k not in ("signature", "id")},
-        separators=(",", ":"),
-        sort_keys=True,
-    ).encode()
-    return f"sha256:{hashlib.sha256(canonical).hexdigest()}"
+from .hashing import compute_entry_hash
 
 
 @runtime_checkable

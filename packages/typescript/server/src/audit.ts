@@ -5,7 +5,7 @@
  * hash-chain linking between entries.
  */
 
-import { createHash } from "crypto";
+import { computeEntryHash, canonicalBytes } from "./hashing.js";
 import type { StorageBackend } from "./storage.js";
 import { MerkleTree, type Snapshot } from "./merkle.js";
 
@@ -43,7 +43,7 @@ export class AuditLog {
       previousHash = "sha256:0";
     } else {
       sequenceNumber = (last.sequence_number as number) + 1;
-      previousHash = AuditLog._computeEntryHash(last);
+      previousHash = computeEntryHash(last);
     }
 
     const now = new Date().toISOString();
@@ -80,8 +80,8 @@ export class AuditLog {
     };
 
     // Accumulate into Merkle tree
-    const canonicalBytes = AuditLog._canonicalBytes(entry);
-    this._merkle.addLeaf(Buffer.from(canonicalBytes));
+    const cb = canonicalBytes(entry);
+    this._merkle.addLeaf(Buffer.from(cb));
 
     // Sign if signer is provided
     entry.signature = this._signer ? await this._signer(entry) : null;
@@ -106,21 +106,5 @@ export class AuditLog {
   /** Return the current Merkle tree snapshot. */
   getMerkleSnapshot(): Snapshot {
     return this._merkle.snapshot();
-  }
-
-  private static _computeEntryHash(entry: Record<string, unknown>): string {
-    const canonical = AuditLog._canonicalBytes(entry);
-    const hash = createHash("sha256").update(canonical).digest("hex");
-    return `sha256:${hash}`;
-  }
-
-  private static _canonicalBytes(entry: Record<string, unknown>): string {
-    const filtered: Record<string, unknown> = {};
-    for (const key of Object.keys(entry).sort()) {
-      if (key !== "signature" && key !== "id") {
-        filtered[key] = entry[key];
-      }
-    }
-    return JSON.stringify(filtered);
   }
 }

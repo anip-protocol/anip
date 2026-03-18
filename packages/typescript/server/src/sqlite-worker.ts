@@ -10,7 +10,7 @@
  */
 
 import { parentPort, workerData } from "node:worker_threads";
-import { createHash } from "node:crypto";
+import { computeEntryHash } from "./hashing.js";
 import Database from "better-sqlite3";
 
 // ---------------------------------------------------------------------------
@@ -445,23 +445,6 @@ function deleteExpiredAuditEntries(nowIso: string): number {
 // ---------------------------------------------------------------------------
 // Horizontal-scaling methods
 // ---------------------------------------------------------------------------
-
-/**
- * Compute a SHA-256 hash of an audit entry for hash-chain linking.
- * Excludes "signature" and "id" fields, sorts remaining keys, and
- * returns "sha256:<hex>".
- */
-function computeEntryHash(entry: Record<string, unknown>): string {
-  const filtered: Record<string, unknown> = {};
-  for (const key of Object.keys(entry).sort()) {
-    if (key !== "signature" && key !== "id") {
-      filtered[key] = entry[key];
-    }
-  }
-  const canonical = JSON.stringify(filtered);
-  const hash = createHash("sha256").update(canonical).digest("hex");
-  return `sha256:${hash}`;
-}
 
 function appendAuditEntry(entryData: Record<string, unknown>): Record<string, unknown> {
   const last = getLastAuditEntry();

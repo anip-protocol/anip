@@ -1,13 +1,12 @@
 """Audit log manager for ANIP services."""
 from __future__ import annotations
 
-import hashlib
 import inspect
-import json
 from collections.abc import Awaitable
 from datetime import datetime, timezone
 from typing import Any, Callable
 
+from .hashing import compute_entry_hash, canonical_bytes
 from .storage import StorageBackend
 from .merkle import MerkleTree
 
@@ -39,7 +38,7 @@ class AuditLog:
             previous_hash = "sha256:0"
         else:
             sequence_number = last["sequence_number"] + 1
-            previous_hash = self._compute_entry_hash(last)
+            previous_hash = compute_entry_hash(last)
 
         now = datetime.now(timezone.utc).isoformat()
 
@@ -75,8 +74,8 @@ class AuditLog:
         }
 
         # Accumulate into Merkle tree
-        canonical_bytes = self._canonical_bytes(entry)
-        self._merkle.add_leaf(canonical_bytes)
+        cb = canonical_bytes(entry)
+        self._merkle.add_leaf(cb)
 
         # Sign if signer is provided (handle both sync and async signers)
         if self._signer:
@@ -98,19 +97,3 @@ class AuditLog:
         """Return the current Merkle tree snapshot."""
         return self._merkle.snapshot()
 
-    @staticmethod
-    def _compute_entry_hash(entry: dict[str, Any]) -> str:
-        canonical = json.dumps(
-            {k: v for k, v in sorted(entry.items()) if k not in ("signature", "id")},
-            separators=(",", ":"),
-            sort_keys=True,
-        ).encode()
-        return f"sha256:{hashlib.sha256(canonical).hexdigest()}"
-
-    @staticmethod
-    def _canonical_bytes(entry: dict[str, Any]) -> bytes:
-        return json.dumps(
-            {k: v for k, v in sorted(entry.items()) if k not in ("signature", "id")},
-            separators=(",", ":"),
-            sort_keys=True,
-        ).encode()

@@ -7,6 +7,7 @@ from .merkle import MerkleTree
 from .checkpoint import create_checkpoint, CheckpointPolicy, CheckpointScheduler
 from .sinks import CheckpointSink, LocalFileSink
 from .storage import StorageBackend, SQLiteStorage, InMemoryStorage
+from .hashing import compute_entry_hash, canonical_bytes
 from .retention_enforcer import RetentionEnforcer
 
 __all__ = [
@@ -24,4 +25,6 @@ __all__ = [
     "SQLiteStorage",
     "InMemoryStorage",
     "RetentionEnforcer",
+    "compute_entry_hash",
+    "canonical_bytes",
 ]

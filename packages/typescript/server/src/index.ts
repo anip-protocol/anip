@@ -14,3 +14,4 @@ export { LocalFileSink } from "./sinks.js";
 export type { StorageBackend } from "./storage.js";
 export { InMemoryStorage, SQLiteStorage } from "./storage.js";
 export { RetentionEnforcer } from "./retention-enforcer.js";
+export { computeEntryHash, canonicalBytes } from "./hashing.js";
