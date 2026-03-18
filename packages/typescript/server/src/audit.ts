@@ -1,18 +1,15 @@
 /**
  * Audit log manager for ANIP services.
  *
- * Wraps a {@link StorageBackend} with Merkle tree accumulation and
- * hash-chain linking between entries.
+ * Sequence numbers, hash chaining, and Merkle accumulation are now
+ * handled by the storage layer ({@link StorageBackend.appendAuditEntry}).
  */
 
-import { computeEntryHash, canonicalBytes } from "./hashing.js";
 import type { StorageBackend } from "./storage.js";
-import { MerkleTree, type Snapshot } from "./merkle.js";
 
 export class AuditLog {
   private _storage: StorageBackend;
   private _signer: ((entry: Record<string, unknown>) => string | Promise<string>) | null;
-  private _merkle: MerkleTree;
 
   constructor(
     storage: StorageBackend,
@@ -20,12 +17,10 @@ export class AuditLog {
   ) {
     this._storage = storage;
     this._signer = signer ?? null;
-    this._merkle = new MerkleTree();
   }
 
   /**
-   * Log an audit entry: compute hash chain, sign, accumulate into Merkle
-   * tree, store.
+   * Log an audit entry via the storage backend.
    *
    * `entryData` should contain: `capability`, `token_id`, `root_principal`,
    * `success`, and optionally: `issuer`, `subject`, `parameters`,
@@ -35,21 +30,9 @@ export class AuditLog {
    * `previous_hash`, `signature`).
    */
   async logEntry(entryData: Record<string, unknown>): Promise<Record<string, unknown>> {
-    const last = await this._storage.getLastAuditEntry();
-    let sequenceNumber: number;
-    let previousHash: string;
-    if (last === null) {
-      sequenceNumber = 1;
-      previousHash = "sha256:0";
-    } else {
-      sequenceNumber = (last.sequence_number as number) + 1;
-      previousHash = computeEntryHash(last);
-    }
-
     const now = new Date().toISOString();
 
-    const entry: Record<string, unknown> = {
-      sequence_number: sequenceNumber,
+    const entryForStorage: Record<string, unknown> = {
       timestamp: now,
       capability: entryData.capability,
       token_id: entryData.token_id ?? null,
@@ -76,17 +59,15 @@ export class AuditLog {
       first_seen: entryData.first_seen ?? null,
       last_seen: entryData.last_seen ?? null,
       representative_detail: entryData.representative_detail ?? null,
-      previous_hash: previousHash,
     };
 
-    // Accumulate into Merkle tree
-    const cb = canonicalBytes(entry);
-    this._merkle.addLeaf(Buffer.from(cb));
+    const entry = await this._storage.appendAuditEntry(entryForStorage);
 
-    // Sign if signer is provided
     entry.signature = this._signer ? await this._signer(entry) : null;
+    if (entry.signature) {
+      await this._storage.updateAuditSignature(entry.sequence_number as number, entry.signature as string);
+    }
 
-    await this._storage.storeAuditEntry(entry);
     return entry;
   }
 
@@ -101,10 +82,5 @@ export class AuditLog {
     limit?: number;
   }): Promise<Record<string, unknown>[]> {
     return await this._storage.queryAuditEntries(opts);
-  }
-
-  /** Return the current Merkle tree snapshot. */
-  getMerkleSnapshot(): Snapshot {
-    return this._merkle.snapshot();
   }
 }
