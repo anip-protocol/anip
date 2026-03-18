@@ -3,14 +3,20 @@
  */
 import type { StorageBackend } from "./storage.js";
 
+export interface RetentionEnforcerOpts {
+  skipAuditRetention?: boolean;
+}
+
 export class RetentionEnforcer {
   private _storage: StorageBackend;
   private _interval: number;
   private _timer: ReturnType<typeof setInterval> | null = null;
+  private _skipAuditRetention: boolean;
 
-  constructor(storage: StorageBackend, intervalSeconds: number = 60) {
+  constructor(storage: StorageBackend, intervalSeconds: number = 60, opts?: RetentionEnforcerOpts) {
     this._storage = storage;
     this._interval = intervalSeconds;
+    this._skipAuditRetention = opts?.skipAuditRetention ?? false;
   }
 
   isRunning(): boolean {
@@ -18,6 +24,7 @@ export class RetentionEnforcer {
   }
 
   async sweep(): Promise<number> {
+    if (this._skipAuditRetention) return 0;
     const now = new Date().toISOString();
     return this._storage.deleteExpiredAuditEntries(now);
   }

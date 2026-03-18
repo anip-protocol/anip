@@ -7,6 +7,7 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { hostname } from "node:os";
 
 import type {
   ANIPManifest,
@@ -20,11 +21,11 @@ import {
   buildManifest,
   CheckpointPolicy,
   CheckpointScheduler,
-  createCheckpoint,
   DelegationEngine,
   discoverPermissions,
   InMemoryStorage,
   MerkleTree,
+  reconstructAndCreateCheckpoint,
   RetentionEnforcer,
   SQLiteStorage,
   type CheckpointSink,
@@ -47,7 +48,7 @@ import { storageRedactEntry } from "./storage-redaction.js";
 export interface ANIPServiceOpts {
   serviceId: string;
   capabilities: CapabilityDef[];
-  storage?: { type: "sqlite" | "memory"; path?: string } | StorageBackend;
+  storage?: { type: "sqlite" | "memory"; path?: string } | StorageBackend | string;
   keyPath?: string;
   trust?:
     | "signed"
@@ -178,11 +179,25 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
   // --- Storage ---
   let storage: StorageBackend;
+  let isPostgresBackend = false;
   if (opts.storage === undefined || opts.storage === null) {
     storage = new SQLiteStorage("anip.db");
+  } else if (typeof opts.storage === "string" && opts.storage.startsWith("postgres")) {
+    // Postgres connection string — lazy import to avoid requiring `pg` at
+    // module load time (e.g. in test environments that don't install it).
+    // The constructor is synchronous; callers must await `initialize()`
+    // themselves before the first I/O.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { PostgresStorage } = require("@anip/server") as { PostgresStorage: new (dsn: string) => StorageBackend };
+    storage = new PostgresStorage(opts.storage);
+    isPostgresBackend = true;
   } else if (typeof opts.storage === "object" && "storeToken" in opts.storage) {
     // Already a StorageBackend instance
     storage = opts.storage as StorageBackend;
+    // Duck-type detection for Postgres: check for the `initialize` method
+    // that only PostgresStorage exposes.
+    isPostgresBackend = typeof (storage as Record<string, unknown>).initialize === "function"
+      && typeof (storage as Record<string, unknown>).close === "function";
   } else if (typeof opts.storage === "object" && "type" in opts.storage) {
     const storageOpts = opts.storage as { type: string; path?: string };
     if (storageOpts.type === "memory") {
@@ -201,7 +216,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   // keys.ready() is awaited lazily before first crypto use
 
   // --- Delegation engine ---
-  const engine = new DelegationEngine(storage, { serviceId });
+  const exclusiveTtl = 60;
+  const engine = new DelegationEngine(storage, { serviceId, exclusiveTtl });
 
   // --- Audit log ---
   const audit = new AuditLog(storage, (entry) => keys.signAuditEntry(entry));
@@ -267,21 +283,50 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   // --- Checkpoint scheduling ---
   const checkpointPolicy = opts.checkpointPolicy ?? null;
   let scheduler: CheckpointScheduler | null = null;
-  let entriesSinceCheckpoint = 0;
+
+  function getHolderId(): string {
+    return `${hostname()}:${process.pid}`;
+  }
+
+  async function leaderCheckpointTick(): Promise<void> {
+    const holder = getHolderId();
+    const acquired = await storage.tryAcquireLeader("checkpoint", holder, 120);
+    if (!acquired) return;
+    try {
+      const result = await reconstructAndCreateCheckpoint({
+        storage,
+        serviceId,
+      });
+      if (result) {
+        // Sign asynchronously with the dedicated audit key
+        await ensureKeys();
+        const canonicalBytes = new TextEncoder().encode(stableStringify(result.body));
+        const signature = await keys.signJWSDetachedAudit(
+          new Uint8Array(canonicalBytes),
+        );
+        await storage.storeCheckpoint(result.body, signature);
+        for (const sink of sinks) {
+          sink.publish({ body: result.body, signature });
+        }
+      }
+    } finally {
+      await storage.releaseLeader("checkpoint", holder);
+    }
+  }
 
   if (trustLevel === "anchored" && checkpointPolicy) {
     scheduler = new CheckpointScheduler(
       60, // default interval
-      async () => {
-        if (entriesSinceCheckpoint > 0) {
-          createAndPublishCheckpoint();
-        }
-      },
+      leaderCheckpointTick,
     );
   }
 
   // --- Retention enforcer (v0.8) ---
-  const retentionEnforcer = new RetentionEnforcer(storage, 60);
+  // When Postgres is the backend, skip audit retention enforcement
+  // — Postgres handles row TTL natively or via external policy.
+  const retentionEnforcer = new RetentionEnforcer(storage, 60, {
+    skipAuditRetention: isPostgresBackend,
+  });
 
   // --- Audit aggregation (v0.9) ---
   const aggregator: AuditAggregator | null =
@@ -342,14 +387,6 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     }
 
     await audit.logEntry(redactedEntry);
-
-    entriesSinceCheckpoint++;
-    if (
-      checkpointPolicy &&
-      checkpointPolicy.shouldCheckpoint(entriesSinceCheckpoint)
-    ) {
-      createAndPublishCheckpoint();
-    }
   }
 
   async function flushAggregator(): Promise<void> {
@@ -366,35 +403,21 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     }
   }
 
-  async function createAndPublishCheckpoint(): Promise<void> {
+  async function runWithExclusiveHeartbeat(
+    storageRef: StorageBackend,
+    key: string,
+    holder: string,
+    ttl: number,
+    handler: () => Promise<unknown>,
+  ): Promise<unknown> {
+    const timer = setInterval(async () => {
+      await storageRef.tryAcquireExclusive(key, holder, ttl);
+    }, (ttl / 2) * 1000);
     try {
-      const snapshot = audit.getMerkleSnapshot();
-      const lastCkpt = await getLastCheckpoint();
-      // Get the checkpoint body without signing (signFn is sync, our signer is async)
-      const { body } = createCheckpoint({
-        merkleSnapshot: snapshot,
-        serviceId,
-        previousCheckpoint: lastCkpt,
-      });
-      // Sign asynchronously with the dedicated audit key
-      await ensureKeys();
-      const canonicalBytes = new TextEncoder().encode(stableStringify(body));
-      const signature = await keys.signJWSDetachedAudit(
-        new Uint8Array(canonicalBytes),
-      );
-      await storage.storeCheckpoint(body, signature);
-      for (const sink of sinks) {
-        sink.publish({ body, signature });
-      }
-      entriesSinceCheckpoint = 0;
-    } catch {
-      // Checkpoint failures are non-fatal
+      return await handler();
+    } finally {
+      clearInterval(timer);
     }
-  }
-
-  async function getLastCheckpoint(): Promise<Record<string, unknown> | null> {
-    const rows = await storage.getCheckpoints(10000);
-    return rows.length > 0 ? rows[rows.length - 1] : null;
   }
 
   function summarizeResult(
