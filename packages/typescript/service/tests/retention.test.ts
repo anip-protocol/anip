@@ -19,8 +19,8 @@ describe("DEFAULT_CLASS_TO_TIER", () => {
     expect(DEFAULT_CLASS_TO_TIER.low_risk_success).toBe("short");
   });
 
-  it("maps repeated_low_value_denial to short", () => {
-    expect(DEFAULT_CLASS_TO_TIER.repeated_low_value_denial).toBe("short");
+  it("maps repeated_low_value_denial to aggregate_only", () => {
+    expect(DEFAULT_CLASS_TO_TIER.repeated_low_value_denial).toBe("aggregate_only");
   });
 
   it("maps malformed_or_spam to short", () => {
@@ -41,8 +41,8 @@ describe("DEFAULT_TIER_TO_DURATION", () => {
     expect(DEFAULT_TIER_TO_DURATION.short).toBe("P7D");
   });
 
-  it("maps aggregate_only to P7D", () => {
-    expect(DEFAULT_TIER_TO_DURATION.aggregate_only).toBe("P7D");
+  it("maps aggregate_only to P1D", () => {
+    expect(DEFAULT_TIER_TO_DURATION.aggregate_only).toBe("P1D");
   });
 });
 
@@ -52,7 +52,7 @@ describe("RetentionPolicy.resolveTier", () => {
     expect(policy.resolveTier("high_risk_success")).toBe("long");
     expect(policy.resolveTier("high_risk_denial")).toBe("medium");
     expect(policy.resolveTier("low_risk_success")).toBe("short");
-    expect(policy.resolveTier("repeated_low_value_denial")).toBe("short");
+    expect(policy.resolveTier("repeated_low_value_denial")).toBe("aggregate_only");
     expect(policy.resolveTier("malformed_or_spam")).toBe("short");
   });
 
@@ -96,12 +96,19 @@ describe("RetentionPolicy.computeExpiresAt", () => {
     expect(result).toBeNull();
   });
 
-  it("aggregate_only has same expiry as short in v0.8", () => {
+  it("aggregate_only expires at P1D", () => {
+    const policy = new RetentionPolicy();
+    const now = new Date("2025-06-15T12:00:00.000Z");
+    const aggResult = policy.computeExpiresAt("aggregate_only", now);
+    expect(aggResult).toBe("2025-06-16T12:00:00.000Z");
+  });
+
+  it("aggregate_only differs from short", () => {
     const policy = new RetentionPolicy();
     const now = new Date("2025-06-15T12:00:00.000Z");
     const shortResult = policy.computeExpiresAt("short", now);
     const aggResult = policy.computeExpiresAt("aggregate_only", now);
-    expect(shortResult).toBe(aggResult);
+    expect(shortResult).not.toBe(aggResult);
   });
 });
 

@@ -1,7 +1,7 @@
 """ANIP protocol constants."""
 
-PROTOCOL_VERSION = "anip/0.8"
-MANIFEST_VERSION = "0.8.0"
+PROTOCOL_VERSION = "anip/0.9"
+MANIFEST_VERSION = "0.9.0"
 DEFAULT_PROFILE = {
     "core": "1.0",
     "cost": "1.0",

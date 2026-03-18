@@ -6,7 +6,7 @@ export function mountAnip(
   app: FastifyInstance,
   service: ANIPService,
   opts?: { prefix?: string },
-): { stop: () => void } {
+): { shutdown: () => Promise<void>; stop: () => void } {
   const p = opts?.prefix ?? "";
 
   // --- Discovery & Identity ---
@@ -151,7 +151,10 @@ export function mountAnip(
   });
 
   service.start();
-  return { stop: () => service.stop() };
+  return {
+    async shutdown() { await service.shutdown(); },
+    stop() { service.stop(); },
+  };
 }
 
 // --- Helpers ---

@@ -7,7 +7,7 @@ export function mountAnip(
   app: Hono,
   service: ANIPService,
   opts?: { prefix?: string },
-): { stop: () => void } {
+): { shutdown: () => Promise<void>; stop: () => void } {
   const p = opts?.prefix ?? "";
 
   // --- Discovery & Identity ---
@@ -179,7 +179,10 @@ export function mountAnip(
 
   // --- Lifecycle ---
   service.start();
-  return { stop: () => service.stop() };
+  return {
+    async shutdown() { await service.shutdown(); },
+    stop() { service.stop(); },
+  };
 }
 
 // --- Helpers ---

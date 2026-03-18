@@ -7,7 +7,7 @@ export function mountAnip(
   app: Express,
   service: ANIPService,
   opts?: { prefix?: string },
-): { stop: () => void } {
+): { shutdown: () => Promise<void>; stop: () => void } {
   const router = Router();
   router.use(express.json());
 
@@ -169,7 +169,10 @@ export function mountAnip(
   }
 
   service.start();
-  return { stop: () => service.stop() };
+  return {
+    async shutdown() { await service.shutdown(); },
+    stop() { service.stop(); },
+  };
 }
 
 // --- Helpers ---

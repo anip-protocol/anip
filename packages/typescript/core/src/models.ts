@@ -58,6 +58,7 @@ export const DelegationToken = z.object({
     concurrent_branches: "allowed",
   }),
   root_principal: z.string().nullable().default(null),
+  caller_class: z.string().nullable().default(null),
 });
 export type DelegationToken = z.infer<typeof DelegationToken>;
 
@@ -243,7 +244,7 @@ export const RetentionTier = z.enum([
 ]);
 export type RetentionTier = z.infer<typeof RetentionTier>;
 
-export const DisclosureLevel = z.enum(["full", "reduced", "redacted"]);
+export const DisclosureLevel = z.enum(["full", "reduced", "redacted", "policy"]);
 export type DisclosureLevel = z.infer<typeof DisclosureLevel>;
 
 // ---------------------------------------------------------------------------
@@ -282,6 +283,7 @@ export type MetadataPolicy = z.infer<typeof MetadataPolicy>;
 
 export const FailureDisclosure = z.object({
   detail_level: z.enum(["full", "reduced", "redacted", "policy"]).default("redacted"),
+  caller_classes: z.array(z.string()).nullable().default(null),
 });
 export type FailureDisclosure = z.infer<typeof FailureDisclosure>;
 
@@ -318,7 +320,7 @@ export type ProfileVersions = z.infer<typeof ProfileVersions>;
 // --- Manifest Metadata (v0.2) ---
 
 export const ManifestMetadata = z.object({
-  version: z.string().default("0.8.0"),
+  version: z.string().default("0.9.0"),
   sha256: z.string(),
   issued_at: z.string(),
   expires_at: z.string(),
@@ -335,7 +337,7 @@ export const ServiceIdentity = z.object({
 export type ServiceIdentity = z.infer<typeof ServiceIdentity>;
 
 export const ANIPManifest = z.object({
-  protocol: z.string().default("anip/0.8"),
+  protocol: z.string().default("anip/0.9"),
   profile: ProfileVersions,
   capabilities: z.record(CapabilityDeclaration),
   manifest_metadata: ManifestMetadata.nullable().default(null),
@@ -389,6 +391,7 @@ export const TokenRequest = z.object({
   parent_token: z.string().nullable().optional(),
   purpose_parameters: z.record(z.any()).default({}),
   ttl_hours: z.number().default(2),
+  caller_class: z.string().nullable().optional(),
 });
 export type TokenRequest = z.infer<typeof TokenRequest>;
 
@@ -410,3 +413,16 @@ export const CheckpointBody = z.object({
   entry_count: z.number(),
 });
 export type CheckpointBody = z.infer<typeof CheckpointBody>;
+
+// ---------------------------------------------------------------------------
+// Checkpoint Detail Response (response wrapper, NOT the signed body)
+// ---------------------------------------------------------------------------
+
+export const CheckpointDetailResponse = z.object({
+  checkpoint: z.record(z.unknown()),
+  inclusion_proof: z.record(z.unknown()).nullable().default(null),
+  consistency_proof: z.record(z.unknown()).nullable().default(null),
+  proof_unavailable: z.string().nullable().default(null),
+  expires_hint: z.string().nullable().default(null),
+});
+export type CheckpointDetailResponse = z.infer<typeof CheckpointDetailResponse>;

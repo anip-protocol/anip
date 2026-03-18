@@ -14,7 +14,7 @@ DEFAULT_CLASS_TO_TIER: dict[str, str] = {
     "high_risk_success": "long",
     "high_risk_denial": "medium",
     "low_risk_success": "short",
-    "repeated_low_value_denial": "short",
+    "repeated_low_value_denial": "aggregate_only",
     "malformed_or_spam": "short",
 }
 
@@ -22,7 +22,7 @@ DEFAULT_TIER_TO_DURATION: dict[str, str | None] = {
     "long": "P365D",
     "medium": "P90D",
     "short": "P7D",
-    "aggregate_only": "P7D",  # v0.8 placeholder
+    "aggregate_only": "P1D",
 }
 
 _DURATION_RE = re.compile(r"^P(\d+)D$")

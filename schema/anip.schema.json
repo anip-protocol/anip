@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anip.dev/schema/v0.8/anip.schema.json",
+  "$id": "https://anip.dev/schema/v0.9/anip.schema.json",
   "title": "ANIP \u2014 Agent-Native Interface Protocol",
-  "description": "Canonical JSON Schema for all ANIP v0.8 types as defined in SPEC.md. Use these schemas to validate ANIP documents, responses, and delegation tokens.",
+  "description": "Canonical JSON Schema for all ANIP v0.9 types as defined in SPEC.md. Use these schemas to validate ANIP documents, responses, and delegation tokens.",
   "$defs": {
     "ConcurrentBranches": {
       "enum": [
@@ -979,12 +979,140 @@
           "type": ["string", "null"],
           "format": "date-time",
           "description": "When this entry will be deleted by retention enforcement, or null for indefinite retention"
+        },
+        "storage_redacted": {
+          "title": "Storage Redacted",
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this entry has been redacted during storage (e.g., detail stripped for aggregate_only tier)"
+        },
+        "entry_type": {
+          "title": "Entry Type",
+          "type": "string",
+          "enum": ["individual", "aggregated"],
+          "default": "individual",
+          "description": "Whether this is an individual or aggregated audit entry"
+        },
+        "aggregation_count": {
+          "title": "Aggregation Count",
+          "type": ["integer", "null"],
+          "default": null,
+          "description": "Number of events aggregated into this entry, present only when entry_type is 'aggregated'"
+        },
+        "first_seen": {
+          "title": "First Seen",
+          "type": ["string", "null"],
+          "format": "date-time",
+          "default": null,
+          "description": "Timestamp of the first event in an aggregated entry"
+        },
+        "last_seen": {
+          "title": "Last Seen",
+          "type": ["string", "null"],
+          "format": "date-time",
+          "default": null,
+          "description": "Timestamp of the last event in an aggregated entry"
+        },
+        "representative_detail": {
+          "title": "Representative Detail",
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Representative detail string from one of the aggregated events"
         }
       },
       "required": ["sequence_number", "timestamp", "capability", "success", "event_class", "retention_tier"],
       "title": "AuditEntry",
       "type": "object",
-      "description": "An entry in the audit log with v0.8 classification and retention fields. See SPEC.md §6.5 and §6.8."
+      "description": "An entry in the audit log with v0.9 classification, retention, and aggregation fields. See SPEC.md §6.5 and §6.8."
+    },
+    "AggregatedAuditEntry": {
+      "properties": {
+        "entry_type": {
+          "const": "aggregated",
+          "title": "Entry Type",
+          "description": "Discriminator indicating this is an aggregated entry"
+        },
+        "event_class": {
+          "const": "repeated_low_value_denial",
+          "title": "Event Class",
+          "description": "Aggregated entries are always repeated_low_value_denial class"
+        },
+        "retention_tier": {
+          "const": "aggregate_only",
+          "title": "Retention Tier",
+          "description": "Aggregated entries use aggregate_only retention"
+        },
+        "grouping_key": {
+          "type": "object",
+          "properties": {
+            "actor_key": {
+              "title": "Actor Key",
+              "type": "string",
+              "description": "Identifier for the actor (e.g., delegation token subject)"
+            },
+            "capability": {
+              "title": "Capability",
+              "type": "string",
+              "description": "The capability that was denied"
+            },
+            "failure_type": {
+              "title": "Failure Type",
+              "type": "string",
+              "description": "The type of failure (e.g., 'scope_insufficient')"
+            }
+          },
+          "required": ["actor_key", "capability", "failure_type"],
+          "title": "Grouping Key",
+          "description": "The key used to group individual events into this aggregate"
+        },
+        "window": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "title": "Start",
+              "type": "string",
+              "format": "date-time",
+              "description": "Start of the aggregation window"
+            },
+            "end": {
+              "title": "End",
+              "type": "string",
+              "format": "date-time",
+              "description": "End of the aggregation window"
+            }
+          },
+          "required": ["start", "end"],
+          "title": "Window",
+          "description": "The time window over which events were aggregated"
+        },
+        "count": {
+          "title": "Count",
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of events in this aggregate"
+        },
+        "first_seen": {
+          "title": "First Seen",
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of the first event in the aggregate"
+        },
+        "last_seen": {
+          "title": "Last Seen",
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of the last event in the aggregate"
+        },
+        "representative_detail": {
+          "title": "Representative Detail",
+          "type": ["string", "null"],
+          "description": "Representative detail string from one of the aggregated events, or null"
+        }
+      },
+      "required": ["entry_type", "event_class", "retention_tier", "grouping_key", "window", "count", "first_seen", "last_seen"],
+      "title": "AggregatedAuditEntry",
+      "type": "object",
+      "description": "An aggregated audit entry combining multiple repeated low-value denials. See SPEC.md §6.8."
     },
     "CheckpointResponse": {
       "properties": {
@@ -1027,16 +1155,39 @@
           },
           "required": ["checkpoint_id", "range", "merkle_root", "timestamp", "entry_count"]
         },
+        "inclusion_proof": {
+          "anyOf": [
+            { "additionalProperties": true, "type": "object" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Inclusion Proof"
+        },
+        "consistency_proof": {
+          "anyOf": [
+            { "additionalProperties": true, "type": "object" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Consistency Proof"
+        },
         "proof_unavailable": {
+          "type": ["string", "null"],
+          "default": null,
           "title": "Proof Unavailable",
-          "type": "string",
           "description": "Present when proof cannot be generated, e.g. 'audit_entries_expired' when retention has deleted entries needed for proof. The checkpoint data is still valid."
+        },
+        "expires_hint": {
+          "type": ["string", "null"],
+          "default": null,
+          "title": "Expires Hint",
+          "description": "Best-effort ISO 8601 timestamp of earliest expected audit entry expiration in this checkpoint's range. Informational, not contractual. Not part of the signed checkpoint body."
         }
       },
       "required": ["checkpoint"],
       "title": "CheckpointResponse",
       "type": "object",
-      "description": "A Merkle checkpoint with optional proof. proof_unavailable indicates why proof generation failed. See SPEC.md §6.6 and §6.8."
+      "description": "A Merkle checkpoint with optional proof. proof_unavailable indicates why proof generation failed. expires_hint is best-effort, informational. See SPEC.md §6.6 and §6.8."
     }
   }
 }

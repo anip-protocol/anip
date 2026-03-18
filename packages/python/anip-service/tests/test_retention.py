@@ -22,7 +22,7 @@ def test_default_class_to_tier_low_risk_success():
 
 
 def test_default_class_to_tier_repeated_low_value_denial():
-    assert DEFAULT_CLASS_TO_TIER["repeated_low_value_denial"] == "short"
+    assert DEFAULT_CLASS_TO_TIER["repeated_low_value_denial"] == "aggregate_only"
 
 
 def test_default_class_to_tier_malformed_or_spam():
@@ -44,7 +44,7 @@ def test_default_tier_to_duration_short():
 
 
 def test_default_tier_to_duration_aggregate_only():
-    assert DEFAULT_TIER_TO_DURATION["aggregate_only"] == "P7D"
+    assert DEFAULT_TIER_TO_DURATION["aggregate_only"] == "P1D"
 
 
 # --- resolve_tier uses defaults ---
@@ -54,7 +54,7 @@ def test_resolve_tier_defaults():
     assert policy.resolve_tier("high_risk_success") == "long"
     assert policy.resolve_tier("high_risk_denial") == "medium"
     assert policy.resolve_tier("low_risk_success") == "short"
-    assert policy.resolve_tier("repeated_low_value_denial") == "short"
+    assert policy.resolve_tier("repeated_low_value_denial") == "aggregate_only"
     assert policy.resolve_tier("malformed_or_spam") == "short"
 
 
@@ -96,14 +96,21 @@ def test_compute_expires_at_returns_none_for_null_duration():
     assert result is None
 
 
-# --- aggregate_only treated as short in v0.8 ---
+# --- aggregate_only maps to P1D (shorter than short/P7D) ---
 
-def test_aggregate_only_same_expires_as_short():
+def test_aggregate_only_expires_at_p1d():
+    policy = RetentionPolicy()
+    now = datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
+    agg_result = policy.compute_expires_at("aggregate_only", now=now)
+    assert agg_result == "2025-06-16T12:00:00+00:00"
+
+
+def test_aggregate_only_differs_from_short():
     policy = RetentionPolicy()
     now = datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
     short_result = policy.compute_expires_at("short", now=now)
     agg_result = policy.compute_expires_at("aggregate_only", now=now)
-    assert short_result == agg_result
+    assert short_result != agg_result
 
 
 # --- Full pipeline: classify -> resolve tier -> compute expires_at ---

@@ -18,7 +18,7 @@ from anip_core import (
 
 
 def test_protocol_version():
-    assert PROTOCOL_VERSION == "anip/0.8"
+    assert PROTOCOL_VERSION == "anip/0.9"
 
 
 def test_delegation_token_roundtrip():
@@ -106,8 +106,8 @@ def test_anip_failure():
 
 
 def test_manifest_structure():
-    manifest = ANIPManifest(protocol="anip/0.8", profile={"core": "1.0"}, capabilities={})
-    assert manifest.protocol == "anip/0.8"
+    manifest = ANIPManifest(protocol="anip/0.9", profile={"core": "1.0"}, capabilities={})
+    assert manifest.protocol == "anip/0.9"
 
 
 def test_permission_response():
@@ -374,7 +374,8 @@ def test_disclosure_level_enum_values():
     assert DisclosureLevel.FULL == "full"
     assert DisclosureLevel.REDUCED == "reduced"
     assert DisclosureLevel.REDACTED == "redacted"
-    assert len(DisclosureLevel) == 3
+    assert DisclosureLevel.POLICY == "policy"
+    assert len(DisclosureLevel) == 4
 
 
 def test_audit_posture_retention_enforced():
@@ -387,3 +388,39 @@ def test_audit_posture_retention_enforced():
 def test_failure_disclosure_accepts_reduced():
     fd = FailureDisclosure(detail_level="reduced")
     assert fd.detail_level == "reduced"
+
+
+# --- CheckpointDetailResponse (v0.9) ---
+
+
+def test_checkpoint_detail_response_expires_hint_optional():
+    """expires_hint is optional on CheckpointDetailResponse."""
+    from anip_core import CheckpointDetailResponse
+    resp = CheckpointDetailResponse(
+        checkpoint={
+            "service_id": "svc-1",
+            "checkpoint_id": "ckpt-1",
+            "range": {"first_sequence": 1, "last_sequence": 10},
+            "merkle_root": "sha256:abc",
+            "timestamp": "2026-01-01T00:00:00Z",
+            "entry_count": 10,
+        },
+    )
+    assert resp.expires_hint is None
+
+
+def test_checkpoint_detail_response_expires_hint_set():
+    """expires_hint can be set to an ISO 8601 timestamp."""
+    from anip_core import CheckpointDetailResponse
+    resp = CheckpointDetailResponse(
+        checkpoint={
+            "service_id": "svc-1",
+            "checkpoint_id": "ckpt-1",
+            "range": {"first_sequence": 1, "last_sequence": 10},
+            "merkle_root": "sha256:abc",
+            "timestamp": "2026-01-01T00:00:00Z",
+            "entry_count": 10,
+        },
+        expires_hint="2026-04-01T00:00:00Z",
+    )
+    assert resp.expires_hint == "2026-04-01T00:00:00Z"

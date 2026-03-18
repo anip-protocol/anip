@@ -414,6 +414,7 @@ export class DelegationEngine {
         concurrent_branches: concurrent,
       },
       root_principal: opts.rootPrincipal,
+      caller_class: null,
     };
 
     await this.registerToken(token);

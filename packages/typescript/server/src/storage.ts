@@ -29,6 +29,7 @@ export interface StorageBackend {
   getLastAuditEntry(): Promise<Record<string, unknown> | null>;
   getAuditEntriesRange(first: number, last: number): Promise<Record<string, unknown>[]>;
   deleteExpiredAuditEntries(nowIso: string): Promise<number>;
+  getEarliestExpiryInRange(firstSeq: number, lastSeq: number): Promise<string | null>;
   storeCheckpoint(body: Record<string, unknown>, signature: string): Promise<void>;
   getCheckpoints(limit?: number): Promise<Record<string, unknown>[]>;
   getCheckpointById(checkpointId: string): Promise<Record<string, unknown> | null>;
@@ -117,6 +118,17 @@ export class InMemoryStorage implements StorageBackend {
         (a, b) =>
           (a.sequence_number as number) - (b.sequence_number as number),
       );
+  }
+
+  async getEarliestExpiryInRange(firstSeq: number, lastSeq: number): Promise<string | null> {
+    const candidates = this.auditEntries
+      .filter((e) => {
+        const seq = e.sequence_number as number;
+        return seq >= firstSeq && seq <= lastSeq && e.expires_at != null;
+      })
+      .map((e) => e.expires_at as string);
+    if (candidates.length === 0) return null;
+    return candidates.sort()[0];
   }
 
   async storeCheckpoint(body: Record<string, unknown>, signature: string): Promise<void> {
@@ -266,6 +278,10 @@ export class SQLiteStorage implements StorageBackend {
 
   async getAuditEntriesRange(first: number, last: number): Promise<Record<string, unknown>[]> {
     return (await this.call("getAuditEntriesRange", [first, last])) as Record<string, unknown>[];
+  }
+
+  async getEarliestExpiryInRange(firstSeq: number, lastSeq: number): Promise<string | null> {
+    return (await this.call("getEarliestExpiryInRange", [firstSeq, lastSeq])) as string | null;
   }
 
   async deleteExpiredAuditEntries(nowIso: string): Promise<number> {

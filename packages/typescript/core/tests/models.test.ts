@@ -22,11 +22,12 @@ import {
   EventClass,
   RetentionTier,
   DisclosureLevel,
+  CheckpointDetailResponse,
 } from "../src/index.js";
 
 describe("Protocol constants", () => {
   it("exports correct protocol version", () => {
-    expect(PROTOCOL_VERSION).toBe("anip/0.8");
+    expect(PROTOCOL_VERSION).toBe("anip/0.9");
   });
 });
 
@@ -92,7 +93,7 @@ describe("ANIPFailure", () => {
 describe("ANIPManifest", () => {
   it("parses minimal manifest", () => {
     const result = ANIPManifest.safeParse({
-      protocol: "anip/0.8",
+      protocol: "anip/0.9",
       profile: { core: "1.0" },
       capabilities: {},
     });
@@ -452,5 +453,38 @@ describe("FailureDisclosure with reduced", () => {
   it("accepts reduced detail_level", () => {
     const fd = FailureDisclosure.parse({ detail_level: "reduced" });
     expect(fd.detail_level).toBe("reduced");
+  });
+});
+
+// --- CheckpointDetailResponse (v0.9) ---
+
+describe("CheckpointDetailResponse", () => {
+  it("defaults expires_hint to null", () => {
+    const resp = CheckpointDetailResponse.parse({
+      checkpoint: {
+        service_id: "svc-1",
+        checkpoint_id: "ckpt-1",
+        range: { first_sequence: 1, last_sequence: 10 },
+        merkle_root: "sha256:abc",
+        timestamp: "2026-01-01T00:00:00Z",
+        entry_count: 10,
+      },
+    });
+    expect(resp.expires_hint).toBeNull();
+  });
+
+  it("accepts expires_hint", () => {
+    const resp = CheckpointDetailResponse.parse({
+      checkpoint: {
+        service_id: "svc-1",
+        checkpoint_id: "ckpt-1",
+        range: { first_sequence: 1, last_sequence: 10 },
+        merkle_root: "sha256:abc",
+        timestamp: "2026-01-01T00:00:00Z",
+        entry_count: 10,
+      },
+      expires_hint: "2026-04-01T00:00:00Z",
+    });
+    expect(resp.expires_hint).toBe("2026-04-01T00:00:00Z");
   });
 });

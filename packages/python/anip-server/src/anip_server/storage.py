@@ -53,6 +53,10 @@ class StorageBackend(Protocol):
         self, checkpoint_id: str
     ) -> dict[str, Any] | None: ...
 
+    async def get_earliest_expiry_in_range(
+        self, first_seq: int, last_seq: int
+    ) -> str | None: ...
+
 
 # ---------------------------------------------------------------------------
 # In-memory implementation (for testing)
@@ -168,6 +172,20 @@ class InMemoryStorage:
                 return dict(ckpt)
         return None
 
+    async def get_earliest_expiry_in_range(
+        self, first_seq: int, last_seq: int
+    ) -> str | None:
+        """Return the earliest expires_at value for entries in [first_seq, last_seq]."""
+        candidates = [
+            e["expires_at"]
+            for e in self._audit_entries
+            if first_seq <= e.get("sequence_number", 0) <= last_seq
+            and e.get("expires_at") is not None
+        ]
+        if not candidates:
+            return None
+        return min(candidates)
+
 
 # ---------------------------------------------------------------------------
 # SQLite implementation
@@ -184,6 +202,7 @@ CREATE TABLE IF NOT EXISTS delegation_tokens (
     expires TEXT NOT NULL,        -- ISO 8601
     constraints TEXT,             -- JSON object
     root_principal TEXT,
+    caller_class TEXT,
     registered_at TEXT NOT NULL,
     FOREIGN KEY (parent) REFERENCES delegation_tokens(token_id)
 );
@@ -210,7 +229,15 @@ CREATE TABLE IF NOT EXISTS audit_log (
     signature TEXT,
     event_class TEXT,
     retention_tier TEXT,
-    expires_at TEXT
+    expires_at TEXT,
+    storage_redacted INTEGER DEFAULT 0,
+    entry_type TEXT,
+    grouping_key TEXT,
+    aggregation_window TEXT,
+    aggregation_count INTEGER,
+    first_seen TEXT,
+    last_seen TEXT,
+    representative_detail TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_audit_capability
@@ -247,6 +274,8 @@ _JSON_AUDIT_FIELDS = (
     "cost_actual",
     "delegation_chain",
     "stream_summary",
+    "grouping_key",
+    "aggregation_window",
 )
 
 
@@ -291,6 +320,42 @@ class SQLiteStorage:
             self._conn.execute("ALTER TABLE audit_log ADD COLUMN expires_at TEXT")
         except Exception:
             pass
+        try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN storage_redacted INTEGER DEFAULT 0")
+        except Exception:
+            pass
+        try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN entry_type TEXT")
+        except Exception:
+            pass
+        try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN grouping_key TEXT")
+        except Exception:
+            pass
+        try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN aggregation_window TEXT")
+        except Exception:
+            pass
+        try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN aggregation_count INTEGER")
+        except Exception:
+            pass
+        try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN first_seen TEXT")
+        except Exception:
+            pass
+        try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN last_seen TEXT")
+        except Exception:
+            pass
+        try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN representative_detail TEXT")
+        except Exception:
+            pass
+        try:
+            self._conn.execute("ALTER TABLE delegation_tokens ADD COLUMN caller_class TEXT")
+        except Exception:
+            pass
 
     # -- sync internals (private) -------------------------------------------
 
@@ -299,8 +364,8 @@ class SQLiteStorage:
             self._conn.execute(
                 """INSERT INTO delegation_tokens
                    (token_id, issuer, subject, scope, purpose, parent,
-                    expires, constraints, root_principal, registered_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    expires, constraints, root_principal, caller_class, registered_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     token_data["token_id"],
                     token_data["issuer"],
@@ -311,6 +376,7 @@ class SQLiteStorage:
                     token_data["expires"],
                     json.dumps(token_data.get("constraints")),
                     token_data.get("root_principal"),
+                    token_data.get("caller_class"),
                     datetime.now(timezone.utc).isoformat(),
                 ),
             )
@@ -334,6 +400,7 @@ class SQLiteStorage:
                 "expires": row["expires"],
                 "constraints": json.loads(row["constraints"]) if row["constraints"] else None,
                 "root_principal": row["root_principal"],
+                "caller_class": row["caller_class"],
             }
 
     def _sync_store_audit_entry(self, entry: dict[str, Any]) -> None:
@@ -344,8 +411,11 @@ class SQLiteStorage:
                     subject, root_principal, parameters, success, result_summary,
                     failure_type, cost_actual, delegation_chain, invocation_id,
                     client_reference_id, stream_summary, previous_hash, signature,
-                    event_class, retention_tier, expires_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    event_class, retention_tier, expires_at,
+                    storage_redacted, entry_type, grouping_key,
+                    aggregation_window, aggregation_count, first_seen,
+                    last_seen, representative_detail)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     entry["sequence_number"],
                     entry["timestamp"],
@@ -368,6 +438,14 @@ class SQLiteStorage:
                     entry.get("event_class"),
                     entry.get("retention_tier"),
                     entry.get("expires_at"),
+                    1 if entry.get("storage_redacted") else 0,
+                    entry.get("entry_type"),
+                    json.dumps(entry["grouping_key"]) if entry.get("grouping_key") is not None else None,
+                    json.dumps(entry["aggregation_window"]) if entry.get("aggregation_window") is not None else None,
+                    entry.get("aggregation_count"),
+                    entry.get("first_seen"),
+                    entry.get("last_seen"),
+                    entry.get("representative_detail"),
                 ),
             )
             self._conn.commit()
@@ -379,6 +457,7 @@ class SQLiteStorage:
             if entry.get(field) is not None:
                 entry[field] = json.loads(entry[field])
         entry["success"] = bool(entry["success"])
+        entry["storage_redacted"] = bool(entry.get("storage_redacted"))
         return entry
 
     def _sync_query_audit_entries(
@@ -442,6 +521,18 @@ class SQLiteStorage:
                 (first, last),
             ).fetchall()
         return [self._parse_audit_row(r) for r in rows]
+
+    def _sync_get_earliest_expiry_in_range(self, first_seq: int, last_seq: int) -> str | None:
+        """Return the earliest expires_at value for entries in [first_seq, last_seq]."""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT MIN(expires_at) as min_exp FROM audit_log "
+                "WHERE sequence_number BETWEEN ? AND ? AND expires_at IS NOT NULL",
+                (first_seq, last_seq),
+            ).fetchone()
+            if row is None:
+                return None
+            return row["min_exp"] if row["min_exp"] is not None else None
 
     def _sync_delete_expired_audit_entries(self, now_iso: str) -> int:
         with self._lock:
@@ -567,6 +658,10 @@ class SQLiteStorage:
     ) -> list[dict[str, Any]]:
         """Return audit entries with sequence_number BETWEEN first AND last."""
         return await asyncio.to_thread(self._sync_get_audit_entries_range, first, last)
+
+    async def get_earliest_expiry_in_range(self, first_seq: int, last_seq: int) -> str | None:
+        """Return the earliest expires_at value for entries in [first_seq, last_seq]."""
+        return await asyncio.to_thread(self._sync_get_earliest_expiry_in_range, first_seq, last_seq)
 
     async def delete_expired_audit_entries(self, now_iso: str) -> int:
         """Delete audit entries whose expires_at is before now_iso."""

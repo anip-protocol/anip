@@ -1,6 +1,7 @@
 """ANIP service runtime — the main developer-facing class."""
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import time
@@ -40,9 +41,12 @@ from anip_server import (
     CheckpointSink,
 )
 
+from .aggregation import AggregatedEntry, AuditAggregator
 from .classification import classify_event
+from .disclosure import resolve_disclosure_level
 from .redaction import redact_failure
 from .retention import RetentionPolicy
+from .storage_redaction import storage_redact_entry
 from .types import ANIPError, Capability, InvocationContext
 
 
@@ -66,9 +70,12 @@ class ANIPService:
         authenticate: Callable[[str], str | None] | None = None,
         retention_policy: RetentionPolicy | None = None,
         disclosure_level: str = "full",
+        disclosure_policy: dict[str, str] | None = None,
+        aggregation_window: int | None = None,
     ) -> None:
         self._service_id = service_id
         self._disclosure_level = disclosure_level
+        self._disclosure_policy = disclosure_policy
 
         # --- Bootstrap authentication ---
         self._authenticate = authenticate
@@ -166,6 +173,15 @@ class ANIPService:
         # --- Retention enforcer (v0.8) ---
         self._retention_enforcer = RetentionEnforcer(self._storage, interval_seconds=60)
 
+        # --- Audit aggregation (v0.9) ---
+        if aggregation_window is not None:
+            self._aggregator: AuditAggregator | None = AuditAggregator(window_seconds=aggregation_window)
+            self._aggregation_window = aggregation_window
+        else:
+            self._aggregator = None
+            self._aggregation_window = None
+        self._flush_task: asyncio.Task[None] | None = None
+
     # --- Public domain-level operations ---
 
     def get_discovery(self, *, base_url: str | None = None) -> dict[str, Any]:
@@ -184,12 +200,16 @@ class ANIPService:
         # Build posture from existing service state (v0.7)
         anchoring_src = self._manifest.trust.anchoring if self._manifest.trust else None
         is_anchored = self._trust_level in ("anchored", "attested")
+        failure_disc = FailureDisclosure(
+            detail_level=self._disclosure_level,
+            caller_classes=list(self._disclosure_policy.keys()) if self._disclosure_level == "policy" and self._disclosure_policy else None,
+        )
         posture = DiscoveryPosture(
             audit=AuditPosture(
                 retention=self._retention_policy.default_retention,
                 retention_enforced=self._retention_enforcer.is_running,
             ),
-            failure_disclosure=FailureDisclosure(detail_level=self._disclosure_level),
+            failure_disclosure=failure_disc,
             anchoring=AnchoringPosture(
                 enabled=is_anchored,
                 cadence=anchoring_src.cadence if anchoring_src else None,
@@ -386,6 +406,11 @@ class ANIPService:
 
         token, token_id = result
 
+        # Apply caller_class from request
+        caller_class = request.get("caller_class")
+        if caller_class is not None:
+            token = token.model_copy(update={"caller_class": caller_class})
+
         # Build and sign JWT
         now = datetime.now(timezone.utc)
         expires = now + timedelta(hours=ttl_hours)
@@ -409,6 +434,8 @@ class ANIPService:
             claims["purpose"] = token.purpose.model_dump() if hasattr(token.purpose, "model_dump") else token.purpose
         if token.constraints:
             claims["constraints"] = token.constraints.model_dump() if hasattr(token.constraints, "model_dump") else token.constraints
+        if token.caller_class is not None:
+            claims["anip:caller_class"] = token.caller_class
 
         jwt_str = self._keys.sign_jwt(claims)
 
@@ -451,6 +478,13 @@ class ANIPService:
         """
         invocation_id = f"inv-{uuid.uuid4().hex[:12]}"
 
+        # Resolve effective disclosure level for this caller
+        effective_level = resolve_disclosure_level(
+            self._disclosure_level,
+            token_claims={"anip:caller_class": token.caller_class, "scope": token.scope} if token else None,
+            disclosure_policy=self._disclosure_policy,
+        )
+
         # 1. Check capability exists
         if capability_name not in self._capabilities:
             return {
@@ -458,7 +492,7 @@ class ANIPService:
                 "failure": redact_failure({
                     "type": "unknown_capability",
                     "detail": f"Capability '{capability_name}' not found",
-                }, self._disclosure_level),
+                }, effective_level),
                 "invocation_id": invocation_id,
                 "client_reference_id": client_reference_id,
             }
@@ -475,7 +509,7 @@ class ANIPService:
                     "failure": redact_failure({
                         "type": "streaming_not_supported",
                         "detail": f"Capability '{capability_name}' does not support streaming",
-                    }, self._disclosure_level),
+                    }, effective_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
@@ -506,7 +540,7 @@ class ANIPService:
             )
             return {
                 "success": False,
-                "failure": redact_failure(failure, self._disclosure_level),
+                "failure": redact_failure(failure, effective_level),
                 "invocation_id": invocation_id,
                 "client_reference_id": client_reference_id,
             }
@@ -565,7 +599,7 @@ class ANIPService:
                 )
                 return {
                     "success": False,
-                    "failure": redact_failure({"type": lock_result.type, "detail": lock_result.detail}, self._disclosure_level),
+                    "failure": redact_failure({"type": lock_result.type, "detail": lock_result.detail}, effective_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
@@ -602,7 +636,7 @@ class ANIPService:
                 )
                 fail_response: dict[str, Any] = {
                     "success": False,
-                    "failure": redact_failure({"type": e.error_type, "detail": e.detail}, self._disclosure_level),
+                    "failure": redact_failure({"type": e.error_type, "detail": e.detail}, effective_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
@@ -633,7 +667,7 @@ class ANIPService:
                 )
                 fail_response_exc: dict[str, Any] = {
                     "success": False,
-                    "failure": redact_failure({"type": "internal_error", "detail": "Internal error"}, self._disclosure_level),
+                    "failure": redact_failure({"type": "internal_error", "detail": "Internal error"}, effective_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
@@ -767,6 +801,16 @@ class ANIPService:
             }
         }
 
+        # Compute expires_hint from earliest expiry in the checkpoint's range
+        first_seq = rng.get("first_sequence", row.get("first_sequence"))
+        last_seq = rng.get("last_sequence", row.get("last_sequence"))
+        if first_seq is not None and last_seq is not None:
+            expires_hint = await self._storage.get_earliest_expiry_in_range(
+                int(first_seq), int(last_seq)
+            )
+            if expires_hint is not None:
+                result["expires_hint"] = expires_hint
+
         options = options or {}
 
         # Inclusion proof
@@ -818,16 +862,47 @@ class ANIPService:
         return result
 
     def start(self) -> None:
-        """Start background services (checkpoint scheduler, retention enforcer)."""
+        """Start background services (checkpoint scheduler, retention enforcer, aggregation flush)."""
         if self._scheduler:
             self._scheduler.start()
         self._retention_enforcer.start()
 
+        if self._aggregator is not None and self._aggregation_window is not None:
+            async def _periodic_flush() -> None:
+                try:
+                    while True:
+                        await asyncio.sleep(self._aggregation_window)  # type: ignore[arg-type]
+                        await self._flush_aggregator()
+                except asyncio.CancelledError:
+                    pass
+
+            self._flush_task = asyncio.get_event_loop().create_task(_periodic_flush())
+
     def stop(self) -> None:
-        """Stop background services."""
+        """Stop background services (sync, no persistence)."""
         if self._scheduler:
             self._scheduler.stop()
         self._retention_enforcer.stop()
+        if self._flush_task is not None:
+            self._flush_task.cancel()
+            self._flush_task = None
+
+    async def shutdown(self) -> None:
+        """Flush remaining aggregated events and stop background services."""
+        if self._aggregator is not None:
+            await self._flush_aggregator()
+
+    async def _flush_aggregator(self) -> None:
+        """Flush closed aggregation windows and persist each result."""
+        if self._aggregator is None:
+            return
+        results = self._aggregator.flush(datetime.now(timezone.utc))
+        for item in results:
+            if isinstance(item, AggregatedEntry):
+                entry = storage_redact_entry(item.to_audit_dict())
+            else:
+                entry = storage_redact_entry(item)
+            await self._audit.log_entry(entry)
 
     # --- Internal helpers ---
 
@@ -848,9 +923,14 @@ class ANIPService:
         retention_tier: str | None = None,
         expires_at: str | None = None,
     ) -> None:
-        """Log an audit entry through the SDK's AuditLog."""
+        """Log an audit entry through the SDK's AuditLog.
+
+        When the aggregator is enabled and the event_class is
+        ``malformed_or_spam``, the event is routed through the aggregator
+        instead of being persisted immediately.
+        """
         chain = await self._engine.get_chain(token)
-        await self._audit.log_entry({
+        entry_data = {
             "capability": capability,
             "token_id": token.token_id,
             "root_principal": await self._engine.get_root_principal(token),
@@ -865,7 +945,18 @@ class ANIPService:
             "event_class": event_class,
             "retention_tier": retention_tier,
             "expires_at": expires_at,
-        })
+        }
+
+        # Apply storage-side redaction (after classification, before persistence)
+        entry_data = storage_redact_entry(entry_data)
+
+        # Route low-value denials through the aggregator when enabled
+        if self._aggregator is not None and event_class == "malformed_or_spam":
+            entry_data["timestamp"] = datetime.now(timezone.utc).isoformat()
+            self._aggregator.submit(entry_data)
+            return
+
+        await self._audit.log_entry(entry_data)
 
         self._entries_since_checkpoint += 1
         if self._checkpoint_policy and self._checkpoint_policy.should_checkpoint(

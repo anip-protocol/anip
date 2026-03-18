@@ -32,7 +32,8 @@ def mount_anip(
 
     # --- Lifecycle: wire start/stop into FastAPI events ---
     app.router.on_startup.append(service.start)
-    app.router.on_shutdown.append(service.stop)
+    app.router.on_shutdown.append(service.shutdown)  # async flush first
+    app.router.on_shutdown.append(service.stop)       # sync timer cleanup
 
     # --- Discovery & Identity ---
 

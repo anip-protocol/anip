@@ -58,6 +58,7 @@ class DelegationToken(BaseModel):
     expires: datetime
     constraints: DelegationConstraints = Field(default_factory=DelegationConstraints)
     root_principal: str | None = None  # The human at the root of the delegation chain
+    caller_class: str | None = None  # Issuer-supplied caller classification
 
 
 class TokenRequest(BaseModel):
@@ -68,6 +69,7 @@ class TokenRequest(BaseModel):
     parent_token: str | None = None  # JWT string of parent (for child issuance)
     purpose_parameters: dict[str, Any] = Field(default_factory=dict)
     ttl_hours: int = 2
+    caller_class: str | None = None
 
 
 # --- Capability Declaration ---
@@ -204,7 +206,7 @@ class ProfileVersions(BaseModel):
 
 
 class ManifestMetadata(BaseModel):
-    version: str = "0.8.0"
+    version: str = "0.9.0"
     sha256: str = ""  # Set at build time
     issued_at: str = ""  # Set at build time
     expires_at: str = ""  # Set at build time
@@ -258,6 +260,7 @@ class DisclosureLevel(str, Enum):
     FULL = "full"
     REDUCED = "reduced"
     REDACTED = "redacted"
+    POLICY = "policy"
 
 
 # --- Discovery Posture (v0.7) ---
@@ -291,6 +294,7 @@ class MetadataPolicy(BaseModel):
 
 class FailureDisclosure(BaseModel):
     detail_level: Literal["full", "reduced", "redacted", "policy"] = "redacted"
+    caller_classes: list[str] | None = None
 
 
 class AnchoringPosture(BaseModel):
@@ -309,7 +313,7 @@ class DiscoveryPosture(BaseModel):
 
 
 class ANIPManifest(BaseModel):
-    protocol: str = "anip/0.8"
+    protocol: str = "anip/0.9"
     profile: ProfileVersions
     capabilities: dict[str, CapabilityDeclaration]
     manifest_metadata: ManifestMetadata | None = None
@@ -366,3 +370,12 @@ class CheckpointBody(BaseModel):
     previous_checkpoint: str | None = None
     timestamp: str
     entry_count: int
+
+
+class CheckpointDetailResponse(BaseModel):
+    """Response wrapper for checkpoint detail endpoint. Separate from the signed CheckpointBody."""
+    checkpoint: dict[str, Any]
+    inclusion_proof: dict[str, Any] | None = None
+    consistency_proof: dict[str, Any] | None = None
+    proof_unavailable: str | None = None
+    expires_hint: str | None = None  # best-effort, informational, not part of signed body

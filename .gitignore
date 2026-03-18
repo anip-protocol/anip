@@ -11,6 +11,7 @@ __pycache__/
 anip-keys.json
 anip-keys
 dist/
+*.tsbuildinfo
 build/
 *.egg-info/
 .worktrees/
