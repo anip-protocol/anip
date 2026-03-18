@@ -18,7 +18,7 @@ from anip_core import (
 
 
 def test_protocol_version():
-    assert PROTOCOL_VERSION == "anip/0.8"
+    assert PROTOCOL_VERSION == "anip/0.9"
 
 
 def test_delegation_token_roundtrip():
@@ -106,8 +106,8 @@ def test_anip_failure():
 
 
 def test_manifest_structure():
-    manifest = ANIPManifest(protocol="anip/0.8", profile={"core": "1.0"}, capabilities={})
-    assert manifest.protocol == "anip/0.8"
+    manifest = ANIPManifest(protocol="anip/0.9", profile={"core": "1.0"}, capabilities={})
+    assert manifest.protocol == "anip/0.9"
 
 
 def test_permission_response():

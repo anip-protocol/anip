@@ -143,7 +143,7 @@ describe("verifyManifestSignature", () => {
   it("verifies a valid manifest signature", async () => {
     const km = new KeyManager();
     await km.ready();
-    const manifest = new TextEncoder().encode('{"protocol":"anip/0.8"}');
+    const manifest = new TextEncoder().encode('{"protocol":"anip/0.9"}');
     const sig = await signJWSDetached(km, manifest);
     await verifyManifestSignature(km, manifest, sig);
   });
@@ -151,7 +151,7 @@ describe("verifyManifestSignature", () => {
   it("rejects tampered manifest bytes", async () => {
     const km = new KeyManager();
     await km.ready();
-    const manifest = new TextEncoder().encode('{"protocol":"anip/0.8"}');
+    const manifest = new TextEncoder().encode('{"protocol":"anip/0.9"}');
     const sig = await signJWSDetached(km, manifest);
     const tampered = new TextEncoder().encode("tampered");
     await expect(verifyManifestSignature(km, tampered, sig)).rejects.toThrow();
