@@ -35,6 +35,7 @@ import { ANIPError } from "./types.js";
 import type { CapabilityDef, Handler, InvocationContext } from "./types.js";
 import { AuditAggregator, type AggregatedEntry } from "./aggregation.js";
 import { classifyEvent } from "./classification.js";
+import { resolveDisclosureLevel } from "./disclosure.js";
 import { redactFailure } from "./redaction.js";
 import { RetentionPolicy } from "./retention.js";
 import { storageRedactEntry } from "./storage-redaction.js";
@@ -63,6 +64,7 @@ export interface ANIPServiceOpts {
   authenticate?: (bearer: string) => string | null;
   retentionPolicy?: RetentionPolicy;
   disclosureLevel?: string;
+  disclosurePolicy?: Record<string, string>;
   aggregationWindow?: number;
 }
 
@@ -160,6 +162,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
   // --- Disclosure level (v0.8) ---
   const disclosureLevel = opts.disclosureLevel ?? "full";
+  const disclosurePolicy = opts.disclosurePolicy ?? undefined;
 
   // --- Retention policy (v0.8) ---
   const retentionPolicy = opts.retentionPolicy ?? new RetentionPolicy();
@@ -488,6 +491,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           },
           failure_disclosure: {
             detail_level: disclosureLevel,
+            caller_classes: disclosureLevel === "policy" && disclosurePolicy
+              ? Object.keys(disclosurePolicy)
+              : null,
           },
           anchoring: {
             enabled: isAnchored,
@@ -716,6 +722,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         tokenId: string;
       };
 
+      // Apply caller_class from request
+      const callerClass = request.caller_class as string | undefined;
+      if (callerClass != null) {
+        (token as Record<string, unknown>).caller_class = callerClass;
+      }
+
       // Build and sign JWT
       const now = Math.floor(Date.now() / 1000);
       const exp = now + ttlHours * 3600;
@@ -739,6 +751,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       claims.parent_token_id = token.parent;
       if (token.constraints) {
         claims.constraints = token.constraints;
+      }
+      if (token.caller_class != null) {
+        claims["anip:caller_class"] = token.caller_class;
       }
 
       const jwtStr = await keys.signJWT(claims);
@@ -776,6 +791,13 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       const invocationId = `inv-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
       const clientReferenceId = opts?.clientReferenceId ?? null;
 
+      // Resolve effective disclosure level for this caller
+      const effectiveLevel = resolveDisclosureLevel(
+        disclosureLevel,
+        token ? { "anip:caller_class": token.caller_class, scope: token.scope } : null,
+        disclosurePolicy,
+      );
+
       // 1. Check capability exists
       if (!capabilities.has(capabilityName)) {
         return {
@@ -783,7 +805,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           failure: redactFailure({
             type: "unknown_capability",
             detail: `Capability '${capabilityName}' not found`,
-          }, disclosureLevel),
+          }, effectiveLevel),
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,
         };
@@ -803,7 +825,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             failure: redactFailure({
               type: "streaming_not_supported",
               detail: `Capability '${capabilityName}' does not support streaming`,
-            }, disclosureLevel),
+            }, effectiveLevel),
             invocation_id: invocationId,
             client_reference_id: clientReferenceId,
           };
@@ -840,7 +862,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         });
         return {
           success: false,
-          failure: redactFailure(failure, disclosureLevel),
+          failure: redactFailure(failure, effectiveLevel),
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,
         };
@@ -963,7 +985,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           });
           const response: Record<string, unknown> = {
             success: false,
-            failure: redactFailure({ type: err.errorType, detail: err.detail }, disclosureLevel),
+            failure: redactFailure({ type: err.errorType, detail: err.detail }, effectiveLevel),
             invocation_id: invocationId,
             client_reference_id: clientReferenceId,
           };
@@ -990,7 +1012,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         });
         const response: Record<string, unknown> = {
           success: false,
-          failure: redactFailure({ type: "internal_error", detail: "Internal error" }, disclosureLevel),
+          failure: redactFailure({ type: "internal_error", detail: "Internal error" }, effectiveLevel),
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,
         };

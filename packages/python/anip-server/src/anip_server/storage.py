@@ -184,6 +184,7 @@ CREATE TABLE IF NOT EXISTS delegation_tokens (
     expires TEXT NOT NULL,        -- ISO 8601
     constraints TEXT,             -- JSON object
     root_principal TEXT,
+    caller_class TEXT,
     registered_at TEXT NOT NULL,
     FOREIGN KEY (parent) REFERENCES delegation_tokens(token_id)
 );
@@ -333,6 +334,10 @@ class SQLiteStorage:
             self._conn.execute("ALTER TABLE audit_log ADD COLUMN representative_detail TEXT")
         except Exception:
             pass
+        try:
+            self._conn.execute("ALTER TABLE delegation_tokens ADD COLUMN caller_class TEXT")
+        except Exception:
+            pass
 
     # -- sync internals (private) -------------------------------------------
 
@@ -341,8 +346,8 @@ class SQLiteStorage:
             self._conn.execute(
                 """INSERT INTO delegation_tokens
                    (token_id, issuer, subject, scope, purpose, parent,
-                    expires, constraints, root_principal, registered_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    expires, constraints, root_principal, caller_class, registered_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     token_data["token_id"],
                     token_data["issuer"],
@@ -353,6 +358,7 @@ class SQLiteStorage:
                     token_data["expires"],
                     json.dumps(token_data.get("constraints")),
                     token_data.get("root_principal"),
+                    token_data.get("caller_class"),
                     datetime.now(timezone.utc).isoformat(),
                 ),
             )
@@ -376,6 +382,7 @@ class SQLiteStorage:
                 "expires": row["expires"],
                 "constraints": json.loads(row["constraints"]) if row["constraints"] else None,
                 "root_principal": row["root_principal"],
+                "caller_class": row["caller_class"],
             }
 
     def _sync_store_audit_entry(self, entry: dict[str, Any]) -> None:

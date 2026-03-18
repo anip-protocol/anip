@@ -58,6 +58,7 @@ class DelegationToken(BaseModel):
     expires: datetime
     constraints: DelegationConstraints = Field(default_factory=DelegationConstraints)
     root_principal: str | None = None  # The human at the root of the delegation chain
+    caller_class: str | None = None  # Issuer-supplied caller classification
 
 
 class TokenRequest(BaseModel):
@@ -68,6 +69,7 @@ class TokenRequest(BaseModel):
     parent_token: str | None = None  # JWT string of parent (for child issuance)
     purpose_parameters: dict[str, Any] = Field(default_factory=dict)
     ttl_hours: int = 2
+    caller_class: str | None = None
 
 
 # --- Capability Declaration ---
@@ -258,6 +260,7 @@ class DisclosureLevel(str, Enum):
     FULL = "full"
     REDUCED = "reduced"
     REDACTED = "redacted"
+    POLICY = "policy"
 
 
 # --- Discovery Posture (v0.7) ---
@@ -291,6 +294,7 @@ class MetadataPolicy(BaseModel):
 
 class FailureDisclosure(BaseModel):
     detail_level: Literal["full", "reduced", "redacted", "policy"] = "redacted"
+    caller_classes: list[str] | None = None
 
 
 class AnchoringPosture(BaseModel):

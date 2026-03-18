@@ -374,7 +374,8 @@ def test_disclosure_level_enum_values():
     assert DisclosureLevel.FULL == "full"
     assert DisclosureLevel.REDUCED == "reduced"
     assert DisclosureLevel.REDACTED == "redacted"
-    assert len(DisclosureLevel) == 3
+    assert DisclosureLevel.POLICY == "policy"
+    assert len(DisclosureLevel) == 4
 
 
 def test_audit_posture_retention_enforced():

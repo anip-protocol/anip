@@ -43,6 +43,7 @@ from anip_server import (
 
 from .aggregation import AggregatedEntry, AuditAggregator
 from .classification import classify_event
+from .disclosure import resolve_disclosure_level
 from .redaction import redact_failure
 from .retention import RetentionPolicy
 from .storage_redaction import storage_redact_entry
@@ -69,10 +70,12 @@ class ANIPService:
         authenticate: Callable[[str], str | None] | None = None,
         retention_policy: RetentionPolicy | None = None,
         disclosure_level: str = "full",
+        disclosure_policy: dict[str, str] | None = None,
         aggregation_window: int | None = None,
     ) -> None:
         self._service_id = service_id
         self._disclosure_level = disclosure_level
+        self._disclosure_policy = disclosure_policy
 
         # --- Bootstrap authentication ---
         self._authenticate = authenticate
@@ -197,12 +200,16 @@ class ANIPService:
         # Build posture from existing service state (v0.7)
         anchoring_src = self._manifest.trust.anchoring if self._manifest.trust else None
         is_anchored = self._trust_level in ("anchored", "attested")
+        failure_disc = FailureDisclosure(
+            detail_level=self._disclosure_level,
+            caller_classes=list(self._disclosure_policy.keys()) if self._disclosure_level == "policy" and self._disclosure_policy else None,
+        )
         posture = DiscoveryPosture(
             audit=AuditPosture(
                 retention=self._retention_policy.default_retention,
                 retention_enforced=self._retention_enforcer.is_running,
             ),
-            failure_disclosure=FailureDisclosure(detail_level=self._disclosure_level),
+            failure_disclosure=failure_disc,
             anchoring=AnchoringPosture(
                 enabled=is_anchored,
                 cadence=anchoring_src.cadence if anchoring_src else None,
@@ -399,6 +406,11 @@ class ANIPService:
 
         token, token_id = result
 
+        # Apply caller_class from request
+        caller_class = request.get("caller_class")
+        if caller_class is not None:
+            token = token.model_copy(update={"caller_class": caller_class})
+
         # Build and sign JWT
         now = datetime.now(timezone.utc)
         expires = now + timedelta(hours=ttl_hours)
@@ -422,6 +434,8 @@ class ANIPService:
             claims["purpose"] = token.purpose.model_dump() if hasattr(token.purpose, "model_dump") else token.purpose
         if token.constraints:
             claims["constraints"] = token.constraints.model_dump() if hasattr(token.constraints, "model_dump") else token.constraints
+        if token.caller_class is not None:
+            claims["anip:caller_class"] = token.caller_class
 
         jwt_str = self._keys.sign_jwt(claims)
 
@@ -464,6 +478,13 @@ class ANIPService:
         """
         invocation_id = f"inv-{uuid.uuid4().hex[:12]}"
 
+        # Resolve effective disclosure level for this caller
+        effective_level = resolve_disclosure_level(
+            self._disclosure_level,
+            token_claims={"anip:caller_class": token.caller_class, "scope": token.scope} if token else None,
+            disclosure_policy=self._disclosure_policy,
+        )
+
         # 1. Check capability exists
         if capability_name not in self._capabilities:
             return {
@@ -471,7 +492,7 @@ class ANIPService:
                 "failure": redact_failure({
                     "type": "unknown_capability",
                     "detail": f"Capability '{capability_name}' not found",
-                }, self._disclosure_level),
+                }, effective_level),
                 "invocation_id": invocation_id,
                 "client_reference_id": client_reference_id,
             }
@@ -488,7 +509,7 @@ class ANIPService:
                     "failure": redact_failure({
                         "type": "streaming_not_supported",
                         "detail": f"Capability '{capability_name}' does not support streaming",
-                    }, self._disclosure_level),
+                    }, effective_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
@@ -519,7 +540,7 @@ class ANIPService:
             )
             return {
                 "success": False,
-                "failure": redact_failure(failure, self._disclosure_level),
+                "failure": redact_failure(failure, effective_level),
                 "invocation_id": invocation_id,
                 "client_reference_id": client_reference_id,
             }
@@ -578,7 +599,7 @@ class ANIPService:
                 )
                 return {
                     "success": False,
-                    "failure": redact_failure({"type": lock_result.type, "detail": lock_result.detail}, self._disclosure_level),
+                    "failure": redact_failure({"type": lock_result.type, "detail": lock_result.detail}, effective_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
@@ -615,7 +636,7 @@ class ANIPService:
                 )
                 fail_response: dict[str, Any] = {
                     "success": False,
-                    "failure": redact_failure({"type": e.error_type, "detail": e.detail}, self._disclosure_level),
+                    "failure": redact_failure({"type": e.error_type, "detail": e.detail}, effective_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }
@@ -646,7 +667,7 @@ class ANIPService:
                 )
                 fail_response_exc: dict[str, Any] = {
                     "success": False,
-                    "failure": redact_failure({"type": "internal_error", "detail": "Internal error"}, self._disclosure_level),
+                    "failure": redact_failure({"type": "internal_error", "detail": "Internal error"}, effective_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                 }

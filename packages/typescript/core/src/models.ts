@@ -58,6 +58,7 @@ export const DelegationToken = z.object({
     concurrent_branches: "allowed",
   }),
   root_principal: z.string().nullable().default(null),
+  caller_class: z.string().nullable().default(null),
 });
 export type DelegationToken = z.infer<typeof DelegationToken>;
 
@@ -243,7 +244,7 @@ export const RetentionTier = z.enum([
 ]);
 export type RetentionTier = z.infer<typeof RetentionTier>;
 
-export const DisclosureLevel = z.enum(["full", "reduced", "redacted"]);
+export const DisclosureLevel = z.enum(["full", "reduced", "redacted", "policy"]);
 export type DisclosureLevel = z.infer<typeof DisclosureLevel>;
 
 // ---------------------------------------------------------------------------
@@ -282,6 +283,7 @@ export type MetadataPolicy = z.infer<typeof MetadataPolicy>;
 
 export const FailureDisclosure = z.object({
   detail_level: z.enum(["full", "reduced", "redacted", "policy"]).default("redacted"),
+  caller_classes: z.array(z.string()).nullable().default(null),
 });
 export type FailureDisclosure = z.infer<typeof FailureDisclosure>;
 
@@ -389,6 +391,7 @@ export const TokenRequest = z.object({
   parent_token: z.string().nullable().optional(),
   purpose_parameters: z.record(z.any()).default({}),
   ttl_hours: z.number().default(2),
+  caller_class: z.string().nullable().optional(),
 });
 export type TokenRequest = z.infer<typeof TokenRequest>;
 
