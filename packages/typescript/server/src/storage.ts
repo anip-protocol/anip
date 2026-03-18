@@ -33,6 +33,15 @@ export interface StorageBackend {
   storeCheckpoint(body: Record<string, unknown>, signature: string): Promise<void>;
   getCheckpoints(limit?: number): Promise<Record<string, unknown>[]>;
   getCheckpointById(checkpointId: string): Promise<Record<string, unknown> | null>;
+
+  // -- horizontal-scaling methods -------------------------------------------
+  appendAuditEntry(entryData: Record<string, unknown>): Promise<Record<string, unknown>>;
+  updateAuditSignature(sequenceNumber: number, signature: string): Promise<void>;
+  getMaxAuditSequence(): Promise<number | null>;
+  tryAcquireExclusive(key: string, holder: string, ttlSeconds: number): Promise<boolean>;
+  releaseExclusive(key: string, holder: string): Promise<void>;
+  tryAcquireLeader(role: string, holder: string, ttlSeconds: number): Promise<boolean>;
+  releaseLeader(role: string, holder: string): Promise<void>;
 }
 
 /**
