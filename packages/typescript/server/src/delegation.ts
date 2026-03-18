@@ -14,6 +14,7 @@
  */
 
 import { randomUUID } from "crypto";
+import { hostname } from "os";
 import type {
   DelegationToken as DelegationTokenType,
   ANIPFailure as ANIPFailureType,
@@ -45,13 +46,66 @@ export interface DelegateOpts {
 export class DelegationEngine {
   private _storage: StorageBackend;
   private _serviceId: string;
+  private _exclusiveTtl: number;
 
   constructor(
     storage: StorageBackend,
-    opts: { serviceId: string },
+    opts: { serviceId: string; exclusiveTtl?: number },
   ) {
     this._storage = storage;
     this._serviceId = opts.serviceId;
+    this._exclusiveTtl = opts.exclusiveTtl ?? 60;
+  }
+
+  // ------------------------------------------------------------------
+  // Exclusivity
+  // ------------------------------------------------------------------
+
+  private _getHolderId(): string {
+    return `${hostname()}:${process.pid}`;
+  }
+
+  /**
+   * Acquire an exclusive lock for a token whose constraints require it.
+   *
+   * Returns `null` on success (lock acquired or not needed).
+   * Returns an `ANIPFailure` if the lock is already held by another holder.
+   */
+  async acquireExclusiveLock(
+    token: DelegationTokenType,
+  ): Promise<ANIPFailureType | null> {
+    if (token.constraints?.concurrent_branches !== "exclusive") return null;
+    const root = await this.getRootPrincipal(token);
+    const key = `exclusive:${this._serviceId}:${root}`;
+    const acquired = await this._storage.tryAcquireExclusive(
+      key,
+      this._getHolderId(),
+      this._exclusiveTtl,
+    );
+    if (!acquired) {
+      return {
+        type: "concurrent_request_rejected",
+        detail: `concurrent_branches is exclusive and another request from ${root} is in progress`,
+        resolution: {
+          action: "wait_and_retry",
+          grantable_by: root,
+        },
+        retry: true,
+      } as ANIPFailureType;
+    }
+    return null;
+  }
+
+  /**
+   * Release an exclusive lock previously acquired for a token.
+   *
+   * No-op if the token does not require exclusivity.
+   */
+  async releaseExclusiveLock(token: DelegationTokenType): Promise<void> {
+    if (token.constraints?.concurrent_branches !== "exclusive") return;
+    const root = await this.getRootPrincipal(token);
+    const key = `exclusive:${this._serviceId}:${root}`;
+    await this._storage.releaseExclusive(key, this._getHolderId());
   }
 
   // ------------------------------------------------------------------
