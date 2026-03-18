@@ -1,4 +1,4 @@
-# ANIP Specification v0.8
+# ANIP Specification v0.9
 
 > Agent-Native Interface Protocol — Draft
 
@@ -511,7 +511,8 @@ anip_discovery:
       freeform_context: false
       downstream_propagation: "minimal"
     failure_disclosure:
-      detail_level: "redacted"
+      detail_level: "redacted"              # or "policy" for caller-class-aware redaction (v0.9)
+      # caller_classes: ["internal", "partner", "default"]  # optional, when detail_level is "policy"
     anchoring:
       enabled: true
       cadence: "PT30S"
@@ -909,6 +910,38 @@ Example response when proof is unavailable:
 }
 ```
 
+#### Proof Expiration Guidance (v0.9)
+
+Services SHOULD include an `expires_hint` field on checkpoint detail responses:
+
+```json
+{
+  "version": "0.3",
+  "service_id": "flights.example.com",
+  "checkpoint_id": "cp_00042",
+  "range": { "from": 1001, "to": 1500 },
+  "merkle_root": "sha256:3a7bd3e2360a8bb...",
+  "previous_checkpoint": "cp_00041",
+  "timestamp": "2026-03-12T06:00:00Z",
+  "entry_count": 500,
+  "expires_hint": "2026-06-15T00:00:00Z"
+}
+```
+
+`expires_hint` is:
+
+- **Best-effort and informational** — actual expiration depends on retention enforcement timing, not this field.
+- **Optional** — services that do not track per-entry expiration MAY omit it.
+- **Derived from the earliest expected expiration** of any audit entry within the checkpoint's sequence range, based on current retention policy and tier durations.
+
+**Client-side guidance:**
+
+1. Clients SHOULD retrieve and cache proofs before `expires_hint` if they need them for offline verification or compliance.
+2. `proof_unavailable: "audit_entries_expired"` is **permanent**. The live audit entries needed for proof regeneration are no longer available. Retries will not produce the proof unless the deployment has an out-of-band archival path.
+3. The **checkpoint remains valid**. `proof_unavailable` means the proof cannot be regenerated from live storage, not that the checkpoint is invalid or the audit trail is compromised.
+4. **No retry semantics.** Unlike transient errors, `proof_unavailable` SHOULD NOT trigger retry loops. Clients SHOULD handle it as a terminal state for that proof request.
+```
+
 ### 6.6 Streaming Invocations (v0.6)
 
 Capabilities that produce incremental results — search results, generation progress, multi-step computations — MAY declare `response_modes: ["unary", "streaming"]` in their capability declaration. This enables agents to request real-time progress events during invocation.
@@ -1023,7 +1056,8 @@ Describes how much detail the service exposes in failure responses.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `detail_level` | string | MUST | One of: `"full"` (detailed error messages including stack context), `"reduced"` (truncated detail, resolution hints without internal authority structure), `"redacted"` (generic messages per failure type, minimal resolution hints), or `"policy"` (behavior determined by caller class — treated as `"redacted"` in v0.8). |
+| `detail_level` | string | MUST | One of: `"full"` (detailed error messages including stack context), `"reduced"` (truncated detail, resolution hints without internal authority structure), `"redacted"` (generic messages per failure type, minimal resolution hints), or `"policy"` (v0.9: effective level resolved per-caller from the service's disclosure policy; see §6.8). |
+| `caller_classes` | array of strings | OPTIONAL | When `detail_level` is `"policy"`, lists the caller class names the service recognizes (e.g., `["internal", "partner", "default"]`). Informational only — does not reveal the class-to-level mapping. |
 
 Services SHOULD use `"redacted"` in production. Failure responses MUST conform to the failure semantics in §4.5 regardless of disclosure level — `detail_level` governs the verbosity of the `detail` field, not the structure of the failure object.
 
@@ -1070,7 +1104,7 @@ Every audit entry MUST be assigned an `event_class`. The classification is a pur
 
 All auth/scope/purpose denials are `high_risk_denial` regardless of side-effect type — a denied read is still an authority boundary event. Failures before capability resolution (invalid token, unknown capability) are `malformed_or_spam`.
 
-`repeated_low_value_denial` exists in the enum but is not assigned by the v0.8 classifier. It is reserved for v0.9 aggregation.
+`repeated_low_value_denial` is not assigned by the base classifier. It is applied at aggregation time when a time-window bucket crosses the >1 event threshold (see §6.9).
 
 #### Retention Enforcement
 
@@ -1091,7 +1125,7 @@ RetentionTierPolicy:    RetentionTier → Duration | null
 | `high_risk_success` | `long` |
 | `high_risk_denial` | `medium` |
 | `low_risk_success` | `short` |
-| `repeated_low_value_denial` | `short` |
+| `repeated_low_value_denial` | `aggregate_only` |
 | `malformed_or_spam` | `short` |
 
 **Default tier → duration mapping:**
@@ -1101,9 +1135,9 @@ RetentionTierPolicy:    RetentionTier → Duration | null
 | `long` | P365D |
 | `medium` | P90D |
 | `short` | P7D |
-| `aggregate_only` | P7D (v0.8 placeholder) |
+| `aggregate_only` | P1D |
 
-Both layers are configurable per deployment. `aggregate_only` is a v0.8 compatibility placeholder — treated identically to `short`. True aggregation semantics are deferred to v0.9.
+Both layers are configurable per deployment. The `aggregate_only` tier (v0.9) uses a P1D duration — long enough to detect patterns in aggregated noise, short enough to avoid accumulation.
 
 Services SHOULD enforce retention via periodic background cleanup that deletes entries where `expires_at < now()`. When `posture.audit.retention_enforced` is `true` in the discovery document, the service MUST be actively running a retention sweep.
 
@@ -1111,7 +1145,7 @@ Services SHOULD enforce retention via periodic background cleanup that deletes e
 
 #### Failure Redaction
 
-Services MUST apply disclosure-level redaction to failure responses at the response boundary — after audit logging, before returning to the caller. Audit storage always records the full unredacted failure.
+Services MUST apply disclosure-level redaction to failure responses at the response boundary — after audit logging, before returning to the caller. This is response-boundary redaction, independent of storage-side redaction (§6.10). Audit storage always records the full unredacted failure.
 
 **DisclosureLevel values:** `full`, `reduced`, `redacted`, `policy`.
 
@@ -1129,7 +1163,52 @@ Services MUST apply disclosure-level redaction to failure responses at the respo
 
 `failure.type` is never redacted — callers always need the failure category for programmatic handling. `reduced` strips internal authority structure (`grantable_by`) while keeping actionable detail. `redacted` replaces `detail` with a fixed generic message per failure type and strips all resolution hints except `action`. Generic messages are a static map in the service, not caller-controlled.
 
-The service owns a single `DisclosureLevel` config value, set at construction. `"policy"` is accepted but treated as `"redacted"` in v0.8 — per-caller disclosure is deferred to v0.9.
+**Two modes (v0.9):**
+
+The service's `disclosure_level` configuration determines the mode:
+
+- **Fixed mode** (`"full"`, `"reduced"`, or `"redacted"`): That level applies uniformly to all callers. This is identical to v0.8 behavior.
+- **Policy mode** (`"policy"`): The effective disclosure level is resolved per-caller from the service's disclosure policy.
+
+**Caller class resolution (v0.9):**
+
+When in policy mode, the caller class is resolved from the delegation token:
+
+1. If the token contains an `anip:caller_class` claim, use it.
+2. If the token's scope includes a disclosure-related scope (e.g., `audit:full`), derive from scope.
+3. Default: `"default"`.
+
+The `anip:caller_class` claim is caller/issuer-supplied input. It is not trusted on its own. It is only meaningful when the service's disclosure policy contains a matching entry. An unrecognized caller class falls through to the `"default"` entry.
+
+**Disclosure policy:**
+
+The service declares a disclosure policy mapping caller classes to maximum allowed disclosure levels:
+
+```yaml
+disclosure_policy:
+  internal: "full"
+  partner: "reduced"
+  default: "redacted"
+```
+
+**Resolution logic:**
+
+```
+if disclosure_level != "policy":
+    effective = disclosure_level  # fixed mode
+else:
+    caller_class = resolve_from_token(token)
+    effective = disclosure_policy.get(caller_class)
+              or disclosure_policy.get("default")
+              or "redacted"
+```
+
+The service is always the authority. An unrecognized caller class can never escalate disclosure.
+
+**What caller-class redaction does not do:**
+
+- No per-request disclosure negotiation — callers cannot request a specific level in the request body.
+- No disclosure cascading across delegation chains — disclosure is between the immediate caller and the service.
 
 #### Audit Entry Fields (v0.8)
 
@@ -1143,12 +1222,116 @@ Every audit entry MUST include the following fields in addition to existing fiel
 
 The `event_class` field MUST be queryable — `query_audit_entries()` accepts an optional `event_class` filter.
 
-#### Explicit Deferrals (v0.9+)
+#### Explicit Deferrals (v0.10+)
 
-- **Audit aggregation** — collapsing repeated identical low-value failures into summary records. `repeated_low_value_denial` and `aggregate_only` exist as placeholders.
-- **Caller-class-aware redaction** — per-caller disclosure levels. v0.8 applies a single service-wide level.
-- **Storage-side redaction** — filtering persisted fields for low-value events. v0.8 always stores full-fidelity records.
 - **Selective checkpointing** — filtering which events enter the Merkle tree by event class.
+
+### 6.9 Audit Aggregation (v0.9)
+
+Repeated identical low-value denials are collapsed into summary records via time-window bucketed aggregation. This activates the `repeated_low_value_denial` event class and `aggregate_only` retention tier.
+
+#### Grouping Key
+
+Denials are grouped by the tuple:
+
+- **actor_key** — resolved from the token subject or authenticated principal when available, `"anonymous"` for missing or invalid tokens. This handles pre-auth failures where no valid subject exists.
+- **capability** — which capability was attempted, or `"_pre_auth"` for failures before capability resolution.
+- **failure_type** — the `ANIPFailure.type` value (e.g., `"scope_insufficient"`).
+
+Request parameters are excluded from the grouping key. Normalizing request bodies for grouping adds complexity for marginal value.
+
+#### Time Window
+
+Aggregation uses fixed-width bucketed windows, configurable with a default of **60 seconds**.
+
+- At window close, if a bucket has **>1 event** for a grouping key, the service MUST emit one aggregated entry.
+- If a bucket has exactly 1 event, the service MUST store it as a normal (non-aggregated) entry.
+- Bucketed windows (not rolling) provide deterministic window boundaries and simpler reasoning for audit inspection.
+
+#### Delayed Emission
+
+Aggregated entries materialize at window close, not at request time. The audit log has a latency gap of up to one window duration for aggregated events. Individual non-aggregated events still emit immediately. This is a change from the "every request produces an immediate audit row" model and MUST be documented in the service's operational guidance.
+
+#### Aggregated Entry Shape
+
+Aggregated entries use `entry_type: "aggregated"` and carry the following fields:
+
+```yaml
+entry_type: "aggregated"
+event_class: "repeated_low_value_denial"
+retention_tier: "aggregate_only"
+grouping_key:
+  actor_key: string
+  capability: string
+  failure_type: string
+window:
+  start: ISO 8601 timestamp
+  end: ISO 8601 timestamp
+count: integer
+first_seen: ISO 8601 timestamp
+last_seen: ISO 8601 timestamp
+representative_detail: string | null  # bounded to 200 chars max
+```
+
+`representative_detail` is the failure detail from the first event in the window, truncated to 200 characters. It is nullable for cases where the detail adds no signal.
+
+#### Classifier Interaction
+
+The base classifier (§6.8) does not change. Individual events within a window are still classified normally (e.g., `malformed_or_spam`). The `repeated_low_value_denial` classification is applied at aggregation time when a bucket crosses the >1 threshold. The resulting summary record carries `repeated_low_value_denial` as its event class and `aggregate_only` as its retention tier.
+
+### 6.10 Storage-Side Redaction (v0.9)
+
+Storage-side redaction reduces what is persisted for low-value audit events by stripping request parameters at write time. This is a write-path operation, independent of response-boundary redaction (§6.8) which operates on the read path.
+
+#### Which Events Are Redacted
+
+Storage-side redaction applies to entries with event class:
+
+- `low_risk_success`
+- `malformed_or_spam`
+- `repeated_low_value_denial`
+
+It does not apply to:
+
+- `high_risk_success` — operators need full inspection capability.
+- `high_risk_denial` — denied high-risk operations are security-relevant.
+
+#### What Gets Stripped
+
+For affected event classes, the stored entry omits:
+
+- `parameters` — the full request body.
+
+The stored entry keeps: `timestamp`, `actor_key` / principal context, `capability`, `event_class`, `retention_tier`, `failure_type`, bounded failure detail, `invocation_id`, and `sequence_number`.
+
+#### Write-Path Placement
+
+Storage-side redaction runs after classification and after aggregation, before persistence:
+
+```
+request → classify → [aggregation window] → storage-redact → persist
+```
+
+Response-boundary redaction (§6.8) is a separate, independent layer on the read path:
+
+```
+persist → [response-boundary redact based on disclosure level] → respond
+```
+
+The two redaction layers are independent. Storage-side redaction determines what hits the database. Response-boundary redaction determines what the caller sees. Neither depends on the other.
+
+#### Marker Field
+
+A `storage_redacted` boolean field (default `false`) MUST be present on audit entries. When `true`, it indicates that parameters were intentionally stripped at write time. This lets audit consumers distinguish intentional parameter omission from missing data.
+
+#### Checkpointing
+
+The persisted redacted entry is the canonical hashed form for checkpointing. The Merkle tree hashes what was stored. There is no separate "pre-redaction" or "full-fidelity" hash.
+
+#### Limitations
+
+- No configurable field masks — fixed policy (parameters only).
+- No retroactive redaction of existing entries.
 
 ---
 
@@ -1485,10 +1668,14 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Async storage** | SHOULD — v0.5 | Implemented: fully async storage layer in both runtimes, non-blocking audit writes | — |
 | **Streaming invocations (§6.6)** | MAY — v0.6 | Implemented: `ResponseMode`, `StreamSummary`, SSE transport, progress sink with delivery tracking, sink isolation, error redaction | Backpressure signaling, binary payload support |
 | **Discovery posture (§6.7)** | MAY — v0.7 | Implemented: posture block with audit, lineage, metadata_policy, failure_disclosure, and anchoring sub-objects | — |
-| **Security hardening (§6.8)** | MAY — v0.8 | Implemented: event classification, two-layer retention enforcement, failure redaction, proof safety guard | Audit aggregation, caller-class-aware redaction, storage-side redaction |
+| **Security hardening (§6.8)** | MAY — v0.8 | Implemented: event classification, two-layer retention enforcement, failure redaction, proof safety guard | — |
+| **Audit aggregation (§6.9)** | MAY — v0.9 | Implemented: time-window bucketed aggregation, `repeated_low_value_denial` event class, `aggregate_only` retention tier with P1D duration | — |
+| **Storage-side redaction (§6.10)** | MAY — v0.9 | Implemented: write-path parameter stripping for low-value events, `storage_redacted` marker field | — |
+| **Caller-class-aware redaction (§6.8)** | MAY — v0.9 | Implemented: policy mode disclosure, caller class resolution from token claims, per-caller disclosure mapping | — |
+| **Proof expiration guidance (§6.5)** | SHOULD — v0.9 | Implemented: `expires_hint` field on checkpoint responses, client-side caching guidance | — |
 | **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation across services, federated trust |
 
-The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
+The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. v0.9 completes the audit story — aggregation collapses noise, storage-side redaction strips low-value parameters at write time, caller-class-aware redaction resolves disclosure per-caller, and proof expiration guidance closes the client-side gap. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
 
 **What solving these gaps unlocks.** When trust and verification become real — not declarative — agents can evaluate risk before acting. Delegated authority becomes expressible in ways current tool layers can't handle. Failures become operationally useful, not just descriptive. High-stakes actions — travel, procurement, finance ops, approvals, multi-step orchestration — become automatable with real control surfaces. At that point, ANIP solves one of the central coordination problems of agent deployment: how an agent knows what it's allowed to do, what will happen if it does it, and how to recover when something blocks it.
 
@@ -1518,10 +1705,11 @@ These are unresolved design questions where community input is needed:
 - **Invocation traceability.** Server-generated `invocation_id` and caller-supplied `client_reference_id` on every invoke response and audit entry, enabling end-to-end correlation. *(Resolved in v0.4)*
 - **Streaming delivery.** `ResponseMode` enum, SSE transport for progress events, `StreamSummary` with delivery accounting (`events_emitted` vs `events_delivered`, `client_disconnected`), transport fault isolation. *(Resolved in v0.6)*
 - **Governance posture visibility.** Discovery posture block exposes audit, lineage, metadata policy, failure disclosure, and anchoring characteristics. *(Resolved in v0.7)*
+- **Audit noise management.** Aggregation, storage-side redaction, caller-class-aware redaction, and proof expiration guidance complete the security and audit story. *(Resolved in v0.9)*
 
 ---
 
-*ANIP is an open specification under active development. This is v0.8 — security hardening turns declared governance posture into enforceable behavior via event classification, retention enforcement, and failure redaction, building on v0.7's discovery posture, v0.6's streaming invocations, v0.3's anchored trust, v0.4's invocation lineage, and v0.5's async storage. Federated trust and cross-service delegation remain future goals. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
+*ANIP is an open specification under active development. This is v0.9 — audit aggregation, storage-side redaction, caller-class-aware disclosure, and proof expiration guidance complete the security and audit story started in v0.8, building on v0.7's discovery posture, v0.6's streaming invocations, v0.3's anchored trust, v0.4's invocation lineage, and v0.5's async storage. Federated trust and cross-service delegation remain future goals. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
 
 ---
 
