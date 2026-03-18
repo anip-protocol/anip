@@ -1357,37 +1357,34 @@ async def _leader_checkpoint_tick(self) -> None:
 - Add `_get_holder_id()` helper
 
 **Add `storage` parameter for Postgres:**
-- Currently `storage` accepts `":memory:"` or `"sqlite:///path"`. Add support for `"postgres://..."` DSN strings:
+- Currently `storage` accepts `":memory:"` or `"sqlite:///path"`. Add support for `"postgres://..."` DSN strings.
+- `PostgresStorage` is in `anip-server` (not `anip-service`), so import from `anip_server.postgres`:
 ```python
 if isinstance(storage, str):
     if storage == ":memory:":
         self._storage = InMemoryStorage()
     elif storage.startswith("postgres"):
-        from .postgres import PostgresStorage  # lazy import
+        from anip_server.postgres import PostgresStorage
         self._storage = PostgresStorage(storage)
     else:
         self._storage = SQLiteStorage(storage.replace("sqlite:///", ""))
 ```
 
-Wait — `PostgresStorage` is in `anip-server`, not `anip-service`. The service layer imports from `anip_server`. So:
+**Make `start()` async** to handle `PostgresStorage.initialize()`:
+- The current `start()` is sync but already calls `asyncio.get_event_loop().create_task()`, which assumes a running event loop. Making it async is the natural evolution.
+- FastAPI's `on_startup` accepts both sync and async callables, so `app.router.on_startup.append(service.start)` works unchanged.
+- `PostgresStorage.initialize()` (creates connection pool, ensures schema) is awaited at the top of `start()`:
 ```python
-if storage.startswith("postgres"):
-    from anip_server.postgres import PostgresStorage
-    pg_store = PostgresStorage(storage)
-    # PostgresStorage.initialize() must be called — it's async
-    # This needs to happen in start() or an async init method
-```
-
-This introduces a lifecycle issue: `PostgresStorage.initialize()` is async but `ANIPService.__init__` is sync. The service will need an async initialization step. Add to `start()`:
-```python
-def start(self) -> None:
+async def start(self) -> None:
+    """Start background services. Must be called within a running event loop."""
     if hasattr(self._storage, 'initialize'):
-        # Run async init for Postgres
-        asyncio.get_event_loop().run_until_complete(self._storage.initialize())
-    # ... rest of start
+        await self._storage.initialize()
+    if self._scheduler:
+        self._scheduler.start()
+    self._retention_enforcer.start()
+    # ... aggregator flush task setup (unchanged)
 ```
-
-Or better: make `start()` async-aware by calling initialize in a task.
+- Do NOT use `run_until_complete()` — it's unsafe under an already-running ASGI event loop.
 
 **Tests:** Update service tests that reference `_entries_since_checkpoint` or `get_merkle_snapshot`.
 
@@ -1432,11 +1429,13 @@ Mirror Task 13 for TypeScript. Same changes:
 1. Remove `entriesSinceCheckpoint` counter
 2. Replace `createAndPublishCheckpoint` with leader-coordinated tick using `reconstructAndCreateCheckpoint`
 3. Wire storage-backed exclusivity through `DelegationEngine`
-4. Add Postgres storage detection:
+4. Add Postgres storage detection. `PostgresStorage` is in `@anip/server` (Task 8 exports it), not in the service package:
 ```typescript
 if (typeof storageOpt === "string" && storageOpt.startsWith("postgres")) {
-  const { PostgresStorage } = await import("./postgres.js");
-  // ...
+  const { PostgresStorage } = await import("@anip/server");
+  const pgStorage = new PostgresStorage(storageOpt);
+  await pgStorage.initialize();
+  // use pgStorage as the storage backend
 }
 ```
 5. **Guard audit entry retention in cluster mode** — same as Python Task 13: add `skipAuditRetention` option to retention enforcer, set `true` when Postgres backend detected
