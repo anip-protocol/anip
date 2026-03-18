@@ -320,7 +320,7 @@ export type ProfileVersions = z.infer<typeof ProfileVersions>;
 // --- Manifest Metadata (v0.2) ---
 
 export const ManifestMetadata = z.object({
-  version: z.string().default("0.9.0"),
+  version: z.string().default("0.10.0"),
   sha256: z.string(),
   issued_at: z.string(),
   expires_at: z.string(),
@@ -337,7 +337,7 @@ export const ServiceIdentity = z.object({
 export type ServiceIdentity = z.infer<typeof ServiceIdentity>;
 
 export const ANIPManifest = z.object({
-  protocol: z.string().default("anip/0.9"),
+  protocol: z.string().default("anip/0.10"),
   profile: ProfileVersions,
   capabilities: z.record(CapabilityDeclaration),
   manifest_metadata: ManifestMetadata.nullable().default(null),
