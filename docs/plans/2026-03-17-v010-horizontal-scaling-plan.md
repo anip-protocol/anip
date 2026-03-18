@@ -50,14 +50,22 @@ Task 18: README updates
 
 **What to do:**
 
-Add 6 new methods to the `StorageBackend` Protocol class (after existing methods, before the class closes):
+Add 7 new methods to the `StorageBackend` Protocol class (after existing methods, before the class closes):
 
 ```python
 async def append_audit_entry(self, entry_data: dict[str, Any]) -> dict[str, Any]:
     """Atomically append an audit entry, assigning sequence_number and previous_hash.
 
     The caller provides the entry WITHOUT sequence_number or previous_hash.
-    The storage layer assigns both atomically and returns the complete entry.
+    The storage layer assigns both atomically and returns the complete entry (unsigned).
+    """
+    ...
+
+async def update_audit_signature(self, sequence_number: int, signature: str) -> None:
+    """Set the signature on an already-appended audit entry.
+
+    Called after append_audit_entry to attach the cryptographic signature.
+    The entry is briefly unsigned between append and this call.
     """
     ...
 
@@ -82,7 +90,7 @@ async def release_leader(self, role: str, holder: str) -> None:
     ...
 ```
 
-**Step 1:** Add the 6 method stubs to the `StorageBackend` Protocol.
+**Step 1:** Add the 7 method stubs to the `StorageBackend` Protocol.
 
 **Step 2:** Run existing tests to confirm nothing breaks:
 ```bash
@@ -105,10 +113,11 @@ git commit -m "feat(server): add horizontal-scaling methods to Python StorageBac
 
 **What to do:**
 
-Add 6 new methods to the `StorageBackend` interface (after existing methods):
+Add 7 new methods to the `StorageBackend` interface (after existing methods):
 
 ```typescript
 appendAuditEntry(entryData: Record<string, unknown>): Promise<Record<string, unknown>>;
+updateAuditSignature(sequenceNumber: number, signature: string): Promise<void>;
 getMaxAuditSequence(): Promise<number | null>;
 tryAcquireExclusive(key: string, holder: string, ttlSeconds: number): Promise<boolean>;
 releaseExclusive(key: string, holder: string): Promise<void>;
@@ -116,7 +125,7 @@ tryAcquireLeader(role: string, holder: string, ttlSeconds: number): Promise<bool
 releaseLeader(role: string, holder: string): Promise<void>;
 ```
 
-**Step 1:** Add the 6 method signatures to the `StorageBackend` interface.
+**Step 1:** Add the 7 method signatures to the `StorageBackend` interface.
 
 **Step 2:** TypeScript will now error on `InMemoryStorage` and `SQLiteStorage` because they don't implement the new methods. That's expected — Task 4 will fix it. Verify the interface file itself has no syntax errors:
 ```bash
@@ -140,7 +149,7 @@ git commit -m "feat(server): add horizontal-scaling methods to TypeScript Storag
 
 **What to do:**
 
-**InMemoryStorage** — add 6 methods:
+**InMemoryStorage** — add 7 methods:
 
 ```python
 async def append_audit_entry(self, entry_data: dict[str, Any]) -> dict[str, Any]:
@@ -154,6 +163,12 @@ async def append_audit_entry(self, entry_data: dict[str, Any]) -> dict[str, Any]
     entry = {**entry_data, "sequence_number": seq, "previous_hash": prev_hash}
     self._audit_entries.append(entry)
     return entry
+
+async def update_audit_signature(self, sequence_number: int, signature: str) -> None:
+    for entry in self._audit_entries:
+        if entry["sequence_number"] == sequence_number:
+            entry["signature"] = signature
+            return
 
 async def get_max_audit_sequence(self) -> int | None:
     if not self._audit_entries:
@@ -184,7 +199,7 @@ Add `_exclusive_leases: dict[str, tuple[str, datetime]]` to `InMemoryStorage.__i
 
 Note: `compute_entry_hash` is the static method currently on `AuditLog`. Task 5 will extract it. For now, inline or import from `audit.py`. Use `AuditLog._compute_entry_hash` as a temporary reference until Task 5 extracts it.
 
-**SQLiteStorage** — add 6 methods:
+**SQLiteStorage** — add 7 methods:
 
 ```python
 async def append_audit_entry(self, entry_data: dict[str, Any]) -> dict[str, Any]:
@@ -202,6 +217,16 @@ def _sync_append_audit_entry(self, entry_data: dict[str, Any]) -> dict[str, Any]
         entry = {**entry_data, "sequence_number": seq, "previous_hash": prev_hash}
         self._sync_store_audit_entry(entry)
         return entry
+
+async def update_audit_signature(self, sequence_number: int, signature: str) -> None:
+    await asyncio.to_thread(self._sync_update_audit_signature, sequence_number, signature)
+
+def _sync_update_audit_signature(self, sequence_number: int, signature: str) -> None:
+    with self._lock:
+        self._conn.execute(
+            "UPDATE audit_log SET signature = ? WHERE sequence_number = ?",
+            (signature, sequence_number),
+        )
 
 async def get_max_audit_sequence(self) -> int | None:
     return await asyncio.to_thread(self._sync_get_max_audit_sequence)
@@ -344,6 +369,11 @@ async appendAuditEntry(entryData: Record<string, unknown>): Promise<Record<strin
   const entry = { ...entryData, sequence_number: sequenceNumber, previous_hash: previousHash };
   this.auditEntries.push(entry);
   return entry;
+}
+
+async updateAuditSignature(sequenceNumber: number, signature: string): Promise<void> {
+  const entry = this.auditEntries.find(e => e.sequence_number === sequenceNumber);
+  if (entry) entry.signature = signature;
 }
 
 async getMaxAuditSequence(): Promise<number | null> {
@@ -695,7 +725,7 @@ async def log_entry(self, entry_data: dict[str, Any]) -> dict[str, Any]:
 
 **Update existing tests** to remove any assertions on `get_merkle_snapshot()` from `AuditLog`. Tests that need Merkle behavior should test checkpoint reconstruction directly (Tasks 9-10).
 
-**Step 1:** Add `update_audit_signature` to `StorageBackend` protocol (Python) and interface (TypeScript). Implement in InMemory and SQLite backends.
+**Step 1:** `update_audit_signature` is already in the `StorageBackend` protocol/interface and implemented in all backends (Tasks 1-4). Verify the method exists by checking imports compile.
 
 **Step 2:** Refactor `AuditLog.log_entry` / `logEntry` to use `append_audit_entry` + `update_audit_signature`.
 
@@ -727,11 +757,12 @@ git commit -m "refactor(server): AuditLog uses append_audit_entry, remove proces
 
 **What to do:**
 
-Create `PostgresStorage` implementing the full `StorageBackend` protocol using `asyncpg`.
+Create `PostgresStorage` implementing the full `StorageBackend` protocol using `asyncpg`, including all 7 new methods (`append_audit_entry`, `update_audit_signature`, `get_max_audit_sequence`, `try_acquire_exclusive`, `release_exclusive`, `try_acquire_leader`, `release_leader`).
 
 **Key design points:**
 - Uses a connection pool (`asyncpg.create_pool`)
 - Schema created via `CREATE TABLE IF NOT EXISTS` on init
+- `update_audit_signature`: `UPDATE audit_log SET signature = $1 WHERE sequence_number = $2`
 - `append_audit_entry` uses the transactional append-head pattern:
   1. `BEGIN`
   2. `SELECT last_hash FROM audit_append_head FOR UPDATE`
@@ -857,12 +888,12 @@ git commit -m "feat(server): add Python PostgresStorage backend for horizontal s
 
 **What to do:**
 
-Mirror Task 7 for TypeScript using `pg` (node-postgres).
+Mirror Task 7 for TypeScript using `pg` (node-postgres). Implements all 7 new methods including `updateAuditSignature`.
 
 **Key differences from Python:**
 - Uses `pg.Pool` for connection pooling
 - `appendAuditEntry` uses the same transactional append-head pattern
-- Advisory locks for leader role use a dedicated `pg.Client` (not from the pool)
+- Leader leases use `leader_leases` table (same pattern as exclusive leases)
 - Exclusive leases use the same `exclusive_leases` table
 
 **Test approach:** Same as Python — skip if `ANIP_TEST_POSTGRES_DSN` env var not set.
@@ -1252,6 +1283,42 @@ Wire the v0.10 changes into `ANIPService`:
 4. **Add leader coordination** to checkpoint scheduler callback
 5. **Add holder identity** for lease management
 6. **Wire exclusivity** through the `DelegationEngine` (it already calls `acquire_exclusive_lock` / `release_exclusive_lock` — just pass the `exclusive_ttl` config through)
+7. **Guard audit entry retention in cluster mode** — when using PostgresStorage, `RetentionEnforcer` must skip audit entry deletion (cumulative checkpoint rebuilds from entry 1 require full prefix). Add a `skip_audit_retention` flag to `RetentionEnforcer`:
+```python
+class RetentionEnforcer:
+    def __init__(self, storage, *, skip_audit_retention: bool = False):
+        self._skip_audit_retention = skip_audit_retention
+
+    async def sweep(self) -> int:
+        if self._skip_audit_retention:
+            return 0  # Cluster mode: audit retention disabled until Merkle frontier is implemented
+        now = datetime.now(timezone.utc).isoformat()
+        return await self._storage.delete_expired_audit_entries(now)
+```
+Set `skip_audit_retention=True` when `ANIPService` detects a Postgres backend.
+8. **Add exclusive lease renewal** — for long-running invocations, start a background heartbeat that renews the exclusive lease at `ttl/2` intervals:
+```python
+async def _run_with_exclusive_heartbeat(self, token, handler_coro):
+    """Run handler with periodic lease renewal for exclusive invocations."""
+    if token.constraints.concurrent_branches != ConcurrentBranches.EXCLUSIVE:
+        return await handler_coro
+
+    root = await self._delegation.get_root_principal(token)
+    key = f"exclusive:{self._service_id}:{root}"
+    holder = self._delegation._get_holder_id()
+    interval = self._exclusive_ttl / 2
+
+    async def renew_loop():
+        while True:
+            await asyncio.sleep(interval)
+            await self._storage.try_acquire_exclusive(key, holder, self._exclusive_ttl)
+
+    renewal_task = asyncio.create_task(renew_loop())
+    try:
+        return await handler_coro
+    finally:
+        renewal_task.cancel()
+```
 
 **Checkpoint scheduler callback becomes:**
 
@@ -1372,7 +1439,24 @@ if (typeof storageOpt === "string" && storageOpt.startsWith("postgres")) {
   // ...
 }
 ```
-5. Update tests
+5. **Guard audit entry retention in cluster mode** — same as Python Task 13: add `skipAuditRetention` option to retention enforcer, set `true` when Postgres backend detected
+6. **Add exclusive lease renewal** — same heartbeat pattern as Python: `setInterval` at `ttl/2` that re-acquires the lease, cleared when handler completes:
+```typescript
+async function runWithExclusiveHeartbeat(
+  storage: StorageBackend, key: string, holder: string, ttl: number,
+  handler: () => Promise<unknown>
+) {
+  const interval = setInterval(async () => {
+    await storage.tryAcquireExclusive(key, holder, ttl);
+  }, (ttl / 2) * 1000);
+  try {
+    return await handler();
+  } finally {
+    clearInterval(interval);
+  }
+}
+```
+7. Update tests
 
 **Step 1-6:** Same structure as Task 13.
 
