@@ -68,6 +68,14 @@ export class AuditLog {
       event_class: entryData.event_class ?? null,
       retention_tier: entryData.retention_tier ?? null,
       expires_at: entryData.expires_at ?? null,
+      storage_redacted: entryData.storage_redacted ?? false,
+      entry_type: entryData.entry_type ?? null,
+      grouping_key: entryData.grouping_key ?? null,
+      aggregation_window: entryData.aggregation_window ?? null,
+      aggregation_count: entryData.aggregation_count ?? null,
+      first_seen: entryData.first_seen ?? null,
+      last_seen: entryData.last_seen ?? null,
+      representative_detail: entryData.representative_detail ?? null,
       previous_hash: previousHash,
     };
 

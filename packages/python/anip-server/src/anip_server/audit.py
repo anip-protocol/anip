@@ -63,6 +63,14 @@ class AuditLog:
             "event_class": entry_data.get("event_class"),
             "retention_tier": entry_data.get("retention_tier"),
             "expires_at": entry_data.get("expires_at"),
+            "storage_redacted": entry_data.get("storage_redacted", False),
+            "entry_type": entry_data.get("entry_type"),
+            "grouping_key": entry_data.get("grouping_key"),
+            "aggregation_window": entry_data.get("aggregation_window"),
+            "aggregation_count": entry_data.get("aggregation_count"),
+            "first_seen": entry_data.get("first_seen"),
+            "last_seen": entry_data.get("last_seen"),
+            "representative_detail": entry_data.get("representative_detail"),
             "previous_hash": previous_hash,
         }
 

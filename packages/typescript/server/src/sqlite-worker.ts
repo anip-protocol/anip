@@ -22,6 +22,8 @@ const JSON_AUDIT_FIELDS = [
   "cost_actual",
   "delegation_chain",
   "stream_summary",
+  "grouping_key",
+  "aggregation_window",
 ] as const;
 
 const SCHEMA = `
@@ -61,7 +63,15 @@ CREATE TABLE IF NOT EXISTS audit_log (
     signature TEXT,
     event_class TEXT,
     retention_tier TEXT,
-    expires_at TEXT
+    expires_at TEXT,
+    storage_redacted INTEGER DEFAULT 0,
+    entry_type TEXT,
+    grouping_key TEXT,
+    aggregation_window TEXT,
+    aggregation_count INTEGER,
+    first_seen TEXT,
+    last_seen TEXT,
+    representative_detail TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_audit_capability ON audit_log(capability);
@@ -125,6 +135,46 @@ try {
 } catch {
   // Column may already exist
 }
+try {
+  db.exec("ALTER TABLE audit_log ADD COLUMN storage_redacted INTEGER DEFAULT 0");
+} catch {
+  // Column may already exist
+}
+try {
+  db.exec("ALTER TABLE audit_log ADD COLUMN entry_type TEXT");
+} catch {
+  // Column may already exist
+}
+try {
+  db.exec("ALTER TABLE audit_log ADD COLUMN grouping_key TEXT");
+} catch {
+  // Column may already exist
+}
+try {
+  db.exec("ALTER TABLE audit_log ADD COLUMN aggregation_window TEXT");
+} catch {
+  // Column may already exist
+}
+try {
+  db.exec("ALTER TABLE audit_log ADD COLUMN aggregation_count INTEGER");
+} catch {
+  // Column may already exist
+}
+try {
+  db.exec("ALTER TABLE audit_log ADD COLUMN first_seen TEXT");
+} catch {
+  // Column may already exist
+}
+try {
+  db.exec("ALTER TABLE audit_log ADD COLUMN last_seen TEXT");
+} catch {
+  // Column may already exist
+}
+try {
+  db.exec("ALTER TABLE audit_log ADD COLUMN representative_detail TEXT");
+} catch {
+  // Column may already exist
+}
 
 // ---------------------------------------------------------------------------
 // Storage method implementations
@@ -177,8 +227,11 @@ function storeAuditEntry(entry: Record<string, unknown>): void {
       subject, root_principal, parameters, success, result_summary,
       failure_type, cost_actual, delegation_chain, invocation_id,
       client_reference_id, stream_summary, previous_hash, signature,
-      event_class, retention_tier, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      event_class, retention_tier, expires_at,
+      storage_redacted, entry_type, grouping_key,
+      aggregation_window, aggregation_count, first_seen,
+      last_seen, representative_detail)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     entry.sequence_number as number,
     entry.timestamp as string,
@@ -207,6 +260,16 @@ function storeAuditEntry(entry: Record<string, unknown>): void {
     (entry.event_class as string) ?? null,
     (entry.retention_tier as string) ?? null,
     (entry.expires_at as string) ?? null,
+    entry.storage_redacted ? 1 : 0,
+    (entry.entry_type as string) ?? null,
+    entry.grouping_key != null ? JSON.stringify(entry.grouping_key) : null,
+    entry.aggregation_window != null
+      ? JSON.stringify(entry.aggregation_window)
+      : null,
+    (entry.aggregation_count as number) ?? null,
+    (entry.first_seen as string) ?? null,
+    (entry.last_seen as string) ?? null,
+    (entry.representative_detail as string) ?? null,
   );
 }
 
@@ -218,6 +281,7 @@ function parseAuditRow(row: Record<string, unknown>): Record<string, unknown> {
     }
   }
   entry.success = Boolean(entry.success);
+  entry.storage_redacted = Boolean(entry.storage_redacted);
   return entry;
 }
 
