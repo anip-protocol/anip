@@ -424,6 +424,16 @@ function getCheckpointById(
   };
 }
 
+function getEarliestExpiryInRange(firstSeq: number, lastSeq: number): string | null {
+  const row = db
+    .prepare(
+      "SELECT MIN(expires_at) as min_exp FROM audit_log WHERE sequence_number BETWEEN ? AND ? AND expires_at IS NOT NULL",
+    )
+    .get(firstSeq, lastSeq) as Record<string, unknown> | undefined;
+  if (row === undefined) return null;
+  return (row.min_exp as string) ?? null;
+}
+
 function deleteExpiredAuditEntries(nowIso: string): number {
   const result = db.prepare(
     "DELETE FROM audit_log WHERE expires_at IS NOT NULL AND expires_at < ?",
@@ -452,6 +462,7 @@ const methods: Record<string, (...args: any[]) => unknown> = {
   queryAuditEntries,
   getLastAuditEntry,
   getAuditEntriesRange,
+  getEarliestExpiryInRange,
   deleteExpiredAuditEntries,
   storeCheckpoint,
   getCheckpoints,

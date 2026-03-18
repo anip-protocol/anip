@@ -801,6 +801,16 @@ class ANIPService:
             }
         }
 
+        # Compute expires_hint from earliest expiry in the checkpoint's range
+        first_seq = rng.get("first_sequence", row.get("first_sequence"))
+        last_seq = rng.get("last_sequence", row.get("last_sequence"))
+        if first_seq is not None and last_seq is not None:
+            expires_hint = await self._storage.get_earliest_expiry_in_range(
+                int(first_seq), int(last_seq)
+            )
+            if expires_hint is not None:
+                result["expires_hint"] = expires_hint
+
         options = options or {}
 
         # Inclusion proof

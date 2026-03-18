@@ -53,6 +53,10 @@ class StorageBackend(Protocol):
         self, checkpoint_id: str
     ) -> dict[str, Any] | None: ...
 
+    async def get_earliest_expiry_in_range(
+        self, first_seq: int, last_seq: int
+    ) -> str | None: ...
+
 
 # ---------------------------------------------------------------------------
 # In-memory implementation (for testing)
@@ -167,6 +171,20 @@ class InMemoryStorage:
             if ckpt.get("checkpoint_id") == checkpoint_id:
                 return dict(ckpt)
         return None
+
+    async def get_earliest_expiry_in_range(
+        self, first_seq: int, last_seq: int
+    ) -> str | None:
+        """Return the earliest expires_at value for entries in [first_seq, last_seq]."""
+        candidates = [
+            e["expires_at"]
+            for e in self._audit_entries
+            if first_seq <= e.get("sequence_number", 0) <= last_seq
+            and e.get("expires_at") is not None
+        ]
+        if not candidates:
+            return None
+        return min(candidates)
 
 
 # ---------------------------------------------------------------------------
@@ -504,6 +522,18 @@ class SQLiteStorage:
             ).fetchall()
         return [self._parse_audit_row(r) for r in rows]
 
+    def _sync_get_earliest_expiry_in_range(self, first_seq: int, last_seq: int) -> str | None:
+        """Return the earliest expires_at value for entries in [first_seq, last_seq]."""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT MIN(expires_at) as min_exp FROM audit_log "
+                "WHERE sequence_number BETWEEN ? AND ? AND expires_at IS NOT NULL",
+                (first_seq, last_seq),
+            ).fetchone()
+            if row is None:
+                return None
+            return row["min_exp"] if row["min_exp"] is not None else None
+
     def _sync_delete_expired_audit_entries(self, now_iso: str) -> int:
         with self._lock:
             cursor = self._conn.execute(
@@ -628,6 +658,10 @@ class SQLiteStorage:
     ) -> list[dict[str, Any]]:
         """Return audit entries with sequence_number BETWEEN first AND last."""
         return await asyncio.to_thread(self._sync_get_audit_entries_range, first, last)
+
+    async def get_earliest_expiry_in_range(self, first_seq: int, last_seq: int) -> str | None:
+        """Return the earliest expires_at value for entries in [first_seq, last_seq]."""
+        return await asyncio.to_thread(self._sync_get_earliest_expiry_in_range, first_seq, last_seq)
 
     async def delete_expired_audit_entries(self, now_iso: str) -> int:
         """Delete audit entries whose expires_at is before now_iso."""

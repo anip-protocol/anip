@@ -1099,6 +1099,19 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         },
       };
 
+      // Compute expires_hint from earliest expiry in the checkpoint's range
+      const firstSeq = rng.first_sequence ?? (row.first_sequence as number);
+      const lastSeq = rng.last_sequence ?? (row.last_sequence as number);
+      if (firstSeq != null && lastSeq != null) {
+        const expiresHint = await storage.getEarliestExpiryInRange(
+          firstSeq as number,
+          lastSeq as number,
+        );
+        if (expiresHint != null) {
+          result.expires_hint = expiresHint;
+        }
+      }
+
       const opts2 = options ?? {};
 
       // Inclusion proof
