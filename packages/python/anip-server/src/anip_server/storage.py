@@ -57,6 +57,42 @@ class StorageBackend(Protocol):
         self, first_seq: int, last_seq: int
     ) -> str | None: ...
 
+    async def append_audit_entry(self, entry_data: dict[str, Any]) -> dict[str, Any]:
+        """Atomically append an audit entry, assigning sequence_number and previous_hash.
+
+        The caller provides the entry WITHOUT sequence_number or previous_hash.
+        The storage layer assigns both atomically and returns the complete entry (unsigned).
+        """
+        ...
+
+    async def update_audit_signature(self, sequence_number: int, signature: str) -> None:
+        """Set the signature on an already-appended audit entry.
+
+        Called after append_audit_entry to attach the cryptographic signature.
+        The entry is briefly unsigned between append and this call.
+        """
+        ...
+
+    async def get_max_audit_sequence(self) -> int | None:
+        """Return the highest sequence_number in the audit log, or None if empty."""
+        ...
+
+    async def try_acquire_exclusive(self, key: str, holder: str, ttl_seconds: int) -> bool:
+        """Attempt to acquire an exclusive lease. Returns True if acquired."""
+        ...
+
+    async def release_exclusive(self, key: str, holder: str) -> None:
+        """Release an exclusive lease if held by the given holder."""
+        ...
+
+    async def try_acquire_leader(self, role: str, holder: str, ttl_seconds: int) -> bool:
+        """Attempt to acquire a leader lease for a background role. Returns True if acquired."""
+        ...
+
+    async def release_leader(self, role: str, holder: str) -> None:
+        """Release a leader lease if held by the given holder."""
+        ...
+
 
 # ---------------------------------------------------------------------------
 # In-memory implementation (for testing)
