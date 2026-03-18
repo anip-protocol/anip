@@ -4,6 +4,8 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import os
+import socket
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -15,6 +17,7 @@ from anip_core import (
     AnchoringPosture,
     AuditPosture,
     CapabilityDeclaration,
+    ConcurrentBranches,
     DEFAULT_PROFILE,
     DelegationToken,
     DiscoveryPosture,
@@ -31,13 +34,14 @@ from anip_server import (
     CheckpointPolicy,
     CheckpointScheduler,
     DelegationEngine,
+    InMemoryStorage,
     MerkleTree,
     RetentionEnforcer,
     SQLiteStorage,
     StorageBackend,
     build_manifest,
-    create_checkpoint,
     discover_permissions,
+    reconstruct_and_create_checkpoint,
     CheckpointSink,
 )
 
@@ -72,6 +76,7 @@ class ANIPService:
         disclosure_level: str = "full",
         disclosure_policy: dict[str, str] | None = None,
         aggregation_window: int | None = None,
+        exclusive_ttl: int = 60,
     ) -> None:
         self._service_id = service_id
         self._disclosure_level = disclosure_level
@@ -94,12 +99,15 @@ class ANIPService:
         # --- Storage ---
         if isinstance(storage, str):
             if storage == ":memory:":
-                self._storage = SQLiteStorage(":memory:")
+                self._storage = InMemoryStorage()
+            elif storage.startswith("postgres"):
+                from anip_server.postgres import PostgresStorage
+                self._storage = PostgresStorage(storage)
             elif storage.startswith("sqlite:///"):
                 db_path = storage[len("sqlite:///"):]
                 self._storage = SQLiteStorage(db_path)
             else:
-                raise ValueError(f"Unknown storage string: {storage!r}. Use 'sqlite:///path' or ':memory:'.")
+                raise ValueError(f"Unknown storage string: {storage!r}. Use 'sqlite:///path', ':memory:', or 'postgres://...'.")
         else:
             self._storage = storage
 
@@ -107,12 +115,12 @@ class ANIPService:
         self._keys = KeyManager(key_path)
 
         # --- Delegation engine ---
-        self._engine = DelegationEngine(self._storage, service_id=service_id)
+        self._exclusive_ttl = exclusive_ttl
+        self._engine = DelegationEngine(self._storage, service_id=service_id, exclusive_ttl=exclusive_ttl)
 
         # --- Audit log ---
         signer = audit_signer or self._keys.sign_audit_entry
         self._audit = AuditLog(self._storage, signer=signer)
-        self._merkle = MerkleTree()
 
         # --- Trust ---
         if isinstance(trust, str):
@@ -160,18 +168,22 @@ class ANIPService:
         # --- Checkpoint scheduling (anchored mode only) ---
         self._checkpoint_policy = checkpoint_policy
         self._scheduler: CheckpointScheduler | None = None
-        self._entries_since_checkpoint = 0
-        self._last_checkpoint_time = datetime.now(timezone.utc)
 
         if trust_level == "anchored" and checkpoint_policy:
             self._scheduler = CheckpointScheduler(
                 interval_seconds=checkpoint_policy.interval_seconds or 60,
-                create_fn=lambda: self._create_and_publish_checkpoint(),
-                has_new_entries_fn=lambda: self._entries_since_checkpoint > 0,
+                create_fn=self._leader_checkpoint_tick,
             )
 
         # --- Retention enforcer (v0.8) ---
-        self._retention_enforcer = RetentionEnforcer(self._storage, interval_seconds=60)
+        # In cluster mode (Postgres), audit retention is disabled because
+        # cumulative checkpoint reconstruction requires all entries from entry 1.
+        _skip_retention = hasattr(self._storage, 'initialize')  # PostgresStorage marker
+        self._retention_enforcer = RetentionEnforcer(
+            self._storage,
+            interval_seconds=60,
+            skip_audit_retention=_skip_retention,
+        )
 
         # --- Audit aggregation (v0.9) ---
         if aggregation_window is not None:
@@ -861,8 +873,15 @@ class ANIPService:
 
         return result
 
-    def start(self) -> None:
-        """Start background services (checkpoint scheduler, retention enforcer, aggregation flush)."""
+    async def start(self) -> None:
+        """Start background services (checkpoint scheduler, retention enforcer, aggregation flush).
+
+        Must be called from within a running event loop.  For PostgresStorage
+        this also initialises the connection pool and schema.
+        """
+        if hasattr(self._storage, 'initialize'):
+            await self._storage.initialize()
+
         if self._scheduler:
             self._scheduler.start()
         self._retention_enforcer.start()
@@ -958,34 +977,66 @@ class ANIPService:
 
         await self._audit.log_entry(entry_data)
 
-        self._entries_since_checkpoint += 1
-        if self._checkpoint_policy and self._checkpoint_policy.should_checkpoint(
-            self._entries_since_checkpoint
-        ):
-            await self._create_and_publish_checkpoint()
+    async def _leader_checkpoint_tick(self) -> None:
+        """One tick of the checkpoint scheduler.
 
-    async def _create_and_publish_checkpoint(self) -> None:
-        """Create a checkpoint and publish to configured sinks."""
+        Attempts leader election; if this replica wins it reconstructs the
+        Merkle tree from storage and creates a new checkpoint.
+        """
+        holder = self._get_holder_id()
+        acquired = await self._storage.try_acquire_leader("checkpoint", holder, 120)
+        if not acquired:
+            return  # Another replica is leader this tick
         try:
-            snapshot = self._audit.get_merkle_snapshot()
-            body, signature = create_checkpoint(
-                merkle_snapshot=snapshot,
+            result = await reconstruct_and_create_checkpoint(
+                storage=self._storage,
                 service_id=self._service_id,
-                previous_checkpoint=await self._get_last_checkpoint(),
-                sign_fn=self._keys.sign_jws_detached_audit,
+                sign_fn=self._keys.sign_jws_detached_audit if self._keys else None,
             )
-            await self._storage.store_checkpoint(body, signature)
-            for sink in self._sinks:
-                sink.publish({"body": body, "signature": signature})
-            self._entries_since_checkpoint = 0
-            self._last_checkpoint_time = datetime.now(timezone.utc)
-        except Exception:
-            pass  # Checkpoint failures are non-fatal
+            if result is not None:
+                body, signature = result
+                await self._storage.store_checkpoint(body, signature)
+                for sink in self._sinks:
+                    sink.publish({"body": body, "signature": signature})
+        finally:
+            await self._storage.release_leader("checkpoint", holder)
 
-    async def _get_last_checkpoint(self) -> dict[str, Any] | None:
-        """Return the most recent checkpoint, or None."""
-        rows = await self._storage.get_checkpoints(10000)
-        return rows[-1] if rows else None
+    def _get_holder_id(self) -> str:
+        """Return a unique holder identifier for this process."""
+        return f"{socket.gethostname()}:{os.getpid()}"
+
+    async def _run_with_exclusive_heartbeat(
+        self,
+        token: DelegationToken,
+        handler_coro: Any,
+    ) -> Any:
+        """Run a handler coroutine while periodically renewing the exclusive lease.
+
+        For long-running invocations under ``ConcurrentBranches.EXCLUSIVE``,
+        this keeps the lease alive so that no other replica steals it while
+        the handler is still executing.
+        """
+        if (
+            not token.constraints
+            or token.constraints.concurrent_branches != ConcurrentBranches.EXCLUSIVE
+        ):
+            return await handler_coro
+
+        root = await self._engine.get_root_principal(token)
+        key = f"exclusive:{self._service_id}:{root}"
+        holder = self._get_holder_id()
+        interval = self._exclusive_ttl / 2
+
+        async def renew_loop() -> None:
+            while True:
+                await asyncio.sleep(interval)
+                await self._storage.try_acquire_exclusive(key, holder, self._exclusive_ttl)
+
+        renewal_task = asyncio.create_task(renew_loop())
+        try:
+            return await handler_coro
+        finally:
+            renewal_task.cancel()
 
     async def _rebuild_merkle_to(self, sequence_number: int) -> MerkleTree:
         """Rebuild a Merkle tree from audit entries 1..sequence_number."""

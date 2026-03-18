@@ -18,9 +18,11 @@ class RetentionEnforcer:
         storage: StorageBackend,
         *,
         interval_seconds: int = 60,
+        skip_audit_retention: bool = False,
     ) -> None:
         self._storage = storage
         self._interval = interval_seconds
+        self._skip_audit_retention = skip_audit_retention
         self._task: asyncio.Task[None] | None = None
 
     @property
@@ -29,6 +31,8 @@ class RetentionEnforcer:
 
     async def sweep(self) -> int:
         """Run one cleanup sweep. Returns number of deleted entries."""
+        if self._skip_audit_retention:
+            return 0  # Cluster mode: audit retention disabled
         now = datetime.now(timezone.utc).isoformat()
         return await self._storage.delete_expired_audit_entries(now)
 
