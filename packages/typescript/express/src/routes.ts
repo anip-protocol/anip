@@ -6,7 +6,7 @@ import { ANIPError } from "@anip/service";
 export async function mountAnip(
   app: Express,
   service: ANIPService,
-  opts?: { prefix?: string },
+  opts?: { prefix?: string; healthEndpoint?: boolean },
 ): Promise<{ shutdown: () => Promise<void>; stop: () => void }> {
   const router = Router();
   router.use(express.json());
@@ -166,6 +166,13 @@ export async function mountAnip(
     app.use(prefix, router);
   } else {
     app.use(router);
+  }
+
+  // --- Health ---
+  if (opts?.healthEndpoint) {
+    app.get("/-/health", (_req, res) => {
+      res.json(service.getHealth());
+    });
   }
 
   await service.start();

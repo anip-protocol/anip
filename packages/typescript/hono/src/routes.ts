@@ -6,7 +6,7 @@ import { ANIPError } from "@anip/service";
 export async function mountAnip(
   app: Hono,
   service: ANIPService,
-  opts?: { prefix?: string },
+  opts?: { prefix?: string; healthEndpoint?: boolean },
 ): Promise<{ shutdown: () => Promise<void>; stop: () => void }> {
   const p = opts?.prefix ?? "";
 
@@ -176,6 +176,11 @@ export async function mountAnip(
     if (!result) return c.json({ error: "Checkpoint not found" }, 404);
     return c.json(result);
   });
+
+  // --- Health ---
+  if (opts?.healthEndpoint) {
+    app.get("/-/health", (c) => c.json(service.getHealth()));
+  }
 
   // --- Lifecycle ---
   await service.start();

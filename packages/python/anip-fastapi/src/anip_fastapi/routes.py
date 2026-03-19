@@ -15,6 +15,8 @@ def mount_anip(
     app: FastAPI,
     service: ANIPService,
     prefix: str = "",
+    *,
+    health_endpoint: bool = False,
 ) -> None:
     """Mount all ANIP protocol routes onto a FastAPI app.
 
@@ -231,6 +233,12 @@ def mount_anip(
         if result is None:
             return JSONResponse({"error": "Checkpoint not found"}, status_code=404)
         return result
+
+    # --- Health ---
+    if health_endpoint:
+        @app.get("/-/health")
+        def health():
+            return service.get_health()
 
 
 async def _extract_principal(request: Request, service: ANIPService) -> str | None:
