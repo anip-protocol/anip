@@ -95,7 +95,7 @@ export class CheckpointScheduler {
         this._lastError = null;
       } catch (e: unknown) {
         this._lastError = String(e);
-        this._onError?.(String(e));
+        try { this._onError?.(String(e)); } catch { /* callback must not affect correctness */ }
       }
     }, this._interval * 1000);
     if (this._timer && typeof this._timer === "object" && "unref" in this._timer) {

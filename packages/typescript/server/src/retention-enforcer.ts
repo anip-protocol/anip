@@ -52,10 +52,10 @@ export class RetentionEnforcer {
         this._lastRunAt = new Date().toISOString();
         this._lastDeletedCount = count;
         this._lastError = null;
-        this._onSweep?.(count, durationMs);
+        try { this._onSweep?.(count, durationMs); } catch { /* callback must not affect correctness */ }
       } catch (e: unknown) {
         this._lastError = String(e);
-        this._onError?.(String(e));
+        try { this._onError?.(String(e)); } catch { /* callback must not affect correctness */ }
       }
     }, this._interval * 1000);
     // Allow the timer to not prevent process exit (matches CheckpointScheduler)

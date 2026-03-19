@@ -170,6 +170,13 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   const metricsHooks = hooks.metrics;
   const tracingHooks = hooks.tracing;
 
+  // --- Safe hook invocation helper ---
+  // Hooks are optional instrumentation and must never affect correctness.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function safeHook(fn: ((...args: any[]) => void) | undefined, payload: any): void {
+    try { fn?.(payload); } catch { /* hook must not affect correctness */ }
+  }
+
   // --- withSpan helper (tracing) ---
   function withSpan<T>(
     name: string,
@@ -178,19 +185,25 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     fn: (span: unknown) => T,
   ): T {
     if (!tracingHooks?.startSpan) return fn(undefined);
-    const span = tracingHooks.startSpan({ name, attributes: attrs, parentSpan });
+    let span: unknown;
+    try {
+      span = tracingHooks.startSpan({ name, attributes: attrs, parentSpan });
+    } catch {
+      // startSpan threw — skip tracing entirely and run fn without a span
+      return fn(undefined);
+    }
     try {
       const result = fn(span);
       if (result instanceof Promise) {
         return result.then(
-          (v) => { tracingHooks.endSpan?.({ span, status: "ok" }); return v; },
-          (e: any) => { tracingHooks.endSpan?.({ span, status: "error", errorType: e?.name, errorMessage: e?.message }); throw e; },
+          (v) => { try { tracingHooks.endSpan?.({ span, status: "ok" }); } catch { /* swallow */ } return v; },
+          (e: any) => { try { tracingHooks.endSpan?.({ span, status: "error", errorType: e?.name, errorMessage: e?.message }); } catch { /* swallow */ } throw e; },
         ) as T;
       }
-      tracingHooks.endSpan?.({ span, status: "ok" });
+      try { tracingHooks.endSpan?.({ span, status: "ok" }); } catch { /* swallow */ }
       return result;
     } catch (e: any) {
-      tracingHooks.endSpan?.({ span, status: "error", errorType: e?.name, errorMessage: e?.message });
+      try { tracingHooks.endSpan?.({ span, status: "error", errorType: e?.name, errorMessage: e?.message }); } catch { /* swallow */ }
       throw e;
     }
   }
@@ -344,7 +357,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           for (const sink of sinks) {
             sink.publish({ body: result.body, signature });
           }
-          logHooks?.onCheckpointCreated?.({
+          safeHook(logHooks?.onCheckpointCreated, {
             checkpointId: result.body.checkpoint_id as string,
             entryCount: result.body.entry_count as number,
             merkleRoot: result.body.merkle_root as string,
@@ -354,11 +367,11 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           const lagSeconds = cpTimestamp
             ? Math.round((Date.now() - new Date(cpTimestamp).getTime()) / 1000)
             : 0;
-          metricsHooks?.onCheckpointCreated?.({ lagSeconds });
+          safeHook(metricsHooks?.onCheckpointCreated, { lagSeconds });
         }
       });
     } catch (e) {
-      metricsHooks?.onCheckpointFailed?.({ error: String(e) });
+      safeHook(metricsHooks?.onCheckpointFailed, { error: String(e) });
       throw e;
     } finally {
       await storage.releaseLeader("checkpoint", holder);
@@ -371,7 +384,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       leaderCheckpointTick,
       {
         onError: (error) => {
-          hooks.diagnostics?.onBackgroundError?.({ source: "checkpoint", error, timestamp: new Date().toISOString() });
+          try { hooks.diagnostics?.onBackgroundError?.({ source: "checkpoint", error, timestamp: new Date().toISOString() }); } catch { /* hook must not affect correctness */ }
         },
       },
     );
@@ -383,11 +396,11 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   let retentionEnforcer = new RetentionEnforcer(storage, 60, {
     skipAuditRetention: isPostgresBackend,
     onSweep: (deletedCount, durationMs) => {
-      logHooks?.onRetentionSweep?.({ deletedCount, durationMs, timestamp: new Date().toISOString() });
-      metricsHooks?.onRetentionDeleted?.({ count: deletedCount });
+      safeHook(logHooks?.onRetentionSweep, { deletedCount, durationMs, timestamp: new Date().toISOString() });
+      safeHook(metricsHooks?.onRetentionDeleted, { count: deletedCount });
     },
     onError: (error) => {
-      hooks.diagnostics?.onBackgroundError?.({ source: "retention", error, timestamp: new Date().toISOString() });
+      try { hooks.diagnostics?.onBackgroundError?.({ source: "retention", error, timestamp: new Date().toISOString() }); } catch { /* hook must not affect correctness */ }
     },
   });
 
@@ -457,12 +470,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         stored = await audit.logEntry(redactedEntry);
       } catch (e) {
         const auditDurationMs = Math.round(performance.now() - auditStart);
-        metricsHooks?.onAuditAppendDuration?.({ durationMs: auditDurationMs, success: false });
+        safeHook(metricsHooks?.onAuditAppendDuration, { durationMs: auditDurationMs, success: false });
         throw e;
       }
       const auditDurationMs = Math.round(performance.now() - auditStart);
-      metricsHooks?.onAuditAppendDuration?.({ durationMs: auditDurationMs, success: true });
-      logHooks?.onAuditAppend?.({
+      safeHook(metricsHooks?.onAuditAppendDuration, { durationMs: auditDurationMs, success: true });
+      safeHook(logHooks?.onAuditAppend, {
         sequenceNumber: (stored.sequence_number as number) ?? 0,
         capability,
         invocationId: (auditOpts.invocationId as string) ?? "",
@@ -487,12 +500,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         await audit.logEntry(entry);
         entriesFlushed++;
       }
-      logHooks?.onAggregationFlush?.({
+      safeHook(logHooks?.onAggregationFlush, {
         windowCount: results.length,
         entriesFlushed,
         timestamp: new Date().toISOString(),
       });
-      metricsHooks?.onAggregationFlushed?.({ windowCount: results.length });
+      safeHook(metricsHooks?.onAggregationFlushed, { windowCount: results.length });
     });
   }
 
@@ -924,7 +937,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       // 1. Check capability exists
       if (!capabilities.has(capabilityName)) {
         const durationMs = performance.now() - invokeStartTime;
-        logHooks?.onInvocationEnd?.({
+        safeHook(logHooks?.onInvocationEnd,{
           capability: capabilityName,
           invocationId,
           success: false,
@@ -932,7 +945,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           durationMs,
           timestamp: new Date().toISOString(),
         });
-        metricsHooks?.onInvocationDuration?.({ capability: capabilityName, durationMs, success: false });
+        safeHook(metricsHooks?.onInvocationDuration,{ capability: capabilityName, durationMs, success: false });
         return {
           success: false,
           failure: redactFailure({
@@ -954,7 +967,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         const responseModes = (decl as any).response_modes ?? ["unary"];
         if (!responseModes.includes("streaming")) {
           const durationMs = performance.now() - invokeStartTime;
-          logHooks?.onInvocationEnd?.({
+          safeHook(logHooks?.onInvocationEnd,{
             capability: capabilityName,
             invocationId,
             success: false,
@@ -962,7 +975,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             durationMs,
             timestamp: new Date().toISOString(),
           });
-          metricsHooks?.onInvocationDuration?.({ capability: capabilityName, durationMs, success: false });
+          safeHook(metricsHooks?.onInvocationDuration,{ capability: capabilityName, durationMs, success: false });
           return {
             success: false,
             failure: redactFailure({
@@ -992,12 +1005,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           detail: validationResult.detail,
           resolution: validationResult.resolution,
         };
-        logHooks?.onDelegationFailure?.({
+        safeHook(logHooks?.onDelegationFailure,{
           reason: failure.type,
           tokenId: token.token_id ?? null,
           timestamp: new Date().toISOString(),
         });
-        metricsHooks?.onDelegationDenied?.({ reason: failure.type });
+        safeHook(metricsHooks?.onDelegationDenied,{ reason: failure.type });
         const sideEffectType = (decl as any).side_effect?.type ?? null;
         const eventClass = classifyEvent(sideEffectType, false, failure.type);
         const retTier = retentionPolicy.resolveTier(eventClass);
@@ -1013,7 +1026,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           parentSpan: rootSpan,
         });
         const delegDurationMs = performance.now() - invokeStartTime;
-        logHooks?.onInvocationEnd?.({
+        safeHook(logHooks?.onInvocationEnd,{
           capability: capabilityName,
           invocationId,
           success: false,
@@ -1021,7 +1034,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           durationMs: delegDurationMs,
           timestamp: new Date().toISOString(),
         });
-        metricsHooks?.onInvocationDuration?.({ capability: capabilityName, durationMs: delegDurationMs, success: false });
+        safeHook(metricsHooks?.onInvocationDuration,{ capability: capabilityName, durationMs: delegDurationMs, success: false });
         return {
           success: false,
           failure: redactFailure(failure, effectiveLevel),
@@ -1066,13 +1079,13 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
               eventsDelivered++;
             } catch {
               clientDisconnected = true;
-              metricsHooks?.onStreamingDeliveryFailure?.({ capability: capabilityName });
+              safeHook(metricsHooks?.onStreamingDeliveryFailure, { capability: capabilityName });
             }
           }
         },
       };
 
-      logHooks?.onInvocationStart?.({
+      safeHook(logHooks?.onInvocationStart, {
         capability: capabilityName,
         invocationId,
         clientReferenceId,
@@ -1102,7 +1115,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           parentSpan: rootSpan,
         });
         const lockDurationMs = performance.now() - invokeStartTime;
-        logHooks?.onInvocationEnd?.({
+        safeHook(logHooks?.onInvocationEnd,{
           capability: capabilityName,
           invocationId,
           success: false,
@@ -1110,7 +1123,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           durationMs: lockDurationMs,
           timestamp: new Date().toISOString(),
         });
-        metricsHooks?.onInvocationDuration?.({ capability: capabilityName, durationMs: lockDurationMs, success: false });
+        safeHook(metricsHooks?.onInvocationDuration,{ capability: capabilityName, durationMs: lockDurationMs, success: false });
         return {
           success: false,
           failure: redactFailure({ type: lockResult.type, detail: lockResult.detail }, effectiveLevel),
@@ -1164,7 +1177,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
         // Fire streaming summary hook
         if (stream && streamSummary) {
-          logHooks?.onStreamingSummary?.({
+          safeHook(logHooks?.onStreamingSummary,{
             invocationId,
             capability: capabilityName,
             eventsEmitted,
@@ -1176,7 +1189,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         }
 
         const successDurationMs = performance.now() - invokeStartTime;
-        logHooks?.onInvocationEnd?.({
+        safeHook(logHooks?.onInvocationEnd,{
           capability: capabilityName,
           invocationId,
           success: true,
@@ -1184,7 +1197,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           durationMs: successDurationMs,
           timestamp: new Date().toISOString(),
         });
-        metricsHooks?.onInvocationDuration?.({ capability: capabilityName, durationMs: successDurationMs, success: true });
+        safeHook(metricsHooks?.onInvocationDuration,{ capability: capabilityName, durationMs: successDurationMs, success: true });
 
         // 7. Build response
         const response: Record<string, unknown> = {
@@ -1230,7 +1243,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             parentSpan: rootSpan,
           });
           if (stream && failStreamSummary) {
-            logHooks?.onStreamingSummary?.({
+            safeHook(logHooks?.onStreamingSummary,{
               invocationId,
               capability: capabilityName,
               eventsEmitted,
@@ -1241,7 +1254,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             });
           }
           const anipErrDurationMs = performance.now() - invokeStartTime;
-          logHooks?.onInvocationEnd?.({
+          safeHook(logHooks?.onInvocationEnd,{
             capability: capabilityName,
             invocationId,
             success: false,
@@ -1249,7 +1262,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             durationMs: anipErrDurationMs,
             timestamp: new Date().toISOString(),
           });
-          metricsHooks?.onInvocationDuration?.({ capability: capabilityName, durationMs: anipErrDurationMs, success: false });
+          safeHook(metricsHooks?.onInvocationDuration,{ capability: capabilityName, durationMs: anipErrDurationMs, success: false });
           const response: Record<string, unknown> = {
             success: false,
             failure: redactFailure({ type: err.errorType, detail: err.detail }, effectiveLevel),
@@ -1279,7 +1292,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           parentSpan: rootSpan,
         });
         if (stream && failStreamSummary) {
-          logHooks?.onStreamingSummary?.({
+          safeHook(logHooks?.onStreamingSummary,{
             invocationId,
             capability: capabilityName,
             eventsEmitted,
@@ -1290,7 +1303,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           });
         }
         const internalErrDurationMs = performance.now() - invokeStartTime;
-        logHooks?.onInvocationEnd?.({
+        safeHook(logHooks?.onInvocationEnd,{
           capability: capabilityName,
           invocationId,
           success: false,
@@ -1298,7 +1311,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           durationMs: internalErrDurationMs,
           timestamp: new Date().toISOString(),
         });
-        metricsHooks?.onInvocationDuration?.({ capability: capabilityName, durationMs: internalErrDurationMs, success: false });
+        safeHook(metricsHooks?.onInvocationDuration,{ capability: capabilityName, durationMs: internalErrDurationMs, success: false });
         const response: Record<string, unknown> = {
           success: false,
           failure: redactFailure({ type: "internal_error", detail: "Internal error" }, effectiveLevel),
@@ -1426,16 +1439,16 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
                 merkle_root: tree.root,
                 leaf_count: tree.leafCount,
               };
-              metricsHooks?.onProofGenerated?.({ durationMs: Math.round(performance.now() - proofStart) });
+              safeHook(metricsHooks?.onProofGenerated,{ durationMs: Math.round(performance.now() - proofStart) });
             } catch {
               // index out of range — skip
-              metricsHooks?.onProofUnavailable?.({ reason: "leaf_index_out_of_range" });
+              safeHook(metricsHooks?.onProofUnavailable,{ reason: "leaf_index_out_of_range" });
             }
           });
         } catch (err: unknown) {
           if (err instanceof Error && err.message.includes("audit entries have been deleted")) {
             result.proof_unavailable = "audit_entries_expired";
-            metricsHooks?.onProofUnavailable?.({ reason: "audit_entries_expired" });
+            safeHook(metricsHooks?.onProofUnavailable,{ reason: "audit_entries_expired" });
           } else {
             throw err;
           }
@@ -1468,16 +1481,16 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
                   new_root: newTree.root,
                   path,
                 };
-                metricsHooks?.onProofGenerated?.({ durationMs: Math.round(performance.now() - consProofStart) });
+                safeHook(metricsHooks?.onProofGenerated,{ durationMs: Math.round(performance.now() - consProofStart) });
               } catch {
                 // skip
-                metricsHooks?.onProofUnavailable?.({ reason: "consistency_proof_failed" });
+                safeHook(metricsHooks?.onProofUnavailable,{ reason: "consistency_proof_failed" });
               }
             });
           } catch (err: unknown) {
             if (err instanceof Error && err.message.includes("audit entries have been deleted")) {
               result.proof_unavailable = "audit_entries_expired";
-              metricsHooks?.onProofUnavailable?.({ reason: "audit_entries_expired" });
+              safeHook(metricsHooks?.onProofUnavailable,{ reason: "audit_entries_expired" });
             } else {
               throw err;
             }
@@ -1506,7 +1519,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         : null;
 
       const retentionHealth = {
-        healthy: retentionEnforcer.isRunning(),
+        healthy: retentionEnforcer.isRunning() && retentionEnforcer.getLastError() === null,
         lastRunAt: retentionEnforcer.getLastRunAt(),
         lastDeletedCount: retentionEnforcer.getLastDeletedCount(),
       };
@@ -1545,11 +1558,11 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         retentionEnforcer = new RetentionEnforcer(storage, 60, {
           skipAuditRetention: isPostgresBackend,
           onSweep: (deletedCount, durationMs) => {
-            logHooks?.onRetentionSweep?.({ deletedCount, durationMs, timestamp: new Date().toISOString() });
-            metricsHooks?.onRetentionDeleted?.({ count: deletedCount });
+            safeHook(logHooks?.onRetentionSweep, { deletedCount, durationMs, timestamp: new Date().toISOString() });
+            safeHook(metricsHooks?.onRetentionDeleted, { count: deletedCount });
           },
           onError: (error) => {
-            hooks.diagnostics?.onBackgroundError?.({ source: "retention", error, timestamp: new Date().toISOString() });
+            try { hooks.diagnostics?.onBackgroundError?.({ source: "retention", error, timestamp: new Date().toISOString() }); } catch { /* hook must not affect correctness */ }
           },
         });
       }
@@ -1567,7 +1580,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       if (aggregator && aggregationWindow != null) {
         flushTimer = setInterval(() => {
           flushAggregator().catch((e: unknown) => {
-            hooks.diagnostics?.onBackgroundError?.({ source: "aggregation", error: String(e), timestamp: new Date().toISOString() });
+            try { hooks.diagnostics?.onBackgroundError?.({ source: "aggregation", error: String(e), timestamp: new Date().toISOString() }); } catch { /* hook must not affect correctness */ }
           });
         }, aggregationWindow * 1000);
         flushTimer.unref();
