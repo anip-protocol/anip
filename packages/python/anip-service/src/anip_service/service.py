@@ -509,10 +509,13 @@ class ANIPService:
         # Start root tracing span
         root_span = None
         if self._tracing_hooks and self._tracing_hooks.start_span:
-            root_span = self._tracing_hooks.start_span({
-                "name": "anip.invoke",
-                "attributes": {"capability": capability_name},
-            })
+            try:
+                root_span = self._tracing_hooks.start_span({
+                    "name": "anip.invoke",
+                    "attributes": {"capability": capability_name},
+                })
+            except Exception:
+                root_span = None
         _invoke_span_ended = False
         try:
             return await self._invoke_body(
@@ -527,16 +530,22 @@ class ANIPService:
         except Exception as e:
             _invoke_span_ended = True
             if self._tracing_hooks and self._tracing_hooks.end_span and root_span is not None:
-                self._tracing_hooks.end_span({
-                    "span": root_span,
-                    "status": "error",
-                    "error_type": type(e).__name__,
-                    "error_message": str(e),
-                })
+                try:
+                    self._tracing_hooks.end_span({
+                        "span": root_span,
+                        "status": "error",
+                        "error_type": type(e).__name__,
+                        "error_message": str(e),
+                    })
+                except Exception:
+                    pass
             raise
         finally:
             if not _invoke_span_ended and self._tracing_hooks and self._tracing_hooks.end_span and root_span is not None:
-                self._tracing_hooks.end_span({"span": root_span, "status": "ok"})
+                try:
+                    self._tracing_hooks.end_span({"span": root_span, "status": "ok"})
+                except Exception:
+                    pass
 
     async def _invoke_body(
         self,
@@ -563,7 +572,7 @@ class ANIPService:
         if capability_name not in self._capabilities:
             _duration_ms = int((time.monotonic() - invoke_start) * 1000)
             if self._log_hooks and self._log_hooks.on_invocation_end:
-                self._log_hooks.on_invocation_end({
+                self._safe_hook(self._log_hooks.on_invocation_end, {
                     "capability": capability_name,
                     "invocation_id": invocation_id,
                     "success": False,
@@ -572,7 +581,7 @@ class ANIPService:
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 })
             if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
-                self._metrics_hooks.on_invocation_duration({"capability": capability_name, "duration_ms": _duration_ms, "success": False})
+                self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _duration_ms, "success": False})
             return {
                 "success": False,
                 "failure": redact_failure({
@@ -592,7 +601,7 @@ class ANIPService:
             if "streaming" not in response_modes:
                 _duration_ms = int((time.monotonic() - invoke_start) * 1000)
                 if self._log_hooks and self._log_hooks.on_invocation_end:
-                    self._log_hooks.on_invocation_end({
+                    self._safe_hook(self._log_hooks.on_invocation_end, {
                         "capability": capability_name,
                         "invocation_id": invocation_id,
                         "success": False,
@@ -601,7 +610,7 @@ class ANIPService:
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                     })
                 if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
-                    self._metrics_hooks.on_invocation_duration({"capability": capability_name, "duration_ms": _duration_ms, "success": False})
+                    self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _duration_ms, "success": False})
                 return {
                     "success": False,
                     "failure": redact_failure({
@@ -627,13 +636,13 @@ class ANIPService:
                 "resolution": validation_result.resolution.model_dump() if hasattr(validation_result.resolution, "model_dump") else validation_result.resolution,
             }
             if self._log_hooks and self._log_hooks.on_delegation_failure:
-                self._log_hooks.on_delegation_failure({
+                self._safe_hook(self._log_hooks.on_delegation_failure, {
                     "reason": failure["type"],
                     "token_id": token.token_id if token else None,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 })
             if self._metrics_hooks and self._metrics_hooks.on_delegation_denied:
-                self._metrics_hooks.on_delegation_denied({"reason": failure["type"]})
+                self._safe_hook(self._metrics_hooks.on_delegation_denied, {"reason": failure["type"]})
             _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
             _event_class = classify_event(_side_effect_type, False, failure["type"])
             _retention_tier = self._retention_policy.resolve_tier(_event_class)
@@ -648,7 +657,7 @@ class ANIPService:
             )
             _deleg_duration_ms = int((time.monotonic() - invoke_start) * 1000)
             if self._log_hooks and self._log_hooks.on_invocation_end:
-                self._log_hooks.on_invocation_end({
+                self._safe_hook(self._log_hooks.on_invocation_end, {
                     "capability": capability_name,
                     "invocation_id": invocation_id,
                     "success": False,
@@ -657,7 +666,7 @@ class ANIPService:
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 })
             if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
-                self._metrics_hooks.on_invocation_duration({"capability": capability_name, "duration_ms": _deleg_duration_ms, "success": False})
+                self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _deleg_duration_ms, "success": False})
             return {
                 "success": False,
                 "failure": redact_failure(failure, effective_level),
@@ -688,7 +697,7 @@ class ANIPService:
                 except Exception:
                     client_disconnected = True
                     if self._metrics_hooks and self._metrics_hooks.on_streaming_delivery_failure:
-                        self._metrics_hooks.on_streaming_delivery_failure({"capability": capability_name})
+                        self._safe_hook(self._metrics_hooks.on_streaming_delivery_failure, {"capability": capability_name})
 
         # 3. Build invocation context
         chain = await self._engine.get_chain(resolved_token)
@@ -705,7 +714,7 @@ class ANIPService:
         )
 
         if self._log_hooks and self._log_hooks.on_invocation_start:
-            self._log_hooks.on_invocation_start({
+            self._safe_hook(self._log_hooks.on_invocation_start, {
                 "capability": capability_name,
                 "invocation_id": invocation_id,
                 "client_reference_id": client_reference_id,
@@ -733,7 +742,7 @@ class ANIPService:
                 )
                 _lock_duration_ms = int((time.monotonic() - invoke_start) * 1000)
                 if self._log_hooks and self._log_hooks.on_invocation_end:
-                    self._log_hooks.on_invocation_end({
+                    self._safe_hook(self._log_hooks.on_invocation_end, {
                         "capability": capability_name,
                         "invocation_id": invocation_id,
                         "success": False,
@@ -742,7 +751,7 @@ class ANIPService:
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                     })
                 if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
-                    self._metrics_hooks.on_invocation_duration({"capability": capability_name, "duration_ms": _lock_duration_ms, "success": False})
+                    self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _lock_duration_ms, "success": False})
                 return {
                     "success": False,
                     "failure": redact_failure({"type": lock_result.type, "detail": lock_result.detail}, effective_level),
@@ -794,7 +803,7 @@ class ANIPService:
                     parent_span=root_span,
                 )
                 if stream and fail_stream_summary and self._log_hooks and self._log_hooks.on_streaming_summary:
-                    self._log_hooks.on_streaming_summary({
+                    self._safe_hook(self._log_hooks.on_streaming_summary, {
                         "invocation_id": invocation_id,
                         "capability": capability_name,
                         "events_emitted": events_emitted,
@@ -805,7 +814,7 @@ class ANIPService:
                     })
                 _anip_err_duration_ms = int((time.monotonic() - invoke_start) * 1000)
                 if self._log_hooks and self._log_hooks.on_invocation_end:
-                    self._log_hooks.on_invocation_end({
+                    self._safe_hook(self._log_hooks.on_invocation_end, {
                         "capability": capability_name,
                         "invocation_id": invocation_id,
                         "success": False,
@@ -814,7 +823,7 @@ class ANIPService:
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                     })
                 if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
-                    self._metrics_hooks.on_invocation_duration({"capability": capability_name, "duration_ms": _anip_err_duration_ms, "success": False})
+                    self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _anip_err_duration_ms, "success": False})
                 fail_response: dict[str, Any] = {
                     "success": False,
                     "failure": redact_failure({"type": e.error_type, "detail": e.detail}, effective_level),
@@ -848,7 +857,7 @@ class ANIPService:
                     parent_span=root_span,
                 )
                 if stream and fail_stream_summary_exc and self._log_hooks and self._log_hooks.on_streaming_summary:
-                    self._log_hooks.on_streaming_summary({
+                    self._safe_hook(self._log_hooks.on_streaming_summary, {
                         "invocation_id": invocation_id,
                         "capability": capability_name,
                         "events_emitted": events_emitted,
@@ -859,7 +868,7 @@ class ANIPService:
                     })
                 _internal_err_duration_ms = int((time.monotonic() - invoke_start) * 1000)
                 if self._log_hooks and self._log_hooks.on_invocation_end:
-                    self._log_hooks.on_invocation_end({
+                    self._safe_hook(self._log_hooks.on_invocation_end, {
                         "capability": capability_name,
                         "invocation_id": invocation_id,
                         "success": False,
@@ -868,7 +877,7 @@ class ANIPService:
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                     })
                 if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
-                    self._metrics_hooks.on_invocation_duration({"capability": capability_name, "duration_ms": _internal_err_duration_ms, "success": False})
+                    self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _internal_err_duration_ms, "success": False})
                 fail_response_exc: dict[str, Any] = {
                     "success": False,
                     "failure": redact_failure({"type": "internal_error", "detail": "Internal error"}, effective_level),
@@ -913,7 +922,7 @@ class ANIPService:
 
             # 9. Fire streaming summary hook
             if stream and stream_summary and self._log_hooks and self._log_hooks.on_streaming_summary:
-                self._log_hooks.on_streaming_summary({
+                self._safe_hook(self._log_hooks.on_streaming_summary, {
                     "invocation_id": invocation_id,
                     "capability": capability_name,
                     "events_emitted": events_emitted,
@@ -926,7 +935,7 @@ class ANIPService:
             # 10. Fire invocation end hook (success)
             _success_duration_ms = int((time.monotonic() - invoke_start) * 1000)
             if self._log_hooks and self._log_hooks.on_invocation_end:
-                self._log_hooks.on_invocation_end({
+                self._safe_hook(self._log_hooks.on_invocation_end, {
                     "capability": capability_name,
                     "invocation_id": invocation_id,
                     "success": True,
@@ -935,7 +944,7 @@ class ANIPService:
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 })
             if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
-                self._metrics_hooks.on_invocation_duration({"capability": capability_name, "duration_ms": _success_duration_ms, "success": True})
+                self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _success_duration_ms, "success": True})
 
             # 11. Build response
             response: dict[str, Any] = {
@@ -1061,16 +1070,16 @@ class ANIPService:
                             "leaf_count": tree.leaf_count,
                         }
                         if self._metrics_hooks and self._metrics_hooks.on_proof_generated:
-                            self._metrics_hooks.on_proof_generated({"duration_ms": int((time.monotonic() - _proof_start) * 1000)})
+                            self._safe_hook(self._metrics_hooks.on_proof_generated, {"duration_ms": int((time.monotonic() - _proof_start) * 1000)})
                     except (IndexError, ValueError):
                         if self._metrics_hooks and self._metrics_hooks.on_proof_unavailable:
-                            self._metrics_hooks.on_proof_unavailable({"reason": "leaf_index_out_of_range"})
+                            self._safe_hook(self._metrics_hooks.on_proof_unavailable, {"reason": "leaf_index_out_of_range"})
 
                 await self._with_span("anip.proof.generate", {"checkpoint_id": checkpoint_id}, None, _gen_inclusion_proof)
             except ValueError:
                 result["proof_unavailable"] = "audit_entries_expired"
                 if self._metrics_hooks and self._metrics_hooks.on_proof_unavailable:
-                    self._metrics_hooks.on_proof_unavailable({"reason": "audit_entries_expired"})
+                    self._safe_hook(self._metrics_hooks.on_proof_unavailable, {"reason": "audit_entries_expired"})
 
         # Consistency proof
         consistency_from = options.get("consistency_from")
@@ -1097,16 +1106,16 @@ class ANIPService:
                                 "path": path,
                             }
                             if self._metrics_hooks and self._metrics_hooks.on_proof_generated:
-                                self._metrics_hooks.on_proof_generated({"duration_ms": int((time.monotonic() - _cons_proof_start) * 1000)})
+                                self._safe_hook(self._metrics_hooks.on_proof_generated, {"duration_ms": int((time.monotonic() - _cons_proof_start) * 1000)})
                         except (IndexError, ValueError):
                             if self._metrics_hooks and self._metrics_hooks.on_proof_unavailable:
-                                self._metrics_hooks.on_proof_unavailable({"reason": "consistency_proof_failed"})
+                                self._safe_hook(self._metrics_hooks.on_proof_unavailable, {"reason": "consistency_proof_failed"})
 
                     await self._with_span("anip.proof.generate", {"checkpoint_id": checkpoint_id}, None, _gen_consistency_proof)
                 except ValueError:
                     result["proof_unavailable"] = "audit_entries_expired"
                     if self._metrics_hooks and self._metrics_hooks.on_proof_unavailable:
-                        self._metrics_hooks.on_proof_unavailable({"reason": "audit_entries_expired"})
+                        self._safe_hook(self._metrics_hooks.on_proof_unavailable, {"reason": "audit_entries_expired"})
 
         return result
 
@@ -1131,7 +1140,7 @@ class ANIPService:
             }
 
         retention_health = {
-            "healthy": self._retention_enforcer.is_running,
+            "healthy": self._retention_enforcer.is_running and self._retention_enforcer.last_error is None,
             "last_run_at": self._retention_enforcer.last_run_at,
             "last_deleted_count": self._retention_enforcer.last_deleted_count,
         }
@@ -1177,11 +1186,14 @@ class ANIPService:
                             await self._flush_aggregator()
                         except Exception as e:
                             if self._hooks.diagnostics and self._hooks.diagnostics.on_background_error:
-                                self._hooks.diagnostics.on_background_error({
-                                    "source": "aggregation",
-                                    "error": str(e),
-                                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                                })
+                                try:
+                                    self._hooks.diagnostics.on_background_error({
+                                        "source": "aggregation",
+                                        "error": str(e),
+                                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                                    })
+                                except Exception:
+                                    pass
                 except asyncio.CancelledError:
                     pass
 
@@ -1221,13 +1233,13 @@ class ANIPService:
                 await self._audit.log_entry(entry)
                 entries_flushed += 1
             if self._log_hooks and self._log_hooks.on_aggregation_flush:
-                self._log_hooks.on_aggregation_flush({
+                self._safe_hook(self._log_hooks.on_aggregation_flush, {
                     "window_count": len(results),
                     "entries_flushed": entries_flushed,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 })
             if self._metrics_hooks and self._metrics_hooks.on_aggregation_flushed:
-                self._metrics_hooks.on_aggregation_flushed({"window_count": len(results)})
+                self._safe_hook(self._metrics_hooks.on_aggregation_flushed, {"window_count": len(results)})
 
         await self._with_span("anip.aggregation.flush", {}, None, _do_flush)
 
@@ -1235,45 +1247,70 @@ class ANIPService:
 
     def _on_retention_sweep(self, deleted_count: int, duration_ms: float) -> None:
         if self._log_hooks and self._log_hooks.on_retention_sweep:
-            self._log_hooks.on_retention_sweep({
+            self._safe_hook(self._log_hooks.on_retention_sweep, {
                 "deleted_count": deleted_count,
                 "duration_ms": duration_ms,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
         if self._metrics_hooks and self._metrics_hooks.on_retention_deleted:
-            self._metrics_hooks.on_retention_deleted({"count": deleted_count})
+            self._safe_hook(self._metrics_hooks.on_retention_deleted, {"count": deleted_count})
 
     def _on_retention_error(self, error: str) -> None:
         if self._hooks.diagnostics and self._hooks.diagnostics.on_background_error:
-            self._hooks.diagnostics.on_background_error({
-                "source": "retention",
-                "error": error,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
+            try:
+                self._hooks.diagnostics.on_background_error({
+                    "source": "retention",
+                    "error": error,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+            except Exception:
+                pass
 
     def _on_checkpoint_error(self, error: str) -> None:
         if self._hooks.diagnostics and self._hooks.diagnostics.on_background_error:
-            self._hooks.diagnostics.on_background_error({
-                "source": "checkpoint",
-                "error": error,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
+            try:
+                self._hooks.diagnostics.on_background_error({
+                    "source": "checkpoint",
+                    "error": error,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+            except Exception:
+                pass
 
     # --- Internal helpers ---
+
+    def _safe_hook(self, fn: Any, payload: Any) -> None:
+        """Call a hook callback, swallowing any exception.
+
+        Hooks are optional instrumentation and must never affect correctness.
+        """
+        try:
+            fn(payload)
+        except Exception:
+            pass
 
     async def _with_span(self, name: str, attrs: dict, parent_span: Any, fn):
         """Run fn() inside a tracing span. No-op when tracing hooks are absent."""
         if not self._tracing_hooks or not self._tracing_hooks.start_span:
             return await fn()
-        span = self._tracing_hooks.start_span({"name": name, "attributes": attrs, "parent_span": parent_span})
+        try:
+            span = self._tracing_hooks.start_span({"name": name, "attributes": attrs, "parent_span": parent_span})
+        except Exception:
+            return await fn()
         try:
             result = await fn()
             if self._tracing_hooks.end_span:
-                self._tracing_hooks.end_span({"span": span, "status": "ok"})
+                try:
+                    self._tracing_hooks.end_span({"span": span, "status": "ok"})
+                except Exception:
+                    pass
             return result
         except Exception as e:
             if self._tracing_hooks.end_span:
-                self._tracing_hooks.end_span({"span": span, "status": "error", "error_type": type(e).__name__, "error_message": str(e)})
+                try:
+                    self._tracing_hooks.end_span({"span": span, "status": "error", "error_type": type(e).__name__, "error_message": str(e)})
+                except Exception:
+                    pass
             raise
 
     async def _log_audit(
@@ -1334,13 +1371,13 @@ class ANIPService:
             except Exception:
                 _audit_duration_ms = int((time.monotonic() - _audit_start) * 1000)
                 if self._metrics_hooks and self._metrics_hooks.on_audit_append_duration:
-                    self._metrics_hooks.on_audit_append_duration({"duration_ms": _audit_duration_ms, "success": False})
+                    self._safe_hook(self._metrics_hooks.on_audit_append_duration, {"duration_ms": _audit_duration_ms, "success": False})
                 raise
             _audit_duration_ms = int((time.monotonic() - _audit_start) * 1000)
             if self._metrics_hooks and self._metrics_hooks.on_audit_append_duration:
-                self._metrics_hooks.on_audit_append_duration({"duration_ms": _audit_duration_ms, "success": True})
+                self._safe_hook(self._metrics_hooks.on_audit_append_duration, {"duration_ms": _audit_duration_ms, "success": True})
             if self._log_hooks and self._log_hooks.on_audit_append:
-                self._log_hooks.on_audit_append({
+                self._safe_hook(self._log_hooks.on_audit_append, {
                     "sequence_number": stored.get("sequence_number", 0),
                     "capability": capability,
                     "invocation_id": invocation_id,
@@ -1373,7 +1410,7 @@ class ANIPService:
                     for sink in self._sinks:
                         sink.publish({"body": body, "signature": signature})
                     if self._log_hooks and self._log_hooks.on_checkpoint_created:
-                        self._log_hooks.on_checkpoint_created({
+                        self._safe_hook(self._log_hooks.on_checkpoint_created, {
                             "checkpoint_id": body.get("checkpoint_id", ""),
                             "entry_count": body.get("entry_count", 0),
                             "merkle_root": body.get("merkle_root", ""),
@@ -1386,14 +1423,14 @@ class ANIPService:
                             lag_seconds = int((datetime.now(timezone.utc) - cp_dt).total_seconds())
                         except (ValueError, TypeError):
                             lag_seconds = 0
-                        self._metrics_hooks.on_checkpoint_created({"lag_seconds": lag_seconds})
+                        self._safe_hook(self._metrics_hooks.on_checkpoint_created, {"lag_seconds": lag_seconds})
                     elif self._metrics_hooks and self._metrics_hooks.on_checkpoint_created:
-                        self._metrics_hooks.on_checkpoint_created({"lag_seconds": 0})
+                        self._safe_hook(self._metrics_hooks.on_checkpoint_created, {"lag_seconds": 0})
 
             await self._with_span("anip.checkpoint.create", {}, None, _do_checkpoint)
         except Exception as e:
             if self._metrics_hooks and self._metrics_hooks.on_checkpoint_failed:
-                self._metrics_hooks.on_checkpoint_failed({"error": str(e)})
+                self._safe_hook(self._metrics_hooks.on_checkpoint_failed, {"error": str(e)})
             raise
         finally:
             await self._storage.release_leader("checkpoint", holder)

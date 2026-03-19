@@ -88,10 +88,16 @@ class RetentionEnforcer:
                 self._last_deleted_count = count
                 self._last_error = None
                 if self._on_sweep:
-                    self._on_sweep(count, duration_ms)
+                    try:
+                        self._on_sweep(count, duration_ms)
+                    except Exception:
+                        pass
             except asyncio.CancelledError:
                 raise
             except Exception as e:
                 self._last_error = str(e)
                 if self._on_error:
-                    self._on_error(str(e))
+                    try:
+                        self._on_error(str(e))
+                    except Exception:
+                        pass
