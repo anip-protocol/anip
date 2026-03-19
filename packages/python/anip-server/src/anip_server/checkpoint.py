@@ -41,9 +41,11 @@ class CheckpointScheduler:
         self,
         interval_seconds: int,
         create_fn: Callable[[], Awaitable[None]],
+        on_error: Callable[[str], None] | None = None,
     ):
         self._interval = interval_seconds
         self._create_fn = create_fn
+        self._on_error = on_error
         self._task: asyncio.Task[None] | None = None
 
     def start(self) -> None:
@@ -62,8 +64,9 @@ class CheckpointScheduler:
                 await self._create_fn()
             except asyncio.CancelledError:
                 raise
-            except Exception:
-                pass  # Non-fatal
+            except Exception as e:
+                if self._on_error:
+                    self._on_error(str(e))
 
 
 def create_checkpoint(

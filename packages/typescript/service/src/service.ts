@@ -369,6 +369,11 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     scheduler = new CheckpointScheduler(
       60, // default interval
       leaderCheckpointTick,
+      {
+        onError: (error) => {
+          hooks.diagnostics?.onBackgroundError?.({ source: "checkpoint", error, timestamp: new Date().toISOString() });
+        },
+      },
     );
   }
 
@@ -377,6 +382,13 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   // — Postgres handles row TTL natively or via external policy.
   let retentionEnforcer = new RetentionEnforcer(storage, 60, {
     skipAuditRetention: isPostgresBackend,
+    onSweep: (deletedCount, durationMs) => {
+      logHooks?.onRetentionSweep?.({ deletedCount, durationMs, timestamp: new Date().toISOString() });
+      metricsHooks?.onRetentionDeleted?.({ count: deletedCount });
+    },
+    onError: (error) => {
+      hooks.diagnostics?.onBackgroundError?.({ source: "retention", error, timestamp: new Date().toISOString() });
+    },
   });
 
   // --- Audit aggregation (v0.9) ---
@@ -1504,6 +1516,13 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         audit = new AuditLog(storage, (entry) => keys.signAuditEntry(entry));
         retentionEnforcer = new RetentionEnforcer(storage, 60, {
           skipAuditRetention: isPostgresBackend,
+          onSweep: (deletedCount, durationMs) => {
+            logHooks?.onRetentionSweep?.({ deletedCount, durationMs, timestamp: new Date().toISOString() });
+            metricsHooks?.onRetentionDeleted?.({ count: deletedCount });
+          },
+          onError: (error) => {
+            hooks.diagnostics?.onBackgroundError?.({ source: "retention", error, timestamp: new Date().toISOString() });
+          },
         });
       }
 
@@ -1519,7 +1538,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
       if (aggregator && aggregationWindow != null) {
         flushTimer = setInterval(() => {
-          flushAggregator().catch(() => {});
+          flushAggregator().catch((e: unknown) => {
+            hooks.diagnostics?.onBackgroundError?.({ source: "aggregation", error: String(e), timestamp: new Date().toISOString() });
+          });
         }, aggregationWindow * 1000);
         flushTimer.unref();
       }

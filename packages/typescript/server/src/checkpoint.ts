@@ -70,21 +70,24 @@ export class CheckpointScheduler {
   private _interval: number;
   private _createFn: () => Promise<void>;
   private _timer: ReturnType<typeof setInterval> | null = null;
+  private _onError?: (error: string) => void;
 
   constructor(
     intervalSeconds: number,
     createFn: () => Promise<void>,
+    opts?: { onError?: (error: string) => void },
   ) {
     this._interval = intervalSeconds;
     this._createFn = createFn;
+    this._onError = opts?.onError;
   }
 
   start(): void {
     this._timer = setInterval(async () => {
       try {
         await this._createFn();
-      } catch {
-        // Non-fatal
+      } catch (e: unknown) {
+        this._onError?.(String(e));
       }
     }, this._interval * 1000);
     if (this._timer && typeof this._timer === "object" && "unref" in this._timer) {

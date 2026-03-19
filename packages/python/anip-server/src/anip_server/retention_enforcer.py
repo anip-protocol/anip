@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import time
+from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
@@ -19,10 +21,14 @@ class RetentionEnforcer:
         *,
         interval_seconds: int = 60,
         skip_audit_retention: bool = False,
+        on_sweep: Callable[[int, float], None] | None = None,
+        on_error: Callable[[str], None] | None = None,
     ) -> None:
         self._storage = storage
         self._interval = interval_seconds
         self._skip_audit_retention = skip_audit_retention
+        self._on_sweep = on_sweep
+        self._on_error = on_error
         self._task: asyncio.Task[None] | None = None
 
     @property
@@ -59,9 +65,14 @@ class RetentionEnforcer:
     async def _run(self) -> None:
         while True:
             await asyncio.sleep(self._interval)
+            start = time.monotonic()
             try:
-                await self.sweep()
+                count = await self.sweep()
+                duration_ms = (time.monotonic() - start) * 1000
+                if self._on_sweep:
+                    self._on_sweep(count, duration_ms)
             except asyncio.CancelledError:
                 raise
-            except Exception:
-                pass  # Sweep failures are non-fatal
+            except Exception as e:
+                if self._on_error:
+                    self._on_error(str(e))

@@ -179,6 +179,7 @@ class ANIPService:
             self._scheduler = CheckpointScheduler(
                 interval_seconds=checkpoint_policy.interval_seconds or 60,
                 create_fn=self._leader_checkpoint_tick,
+                on_error=self._on_checkpoint_error,
             )
 
         # --- Retention enforcer (v0.8) ---
@@ -189,6 +190,8 @@ class ANIPService:
             self._storage,
             interval_seconds=60,
             skip_audit_retention=_skip_retention,
+            on_sweep=self._on_retention_sweep,
+            on_error=self._on_retention_error,
         )
 
         # --- Audit aggregation (v0.9) ---
@@ -1129,7 +1132,15 @@ class ANIPService:
                 try:
                     while True:
                         await asyncio.sleep(self._aggregation_window)  # type: ignore[arg-type]
-                        await self._flush_aggregator()
+                        try:
+                            await self._flush_aggregator()
+                        except Exception as e:
+                            if self._hooks.diagnostics and self._hooks.diagnostics.on_background_error:
+                                self._hooks.diagnostics.on_background_error({
+                                    "source": "aggregation",
+                                    "error": str(e),
+                                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                                })
                 except asyncio.CancelledError:
                     pass
 
@@ -1155,9 +1166,10 @@ class ANIPService:
         """Flush closed aggregation windows and persist each result."""
         if self._aggregator is None:
             return
+        aggregator = self._aggregator
 
         async def _do_flush():
-            results = self._aggregator.flush(datetime.now(timezone.utc))
+            results = aggregator.flush(datetime.now(timezone.utc))
             entries_flushed = 0
             for item in results:
                 if isinstance(item, AggregatedEntry):
@@ -1176,6 +1188,34 @@ class ANIPService:
                 self._metrics_hooks.on_aggregation_flushed({"window_count": len(results)})
 
         await self._with_span("anip.aggregation.flush", {}, None, _do_flush)
+
+    # --- Background hook callbacks ---
+
+    def _on_retention_sweep(self, deleted_count: int, duration_ms: float) -> None:
+        if self._log_hooks and self._log_hooks.on_retention_sweep:
+            self._log_hooks.on_retention_sweep({
+                "deleted_count": deleted_count,
+                "duration_ms": duration_ms,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+        if self._metrics_hooks and self._metrics_hooks.on_retention_deleted:
+            self._metrics_hooks.on_retention_deleted({"count": deleted_count})
+
+    def _on_retention_error(self, error: str) -> None:
+        if self._hooks.diagnostics and self._hooks.diagnostics.on_background_error:
+            self._hooks.diagnostics.on_background_error({
+                "source": "retention",
+                "error": error,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+
+    def _on_checkpoint_error(self, error: str) -> None:
+        if self._hooks.diagnostics and self._hooks.diagnostics.on_background_error:
+            self._hooks.diagnostics.on_background_error({
+                "source": "checkpoint",
+                "error": error,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
 
     # --- Internal helpers ---
 
