@@ -86,6 +86,7 @@ class ANIPService:
         self._hooks = hooks or ANIPHooks()
         self._log_hooks = self._hooks.logging
         self._metrics_hooks = self._hooks.metrics
+        self._tracing_hooks = self._hooks.tracing
 
         # --- Bootstrap authentication ---
         self._authenticate = authenticate
@@ -496,6 +497,52 @@ class ANIPService:
         invocation_id = f"inv-{uuid.uuid4().hex[:12]}"
         invoke_start = time.monotonic()
 
+        # Start root tracing span
+        root_span = None
+        if self._tracing_hooks and self._tracing_hooks.start_span:
+            root_span = self._tracing_hooks.start_span({
+                "name": "anip.invoke",
+                "attributes": {"capability": capability_name},
+            })
+        _invoke_span_ended = False
+        try:
+            return await self._invoke_body(
+                capability_name, token, params,
+                client_reference_id=client_reference_id,
+                stream=stream,
+                _progress_sink=_progress_sink,
+                invocation_id=invocation_id,
+                invoke_start=invoke_start,
+                root_span=root_span,
+            )
+        except Exception as e:
+            _invoke_span_ended = True
+            if self._tracing_hooks and self._tracing_hooks.end_span and root_span is not None:
+                self._tracing_hooks.end_span({
+                    "span": root_span,
+                    "status": "error",
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                })
+            raise
+        finally:
+            if not _invoke_span_ended and self._tracing_hooks and self._tracing_hooks.end_span and root_span is not None:
+                self._tracing_hooks.end_span({"span": root_span, "status": "ok"})
+
+    async def _invoke_body(
+        self,
+        capability_name: str,
+        token: DelegationToken,
+        params: dict[str, Any],
+        *,
+        client_reference_id: str | None,
+        stream: bool,
+        _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None,
+        invocation_id: str,
+        invoke_start: float,
+        root_span: Any,
+    ) -> dict[str, Any]:
+
         # Resolve effective disclosure level for this caller
         effective_level = resolve_disclosure_level(
             self._disclosure_level,
@@ -558,8 +605,9 @@ class ANIPService:
 
         # 2. Validate delegation
         min_scope = decl.minimum_scope or []
-        validation_result = await self._engine.validate_delegation(
-            token, min_scope, capability_name,
+        validation_result = await self._with_span(
+            "anip.delegation.validate", {"capability": capability_name}, root_span,
+            lambda: self._engine.validate_delegation(token, min_scope, capability_name),
         )
 
         # Check for validation failure (ANIPFailure is a Pydantic model)
@@ -587,6 +635,7 @@ class ANIPService:
                 cost_actual=None, cost_variance=None,
                 invocation_id=invocation_id, client_reference_id=client_reference_id,
                 event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
+                parent_span=root_span,
             )
             _deleg_duration_ms = int((time.monotonic() - invoke_start) * 1000)
             if self._log_hooks and self._log_hooks.on_invocation_end:
@@ -671,6 +720,7 @@ class ANIPService:
                     result_summary=None, cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
                     event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
+                    parent_span=root_span,
                 )
                 _lock_duration_ms = int((time.monotonic() - invoke_start) * 1000)
                 if self._log_hooks and self._log_hooks.on_invocation_end:
@@ -701,8 +751,14 @@ class ANIPService:
                         r = await r
                     return r
 
-                result = await self._run_with_exclusive_heartbeat(
-                    resolved_token, _run_handler()
+                async def _handler_with_heartbeat():
+                    return await self._run_with_exclusive_heartbeat(
+                        resolved_token, _run_handler()
+                    )
+
+                result = await self._with_span(
+                    "anip.handler.execute", {"capability": capability_name}, root_span,
+                    _handler_with_heartbeat,
                 )
             except ANIPError as e:
                 fail_stream_summary: dict[str, Any] | None = None
@@ -726,6 +782,7 @@ class ANIPService:
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
                     stream_summary=fail_stream_summary,
                     event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
+                    parent_span=root_span,
                 )
                 if stream and fail_stream_summary and self._log_hooks and self._log_hooks.on_streaming_summary:
                     self._log_hooks.on_streaming_summary({
@@ -779,6 +836,7 @@ class ANIPService:
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
                     stream_summary=fail_stream_summary_exc,
                     event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
+                    parent_span=root_span,
                 )
                 if stream and fail_stream_summary_exc and self._log_hooks and self._log_hooks.on_streaming_summary:
                     self._log_hooks.on_streaming_summary({
@@ -841,6 +899,7 @@ class ANIPService:
                 invocation_id=invocation_id, client_reference_id=client_reference_id,
                 stream_summary=stream_summary,
                 event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
+                parent_span=root_span,
             )
 
             # 9. Fire streaming summary hook
@@ -982,20 +1041,23 @@ class ANIPService:
             last_seq = rng.get("last_sequence", row.get("last_sequence", 0))
             _proof_start = time.monotonic()
             try:
-                tree = await self._rebuild_merkle_to(last_seq)
-                try:
-                    proof = tree.inclusion_proof(leaf_index)
-                    result["inclusion_proof"] = {
-                        "leaf_index": leaf_index,
-                        "path": proof,
-                        "merkle_root": tree.root,
-                        "leaf_count": tree.leaf_count,
-                    }
-                    if self._metrics_hooks and self._metrics_hooks.on_proof_generated:
-                        self._metrics_hooks.on_proof_generated({"duration_ms": int((time.monotonic() - _proof_start) * 1000)})
-                except (IndexError, ValueError):
-                    if self._metrics_hooks and self._metrics_hooks.on_proof_unavailable:
-                        self._metrics_hooks.on_proof_unavailable({"reason": "leaf_index_out_of_range"})
+                async def _gen_inclusion_proof():
+                    tree = await self._rebuild_merkle_to(last_seq)
+                    try:
+                        proof = tree.inclusion_proof(leaf_index)
+                        result["inclusion_proof"] = {
+                            "leaf_index": leaf_index,
+                            "path": proof,
+                            "merkle_root": tree.root,
+                            "leaf_count": tree.leaf_count,
+                        }
+                        if self._metrics_hooks and self._metrics_hooks.on_proof_generated:
+                            self._metrics_hooks.on_proof_generated({"duration_ms": int((time.monotonic() - _proof_start) * 1000)})
+                    except (IndexError, ValueError):
+                        if self._metrics_hooks and self._metrics_hooks.on_proof_unavailable:
+                            self._metrics_hooks.on_proof_unavailable({"reason": "leaf_index_out_of_range"})
+
+                await self._with_span("anip.proof.generate", {"checkpoint_id": checkpoint_id}, None, _gen_inclusion_proof)
             except ValueError:
                 result["proof_unavailable"] = "audit_entries_expired"
                 if self._metrics_hooks and self._metrics_hooks.on_proof_unavailable:
@@ -1011,24 +1073,27 @@ class ANIPService:
                 new_last = rng.get("last_sequence", row.get("last_sequence", 0))
                 _cons_proof_start = time.monotonic()
                 try:
-                    old_tree = await self._rebuild_merkle_to(old_last)
-                    new_tree = await self._rebuild_merkle_to(new_last)
-                    try:
-                        path = new_tree.consistency_proof(old_tree.leaf_count)
-                        result["consistency_proof"] = {
-                            "old_checkpoint_id": consistency_from,
-                            "new_checkpoint_id": checkpoint_id,
-                            "old_size": old_tree.leaf_count,
-                            "new_size": new_tree.leaf_count,
-                            "old_root": old_tree.root,
-                            "new_root": new_tree.root,
-                            "path": path,
-                        }
-                        if self._metrics_hooks and self._metrics_hooks.on_proof_generated:
-                            self._metrics_hooks.on_proof_generated({"duration_ms": int((time.monotonic() - _cons_proof_start) * 1000)})
-                    except (IndexError, ValueError):
-                        if self._metrics_hooks and self._metrics_hooks.on_proof_unavailable:
-                            self._metrics_hooks.on_proof_unavailable({"reason": "consistency_proof_failed"})
+                    async def _gen_consistency_proof():
+                        old_tree = await self._rebuild_merkle_to(old_last)
+                        new_tree = await self._rebuild_merkle_to(new_last)
+                        try:
+                            path = new_tree.consistency_proof(old_tree.leaf_count)
+                            result["consistency_proof"] = {
+                                "old_checkpoint_id": consistency_from,
+                                "new_checkpoint_id": checkpoint_id,
+                                "old_size": old_tree.leaf_count,
+                                "new_size": new_tree.leaf_count,
+                                "old_root": old_tree.root,
+                                "new_root": new_tree.root,
+                                "path": path,
+                            }
+                            if self._metrics_hooks and self._metrics_hooks.on_proof_generated:
+                                self._metrics_hooks.on_proof_generated({"duration_ms": int((time.monotonic() - _cons_proof_start) * 1000)})
+                        except (IndexError, ValueError):
+                            if self._metrics_hooks and self._metrics_hooks.on_proof_unavailable:
+                                self._metrics_hooks.on_proof_unavailable({"reason": "consistency_proof_failed"})
+
+                    await self._with_span("anip.proof.generate", {"checkpoint_id": checkpoint_id}, None, _gen_consistency_proof)
                 except ValueError:
                     result["proof_unavailable"] = "audit_entries_expired"
                     if self._metrics_hooks and self._metrics_hooks.on_proof_unavailable:
@@ -1090,25 +1155,44 @@ class ANIPService:
         """Flush closed aggregation windows and persist each result."""
         if self._aggregator is None:
             return
-        results = self._aggregator.flush(datetime.now(timezone.utc))
-        entries_flushed = 0
-        for item in results:
-            if isinstance(item, AggregatedEntry):
-                entry = storage_redact_entry(item.to_audit_dict())
-            else:
-                entry = storage_redact_entry(item)
-            await self._audit.log_entry(entry)
-            entries_flushed += 1
-        if self._log_hooks and self._log_hooks.on_aggregation_flush:
-            self._log_hooks.on_aggregation_flush({
-                "window_count": len(results),
-                "entries_flushed": entries_flushed,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
-        if self._metrics_hooks and self._metrics_hooks.on_aggregation_flushed:
-            self._metrics_hooks.on_aggregation_flushed({"window_count": len(results)})
+
+        async def _do_flush():
+            results = self._aggregator.flush(datetime.now(timezone.utc))
+            entries_flushed = 0
+            for item in results:
+                if isinstance(item, AggregatedEntry):
+                    entry = storage_redact_entry(item.to_audit_dict())
+                else:
+                    entry = storage_redact_entry(item)
+                await self._audit.log_entry(entry)
+                entries_flushed += 1
+            if self._log_hooks and self._log_hooks.on_aggregation_flush:
+                self._log_hooks.on_aggregation_flush({
+                    "window_count": len(results),
+                    "entries_flushed": entries_flushed,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+            if self._metrics_hooks and self._metrics_hooks.on_aggregation_flushed:
+                self._metrics_hooks.on_aggregation_flushed({"window_count": len(results)})
+
+        await self._with_span("anip.aggregation.flush", {}, None, _do_flush)
 
     # --- Internal helpers ---
+
+    async def _with_span(self, name: str, attrs: dict, parent_span: Any, fn):
+        """Run fn() inside a tracing span. No-op when tracing hooks are absent."""
+        if not self._tracing_hooks or not self._tracing_hooks.start_span:
+            return await fn()
+        span = self._tracing_hooks.start_span({"name": name, "attributes": attrs, "parent_span": parent_span})
+        try:
+            result = await fn()
+            if self._tracing_hooks.end_span:
+                self._tracing_hooks.end_span({"span": span, "status": "ok"})
+            return result
+        except Exception as e:
+            if self._tracing_hooks.end_span:
+                self._tracing_hooks.end_span({"span": span, "status": "error", "error_type": type(e).__name__, "error_message": str(e)})
+            raise
 
     async def _log_audit(
         self,
@@ -1126,6 +1210,7 @@ class ANIPService:
         event_class: str | None = None,
         retention_tier: str | None = None,
         expires_at: str | None = None,
+        parent_span: Any = None,
     ) -> None:
         """Log an audit entry through the SDK's AuditLog.
 
@@ -1160,25 +1245,28 @@ class ANIPService:
             self._aggregator.submit(entry_data)
             return
 
-        _audit_start = time.monotonic()
-        try:
-            stored = await self._audit.log_entry(entry_data)
-        except Exception:
+        async def _do_audit():
+            _audit_start = time.monotonic()
+            try:
+                stored = await self._audit.log_entry(entry_data)
+            except Exception:
+                _audit_duration_ms = int((time.monotonic() - _audit_start) * 1000)
+                if self._metrics_hooks and self._metrics_hooks.on_audit_append_duration:
+                    self._metrics_hooks.on_audit_append_duration({"duration_ms": _audit_duration_ms, "success": False})
+                raise
             _audit_duration_ms = int((time.monotonic() - _audit_start) * 1000)
             if self._metrics_hooks and self._metrics_hooks.on_audit_append_duration:
-                self._metrics_hooks.on_audit_append_duration({"duration_ms": _audit_duration_ms, "success": False})
-            raise
-        _audit_duration_ms = int((time.monotonic() - _audit_start) * 1000)
-        if self._metrics_hooks and self._metrics_hooks.on_audit_append_duration:
-            self._metrics_hooks.on_audit_append_duration({"duration_ms": _audit_duration_ms, "success": True})
-        if self._log_hooks and self._log_hooks.on_audit_append:
-            self._log_hooks.on_audit_append({
-                "sequence_number": stored.get("sequence_number", 0),
-                "capability": capability,
-                "invocation_id": invocation_id,
-                "success": success,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
+                self._metrics_hooks.on_audit_append_duration({"duration_ms": _audit_duration_ms, "success": True})
+            if self._log_hooks and self._log_hooks.on_audit_append:
+                self._log_hooks.on_audit_append({
+                    "sequence_number": stored.get("sequence_number", 0),
+                    "capability": capability,
+                    "invocation_id": invocation_id,
+                    "success": success,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+
+        await self._with_span("anip.audit.append", {"capability": capability}, parent_span, _do_audit)
 
     async def _leader_checkpoint_tick(self) -> None:
         """One tick of the checkpoint scheduler.
@@ -1191,33 +1279,36 @@ class ANIPService:
         if not acquired:
             return  # Another replica is leader this tick
         try:
-            result = await reconstruct_and_create_checkpoint(
-                storage=self._storage,
-                service_id=self._service_id,
-                sign_fn=self._keys.sign_jws_detached_audit if self._keys else None,
-            )
-            if result is not None:
-                body, signature = result
-                await self._storage.store_checkpoint(body, signature)
-                for sink in self._sinks:
-                    sink.publish({"body": body, "signature": signature})
-                if self._log_hooks and self._log_hooks.on_checkpoint_created:
-                    self._log_hooks.on_checkpoint_created({
-                        "checkpoint_id": body.get("checkpoint_id", ""),
-                        "entry_count": body.get("entry_count", 0),
-                        "merkle_root": body.get("merkle_root", ""),
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    })
-                cp_timestamp = body.get("timestamp")
-                if cp_timestamp and self._metrics_hooks and self._metrics_hooks.on_checkpoint_created:
-                    try:
-                        cp_dt = datetime.fromisoformat(cp_timestamp)
-                        lag_seconds = int((datetime.now(timezone.utc) - cp_dt).total_seconds())
-                    except (ValueError, TypeError):
-                        lag_seconds = 0
-                    self._metrics_hooks.on_checkpoint_created({"lag_seconds": lag_seconds})
-                elif self._metrics_hooks and self._metrics_hooks.on_checkpoint_created:
-                    self._metrics_hooks.on_checkpoint_created({"lag_seconds": 0})
+            async def _do_checkpoint():
+                result = await reconstruct_and_create_checkpoint(
+                    storage=self._storage,
+                    service_id=self._service_id,
+                    sign_fn=self._keys.sign_jws_detached_audit if self._keys else None,
+                )
+                if result is not None:
+                    body, signature = result
+                    await self._storage.store_checkpoint(body, signature)
+                    for sink in self._sinks:
+                        sink.publish({"body": body, "signature": signature})
+                    if self._log_hooks and self._log_hooks.on_checkpoint_created:
+                        self._log_hooks.on_checkpoint_created({
+                            "checkpoint_id": body.get("checkpoint_id", ""),
+                            "entry_count": body.get("entry_count", 0),
+                            "merkle_root": body.get("merkle_root", ""),
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        })
+                    cp_timestamp = body.get("timestamp")
+                    if cp_timestamp and self._metrics_hooks and self._metrics_hooks.on_checkpoint_created:
+                        try:
+                            cp_dt = datetime.fromisoformat(cp_timestamp)
+                            lag_seconds = int((datetime.now(timezone.utc) - cp_dt).total_seconds())
+                        except (ValueError, TypeError):
+                            lag_seconds = 0
+                        self._metrics_hooks.on_checkpoint_created({"lag_seconds": lag_seconds})
+                    elif self._metrics_hooks and self._metrics_hooks.on_checkpoint_created:
+                        self._metrics_hooks.on_checkpoint_created({"lag_seconds": 0})
+
+            await self._with_span("anip.checkpoint.create", {}, None, _do_checkpoint)
         except Exception as e:
             if self._metrics_hooks and self._metrics_hooks.on_checkpoint_failed:
                 self._metrics_hooks.on_checkpoint_failed({"error": str(e)})

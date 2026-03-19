@@ -34,7 +34,7 @@ import {
 
 import { ANIPError } from "./types.js";
 import type { CapabilityDef, Handler, InvocationContext } from "./types.js";
-import type { ANIPHooks, LoggingHooks, HealthReport } from "./hooks.js";
+import type { ANIPHooks, LoggingHooks, TracingHooks, HealthReport } from "./hooks.js";
 import { AuditAggregator, type AggregatedEntry } from "./aggregation.js";
 import { classifyEvent } from "./classification.js";
 import { resolveDisclosureLevel } from "./disclosure.js";
@@ -168,6 +168,32 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   const hooks = opts.hooks ?? {};
   const logHooks = hooks.logging;
   const metricsHooks = hooks.metrics;
+  const tracingHooks = hooks.tracing;
+
+  // --- withSpan helper (tracing) ---
+  function withSpan<T>(
+    name: string,
+    attrs: Record<string, string | number | boolean>,
+    parentSpan: unknown | undefined,
+    fn: (span: unknown) => T,
+  ): T {
+    if (!tracingHooks?.startSpan) return fn(undefined);
+    const span = tracingHooks.startSpan({ name, attributes: attrs, parentSpan });
+    try {
+      const result = fn(span);
+      if (result instanceof Promise) {
+        return result.then(
+          (v) => { tracingHooks.endSpan?.({ span, status: "ok" }); return v; },
+          (e: any) => { tracingHooks.endSpan?.({ span, status: "error", errorType: e?.name, errorMessage: e?.message }); throw e; },
+        ) as T;
+      }
+      tracingHooks.endSpan?.({ span, status: "ok" });
+      return result;
+    } catch (e: any) {
+      tracingHooks.endSpan?.({ span, status: "error", errorType: e?.name, errorMessage: e?.message });
+      throw e;
+    }
+  }
 
   // --- Disclosure level (v0.8) ---
   const disclosureLevel = opts.disclosureLevel ?? "full";
@@ -302,33 +328,35 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     const acquired = await storage.tryAcquireLeader("checkpoint", holder, 120);
     if (!acquired) return;
     try {
-      const result = await reconstructAndCreateCheckpoint({
-        storage,
-        serviceId,
-      });
-      if (result) {
-        // Sign asynchronously with the dedicated audit key
-        await ensureKeys();
-        const canonicalBytes = new TextEncoder().encode(stableStringify(result.body));
-        const signature = await keys.signJWSDetachedAudit(
-          new Uint8Array(canonicalBytes),
-        );
-        await storage.storeCheckpoint(result.body, signature);
-        for (const sink of sinks) {
-          sink.publish({ body: result.body, signature });
-        }
-        logHooks?.onCheckpointCreated?.({
-          checkpointId: result.body.checkpoint_id as string,
-          entryCount: result.body.entry_count as number,
-          merkleRoot: result.body.merkle_root as string,
-          timestamp: new Date().toISOString(),
+      await withSpan("anip.checkpoint.create", {}, undefined, async () => {
+        const result = await reconstructAndCreateCheckpoint({
+          storage,
+          serviceId,
         });
-        const cpTimestamp = result.body.timestamp as string | undefined;
-        const lagSeconds = cpTimestamp
-          ? Math.round((Date.now() - new Date(cpTimestamp).getTime()) / 1000)
-          : 0;
-        metricsHooks?.onCheckpointCreated?.({ lagSeconds });
-      }
+        if (result) {
+          // Sign asynchronously with the dedicated audit key
+          await ensureKeys();
+          const canonicalBytes = new TextEncoder().encode(stableStringify(result.body));
+          const signature = await keys.signJWSDetachedAudit(
+            new Uint8Array(canonicalBytes),
+          );
+          await storage.storeCheckpoint(result.body, signature);
+          for (const sink of sinks) {
+            sink.publish({ body: result.body, signature });
+          }
+          logHooks?.onCheckpointCreated?.({
+            checkpointId: result.body.checkpoint_id as string,
+            entryCount: result.body.entry_count as number,
+            merkleRoot: result.body.merkle_root as string,
+            timestamp: new Date().toISOString(),
+          });
+          const cpTimestamp = result.body.timestamp as string | undefined;
+          const lagSeconds = cpTimestamp
+            ? Math.round((Date.now() - new Date(cpTimestamp).getTime()) / 1000)
+            : 0;
+          metricsHooks?.onCheckpointCreated?.({ lagSeconds });
+        }
+      });
     } catch (e) {
       metricsHooks?.onCheckpointFailed?.({ error: String(e) });
       throw e;
@@ -379,6 +407,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       eventClass?: string | null;
       retentionTier?: string | null;
       expiresAt?: string | null;
+      parentSpan?: unknown;
     },
   ): Promise<void> {
     const chain = await engine.getChain(token);
@@ -409,48 +438,50 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       return;
     }
 
-    const auditStart = performance.now();
-    let auditSuccess = true;
-    let stored: Record<string, unknown>;
-    try {
-      stored = await audit.logEntry(redactedEntry);
-    } catch (e) {
-      auditSuccess = false;
+    await withSpan("anip.audit.append", { capability }, auditOpts.parentSpan, async () => {
+      const auditStart = performance.now();
+      let stored: Record<string, unknown>;
+      try {
+        stored = await audit.logEntry(redactedEntry);
+      } catch (e) {
+        const auditDurationMs = Math.round(performance.now() - auditStart);
+        metricsHooks?.onAuditAppendDuration?.({ durationMs: auditDurationMs, success: false });
+        throw e;
+      }
       const auditDurationMs = Math.round(performance.now() - auditStart);
-      metricsHooks?.onAuditAppendDuration?.({ durationMs: auditDurationMs, success: false });
-      throw e;
-    }
-    const auditDurationMs = Math.round(performance.now() - auditStart);
-    metricsHooks?.onAuditAppendDuration?.({ durationMs: auditDurationMs, success: true });
-    logHooks?.onAuditAppend?.({
-      sequenceNumber: (stored.sequence_number as number) ?? 0,
-      capability,
-      invocationId: (auditOpts.invocationId as string) ?? "",
-      success: auditOpts.success,
-      timestamp: new Date().toISOString(),
+      metricsHooks?.onAuditAppendDuration?.({ durationMs: auditDurationMs, success: true });
+      logHooks?.onAuditAppend?.({
+        sequenceNumber: (stored.sequence_number as number) ?? 0,
+        capability,
+        invocationId: (auditOpts.invocationId as string) ?? "",
+        success: auditOpts.success,
+        timestamp: new Date().toISOString(),
+      });
     });
   }
 
   async function flushAggregator(): Promise<void> {
     if (!aggregator) return;
-    const results = aggregator.flush(new Date());
-    let entriesFlushed = 0;
-    for (const item of results) {
-      let entry: Record<string, unknown>;
-      if (typeof item === "object" && item !== null && "toAuditDict" in item) {
-        entry = storageRedactEntry((item as AggregatedEntry).toAuditDict());
-      } else {
-        entry = storageRedactEntry(item as Record<string, unknown>);
+    await withSpan("anip.aggregation.flush", {}, undefined, async () => {
+      const results = aggregator.flush(new Date());
+      let entriesFlushed = 0;
+      for (const item of results) {
+        let entry: Record<string, unknown>;
+        if (typeof item === "object" && item !== null && "toAuditDict" in item) {
+          entry = storageRedactEntry((item as AggregatedEntry).toAuditDict());
+        } else {
+          entry = storageRedactEntry(item as Record<string, unknown>);
+        }
+        await audit.logEntry(entry);
+        entriesFlushed++;
       }
-      await audit.logEntry(entry);
-      entriesFlushed++;
-    }
-    logHooks?.onAggregationFlush?.({
-      windowCount: results.length,
-      entriesFlushed,
-      timestamp: new Date().toISOString(),
+      logHooks?.onAggregationFlush?.({
+        windowCount: results.length,
+        entriesFlushed,
+        timestamp: new Date().toISOString(),
+      });
+      metricsHooks?.onAggregationFlushed?.({ windowCount: results.length });
     });
-    metricsHooks?.onAggregationFlushed?.({ windowCount: results.length });
   }
 
   async function runWithExclusiveHeartbeat(
@@ -875,6 +906,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         disclosurePolicy,
       );
 
+      // Wrap entire invoke body in a root tracing span
+      return withSpan("anip.invoke", { capability: capabilityName }, undefined, async (rootSpan) => {
+
       // 1. Check capability exists
       if (!capabilities.has(capabilityName)) {
         const durationMs = performance.now() - invokeStartTime;
@@ -931,11 +965,13 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
       // 2. Validate delegation
       const minScope = decl.minimum_scope ?? [];
-      const validationResult = await engine.validateDelegation(
-        token,
-        minScope,
-        capabilityName,
-      );
+      const validationResult = await withSpan("anip.delegation.validate", { capability: capabilityName }, rootSpan, async () => {
+        return engine.validateDelegation(
+          token,
+          minScope,
+          capabilityName,
+        );
+      });
 
       // Check for validation failure
       if (isANIPFailure(validationResult)) {
@@ -962,6 +998,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           eventClass,
           retentionTier: retTier,
           expiresAt,
+          parentSpan: rootSpan,
         });
         const delegDurationMs = performance.now() - invokeStartTime;
         logHooks?.onInvocationEnd?.({
@@ -1050,6 +1087,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           eventClass: eventClassL,
           retentionTier: retTierL,
           expiresAt: expiresAtL,
+          parentSpan: rootSpan,
         });
         const lockDurationMs = performance.now() - invokeStartTime;
         logHooks?.onInvocationEnd?.({
@@ -1076,9 +1114,11 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         const exclusiveKey = cap.exclusiveLock && resolvedToken.constraints?.concurrent_branches === "exclusive"
           ? `exclusive:${serviceId}:${await engine.getRootPrincipal(resolvedToken)}`
           : null;
-        const result = exclusiveKey
-          ? await runWithExclusiveHeartbeat(storage, exclusiveKey, getHolderId(), exclusiveTtl, runHandler) as Record<string, unknown>
-          : await runHandler();
+        const result = await withSpan("anip.handler.execute", { capability: capabilityName }, rootSpan, async () => {
+          return exclusiveKey
+            ? await runWithExclusiveHeartbeat(storage, exclusiveKey, getHolderId(), exclusiveTtl, runHandler) as Record<string, unknown>
+            : await runHandler();
+        });
 
         // 5. Build stream summary (before audit so it can be persisted)
         let streamSummary: Record<string, unknown> | null = null;
@@ -1107,6 +1147,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           eventClass: eventClassS,
           retentionTier: retTierS,
           expiresAt: expiresAtS,
+          parentSpan: rootSpan,
         });
 
         // Fire streaming summary hook
@@ -1174,6 +1215,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             eventClass: eventClassE,
             retentionTier: retTierE,
             expiresAt: expiresAtE,
+            parentSpan: rootSpan,
           });
           if (stream && failStreamSummary) {
             logHooks?.onStreamingSummary?.({
@@ -1222,6 +1264,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           eventClass: eventClassU,
           retentionTier: retTierU,
           expiresAt: expiresAtU,
+          parentSpan: rootSpan,
         });
         if (stream && failStreamSummary) {
           logHooks?.onStreamingSummary?.({
@@ -1259,6 +1302,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           await engine.releaseExclusiveLock(resolvedToken);
         }
       }
+
+      }); // end withSpan("anip.invoke")
     },
 
     async queryAudit(
@@ -1359,20 +1404,22 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           rng.last_sequence ?? (row.last_sequence as number) ?? 0;
         const proofStart = performance.now();
         try {
-          const tree = await rebuildMerkleTo(lastSeq);
-          try {
-            const proof = tree.inclusionProof(leafIndex);
-            result.inclusion_proof = {
-              leaf_index: leafIndex,
-              path: proof,
-              merkle_root: tree.root,
-              leaf_count: tree.leafCount,
-            };
-            metricsHooks?.onProofGenerated?.({ durationMs: Math.round(performance.now() - proofStart) });
-          } catch {
-            // index out of range — skip
-            metricsHooks?.onProofUnavailable?.({ reason: "leaf_index_out_of_range" });
-          }
+          await withSpan("anip.proof.generate", { checkpointId }, undefined, async () => {
+            const tree = await rebuildMerkleTo(lastSeq);
+            try {
+              const proof = tree.inclusionProof(leafIndex);
+              result.inclusion_proof = {
+                leaf_index: leafIndex,
+                path: proof,
+                merkle_root: tree.root,
+                leaf_count: tree.leafCount,
+              };
+              metricsHooks?.onProofGenerated?.({ durationMs: Math.round(performance.now() - proofStart) });
+            } catch {
+              // index out of range — skip
+              metricsHooks?.onProofUnavailable?.({ reason: "leaf_index_out_of_range" });
+            }
+          });
         } catch (err: unknown) {
           if (err instanceof Error && err.message.includes("audit entries have been deleted")) {
             result.proof_unavailable = "audit_entries_expired";
@@ -1395,24 +1442,26 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             rng.last_sequence ?? (row.last_sequence as number) ?? 0;
           const consProofStart = performance.now();
           try {
-            const oldTree = await rebuildMerkleTo(oldLast);
-            const newTree = await rebuildMerkleTo(newLast);
-            try {
-              const path = newTree.consistencyProof(oldTree.leafCount);
-              result.consistency_proof = {
-                old_checkpoint_id: consistencyFrom,
-                new_checkpoint_id: checkpointId,
-                old_size: oldTree.leafCount,
-                new_size: newTree.leafCount,
-                old_root: oldTree.root,
-                new_root: newTree.root,
-                path,
-              };
-              metricsHooks?.onProofGenerated?.({ durationMs: Math.round(performance.now() - consProofStart) });
-            } catch {
-              // skip
-              metricsHooks?.onProofUnavailable?.({ reason: "consistency_proof_failed" });
-            }
+            await withSpan("anip.proof.generate", { checkpointId }, undefined, async () => {
+              const oldTree = await rebuildMerkleTo(oldLast);
+              const newTree = await rebuildMerkleTo(newLast);
+              try {
+                const path = newTree.consistencyProof(oldTree.leafCount);
+                result.consistency_proof = {
+                  old_checkpoint_id: consistencyFrom,
+                  new_checkpoint_id: checkpointId,
+                  old_size: oldTree.leafCount,
+                  new_size: newTree.leafCount,
+                  old_root: oldTree.root,
+                  new_root: newTree.root,
+                  path,
+                };
+                metricsHooks?.onProofGenerated?.({ durationMs: Math.round(performance.now() - consProofStart) });
+              } catch {
+                // skip
+                metricsHooks?.onProofUnavailable?.({ reason: "consistency_proof_failed" });
+              }
+            });
           } catch (err: unknown) {
             if (err instanceof Error && err.message.includes("audit entries have been deleted")) {
               result.proof_unavailable = "audit_entries_expired";
