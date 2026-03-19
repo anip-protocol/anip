@@ -81,6 +81,9 @@ describe("Fastify routes", () => {
     stopFn = stop;
     const res = await app.inject({ method: "GET", url: "/anip/checkpoints/ckpt-nonexistent" });
     expect(res.statusCode).toBe(404);
+    const data = JSON.parse(res.payload);
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("not_found");
   });
 
   it("POST /anip/tokens without auth returns 401", async () => {

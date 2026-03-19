@@ -71,6 +71,10 @@ class TestTokens:
             json={"scope": ["travel.search"]},
         )
         assert resp.status_code == 401
+        data = resp.json()
+        assert data["success"] is False
+        assert data["failure"]["type"] == "authentication_required"
+        assert data["failure"]["resolution"]["action"] == "provide_api_key"
 
 
 class TestInvoke:
@@ -128,6 +132,10 @@ class TestInvoke:
             json={"parameters": {"origin": "SEA", "destination": "SFO", "date": "2026-03-10"}},
         )
         assert resp.status_code == 401
+        data = resp.json()
+        assert data["success"] is False
+        assert data["failure"]["type"] == "authentication_required"
+        assert data["failure"]["resolution"]["action"] == "obtain_delegation_token"
 
     def test_invoke_unknown_capability(self, client, auth_headers):
         resp = client.post(

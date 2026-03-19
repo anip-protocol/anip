@@ -81,6 +81,8 @@ describe("Express routes", () => {
     stopFn = stop;
     const res = await request(app).get("/anip/checkpoints/ckpt-nonexistent");
     expect(res.status).toBe(404);
+    expect(res.body.success).toBe(false);
+    expect(res.body.failure.type).toBe("not_found");
   });
 
   it("POST /anip/tokens without auth returns 401", async () => {

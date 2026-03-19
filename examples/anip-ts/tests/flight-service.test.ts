@@ -68,6 +68,10 @@ describe("Tokens", () => {
       body: JSON.stringify({ scope: ["travel.search"] }),
     });
     expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("authentication_required");
+    expect(data.failure.resolution.action).toBe("provide_api_key");
   });
 });
 
@@ -136,6 +140,10 @@ describe("Invoke", () => {
       body: JSON.stringify({ parameters: { origin: "SEA", destination: "SFO", date: "2026-03-10" } }),
     });
     expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("authentication_required");
+    expect(data.failure.resolution.action).toBe("obtain_delegation_token");
   });
 
   it("returns 404 for unknown capability", async () => {

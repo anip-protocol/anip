@@ -64,6 +64,9 @@ class TestDiscoveryRoutes:
     def test_checkpoint_not_found(self, client):
         resp = client.get("/anip/checkpoints/ckpt-nonexistent")
         assert resp.status_code == 404
+        data = resp.json()
+        assert data["success"] is False
+        assert data["failure"]["type"] == "not_found"
 
 
 class TestInvokeRoutes:

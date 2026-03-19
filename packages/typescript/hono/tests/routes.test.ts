@@ -72,6 +72,9 @@ describe("Hono routes", () => {
     const { app } = await makeApp();
     const res = await app.request("/anip/checkpoints/ckpt-nonexistent");
     expect(res.status).toBe(404);
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("not_found");
   });
 
   it("invoke response has invocation_id", async () => {
