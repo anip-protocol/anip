@@ -3,11 +3,11 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { ANIPService } from "@anip/service";
 import { ANIPError } from "@anip/service";
 
-export function mountAnip(
+export async function mountAnip(
   app: Hono,
   service: ANIPService,
   opts?: { prefix?: string },
-): { shutdown: () => Promise<void>; stop: () => void } {
+): Promise<{ shutdown: () => Promise<void>; stop: () => void }> {
   const p = opts?.prefix ?? "";
 
   // --- Discovery & Identity ---
@@ -178,7 +178,7 @@ export function mountAnip(
   });
 
   // --- Lifecycle ---
-  service.start();
+  await service.start();
   return {
     async shutdown() { await service.shutdown(); },
     stop() { service.stop(); },

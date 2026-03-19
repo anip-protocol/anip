@@ -1,4 +1,4 @@
-# ANIP Specification v0.9
+# ANIP Specification v0.10
 
 > Agent-Native Interface Protocol — Draft
 
@@ -1333,6 +1333,36 @@ The persisted redacted entry is the canonical hashed form for checkpointing. The
 - No configurable field masks — fixed policy (parameters only).
 - No retroactive redaction of existing entries.
 
+### 6.11 Horizontal Scaling (v0.10)
+
+ANIP servers MAY be deployed as multiple replicas behind a load balancer. When doing so, the protocol requires that certain invariants hold regardless of which replica handles a given request.
+
+#### Storage-Atomic Audit Append
+
+Each audit entry MUST be appended atomically with its sequence number assigned by the storage backend. Implementations MUST use the storage backend's native atomicity guarantees (e.g., database transactions, conditional writes) rather than application-level locking. Two concurrent replicas appending audit entries MUST NOT produce duplicate or gaps in sequence numbers.
+
+#### Storage-Derived Checkpoint Generation
+
+Checkpoints MUST be generated from storage state, not from in-memory replica state. A replica generating a checkpoint reads the current sequence range from the storage backend, reconstructs the cumulative Merkle tree from the persisted entries, and signs the result. Any replica with read access to storage and the signing key can produce a valid checkpoint. Checkpoint generation is leader-only (see below).
+
+#### Distributed Exclusivity
+
+When `concurrent_branches` is set to `"exclusive"` (§4.3), exclusivity MUST be enforced across all replicas. Implementations MUST use lease-based coordination with a configurable TTL. The lease is acquired atomically in the storage backend. A replica holding a lease for a principal MUST be the only replica that can issue tokens for that principal until the lease expires or is released. Lease acquisition MUST be atomic (check-and-acquire in a single storage operation).
+
+#### Background Job Coordination
+
+Multi-replica deployments require coordination for background jobs. Jobs fall into three categories:
+
+| Category | Semantics | Examples |
+|----------|-----------|----------|
+| **Leader-only** | Exactly one replica runs the job at any time. Requires lease-based leader election via the storage backend. | Checkpoint generation, audit aggregation, retention enforcement |
+| **All-replicas** | Every replica runs the job independently. No coordination needed. | Health checks, metrics emission |
+| **Per-replica** | Each replica runs the job for its own local concerns. | Connection pool maintenance, cache warming |
+
+Leader election uses the same lease mechanism as distributed exclusivity. The leader lease has a configurable TTL and is renewed periodically. If the leader fails to renew, another replica acquires the lease.
+
+For deployment guidance including configuration, health checks, and storage backend selection, see the deployment guide.
+
 ---
 
 ## 7. Trust Model
@@ -1673,11 +1703,14 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Storage-side redaction (§6.10)** | MAY — v0.9 | Implemented: write-path parameter stripping for low-value events, `storage_redacted` marker field | — |
 | **Caller-class-aware redaction (§6.8)** | MAY — v0.9 | Implemented: policy mode disclosure, caller class resolution from token claims, per-caller disclosure mapping | — |
 | **Proof expiration guidance (§6.5)** | SHOULD — v0.9 | Implemented: `expires_hint` field on checkpoint responses, client-side caching guidance | — |
+| **Horizontal scaling (§6.11)** | MAY — v0.10 | Implemented: storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, leader-elected background job coordination | Cross-region replication, consensus-based coordination |
 | **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation across services, federated trust |
 
-The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. v0.9 completes the audit story — aggregation collapses noise, storage-side redaction strips low-value parameters at write time, caller-class-aware redaction resolves disclosure per-caller, and proof expiration guidance closes the client-side gap. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
+The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. v0.9 completes the audit story — aggregation collapses noise, storage-side redaction strips low-value parameters at write time, caller-class-aware redaction resolves disclosure per-caller, and proof expiration guidance closes the client-side gap. v0.10 adds horizontal scaling — storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, and leader-elected background job coordination enable multi-replica deployments without protocol invariant violations. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
 
 **What solving these gaps unlocks.** When trust and verification become real — not declarative — agents can evaluate risk before acting. Delegated authority becomes expressible in ways current tool layers can't handle. Failures become operationally useful, not just descriptive. High-stakes actions — travel, procurement, finance ops, approvals, multi-step orchestration — become automatable with real control surfaces. At that point, ANIP solves one of the central coordination problems of agent deployment: how an agent knows what it's allowed to do, what will happen if it does it, and how to recover when something blocks it.
+
+**Deployment guidance.** For operational details on single-instance vs. cluster deployments, storage backend configuration, signing key distribution, background job coordination, and graceful shutdown, see [docs/deployment-guide.md](docs/deployment-guide.md).
 
 ---
 
@@ -1709,7 +1742,7 @@ These are unresolved design questions where community input is needed:
 
 ---
 
-*ANIP is an open specification under active development. This is v0.9 — audit aggregation, storage-side redaction, caller-class-aware disclosure, and proof expiration guidance complete the security and audit story started in v0.8, building on v0.7's discovery posture, v0.6's streaming invocations, v0.3's anchored trust, v0.4's invocation lineage, and v0.5's async storage. Federated trust and cross-service delegation remain future goals. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
+*ANIP is an open specification under active development. This is v0.10 — horizontal scaling adds storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, and leader-elected background job coordination, enabling multi-replica deployments. This builds on v0.9's audit aggregation and redaction, v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, v0.3's anchored trust, v0.4's invocation lineage, and v0.5's async storage. Federated trust and cross-service delegation remain future goals. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
 
 ---
 

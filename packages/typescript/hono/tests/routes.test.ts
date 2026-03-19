@@ -23,7 +23,7 @@ function greetCap() {
 
 const API_KEY = "test-key-123";
 
-function makeApp() {
+async function makeApp() {
   const service = createANIPService({
     serviceId: "test-service",
     capabilities: [greetCap()],
@@ -31,13 +31,13 @@ function makeApp() {
     authenticate: (bearer) => (bearer === API_KEY ? "test-agent" : null),
   });
   const app = new Hono();
-  const { stop } = mountAnip(app, service);
+  const { stop } = await mountAnip(app, service);
   return { app, stop };
 }
 
 describe("Hono routes", () => {
   it("GET /.well-known/anip returns discovery", async () => {
-    const { app } = makeApp();
+    const { app } = await makeApp();
     const res = await app.request("/.well-known/anip");
     expect(res.status).toBe(200);
     const data = await res.json();
@@ -46,7 +46,7 @@ describe("Hono routes", () => {
   });
 
   it("GET /.well-known/jwks.json returns keys", async () => {
-    const { app } = makeApp();
+    const { app } = await makeApp();
     const res = await app.request("/.well-known/jwks.json");
     expect(res.status).toBe(200);
     const data = await res.json();
@@ -54,14 +54,14 @@ describe("Hono routes", () => {
   });
 
   it("GET /anip/manifest returns signed manifest", async () => {
-    const { app } = makeApp();
+    const { app } = await makeApp();
     const res = await app.request("/anip/manifest");
     expect(res.status).toBe(200);
     expect(res.headers.get("X-ANIP-Signature")).toBeTruthy();
   });
 
   it("GET /anip/checkpoints returns list", async () => {
-    const { app } = makeApp();
+    const { app } = await makeApp();
     const res = await app.request("/anip/checkpoints");
     expect(res.status).toBe(200);
     const data = await res.json();
@@ -69,13 +69,13 @@ describe("Hono routes", () => {
   });
 
   it("GET /anip/checkpoints/:id returns 404 for unknown", async () => {
-    const { app } = makeApp();
+    const { app } = await makeApp();
     const res = await app.request("/anip/checkpoints/ckpt-nonexistent");
     expect(res.status).toBe(404);
   });
 
   it("invoke response has invocation_id", async () => {
-    const { app } = makeApp();
+    const { app } = await makeApp();
 
     // Get a token first
     const tokenRes = await app.request("/anip/tokens", {
@@ -106,7 +106,7 @@ describe("Hono routes", () => {
   });
 
   it("invoke passes client_reference_id", async () => {
-    const { app } = makeApp();
+    const { app } = await makeApp();
 
     // Get a token first
     const tokenRes = await app.request("/anip/tokens", {
@@ -160,7 +160,7 @@ function streamingCap() {
   });
 }
 
-function makeStreamingApp() {
+async function makeStreamingApp() {
   const service = createANIPService({
     serviceId: "test-service",
     capabilities: [greetCap(), streamingCap()],
@@ -168,7 +168,7 @@ function makeStreamingApp() {
     authenticate: (bearer) => (bearer === API_KEY ? "test-agent" : null),
   });
   const app = new Hono();
-  const { stop } = mountAnip(app, service);
+  const { stop } = await mountAnip(app, service);
   return { app, stop };
 }
 
@@ -187,7 +187,7 @@ async function issueToken(app: Hono, scope: string[], capability: string): Promi
 
 describe("Hono streaming routes", () => {
   it("stream:true returns text/event-stream with progress + completed", async () => {
-    const { app } = makeStreamingApp();
+    const { app } = await makeStreamingApp();
     const jwt = await issueToken(app, ["analyze"], "analyze");
     const res = await app.request("/anip/invoke/analyze", {
       method: "POST",
@@ -206,7 +206,7 @@ describe("Hono streaming routes", () => {
   });
 
   it("stream:true on unary-only capability returns 400 JSON", async () => {
-    const { app } = makeStreamingApp();
+    const { app } = await makeStreamingApp();
     const jwt = await issueToken(app, ["greet"], "greet");
     const res = await app.request("/anip/invoke/greet", {
       method: "POST",

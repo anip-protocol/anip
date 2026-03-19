@@ -12,6 +12,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
+import { computeEntryHash } from "./hashing.js";
 
 export interface StorageBackend {
   storeToken(tokenData: Record<string, unknown>): Promise<void>;
@@ -33,6 +34,15 @@ export interface StorageBackend {
   storeCheckpoint(body: Record<string, unknown>, signature: string): Promise<void>;
   getCheckpoints(limit?: number): Promise<Record<string, unknown>[]>;
   getCheckpointById(checkpointId: string): Promise<Record<string, unknown> | null>;
+
+  // -- horizontal-scaling methods -------------------------------------------
+  appendAuditEntry(entryData: Record<string, unknown>): Promise<Record<string, unknown>>;
+  updateAuditSignature(sequenceNumber: number, signature: string): Promise<void>;
+  getMaxAuditSequence(): Promise<number | null>;
+  tryAcquireExclusive(key: string, holder: string, ttlSeconds: number): Promise<boolean>;
+  releaseExclusive(key: string, holder: string): Promise<void>;
+  tryAcquireLeader(role: string, holder: string, ttlSeconds: number): Promise<boolean>;
+  releaseLeader(role: string, holder: string): Promise<void>;
 }
 
 /**
@@ -45,6 +55,7 @@ export class InMemoryStorage implements StorageBackend {
   private tokens = new Map<string, Record<string, unknown>>();
   private auditEntries: Record<string, unknown>[] = [];
   private checkpoints: Record<string, unknown>[] = [];
+  private _exclusiveLeases = new Map<string, { holder: string; expiresAt: Date }>();
 
   async storeToken(tokenData: Record<string, unknown>): Promise<void> {
     this.tokens.set(tokenData.token_id as string, { ...tokenData });
@@ -144,6 +155,54 @@ export class InMemoryStorage implements StorageBackend {
       this.checkpoints.find((c) => c.checkpoint_id === checkpointId) ?? null
     );
   }
+
+  // -- horizontal-scaling methods -------------------------------------------
+
+  async appendAuditEntry(entryData: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const last = this.auditEntries.length > 0
+      ? this.auditEntries[this.auditEntries.length - 1]
+      : null;
+    const sequenceNumber = last === null ? 1 : (last.sequence_number as number) + 1;
+    const previousHash = last === null ? "sha256:0" : computeEntryHash(last);
+    const entry = { ...entryData, sequence_number: sequenceNumber, previous_hash: previousHash };
+    this.auditEntries.push(entry);
+    return entry;
+  }
+
+  async updateAuditSignature(sequenceNumber: number, signature: string): Promise<void> {
+    const entry = this.auditEntries.find(e => e.sequence_number === sequenceNumber);
+    if (entry) entry.signature = signature;
+  }
+
+  async getMaxAuditSequence(): Promise<number | null> {
+    if (this.auditEntries.length === 0) return null;
+    return Math.max(...this.auditEntries.map(e => e.sequence_number as number));
+  }
+
+  async tryAcquireExclusive(key: string, holder: string, ttlSeconds: number): Promise<boolean> {
+    const now = new Date();
+    const existing = this._exclusiveLeases.get(key);
+    if (!existing || existing.expiresAt < now || existing.holder === holder) {
+      this._exclusiveLeases.set(key, { holder, expiresAt: new Date(now.getTime() + ttlSeconds * 1000) });
+      return true;
+    }
+    return false;
+  }
+
+  async releaseExclusive(key: string, holder: string): Promise<void> {
+    const existing = this._exclusiveLeases.get(key);
+    if (existing && existing.holder === holder) {
+      this._exclusiveLeases.delete(key);
+    }
+  }
+
+  async tryAcquireLeader(role: string, holder: string, ttlSeconds: number): Promise<boolean> {
+    return this.tryAcquireExclusive(`leader:${role}`, holder, ttlSeconds);
+  }
+
+  async releaseLeader(role: string, holder: string): Promise<void> {
+    return this.releaseExclusive(`leader:${role}`, holder);
+  }
 }
 
 /**
@@ -157,6 +216,7 @@ export class SQLiteStorage implements StorageBackend {
   private worker: Worker;
   private pending = new Map<string, { resolve: Function; reject: Function }>();
   private ready: Promise<void>;
+  private _exclusiveLeases = new Map<string, { holder: string; expiresAt: Date }>();
 
   constructor(dbPath: string = "anip.db") {
     // Resolve the worker script.  Prefer the built .js file because
@@ -286,6 +346,45 @@ export class SQLiteStorage implements StorageBackend {
 
   async deleteExpiredAuditEntries(nowIso: string): Promise<number> {
     return (await this.call("deleteExpiredAuditEntries", [nowIso])) as number;
+  }
+
+  // -- horizontal-scaling methods -------------------------------------------
+
+  async appendAuditEntry(entryData: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return (await this.call("appendAuditEntry", [entryData])) as Record<string, unknown>;
+  }
+
+  async updateAuditSignature(sequenceNumber: number, signature: string): Promise<void> {
+    await this.call("updateAuditSignature", [sequenceNumber, signature]);
+  }
+
+  async getMaxAuditSequence(): Promise<number | null> {
+    return (await this.call("getMaxAuditSequence", [])) as number | null;
+  }
+
+  async tryAcquireExclusive(key: string, holder: string, ttlSeconds: number): Promise<boolean> {
+    const now = new Date();
+    const existing = this._exclusiveLeases.get(key);
+    if (!existing || existing.expiresAt < now || existing.holder === holder) {
+      this._exclusiveLeases.set(key, { holder, expiresAt: new Date(now.getTime() + ttlSeconds * 1000) });
+      return true;
+    }
+    return false;
+  }
+
+  async releaseExclusive(key: string, holder: string): Promise<void> {
+    const existing = this._exclusiveLeases.get(key);
+    if (existing && existing.holder === holder) {
+      this._exclusiveLeases.delete(key);
+    }
+  }
+
+  async tryAcquireLeader(role: string, holder: string, ttlSeconds: number): Promise<boolean> {
+    return this.tryAcquireExclusive(`leader:${role}`, holder, ttlSeconds);
+  }
+
+  async releaseLeader(role: string, holder: string): Promise<void> {
+    return this.releaseExclusive(`leader:${role}`, holder);
   }
 
   // -- checkpoints ----------------------------------------------------------

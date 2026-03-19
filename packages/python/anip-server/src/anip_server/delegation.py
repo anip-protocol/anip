@@ -15,8 +15,9 @@ public API.
 
 from __future__ import annotations
 
+import os
+import socket
 import uuid
-import threading
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -35,11 +36,16 @@ from .storage import StorageBackend
 class DelegationEngine:
     """Instance-scoped delegation engine backed by a :class:`StorageBackend`."""
 
-    def __init__(self, storage: StorageBackend, *, service_id: str) -> None:
+    def __init__(
+        self,
+        storage: StorageBackend,
+        *,
+        service_id: str,
+        exclusive_ttl: int = 60,
+    ) -> None:
         self._storage = storage
         self._service_id = service_id
-        self._active_requests: set[str] = set()
-        self._active_requests_lock = threading.Lock()
+        self._exclusive_ttl = exclusive_ttl
 
     # ------------------------------------------------------------------
     # Public API
@@ -469,37 +475,44 @@ class DelegationEngine:
     # Exclusive locking (concurrent_branches enforcement)
     # ------------------------------------------------------------------
 
+    def _get_holder_id(self) -> str:
+        """Return a unique holder identifier for this process."""
+        return f"{socket.gethostname()}:{os.getpid()}"
+
     async def acquire_exclusive_lock(
         self, token: DelegationToken
     ) -> ANIPFailure | None:
         """Atomically acquire the exclusive lock for a root principal.
 
         Returns ``None`` on success, or :class:`ANIPFailure` if another
-        request is active.
+        request is active.  Uses storage-backed leases so the lock is
+        visible across multiple processes/hosts.
         """
         if token.constraints.concurrent_branches != ConcurrentBranches.EXCLUSIVE:
             return None
         root = await self.get_root_principal(token)
-        with self._active_requests_lock:
-            if root in self._active_requests:
-                return ANIPFailure(
-                    type="concurrent_request_rejected",
-                    detail=f"concurrent_branches is exclusive and another request from {root} is in progress",
-                    resolution=Resolution(
-                        action="wait_and_retry",
-                        grantable_by=root,
-                    ),
-                    retry=True,
-                )
-            self._active_requests.add(root)
+        key = f"exclusive:{self._service_id}:{root}"
+        holder = self._get_holder_id()
+        acquired = await self._storage.try_acquire_exclusive(key, holder, self._exclusive_ttl)
+        if not acquired:
+            return ANIPFailure(
+                type="concurrent_request_rejected",
+                detail=f"concurrent_branches is exclusive and another request from {root} is in progress",
+                resolution=Resolution(
+                    action="wait_and_retry",
+                    grantable_by=root,
+                ),
+                retry=True,
+            )
         return None
 
     async def release_exclusive_lock(self, token: DelegationToken) -> None:
-        """Release the active request lock for a root principal."""
+        """Release the storage-backed exclusive lease for a root principal."""
         if token.constraints.concurrent_branches == ConcurrentBranches.EXCLUSIVE:
             root = await self.get_root_principal(token)
-            with self._active_requests_lock:
-                self._active_requests.discard(root)
+            key = f"exclusive:{self._service_id}:{root}"
+            holder = self._get_holder_id()
+            await self._storage.release_exclusive(key, holder)
 
     # ------------------------------------------------------------------
     # Token registration and lookup

@@ -10,6 +10,7 @@
  */
 
 import { parentPort, workerData } from "node:worker_threads";
+import { computeEntryHash } from "./hashing.js";
 import Database from "better-sqlite3";
 
 // ---------------------------------------------------------------------------
@@ -442,6 +443,28 @@ function deleteExpiredAuditEntries(nowIso: string): number {
 }
 
 // ---------------------------------------------------------------------------
+// Horizontal-scaling methods
+// ---------------------------------------------------------------------------
+
+function appendAuditEntry(entryData: Record<string, unknown>): Record<string, unknown> {
+  const last = getLastAuditEntry();
+  const sequenceNumber = last === null ? 1 : (last.sequence_number as number) + 1;
+  const previousHash = last === null ? "sha256:0" : computeEntryHash(last);
+  const entry = { ...entryData, sequence_number: sequenceNumber, previous_hash: previousHash };
+  storeAuditEntry(entry);
+  return entry;
+}
+
+function updateAuditSignature(sequenceNumber: number, signature: string): void {
+  db.prepare("UPDATE audit_log SET signature = ? WHERE sequence_number = ?").run(signature, sequenceNumber);
+}
+
+function getMaxAuditSequence(): number | null {
+  const row = db.prepare("SELECT MAX(sequence_number) as max_seq FROM audit_log").get() as any;
+  return row?.max_seq ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // Method dispatch table
 // ---------------------------------------------------------------------------
 
@@ -464,6 +487,9 @@ const methods: Record<string, (...args: any[]) => unknown> = {
   getAuditEntriesRange,
   getEarliestExpiryInRange,
   deleteExpiredAuditEntries,
+  appendAuditEntry,
+  updateAuditSignature,
+  getMaxAuditSequence,
   storeCheckpoint,
   getCheckpoints,
   getCheckpointById,

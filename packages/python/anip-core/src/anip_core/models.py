@@ -206,7 +206,7 @@ class ProfileVersions(BaseModel):
 
 
 class ManifestMetadata(BaseModel):
-    version: str = "0.9.0"
+    version: str = "0.10.0"
     sha256: str = ""  # Set at build time
     issued_at: str = ""  # Set at build time
     expires_at: str = ""  # Set at build time
@@ -313,7 +313,7 @@ class DiscoveryPosture(BaseModel):
 
 
 class ANIPManifest(BaseModel):
-    protocol: str = "anip/0.9"
+    protocol: str = "anip/0.10"
     profile: ProfileVersions
     capabilities: dict[str, CapabilityDeclaration]
     manifest_metadata: ManifestMetadata | None = None
