@@ -363,9 +363,11 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             merkleRoot: result.body.merkle_root as string,
             timestamp: new Date().toISOString(),
           });
-          const cpTimestamp = result.body.timestamp as string | undefined;
-          const lagSeconds = cpTimestamp
-            ? Math.round((Date.now() - new Date(cpTimestamp).getTime()) / 1000)
+          // Lag = time since previous checkpoint (meaningful operational metric).
+          // scheduler.getLastRunAt() still holds the *previous* run's timestamp here.
+          const prevRun = scheduler?.getLastRunAt();
+          const lagSeconds = prevRun
+            ? Math.round((Date.now() - new Date(prevRun).getTime()) / 1000)
             : 0;
           safeHook(metricsHooks?.onCheckpointCreated, { lagSeconds });
         }

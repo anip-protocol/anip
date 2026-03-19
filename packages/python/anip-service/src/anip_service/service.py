@@ -1416,16 +1416,18 @@ class ANIPService:
                             "merkle_root": body.get("merkle_root", ""),
                             "timestamp": datetime.now(timezone.utc).isoformat(),
                         })
-                    cp_timestamp = body.get("timestamp")
-                    if cp_timestamp and self._metrics_hooks and self._metrics_hooks.on_checkpoint_created:
-                        try:
-                            cp_dt = datetime.fromisoformat(cp_timestamp)
-                            lag_seconds = int((datetime.now(timezone.utc) - cp_dt).total_seconds())
-                        except (ValueError, TypeError):
+                    if self._metrics_hooks and self._metrics_hooks.on_checkpoint_created:
+                        # Lag = time since previous checkpoint (meaningful operational metric).
+                        # scheduler.last_run_at still holds the *previous* run's timestamp here.
+                        prev_run = self._scheduler.last_run_at if self._scheduler else None
+                        if prev_run:
+                            try:
+                                lag_seconds = int((datetime.now(timezone.utc) - datetime.fromisoformat(prev_run)).total_seconds())
+                            except (ValueError, TypeError):
+                                lag_seconds = 0
+                        else:
                             lag_seconds = 0
                         self._safe_hook(self._metrics_hooks.on_checkpoint_created, {"lag_seconds": lag_seconds})
-                    elif self._metrics_hooks and self._metrics_hooks.on_checkpoint_created:
-                        self._safe_hook(self._metrics_hooks.on_checkpoint_created, {"lag_seconds": 0})
 
             await self._with_span("anip.checkpoint.create", {}, None, _do_checkpoint)
         except Exception as e:
