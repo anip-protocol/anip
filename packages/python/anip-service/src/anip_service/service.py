@@ -1125,7 +1125,7 @@ class ANIPService:
             }
 
         retention_health = {
-            "healthy": self._retention_enforcer.last_error is None,
+            "healthy": self._retention_enforcer.is_running,
             "last_run_at": self._retention_enforcer.last_run_at,
             "last_deleted_count": self._retention_enforcer.last_deleted_count,
         }

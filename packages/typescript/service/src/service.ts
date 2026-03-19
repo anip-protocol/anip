@@ -1506,7 +1506,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         : null;
 
       const retentionHealth = {
-        healthy: retentionEnforcer.getLastError() === null,
+        healthy: retentionEnforcer.isRunning(),
         lastRunAt: retentionEnforcer.getLastRunAt(),
         lastDeletedCount: retentionEnforcer.getLastDeletedCount(),
       };
