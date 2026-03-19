@@ -3,19 +3,28 @@ name: CI — TypeScript
 on:
   push:
     branches: [main]
-    paths:
-      - "packages/typescript/**"
-      - "examples/anip-ts/**"
-      - ".github/workflows/*.yml"
   pull_request:
     branches: [main]
-    paths:
-      - "packages/typescript/**"
-      - "examples/anip-ts/**"
-      - ".github/workflows/*.yml"
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should_test: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+              - "packages/typescript/**"
+              - "examples/anip-ts/**"
+              - ".github/workflows/ci-typescript.yml"
+
   test:
+    needs: changes
+    if: needs.changes.outputs.should_test == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -77,3 +86,15 @@ jobs:
         run: |
           npm ci
           npm test
+
+  typescript-ci:
+    if: always()
+    needs: [changes, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Passed
+        if: needs.test.result == 'success' || needs.test.result == 'skipped'
+        run: echo "TypeScript CI passed"
+      - name: Failed
+        if: needs.test.result == 'failure' || needs.test.result == 'cancelled'
+        run: exit 1
