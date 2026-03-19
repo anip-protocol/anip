@@ -208,6 +208,89 @@ describe("Express health endpoint", () => {
   });
 });
 
+describe("Auth error responses", () => {
+  let stopFn: (() => void) | undefined;
+
+  afterEach(() => {
+    stopFn?.();
+    stopFn = undefined;
+  });
+
+  it("POST /anip/tokens without auth returns ANIPFailure with provide_api_key", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await request(app)
+      .post("/anip/tokens")
+      .send({ scope: ["greet"] });
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.failure.type).toBe("authentication_required");
+    expect(res.body.failure.resolution.action).toBe("provide_api_key");
+    expect(res.body.failure.retry).toBe(true);
+  });
+
+  it("POST /anip/invoke without auth returns ANIPFailure with obtain_delegation_token", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await request(app)
+      .post("/anip/invoke/greet")
+      .send({ parameters: { name: "X" } });
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.failure.type).toBe("authentication_required");
+    expect(res.body.failure.resolution.action).toBe("obtain_delegation_token");
+    expect(res.body.failure.retry).toBe(true);
+  });
+
+  it("POST /anip/permissions without auth returns ANIPFailure with obtain_delegation_token", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await request(app)
+      .post("/anip/permissions")
+      .send({});
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.failure.type).toBe("authentication_required");
+    expect(res.body.failure.resolution.action).toBe("obtain_delegation_token");
+  });
+
+  it("POST /anip/audit without auth returns ANIPFailure with obtain_delegation_token", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await request(app)
+      .post("/anip/audit")
+      .send({});
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.failure.type).toBe("authentication_required");
+    expect(res.body.failure.resolution.action).toBe("obtain_delegation_token");
+  });
+
+  it("POST /anip/invoke with invalid JWT returns structured invalid_token", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await request(app)
+      .post("/anip/invoke/greet")
+      .set("Authorization", "Bearer not-a-valid-jwt")
+      .send({ parameters: { name: "X" } });
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.failure.type).toBe("invalid_token");
+  });
+
+  it("POST /anip/permissions with invalid JWT returns structured invalid_token", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await request(app)
+      .post("/anip/permissions")
+      .set("Authorization", "Bearer not-a-valid-jwt")
+      .send({});
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.failure.type).toBe("invalid_token");
+  });
+});
+
 function streamingCap() {
   return defineCapability({
     declaration: {
