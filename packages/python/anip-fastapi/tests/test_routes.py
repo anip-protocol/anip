@@ -197,6 +197,63 @@ def health_client():
     return TestClient(app)
 
 
+class TestAuthErrors:
+    def test_token_endpoint_without_auth_returns_anip_failure(self, client):
+        resp = client.post("/anip/tokens", json={"scope": ["greet"]})
+        assert resp.status_code == 401
+        data = resp.json()
+        assert data["success"] is False
+        assert data["failure"]["type"] == "authentication_required"
+        assert data["failure"]["resolution"]["action"] == "provide_api_key"
+        assert data["failure"]["retry"] is True
+
+    def test_invoke_without_auth_returns_anip_failure(self, client):
+        resp = client.post("/anip/invoke/greet", json={"parameters": {"name": "X"}})
+        assert resp.status_code == 401
+        data = resp.json()
+        assert data["success"] is False
+        assert data["failure"]["type"] == "authentication_required"
+        assert data["failure"]["resolution"]["action"] == "obtain_delegation_token"
+        assert data["failure"]["retry"] is True
+
+    def test_permissions_without_auth_returns_anip_failure(self, client):
+        resp = client.post("/anip/permissions")
+        assert resp.status_code == 401
+        data = resp.json()
+        assert data["success"] is False
+        assert data["failure"]["type"] == "authentication_required"
+        assert data["failure"]["resolution"]["action"] == "obtain_delegation_token"
+
+    def test_audit_without_auth_returns_anip_failure(self, client):
+        resp = client.post("/anip/audit")
+        assert resp.status_code == 401
+        data = resp.json()
+        assert data["success"] is False
+        assert data["failure"]["type"] == "authentication_required"
+        assert data["failure"]["resolution"]["action"] == "obtain_delegation_token"
+
+    def test_invoke_with_invalid_token_returns_structured_error(self, client):
+        resp = client.post(
+            "/anip/invoke/greet",
+            json={"parameters": {"name": "X"}},
+            headers={"Authorization": "Bearer not-a-valid-jwt"},
+        )
+        assert resp.status_code == 401
+        data = resp.json()
+        assert data["success"] is False
+        assert data["failure"]["type"] == "invalid_token"
+
+    def test_permissions_with_invalid_token_returns_structured_error(self, client):
+        resp = client.post(
+            "/anip/permissions",
+            headers={"Authorization": "Bearer not-a-valid-jwt"},
+        )
+        assert resp.status_code == 401
+        data = resp.json()
+        assert data["success"] is False
+        assert data["failure"]["type"] == "invalid_token"
+
+
 class TestHealthEndpoint:
     def test_health_endpoint_disabled_by_default(self, client):
         resp = client.get("/-/health")
