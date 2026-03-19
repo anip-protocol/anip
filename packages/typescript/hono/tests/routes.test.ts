@@ -217,6 +217,98 @@ async function issueToken(app: Hono, scope: string[], capability: string): Promi
   return data.token;
 }
 
+describe("Auth error responses", () => {
+  it("POST /anip/tokens without auth returns ANIPFailure", async () => {
+    const { app } = await makeApp();
+    const res = await app.request("/anip/tokens", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scope: ["greet"] }),
+    });
+    expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("authentication_required");
+    expect(data.failure.resolution.action).toBe("provide_api_key");
+    expect(data.failure.retry).toBe(true);
+  });
+
+  it("POST /anip/invoke without auth returns ANIPFailure", async () => {
+    const { app } = await makeApp();
+    const res = await app.request("/anip/invoke/greet", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ parameters: { name: "X" } }),
+    });
+    expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("authentication_required");
+    expect(data.failure.resolution.action).toBe("obtain_delegation_token");
+    expect(data.failure.retry).toBe(true);
+  });
+
+  it("POST /anip/permissions without auth returns ANIPFailure", async () => {
+    const { app } = await makeApp();
+    const res = await app.request("/anip/permissions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("authentication_required");
+    expect(data.failure.resolution.action).toBe("obtain_delegation_token");
+  });
+
+  it("POST /anip/audit without auth returns ANIPFailure", async () => {
+    const { app } = await makeApp();
+    const res = await app.request("/anip/audit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("authentication_required");
+    expect(data.failure.resolution.action).toBe("obtain_delegation_token");
+  });
+
+  it("POST /anip/invoke with invalid JWT returns structured invalid_token", async () => {
+    const { app } = await makeApp();
+    const res = await app.request("/anip/invoke/greet", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer not-a-valid-jwt",
+      },
+      body: JSON.stringify({ parameters: { name: "X" } }),
+    });
+    expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("invalid_token");
+  });
+
+  it("POST /anip/permissions with invalid JWT returns structured invalid_token", async () => {
+    const { app } = await makeApp();
+    const res = await app.request("/anip/permissions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer not-a-valid-jwt",
+      },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("invalid_token");
+  });
+});
+
 describe("Hono streaming routes", () => {
   it("stream:true returns text/event-stream with progress + completed", async () => {
     const { app } = await makeStreamingApp();
