@@ -34,6 +34,7 @@ import {
 
 import { ANIPError } from "./types.js";
 import type { CapabilityDef, Handler, InvocationContext } from "./types.js";
+import type { ANIPHooks, HealthReport } from "./hooks.js";
 import { AuditAggregator, type AggregatedEntry } from "./aggregation.js";
 import { classifyEvent } from "./classification.js";
 import { resolveDisclosureLevel } from "./disclosure.js";
@@ -67,6 +68,7 @@ export interface ANIPServiceOpts {
   disclosureLevel?: string;
   disclosurePolicy?: Record<string, string>;
   aggregationWindow?: number;
+  hooks?: ANIPHooks;
 }
 
 export interface ANIPService {
@@ -101,6 +103,7 @@ export interface ANIPService {
     checkpointId: string,
     options?: Record<string, unknown>,
   ): Promise<Record<string, unknown> | null>;
+  getHealth(): HealthReport;
   start(): Promise<void>;
   stop(): void;
   shutdown(): Promise<void>;
@@ -1244,6 +1247,19 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       }
 
       return result;
+    },
+
+    getHealth(): HealthReport {
+      // Stub — real implementation comes in a later task.
+      return {
+        status: "healthy",
+        storage: { type: storage instanceof InMemoryStorage ? "memory" : "sqlite" },
+        checkpoint: scheduler
+          ? { healthy: true, lastRunAt: null, lagSeconds: null }
+          : null,
+        retention: { healthy: true, lastRunAt: null, lastDeletedCount: 0 },
+        aggregation: aggregator ? { pendingWindows: 0 } : null,
+      };
     },
 
     async start(): Promise<void> {
