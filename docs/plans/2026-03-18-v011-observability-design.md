@@ -21,7 +21,7 @@ Plus a `getHealth()` method on the service for pull-based runtime diagnostics.
 
 ### Implementation Rule
 
-Missing hooks must be true no-ops. No allocation, no event construction, no branching beyond a single null check at the call site.
+When a hook is absent, avoid constructing event objects and keep overhead to minimal conditional checks. The goal is that uninstalled hooks are effectively free, not that every call site is provably zero-cost.
 
 ## Top-Level Interface
 
@@ -215,7 +215,7 @@ interface DiagnosticsHooks {
 
 ## service.getHealth() — Pull-Based Diagnostics
 
-A synchronous method on the service for runtime health state. Adopters wire it to readiness probes, health endpoints, or dashboards.
+Returns a cached snapshot of last-known runtime state. This is not a live connectivity probe — it reflects state accumulated from background worker ticks, not on-demand checks. Adopters wire it to readiness probes, health endpoints, or dashboards.
 
 ```typescript
 interface ANIPService {
@@ -225,22 +225,23 @@ interface ANIPService {
 
 interface HealthReport {
   status: "healthy" | "degraded" | "unhealthy";
-  storage: { type: string; connected: boolean };
+  storage: { type: string };
   checkpoint: { healthy: boolean; lastRunAt: string | null; lagSeconds: number | null } | null;
   retention: { healthy: boolean; lastRunAt: string | null; lastDeletedCount: number };
   aggregation: { pendingWindows: number } | null;
 }
 ```
 
-`status` is derived: `healthy` if all workers are running as expected, `degraded` if a non-critical worker has failed, `unhealthy` if storage is disconnected or a critical component has failed.
+`status` is derived: `healthy` if all workers are running as expected, `degraded` if a non-critical worker has failed, `unhealthy` if a critical component has failed. Storage connectivity is not probed on each call — workers that interact with storage update their `healthy` flag as a side effect of their normal ticks.
 
 ## Framework Bindings
 
 Each framework binding (FastAPI, Hono, Express, Fastify) adds an optional health endpoint:
 
-- **Route**: `GET /.well-known/anip/health`
+- **Route**: `GET /-/health` (outside the `/.well-known/anip` namespace — this is an operational surface, not a protocol-level discovery endpoint)
 - **Response**: JSON from `service.getHealth()`
-- **Opt-out**: bindings accept a `healthEndpoint: false` option to disable it
+- **Default**: disabled. Bindings accept a `healthEndpoint: true` option to enable it.
+- **Security note**: this endpoint exposes runtime/storage state. Adopters who enable it should consider placing it behind authentication or restricting it to internal networks.
 
 No other binding changes. Logging, metrics, and tracing hooks fire from the service layer, not the HTTP layer. Tracing context propagation (e.g., `traceparent` header parsing) is the adopter's responsibility outside ANIP.
 
@@ -267,7 +268,7 @@ Secondary:
 ## Testing Strategy
 
 - **Hook firing tests** — verify each callback fires at the right moment with correct payload shapes, using a mock hooks object that records calls.
-- **No-op path tests** — verify omitted hooks take the no-op path: no callbacks fire, no event objects are constructed.
+- **No-op path tests** — verify omitted hooks take the no-op path: no callbacks fire when the relevant hook is absent.
 - **`getHealth()` tests** — verify correct reporting for each worker state (running, stopped, failed, no checkpoint configured, etc.).
 - **Cross-runtime parity** — same hook events, same payload shapes, same span names in Python and TypeScript.
 - **Example apps untouched** — hooks are fully optional; example apps must not need changes.
