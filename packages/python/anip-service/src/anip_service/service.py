@@ -9,7 +9,7 @@ import socket
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Literal
 
 from anip_core import (
     ANIPFailure,
@@ -22,6 +22,7 @@ from anip_core import (
     DelegationToken,
     DiscoveryPosture,
     FailureDisclosure,
+    PermissionResponse,
     PROTOCOL_VERSION,
     ResponseMode,
     ServiceIdentity,
@@ -74,14 +75,14 @@ class ANIPService:
         audit_signer: Any | None = None,
         authenticate: Callable[[str], str | None] | None = None,
         retention_policy: RetentionPolicy | None = None,
-        disclosure_level: str = "full",
+        disclosure_level: Literal["full", "reduced", "redacted", "policy"] = "full",
         disclosure_policy: dict[str, str] | None = None,
         aggregation_window: int | None = None,
         exclusive_ttl: int = 60,
         hooks: ANIPHooks | None = None,
     ) -> None:
         self._service_id = service_id
-        self._disclosure_level = disclosure_level
+        self._disclosure_level: Literal["full", "reduced", "redacted", "policy"] = disclosure_level
         self._disclosure_policy = disclosure_policy
         self._hooks = hooks or ANIPHooks()
         self._log_hooks = self._hooks.logging
@@ -140,10 +141,13 @@ class ANIPService:
                 self._sinks = anchoring_cfg.get("sinks", [])
                 sink_uris = []
                 for s in self._sinks:
-                    if hasattr(s, "uri"):
-                        sink_uris.append(s.uri)
-                    elif hasattr(s, "directory"):
-                        sink_uris.append(f"file://{s.directory}")
+                    uri = getattr(s, "uri", None)
+                    if uri:
+                        sink_uris.append(uri)
+                    else:
+                        directory = getattr(s, "directory", None)
+                        if directory:
+                            sink_uris.append(f"file://{directory}")
                 anchoring = AnchoringPolicy(
                     cadence=anchoring_cfg.get("cadence"),
                     max_lag=anchoring_cfg.get("max_lag"),
@@ -227,7 +231,7 @@ class ANIPService:
         )
         posture = DiscoveryPosture(
             audit=AuditPosture(
-                retention=self._retention_policy.default_retention,
+                retention=self._retention_policy.default_retention or "P90D",
                 retention_enforced=self._retention_enforcer.is_running and not getattr(self._retention_enforcer, '_skip_audit_retention', False),
             ),
             failure_disclosure=failure_disc,
@@ -402,21 +406,23 @@ class ANIPService:
                     f"subject ('{parent.subject}') — only the delegatee can sub-delegate",
                 )
 
+            capability: str = request.get("capability", "")
             result = await self._engine.delegate(
                 parent_token=parent,
                 subject=request.get("subject", authenticated_principal),
                 scope=request.get("scope", []),
-                capability=request.get("capability"),
+                capability=capability,
                 purpose_parameters=request.get("purpose_parameters"),
                 ttl_hours=ttl_hours,
             )
         else:
             # Root token
+            capability: str = request.get("capability", "")
             result = await self._engine.issue_root_token(
                 authenticated_principal=authenticated_principal,
                 subject=request.get("subject", authenticated_principal),
                 scope=request.get("scope", []),
-                capability=request.get("capability"),
+                capability=capability,
                 purpose_parameters=request.get("purpose_parameters"),
                 ttl_hours=ttl_hours,
             )
@@ -467,7 +473,7 @@ class ANIPService:
             "expires": expires.isoformat(),
         }
 
-    def discover_permissions(self, token: DelegationToken) -> dict[str, Any]:
+    def discover_permissions(self, token: DelegationToken) -> PermissionResponse:
         """Return the permissions granted by a token."""
         return discover_permissions(token, self._manifest.capabilities)
 
@@ -582,7 +588,7 @@ class ANIPService:
 
         # Check streaming support
         if stream:
-            response_modes = [m.value if hasattr(m, 'value') else m for m in (decl.response_modes or ["unary"])]
+            response_modes = [m.value if hasattr(m, 'value') else m for m in (decl.response_modes or ["unary"])]  # noqa: E501  # pyright: ignore[reportAttributeAccessIssue]
             if "streaming" not in response_modes:
                 _duration_ms = int((time.monotonic() - invoke_start) * 1000)
                 if self._log_hooks and self._log_hooks.on_invocation_end:
@@ -1154,8 +1160,9 @@ class ANIPService:
         Must be called from within a running event loop.  For PostgresStorage
         this also initialises the connection pool and schema.
         """
-        if hasattr(self._storage, 'initialize'):
-            await self._storage.initialize()
+        initializer = getattr(self._storage, 'initialize', None)
+        if initializer:
+            await initializer()
 
         if self._scheduler:
             self._scheduler.start()
@@ -1193,8 +1200,9 @@ class ANIPService:
         """Flush remaining aggregated events, stop background services, close storage."""
         if self._aggregator is not None:
             await self._flush_aggregator()
-        if hasattr(self._storage, 'close'):
-            await self._storage.close()
+        closer = getattr(self._storage, 'close', None)
+        if closer:
+            await closer()
 
     async def _flush_aggregator(self) -> None:
         """Flush closed aggregation windows and persist each result."""

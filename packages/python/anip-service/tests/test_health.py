@@ -30,14 +30,18 @@ def _test_cap(name: str = "greet") -> Capability:
     )
 
 
-def _make_service(**kwargs) -> ANIPService:
-    defaults = dict(
-        service_id="health-test",
-        capabilities=[_test_cap()],
-        storage=":memory:",
+def _make_service(
+    service_id: str = "health-test",
+    capabilities: list | None = None,
+    storage: str = ":memory:",
+    **kwargs,
+) -> ANIPService:
+    return ANIPService(
+        service_id=service_id,
+        capabilities=capabilities if capabilities is not None else [_test_cap()],
+        storage=storage,
+        **kwargs,
     )
-    defaults.update(kwargs)
-    return ANIPService(**defaults)
 
 
 class TestGetHealth:

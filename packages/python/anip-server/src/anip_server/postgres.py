@@ -11,7 +11,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-import asyncpg
+import asyncpg  # pyright: ignore[reportMissingImports]
 
 from .hashing import compute_entry_hash
 
@@ -147,6 +147,7 @@ class PostgresStorage:
     async def initialize(self) -> None:
         """Create connection pool and ensure schema exists."""
         self._pool = await asyncpg.create_pool(self._dsn)
+        assert self._pool is not None
         async with self._pool.acquire() as conn:
             await self._ensure_schema(conn)
 

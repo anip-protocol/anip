@@ -56,9 +56,11 @@ def test_fully_populated_hooks() -> None:
     assert hooks.diagnostics is diagnostics
 
     # Verify callbacks are callable
+    assert hooks.logging is not None
     assert hooks.logging.on_invocation_start is not None
     hooks.logging.on_invocation_start({"test": True})
 
+    assert hooks.tracing is not None
     assert hooks.tracing.start_span is not None
     result = hooks.tracing.start_span({"name": "test"})
     assert result == {"span_id": "abc"}
@@ -152,4 +154,5 @@ def test_health_report() -> None:
 
     assert degraded.status == "degraded"
     assert degraded.checkpoint is not None
+    assert degraded.aggregation is not None
     assert degraded.aggregation["pending"] == 42

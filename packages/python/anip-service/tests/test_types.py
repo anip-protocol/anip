@@ -34,6 +34,7 @@ def test_invocation_context_cost_tracking():
     )
     assert ctx._cost_actual is None
     ctx.set_cost_actual({"financial": {"amount": 10.0, "currency": "USD"}})
+    assert ctx._cost_actual is not None
     assert ctx._cost_actual["financial"]["amount"] == 10.0
 
 

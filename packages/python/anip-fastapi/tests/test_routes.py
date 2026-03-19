@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from anip_service import ANIPService, Capability, ANIPError
 from anip_fastapi import mount_anip
-from anip_core import CapabilityDeclaration, CapabilityInput, CapabilityOutput, SideEffect, SideEffectType
+from anip_core import CapabilityDeclaration, CapabilityInput, CapabilityOutput, ResponseMode, SideEffect, SideEffectType
 
 
 def _greet_cap():
@@ -120,7 +120,7 @@ def _streaming_cap():
             output=CapabilityOutput(type="object", fields=["answer"]),
             side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
             minimum_scope=["analyze"],
-            response_modes=["unary", "streaming"],
+            response_modes=[ResponseMode.UNARY, ResponseMode.STREAMING],
         ),
         handler=handler,
     )

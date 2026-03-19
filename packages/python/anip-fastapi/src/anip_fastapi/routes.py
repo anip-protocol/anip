@@ -108,8 +108,7 @@ def mount_anip(
         # Streaming mode — pre-validate streaming support (return JSON 400, not SSE)
         decl = service.get_capability_declaration(capability)
         if decl is not None:
-            modes = [m.value if hasattr(m, 'value') else m
-                     for m in (decl.response_modes or ["unary"])]
+            modes = [m.value if hasattr(m, 'value') else m for m in (decl.response_modes or ["unary"])]  # pyright: ignore[reportAttributeAccessIssue]
             if "streaming" not in modes:
                 result = await service.invoke(
                     capability, token, params,

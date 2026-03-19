@@ -9,9 +9,9 @@ import os
 
 import pytest
 
-POSTGRES_DSN = os.environ.get("ANIP_TEST_POSTGRES_DSN")
+POSTGRES_DSN: str = os.environ.get("ANIP_TEST_POSTGRES_DSN", "")
 pytestmark = pytest.mark.skipif(
-    POSTGRES_DSN is None, reason="ANIP_TEST_POSTGRES_DSN not set"
+    not POSTGRES_DSN, reason="ANIP_TEST_POSTGRES_DSN not set"
 )
 
 

@@ -1,4 +1,6 @@
 """Tests for anip-core protocol models."""
+from datetime import datetime, timezone
+
 import pytest
 from pydantic import ValidationError
 
@@ -14,6 +16,8 @@ from anip_core import (
     FailureDisclosure, AnchoringPosture,
     DiscoveryPosture,
     EventClass, RetentionTier, DisclosureLevel,
+    Purpose, DelegationConstraints, CapabilityOutput,
+    SideEffect, Resolution, ProfileVersions,
 )
 
 
@@ -25,9 +29,12 @@ def test_delegation_token_roundtrip():
     token = DelegationToken(
         token_id="tok-1", issuer="svc", subject="agent",
         scope=["travel.search"],
-        purpose={"capability": "search_flights", "parameters": {}, "task_id": "t1"},
-        parent=None, expires="2026-12-31T23:59:59Z",
-        constraints={"max_delegation_depth": 3, "concurrent_branches": "allowed"},
+        purpose=Purpose(capability="search_flights", parameters={}, task_id="t1"),
+        parent=None,
+        expires=datetime(2026, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
+        constraints=DelegationConstraints(
+            max_delegation_depth=3, concurrent_branches=ConcurrentBranches.ALLOWED,
+        ),
     )
     d = token.model_dump()
     assert d["token_id"] == "tok-1"
@@ -47,6 +54,7 @@ def test_trust_posture_anchored():
         level="anchored",
         anchoring=AnchoringPolicy(cadence="PT60S", max_lag=100, sink=["witness:example.com"]),
     )
+    assert tp.anchoring is not None
     assert tp.anchoring.max_lag == 100
     assert tp.anchoring.sink == ["witness:example.com"]
 
@@ -59,8 +67,8 @@ def test_response_mode_enum():
 def test_capability_declaration_response_modes_default():
     decl = CapabilityDeclaration(
         name="test", description="Test", contract_version="1.0",
-        inputs=[], output={"type": "object", "fields": []},
-        side_effect={"type": "read"}, minimum_scope=["test"],
+        inputs=[], output=CapabilityOutput(type="object", fields=[]),
+        side_effect=SideEffect(type=SideEffectType.READ), minimum_scope=["test"],
     )
     assert decl.response_modes == [ResponseMode.UNARY]
 
@@ -68,9 +76,9 @@ def test_capability_declaration_response_modes_default():
 def test_capability_declaration_response_modes_streaming():
     decl = CapabilityDeclaration(
         name="test", description="Test", contract_version="1.0",
-        inputs=[], output={"type": "object", "fields": []},
-        side_effect={"type": "read"}, minimum_scope=["test"],
-        response_modes=["streaming"],
+        inputs=[], output=CapabilityOutput(type="object", fields=[]),
+        side_effect=SideEffect(type=SideEffectType.READ), minimum_scope=["test"],
+        response_modes=[ResponseMode.STREAMING],
     )
     assert decl.response_modes == [ResponseMode.STREAMING]
 
@@ -78,9 +86,9 @@ def test_capability_declaration_response_modes_streaming():
 def test_capability_declaration_response_modes_both():
     decl = CapabilityDeclaration(
         name="test", description="Test", contract_version="1.0",
-        inputs=[], output={"type": "object", "fields": []},
-        side_effect={"type": "read"}, minimum_scope=["test"],
-        response_modes=["unary", "streaming"],
+        inputs=[], output=CapabilityOutput(type="object", fields=[]),
+        side_effect=SideEffect(type=SideEffectType.READ), minimum_scope=["test"],
+        response_modes=[ResponseMode.UNARY, ResponseMode.STREAMING],
     )
     assert len(decl.response_modes) == 2
 
@@ -88,8 +96,8 @@ def test_capability_declaration_response_modes_both():
 def test_capability_declaration():
     decl = CapabilityDeclaration(
         name="test", description="A test capability", contract_version="1.0",
-        inputs=[], output={"type": "object", "fields": []},
-        side_effect={"type": "read", "rollback_window": None},
+        inputs=[], output=CapabilityOutput(type="object", fields=[]),
+        side_effect=SideEffect(type=SideEffectType.READ, rollback_window=None),
         minimum_scope=["test.read"],
     )
     assert decl.name == "test"
@@ -99,14 +107,14 @@ def test_capability_declaration():
 def test_anip_failure():
     failure = ANIPFailure(
         type="scope_insufficient", detail="Missing required scope",
-        resolution={"action": "request_broader_scope"}, retry=False,
+        resolution=Resolution(action="request_broader_scope"), retry=False,
     )
     assert failure.type == "scope_insufficient"
     assert failure.retry is False
 
 
 def test_manifest_structure():
-    manifest = ANIPManifest(protocol="anip/0.11", profile={"core": "1.0"}, capabilities={})
+    manifest = ANIPManifest(protocol="anip/0.11", profile=ProfileVersions(core="1.0"), capabilities={})
     assert manifest.protocol == "anip/0.11"
 
 
@@ -141,7 +149,7 @@ def test_invoke_request_no_delegation_token_field():
     """InvokeRequest no longer accepts delegation_token."""
     assert "delegation_token" not in InvokeRequest.model_fields
     with pytest.raises(ValidationError):
-        InvokeRequest(delegation_token={"token_id": "t"}, parameters={})
+        InvokeRequest(delegation_token={"token_id": "t"}, parameters={})  # pyright: ignore[reportCallIssue]
 
 
 def test_invoke_request_client_reference_id_valid():
@@ -171,7 +179,7 @@ def test_invoke_request_client_reference_id_none_by_default():
 def test_invoke_response_invocation_id_required():
     """invocation_id is required on InvokeResponse."""
     with pytest.raises(ValidationError) as exc_info:
-        InvokeResponse(success=True)
+        InvokeResponse(success=True)  # pyright: ignore[reportCallIssue]
     assert "invocation_id" in str(exc_info.value)
 
 
