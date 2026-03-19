@@ -48,6 +48,7 @@ from anip_server import (
 from .aggregation import AggregatedEntry, AuditAggregator
 from .classification import classify_event
 from .disclosure import resolve_disclosure_level
+from .hooks import ANIPHooks, HealthReport
 from .redaction import redact_failure
 from .retention import RetentionPolicy
 from .storage_redaction import storage_redact_entry
@@ -77,10 +78,12 @@ class ANIPService:
         disclosure_policy: dict[str, str] | None = None,
         aggregation_window: int | None = None,
         exclusive_ttl: int = 60,
+        hooks: ANIPHooks | None = None,
     ) -> None:
         self._service_id = service_id
         self._disclosure_level = disclosure_level
         self._disclosure_policy = disclosure_policy
+        self._hooks = hooks or ANIPHooks()
 
         # --- Bootstrap authentication ---
         self._authenticate = authenticate
@@ -878,6 +881,16 @@ class ANIPService:
                     result["proof_unavailable"] = "audit_entries_expired"
 
         return result
+
+    def get_health(self) -> HealthReport:
+        """Return a basic health report (stub — full implementation in a later task)."""
+        return HealthReport(
+            status="healthy",
+            storage={"ok": True},
+            checkpoint=None,
+            retention={"ok": True},
+            aggregation=None,
+        )
 
     async def start(self) -> None:
         """Start background services (checkpoint scheduler, retention enforcer, aggregation flush).
