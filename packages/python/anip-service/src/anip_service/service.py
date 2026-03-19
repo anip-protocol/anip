@@ -178,6 +178,7 @@ class ANIPService:
         # --- Checkpoint scheduling (anchored mode only) ---
         self._checkpoint_policy = checkpoint_policy
         self._scheduler: CheckpointScheduler | None = None
+        self._last_checkpoint_at: str | None = None  # Updated only when a checkpoint is actually published
 
         if trust_level == "anchored" and checkpoint_policy:
             self._scheduler = CheckpointScheduler(
@@ -1417,17 +1418,17 @@ class ANIPService:
                             "timestamp": datetime.now(timezone.utc).isoformat(),
                         })
                     if self._metrics_hooks and self._metrics_hooks.on_checkpoint_created:
-                        # Lag = time since previous checkpoint (meaningful operational metric).
-                        # scheduler.last_run_at still holds the *previous* run's timestamp here.
-                        prev_run = self._scheduler.last_run_at if self._scheduler else None
-                        if prev_run:
+                        # Lag = time since previous checkpoint *publication* (not scheduler tick).
+                        now = datetime.now(timezone.utc)
+                        if self._last_checkpoint_at:
                             try:
-                                lag_seconds = int((datetime.now(timezone.utc) - datetime.fromisoformat(prev_run)).total_seconds())
+                                lag_seconds = int((now - datetime.fromisoformat(self._last_checkpoint_at)).total_seconds())
                             except (ValueError, TypeError):
                                 lag_seconds = 0
                         else:
                             lag_seconds = 0
                         self._safe_hook(self._metrics_hooks.on_checkpoint_created, {"lag_seconds": lag_seconds})
+                    self._last_checkpoint_at = datetime.now(timezone.utc).isoformat()
 
             await self._with_span("anip.checkpoint.create", {}, None, _do_checkpoint)
         except Exception as e:

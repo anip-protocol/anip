@@ -331,6 +331,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   // --- Checkpoint scheduling ---
   const checkpointPolicy = opts.checkpointPolicy ?? null;
   let scheduler: CheckpointScheduler | null = null;
+  let lastCheckpointAt: string | null = null; // Updated only when a checkpoint is actually published
 
   function getHolderId(): string {
     return `${hostname()}:${process.pid}`;
@@ -363,13 +364,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             merkleRoot: result.body.merkle_root as string,
             timestamp: new Date().toISOString(),
           });
-          // Lag = time since previous checkpoint (meaningful operational metric).
-          // scheduler.getLastRunAt() still holds the *previous* run's timestamp here.
-          const prevRun = scheduler?.getLastRunAt();
-          const lagSeconds = prevRun
-            ? Math.round((Date.now() - new Date(prevRun).getTime()) / 1000)
+          // Lag = time since previous checkpoint *publication* (not scheduler tick).
+          const lagSeconds = lastCheckpointAt
+            ? Math.round((Date.now() - new Date(lastCheckpointAt).getTime()) / 1000)
             : 0;
           safeHook(metricsHooks?.onCheckpointCreated, { lagSeconds });
+          lastCheckpointAt = new Date().toISOString();
         }
       });
     } catch (e) {
