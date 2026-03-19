@@ -1,6 +1,6 @@
 # ANIP Deployment Guide
 
-This guide covers deploying ANIP services in single-instance and cluster configurations. It applies to both the Python and TypeScript reference runtimes starting from v0.10.
+This guide covers deploying ANIP services in single-instance and cluster configurations. It applies to both the Python and TypeScript reference runtimes starting from v0.11.
 
 ---
 
@@ -179,6 +179,92 @@ This means aggregation counts are per-replica, not cluster-wide. If three replic
 
 ---
 
+## Observability
+
+v0.11 adds callback-based observability hooks and a pull-based health API. All hooks are optional — omitting them has near-zero overhead (conditional checks only, no object construction).
+
+### Configuring Hooks
+
+Pass a `hooks` object when creating the service. Each section (logging, metrics, tracing, diagnostics) is independently optional.
+
+**Python:**
+
+```python
+from anip_service import ANIPService, ANIPHooks, LoggingHooks, MetricsHooks
+
+ANIPService(
+    service_id="my-service",
+    storage="postgres://...",
+    hooks=ANIPHooks(
+        logging=LoggingHooks(
+            on_invocation_start=lambda e: logger.info("invoke", extra=e),
+            on_invocation_end=lambda e: logger.info("invoke_end", extra=e),
+        ),
+        metrics=MetricsHooks(
+            on_invocation_duration=lambda e: histogram.observe(e["duration_ms"]),
+            on_checkpoint_created=lambda e: gauge.set(e["lag_seconds"]),
+        ),
+    ),
+    ...
+)
+```
+
+**TypeScript:**
+
+```typescript
+createANIPService({
+  serviceId: "my-service",
+  storage: "postgres://...",
+  hooks: {
+    logging: {
+      onInvocationStart: (e) => logger.info("invoke", e),
+      onInvocationEnd: (e) => logger.info("invoke_end", e),
+    },
+    metrics: {
+      onInvocationDuration: (e) => histogram.observe(e.durationMs),
+      onCheckpointCreated: (e) => gauge.set(e.lagSeconds),
+    },
+  },
+  ...
+});
+```
+
+**Hook isolation guarantee:** All hook invocations are wrapped in try/catch. A throwing hook never affects service correctness — no request fails, no background job stops, no audit entry is lost because a hook threw.
+
+### Health Endpoint
+
+Framework bindings (FastAPI, Hono, Express, Fastify) can expose `GET /-/health`, which returns the output of `service.getHealth()`. It is **disabled by default**.
+
+**Python (FastAPI):**
+
+```python
+app = create_anip_app(service, health_endpoint=True)
+```
+
+**TypeScript (Hono):**
+
+```typescript
+const app = createANIPApp(service, { healthEndpoint: true });
+```
+
+The response is a JSON `HealthReport` with `status` (`"healthy"`, `"degraded"`, `"unhealthy"`) and subsystem details for storage, checkpoint, retention, and aggregation.
+
+**Security note:** This endpoint exposes runtime and storage state. If enabled, place it behind authentication or restrict it to internal networks.
+
+### Programmatic Health Checks
+
+Call `service.getHealth()` / `service.get_health()` directly for readiness probes or custom monitoring:
+
+```python
+health = service.get_health()
+if health["status"] == "unhealthy":
+    alert(health)
+```
+
+The health report is a cached snapshot of last-known runtime state, not a live connectivity probe. Background workers update their status as a side effect of normal ticks.
+
+---
+
 ## Monitoring
 
 ### Checkpoint Leader Identity
@@ -218,7 +304,8 @@ Monitor `last_sequence_number` over time to verify that audit entries are being 
 
 ### Health Check Indicators
 
-- **Checkpoint freshness:** Compare the latest checkpoint's `last_sequence_number` against the current `audit_append_head`. A growing gap suggests the checkpoint scheduler is not running or cannot acquire leadership.
+- **`getHealth()` / `get_health()`:** The preferred way to check runtime health. Returns a cached `HealthReport` with subsystem status for storage, checkpoint, retention, and aggregation. Wire this to Kubernetes readiness probes or monitoring dashboards. See [Observability](#observability) above.
+- **Checkpoint freshness:** Compare the latest checkpoint's `last_sequence_number` against the current `audit_append_head`. A growing gap suggests the checkpoint scheduler is not running or cannot acquire leadership. The `checkpoint.lagSeconds` field in the health report tracks this automatically.
 - **Lease expiry backlog:** Expired rows in `exclusive_leases` that are not being reclaimed suggest replicas are not processing requests for the affected principals.
 - **Replica count:** The number of distinct `holder` values appearing in recent lease acquisitions indicates how many replicas are actively participating.
 

@@ -19,9 +19,11 @@ hooks: {
 
 Plus a `getHealth()` method on the service for pull-based runtime diagnostics.
 
-### Implementation Rule
+### Implementation Rules
 
-When a hook is absent, avoid constructing event objects and keep overhead to minimal conditional checks. The goal is that uninstalled hooks are effectively free, not that every call site is provably zero-cost.
+**Zero-overhead when absent:** When a hook is absent, avoid constructing event objects and keep overhead to minimal conditional checks. The goal is that uninstalled hooks are effectively free, not that every call site is provably zero-cost.
+
+**Hook isolation guarantee:** All hook invocations are wrapped in try/catch (TypeScript: `safeHook()`, Python: `_safe_hook()`). A throwing hook must never affect service correctness — no request fails, no background job stops, no audit entry is lost because a hook threw. This applies to logging, metrics, tracing, and diagnostics hooks equally. The `withSpan`/`_with_span` helper applies the same isolation to tracing: if `startSpan` fails, tracing is skipped for that span; if `endSpan` fails, the error is swallowed.
 
 ## Top-Level Interface
 
@@ -137,7 +139,7 @@ interface MetricsHooks {
   onInvocationDuration?(event: { capability: string; durationMs: number; success: boolean }): void;
   onDelegationDenied?(event: { reason: string }): void;
   onAuditAppendDuration?(event: { durationMs: number; success: boolean }): void;
-  onCheckpointCreated?(event: { lagSeconds: number }): void;
+  onCheckpointCreated?(event: { lagSeconds: number }): void;  // lag = time since last checkpoint *publication*, not scheduler tick
   onCheckpointFailed?(event: { error: string }): void;
   onProofGenerated?(event: { durationMs: number }): void;
   onProofUnavailable?(event: { reason: string }): void;
@@ -233,6 +235,10 @@ interface HealthReport {
 ```
 
 `status` is derived: `healthy` if all workers are running as expected, `degraded` if a non-critical worker has failed, `unhealthy` if a critical component has failed. Storage connectivity is not probed on each call — workers that interact with storage update their `healthy` flag as a side effect of their normal ticks.
+
+**Retention health signal:** `retention.healthy` is `true` when the retention enforcer is running AND has no last error (`is_running && last_error == null`). A running enforcer that encountered an error on its last sweep is not healthy.
+
+**Checkpoint lag measurement:** `checkpoint.lagSeconds` measures the time elapsed since the last checkpoint was actually *published* (stored to the backend), not since the last scheduler tick. A dedicated `lastCheckpointAt` / `_last_checkpoint_at` timestamp is updated only after successful checkpoint storage. This ensures the lag metric reflects real checkpoint freshness, not just that the scheduler is ticking.
 
 ## Framework Bindings
 

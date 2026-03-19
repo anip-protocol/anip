@@ -1,4 +1,4 @@
-# ANIP Specification v0.10
+# ANIP Specification v0.11
 
 > Agent-Native Interface Protocol — Draft
 
@@ -1363,6 +1363,32 @@ Leader election uses the same lease mechanism as distributed exclusivity. The le
 
 For deployment guidance including configuration, health checks, and storage backend selection, see the deployment guide.
 
+### 6.12 Observability Hooks (v0.11)
+
+ANIP services MAY accept a `hooks` configuration object with four namespaced sections for runtime instrumentation. All hooks are optional — omitting them has zero overhead beyond a conditional check at each call site.
+
+**hooks.logging** — Structured lifecycle event callbacks (8 hooks): `onInvocationStart`, `onInvocationEnd`, `onDelegationFailure`, `onAuditAppend`, `onCheckpointCreated`, `onRetentionSweep`, `onAggregationFlush`, `onStreamingSummary`. Each receives a single typed event object and returns void.
+
+**hooks.metrics** — Counter/histogram/gauge callbacks (10 hooks): `onInvocationDuration`, `onDelegationDenied`, `onAuditAppendDuration`, `onCheckpointCreated` (with `lagSeconds` measuring time since previous checkpoint publication), `onCheckpointFailed`, `onProofGenerated`, `onProofUnavailable`, `onRetentionDeleted`, `onAggregationFlushed`, `onStreamingDeliveryFailure`.
+
+**hooks.tracing** — Span lifecycle callbacks (2 hooks): `startSpan` returns an opaque handle, `endSpan` receives that handle with status. Eight stable span names: `anip.invoke`, `anip.delegation.validate`, `anip.handler.execute`, `anip.audit.append`, `anip.checkpoint.create`, `anip.proof.generate`, `anip.retention.sweep`, `anip.aggregation.flush`. Request-path spans nest under `anip.invoke`; background spans are root spans.
+
+**hooks.diagnostics** — Background failure signal (1 hook): `onBackgroundError` reports errors from checkpoint, retention, and aggregation workers that are otherwise swallowed.
+
+**Isolation guarantee.** All hook invocations are wrapped in try/catch — a throwing hook callback never affects request correctness or background worker stability. Hooks are instrumentation, not part of the correctness path.
+
+**service.getHealth()** — Returns a synchronous cached snapshot of runtime state:
+
+```yaml
+status: "healthy" | "degraded" | "unhealthy"
+storage: { type: "memory" | "sqlite" | "postgres" }
+checkpoint: { healthy: boolean, lastRunAt: string | null, lagSeconds: number | null } | null
+retention: { healthy: boolean, lastRunAt: string | null, lastDeletedCount: number }
+aggregation: { pendingWindows: number } | null
+```
+
+`retention.healthy` reflects both whether the worker is running and whether its last sweep succeeded (no `lastError`). `checkpoint.healthy` reflects the scheduler's last error state. Framework bindings (FastAPI, Hono, Express, Fastify) MAY expose `getHealth()` as `GET /-/health`, disabled by default. This is an operational surface outside the `/.well-known/anip` namespace.
+
 ---
 
 ## 7. Trust Model
@@ -1704,9 +1730,10 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Caller-class-aware redaction (§6.8)** | MAY — v0.9 | Implemented: policy mode disclosure, caller class resolution from token claims, per-caller disclosure mapping | — |
 | **Proof expiration guidance (§6.5)** | SHOULD — v0.9 | Implemented: `expires_hint` field on checkpoint responses, client-side caching guidance | — |
 | **Horizontal scaling (§6.11)** | MAY — v0.10 | Implemented: storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, leader-elected background job coordination | Cross-region replication, consensus-based coordination |
+| **Observability hooks (§6.12)** | MAY — v0.11 | Implemented: callback-based logging (8 hooks), metrics (10 hooks), tracing (2 hooks, 8 stable span names), diagnostics (1 hook), `getHealth()` snapshot, optional `GET /-/health` endpoint in all framework bindings. Hook isolation guarantees correctness under throwing callbacks. | Standardized telemetry export format, OTEL bridge package |
 | **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation across services, federated trust |
 
-The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. v0.9 completes the audit story — aggregation collapses noise, storage-side redaction strips low-value parameters at write time, caller-class-aware redaction resolves disclosure per-caller, and proof expiration guidance closes the client-side gap. v0.10 adds horizontal scaling — storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, and leader-elected background job coordination enable multi-replica deployments without protocol invariant violations. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
+The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. v0.9 completes the audit story — aggregation collapses noise, storage-side redaction strips low-value parameters at write time, caller-class-aware redaction resolves disclosure per-caller, and proof expiration guidance closes the client-side gap. v0.10 adds horizontal scaling — storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, and leader-elected background job coordination enable multi-replica deployments without protocol invariant violations. v0.11 adds observability hooks — callback-based logging, metrics, tracing, and diagnostics injection points let adopters plug in their observability stack without hard dependencies, plus a `getHealth()` runtime snapshot and optional health endpoint. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
 
 **What solving these gaps unlocks.** When trust and verification become real — not declarative — agents can evaluate risk before acting. Delegated authority becomes expressible in ways current tool layers can't handle. Failures become operationally useful, not just descriptive. High-stakes actions — travel, procurement, finance ops, approvals, multi-step orchestration — become automatable with real control surfaces. At that point, ANIP solves one of the central coordination problems of agent deployment: how an agent knows what it's allowed to do, what will happen if it does it, and how to recover when something blocks it.
 
