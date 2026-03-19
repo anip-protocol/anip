@@ -219,7 +219,7 @@ class ANIPService:
         posture = DiscoveryPosture(
             audit=AuditPosture(
                 retention=self._retention_policy.default_retention,
-                retention_enforced=self._retention_enforcer.is_running,
+                retention_enforced=self._retention_enforcer.is_running and not getattr(self._retention_enforcer, '_skip_audit_retention', False),
             ),
             failure_disclosure=failure_disc,
             anchoring=AnchoringPosture(
@@ -620,9 +620,15 @@ class ANIPService:
         try:
             # 5. Call handler (supports both sync and async handlers)
             try:
-                result = cap.handler(ctx, params)
-                if inspect.isawaitable(result):
-                    result = await result
+                async def _run_handler() -> Any:
+                    r = cap.handler(ctx, params)
+                    if inspect.isawaitable(r):
+                        r = await r
+                    return r
+
+                result = await self._run_with_exclusive_heartbeat(
+                    resolved_token, _run_handler()
+                )
             except ANIPError as e:
                 fail_stream_summary: dict[str, Any] | None = None
                 if stream:
@@ -907,9 +913,11 @@ class ANIPService:
             self._flush_task = None
 
     async def shutdown(self) -> None:
-        """Flush remaining aggregated events and stop background services."""
+        """Flush remaining aggregated events, stop background services, close storage."""
         if self._aggregator is not None:
             await self._flush_aggregator()
+        if hasattr(self._storage, 'close'):
+            await self._storage.close()
 
     async def _flush_aggregator(self) -> None:
         """Flush closed aggregation windows and persist each result."""

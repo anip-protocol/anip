@@ -178,26 +178,27 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   }
 
   // --- Storage ---
+  // Postgres DSN is stored so the async start() can lazily import and create
+  // the backend — createANIPService is synchronous, and dynamic import() is
+  // async, so we cannot resolve it here.
   let storage: StorageBackend;
   let isPostgresBackend = false;
+  let postgresDsn: string | null = null;
   if (opts.storage === undefined || opts.storage === null) {
     storage = new SQLiteStorage("anip.db");
   } else if (typeof opts.storage === "string" && opts.storage.startsWith("postgres")) {
-    // Postgres connection string — lazy import to avoid requiring `pg` at
-    // module load time (e.g. in test environments that don't install it).
-    // The constructor is synchronous; callers must await `initialize()`
-    // themselves before the first I/O.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { PostgresStorage } = require("@anip/server") as { PostgresStorage: new (dsn: string) => StorageBackend };
-    storage = new PostgresStorage(opts.storage);
+    // Defer Postgres backend creation to start() where we can use dynamic import.
+    // Use InMemoryStorage as a temporary placeholder — it will be replaced in start().
+    postgresDsn = opts.storage;
+    storage = new InMemoryStorage(); // placeholder, replaced in start()
     isPostgresBackend = true;
   } else if (typeof opts.storage === "object" && "storeToken" in opts.storage) {
     // Already a StorageBackend instance
     storage = opts.storage as StorageBackend;
     // Duck-type detection for Postgres: check for the `initialize` method
     // that only PostgresStorage exposes.
-    isPostgresBackend = typeof (storage as Record<string, unknown>).initialize === "function"
-      && typeof (storage as Record<string, unknown>).close === "function";
+    isPostgresBackend = typeof (storage as unknown as Record<string, unknown>).initialize === "function"
+      && typeof (storage as unknown as Record<string, unknown>).close === "function";
   } else if (typeof opts.storage === "object" && "type" in opts.storage) {
     const storageOpts = opts.storage as { type: string; path?: string };
     if (storageOpts.type === "memory") {
@@ -499,7 +500,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             signed: true,
             queryable: true,
             retention: retentionPolicy.defaultRetention,
-            retention_enforced: retentionEnforcer.isRunning(),
+            retention_enforced: retentionEnforcer.isRunning() && !isPostgresBackend,
           },
           lineage: {
             invocation_id: true,
@@ -934,9 +935,41 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         },
       };
 
-      // 4. Call handler
+      // 4. Acquire exclusive lock if configured
+      let locked = false;
+      const lockResult = await engine.acquireExclusiveLock(resolvedToken);
+      if (lockResult) {
+        const sideEffectTypeL = (decl as any).side_effect?.type ?? null;
+        const eventClassL = classifyEvent(sideEffectTypeL, false, "concurrent_lock");
+        const retTierL = retentionPolicy.resolveTier(eventClassL);
+        const expiresAtL = retentionPolicy.computeExpiresAt(retTierL);
+        await logAudit(capabilityName, resolvedToken, {
+          success: false,
+          failureType: "concurrent_lock",
+          invocationId,
+          clientReferenceId,
+          eventClass: eventClassL,
+          retentionTier: retTierL,
+          expiresAt: expiresAtL,
+        });
+        return {
+          success: false,
+          failure: redactFailure({ type: lockResult.type, detail: lockResult.detail }, effectiveLevel),
+          invocation_id: invocationId,
+          client_reference_id: clientReferenceId,
+        };
+      }
+      locked = true;
+
+      // 5. Call handler (with exclusive heartbeat renewal if applicable)
       try {
-        const result = await cap.handler(ctx, params);
+        const runHandler = async () => cap.handler(ctx, params);
+        const exclusiveKey = resolvedToken.constraints?.concurrent_branches === "exclusive"
+          ? `exclusive:${serviceId}:${await engine.getRootPrincipal(resolvedToken)}`
+          : null;
+        const result = exclusiveKey
+          ? await runWithExclusiveHeartbeat(storage, exclusiveKey, getHolderId(), exclusiveTtl, runHandler) as Record<string, unknown>
+          : await runHandler();
 
         // 5. Build stream summary (before audit so it can be persisted)
         let streamSummary: Record<string, unknown> | null = null;
@@ -1046,6 +1079,10 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           response.stream_summary = failStreamSummary;
         }
         return response;
+      } finally {
+        if (locked) {
+          await engine.releaseExclusiveLock(resolvedToken);
+        }
       }
     },
 
@@ -1208,8 +1245,17 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     },
 
     async start(): Promise<void> {
+      // Create Postgres backend if a DSN was provided (deferred from constructor
+      // because dynamic import() is async).
+      if (postgresDsn) {
+        const mod = await import("@anip/server");
+        const PgStorage = mod.PostgresStorage as unknown as new (dsn: string) => StorageBackend & { initialize(): Promise<void>; close(): Promise<void> };
+        storage = new PgStorage(postgresDsn);
+        postgresDsn = null; // Only create once
+      }
+
       // Initialise storage (PostgresStorage needs pool + schema setup).
-      if (typeof (storage as Record<string, unknown>).initialize === "function") {
+      if (typeof (storage as unknown as Record<string, unknown>).initialize === "function") {
         await (storage as unknown as { initialize(): Promise<void> }).initialize();
       }
 
@@ -1240,6 +1286,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     async shutdown(): Promise<void> {
       if (aggregator) {
         await flushAggregator();
+      }
+      if (typeof (storage as any).close === "function") {
+        await (storage as any).close();
       }
     },
   };
