@@ -34,7 +34,7 @@ export async function mountAnip(
   // --- Tokens ---
   app.post(`${p}/anip/tokens`, async (c) => {
     const principal = await extractPrincipal(c, service);
-    if (!principal) return c.json({ error: "Authentication required" }, 401);
+    if (!principal) return authFailureTokenEndpoint(c);
     const body = await c.req.json();
     try {
       const result = await service.issueToken(principal, body);
@@ -47,15 +47,19 @@ export async function mountAnip(
 
   // --- Permissions ---
   app.post(`${p}/anip/permissions`, async (c) => {
-    const token = await resolveToken(c, service);
-    if (!token) return c.json({ error: "Authentication required" }, 401);
+    const result = await resolveToken(c, service);
+    if (result === null) return authFailureJwtEndpoint(c);
+    if (result instanceof ANIPError) return errorResponse(c, result);
+    const token = result;
     return c.json(service.discoverPermissions(token));
   });
 
   // --- Invoke ---
   app.post(`${p}/anip/invoke/:capability`, async (c) => {
-    const token = await resolveToken(c, service);
-    if (!token) return c.json({ error: "Authentication required" }, 401);
+    const result = await resolveToken(c, service);
+    if (result === null) return authFailureJwtEndpoint(c);
+    if (result instanceof ANIPError) return errorResponse(c, result);
+    const token = result;
     const capability = c.req.param("capability");
     const body = await c.req.json();
     const params = body.parameters ?? body;
@@ -143,8 +147,10 @@ export async function mountAnip(
 
   // --- Audit ---
   app.post(`${p}/anip/audit`, async (c) => {
-    const token = await resolveToken(c, service);
-    if (!token) return c.json({ error: "Authentication required" }, 401);
+    const result = await resolveToken(c, service);
+    if (result === null) return authFailureJwtEndpoint(c);
+    if (result instanceof ANIPError) return errorResponse(c, result);
+    const token = result;
     const url = new URL(c.req.url);
     const filters = {
       capability: url.searchParams.get("capability") ?? undefined,
@@ -173,7 +179,20 @@ export async function mountAnip(
       consistency_from: url.searchParams.get("consistency_from") ?? undefined,
     };
     const result = await service.getCheckpoint(id, options);
-    if (!result) return c.json({ error: "Checkpoint not found" }, 404);
+    if (!result) return c.json({
+      success: false,
+      failure: {
+        type: "not_found",
+        detail: `Checkpoint ${id} not found`,
+        resolution: {
+          action: "list_checkpoints",
+          requires: "GET /anip/checkpoints to find valid checkpoint IDs",
+          grantable_by: null,
+          estimated_availability: null,
+        },
+        retry: false,
+      },
+    }, 404);
     return c.json(result);
   });
 
@@ -203,8 +222,9 @@ async function resolveToken(c: any, service: ANIPService) {
   if (!auth.startsWith("Bearer ")) return null;
   try {
     return await service.resolveBearerToken(auth.slice(7).trim());
-  } catch {
-    return null;
+  } catch (e) {
+    if (e instanceof ANIPError) return e;
+    throw e;
   }
 }
 
@@ -222,6 +242,40 @@ function failureStatus(type?: string): ContentfulStatusCode {
     internal_error: 500,
   };
   return mapping[type ?? ""] ?? 400;
+}
+
+function authFailureTokenEndpoint(c: any) {
+  return c.json({
+    success: false,
+    failure: {
+      type: "authentication_required",
+      detail: "A valid API key is required to issue delegation tokens",
+      resolution: {
+        action: "provide_api_key",
+        requires: "API key in Authorization header",
+        grantable_by: null,
+        estimated_availability: null,
+      },
+      retry: true,
+    },
+  }, 401);
+}
+
+function authFailureJwtEndpoint(c: any) {
+  return c.json({
+    success: false,
+    failure: {
+      type: "authentication_required",
+      detail: "A valid delegation token (JWT) is required in the Authorization header",
+      resolution: {
+        action: "obtain_delegation_token",
+        requires: "Bearer token from POST /anip/tokens",
+        grantable_by: null,
+        estimated_availability: null,
+      },
+      retry: true,
+    },
+  }, 401);
 }
 
 function errorResponse(c: any, error: ANIPError) {

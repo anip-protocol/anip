@@ -81,6 +81,8 @@ describe("Express routes", () => {
     stopFn = stop;
     const res = await request(app).get("/anip/checkpoints/ckpt-nonexistent");
     expect(res.status).toBe(404);
+    expect(res.body.success).toBe(false);
+    expect(res.body.failure.type).toBe("not_found");
   });
 
   it("POST /anip/tokens without auth returns 401", async () => {
@@ -168,6 +170,79 @@ describe("Express routes", () => {
   });
 });
 
+describe("Permissions endpoint", () => {
+  let stopFn: (() => void) | undefined;
+
+  afterEach(() => {
+    stopFn?.();
+    stopFn = undefined;
+  });
+
+  it("returns available/restricted/denied buckets", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const tokenRes = await request(app)
+      .post("/anip/tokens")
+      .set("Authorization", `Bearer ${API_KEY}`)
+      .send({ scope: ["greet"], capability: "greet" });
+    const token = tokenRes.body.token;
+    const res = await request(app)
+      .post("/anip/permissions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({});
+    expect(res.status).toBe(200);
+    expect(res.body.available).toBeDefined();
+    expect(res.body.restricted).toBeDefined();
+    expect(res.body.denied).toBeDefined();
+  });
+
+  it("shows restricted for missing scope", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const tokenRes = await request(app)
+      .post("/anip/tokens")
+      .set("Authorization", `Bearer ${API_KEY}`)
+      .send({ scope: ["unrelated"], capability: "greet" });
+    const token = tokenRes.body.token;
+    const res = await request(app)
+      .post("/anip/permissions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({});
+    expect(res.status).toBe(200);
+    expect(res.body.restricted.some((c: any) => c.capability === "greet")).toBe(true);
+  });
+});
+
+describe("Audit endpoint", () => {
+  let stopFn: (() => void) | undefined;
+
+  afterEach(() => {
+    stopFn?.();
+    stopFn = undefined;
+  });
+
+  it("returns entries after invocation", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const tokenRes = await request(app)
+      .post("/anip/tokens")
+      .set("Authorization", `Bearer ${API_KEY}`)
+      .send({ scope: ["greet"], capability: "greet" });
+    const token = tokenRes.body.token;
+    await request(app)
+      .post("/anip/invoke/greet")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ parameters: { name: "World" } });
+    const res = await request(app)
+      .post("/anip/audit")
+      .set("Authorization", `Bearer ${token}`)
+      .send({});
+    expect(res.status).toBe(200);
+    expect(res.body.entries).toBeDefined();
+    expect(res.body.count).toBeGreaterThanOrEqual(1);
+  });
+});
+
 // --- Health endpoint tests ---
 
 async function makeHealthApp() {
@@ -205,6 +280,89 @@ describe("Express health endpoint", () => {
     expect(res.body.status).toBeDefined();
     expect(res.body.storage).toBeDefined();
     expect(res.body.retention).toBeDefined();
+  });
+});
+
+describe("Auth error responses", () => {
+  let stopFn: (() => void) | undefined;
+
+  afterEach(() => {
+    stopFn?.();
+    stopFn = undefined;
+  });
+
+  it("POST /anip/tokens without auth returns ANIPFailure with provide_api_key", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await request(app)
+      .post("/anip/tokens")
+      .send({ scope: ["greet"] });
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.failure.type).toBe("authentication_required");
+    expect(res.body.failure.resolution.action).toBe("provide_api_key");
+    expect(res.body.failure.retry).toBe(true);
+  });
+
+  it("POST /anip/invoke without auth returns ANIPFailure with obtain_delegation_token", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await request(app)
+      .post("/anip/invoke/greet")
+      .send({ parameters: { name: "X" } });
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.failure.type).toBe("authentication_required");
+    expect(res.body.failure.resolution.action).toBe("obtain_delegation_token");
+    expect(res.body.failure.retry).toBe(true);
+  });
+
+  it("POST /anip/permissions without auth returns ANIPFailure with obtain_delegation_token", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await request(app)
+      .post("/anip/permissions")
+      .send({});
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.failure.type).toBe("authentication_required");
+    expect(res.body.failure.resolution.action).toBe("obtain_delegation_token");
+  });
+
+  it("POST /anip/audit without auth returns ANIPFailure with obtain_delegation_token", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await request(app)
+      .post("/anip/audit")
+      .send({});
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.failure.type).toBe("authentication_required");
+    expect(res.body.failure.resolution.action).toBe("obtain_delegation_token");
+  });
+
+  it("POST /anip/invoke with invalid JWT returns structured invalid_token", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await request(app)
+      .post("/anip/invoke/greet")
+      .set("Authorization", "Bearer not-a-valid-jwt")
+      .send({ parameters: { name: "X" } });
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.failure.type).toBe("invalid_token");
+  });
+
+  it("POST /anip/permissions with invalid JWT returns structured invalid_token", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await request(app)
+      .post("/anip/permissions")
+      .set("Authorization", "Bearer not-a-valid-jwt")
+      .send({});
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.failure.type).toBe("invalid_token");
   });
 });
 

@@ -30,7 +30,7 @@ export async function mountAnip(
   // --- Tokens ---
   app.post(`${p}/anip/tokens`, async (req, reply) => {
     const principal = await extractPrincipal(req, service);
-    if (!principal) return reply.status(401).send({ error: "Authentication required" });
+    if (!principal) return authFailureTokenEndpoint(reply);
     try {
       const result = await service.issueToken(principal, req.body as Record<string, unknown>);
       return result;
@@ -42,8 +42,10 @@ export async function mountAnip(
 
   // --- Permissions ---
   app.post(`${p}/anip/permissions`, async (req, reply) => {
-    const token = await resolveToken(req, service);
-    if (!token) return reply.status(401).send({ error: "Authentication required" });
+    const result = await resolveToken(req, service);
+    if (result === null) return authFailureJwtEndpoint(reply);
+    if (result instanceof ANIPError) return errorResponse(reply, result);
+    const token = result;
     return service.discoverPermissions(token);
   });
 
@@ -51,8 +53,10 @@ export async function mountAnip(
   app.post<{ Params: { capability: string } }>(
     `${p}/anip/invoke/:capability`,
     async (req, reply) => {
-      const token = await resolveToken(req, service);
-      if (!token) return reply.status(401).send({ error: "Authentication required" });
+      const authResult = await resolveToken(req, service);
+      if (authResult === null) return authFailureJwtEndpoint(reply);
+      if (authResult instanceof ANIPError) return errorResponse(reply, authResult);
+      const token = authResult;
       const body = req.body as Record<string, unknown>;
       const params = (body.parameters as Record<string, unknown>) ?? body;
       const clientReferenceId = (body.client_reference_id as string) ?? null;
@@ -117,8 +121,10 @@ export async function mountAnip(
 
   // --- Audit ---
   app.post(`${p}/anip/audit`, async (req, reply) => {
-    const token = await resolveToken(req, service);
-    if (!token) return reply.status(401).send({ error: "Authentication required" });
+    const result = await resolveToken(req, service);
+    if (result === null) return authFailureJwtEndpoint(reply);
+    if (result instanceof ANIPError) return errorResponse(reply, result);
+    const token = result;
     const query = req.query as Record<string, string>;
     const filters = {
       capability: query.capability ?? undefined,
@@ -146,7 +152,20 @@ export async function mountAnip(
       consistency_from: query.consistency_from ?? undefined,
     };
     const result = await service.getCheckpoint(req.params.id, options);
-    if (!result) return reply.status(404).send({ error: "Checkpoint not found" });
+    if (!result) return reply.status(404).send({
+      success: false,
+      failure: {
+        type: "not_found",
+        detail: `Checkpoint ${req.params.id} not found`,
+        resolution: {
+          action: "list_checkpoints",
+          requires: "GET /anip/checkpoints to find valid checkpoint IDs",
+          grantable_by: null,
+          estimated_availability: null,
+        },
+        retry: false,
+      },
+    });
     return result;
   });
 
@@ -177,8 +196,9 @@ async function resolveToken(req: FastifyRequest, service: ANIPService) {
   if (!auth.startsWith("Bearer ")) return null;
   try {
     return await service.resolveBearerToken(auth.slice(7).trim());
-  } catch {
-    return null;
+  } catch (e) {
+    if (e instanceof ANIPError) return e;
+    throw e;
   }
 }
 
@@ -196,6 +216,40 @@ function failureStatus(type?: string): number {
     internal_error: 500,
   };
   return mapping[type ?? ""] ?? 400;
+}
+
+function authFailureTokenEndpoint(reply: FastifyReply) {
+  return reply.status(401).send({
+    success: false,
+    failure: {
+      type: "authentication_required",
+      detail: "A valid API key is required to issue delegation tokens",
+      resolution: {
+        action: "provide_api_key",
+        requires: "API key in Authorization header",
+        grantable_by: null,
+        estimated_availability: null,
+      },
+      retry: true,
+    },
+  });
+}
+
+function authFailureJwtEndpoint(reply: FastifyReply) {
+  return reply.status(401).send({
+    success: false,
+    failure: {
+      type: "authentication_required",
+      detail: "A valid delegation token (JWT) is required in the Authorization header",
+      resolution: {
+        action: "obtain_delegation_token",
+        requires: "Bearer token from POST /anip/tokens",
+        grantable_by: null,
+        estimated_availability: null,
+      },
+      retry: true,
+    },
+  });
 }
 
 function errorResponse(reply: FastifyReply, error: ANIPError) {
