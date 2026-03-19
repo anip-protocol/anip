@@ -167,6 +167,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   // --- Observability hooks (v0.11) ---
   const hooks = opts.hooks ?? {};
   const logHooks = hooks.logging;
+  const metricsHooks = hooks.metrics;
 
   // --- Disclosure level (v0.8) ---
   const disclosureLevel = opts.disclosureLevel ?? "full";
@@ -322,7 +323,15 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           merkleRoot: result.body.merkle_root as string,
           timestamp: new Date().toISOString(),
         });
+        const cpTimestamp = result.body.timestamp as string | undefined;
+        const lagSeconds = cpTimestamp
+          ? Math.round((Date.now() - new Date(cpTimestamp).getTime()) / 1000)
+          : 0;
+        metricsHooks?.onCheckpointCreated?.({ lagSeconds });
       }
+    } catch (e) {
+      metricsHooks?.onCheckpointFailed?.({ error: String(e) });
+      throw e;
     } finally {
       await storage.releaseLeader("checkpoint", holder);
     }
@@ -400,7 +409,19 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       return;
     }
 
-    const stored = await audit.logEntry(redactedEntry);
+    const auditStart = performance.now();
+    let auditSuccess = true;
+    let stored: Record<string, unknown>;
+    try {
+      stored = await audit.logEntry(redactedEntry);
+    } catch (e) {
+      auditSuccess = false;
+      const auditDurationMs = Math.round(performance.now() - auditStart);
+      metricsHooks?.onAuditAppendDuration?.({ durationMs: auditDurationMs, success: false });
+      throw e;
+    }
+    const auditDurationMs = Math.round(performance.now() - auditStart);
+    metricsHooks?.onAuditAppendDuration?.({ durationMs: auditDurationMs, success: true });
     logHooks?.onAuditAppend?.({
       sequenceNumber: (stored.sequence_number as number) ?? 0,
       capability,
@@ -429,6 +450,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       entriesFlushed,
       timestamp: new Date().toISOString(),
     });
+    metricsHooks?.onAggregationFlushed?.({ windowCount: results.length });
   }
 
   async function runWithExclusiveHeartbeat(
@@ -855,14 +877,16 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
       // 1. Check capability exists
       if (!capabilities.has(capabilityName)) {
+        const durationMs = performance.now() - invokeStartTime;
         logHooks?.onInvocationEnd?.({
           capability: capabilityName,
           invocationId,
           success: false,
           failureType: "unknown_capability",
-          durationMs: performance.now() - invokeStartTime,
+          durationMs,
           timestamp: new Date().toISOString(),
         });
+        metricsHooks?.onInvocationDuration?.({ capability: capabilityName, durationMs, success: false });
         return {
           success: false,
           failure: redactFailure({
@@ -883,14 +907,16 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       if (stream) {
         const responseModes = (decl as any).response_modes ?? ["unary"];
         if (!responseModes.includes("streaming")) {
+          const durationMs = performance.now() - invokeStartTime;
           logHooks?.onInvocationEnd?.({
             capability: capabilityName,
             invocationId,
             success: false,
             failureType: "streaming_not_supported",
-            durationMs: performance.now() - invokeStartTime,
+            durationMs,
             timestamp: new Date().toISOString(),
           });
+          metricsHooks?.onInvocationDuration?.({ capability: capabilityName, durationMs, success: false });
           return {
             success: false,
             failure: redactFailure({
@@ -923,6 +949,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           tokenId: token.token_id ?? null,
           timestamp: new Date().toISOString(),
         });
+        metricsHooks?.onDelegationDenied?.({ reason: failure.type });
         const sideEffectType = (decl as any).side_effect?.type ?? null;
         const eventClass = classifyEvent(sideEffectType, false, failure.type);
         const retTier = retentionPolicy.resolveTier(eventClass);
@@ -936,14 +963,16 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           retentionTier: retTier,
           expiresAt,
         });
+        const delegDurationMs = performance.now() - invokeStartTime;
         logHooks?.onInvocationEnd?.({
           capability: capabilityName,
           invocationId,
           success: false,
           failureType: failure.type,
-          durationMs: performance.now() - invokeStartTime,
+          durationMs: delegDurationMs,
           timestamp: new Date().toISOString(),
         });
+        metricsHooks?.onInvocationDuration?.({ capability: capabilityName, durationMs: delegDurationMs, success: false });
         return {
           success: false,
           failure: redactFailure(failure, effectiveLevel),
@@ -988,6 +1017,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
               eventsDelivered++;
             } catch {
               clientDisconnected = true;
+              metricsHooks?.onStreamingDeliveryFailure?.({ capability: capabilityName });
             }
           }
         },
@@ -1021,14 +1051,16 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           retentionTier: retTierL,
           expiresAt: expiresAtL,
         });
+        const lockDurationMs = performance.now() - invokeStartTime;
         logHooks?.onInvocationEnd?.({
           capability: capabilityName,
           invocationId,
           success: false,
           failureType: "concurrent_lock",
-          durationMs: performance.now() - invokeStartTime,
+          durationMs: lockDurationMs,
           timestamp: new Date().toISOString(),
         });
+        metricsHooks?.onInvocationDuration?.({ capability: capabilityName, durationMs: lockDurationMs, success: false });
         return {
           success: false,
           failure: redactFailure({ type: lockResult.type, detail: lockResult.detail }, effectiveLevel),
@@ -1090,14 +1122,16 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           });
         }
 
+        const successDurationMs = performance.now() - invokeStartTime;
         logHooks?.onInvocationEnd?.({
           capability: capabilityName,
           invocationId,
           success: true,
           failureType: null,
-          durationMs: performance.now() - invokeStartTime,
+          durationMs: successDurationMs,
           timestamp: new Date().toISOString(),
         });
+        metricsHooks?.onInvocationDuration?.({ capability: capabilityName, durationMs: successDurationMs, success: true });
 
         // 7. Build response
         const response: Record<string, unknown> = {
@@ -1152,14 +1186,16 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
               timestamp: new Date().toISOString(),
             });
           }
+          const anipErrDurationMs = performance.now() - invokeStartTime;
           logHooks?.onInvocationEnd?.({
             capability: capabilityName,
             invocationId,
             success: false,
             failureType: err.errorType,
-            durationMs: performance.now() - invokeStartTime,
+            durationMs: anipErrDurationMs,
             timestamp: new Date().toISOString(),
           });
+          metricsHooks?.onInvocationDuration?.({ capability: capabilityName, durationMs: anipErrDurationMs, success: false });
           const response: Record<string, unknown> = {
             success: false,
             failure: redactFailure({ type: err.errorType, detail: err.detail }, effectiveLevel),
@@ -1198,14 +1234,16 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             timestamp: new Date().toISOString(),
           });
         }
+        const internalErrDurationMs = performance.now() - invokeStartTime;
         logHooks?.onInvocationEnd?.({
           capability: capabilityName,
           invocationId,
           success: false,
           failureType: "internal_error",
-          durationMs: performance.now() - invokeStartTime,
+          durationMs: internalErrDurationMs,
           timestamp: new Date().toISOString(),
         });
+        metricsHooks?.onInvocationDuration?.({ capability: capabilityName, durationMs: internalErrDurationMs, success: false });
         const response: Record<string, unknown> = {
           success: false,
           failure: redactFailure({ type: "internal_error", detail: "Internal error" }, effectiveLevel),
@@ -1319,6 +1357,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         const leafIndex = opts2.leaf_index as number;
         const lastSeq =
           rng.last_sequence ?? (row.last_sequence as number) ?? 0;
+        const proofStart = performance.now();
         try {
           const tree = await rebuildMerkleTo(lastSeq);
           try {
@@ -1329,12 +1368,15 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
               merkle_root: tree.root,
               leaf_count: tree.leafCount,
             };
+            metricsHooks?.onProofGenerated?.({ durationMs: Math.round(performance.now() - proofStart) });
           } catch {
             // index out of range — skip
+            metricsHooks?.onProofUnavailable?.({ reason: "leaf_index_out_of_range" });
           }
         } catch (err: unknown) {
           if (err instanceof Error && err.message.includes("audit entries have been deleted")) {
             result.proof_unavailable = "audit_entries_expired";
+            metricsHooks?.onProofUnavailable?.({ reason: "audit_entries_expired" });
           } else {
             throw err;
           }
@@ -1351,6 +1393,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             oldRng.last_sequence ?? (oldRow.last_sequence as number) ?? 0;
           const newLast =
             rng.last_sequence ?? (row.last_sequence as number) ?? 0;
+          const consProofStart = performance.now();
           try {
             const oldTree = await rebuildMerkleTo(oldLast);
             const newTree = await rebuildMerkleTo(newLast);
@@ -1365,12 +1408,15 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
                 new_root: newTree.root,
                 path,
               };
+              metricsHooks?.onProofGenerated?.({ durationMs: Math.round(performance.now() - consProofStart) });
             } catch {
               // skip
+              metricsHooks?.onProofUnavailable?.({ reason: "consistency_proof_failed" });
             }
           } catch (err: unknown) {
             if (err instanceof Error && err.message.includes("audit entries have been deleted")) {
               result.proof_unavailable = "audit_entries_expired";
+              metricsHooks?.onProofUnavailable?.({ reason: "audit_entries_expired" });
             } else {
               throw err;
             }
