@@ -170,6 +170,79 @@ describe("Express routes", () => {
   });
 });
 
+describe("Permissions endpoint", () => {
+  let stopFn: (() => void) | undefined;
+
+  afterEach(() => {
+    stopFn?.();
+    stopFn = undefined;
+  });
+
+  it("returns available/restricted/denied buckets", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const tokenRes = await request(app)
+      .post("/anip/tokens")
+      .set("Authorization", `Bearer ${API_KEY}`)
+      .send({ scope: ["greet"], capability: "greet" });
+    const token = tokenRes.body.token;
+    const res = await request(app)
+      .post("/anip/permissions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({});
+    expect(res.status).toBe(200);
+    expect(res.body.available).toBeDefined();
+    expect(res.body.restricted).toBeDefined();
+    expect(res.body.denied).toBeDefined();
+  });
+
+  it("shows restricted for missing scope", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const tokenRes = await request(app)
+      .post("/anip/tokens")
+      .set("Authorization", `Bearer ${API_KEY}`)
+      .send({ scope: ["unrelated"], capability: "greet" });
+    const token = tokenRes.body.token;
+    const res = await request(app)
+      .post("/anip/permissions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({});
+    expect(res.status).toBe(200);
+    expect(res.body.restricted.some((c: any) => c.capability === "greet")).toBe(true);
+  });
+});
+
+describe("Audit endpoint", () => {
+  let stopFn: (() => void) | undefined;
+
+  afterEach(() => {
+    stopFn?.();
+    stopFn = undefined;
+  });
+
+  it("returns entries after invocation", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const tokenRes = await request(app)
+      .post("/anip/tokens")
+      .set("Authorization", `Bearer ${API_KEY}`)
+      .send({ scope: ["greet"], capability: "greet" });
+    const token = tokenRes.body.token;
+    await request(app)
+      .post("/anip/invoke/greet")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ parameters: { name: "World" } });
+    const res = await request(app)
+      .post("/anip/audit")
+      .set("Authorization", `Bearer ${token}`)
+      .send({});
+    expect(res.status).toBe(200);
+    expect(res.body.entries).toBeDefined();
+    expect(res.body.count).toBeGreaterThanOrEqual(1);
+  });
+});
+
 // --- Health endpoint tests ---
 
 async function makeHealthApp() {

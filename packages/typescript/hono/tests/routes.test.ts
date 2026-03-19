@@ -312,6 +312,94 @@ describe("Auth error responses", () => {
   });
 });
 
+describe("Permissions endpoint", () => {
+  it("returns available/restricted/denied buckets", async () => {
+    const { app } = await makeApp();
+    const token = await issueToken(app, ["greet"], "greet");
+    const res = await app.request("/anip/permissions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.available).toBeDefined();
+    expect(data.restricted).toBeDefined();
+    expect(data.denied).toBeDefined();
+    expect(data.available.some((c: any) => c.capability === "greet")).toBe(true);
+  });
+
+  it("shows restricted for missing scope", async () => {
+    const { app } = await makeApp();
+    const token = await issueToken(app, ["unrelated"], "greet");
+    const res = await app.request("/anip/permissions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.restricted.some((c: any) => c.capability === "greet")).toBe(true);
+  });
+});
+
+describe("Audit endpoint", () => {
+  it("returns entries after invocation", async () => {
+    const { app } = await makeApp();
+    const token = await issueToken(app, ["greet"], "greet");
+    await app.request("/anip/invoke/greet", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ parameters: { name: "World" } }),
+    });
+    const res = await app.request("/anip/audit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.entries).toBeDefined();
+    expect(data.count).toBeGreaterThanOrEqual(1);
+  });
+
+  it("filters by capability", async () => {
+    const { app } = await makeApp();
+    const token = await issueToken(app, ["greet"], "greet");
+    await app.request("/anip/invoke/greet", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ parameters: { name: "World" } }),
+    });
+    const res = await app.request("/anip/audit?capability=greet", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.capability_filter).toBe("greet");
+  });
+});
+
 describe("Hono streaming routes", () => {
   it("stream:true returns text/event-stream with progress + completed", async () => {
     const { app } = await makeStreamingApp();

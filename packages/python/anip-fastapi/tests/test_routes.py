@@ -109,6 +109,92 @@ class TestInvokeRoutes:
         assert data["client_reference_id"] == "my-ref-42"
 
 
+class TestPermissionsRoute:
+    def _get_token(self, client, scope=None):
+        resp = client.post(
+            "/anip/tokens",
+            json={"scope": scope or ["greet"], "capability": "greet"},
+            headers={"Authorization": f"Bearer {API_KEY}"},
+        )
+        assert resp.status_code == 200
+        return resp.json()["token"]
+
+    def test_permissions_returns_available(self, client):
+        token = self._get_token(client)
+        resp = client.post(
+            "/anip/permissions",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "available" in data
+        assert "restricted" in data
+        assert "denied" in data
+        cap_names = [c["capability"] for c in data["available"]]
+        assert "greet" in cap_names
+
+    def test_permissions_shows_restricted_for_missing_scope(self, client):
+        resp = client.post(
+            "/anip/tokens",
+            json={"scope": ["unrelated"], "capability": "greet"},
+            headers={"Authorization": f"Bearer {API_KEY}"},
+        )
+        assert resp.status_code == 200
+        token = resp.json()["token"]
+        resp = client.post(
+            "/anip/permissions",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        restricted_names = [c["capability"] for c in data["restricted"]]
+        assert "greet" in restricted_names
+
+
+class TestAuditRoute:
+    def test_audit_returns_entries(self, client):
+        resp = client.post(
+            "/anip/tokens",
+            json={"scope": ["greet"], "capability": "greet"},
+            headers={"Authorization": f"Bearer {API_KEY}"},
+        )
+        token = resp.json()["token"]
+        client.post(
+            "/anip/invoke/greet",
+            json={"parameters": {"name": "World"}},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        resp = client.post(
+            "/anip/audit",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "entries" in data
+        assert "count" in data
+        assert data["count"] >= 1
+
+    def test_audit_with_capability_filter(self, client):
+        resp = client.post(
+            "/anip/tokens",
+            json={"scope": ["greet"], "capability": "greet"},
+            headers={"Authorization": f"Bearer {API_KEY}"},
+        )
+        token = resp.json()["token"]
+        client.post(
+            "/anip/invoke/greet",
+            json={"parameters": {"name": "World"}},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        resp = client.post(
+            "/anip/audit?capability=greet",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["capability_filter"] == "greet"
+
+
 def _streaming_cap():
     async def handler(ctx, params):
         await ctx.emit_progress({"step": 1, "status": "working"})
