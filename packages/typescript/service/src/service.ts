@@ -218,10 +218,10 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
   // --- Delegation engine ---
   const exclusiveTtl = 60;
-  const engine = new DelegationEngine(storage, { serviceId, exclusiveTtl });
+  let engine = new DelegationEngine(storage, { serviceId, exclusiveTtl });
 
   // --- Audit log ---
-  const audit = new AuditLog(storage, (entry) => keys.signAuditEntry(entry));
+  let audit = new AuditLog(storage, (entry) => keys.signAuditEntry(entry));
 
   // --- Trust ---
   let trustLevel: string;
@@ -325,7 +325,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   // --- Retention enforcer (v0.8) ---
   // When Postgres is the backend, skip audit retention enforcement
   // — Postgres handles row TTL natively or via external policy.
-  const retentionEnforcer = new RetentionEnforcer(storage, 60, {
+  let retentionEnforcer = new RetentionEnforcer(storage, 60, {
     skipAuditRetention: isPostgresBackend,
   });
 
@@ -937,7 +937,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
       // 4. Acquire exclusive lock if configured
       let locked = false;
-      const lockResult = await engine.acquireExclusiveLock(resolvedToken);
+      const lockResult = cap.exclusiveLock
+        ? await engine.acquireExclusiveLock(resolvedToken)
+        : null;
       if (lockResult) {
         const sideEffectTypeL = (decl as any).side_effect?.type ?? null;
         const eventClassL = classifyEvent(sideEffectTypeL, false, "concurrent_lock");
@@ -964,7 +966,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       // 5. Call handler (with exclusive heartbeat renewal if applicable)
       try {
         const runHandler = async () => cap.handler(ctx, params);
-        const exclusiveKey = resolvedToken.constraints?.concurrent_branches === "exclusive"
+        const exclusiveKey = cap.exclusiveLock && resolvedToken.constraints?.concurrent_branches === "exclusive"
           ? `exclusive:${serviceId}:${await engine.getRootPrincipal(resolvedToken)}`
           : null;
         const result = exclusiveKey
@@ -1252,6 +1254,14 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         const PgStorage = mod.PostgresStorage as unknown as new (dsn: string) => StorageBackend & { initialize(): Promise<void>; close(): Promise<void> };
         storage = new PgStorage(postgresDsn);
         postgresDsn = null; // Only create once
+
+        // Re-create components that captured the placeholder InMemoryStorage
+        // reference so they now use the real Postgres backend.
+        engine = new DelegationEngine(storage, { serviceId, exclusiveTtl });
+        audit = new AuditLog(storage, (entry) => keys.signAuditEntry(entry));
+        retentionEnforcer = new RetentionEnforcer(storage, 60, {
+          skipAuditRetention: isPostgresBackend,
+        });
       }
 
       // Initialise storage (PostgresStorage needs pool + schema setup).
