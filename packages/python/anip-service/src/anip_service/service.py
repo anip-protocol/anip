@@ -1105,13 +1105,47 @@ class ANIPService:
         return result
 
     def get_health(self) -> HealthReport:
-        """Return a basic health report (stub — full implementation in a later task)."""
+        """Return a cached snapshot of runtime health."""
+        storage_type = (
+            "postgres" if hasattr(self._storage, "initialize") else
+            "sqlite" if isinstance(self._storage, SQLiteStorage) else
+            "memory"
+        )
+
+        checkpoint_health = None
+        if self._scheduler:
+            lag_seconds = None
+            if self._scheduler.last_run_at:
+                last_run = datetime.fromisoformat(self._scheduler.last_run_at)
+                lag_seconds = int((datetime.now(timezone.utc) - last_run).total_seconds())
+            checkpoint_health = {
+                "healthy": self._scheduler.last_error is None,
+                "last_run_at": self._scheduler.last_run_at,
+                "lag_seconds": lag_seconds,
+            }
+
+        retention_health = {
+            "healthy": self._retention_enforcer.last_error is None,
+            "last_run_at": self._retention_enforcer.last_run_at,
+            "last_deleted_count": self._retention_enforcer.last_deleted_count,
+        }
+
+        aggregation_health = None
+        if self._aggregator:
+            aggregation_health = {"pending_windows": self._aggregator.get_pending_count()}
+
+        status: str = "healthy"
+        if checkpoint_health and not checkpoint_health["healthy"]:
+            status = "degraded"
+        if not retention_health["healthy"]:
+            status = "degraded"
+
         return HealthReport(
-            status="healthy",
-            storage={"ok": True},
-            checkpoint=None,
-            retention={"ok": True},
-            aggregation=None,
+            status=status,
+            storage={"type": storage_type},
+            checkpoint=checkpoint_health,
+            retention=retention_health,
+            aggregation=aggregation_health,
         )
 
     async def start(self) -> None:

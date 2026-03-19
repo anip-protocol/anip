@@ -47,6 +47,16 @@ class CheckpointScheduler:
         self._create_fn = create_fn
         self._on_error = on_error
         self._task: asyncio.Task[None] | None = None
+        self._last_run_at: str | None = None
+        self._last_error: str | None = None
+
+    @property
+    def last_run_at(self) -> str | None:
+        return self._last_run_at
+
+    @property
+    def last_error(self) -> str | None:
+        return self._last_error
 
     def start(self) -> None:
         loop = asyncio.get_running_loop()
@@ -62,9 +72,12 @@ class CheckpointScheduler:
             await asyncio.sleep(self._interval)
             try:
                 await self._create_fn()
+                self._last_run_at = datetime.now(timezone.utc).isoformat()
+                self._last_error = None
             except asyncio.CancelledError:
                 raise
             except Exception as e:
+                self._last_error = str(e)
                 if self._on_error:
                     self._on_error(str(e))
 

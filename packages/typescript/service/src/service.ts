@@ -1489,15 +1489,43 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     },
 
     getHealth(): HealthReport {
-      // Stub — real implementation comes in a later task.
+      const storageType = isPostgresBackend
+        ? "postgres"
+        : storage instanceof SQLiteStorage
+          ? "sqlite"
+          : "memory";
+
+      const checkpointHealth = scheduler
+        ? {
+            healthy: scheduler.getLastError() === null,
+            lastRunAt: scheduler.getLastRunAt(),
+            lagSeconds: scheduler.getLastRunAt()
+              ? Math.round((Date.now() - new Date(scheduler.getLastRunAt()!).getTime()) / 1000)
+              : null,
+          }
+        : null;
+
+      const retentionHealth = {
+        healthy: retentionEnforcer.getLastError() === null,
+        lastRunAt: retentionEnforcer.getLastRunAt(),
+        lastDeletedCount: retentionEnforcer.getLastDeletedCount(),
+      };
+
+      const aggregationHealth = aggregator
+        ? { pendingWindows: aggregator.getPendingCount() }
+        : null;
+
+      // Derive overall status
+      let status: "healthy" | "degraded" | "unhealthy" = "healthy";
+      if (checkpointHealth && !checkpointHealth.healthy) status = "degraded";
+      if (!retentionHealth.healthy) status = "degraded";
+
       return {
-        status: "healthy",
-        storage: { type: storage instanceof InMemoryStorage ? "memory" : "sqlite" },
-        checkpoint: scheduler
-          ? { healthy: true, lastRunAt: null, lagSeconds: null }
-          : null,
-        retention: { healthy: true, lastRunAt: null, lastDeletedCount: 0 },
-        aggregation: aggregator ? { pendingWindows: 0 } : null,
+        status,
+        storage: { type: storageType },
+        checkpoint: checkpointHealth,
+        retention: retentionHealth,
+        aggregation: aggregationHealth,
       };
     },
 

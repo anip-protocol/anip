@@ -30,6 +30,21 @@ class RetentionEnforcer:
         self._on_sweep = on_sweep
         self._on_error = on_error
         self._task: asyncio.Task[None] | None = None
+        self._last_run_at: str | None = None
+        self._last_deleted_count: int = 0
+        self._last_error: str | None = None
+
+    @property
+    def last_run_at(self) -> str | None:
+        return self._last_run_at
+
+    @property
+    def last_deleted_count(self) -> int:
+        return self._last_deleted_count
+
+    @property
+    def last_error(self) -> str | None:
+        return self._last_error
 
     @property
     def is_running(self) -> bool:
@@ -69,10 +84,14 @@ class RetentionEnforcer:
             try:
                 count = await self.sweep()
                 duration_ms = (time.monotonic() - start) * 1000
+                self._last_run_at = datetime.now(timezone.utc).isoformat()
+                self._last_deleted_count = count
+                self._last_error = None
                 if self._on_sweep:
                     self._on_sweep(count, duration_ms)
             except asyncio.CancelledError:
                 raise
             except Exception as e:
+                self._last_error = str(e)
                 if self._on_error:
                     self._on_error(str(e))

@@ -16,6 +16,9 @@ export class RetentionEnforcer {
   private _skipAuditRetention: boolean;
   private _onSweep?: (deletedCount: number, durationMs: number) => void;
   private _onError?: (error: string) => void;
+  private _lastRunAt: string | null = null;
+  private _lastDeletedCount: number = 0;
+  private _lastError: string | null = null;
 
   constructor(storage: StorageBackend, intervalSeconds: number = 60, opts?: RetentionEnforcerOpts) {
     this._storage = storage;
@@ -24,6 +27,10 @@ export class RetentionEnforcer {
     this._onSweep = opts?.onSweep;
     this._onError = opts?.onError;
   }
+
+  getLastRunAt(): string | null { return this._lastRunAt; }
+  getLastDeletedCount(): number { return this._lastDeletedCount; }
+  getLastError(): string | null { return this._lastError; }
 
   isRunning(): boolean {
     return this._timer !== null;
@@ -42,8 +49,12 @@ export class RetentionEnforcer {
       try {
         const count = await this.sweep();
         const durationMs = Math.round(performance.now() - start);
+        this._lastRunAt = new Date().toISOString();
+        this._lastDeletedCount = count;
+        this._lastError = null;
         this._onSweep?.(count, durationMs);
       } catch (e: unknown) {
+        this._lastError = String(e);
         this._onError?.(String(e));
       }
     }, this._interval * 1000);

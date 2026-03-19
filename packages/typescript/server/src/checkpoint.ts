@@ -71,6 +71,8 @@ export class CheckpointScheduler {
   private _createFn: () => Promise<void>;
   private _timer: ReturnType<typeof setInterval> | null = null;
   private _onError?: (error: string) => void;
+  private _lastRunAt: string | null = null;
+  private _lastError: string | null = null;
 
   constructor(
     intervalSeconds: number,
@@ -82,11 +84,17 @@ export class CheckpointScheduler {
     this._onError = opts?.onError;
   }
 
+  getLastRunAt(): string | null { return this._lastRunAt; }
+  getLastError(): string | null { return this._lastError; }
+
   start(): void {
     this._timer = setInterval(async () => {
       try {
         await this._createFn();
+        this._lastRunAt = new Date().toISOString();
+        this._lastError = null;
       } catch (e: unknown) {
+        this._lastError = String(e);
         this._onError?.(String(e));
       }
     }, this._interval * 1000);
