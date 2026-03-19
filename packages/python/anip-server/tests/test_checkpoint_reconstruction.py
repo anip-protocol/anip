@@ -43,6 +43,7 @@ async def test_reconstruct_returns_none_if_no_new_entries():
     result = await reconstruct_and_create_checkpoint(
         storage=store, service_id="test-svc"
     )
+    assert result is not None
     body, sig = result
     await store.store_checkpoint(body, sig)
 
@@ -62,6 +63,7 @@ async def test_cumulative_root_covers_all_entries():
     r1 = await reconstruct_and_create_checkpoint(
         storage=store, service_id="test-svc"
     )
+    assert r1 is not None
     body1, _ = r1
     await store.store_checkpoint(body1, "")
 
@@ -71,6 +73,7 @@ async def test_cumulative_root_covers_all_entries():
     r2 = await reconstruct_and_create_checkpoint(
         storage=store, service_id="test-svc"
     )
+    assert r2 is not None
     body2, _ = r2
 
     # Second checkpoint root should cover entries 1+2, not just entry 2

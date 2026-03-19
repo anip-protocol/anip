@@ -9,7 +9,7 @@ import socket
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Literal
 
 from anip_core import (
     ANIPFailure,
@@ -22,6 +22,7 @@ from anip_core import (
     DelegationToken,
     DiscoveryPosture,
     FailureDisclosure,
+    PermissionResponse,
     PROTOCOL_VERSION,
     ResponseMode,
     ServiceIdentity,
@@ -48,6 +49,7 @@ from anip_server import (
 from .aggregation import AggregatedEntry, AuditAggregator
 from .classification import classify_event
 from .disclosure import resolve_disclosure_level
+from .hooks import ANIPHooks, HealthReport
 from .redaction import redact_failure
 from .retention import RetentionPolicy
 from .storage_redaction import storage_redact_entry
@@ -73,14 +75,19 @@ class ANIPService:
         audit_signer: Any | None = None,
         authenticate: Callable[[str], str | None] | None = None,
         retention_policy: RetentionPolicy | None = None,
-        disclosure_level: str = "full",
+        disclosure_level: Literal["full", "reduced", "redacted", "policy"] = "full",
         disclosure_policy: dict[str, str] | None = None,
         aggregation_window: int | None = None,
         exclusive_ttl: int = 60,
+        hooks: ANIPHooks | None = None,
     ) -> None:
         self._service_id = service_id
-        self._disclosure_level = disclosure_level
+        self._disclosure_level: Literal["full", "reduced", "redacted", "policy"] = disclosure_level
         self._disclosure_policy = disclosure_policy
+        self._hooks = hooks or ANIPHooks()
+        self._log_hooks = self._hooks.logging
+        self._metrics_hooks = self._hooks.metrics
+        self._tracing_hooks = self._hooks.tracing
 
         # --- Bootstrap authentication ---
         self._authenticate = authenticate
@@ -134,10 +141,13 @@ class ANIPService:
                 self._sinks = anchoring_cfg.get("sinks", [])
                 sink_uris = []
                 for s in self._sinks:
-                    if hasattr(s, "uri"):
-                        sink_uris.append(s.uri)
-                    elif hasattr(s, "directory"):
-                        sink_uris.append(f"file://{s.directory}")
+                    uri = getattr(s, "uri", None)
+                    if uri:
+                        sink_uris.append(uri)
+                    else:
+                        directory = getattr(s, "directory", None)
+                        if directory:
+                            sink_uris.append(f"file://{directory}")
                 anchoring = AnchoringPolicy(
                     cadence=anchoring_cfg.get("cadence"),
                     max_lag=anchoring_cfg.get("max_lag"),
@@ -168,11 +178,13 @@ class ANIPService:
         # --- Checkpoint scheduling (anchored mode only) ---
         self._checkpoint_policy = checkpoint_policy
         self._scheduler: CheckpointScheduler | None = None
+        self._last_checkpoint_at: str | None = None  # Updated only when a checkpoint is actually published
 
         if trust_level == "anchored" and checkpoint_policy:
             self._scheduler = CheckpointScheduler(
                 interval_seconds=checkpoint_policy.interval_seconds or 60,
                 create_fn=self._leader_checkpoint_tick,
+                on_error=self._on_checkpoint_error,
             )
 
         # --- Retention enforcer (v0.8) ---
@@ -183,6 +195,8 @@ class ANIPService:
             self._storage,
             interval_seconds=60,
             skip_audit_retention=_skip_retention,
+            on_sweep=self._on_retention_sweep,
+            on_error=self._on_retention_error,
         )
 
         # --- Audit aggregation (v0.9) ---
@@ -218,7 +232,7 @@ class ANIPService:
         )
         posture = DiscoveryPosture(
             audit=AuditPosture(
-                retention=self._retention_policy.default_retention,
+                retention=self._retention_policy.default_retention or "P90D",
                 retention_enforced=self._retention_enforcer.is_running and not getattr(self._retention_enforcer, '_skip_audit_retention', False),
             ),
             failure_disclosure=failure_disc,
@@ -393,21 +407,23 @@ class ANIPService:
                     f"subject ('{parent.subject}') — only the delegatee can sub-delegate",
                 )
 
+            capability: str = request.get("capability", "")
             result = await self._engine.delegate(
                 parent_token=parent,
                 subject=request.get("subject", authenticated_principal),
                 scope=request.get("scope", []),
-                capability=request.get("capability"),
+                capability=capability,
                 purpose_parameters=request.get("purpose_parameters"),
                 ttl_hours=ttl_hours,
             )
         else:
             # Root token
+            capability: str = request.get("capability", "")
             result = await self._engine.issue_root_token(
                 authenticated_principal=authenticated_principal,
                 subject=request.get("subject", authenticated_principal),
                 scope=request.get("scope", []),
-                capability=request.get("capability"),
+                capability=capability,
                 purpose_parameters=request.get("purpose_parameters"),
                 ttl_hours=ttl_hours,
             )
@@ -458,7 +474,7 @@ class ANIPService:
             "expires": expires.isoformat(),
         }
 
-    def discover_permissions(self, token: DelegationToken) -> dict[str, Any]:
+    def discover_permissions(self, token: DelegationToken) -> PermissionResponse:
         """Return the permissions granted by a token."""
         return discover_permissions(token, self._manifest.capabilities)
 
@@ -489,6 +505,62 @@ class ANIPService:
         6. Handles checkpoint triggers
         """
         invocation_id = f"inv-{uuid.uuid4().hex[:12]}"
+        invoke_start = time.monotonic()
+
+        # Start root tracing span
+        root_span = None
+        if self._tracing_hooks and self._tracing_hooks.start_span:
+            try:
+                root_span = self._tracing_hooks.start_span({
+                    "name": "anip.invoke",
+                    "attributes": {"capability": capability_name},
+                })
+            except Exception:
+                root_span = None
+        _invoke_span_ended = False
+        try:
+            return await self._invoke_body(
+                capability_name, token, params,
+                client_reference_id=client_reference_id,
+                stream=stream,
+                _progress_sink=_progress_sink,
+                invocation_id=invocation_id,
+                invoke_start=invoke_start,
+                root_span=root_span,
+            )
+        except Exception as e:
+            _invoke_span_ended = True
+            if self._tracing_hooks and self._tracing_hooks.end_span and root_span is not None:
+                try:
+                    self._tracing_hooks.end_span({
+                        "span": root_span,
+                        "status": "error",
+                        "error_type": type(e).__name__,
+                        "error_message": str(e),
+                    })
+                except Exception:
+                    pass
+            raise
+        finally:
+            if not _invoke_span_ended and self._tracing_hooks and self._tracing_hooks.end_span and root_span is not None:
+                try:
+                    self._tracing_hooks.end_span({"span": root_span, "status": "ok"})
+                except Exception:
+                    pass
+
+    async def _invoke_body(
+        self,
+        capability_name: str,
+        token: DelegationToken,
+        params: dict[str, Any],
+        *,
+        client_reference_id: str | None,
+        stream: bool,
+        _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None,
+        invocation_id: str,
+        invoke_start: float,
+        root_span: Any,
+    ) -> dict[str, Any]:
 
         # Resolve effective disclosure level for this caller
         effective_level = resolve_disclosure_level(
@@ -499,6 +571,18 @@ class ANIPService:
 
         # 1. Check capability exists
         if capability_name not in self._capabilities:
+            _duration_ms = int((time.monotonic() - invoke_start) * 1000)
+            if self._log_hooks and self._log_hooks.on_invocation_end:
+                self._safe_hook(self._log_hooks.on_invocation_end, {
+                    "capability": capability_name,
+                    "invocation_id": invocation_id,
+                    "success": False,
+                    "failure_type": "unknown_capability",
+                    "duration_ms": _duration_ms,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+            if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
+                self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _duration_ms, "success": False})
             return {
                 "success": False,
                 "failure": redact_failure({
@@ -514,8 +598,20 @@ class ANIPService:
 
         # Check streaming support
         if stream:
-            response_modes = [m.value if hasattr(m, 'value') else m for m in (decl.response_modes or ["unary"])]
+            response_modes = [m.value if hasattr(m, 'value') else m for m in (decl.response_modes or ["unary"])]  # noqa: E501  # pyright: ignore[reportAttributeAccessIssue]
             if "streaming" not in response_modes:
+                _duration_ms = int((time.monotonic() - invoke_start) * 1000)
+                if self._log_hooks and self._log_hooks.on_invocation_end:
+                    self._safe_hook(self._log_hooks.on_invocation_end, {
+                        "capability": capability_name,
+                        "invocation_id": invocation_id,
+                        "success": False,
+                        "failure_type": "streaming_not_supported",
+                        "duration_ms": _duration_ms,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+                if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
+                    self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _duration_ms, "success": False})
                 return {
                     "success": False,
                     "failure": redact_failure({
@@ -528,8 +624,9 @@ class ANIPService:
 
         # 2. Validate delegation
         min_scope = decl.minimum_scope or []
-        validation_result = await self._engine.validate_delegation(
-            token, min_scope, capability_name,
+        validation_result = await self._with_span(
+            "anip.delegation.validate", {"capability": capability_name}, root_span,
+            lambda: self._engine.validate_delegation(token, min_scope, capability_name),
         )
 
         # Check for validation failure (ANIPFailure is a Pydantic model)
@@ -539,6 +636,14 @@ class ANIPService:
                 "detail": validation_result.detail,
                 "resolution": validation_result.resolution.model_dump() if hasattr(validation_result.resolution, "model_dump") else validation_result.resolution,
             }
+            if self._log_hooks and self._log_hooks.on_delegation_failure:
+                self._safe_hook(self._log_hooks.on_delegation_failure, {
+                    "reason": failure["type"],
+                    "token_id": token.token_id if token else None,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+            if self._metrics_hooks and self._metrics_hooks.on_delegation_denied:
+                self._safe_hook(self._metrics_hooks.on_delegation_denied, {"reason": failure["type"]})
             _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
             _event_class = classify_event(_side_effect_type, False, failure["type"])
             _retention_tier = self._retention_policy.resolve_tier(_event_class)
@@ -549,7 +654,20 @@ class ANIPService:
                 cost_actual=None, cost_variance=None,
                 invocation_id=invocation_id, client_reference_id=client_reference_id,
                 event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
+                parent_span=root_span,
             )
+            _deleg_duration_ms = int((time.monotonic() - invoke_start) * 1000)
+            if self._log_hooks and self._log_hooks.on_invocation_end:
+                self._safe_hook(self._log_hooks.on_invocation_end, {
+                    "capability": capability_name,
+                    "invocation_id": invocation_id,
+                    "success": False,
+                    "failure_type": failure["type"],
+                    "duration_ms": _deleg_duration_ms,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+            if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
+                self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _deleg_duration_ms, "success": False})
             return {
                 "success": False,
                 "failure": redact_failure(failure, effective_level),
@@ -579,12 +697,15 @@ class ANIPService:
                     events_delivered += 1
                 except Exception:
                     client_disconnected = True
+                    if self._metrics_hooks and self._metrics_hooks.on_streaming_delivery_failure:
+                        self._safe_hook(self._metrics_hooks.on_streaming_delivery_failure, {"capability": capability_name})
 
         # 3. Build invocation context
         chain = await self._engine.get_chain(resolved_token)
+        root_principal = await self._engine.get_root_principal(resolved_token)
         ctx = InvocationContext(
             token=resolved_token,
-            root_principal=await self._engine.get_root_principal(resolved_token),
+            root_principal=root_principal,
             subject=resolved_token.subject,
             scopes=resolved_token.scope or [],
             delegation_chain=[t.token_id for t in chain],
@@ -592,6 +713,16 @@ class ANIPService:
             client_reference_id=client_reference_id,
             _progress_sink=_internal_progress_sink if stream else None,
         )
+
+        if self._log_hooks and self._log_hooks.on_invocation_start:
+            self._safe_hook(self._log_hooks.on_invocation_start, {
+                "capability": capability_name,
+                "invocation_id": invocation_id,
+                "client_reference_id": client_reference_id,
+                "root_principal": root_principal,
+                "subject": resolved_token.subject,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
 
         # 4. Acquire lock if configured
         locked = False
@@ -608,7 +739,20 @@ class ANIPService:
                     result_summary=None, cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
                     event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
+                    parent_span=root_span,
                 )
+                _lock_duration_ms = int((time.monotonic() - invoke_start) * 1000)
+                if self._log_hooks and self._log_hooks.on_invocation_end:
+                    self._safe_hook(self._log_hooks.on_invocation_end, {
+                        "capability": capability_name,
+                        "invocation_id": invocation_id,
+                        "success": False,
+                        "failure_type": "concurrent_lock",
+                        "duration_ms": _lock_duration_ms,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+                if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
+                    self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _lock_duration_ms, "success": False})
                 return {
                     "success": False,
                     "failure": redact_failure({"type": lock_result.type, "detail": lock_result.detail}, effective_level),
@@ -626,8 +770,14 @@ class ANIPService:
                         r = await r
                     return r
 
-                result = await self._run_with_exclusive_heartbeat(
-                    resolved_token, _run_handler()
+                async def _handler_with_heartbeat():
+                    return await self._run_with_exclusive_heartbeat(
+                        resolved_token, _run_handler()
+                    )
+
+                result = await self._with_span(
+                    "anip.handler.execute", {"capability": capability_name}, root_span,
+                    _handler_with_heartbeat,
                 )
             except ANIPError as e:
                 fail_stream_summary: dict[str, Any] | None = None
@@ -651,7 +801,30 @@ class ANIPService:
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
                     stream_summary=fail_stream_summary,
                     event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
+                    parent_span=root_span,
                 )
+                if stream and fail_stream_summary and self._log_hooks and self._log_hooks.on_streaming_summary:
+                    self._safe_hook(self._log_hooks.on_streaming_summary, {
+                        "invocation_id": invocation_id,
+                        "capability": capability_name,
+                        "events_emitted": events_emitted,
+                        "events_delivered": events_delivered,
+                        "client_disconnected": client_disconnected,
+                        "duration_ms": int((time.monotonic() - stream_start) * 1000),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+                _anip_err_duration_ms = int((time.monotonic() - invoke_start) * 1000)
+                if self._log_hooks and self._log_hooks.on_invocation_end:
+                    self._safe_hook(self._log_hooks.on_invocation_end, {
+                        "capability": capability_name,
+                        "invocation_id": invocation_id,
+                        "success": False,
+                        "failure_type": e.error_type,
+                        "duration_ms": _anip_err_duration_ms,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+                if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
+                    self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _anip_err_duration_ms, "success": False})
                 fail_response: dict[str, Any] = {
                     "success": False,
                     "failure": redact_failure({"type": e.error_type, "detail": e.detail}, effective_level),
@@ -682,7 +855,30 @@ class ANIPService:
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
                     stream_summary=fail_stream_summary_exc,
                     event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
+                    parent_span=root_span,
                 )
+                if stream and fail_stream_summary_exc and self._log_hooks and self._log_hooks.on_streaming_summary:
+                    self._safe_hook(self._log_hooks.on_streaming_summary, {
+                        "invocation_id": invocation_id,
+                        "capability": capability_name,
+                        "events_emitted": events_emitted,
+                        "events_delivered": events_delivered,
+                        "client_disconnected": client_disconnected,
+                        "duration_ms": int((time.monotonic() - stream_start) * 1000),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+                _internal_err_duration_ms = int((time.monotonic() - invoke_start) * 1000)
+                if self._log_hooks and self._log_hooks.on_invocation_end:
+                    self._safe_hook(self._log_hooks.on_invocation_end, {
+                        "capability": capability_name,
+                        "invocation_id": invocation_id,
+                        "success": False,
+                        "failure_type": "internal_error",
+                        "duration_ms": _internal_err_duration_ms,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+                if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
+                    self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _internal_err_duration_ms, "success": False})
                 fail_response_exc: dict[str, Any] = {
                     "success": False,
                     "failure": redact_failure({"type": "internal_error", "detail": "Internal error"}, effective_level),
@@ -722,9 +918,36 @@ class ANIPService:
                 invocation_id=invocation_id, client_reference_id=client_reference_id,
                 stream_summary=stream_summary,
                 event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
+                parent_span=root_span,
             )
 
-            # 9. Build response
+            # 9. Fire streaming summary hook
+            if stream and stream_summary and self._log_hooks and self._log_hooks.on_streaming_summary:
+                self._safe_hook(self._log_hooks.on_streaming_summary, {
+                    "invocation_id": invocation_id,
+                    "capability": capability_name,
+                    "events_emitted": events_emitted,
+                    "events_delivered": events_delivered,
+                    "client_disconnected": client_disconnected,
+                    "duration_ms": int((time.monotonic() - stream_start) * 1000),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+
+            # 10. Fire invocation end hook (success)
+            _success_duration_ms = int((time.monotonic() - invoke_start) * 1000)
+            if self._log_hooks and self._log_hooks.on_invocation_end:
+                self._safe_hook(self._log_hooks.on_invocation_end, {
+                    "capability": capability_name,
+                    "invocation_id": invocation_id,
+                    "success": True,
+                    "failure_type": None,
+                    "duration_ms": _success_duration_ms,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+            if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
+                self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _success_duration_ms, "success": True})
+
+            # 11. Build response
             response: dict[str, Any] = {
                 "success": True,
                 "result": result,
@@ -835,20 +1058,29 @@ class ANIPService:
         if options.get("include_proof") and options.get("leaf_index") is not None:
             leaf_index = int(options["leaf_index"])
             last_seq = rng.get("last_sequence", row.get("last_sequence", 0))
+            _proof_start = time.monotonic()
             try:
-                tree = await self._rebuild_merkle_to(last_seq)
-                try:
-                    proof = tree.inclusion_proof(leaf_index)
-                    result["inclusion_proof"] = {
-                        "leaf_index": leaf_index,
-                        "path": proof,
-                        "merkle_root": tree.root,
-                        "leaf_count": tree.leaf_count,
-                    }
-                except (IndexError, ValueError):
-                    pass
+                async def _gen_inclusion_proof():
+                    tree = await self._rebuild_merkle_to(last_seq)
+                    try:
+                        proof = tree.inclusion_proof(leaf_index)
+                        result["inclusion_proof"] = {
+                            "leaf_index": leaf_index,
+                            "path": proof,
+                            "merkle_root": tree.root,
+                            "leaf_count": tree.leaf_count,
+                        }
+                        if self._metrics_hooks and self._metrics_hooks.on_proof_generated:
+                            self._safe_hook(self._metrics_hooks.on_proof_generated, {"duration_ms": int((time.monotonic() - _proof_start) * 1000)})
+                    except (IndexError, ValueError):
+                        if self._metrics_hooks and self._metrics_hooks.on_proof_unavailable:
+                            self._safe_hook(self._metrics_hooks.on_proof_unavailable, {"reason": "leaf_index_out_of_range"})
+
+                await self._with_span("anip.proof.generate", {"checkpoint_id": checkpoint_id}, None, _gen_inclusion_proof)
             except ValueError:
                 result["proof_unavailable"] = "audit_entries_expired"
+                if self._metrics_hooks and self._metrics_hooks.on_proof_unavailable:
+                    self._safe_hook(self._metrics_hooks.on_proof_unavailable, {"reason": "audit_entries_expired"})
 
         # Consistency proof
         consistency_from = options.get("consistency_from")
@@ -858,26 +1090,79 @@ class ANIPService:
                 old_rng = old_row.get("range", {})
                 old_last = old_rng.get("last_sequence", old_row.get("last_sequence", 0))
                 new_last = rng.get("last_sequence", row.get("last_sequence", 0))
+                _cons_proof_start = time.monotonic()
                 try:
-                    old_tree = await self._rebuild_merkle_to(old_last)
-                    new_tree = await self._rebuild_merkle_to(new_last)
-                    try:
-                        path = new_tree.consistency_proof(old_tree.leaf_count)
-                        result["consistency_proof"] = {
-                            "old_checkpoint_id": consistency_from,
-                            "new_checkpoint_id": checkpoint_id,
-                            "old_size": old_tree.leaf_count,
-                            "new_size": new_tree.leaf_count,
-                            "old_root": old_tree.root,
-                            "new_root": new_tree.root,
-                            "path": path,
-                        }
-                    except (IndexError, ValueError):
-                        pass
+                    async def _gen_consistency_proof():
+                        old_tree = await self._rebuild_merkle_to(old_last)
+                        new_tree = await self._rebuild_merkle_to(new_last)
+                        try:
+                            path = new_tree.consistency_proof(old_tree.leaf_count)
+                            result["consistency_proof"] = {
+                                "old_checkpoint_id": consistency_from,
+                                "new_checkpoint_id": checkpoint_id,
+                                "old_size": old_tree.leaf_count,
+                                "new_size": new_tree.leaf_count,
+                                "old_root": old_tree.root,
+                                "new_root": new_tree.root,
+                                "path": path,
+                            }
+                            if self._metrics_hooks and self._metrics_hooks.on_proof_generated:
+                                self._safe_hook(self._metrics_hooks.on_proof_generated, {"duration_ms": int((time.monotonic() - _cons_proof_start) * 1000)})
+                        except (IndexError, ValueError):
+                            if self._metrics_hooks and self._metrics_hooks.on_proof_unavailable:
+                                self._safe_hook(self._metrics_hooks.on_proof_unavailable, {"reason": "consistency_proof_failed"})
+
+                    await self._with_span("anip.proof.generate", {"checkpoint_id": checkpoint_id}, None, _gen_consistency_proof)
                 except ValueError:
                     result["proof_unavailable"] = "audit_entries_expired"
+                    if self._metrics_hooks and self._metrics_hooks.on_proof_unavailable:
+                        self._safe_hook(self._metrics_hooks.on_proof_unavailable, {"reason": "audit_entries_expired"})
 
         return result
+
+    def get_health(self) -> HealthReport:
+        """Return a cached snapshot of runtime health."""
+        storage_type = (
+            "postgres" if hasattr(self._storage, "initialize") else
+            "sqlite" if isinstance(self._storage, SQLiteStorage) else
+            "memory"
+        )
+
+        checkpoint_health = None
+        if self._scheduler:
+            lag_seconds = None
+            if self._scheduler.last_run_at:
+                last_run = datetime.fromisoformat(self._scheduler.last_run_at)
+                lag_seconds = int((datetime.now(timezone.utc) - last_run).total_seconds())
+            checkpoint_health = {
+                "healthy": self._scheduler.last_error is None,
+                "last_run_at": self._scheduler.last_run_at,
+                "lag_seconds": lag_seconds,
+            }
+
+        retention_health = {
+            "healthy": self._retention_enforcer.is_running and self._retention_enforcer.last_error is None,
+            "last_run_at": self._retention_enforcer.last_run_at,
+            "last_deleted_count": self._retention_enforcer.last_deleted_count,
+        }
+
+        aggregation_health = None
+        if self._aggregator:
+            aggregation_health = {"pending_windows": self._aggregator.get_pending_count()}
+
+        status: str = "healthy"
+        if checkpoint_health and not checkpoint_health["healthy"]:
+            status = "degraded"
+        if not retention_health["healthy"]:
+            status = "degraded"
+
+        return HealthReport(
+            status=status,
+            storage={"type": storage_type},
+            checkpoint=checkpoint_health,
+            retention=retention_health,
+            aggregation=aggregation_health,
+        )
 
     async def start(self) -> None:
         """Start background services (checkpoint scheduler, retention enforcer, aggregation flush).
@@ -885,8 +1170,9 @@ class ANIPService:
         Must be called from within a running event loop.  For PostgresStorage
         this also initialises the connection pool and schema.
         """
-        if hasattr(self._storage, 'initialize'):
-            await self._storage.initialize()
+        initializer = getattr(self._storage, 'initialize', None)
+        if initializer:
+            await initializer()
 
         if self._scheduler:
             self._scheduler.start()
@@ -897,7 +1183,18 @@ class ANIPService:
                 try:
                     while True:
                         await asyncio.sleep(self._aggregation_window)  # type: ignore[arg-type]
-                        await self._flush_aggregator()
+                        try:
+                            await self._flush_aggregator()
+                        except Exception as e:
+                            if self._hooks.diagnostics and self._hooks.diagnostics.on_background_error:
+                                try:
+                                    self._hooks.diagnostics.on_background_error({
+                                        "source": "aggregation",
+                                        "error": str(e),
+                                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                                    })
+                                except Exception:
+                                    pass
                 except asyncio.CancelledError:
                     pass
 
@@ -916,22 +1213,106 @@ class ANIPService:
         """Flush remaining aggregated events, stop background services, close storage."""
         if self._aggregator is not None:
             await self._flush_aggregator()
-        if hasattr(self._storage, 'close'):
-            await self._storage.close()
+        closer = getattr(self._storage, 'close', None)
+        if closer:
+            await closer()
 
     async def _flush_aggregator(self) -> None:
         """Flush closed aggregation windows and persist each result."""
         if self._aggregator is None:
             return
-        results = self._aggregator.flush(datetime.now(timezone.utc))
-        for item in results:
-            if isinstance(item, AggregatedEntry):
-                entry = storage_redact_entry(item.to_audit_dict())
-            else:
-                entry = storage_redact_entry(item)
-            await self._audit.log_entry(entry)
+        aggregator = self._aggregator
+
+        async def _do_flush():
+            results = aggregator.flush(datetime.now(timezone.utc))
+            entries_flushed = 0
+            for item in results:
+                if isinstance(item, AggregatedEntry):
+                    entry = storage_redact_entry(item.to_audit_dict())
+                else:
+                    entry = storage_redact_entry(item)
+                await self._audit.log_entry(entry)
+                entries_flushed += 1
+            if self._log_hooks and self._log_hooks.on_aggregation_flush:
+                self._safe_hook(self._log_hooks.on_aggregation_flush, {
+                    "window_count": len(results),
+                    "entries_flushed": entries_flushed,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+            if self._metrics_hooks and self._metrics_hooks.on_aggregation_flushed:
+                self._safe_hook(self._metrics_hooks.on_aggregation_flushed, {"window_count": len(results)})
+
+        await self._with_span("anip.aggregation.flush", {}, None, _do_flush)
+
+    # --- Background hook callbacks ---
+
+    def _on_retention_sweep(self, deleted_count: int, duration_ms: float) -> None:
+        if self._log_hooks and self._log_hooks.on_retention_sweep:
+            self._safe_hook(self._log_hooks.on_retention_sweep, {
+                "deleted_count": deleted_count,
+                "duration_ms": duration_ms,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+        if self._metrics_hooks and self._metrics_hooks.on_retention_deleted:
+            self._safe_hook(self._metrics_hooks.on_retention_deleted, {"count": deleted_count})
+
+    def _on_retention_error(self, error: str) -> None:
+        if self._hooks.diagnostics and self._hooks.diagnostics.on_background_error:
+            try:
+                self._hooks.diagnostics.on_background_error({
+                    "source": "retention",
+                    "error": error,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+            except Exception:
+                pass
+
+    def _on_checkpoint_error(self, error: str) -> None:
+        if self._hooks.diagnostics and self._hooks.diagnostics.on_background_error:
+            try:
+                self._hooks.diagnostics.on_background_error({
+                    "source": "checkpoint",
+                    "error": error,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+            except Exception:
+                pass
 
     # --- Internal helpers ---
+
+    def _safe_hook(self, fn: Any, payload: Any) -> None:
+        """Call a hook callback, swallowing any exception.
+
+        Hooks are optional instrumentation and must never affect correctness.
+        """
+        try:
+            fn(payload)
+        except Exception:
+            pass
+
+    async def _with_span(self, name: str, attrs: dict, parent_span: Any, fn):
+        """Run fn() inside a tracing span. No-op when tracing hooks are absent."""
+        if not self._tracing_hooks or not self._tracing_hooks.start_span:
+            return await fn()
+        try:
+            span = self._tracing_hooks.start_span({"name": name, "attributes": attrs, "parent_span": parent_span})
+        except Exception:
+            return await fn()
+        try:
+            result = await fn()
+            if self._tracing_hooks.end_span:
+                try:
+                    self._tracing_hooks.end_span({"span": span, "status": "ok"})
+                except Exception:
+                    pass
+            return result
+        except Exception as e:
+            if self._tracing_hooks.end_span:
+                try:
+                    self._tracing_hooks.end_span({"span": span, "status": "error", "error_type": type(e).__name__, "error_message": str(e)})
+                except Exception:
+                    pass
+            raise
 
     async def _log_audit(
         self,
@@ -949,6 +1330,7 @@ class ANIPService:
         event_class: str | None = None,
         retention_tier: str | None = None,
         expires_at: str | None = None,
+        parent_span: Any = None,
     ) -> None:
         """Log an audit entry through the SDK's AuditLog.
 
@@ -983,7 +1365,28 @@ class ANIPService:
             self._aggregator.submit(entry_data)
             return
 
-        await self._audit.log_entry(entry_data)
+        async def _do_audit():
+            _audit_start = time.monotonic()
+            try:
+                stored = await self._audit.log_entry(entry_data)
+            except Exception:
+                _audit_duration_ms = int((time.monotonic() - _audit_start) * 1000)
+                if self._metrics_hooks and self._metrics_hooks.on_audit_append_duration:
+                    self._safe_hook(self._metrics_hooks.on_audit_append_duration, {"duration_ms": _audit_duration_ms, "success": False})
+                raise
+            _audit_duration_ms = int((time.monotonic() - _audit_start) * 1000)
+            if self._metrics_hooks and self._metrics_hooks.on_audit_append_duration:
+                self._safe_hook(self._metrics_hooks.on_audit_append_duration, {"duration_ms": _audit_duration_ms, "success": True})
+            if self._log_hooks and self._log_hooks.on_audit_append:
+                self._safe_hook(self._log_hooks.on_audit_append, {
+                    "sequence_number": stored.get("sequence_number", 0),
+                    "capability": capability,
+                    "invocation_id": invocation_id,
+                    "success": success,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+
+        await self._with_span("anip.audit.append", {"capability": capability}, parent_span, _do_audit)
 
     async def _leader_checkpoint_tick(self) -> None:
         """One tick of the checkpoint scheduler.
@@ -996,16 +1399,42 @@ class ANIPService:
         if not acquired:
             return  # Another replica is leader this tick
         try:
-            result = await reconstruct_and_create_checkpoint(
-                storage=self._storage,
-                service_id=self._service_id,
-                sign_fn=self._keys.sign_jws_detached_audit if self._keys else None,
-            )
-            if result is not None:
-                body, signature = result
-                await self._storage.store_checkpoint(body, signature)
-                for sink in self._sinks:
-                    sink.publish({"body": body, "signature": signature})
+            async def _do_checkpoint():
+                result = await reconstruct_and_create_checkpoint(
+                    storage=self._storage,
+                    service_id=self._service_id,
+                    sign_fn=self._keys.sign_jws_detached_audit if self._keys else None,
+                )
+                if result is not None:
+                    body, signature = result
+                    await self._storage.store_checkpoint(body, signature)
+                    for sink in self._sinks:
+                        sink.publish({"body": body, "signature": signature})
+                    if self._log_hooks and self._log_hooks.on_checkpoint_created:
+                        self._safe_hook(self._log_hooks.on_checkpoint_created, {
+                            "checkpoint_id": body.get("checkpoint_id", ""),
+                            "entry_count": body.get("entry_count", 0),
+                            "merkle_root": body.get("merkle_root", ""),
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        })
+                    if self._metrics_hooks and self._metrics_hooks.on_checkpoint_created:
+                        # Lag = time since previous checkpoint *publication* (not scheduler tick).
+                        now = datetime.now(timezone.utc)
+                        if self._last_checkpoint_at:
+                            try:
+                                lag_seconds = int((now - datetime.fromisoformat(self._last_checkpoint_at)).total_seconds())
+                            except (ValueError, TypeError):
+                                lag_seconds = 0
+                        else:
+                            lag_seconds = 0
+                        self._safe_hook(self._metrics_hooks.on_checkpoint_created, {"lag_seconds": lag_seconds})
+                    self._last_checkpoint_at = datetime.now(timezone.utc).isoformat()
+
+            await self._with_span("anip.checkpoint.create", {}, None, _do_checkpoint)
+        except Exception as e:
+            if self._metrics_hooks and self._metrics_hooks.on_checkpoint_failed:
+                self._safe_hook(self._metrics_hooks.on_checkpoint_failed, {"error": str(e)})
+            raise
         finally:
             await self._storage.release_leader("checkpoint", holder)
 

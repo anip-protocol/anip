@@ -61,6 +61,10 @@ class AuditAggregator:
         # _buckets: {bucket_epoch: {grouping_key_tuple: [events]}}
         self._buckets: dict[int, dict[tuple[str, str, str], list[dict]]] = {}
 
+    def get_pending_count(self) -> int:
+        """Return the number of open time-window buckets."""
+        return len(self._buckets)
+
     def submit(self, event: dict) -> None:
         """Buffer an event into the appropriate time-window bucket."""
         ts = event.get("timestamp", datetime.now(timezone.utc).isoformat())

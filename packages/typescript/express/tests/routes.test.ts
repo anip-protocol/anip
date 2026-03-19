@@ -168,6 +168,46 @@ describe("Express routes", () => {
   });
 });
 
+// --- Health endpoint tests ---
+
+async function makeHealthApp() {
+  const app = express();
+  const service = createANIPService({
+    serviceId: "test-service",
+    capabilities: [greetCap()],
+    storage: new InMemoryStorage(),
+    authenticate: (bearer) => (bearer === API_KEY ? "test-agent" : null),
+  });
+  const { stop } = await mountAnip(app, service, { healthEndpoint: true });
+  return { app, stop };
+}
+
+describe("Express health endpoint", () => {
+  let stopFn: (() => void) | undefined;
+
+  afterEach(() => {
+    stopFn?.();
+    stopFn = undefined;
+  });
+
+  it("is not registered by default", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await request(app).get("/-/health");
+    expect(res.status).toBe(404);
+  });
+
+  it("returns health report when enabled", async () => {
+    const { app, stop } = await makeHealthApp();
+    stopFn = stop;
+    const res = await request(app).get("/-/health");
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBeDefined();
+    expect(res.body.storage).toBeDefined();
+    expect(res.body.retention).toBeDefined();
+  });
+});
+
 function streamingCap() {
   return defineCapability({
     declaration: {

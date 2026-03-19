@@ -5,7 +5,7 @@ import { ANIPError } from "@anip/service";
 export async function mountAnip(
   app: FastifyInstance,
   service: ANIPService,
-  opts?: { prefix?: string },
+  opts?: { prefix?: string; healthEndpoint?: boolean },
 ): Promise<{ shutdown: () => Promise<void>; stop: () => void }> {
   const p = opts?.prefix ?? "";
 
@@ -149,6 +149,13 @@ export async function mountAnip(
     if (!result) return reply.status(404).send({ error: "Checkpoint not found" });
     return result;
   });
+
+  // --- Health ---
+  if (opts?.healthEndpoint) {
+    app.get("/-/health", async (_request, reply) => {
+      return reply.send(service.getHealth());
+    });
+  }
 
   await service.start();
   return {

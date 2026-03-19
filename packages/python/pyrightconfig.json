@@ -1,0 +1,23 @@
+{
+  "include": [
+    "anip-core/src",
+    "anip-core/tests",
+    "anip-crypto/src",
+    "anip-crypto/tests",
+    "anip-server/src",
+    "anip-server/tests",
+    "anip-service/src",
+    "anip-service/tests",
+    "anip-fastapi/src",
+    "anip-fastapi/tests"
+  ],
+  "extraPaths": [
+    "anip-core/src",
+    "anip-crypto/src",
+    "anip-server/src",
+    "anip-service/src",
+    "anip-fastapi/src"
+  ],
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic"
+}

@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from anip_service import ANIPService, Capability, ANIPError
 from anip_fastapi import mount_anip
-from anip_core import CapabilityDeclaration, CapabilityInput, CapabilityOutput, SideEffect, SideEffectType
+from anip_core import CapabilityDeclaration, CapabilityInput, CapabilityOutput, ResponseMode, SideEffect, SideEffectType
 
 
 def _greet_cap():
@@ -120,7 +120,7 @@ def _streaming_cap():
             output=CapabilityOutput(type="object", fields=["answer"]),
             side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
             minimum_scope=["analyze"],
-            response_modes=["unary", "streaming"],
+            response_modes=[ResponseMode.UNARY, ResponseMode.STREAMING],
         ),
         handler=handler,
     )
@@ -179,3 +179,33 @@ class TestStreamingRoutes:
         assert resp.status_code == 400
         data = resp.json()
         assert data["failure"]["type"] == "streaming_not_supported"
+
+
+# --- Health endpoint tests ---
+
+
+@pytest.fixture
+def health_client():
+    service = ANIPService(
+        service_id="test-service",
+        capabilities=[_greet_cap()],
+        storage=":memory:",
+        authenticate=lambda bearer: "test-agent" if bearer == API_KEY else None,
+    )
+    app = FastAPI()
+    mount_anip(app, service, health_endpoint=True)
+    return TestClient(app)
+
+
+class TestHealthEndpoint:
+    def test_health_endpoint_disabled_by_default(self, client):
+        resp = client.get("/-/health")
+        assert resp.status_code in (404, 405)
+
+    def test_health_endpoint_returns_report(self, health_client):
+        resp = health_client.get("/-/health")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] in ("healthy", "degraded", "unhealthy")
+        assert "storage" in data
+        assert "retention" in data

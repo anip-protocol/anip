@@ -97,6 +97,10 @@ export class AuditAggregator {
     bucketMap.get(gk)!.push(event);
   }
 
+  getPendingCount(): number {
+    return this._buckets.size;
+  }
+
   flush(now: Date): Array<Record<string, unknown> | AggregatedEntry> {
     const nowEpoch = Math.floor(now.getTime() / 1000);
     const results: Array<Record<string, unknown> | AggregatedEntry> = [];

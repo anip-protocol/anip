@@ -34,6 +34,7 @@ import {
 
 import { ANIPError } from "./types.js";
 import type { CapabilityDef, Handler, InvocationContext } from "./types.js";
+import type { ANIPHooks, LoggingHooks, TracingHooks, HealthReport } from "./hooks.js";
 import { AuditAggregator, type AggregatedEntry } from "./aggregation.js";
 import { classifyEvent } from "./classification.js";
 import { resolveDisclosureLevel } from "./disclosure.js";
@@ -67,6 +68,7 @@ export interface ANIPServiceOpts {
   disclosureLevel?: string;
   disclosurePolicy?: Record<string, string>;
   aggregationWindow?: number;
+  hooks?: ANIPHooks;
 }
 
 export interface ANIPService {
@@ -101,6 +103,7 @@ export interface ANIPService {
     checkpointId: string,
     options?: Record<string, unknown>,
   ): Promise<Record<string, unknown> | null>;
+  getHealth(): HealthReport;
   start(): Promise<void>;
   stop(): void;
   shutdown(): Promise<void>;
@@ -160,6 +163,50 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     keyPath,
     authenticate: authenticateFn,
   } = opts;
+
+  // --- Observability hooks (v0.11) ---
+  const hooks = opts.hooks ?? {};
+  const logHooks = hooks.logging;
+  const metricsHooks = hooks.metrics;
+  const tracingHooks = hooks.tracing;
+
+  // --- Safe hook invocation helper ---
+  // Hooks are optional instrumentation and must never affect correctness.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function safeHook(fn: ((...args: any[]) => void) | undefined, payload: any): void {
+    try { fn?.(payload); } catch { /* hook must not affect correctness */ }
+  }
+
+  // --- withSpan helper (tracing) ---
+  function withSpan<T>(
+    name: string,
+    attrs: Record<string, string | number | boolean>,
+    parentSpan: unknown | undefined,
+    fn: (span: unknown) => T,
+  ): T {
+    if (!tracingHooks?.startSpan) return fn(undefined);
+    let span: unknown;
+    try {
+      span = tracingHooks.startSpan({ name, attributes: attrs, parentSpan });
+    } catch {
+      // startSpan threw — skip tracing entirely and run fn without a span
+      return fn(undefined);
+    }
+    try {
+      const result = fn(span);
+      if (result instanceof Promise) {
+        return result.then(
+          (v) => { try { tracingHooks.endSpan?.({ span, status: "ok" }); } catch { /* swallow */ } return v; },
+          (e: any) => { try { tracingHooks.endSpan?.({ span, status: "error", errorType: e?.name, errorMessage: e?.message }); } catch { /* swallow */ } throw e; },
+        ) as T;
+      }
+      try { tracingHooks.endSpan?.({ span, status: "ok" }); } catch { /* swallow */ }
+      return result;
+    } catch (e: any) {
+      try { tracingHooks.endSpan?.({ span, status: "error", errorType: e?.name, errorMessage: e?.message }); } catch { /* swallow */ }
+      throw e;
+    }
+  }
 
   // --- Disclosure level (v0.8) ---
   const disclosureLevel = opts.disclosureLevel ?? "full";
@@ -284,6 +331,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   // --- Checkpoint scheduling ---
   const checkpointPolicy = opts.checkpointPolicy ?? null;
   let scheduler: CheckpointScheduler | null = null;
+  let lastCheckpointAt: string | null = null; // Updated only when a checkpoint is actually published
 
   function getHolderId(): string {
     return `${hostname()}:${process.pid}`;
@@ -294,22 +342,39 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     const acquired = await storage.tryAcquireLeader("checkpoint", holder, 120);
     if (!acquired) return;
     try {
-      const result = await reconstructAndCreateCheckpoint({
-        storage,
-        serviceId,
-      });
-      if (result) {
-        // Sign asynchronously with the dedicated audit key
-        await ensureKeys();
-        const canonicalBytes = new TextEncoder().encode(stableStringify(result.body));
-        const signature = await keys.signJWSDetachedAudit(
-          new Uint8Array(canonicalBytes),
-        );
-        await storage.storeCheckpoint(result.body, signature);
-        for (const sink of sinks) {
-          sink.publish({ body: result.body, signature });
+      await withSpan("anip.checkpoint.create", {}, undefined, async () => {
+        const result = await reconstructAndCreateCheckpoint({
+          storage,
+          serviceId,
+        });
+        if (result) {
+          // Sign asynchronously with the dedicated audit key
+          await ensureKeys();
+          const canonicalBytes = new TextEncoder().encode(stableStringify(result.body));
+          const signature = await keys.signJWSDetachedAudit(
+            new Uint8Array(canonicalBytes),
+          );
+          await storage.storeCheckpoint(result.body, signature);
+          for (const sink of sinks) {
+            sink.publish({ body: result.body, signature });
+          }
+          safeHook(logHooks?.onCheckpointCreated, {
+            checkpointId: result.body.checkpoint_id as string,
+            entryCount: result.body.entry_count as number,
+            merkleRoot: result.body.merkle_root as string,
+            timestamp: new Date().toISOString(),
+          });
+          // Lag = time since previous checkpoint *publication* (not scheduler tick).
+          const lagSeconds = lastCheckpointAt
+            ? Math.round((Date.now() - new Date(lastCheckpointAt).getTime()) / 1000)
+            : 0;
+          safeHook(metricsHooks?.onCheckpointCreated, { lagSeconds });
+          lastCheckpointAt = new Date().toISOString();
         }
-      }
+      });
+    } catch (e) {
+      safeHook(metricsHooks?.onCheckpointFailed, { error: String(e) });
+      throw e;
     } finally {
       await storage.releaseLeader("checkpoint", holder);
     }
@@ -319,6 +384,11 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     scheduler = new CheckpointScheduler(
       60, // default interval
       leaderCheckpointTick,
+      {
+        onError: (error) => {
+          try { hooks.diagnostics?.onBackgroundError?.({ source: "checkpoint", error, timestamp: new Date().toISOString() }); } catch { /* hook must not affect correctness */ }
+        },
+      },
     );
   }
 
@@ -327,6 +397,13 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   // — Postgres handles row TTL natively or via external policy.
   let retentionEnforcer = new RetentionEnforcer(storage, 60, {
     skipAuditRetention: isPostgresBackend,
+    onSweep: (deletedCount, durationMs) => {
+      safeHook(logHooks?.onRetentionSweep, { deletedCount, durationMs, timestamp: new Date().toISOString() });
+      safeHook(metricsHooks?.onRetentionDeleted, { count: deletedCount });
+    },
+    onError: (error) => {
+      try { hooks.diagnostics?.onBackgroundError?.({ source: "retention", error, timestamp: new Date().toISOString() }); } catch { /* hook must not affect correctness */ }
+    },
   });
 
   // --- Audit aggregation (v0.9) ---
@@ -357,6 +434,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       eventClass?: string | null;
       retentionTier?: string | null;
       expiresAt?: string | null;
+      parentSpan?: unknown;
     },
   ): Promise<void> {
     const chain = await engine.getChain(token);
@@ -387,21 +465,50 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       return;
     }
 
-    await audit.logEntry(redactedEntry);
+    await withSpan("anip.audit.append", { capability }, auditOpts.parentSpan, async () => {
+      const auditStart = performance.now();
+      let stored: Record<string, unknown>;
+      try {
+        stored = await audit.logEntry(redactedEntry);
+      } catch (e) {
+        const auditDurationMs = Math.round(performance.now() - auditStart);
+        safeHook(metricsHooks?.onAuditAppendDuration, { durationMs: auditDurationMs, success: false });
+        throw e;
+      }
+      const auditDurationMs = Math.round(performance.now() - auditStart);
+      safeHook(metricsHooks?.onAuditAppendDuration, { durationMs: auditDurationMs, success: true });
+      safeHook(logHooks?.onAuditAppend, {
+        sequenceNumber: (stored.sequence_number as number) ?? 0,
+        capability,
+        invocationId: (auditOpts.invocationId as string) ?? "",
+        success: auditOpts.success,
+        timestamp: new Date().toISOString(),
+      });
+    });
   }
 
   async function flushAggregator(): Promise<void> {
     if (!aggregator) return;
-    const results = aggregator.flush(new Date());
-    for (const item of results) {
-      let entry: Record<string, unknown>;
-      if (typeof item === "object" && item !== null && "toAuditDict" in item) {
-        entry = storageRedactEntry((item as AggregatedEntry).toAuditDict());
-      } else {
-        entry = storageRedactEntry(item as Record<string, unknown>);
+    await withSpan("anip.aggregation.flush", {}, undefined, async () => {
+      const results = aggregator.flush(new Date());
+      let entriesFlushed = 0;
+      for (const item of results) {
+        let entry: Record<string, unknown>;
+        if (typeof item === "object" && item !== null && "toAuditDict" in item) {
+          entry = storageRedactEntry((item as AggregatedEntry).toAuditDict());
+        } else {
+          entry = storageRedactEntry(item as Record<string, unknown>);
+        }
+        await audit.logEntry(entry);
+        entriesFlushed++;
       }
-      await audit.logEntry(entry);
-    }
+      safeHook(logHooks?.onAggregationFlush, {
+        windowCount: results.length,
+        entriesFlushed,
+        timestamp: new Date().toISOString(),
+      });
+      safeHook(metricsHooks?.onAggregationFlushed, { windowCount: results.length });
+    });
   }
 
   async function runWithExclusiveHeartbeat(
@@ -815,6 +922,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         progressSink?: (event: Record<string, unknown>) => Promise<void>;
       },
     ): Promise<Record<string, unknown>> {
+      const invokeStartTime = performance.now();
       const invocationId = `inv-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
       const clientReferenceId = opts?.clientReferenceId ?? null;
 
@@ -825,8 +933,21 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         disclosurePolicy,
       );
 
+      // Wrap entire invoke body in a root tracing span
+      return withSpan("anip.invoke", { capability: capabilityName }, undefined, async (rootSpan) => {
+
       // 1. Check capability exists
       if (!capabilities.has(capabilityName)) {
+        const durationMs = performance.now() - invokeStartTime;
+        safeHook(logHooks?.onInvocationEnd,{
+          capability: capabilityName,
+          invocationId,
+          success: false,
+          failureType: "unknown_capability",
+          durationMs,
+          timestamp: new Date().toISOString(),
+        });
+        safeHook(metricsHooks?.onInvocationDuration,{ capability: capabilityName, durationMs, success: false });
         return {
           success: false,
           failure: redactFailure({
@@ -847,6 +968,16 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       if (stream) {
         const responseModes = (decl as any).response_modes ?? ["unary"];
         if (!responseModes.includes("streaming")) {
+          const durationMs = performance.now() - invokeStartTime;
+          safeHook(logHooks?.onInvocationEnd,{
+            capability: capabilityName,
+            invocationId,
+            success: false,
+            failureType: "streaming_not_supported",
+            durationMs,
+            timestamp: new Date().toISOString(),
+          });
+          safeHook(metricsHooks?.onInvocationDuration,{ capability: capabilityName, durationMs, success: false });
           return {
             success: false,
             failure: redactFailure({
@@ -861,11 +992,13 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
       // 2. Validate delegation
       const minScope = decl.minimum_scope ?? [];
-      const validationResult = await engine.validateDelegation(
-        token,
-        minScope,
-        capabilityName,
-      );
+      const validationResult = await withSpan("anip.delegation.validate", { capability: capabilityName }, rootSpan, async () => {
+        return engine.validateDelegation(
+          token,
+          minScope,
+          capabilityName,
+        );
+      });
 
       // Check for validation failure
       if (isANIPFailure(validationResult)) {
@@ -874,6 +1007,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           detail: validationResult.detail,
           resolution: validationResult.resolution,
         };
+        safeHook(logHooks?.onDelegationFailure,{
+          reason: failure.type,
+          tokenId: token.token_id ?? null,
+          timestamp: new Date().toISOString(),
+        });
+        safeHook(metricsHooks?.onDelegationDenied,{ reason: failure.type });
         const sideEffectType = (decl as any).side_effect?.type ?? null;
         const eventClass = classifyEvent(sideEffectType, false, failure.type);
         const retTier = retentionPolicy.resolveTier(eventClass);
@@ -886,7 +1025,18 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           eventClass,
           retentionTier: retTier,
           expiresAt,
+          parentSpan: rootSpan,
         });
+        const delegDurationMs = performance.now() - invokeStartTime;
+        safeHook(logHooks?.onInvocationEnd,{
+          capability: capabilityName,
+          invocationId,
+          success: false,
+          failureType: failure.type,
+          durationMs: delegDurationMs,
+          timestamp: new Date().toISOString(),
+        });
+        safeHook(metricsHooks?.onInvocationDuration,{ capability: capabilityName, durationMs: delegDurationMs, success: false });
         return {
           success: false,
           failure: redactFailure(failure, effectiveLevel),
@@ -906,9 +1056,10 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       let clientDisconnected = false;
       const streamStart = stream ? performance.now() : 0;
 
+      const ctxRootPrincipal = await engine.getRootPrincipal(resolvedToken);
       const ctx: InvocationContext = {
         token: resolvedToken,
-        rootPrincipal: await engine.getRootPrincipal(resolvedToken),
+        rootPrincipal: ctxRootPrincipal,
         subject: resolvedToken.subject,
         scopes: resolvedToken.scope ?? [],
         delegationChain: chain.map((t) => t.token_id),
@@ -930,10 +1081,20 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
               eventsDelivered++;
             } catch {
               clientDisconnected = true;
+              safeHook(metricsHooks?.onStreamingDeliveryFailure, { capability: capabilityName });
             }
           }
         },
       };
+
+      safeHook(logHooks?.onInvocationStart, {
+        capability: capabilityName,
+        invocationId,
+        clientReferenceId,
+        rootPrincipal: ctxRootPrincipal,
+        subject: resolvedToken.subject,
+        timestamp: new Date().toISOString(),
+      });
 
       // 4. Acquire exclusive lock if configured
       let locked = false;
@@ -953,7 +1114,18 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           eventClass: eventClassL,
           retentionTier: retTierL,
           expiresAt: expiresAtL,
+          parentSpan: rootSpan,
         });
+        const lockDurationMs = performance.now() - invokeStartTime;
+        safeHook(logHooks?.onInvocationEnd,{
+          capability: capabilityName,
+          invocationId,
+          success: false,
+          failureType: "concurrent_lock",
+          durationMs: lockDurationMs,
+          timestamp: new Date().toISOString(),
+        });
+        safeHook(metricsHooks?.onInvocationDuration,{ capability: capabilityName, durationMs: lockDurationMs, success: false });
         return {
           success: false,
           failure: redactFailure({ type: lockResult.type, detail: lockResult.detail }, effectiveLevel),
@@ -969,9 +1141,11 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         const exclusiveKey = cap.exclusiveLock && resolvedToken.constraints?.concurrent_branches === "exclusive"
           ? `exclusive:${serviceId}:${await engine.getRootPrincipal(resolvedToken)}`
           : null;
-        const result = exclusiveKey
-          ? await runWithExclusiveHeartbeat(storage, exclusiveKey, getHolderId(), exclusiveTtl, runHandler) as Record<string, unknown>
-          : await runHandler();
+        const result = await withSpan("anip.handler.execute", { capability: capabilityName }, rootSpan, async () => {
+          return exclusiveKey
+            ? await runWithExclusiveHeartbeat(storage, exclusiveKey, getHolderId(), exclusiveTtl, runHandler) as Record<string, unknown>
+            : await runHandler();
+        });
 
         // 5. Build stream summary (before audit so it can be persisted)
         let streamSummary: Record<string, unknown> | null = null;
@@ -1000,7 +1174,32 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           eventClass: eventClassS,
           retentionTier: retTierS,
           expiresAt: expiresAtS,
+          parentSpan: rootSpan,
         });
+
+        // Fire streaming summary hook
+        if (stream && streamSummary) {
+          safeHook(logHooks?.onStreamingSummary,{
+            invocationId,
+            capability: capabilityName,
+            eventsEmitted,
+            eventsDelivered,
+            clientDisconnected,
+            durationMs: streamSummary.duration_ms as number,
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        const successDurationMs = performance.now() - invokeStartTime;
+        safeHook(logHooks?.onInvocationEnd,{
+          capability: capabilityName,
+          invocationId,
+          success: true,
+          failureType: null,
+          durationMs: successDurationMs,
+          timestamp: new Date().toISOString(),
+        });
+        safeHook(metricsHooks?.onInvocationDuration,{ capability: capabilityName, durationMs: successDurationMs, success: true });
 
         // 7. Build response
         const response: Record<string, unknown> = {
@@ -1043,7 +1242,29 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             eventClass: eventClassE,
             retentionTier: retTierE,
             expiresAt: expiresAtE,
+            parentSpan: rootSpan,
           });
+          if (stream && failStreamSummary) {
+            safeHook(logHooks?.onStreamingSummary,{
+              invocationId,
+              capability: capabilityName,
+              eventsEmitted,
+              eventsDelivered,
+              clientDisconnected,
+              durationMs: failStreamSummary.duration_ms as number,
+              timestamp: new Date().toISOString(),
+            });
+          }
+          const anipErrDurationMs = performance.now() - invokeStartTime;
+          safeHook(logHooks?.onInvocationEnd,{
+            capability: capabilityName,
+            invocationId,
+            success: false,
+            failureType: err.errorType,
+            durationMs: anipErrDurationMs,
+            timestamp: new Date().toISOString(),
+          });
+          safeHook(metricsHooks?.onInvocationDuration,{ capability: capabilityName, durationMs: anipErrDurationMs, success: false });
           const response: Record<string, unknown> = {
             success: false,
             failure: redactFailure({ type: err.errorType, detail: err.detail }, effectiveLevel),
@@ -1070,7 +1291,29 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           eventClass: eventClassU,
           retentionTier: retTierU,
           expiresAt: expiresAtU,
+          parentSpan: rootSpan,
         });
+        if (stream && failStreamSummary) {
+          safeHook(logHooks?.onStreamingSummary,{
+            invocationId,
+            capability: capabilityName,
+            eventsEmitted,
+            eventsDelivered,
+            clientDisconnected,
+            durationMs: failStreamSummary.duration_ms as number,
+            timestamp: new Date().toISOString(),
+          });
+        }
+        const internalErrDurationMs = performance.now() - invokeStartTime;
+        safeHook(logHooks?.onInvocationEnd,{
+          capability: capabilityName,
+          invocationId,
+          success: false,
+          failureType: "internal_error",
+          durationMs: internalErrDurationMs,
+          timestamp: new Date().toISOString(),
+        });
+        safeHook(metricsHooks?.onInvocationDuration,{ capability: capabilityName, durationMs: internalErrDurationMs, success: false });
         const response: Record<string, unknown> = {
           success: false,
           failure: redactFailure({ type: "internal_error", detail: "Internal error" }, effectiveLevel),
@@ -1086,6 +1329,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           await engine.releaseExclusiveLock(resolvedToken);
         }
       }
+
+      }); // end withSpan("anip.invoke")
     },
 
     async queryAudit(
@@ -1184,22 +1429,28 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         const leafIndex = opts2.leaf_index as number;
         const lastSeq =
           rng.last_sequence ?? (row.last_sequence as number) ?? 0;
+        const proofStart = performance.now();
         try {
-          const tree = await rebuildMerkleTo(lastSeq);
-          try {
-            const proof = tree.inclusionProof(leafIndex);
-            result.inclusion_proof = {
-              leaf_index: leafIndex,
-              path: proof,
-              merkle_root: tree.root,
-              leaf_count: tree.leafCount,
-            };
-          } catch {
-            // index out of range — skip
-          }
+          await withSpan("anip.proof.generate", { checkpointId }, undefined, async () => {
+            const tree = await rebuildMerkleTo(lastSeq);
+            try {
+              const proof = tree.inclusionProof(leafIndex);
+              result.inclusion_proof = {
+                leaf_index: leafIndex,
+                path: proof,
+                merkle_root: tree.root,
+                leaf_count: tree.leafCount,
+              };
+              safeHook(metricsHooks?.onProofGenerated,{ durationMs: Math.round(performance.now() - proofStart) });
+            } catch {
+              // index out of range — skip
+              safeHook(metricsHooks?.onProofUnavailable,{ reason: "leaf_index_out_of_range" });
+            }
+          });
         } catch (err: unknown) {
           if (err instanceof Error && err.message.includes("audit entries have been deleted")) {
             result.proof_unavailable = "audit_entries_expired";
+            safeHook(metricsHooks?.onProofUnavailable,{ reason: "audit_entries_expired" });
           } else {
             throw err;
           }
@@ -1216,26 +1467,32 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             oldRng.last_sequence ?? (oldRow.last_sequence as number) ?? 0;
           const newLast =
             rng.last_sequence ?? (row.last_sequence as number) ?? 0;
+          const consProofStart = performance.now();
           try {
-            const oldTree = await rebuildMerkleTo(oldLast);
-            const newTree = await rebuildMerkleTo(newLast);
-            try {
-              const path = newTree.consistencyProof(oldTree.leafCount);
-              result.consistency_proof = {
-                old_checkpoint_id: consistencyFrom,
-                new_checkpoint_id: checkpointId,
-                old_size: oldTree.leafCount,
-                new_size: newTree.leafCount,
-                old_root: oldTree.root,
-                new_root: newTree.root,
-                path,
-              };
-            } catch {
-              // skip
-            }
+            await withSpan("anip.proof.generate", { checkpointId }, undefined, async () => {
+              const oldTree = await rebuildMerkleTo(oldLast);
+              const newTree = await rebuildMerkleTo(newLast);
+              try {
+                const path = newTree.consistencyProof(oldTree.leafCount);
+                result.consistency_proof = {
+                  old_checkpoint_id: consistencyFrom,
+                  new_checkpoint_id: checkpointId,
+                  old_size: oldTree.leafCount,
+                  new_size: newTree.leafCount,
+                  old_root: oldTree.root,
+                  new_root: newTree.root,
+                  path,
+                };
+                safeHook(metricsHooks?.onProofGenerated,{ durationMs: Math.round(performance.now() - consProofStart) });
+              } catch {
+                // skip
+                safeHook(metricsHooks?.onProofUnavailable,{ reason: "consistency_proof_failed" });
+              }
+            });
           } catch (err: unknown) {
             if (err instanceof Error && err.message.includes("audit entries have been deleted")) {
               result.proof_unavailable = "audit_entries_expired";
+              safeHook(metricsHooks?.onProofUnavailable,{ reason: "audit_entries_expired" });
             } else {
               throw err;
             }
@@ -1244,6 +1501,47 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       }
 
       return result;
+    },
+
+    getHealth(): HealthReport {
+      const storageType = isPostgresBackend
+        ? "postgres"
+        : storage instanceof SQLiteStorage
+          ? "sqlite"
+          : "memory";
+
+      const checkpointHealth = scheduler
+        ? {
+            healthy: scheduler.getLastError() === null,
+            lastRunAt: scheduler.getLastRunAt(),
+            lagSeconds: scheduler.getLastRunAt()
+              ? Math.round((Date.now() - new Date(scheduler.getLastRunAt()!).getTime()) / 1000)
+              : null,
+          }
+        : null;
+
+      const retentionHealth = {
+        healthy: retentionEnforcer.isRunning() && retentionEnforcer.getLastError() === null,
+        lastRunAt: retentionEnforcer.getLastRunAt(),
+        lastDeletedCount: retentionEnforcer.getLastDeletedCount(),
+      };
+
+      const aggregationHealth = aggregator
+        ? { pendingWindows: aggregator.getPendingCount() }
+        : null;
+
+      // Derive overall status
+      let status: "healthy" | "degraded" | "unhealthy" = "healthy";
+      if (checkpointHealth && !checkpointHealth.healthy) status = "degraded";
+      if (!retentionHealth.healthy) status = "degraded";
+
+      return {
+        status,
+        storage: { type: storageType },
+        checkpoint: checkpointHealth,
+        retention: retentionHealth,
+        aggregation: aggregationHealth,
+      };
     },
 
     async start(): Promise<void> {
@@ -1261,6 +1559,13 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         audit = new AuditLog(storage, (entry) => keys.signAuditEntry(entry));
         retentionEnforcer = new RetentionEnforcer(storage, 60, {
           skipAuditRetention: isPostgresBackend,
+          onSweep: (deletedCount, durationMs) => {
+            safeHook(logHooks?.onRetentionSweep, { deletedCount, durationMs, timestamp: new Date().toISOString() });
+            safeHook(metricsHooks?.onRetentionDeleted, { count: deletedCount });
+          },
+          onError: (error) => {
+            try { hooks.diagnostics?.onBackgroundError?.({ source: "retention", error, timestamp: new Date().toISOString() }); } catch { /* hook must not affect correctness */ }
+          },
         });
       }
 
@@ -1276,7 +1581,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
       if (aggregator && aggregationWindow != null) {
         flushTimer = setInterval(() => {
-          flushAggregator().catch(() => {});
+          flushAggregator().catch((e: unknown) => {
+            try { hooks.diagnostics?.onBackgroundError?.({ source: "aggregation", error: String(e), timestamp: new Date().toISOString() }); } catch { /* hook must not affect correctness */ }
+          });
         }, aggregationWindow * 1000);
         flushTimer.unref();
       }

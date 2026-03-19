@@ -34,12 +34,14 @@ async def test_delegate_from_parent():
         scope=["travel.search", "travel.book"],
         capability="search_flights",
     )
-    child, _ = await engine.delegate(
+    delegate_result = await engine.delegate(
         parent_token=parent,
         subject="agent-b",
         scope=["travel.search"],
         capability="search_flights",
     )
+    assert isinstance(delegate_result, tuple)
+    child, _ = delegate_result
     # root_principal inherited from parent chain, issuer is parent's subject
     assert child.root_principal == "human:alice@example.com"
     assert child.issuer == "agent-a"
@@ -82,12 +84,14 @@ async def test_child_scope_narrowing():
         scope=["travel.search", "travel.book"],
         capability="search_flights",
     )
-    child, _ = await engine.delegate(
+    delegate_result = await engine.delegate(
         parent_token=parent,
         subject="sub-agent",
         scope=["travel.search"],
         capability="search_flights",
     )
+    assert isinstance(delegate_result, tuple)
+    child, _ = delegate_result
     result = await engine.validate_delegation(child, ["travel.search"], "search_flights")
     assert isinstance(result, DelegationToken)
 

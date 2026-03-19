@@ -1,20 +1,33 @@
 """Tests for permission discovery."""
-from anip_core import DelegationToken, CapabilityDeclaration
+from datetime import datetime, timezone
+
+from anip_core import (
+    CapabilityDeclaration,
+    CapabilityOutput,
+    ConcurrentBranches,
+    DelegationConstraints,
+    DelegationToken,
+    Purpose,
+    SideEffect,
+    SideEffectType,
+)
 from anip_server.permissions import discover_permissions
 
 
 def test_available_capability():
     token = DelegationToken(
         token_id="tok-1", issuer="svc", subject="agent",
-        scope=["travel.search"], purpose={"capability": "search_flights", "parameters": {}, "task_id": "t1"},
-        parent=None, expires="2099-12-31T23:59:59Z",
-        constraints={"max_delegation_depth": 3, "concurrent_branches": "allowed"},
+        scope=["travel.search"],
+        purpose=Purpose(capability="search_flights", parameters={}, task_id="t1"),
+        parent=None,
+        expires=datetime(2099, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
+        constraints=DelegationConstraints(max_delegation_depth=3, concurrent_branches=ConcurrentBranches.ALLOWED),
     )
     caps = {
         "search_flights": CapabilityDeclaration(
             name="search_flights", description="Search", contract_version="1.0",
-            inputs=[], output={"type": "object", "fields": []},
-            side_effect={"type": "read", "rollback_window": None},
+            inputs=[], output=CapabilityOutput(type="object", fields=[]),
+            side_effect=SideEffect(type=SideEffectType.READ, rollback_window=None),
             minimum_scope=["travel.search"],
         ),
     }
@@ -26,15 +39,17 @@ def test_available_capability():
 def test_denied_capability():
     token = DelegationToken(
         token_id="tok-1", issuer="svc", subject="agent",
-        scope=["travel.search"], purpose={"capability": "search_flights", "parameters": {}, "task_id": "t1"},
-        parent=None, expires="2099-12-31T23:59:59Z",
-        constraints={"max_delegation_depth": 3, "concurrent_branches": "allowed"},
+        scope=["travel.search"],
+        purpose=Purpose(capability="search_flights", parameters={}, task_id="t1"),
+        parent=None,
+        expires=datetime(2099, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
+        constraints=DelegationConstraints(max_delegation_depth=3, concurrent_branches=ConcurrentBranches.ALLOWED),
     )
     caps = {
         "book_flight": CapabilityDeclaration(
             name="book_flight", description="Book", contract_version="1.0",
-            inputs=[], output={"type": "object", "fields": []},
-            side_effect={"type": "irreversible", "rollback_window": None},
+            inputs=[], output=CapabilityOutput(type="object", fields=[]),
+            side_effect=SideEffect(type=SideEffectType.IRREVERSIBLE, rollback_window=None),
             minimum_scope=["travel.book"],
         ),
     }

@@ -185,6 +185,47 @@ describe("Fastify routes", () => {
   });
 });
 
+// --- Health endpoint tests ---
+
+async function makeHealthApp() {
+  const app = Fastify();
+  const service = createANIPService({
+    serviceId: "test-service",
+    capabilities: [greetCap()],
+    storage: new InMemoryStorage(),
+    authenticate: (bearer) => (bearer === API_KEY ? "test-agent" : null),
+  });
+  const { stop } = await mountAnip(app, service, { healthEndpoint: true });
+  return { app, stop };
+}
+
+describe("Fastify health endpoint", () => {
+  let stopFn: (() => void) | undefined;
+
+  afterEach(() => {
+    stopFn?.();
+    stopFn = undefined;
+  });
+
+  it("is not registered by default", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await app.inject({ method: "GET", url: "/-/health" });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("returns health report when enabled", async () => {
+    const { app, stop } = await makeHealthApp();
+    stopFn = stop;
+    const res = await app.inject({ method: "GET", url: "/-/health" });
+    expect(res.statusCode).toBe(200);
+    const data = res.json();
+    expect(data.status).toBeDefined();
+    expect(data.storage).toBeDefined();
+    expect(data.retention).toBeDefined();
+  });
+});
+
 function streamingCap() {
   return defineCapability({
     declaration: {

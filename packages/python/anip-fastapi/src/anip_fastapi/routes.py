@@ -15,6 +15,8 @@ def mount_anip(
     app: FastAPI,
     service: ANIPService,
     prefix: str = "",
+    *,
+    health_endpoint: bool = False,
 ) -> None:
     """Mount all ANIP protocol routes onto a FastAPI app.
 
@@ -106,8 +108,7 @@ def mount_anip(
         # Streaming mode — pre-validate streaming support (return JSON 400, not SSE)
         decl = service.get_capability_declaration(capability)
         if decl is not None:
-            modes = [m.value if hasattr(m, 'value') else m
-                     for m in (decl.response_modes or ["unary"])]
+            modes = [m.value if hasattr(m, 'value') else m for m in (decl.response_modes or ["unary"])]  # pyright: ignore[reportAttributeAccessIssue]
             if "streaming" not in modes:
                 result = await service.invoke(
                     capability, token, params,
@@ -231,6 +232,12 @@ def mount_anip(
         if result is None:
             return JSONResponse({"error": "Checkpoint not found"}, status_code=404)
         return result
+
+    # --- Health ---
+    if health_endpoint:
+        @app.get("/-/health")
+        def health():
+            return service.get_health()
 
 
 async def _extract_principal(request: Request, service: ANIPService) -> str | None:

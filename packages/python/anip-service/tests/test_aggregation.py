@@ -75,6 +75,7 @@ class TestAuditAggregator:
         results = agg.flush(t + timedelta(seconds=61))
         entry = results[0]
         assert isinstance(entry, AggregatedEntry)
+        assert entry.representative_detail is not None
         assert len(entry.representative_detail) == 200
 
     def test_representative_detail_nullable(self):
@@ -143,6 +144,7 @@ class TestAuditAggregator:
 
         results = agg.flush(t + timedelta(seconds=61))
         entry = results[0]
+        assert isinstance(entry, AggregatedEntry)
         d = entry.to_audit_dict()
         assert d["entry_type"] == "aggregated"
         assert d["event_class"] == "repeated_low_value_denial"

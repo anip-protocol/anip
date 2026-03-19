@@ -139,6 +139,38 @@ describe("Hono routes", () => {
   });
 });
 
+// --- Health endpoint tests ---
+
+async function makeHealthApp() {
+  const service = createANIPService({
+    serviceId: "test-service",
+    capabilities: [greetCap()],
+    storage: new InMemoryStorage(),
+    authenticate: (bearer) => (bearer === API_KEY ? "test-agent" : null),
+  });
+  const app = new Hono();
+  const { stop } = await mountAnip(app, service, { healthEndpoint: true });
+  return { app, stop };
+}
+
+describe("Health endpoint", () => {
+  it("is not registered by default", async () => {
+    const { app } = await makeApp();
+    const resp = await app.request("/-/health");
+    expect(resp.status).toBe(404);
+  });
+
+  it("returns health report when enabled", async () => {
+    const { app } = await makeHealthApp();
+    const resp = await app.request("/-/health");
+    expect(resp.status).toBe(200);
+    const data = await resp.json();
+    expect(data.status).toBeDefined();
+    expect(data.storage).toBeDefined();
+    expect(data.retention).toBeDefined();
+  });
+});
+
 // --- Streaming helpers and tests ---
 
 function streamingCap() {
