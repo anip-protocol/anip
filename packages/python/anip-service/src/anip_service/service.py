@@ -84,6 +84,7 @@ class ANIPService:
         self._disclosure_level = disclosure_level
         self._disclosure_policy = disclosure_policy
         self._hooks = hooks or ANIPHooks()
+        self._log_hooks = self._hooks.logging
 
         # --- Bootstrap authentication ---
         self._authenticate = authenticate
@@ -492,6 +493,7 @@ class ANIPService:
         6. Handles checkpoint triggers
         """
         invocation_id = f"inv-{uuid.uuid4().hex[:12]}"
+        invoke_start = time.monotonic()
 
         # Resolve effective disclosure level for this caller
         effective_level = resolve_disclosure_level(
@@ -502,6 +504,15 @@ class ANIPService:
 
         # 1. Check capability exists
         if capability_name not in self._capabilities:
+            if self._log_hooks and self._log_hooks.on_invocation_end:
+                self._log_hooks.on_invocation_end({
+                    "capability": capability_name,
+                    "invocation_id": invocation_id,
+                    "success": False,
+                    "failure_type": "unknown_capability",
+                    "duration_ms": int((time.monotonic() - invoke_start) * 1000),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
             return {
                 "success": False,
                 "failure": redact_failure({
@@ -519,6 +530,15 @@ class ANIPService:
         if stream:
             response_modes = [m.value if hasattr(m, 'value') else m for m in (decl.response_modes or ["unary"])]
             if "streaming" not in response_modes:
+                if self._log_hooks and self._log_hooks.on_invocation_end:
+                    self._log_hooks.on_invocation_end({
+                        "capability": capability_name,
+                        "invocation_id": invocation_id,
+                        "success": False,
+                        "failure_type": "streaming_not_supported",
+                        "duration_ms": int((time.monotonic() - invoke_start) * 1000),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
                 return {
                     "success": False,
                     "failure": redact_failure({
@@ -542,6 +562,12 @@ class ANIPService:
                 "detail": validation_result.detail,
                 "resolution": validation_result.resolution.model_dump() if hasattr(validation_result.resolution, "model_dump") else validation_result.resolution,
             }
+            if self._log_hooks and self._log_hooks.on_delegation_failure:
+                self._log_hooks.on_delegation_failure({
+                    "reason": failure["type"],
+                    "token_id": token.token_id if token else None,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
             _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
             _event_class = classify_event(_side_effect_type, False, failure["type"])
             _retention_tier = self._retention_policy.resolve_tier(_event_class)
@@ -553,6 +579,15 @@ class ANIPService:
                 invocation_id=invocation_id, client_reference_id=client_reference_id,
                 event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
             )
+            if self._log_hooks and self._log_hooks.on_invocation_end:
+                self._log_hooks.on_invocation_end({
+                    "capability": capability_name,
+                    "invocation_id": invocation_id,
+                    "success": False,
+                    "failure_type": failure["type"],
+                    "duration_ms": int((time.monotonic() - invoke_start) * 1000),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
             return {
                 "success": False,
                 "failure": redact_failure(failure, effective_level),
@@ -585,9 +620,10 @@ class ANIPService:
 
         # 3. Build invocation context
         chain = await self._engine.get_chain(resolved_token)
+        root_principal = await self._engine.get_root_principal(resolved_token)
         ctx = InvocationContext(
             token=resolved_token,
-            root_principal=await self._engine.get_root_principal(resolved_token),
+            root_principal=root_principal,
             subject=resolved_token.subject,
             scopes=resolved_token.scope or [],
             delegation_chain=[t.token_id for t in chain],
@@ -595,6 +631,16 @@ class ANIPService:
             client_reference_id=client_reference_id,
             _progress_sink=_internal_progress_sink if stream else None,
         )
+
+        if self._log_hooks and self._log_hooks.on_invocation_start:
+            self._log_hooks.on_invocation_start({
+                "capability": capability_name,
+                "invocation_id": invocation_id,
+                "client_reference_id": client_reference_id,
+                "root_principal": root_principal,
+                "subject": resolved_token.subject,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
 
         # 4. Acquire lock if configured
         locked = False
@@ -612,6 +658,15 @@ class ANIPService:
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
                     event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                 )
+                if self._log_hooks and self._log_hooks.on_invocation_end:
+                    self._log_hooks.on_invocation_end({
+                        "capability": capability_name,
+                        "invocation_id": invocation_id,
+                        "success": False,
+                        "failure_type": "concurrent_lock",
+                        "duration_ms": int((time.monotonic() - invoke_start) * 1000),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
                 return {
                     "success": False,
                     "failure": redact_failure({"type": lock_result.type, "detail": lock_result.detail}, effective_level),
@@ -655,6 +710,25 @@ class ANIPService:
                     stream_summary=fail_stream_summary,
                     event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                 )
+                if stream and fail_stream_summary and self._log_hooks and self._log_hooks.on_streaming_summary:
+                    self._log_hooks.on_streaming_summary({
+                        "invocation_id": invocation_id,
+                        "capability": capability_name,
+                        "events_emitted": events_emitted,
+                        "events_delivered": events_delivered,
+                        "client_disconnected": client_disconnected,
+                        "duration_ms": int((time.monotonic() - stream_start) * 1000),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+                if self._log_hooks and self._log_hooks.on_invocation_end:
+                    self._log_hooks.on_invocation_end({
+                        "capability": capability_name,
+                        "invocation_id": invocation_id,
+                        "success": False,
+                        "failure_type": e.error_type,
+                        "duration_ms": int((time.monotonic() - invoke_start) * 1000),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
                 fail_response: dict[str, Any] = {
                     "success": False,
                     "failure": redact_failure({"type": e.error_type, "detail": e.detail}, effective_level),
@@ -686,6 +760,25 @@ class ANIPService:
                     stream_summary=fail_stream_summary_exc,
                     event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                 )
+                if stream and fail_stream_summary_exc and self._log_hooks and self._log_hooks.on_streaming_summary:
+                    self._log_hooks.on_streaming_summary({
+                        "invocation_id": invocation_id,
+                        "capability": capability_name,
+                        "events_emitted": events_emitted,
+                        "events_delivered": events_delivered,
+                        "client_disconnected": client_disconnected,
+                        "duration_ms": int((time.monotonic() - stream_start) * 1000),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+                if self._log_hooks and self._log_hooks.on_invocation_end:
+                    self._log_hooks.on_invocation_end({
+                        "capability": capability_name,
+                        "invocation_id": invocation_id,
+                        "success": False,
+                        "failure_type": "internal_error",
+                        "duration_ms": int((time.monotonic() - invoke_start) * 1000),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
                 fail_response_exc: dict[str, Any] = {
                     "success": False,
                     "failure": redact_failure({"type": "internal_error", "detail": "Internal error"}, effective_level),
@@ -727,7 +820,30 @@ class ANIPService:
                 event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
             )
 
-            # 9. Build response
+            # 9. Fire streaming summary hook
+            if stream and stream_summary and self._log_hooks and self._log_hooks.on_streaming_summary:
+                self._log_hooks.on_streaming_summary({
+                    "invocation_id": invocation_id,
+                    "capability": capability_name,
+                    "events_emitted": events_emitted,
+                    "events_delivered": events_delivered,
+                    "client_disconnected": client_disconnected,
+                    "duration_ms": int((time.monotonic() - stream_start) * 1000),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+
+            # 10. Fire invocation end hook (success)
+            if self._log_hooks and self._log_hooks.on_invocation_end:
+                self._log_hooks.on_invocation_end({
+                    "capability": capability_name,
+                    "invocation_id": invocation_id,
+                    "success": True,
+                    "failure_type": None,
+                    "duration_ms": int((time.monotonic() - invoke_start) * 1000),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+
+            # 11. Build response
             response: dict[str, Any] = {
                 "success": True,
                 "result": result,
@@ -937,12 +1053,20 @@ class ANIPService:
         if self._aggregator is None:
             return
         results = self._aggregator.flush(datetime.now(timezone.utc))
+        entries_flushed = 0
         for item in results:
             if isinstance(item, AggregatedEntry):
                 entry = storage_redact_entry(item.to_audit_dict())
             else:
                 entry = storage_redact_entry(item)
             await self._audit.log_entry(entry)
+            entries_flushed += 1
+        if self._log_hooks and self._log_hooks.on_aggregation_flush:
+            self._log_hooks.on_aggregation_flush({
+                "window_count": len(results),
+                "entries_flushed": entries_flushed,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
 
     # --- Internal helpers ---
 
@@ -996,7 +1120,15 @@ class ANIPService:
             self._aggregator.submit(entry_data)
             return
 
-        await self._audit.log_entry(entry_data)
+        stored = await self._audit.log_entry(entry_data)
+        if self._log_hooks and self._log_hooks.on_audit_append:
+            self._log_hooks.on_audit_append({
+                "sequence_number": stored.get("sequence_number", 0),
+                "capability": capability,
+                "invocation_id": invocation_id,
+                "success": success,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
 
     async def _leader_checkpoint_tick(self) -> None:
         """One tick of the checkpoint scheduler.
@@ -1019,6 +1151,13 @@ class ANIPService:
                 await self._storage.store_checkpoint(body, signature)
                 for sink in self._sinks:
                     sink.publish({"body": body, "signature": signature})
+                if self._log_hooks and self._log_hooks.on_checkpoint_created:
+                    self._log_hooks.on_checkpoint_created({
+                        "checkpoint_id": body.get("checkpoint_id", ""),
+                        "entry_count": body.get("entry_count", 0),
+                        "merkle_root": body.get("merkle_root", ""),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
         finally:
             await self._storage.release_leader("checkpoint", holder)
 
