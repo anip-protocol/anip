@@ -27,7 +27,7 @@ import {
 
 describe("Protocol constants", () => {
   it("exports correct protocol version", () => {
-    expect(PROTOCOL_VERSION).toBe("anip/0.10");
+    expect(PROTOCOL_VERSION).toBe("anip/0.11");
   });
 });
 
@@ -93,7 +93,7 @@ describe("ANIPFailure", () => {
 describe("ANIPManifest", () => {
   it("parses minimal manifest", () => {
     const result = ANIPManifest.safeParse({
-      protocol: "anip/0.10",
+      protocol: "anip/0.11",
       profile: { core: "1.0" },
       capabilities: {},
     });
