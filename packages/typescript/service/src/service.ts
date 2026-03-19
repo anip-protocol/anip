@@ -34,7 +34,7 @@ import {
 
 import { ANIPError } from "./types.js";
 import type { CapabilityDef, Handler, InvocationContext } from "./types.js";
-import type { ANIPHooks, HealthReport } from "./hooks.js";
+import type { ANIPHooks, LoggingHooks, HealthReport } from "./hooks.js";
 import { AuditAggregator, type AggregatedEntry } from "./aggregation.js";
 import { classifyEvent } from "./classification.js";
 import { resolveDisclosureLevel } from "./disclosure.js";
@@ -163,6 +163,10 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     keyPath,
     authenticate: authenticateFn,
   } = opts;
+
+  // --- Observability hooks (v0.11) ---
+  const hooks = opts.hooks ?? {};
+  const logHooks = hooks.logging;
 
   // --- Disclosure level (v0.8) ---
   const disclosureLevel = opts.disclosureLevel ?? "full";
@@ -312,6 +316,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         for (const sink of sinks) {
           sink.publish({ body: result.body, signature });
         }
+        logHooks?.onCheckpointCreated?.({
+          checkpointId: result.body.checkpoint_id as string,
+          entryCount: result.body.entry_count as number,
+          merkleRoot: result.body.merkle_root as string,
+          timestamp: new Date().toISOString(),
+        });
       }
     } finally {
       await storage.releaseLeader("checkpoint", holder);
@@ -390,12 +400,20 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       return;
     }
 
-    await audit.logEntry(redactedEntry);
+    const stored = await audit.logEntry(redactedEntry);
+    logHooks?.onAuditAppend?.({
+      sequenceNumber: (stored.sequence_number as number) ?? 0,
+      capability,
+      invocationId: (auditOpts.invocationId as string) ?? "",
+      success: auditOpts.success,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   async function flushAggregator(): Promise<void> {
     if (!aggregator) return;
     const results = aggregator.flush(new Date());
+    let entriesFlushed = 0;
     for (const item of results) {
       let entry: Record<string, unknown>;
       if (typeof item === "object" && item !== null && "toAuditDict" in item) {
@@ -404,7 +422,13 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         entry = storageRedactEntry(item as Record<string, unknown>);
       }
       await audit.logEntry(entry);
+      entriesFlushed++;
     }
+    logHooks?.onAggregationFlush?.({
+      windowCount: results.length,
+      entriesFlushed,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   async function runWithExclusiveHeartbeat(
@@ -818,6 +842,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         progressSink?: (event: Record<string, unknown>) => Promise<void>;
       },
     ): Promise<Record<string, unknown>> {
+      const invokeStartTime = performance.now();
       const invocationId = `inv-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
       const clientReferenceId = opts?.clientReferenceId ?? null;
 
@@ -830,6 +855,14 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
       // 1. Check capability exists
       if (!capabilities.has(capabilityName)) {
+        logHooks?.onInvocationEnd?.({
+          capability: capabilityName,
+          invocationId,
+          success: false,
+          failureType: "unknown_capability",
+          durationMs: performance.now() - invokeStartTime,
+          timestamp: new Date().toISOString(),
+        });
         return {
           success: false,
           failure: redactFailure({
@@ -850,6 +883,14 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       if (stream) {
         const responseModes = (decl as any).response_modes ?? ["unary"];
         if (!responseModes.includes("streaming")) {
+          logHooks?.onInvocationEnd?.({
+            capability: capabilityName,
+            invocationId,
+            success: false,
+            failureType: "streaming_not_supported",
+            durationMs: performance.now() - invokeStartTime,
+            timestamp: new Date().toISOString(),
+          });
           return {
             success: false,
             failure: redactFailure({
@@ -877,6 +918,11 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           detail: validationResult.detail,
           resolution: validationResult.resolution,
         };
+        logHooks?.onDelegationFailure?.({
+          reason: failure.type,
+          tokenId: token.token_id ?? null,
+          timestamp: new Date().toISOString(),
+        });
         const sideEffectType = (decl as any).side_effect?.type ?? null;
         const eventClass = classifyEvent(sideEffectType, false, failure.type);
         const retTier = retentionPolicy.resolveTier(eventClass);
@@ -889,6 +935,14 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           eventClass,
           retentionTier: retTier,
           expiresAt,
+        });
+        logHooks?.onInvocationEnd?.({
+          capability: capabilityName,
+          invocationId,
+          success: false,
+          failureType: failure.type,
+          durationMs: performance.now() - invokeStartTime,
+          timestamp: new Date().toISOString(),
         });
         return {
           success: false,
@@ -909,9 +963,10 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       let clientDisconnected = false;
       const streamStart = stream ? performance.now() : 0;
 
+      const ctxRootPrincipal = await engine.getRootPrincipal(resolvedToken);
       const ctx: InvocationContext = {
         token: resolvedToken,
-        rootPrincipal: await engine.getRootPrincipal(resolvedToken),
+        rootPrincipal: ctxRootPrincipal,
         subject: resolvedToken.subject,
         scopes: resolvedToken.scope ?? [],
         delegationChain: chain.map((t) => t.token_id),
@@ -938,6 +993,15 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         },
       };
 
+      logHooks?.onInvocationStart?.({
+        capability: capabilityName,
+        invocationId,
+        clientReferenceId,
+        rootPrincipal: ctxRootPrincipal,
+        subject: resolvedToken.subject,
+        timestamp: new Date().toISOString(),
+      });
+
       // 4. Acquire exclusive lock if configured
       let locked = false;
       const lockResult = cap.exclusiveLock
@@ -956,6 +1020,14 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           eventClass: eventClassL,
           retentionTier: retTierL,
           expiresAt: expiresAtL,
+        });
+        logHooks?.onInvocationEnd?.({
+          capability: capabilityName,
+          invocationId,
+          success: false,
+          failureType: "concurrent_lock",
+          durationMs: performance.now() - invokeStartTime,
+          timestamp: new Date().toISOString(),
         });
         return {
           success: false,
@@ -1005,6 +1077,28 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           expiresAt: expiresAtS,
         });
 
+        // Fire streaming summary hook
+        if (stream && streamSummary) {
+          logHooks?.onStreamingSummary?.({
+            invocationId,
+            capability: capabilityName,
+            eventsEmitted,
+            eventsDelivered,
+            clientDisconnected,
+            durationMs: streamSummary.duration_ms as number,
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        logHooks?.onInvocationEnd?.({
+          capability: capabilityName,
+          invocationId,
+          success: true,
+          failureType: null,
+          durationMs: performance.now() - invokeStartTime,
+          timestamp: new Date().toISOString(),
+        });
+
         // 7. Build response
         const response: Record<string, unknown> = {
           success: true,
@@ -1047,6 +1141,25 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             retentionTier: retTierE,
             expiresAt: expiresAtE,
           });
+          if (stream && failStreamSummary) {
+            logHooks?.onStreamingSummary?.({
+              invocationId,
+              capability: capabilityName,
+              eventsEmitted,
+              eventsDelivered,
+              clientDisconnected,
+              durationMs: failStreamSummary.duration_ms as number,
+              timestamp: new Date().toISOString(),
+            });
+          }
+          logHooks?.onInvocationEnd?.({
+            capability: capabilityName,
+            invocationId,
+            success: false,
+            failureType: err.errorType,
+            durationMs: performance.now() - invokeStartTime,
+            timestamp: new Date().toISOString(),
+          });
           const response: Record<string, unknown> = {
             success: false,
             failure: redactFailure({ type: err.errorType, detail: err.detail }, effectiveLevel),
@@ -1073,6 +1186,25 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           eventClass: eventClassU,
           retentionTier: retTierU,
           expiresAt: expiresAtU,
+        });
+        if (stream && failStreamSummary) {
+          logHooks?.onStreamingSummary?.({
+            invocationId,
+            capability: capabilityName,
+            eventsEmitted,
+            eventsDelivered,
+            clientDisconnected,
+            durationMs: failStreamSummary.duration_ms as number,
+            timestamp: new Date().toISOString(),
+          });
+        }
+        logHooks?.onInvocationEnd?.({
+          capability: capabilityName,
+          invocationId,
+          success: false,
+          failureType: "internal_error",
+          durationMs: performance.now() - invokeStartTime,
+          timestamp: new Date().toISOString(),
         });
         const response: Record<string, unknown> = {
           success: false,
