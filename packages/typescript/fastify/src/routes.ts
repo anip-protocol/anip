@@ -252,10 +252,42 @@ function authFailureJwtEndpoint(reply: FastifyReply) {
   });
 }
 
+const DEFAULT_RESOLUTIONS: Record<string, Record<string, unknown>> = {
+  invalid_token: {
+    action: "obtain_delegation_token",
+    requires: "Valid JWT from POST /anip/tokens",
+    grantable_by: null,
+    estimated_availability: null,
+  },
+  scope_insufficient: {
+    action: "request_broader_scope",
+    requires: "Token with required scope",
+    grantable_by: null,
+    estimated_availability: null,
+  },
+  unknown_capability: {
+    action: "check_manifest",
+    requires: "Valid capability name from GET /anip/manifest",
+    grantable_by: null,
+    estimated_availability: null,
+  },
+};
+
 function errorResponse(reply: FastifyReply, error: ANIPError) {
   const status = failureStatus(error.errorType);
+  const resolution = error.resolution ?? DEFAULT_RESOLUTIONS[error.errorType] ?? {
+    action: "contact_service_owner",
+    requires: null,
+    grantable_by: null,
+    estimated_availability: null,
+  };
   return reply.status(status).send({
     success: false,
-    failure: { type: error.errorType, detail: error.detail },
+    failure: {
+      type: error.errorType,
+      detail: error.detail,
+      resolution,
+      retry: error.retry,
+    },
   });
 }

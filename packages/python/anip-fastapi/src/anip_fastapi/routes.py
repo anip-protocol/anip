@@ -312,11 +312,45 @@ def _failure_status(failure_type: str | None) -> int:
     return mapping.get(failure_type or "", 400)
 
 
+_DEFAULT_RESOLUTIONS: dict[str, dict] = {
+    "invalid_token": {
+        "action": "obtain_delegation_token",
+        "requires": "Valid JWT from POST /anip/tokens",
+        "grantable_by": None,
+        "estimated_availability": None,
+    },
+    "scope_insufficient": {
+        "action": "request_broader_scope",
+        "requires": "Token with required scope",
+        "grantable_by": None,
+        "estimated_availability": None,
+    },
+    "unknown_capability": {
+        "action": "check_manifest",
+        "requires": "Valid capability name from GET /anip/manifest",
+        "grantable_by": None,
+        "estimated_availability": None,
+    },
+}
+
+
 def _error_response(error: ANIPError) -> JSONResponse:
     """Map an ANIPError to a JSONResponse."""
     status = _failure_status(error.error_type)
+    resolution = error.resolution or _DEFAULT_RESOLUTIONS.get(
+        error.error_type,
+        {"action": "contact_service_owner", "requires": None, "grantable_by": None, "estimated_availability": None},
+    )
     return JSONResponse(
-        {"success": False, "failure": {"type": error.error_type, "detail": error.detail}},
+        {
+            "success": False,
+            "failure": {
+                "type": error.error_type,
+                "detail": error.detail,
+                "resolution": resolution,
+                "retry": error.retry,
+            },
+        },
         status_code=status,
     )
 

@@ -22,6 +22,6 @@ const service = createANIPService({
 });
 
 const app = new Hono();
-const { stop } = mountAnip(app, service);
+const { stop } = await mountAnip(app, service);
 
 export { app, stop };

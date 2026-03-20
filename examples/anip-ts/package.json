@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@anip/core": "file:../../packages/typescript/core",
     "@anip/service": "file:../../packages/typescript/service",
     "@anip/hono": "file:../../packages/typescript/hono",
     "@hono/node-server": "^1.11.0",

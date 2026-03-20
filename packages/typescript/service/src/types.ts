@@ -31,11 +31,20 @@ export interface CapabilityDef {
 export class ANIPError extends Error {
   readonly errorType: string;
   readonly detail: string;
+  readonly resolution?: Record<string, unknown>;
+  readonly retry: boolean;
 
-  constructor(errorType: string, detail: string) {
+  constructor(
+    errorType: string,
+    detail: string,
+    resolution?: Record<string, unknown>,
+    retry: boolean = false,
+  ) {
     super(`${errorType}: ${detail}`);
     this.errorType = errorType;
     this.detail = detail;
+    this.resolution = resolution;
+    this.retry = retry;
     this.name = "ANIPError";
   }
 }

@@ -1,0 +1,73 @@
+name: Conformance Suite
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "conformance/**"
+      - "packages/**"
+      - "examples/**"
+      - ".github/workflows/ci-conformance.yml"
+  pull_request:
+    paths:
+      - "conformance/**"
+      - "packages/**"
+      - "examples/**"
+      - ".github/workflows/ci-conformance.yml"
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: python
+            setup: |
+              pip install -e "packages/python/anip-core[dev]"
+              pip install -e "packages/python/anip-crypto[dev]"
+              pip install -e "packages/python/anip-server[dev]"
+              pip install -e "packages/python/anip-service[dev]"
+              pip install -e "packages/python/anip-fastapi[dev]"
+              pip install uvicorn
+              pip install --no-deps -e "examples/anip"
+            start: "cd examples/anip && python -m uvicorn app:app --port 8090 &"
+            url: "http://localhost:8090"
+          - name: typescript
+            setup: |
+              cd packages/typescript && npm ci && npm run build --workspaces
+              cd ../../examples/anip-ts && npm ci && npm run build
+            start: "cd examples/anip-ts && node dist/main.js &"
+            url: "http://localhost:4100"
+
+    name: "conformance (${{ matrix.target.name }})"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        if: matrix.target.name == 'typescript'
+        with:
+          node-version: "22"
+
+      - name: Install target service
+        run: ${{ matrix.target.setup }}
+
+      - name: Install conformance suite
+        run: pip install -e "./conformance"
+
+      - name: Start service
+        run: |
+          ${{ matrix.target.start }}
+          sleep 3
+
+      - name: Run conformance suite
+        run: >
+          pytest conformance/
+          --base-url=${{ matrix.target.url }}
+          --bootstrap-bearer=demo-human-key
+          --sample-inputs=conformance/samples/flight-service.json
+          -v

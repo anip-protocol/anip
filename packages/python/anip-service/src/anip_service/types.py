@@ -48,7 +48,15 @@ class ANIPError(Exception):
 
     Maps to an ANIP failure response with the given type and detail.
     """
-    def __init__(self, error_type: str, detail: str) -> None:
+    def __init__(
+        self,
+        error_type: str,
+        detail: str,
+        resolution: dict | None = None,
+        retry: bool = False,
+    ) -> None:
         self.error_type = error_type
         self.detail = detail
+        self.resolution = resolution
+        self.retry = retry
         super().__init__(f"{error_type}: {detail}")
