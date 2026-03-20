@@ -59,8 +59,11 @@ export class ANIPInvoker {
     );
     const resp = await fetch(invokeUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, parameters: args }),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({ parameters: args }),
     });
     if (!resp.ok) {
       throw new Error(`Invocation failed: ${resp.status}`);

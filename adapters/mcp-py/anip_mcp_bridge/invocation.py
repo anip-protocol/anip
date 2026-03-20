@@ -78,10 +78,8 @@ class ANIPInvoker:
             )
             resp = await client.post(
                 invoke_url,
-                json={
-                    "token": jwt_str,
-                    "parameters": arguments,
-                },
+                json={"parameters": arguments},
+                headers={"Authorization": f"Bearer {jwt_str}"},
             )
             resp.raise_for_status()
             result = resp.json()
