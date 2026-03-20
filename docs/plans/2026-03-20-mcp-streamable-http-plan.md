@@ -337,7 +337,7 @@ export async function mountAnipMcpHono(
   app: Hono,
   service: ANIPService,
   opts?: McpHonoOptions,
-): Promise<void> {
+): Promise<{ closeTransport: () => Promise<void> }> {
   const mcpPath = opts?.path ?? "/mcp";
 
   // Build MCP Server with tools — HTTP mode (no callToolHandler = uses authInfo)
@@ -359,6 +359,10 @@ export async function mountAnipMcpHono(
       authInfo: token ? { token, clientId: "", scopes: [] } : undefined,
     });
   });
+
+  return {
+    closeTransport: () => transport.close(),
+  };
 }
 ```
 
@@ -486,7 +490,7 @@ export async function mountAnipMcpExpress(
   app: Express,
   service: ANIPService,
   opts?: McpExpressOptions,
-): Promise<void> {
+): Promise<{ closeTransport: () => Promise<void> }> {
   const mcpPath = opts?.path ?? "/mcp";
 
   const server = buildMcpServer(service, {
@@ -508,6 +512,10 @@ export async function mountAnipMcpExpress(
       next(err);
     }
   });
+
+  return {
+    closeTransport: () => transport.close(),
+  };
 }
 ```
 
@@ -555,7 +563,7 @@ export async function mountAnipMcpFastify(
   app: FastifyInstance,
   service: ANIPService,
   opts?: McpFastifyOptions,
-): Promise<void> {
+): Promise<{ closeTransport: () => Promise<void> }> {
   const mcpPath = opts?.path ?? "/mcp";
 
   const server = buildMcpServer(service, {
@@ -574,6 +582,10 @@ export async function mountAnipMcpFastify(
     }
     await transport.handleRequest(request.raw, reply.raw);
   });
+
+  return {
+    closeTransport: () => transport.close(),
+  };
 }
 ```
 
@@ -842,16 +854,30 @@ def mount_anip_mcp_http(
     # Create transport (stateless — no session ID)
     transport = StreamableHTTPServerTransport(mcp_session_id=None)
 
-    # Start the MCP server message loop in a background task on app startup
+    # Track the background task for clean shutdown
+    _mcp_task: asyncio.Task | None = None
+
     @app.on_event("startup")
     async def start_mcp():
+        nonlocal _mcp_task
         async def run_server():
             async with transport.connect() as (read_stream, write_stream):
                 await mcp_server.run(
                     read_stream, write_stream,
                     mcp_server.create_initialization_options(),
                 )
-        asyncio.create_task(run_server())
+        _mcp_task = asyncio.create_task(run_server())
+
+    @app.on_event("shutdown")
+    async def stop_mcp():
+        nonlocal _mcp_task
+        await transport.terminate()
+        if _mcp_task and not _mcp_task.done():
+            _mcp_task.cancel()
+            try:
+                await _mcp_task
+            except asyncio.CancelledError:
+                pass
 
     # Mount the ASGI transport on the FastAPI app
     app.mount(path, transport.handle_request)
