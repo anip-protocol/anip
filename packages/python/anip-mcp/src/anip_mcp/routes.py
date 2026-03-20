@@ -99,6 +99,7 @@ class McpLifecycle:
         self._service.stop()
 
     async def shutdown(self) -> None:
+        self._service.stop()
         await self._service.shutdown()
 
 

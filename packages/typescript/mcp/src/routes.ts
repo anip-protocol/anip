@@ -35,16 +35,24 @@ interface MCPTool {
  * Invoke an ANIP capability directly via the service instance.
  * Uses mount-time credentials to issue a synthetic token per call.
  */
+interface InvokeResult {
+  text: string;
+  isError: boolean;
+}
+
 async function invokeCapability(
   service: ANIPService,
   capabilityName: string,
   args: Record<string, unknown>,
   credentials: McpCredentials,
-): Promise<string> {
+): Promise<InvokeResult> {
   // Authenticate the bootstrap credential
   const principal = await service.authenticateBearer(credentials.apiKey);
   if (!principal) {
-    return "FAILED: authentication_required\nDetail: Invalid bootstrap credential\nRetryable: no";
+    return {
+      text: "FAILED: authentication_required\nDetail: Invalid bootstrap credential\nRetryable: no",
+      isError: true,
+    };
   }
 
   // Narrow scope to what the capability needs
@@ -71,7 +79,10 @@ async function invokeCapability(
     });
   } catch (e) {
     if (e instanceof ANIPError) {
-      return `FAILED: ${e.errorType}\nDetail: ${e.detail}\nRetryable: no`;
+      return {
+        text: `FAILED: ${e.errorType}\nDetail: ${e.detail}\nRetryable: no`,
+        isError: true,
+      };
     }
     throw e;
   }
@@ -84,7 +95,7 @@ async function invokeCapability(
   return translateResponse(result);
 }
 
-function translateResponse(response: Record<string, unknown>): string {
+function translateResponse(response: Record<string, unknown>): InvokeResult {
   if (response.success) {
     const result = response.result as Record<string, unknown>;
     const parts = [JSON.stringify(result, null, 2)];
@@ -95,7 +106,7 @@ function translateResponse(response: Record<string, unknown>): string {
       const currency = (financial?.currency as string) ?? "USD";
       if (amount !== undefined) parts.push(`\n[Cost: ${currency} ${amount}]`);
     }
-    return parts.join("");
+    return { text: parts.join(""), isError: false };
   }
 
   const failure = response.failure as Record<string, unknown>;
@@ -109,7 +120,7 @@ function translateResponse(response: Record<string, unknown>): string {
     if (resolution.requires) parts.push(`Requires: ${resolution.requires}`);
   }
   parts.push(`Retryable: ${(failure?.retry as boolean) ? "yes" : "no"}`);
-  return parts.join("\n");
+  return { text: parts.join("\n"), isError: true };
 }
 
 /**
@@ -171,7 +182,10 @@ export async function mountAnipMcp(
       const result = await invokeCapability(
         service, name, (args ?? {}) as Record<string, unknown>, credentials,
       );
-      return { content: [{ type: "text" as const, text: result }] };
+      return {
+        content: [{ type: "text" as const, text: result.text }],
+        isError: result.isError,
+      };
     } catch (err) {
       return {
         content: [{
@@ -188,6 +202,7 @@ export async function mountAnipMcp(
       service.stop();
     },
     shutdown: async () => {
+      service.stop();
       await service.shutdown();
     },
   };

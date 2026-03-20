@@ -150,6 +150,7 @@ describe("MCP tool invocation (integration)", () => {
     await client.connect(clientTransport);
 
     const result = await client.callTool({ name: "greet", arguments: { name: "World" } });
+    expect(result.isError).toBe(true);
     const text = (result.content as any[])[0].text;
     expect(text).toContain("FAILED");
     expect(text).toContain("authentication_required");

@@ -113,3 +113,61 @@ class TestInvokeCapability:
         result = await _invoke_capability(service, "greet", {"name": "World"}, creds)
         assert "FAILED" in result
         assert "authentication_required" in result
+
+
+class TestMountIntegration:
+    """Integration tests exercising mount_anip_mcp on a real MCP Server."""
+
+    API_KEY = "test-key"
+
+    @pytest.fixture
+    async def mounted(self):
+        from anip_core import (
+            CapabilityDeclaration, SideEffect, SideEffectType,
+            CapabilityInput, CapabilityOutput,
+        )
+        from anip_service import ANIPService, Capability
+        from mcp.server.lowlevel import Server
+        from anip_mcp import mount_anip_mcp, McpCredentials
+
+        svc = ANIPService(
+            service_id="test-mcp-mount",
+            capabilities=[
+                Capability(
+                    declaration=CapabilityDeclaration(
+                        name="greet",
+                        description="Say hello",
+                        inputs=[CapabilityInput(name="name", type="string", required=True, description="Who")],
+                        output=CapabilityOutput(type="object", fields=["message"]),
+                        side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+                        minimum_scope=["greet"],
+                    ),
+                    handler=lambda ctx, params: {"message": f"Hello, {params['name']}!"},
+                ),
+            ],
+            storage=":memory:",
+            authenticate=lambda bearer: "test-agent" if bearer == self.API_KEY else None,
+        )
+        server = Server("test-mcp-server")
+        creds = McpCredentials(api_key=self.API_KEY, scope=["greet"], subject="test-agent")
+        lifecycle = await mount_anip_mcp(server, svc, credentials=creds)
+        yield server, lifecycle
+        await lifecycle.shutdown()
+
+    async def test_list_tools_handler_registered(self, mounted):
+        """Verify list_tools handler was registered on the server."""
+        server, _ = mounted
+        from mcp.types import ListToolsRequest
+        assert ListToolsRequest in server.request_handlers
+
+    async def test_call_tool_handler_registered(self, mounted):
+        """Verify call_tool handler was registered on the server."""
+        server, _ = mounted
+        from mcp.types import CallToolRequest
+        assert CallToolRequest in server.request_handlers
+
+    async def test_mount_returns_lifecycle(self, mounted):
+        """Verify mount returns working lifecycle handle."""
+        _, lifecycle = mounted
+        assert hasattr(lifecycle, "stop")
+        assert hasattr(lifecycle, "shutdown")
