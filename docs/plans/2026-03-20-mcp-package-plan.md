@@ -379,7 +379,7 @@ export async function mountAnipMcp(
   target: Server,
   service: ANIPService,
   opts?: McpMountOptions,
-): Promise<{ stop: () => void }> {
+): Promise<{ stop: () => void; shutdown: () => Promise<void> }> {
   const enrichDescs = opts?.enrichDescriptions ?? true;
   const credentials = opts?.credentials;
 
@@ -446,6 +446,9 @@ export async function mountAnipMcp(
   return {
     stop: () => {
       service.stop();
+    },
+    shutdown: async () => {
+      await service.shutdown();
     },
   };
 }
@@ -548,9 +551,10 @@ describe("mountAnipMcp", () => {
       { name: "test", version: "1.0" },
       { capabilities: { tools: {} } },
     );
-    const { stop } = await mountAnipMcp(server, service, { credentials: CREDENTIALS });
-    expect(stop).toBeTypeOf("function");
-    stop();
+    const lifecycle = await mountAnipMcp(server, service, { credentials: CREDENTIALS });
+    expect(lifecycle.stop).toBeTypeOf("function");
+    expect(lifecycle.shutdown).toBeTypeOf("function");
+    await lifecycle.shutdown();
   });
 
   it("list_tools returns registered tools", async () => {
@@ -559,7 +563,7 @@ describe("mountAnipMcp", () => {
       { name: "test", version: "1.0" },
       { capabilities: { tools: {} } },
     );
-    const { stop } = await mountAnipMcp(server, service, { credentials: CREDENTIALS });
+    const lifecycle = await mountAnipMcp(server, service, { credentials: CREDENTIALS });
 
     // Simulate a list_tools request through the server's handler
     // The MCP SDK stores handlers internally — we test via the protocol
@@ -583,7 +587,7 @@ describe("MCP tool invocation (integration)", () => {
       { name: "test", version: "1.0" },
       { capabilities: { tools: {} } },
     );
-    const { stop } = await mountAnipMcp(server, service, { credentials: CREDENTIALS });
+    const lifecycle = await mountAnipMcp(server, service, { credentials: CREDENTIALS });
 
     // Connect client and server over in-memory transport
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -603,7 +607,7 @@ describe("MCP tool invocation (integration)", () => {
     expect(text).toContain("Hello, World!");
 
     await client.close();
-    stop();
+    await lifecycle.shutdown();
   });
 
   it("call_tool with unknown tool returns error", async () => {
@@ -612,7 +616,7 @@ describe("MCP tool invocation (integration)", () => {
       { name: "test", version: "1.0" },
       { capabilities: { tools: {} } },
     );
-    const { stop } = await mountAnipMcp(server, service, { credentials: CREDENTIALS });
+    const lifecycle = await mountAnipMcp(server, service, { credentials: CREDENTIALS });
 
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await server.connect(serverTransport);
@@ -625,7 +629,7 @@ describe("MCP tool invocation (integration)", () => {
     expect(text).toContain("Unknown tool");
 
     await client.close();
-    stop();
+    await lifecycle.shutdown();
   });
 
   it("call_tool with invalid credentials returns failure", async () => {
@@ -635,7 +639,7 @@ describe("MCP tool invocation (integration)", () => {
       { capabilities: { tools: {} } },
     );
     const badCreds = { apiKey: "wrong-key", scope: ["greet"], subject: "test" };
-    const { stop } = await mountAnipMcp(server, service, { credentials: badCreds });
+    const lifecycle = await mountAnipMcp(server, service, { credentials: badCreds });
 
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await server.connect(serverTransport);
@@ -648,7 +652,7 @@ describe("MCP tool invocation (integration)", () => {
     expect(text).toContain("authentication_required");
 
     await client.close();
-    stop();
+    await lifecycle.shutdown();
   });
 });
 ```
@@ -1137,6 +1141,17 @@ class TestInvokeCapability:
 ```
 
 **Note:** The `TestInvokeCapability` tests create a real `ANIPService` and test the full invocation path: authenticate → issue token → resolve token → invoke. The exact fixture shape depends on the service's constructor — the implementer should adapt the fixture to match the actual `ANIPService` API (which may use `create_anip_service()` or the class constructor directly). Check `packages/python/anip-fastapi/tests/test_routes.py` for the working pattern.
+
+**Important:** The implementer MUST also add an integration test that exercises the full `mount_anip_mcp()` → `list_tools` → `call_tool` path on a real MCP `Server` instance — mirroring the TypeScript `InMemoryTransport` integration tests. The Python `mcp` library provides `mcp.server.stdio.stdio_server()` for production and in-process testing patterns. The test should:
+
+1. Create a real `ANIPService` and MCP `Server`
+2. Call `await mount_anip_mcp(server, service, credentials=...)` to register handlers
+3. Verify `list_tools` returns the expected tool(s)
+4. Verify `call_tool` with valid args returns a success result
+5. Verify `call_tool` with an unknown tool name returns an error
+6. Call `lifecycle.shutdown()` to verify clean teardown
+
+If the `mcp` library does not expose an in-memory transport for testing (check `mcp.server` and `mcp.client` modules), the implementer should test handler registration by calling the decorated handler functions directly (`handle_list_tools()`, `handle_call_tool("greet", {"name": "World"})`) — these are async functions registered on the server object.
 
 - [ ] **Step 2: Install and run tests**
 
