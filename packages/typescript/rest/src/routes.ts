@@ -124,21 +124,20 @@ export async function mountAnipRest(
     if (decl) capabilities[name] = decl;
   }
   const routes = generateRoutes(capabilities, opts?.routes);
-  const openApiSpec = generateOpenAPISpec(
-    (manifest as any).service_id ?? "anip-service",
-    routes,
-  );
+  const serviceIdentity = (manifest as any).service_identity;
+  const serviceId = serviceIdentity?.id ?? "anip-service";
+  const openApiSpec = generateOpenAPISpec(serviceId, routes);
 
-  // Register OpenAPI endpoints
-  app.get(`${prefix}/openapi.json`, (c) => c.json(openApiSpec));
-  app.get(`${prefix}/docs`, (c) => {
+  // Register OpenAPI endpoints under /rest/ to avoid framework collisions
+  app.get(`${prefix}/rest/openapi.json`, (c) => c.json(openApiSpec));
+  app.get(`${prefix}/rest/docs`, (c) => {
     return c.html(`<!DOCTYPE html>
 <html><head><title>ANIP REST API</title>
 <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist/swagger-ui.css">
 </head><body>
 <div id="swagger-ui"></div>
 <script src="https://unpkg.com/swagger-ui-dist/swagger-ui-bundle.js"></script>
-<script>SwaggerUIBundle({ url: "${prefix}/openapi.json", dom_id: "#swagger-ui" });</script>
+<script>SwaggerUIBundle({ url: "${prefix}/rest/openapi.json", dom_id: "#swagger-ui" });</script>
 </body></html>`);
   });
 

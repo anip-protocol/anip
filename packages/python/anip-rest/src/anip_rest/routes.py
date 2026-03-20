@@ -128,19 +128,19 @@ def mount_anip_rest(
     ) or "anip-service"
     openapi_spec = generate_openapi_spec(service_id, rest_routes)
 
-    @app.get(f"{prefix}/openapi.json")
-    async def get_openapi():
+    @app.get(f"{prefix}/rest/openapi.json")
+    async def get_rest_openapi():
         return openapi_spec
 
-    @app.get(f"{prefix}/docs", response_class=HTMLResponse)
-    async def get_docs():
+    @app.get(f"{prefix}/rest/docs", response_class=HTMLResponse)
+    async def get_rest_docs():
         return f"""<!DOCTYPE html>
 <html><head><title>ANIP REST API</title>
 <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist/swagger-ui.css">
 </head><body>
 <div id="swagger-ui"></div>
 <script src="https://unpkg.com/swagger-ui-dist/swagger-ui-bundle.js"></script>
-<script>SwaggerUIBundle({{ url: "{prefix}/openapi.json", dom_id: "#swagger-ui" }});</script>
+<script>SwaggerUIBundle({{ url: "{prefix}/rest/openapi.json", dom_id: "#swagger-ui" }});</script>
 </body></html>"""
 
     for route in rest_routes:

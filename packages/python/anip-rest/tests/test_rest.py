@@ -119,13 +119,13 @@ class TestMountIntegration:
         assert data["failure"]["type"] == "invalid_token"
 
     def test_openapi_spec(self, client):
-        resp = client.get("/openapi.json")
+        resp = client.get("/rest/openapi.json")
         assert resp.status_code == 200
         spec = resp.json()
         assert spec["openapi"] == "3.1.0"
         assert "/api/greet" in spec["paths"]
 
     def test_docs_html(self, client):
-        resp = client.get("/docs")
+        resp = client.get("/rest/docs")
         assert resp.status_code == 200
         assert "swagger-ui" in resp.text

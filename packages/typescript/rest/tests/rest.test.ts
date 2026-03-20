@@ -55,9 +55,9 @@ async function makeApp(routeOverrides?: Record<string, any>) {
 }
 
 describe("OpenAPI", () => {
-  it("GET /openapi.json returns spec", async () => {
+  it("GET /rest/openapi.json returns spec", async () => {
     const { app } = await makeApp();
-    const res = await app.request("/openapi.json");
+    const res = await app.request("/rest/openapi.json");
     expect(res.status).toBe(200);
     const spec = await res.json();
     expect(spec.openapi).toBe("3.1.0");
@@ -65,9 +65,9 @@ describe("OpenAPI", () => {
     expect(spec.paths["/api/book"]).toBeDefined();
   });
 
-  it("GET /docs returns Swagger UI", async () => {
+  it("GET /rest/docs returns Swagger UI", async () => {
     const { app } = await makeApp();
-    const res = await app.request("/docs");
+    const res = await app.request("/rest/docs");
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain("swagger-ui");
