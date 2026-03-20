@@ -1,5 +1,5 @@
 {
   "name": "anip-sdk",
   "private": true,
-  "workspaces": ["core", "crypto", "server", "service", "hono", "express", "fastify"]
+  "workspaces": ["core", "crypto", "server", "service", "hono", "express", "fastify", "mcp"]
 }
