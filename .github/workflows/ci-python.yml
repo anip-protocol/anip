@@ -48,6 +48,7 @@ jobs:
           pip install -e "./packages/python/anip-server[dev]"
           pip install -e "./packages/python/anip-service[dev]"
           pip install -e "./packages/python/anip-fastapi[dev]"
+          pip install -e "./packages/python/anip-mcp[dev]"
 
       - name: Compile check
         run: python -m compileall packages/python/ examples/anip/
@@ -66,6 +67,9 @@ jobs:
 
       - name: Test anip-fastapi
         run: pytest packages/python/anip-fastapi/tests/ -v
+
+      - name: Test anip-mcp
+        run: pytest packages/python/anip-mcp/tests/ -v
 
       - name: Install Python example
         working-directory: examples/anip
