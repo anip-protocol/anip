@@ -141,6 +141,18 @@ Both converge at `invokeWithToken`. The auth boundary is explicit.
 
 Transport and MCP Server are created **once at mount time**, not per-request.
 
+### How auth context reaches tool handlers
+
+The MCP SDK's `handleRequest(req, options?)` accepts `HandleRequestOptions` which includes `authInfo?: AuthInfo`. The SDK passes this through to tool call handlers via the `extra.authInfo` parameter on `setRequestHandler` callbacks.
+
+The flow:
+1. Framework route handler extracts `Authorization: Bearer` from the HTTP request
+2. Passes `{ authInfo: { token: bearerValue, clientId: "", scopes: [] } }` to `transport.handleRequest(req, { authInfo })`
+3. Transport forwards `authInfo` to the MCP Server's `CallToolRequest` handler via `extra.authInfo`
+4. Tool handler reads `extra.authInfo.token` and calls `resolveAuth(bearer, service, capabilityName)` to get a `DelegationToken`
+
+This means `buildMcpServer` registers tool handlers that accept `(request, extra)` and resolve auth from `extra.authInfo.token`. The framework packages only need to extract the bearer and pass it as `authInfo` — they don't resolve ANIP auth themselves.
+
 ### Hono (Web Standard transport):
 
 ```typescript
@@ -150,32 +162,79 @@ export async function mountAnipMcpHono(
   const mcpPath = opts?.path ?? "/mcp";
 
   // Mount time — once
-  const server = buildMcpServer(service);  // shared: creates MCP Server, registers tools
+  const server = buildMcpServer(service);  // shared: creates MCP Server, registers tools with auth-aware handlers
   const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   await server.connect(transport);
 
-  // Request time — forward to connected transport
+  // Request time — extract bearer, forward to transport with authInfo
   app.all(`${mcpPath}`, async (c) => {
-    return transport.handleRequest(c.req.raw);
+    const authHeader = c.req.header("authorization");
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
+    return transport.handleRequest(c.req.raw, {
+      authInfo: token ? { token, clientId: "", scopes: [] } : undefined,
+    });
   });
 }
 ```
 
-### Express (Node wrapper):
+### Express (Node.js wrapper):
 
-Same pattern but using `StreamableHTTPServerTransport` with Node.js `req`/`res`.
+Uses `StreamableHTTPServerTransport` which wraps the Web Standard transport for Node.js `IncomingMessage`/`ServerResponse`. The SDK also ships `createMcpExpressApp()` but that creates a standalone Express app with DNS rebinding protection — not useful here since we're mounting on an existing app. Instead, we use `StreamableHTTPServerTransport` directly:
 
-### Fastify (Node wrapper):
+```typescript
+export async function mountAnipMcpExpress(
+  app: Express, service: ANIPService, opts?: { path?: string }
+): Promise<void> {
+  const mcpPath = opts?.path ?? "/mcp";
 
-Same pattern, using Fastify's request/reply objects adapted to Node HTTP.
+  const server = buildMcpServer(service);
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+  await server.connect(transport);
+
+  app.all(mcpPath, (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
+    transport.handleRequest(req, res, {
+      authInfo: token ? { token, clientId: "", scopes: [] } : undefined,
+    });
+  });
+}
+```
+
+### Fastify (Node.js wrapper):
+
+Fastify encapsulates Node.js `req`/`res` behind its own request/reply objects. To use `StreamableHTTPServerTransport`, the handler accesses Fastify's raw Node.js objects via `request.raw` and `reply.raw`:
+
+```typescript
+export async function mountAnipMcpFastify(
+  app: FastifyInstance, service: ANIPService, opts?: { path?: string }
+): Promise<void> {
+  const mcpPath = opts?.path ?? "/mcp";
+
+  const server = buildMcpServer(service);
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+  await server.connect(transport);
+
+  app.all(mcpPath, (request, reply) => {
+    const authHeader = request.headers.authorization;
+    const token = typeof authHeader === "string" && authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7).trim() : undefined;
+    // Fastify: use raw Node.js req/res for the Node-wrapper transport
+    transport.handleRequest(request.raw, reply.raw, {
+      authInfo: token ? { token, clientId: "", scopes: [] } : undefined,
+    });
+  });
+}
+```
 
 ### Python (FastAPI):
 
 ```python
 def mount_anip_mcp_http(app: FastAPI, service: ANIPService, *, path: str = "/mcp") -> None:
     # Uses mcp.server.streamable_http.StreamableHTTPServerTransport
-    # Creates transport + server once
-    # Mounts GET/POST/DELETE handlers on the FastAPI app
+    # Creates transport + server once at mount time
+    # Extracts bearer from request, passes as auth_info to transport
+    # Mounts GET/POST/DELETE handlers on the FastAPI app at the given path
 ```
 
 ## What Changes in `@anip/mcp`
