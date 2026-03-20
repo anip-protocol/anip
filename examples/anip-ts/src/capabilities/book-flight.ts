@@ -26,6 +26,7 @@ const DECLARATION: CapabilityDeclaration = {
   requires: [{ capability: "search_flights", reason: "must select from available flights before booking" }],
   composes_with: [],
   session: { type: "stateless" },
+  response_modes: ["unary"],
   observability: {
     logged: true,
     retention: "P90D",

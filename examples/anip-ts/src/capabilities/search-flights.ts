@@ -25,6 +25,7 @@ const DECLARATION: CapabilityDeclaration = {
   requires: [],
   composes_with: [],
   session: { type: "stateless" },
+  response_modes: ["unary"],
   observability: {
     logged: true,
     retention: "P90D",
