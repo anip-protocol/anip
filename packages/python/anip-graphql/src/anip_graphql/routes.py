@@ -62,7 +62,12 @@ def _make_resolver(capability_name: str, service: ANIPService):
         except ANIPError as e:
             return build_graphql_response({
                 "success": False,
-                "failure": {"type": e.error_type, "detail": e.detail, "retry": e.retry},
+                "failure": {
+                    "type": e.error_type,
+                    "detail": e.detail,
+                    "resolution": e.resolution,
+                    "retry": e.retry,
+                },
             })
 
         if token is None:
@@ -81,7 +86,12 @@ def _make_resolver(capability_name: str, service: ANIPService):
         except ANIPError as e:
             return build_graphql_response({
                 "success": False,
-                "failure": {"type": e.error_type, "detail": e.detail, "retry": e.retry},
+                "failure": {
+                    "type": e.error_type,
+                    "detail": e.detail,
+                    "resolution": e.resolution,
+                    "retry": e.retry,
+                },
             })
 
         return build_graphql_response(result)
@@ -95,6 +105,7 @@ def mount_anip_graphql(
     *,
     path: str = "/graphql",
     prefix: str = "",
+    debug: bool = False,
 ) -> None:
     """Mount a GraphQL endpoint on a FastAPI app.
 
@@ -136,7 +147,7 @@ def mount_anip_graphql(
             mutation.field(camel_name)(resolver_fn)
 
     schema = make_executable_schema(schema_sdl, query, mutation, json_scalar)
-    graphql_app = GraphQL(schema, debug=True)
+    graphql_app = GraphQL(schema, debug=debug)
 
     full_path = f"{prefix}{path}"
     app.mount(full_path, graphql_app)
