@@ -348,14 +348,15 @@ async function resolveAuth(
   const bearer = authHeader.slice(7).trim();
 
   // Try as JWT first — preserves original delegation chain
+  let jwtError: ANIPError | null = null;
   try {
     return await service.resolveBearerToken(bearer);
   } catch (e) {
-    // Only swallow ANIPError (invalid_token) — rethrow unexpected failures
     if (!(e instanceof ANIPError)) throw e;
+    jwtError = e;
   }
 
-  // Try as API key — issue synthetic token
+  // Try as API key — only if JWT failed
   const principal = await service.authenticateBearer(bearer);
   if (principal) {
     const capDecl = service.getCapabilityDeclaration(capabilityName);
@@ -369,6 +370,8 @@ async function resolveAuth(
     return await service.resolveBearerToken(tokenResult.token as string);
   }
 
+  // Surface the original JWT error (invalid_token, token_expired, etc.)
+  if (jwtError) throw jwtError;
   return null;
 }
 
@@ -648,6 +651,25 @@ describe("GraphQL endpoint", () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.data.bookItem.success).toBe(true);
+    await shutdown();
+  });
+
+  it("query with invalid JWT returns invalid_token failure", async () => {
+    const { app, shutdown } = await makeApp();
+    const res = await app.request("/graphql", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer garbage-not-a-jwt",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query: '{ greet(name: "World") { success failure { type detail } } }',
+      }),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.data.greet.success).toBe(false);
+    expect(data.data.greet.failure.type).toBe("invalid_token");
     await shutdown();
   });
 
@@ -957,12 +979,13 @@ async def _resolve_auth(request, service: ANIPService, capability_name: str):
     bearer = auth[7:].strip()
 
     # Try as JWT first — preserves original delegation chain
+    jwt_error = None
     try:
         return await service.resolve_bearer_token(bearer)
-    except ANIPError:
-        pass  # Invalid token — fall through to API-key mode
+    except ANIPError as e:
+        jwt_error = e
 
-    # Try as API key — issue synthetic token
+    # Try as API key — only if JWT failed
     principal = await service.authenticate_bearer(bearer)
     if principal:
         cap_decl = service.get_capability_declaration(capability_name)
@@ -975,6 +998,9 @@ async def _resolve_auth(request, service: ANIPService, capability_name: str):
         })
         return await service.resolve_bearer_token(token_result["token"])
 
+    # Surface the original JWT error
+    if jwt_error:
+        raise jwt_error
     return None
 
 
@@ -1237,6 +1263,17 @@ class TestMountIntegration:
         )
         assert resp.status_code == 200
         assert resp.json()["data"]["bookItem"]["success"] is True
+
+    def test_query_with_invalid_jwt_returns_invalid_token(self, client):
+        resp = client.post(
+            "/graphql",
+            json={"query": '{ greet(name: "World") { success failure { type } } }'},
+            headers={"Authorization": "Bearer garbage-not-a-jwt"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["data"]["greet"]["success"] is False
+        assert data["data"]["greet"]["failure"]["type"] == "invalid_token"
 
     def test_query_without_auth_returns_failure(self, client):
         resp = client.post(

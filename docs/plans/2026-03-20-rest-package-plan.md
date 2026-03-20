@@ -363,16 +363,18 @@ async function resolveAuth(
   const bearer = authHeader.slice(7).trim();
 
   // Try as JWT first — preserves original delegation chain
+  let jwtError: ANIPError | null = null;
   try {
     return await service.resolveBearerToken(bearer);
   } catch (e) {
-    // Only swallow ANIPError (invalid_token) — rethrow unexpected failures
     if (!(e instanceof ANIPError)) throw e;
+    jwtError = e; // Stash the structured error
   }
 
-  // Try as API key — issue synthetic token scoped to this capability
+  // Try as API key — only if JWT failed
   const principal = await service.authenticateBearer(bearer);
   if (principal) {
+    // This is a real API key — issue synthetic token
     const capDecl = service.getCapabilityDeclaration(capabilityName);
     const minScope = (capDecl?.minimum_scope as string[]) ?? [];
     const tokenResult = await service.issueToken(principal, {
@@ -385,6 +387,9 @@ async function resolveAuth(
     return await service.resolveBearerToken(jwt);
   }
 
+  // Neither JWT nor API key — surface the original JWT error if we had one,
+  // so the caller gets invalid_token/token_expired instead of generic 401
+  if (jwtError) throw jwtError;
   return null;
 }
 
@@ -681,14 +686,15 @@ describe("Auth errors", () => {
     expect(data.failure.type).toBe("authentication_required");
   });
 
-  it("invalid bearer returns 401", async () => {
+  it("invalid JWT returns 401 with invalid_token failure type", async () => {
     const { app } = await makeApp();
     const res = await app.request("/api/greet?name=World", {
-      headers: { "Authorization": "Bearer garbage-token" },
+      headers: { "Authorization": "Bearer garbage-not-a-jwt" },
     });
     expect(res.status).toBe(401);
     const data = await res.json();
     expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("invalid_token");
   });
 });
 
@@ -962,12 +968,13 @@ async def _resolve_auth(
     bearer = auth[7:].strip()
 
     # Try as JWT first — preserves original delegation chain
+    jwt_error = None
     try:
         return await service.resolve_bearer_token(bearer)
-    except ANIPError:
-        pass  # Invalid token — fall through to API-key mode
+    except ANIPError as e:
+        jwt_error = e  # Stash the structured error
 
-    # Try as API key — issue synthetic token
+    # Try as API key — only if JWT failed
     principal = await service.authenticate_bearer(bearer)
     if principal:
         cap_decl = service.get_capability_declaration(capability_name)
@@ -981,6 +988,9 @@ async def _resolve_auth(
         jwt_str = token_result["token"]
         return await service.resolve_bearer_token(jwt_str)
 
+    # Neither JWT nor API key — surface the original JWT error
+    if jwt_error:
+        raise jwt_error
     return None
 
 
@@ -1241,10 +1251,13 @@ class TestMountIntegration:
         assert resp.status_code == 401
         assert resp.json()["failure"]["type"] == "authentication_required"
 
-    def test_invalid_bearer_returns_401(self, client):
+    def test_invalid_jwt_returns_structured_error(self, client):
         resp = client.get("/api/greet", params={"name": "World"},
-                          headers={"Authorization": "Bearer garbage"})
+                          headers={"Authorization": "Bearer garbage-not-a-jwt"})
         assert resp.status_code == 401
+        data = resp.json()
+        assert data["success"] is False
+        assert data["failure"]["type"] == "invalid_token"
 
     def test_openapi_spec(self, client):
         resp = client.get("/openapi.json")
