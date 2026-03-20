@@ -370,149 +370,47 @@ Run: `cd packages/typescript && npm install && cd mcp-hono && npx tsc`
 
 - [ ] **Step 6: Write tests**
 
+The tests should use the real MCP Client SDK (`StreamableHTTPClientTransport` or `SSEClientTransport`) for faithful Streamable HTTP protocol flow. Since Hono's `app.request()` is a local test helper (not a real HTTP server), the implementer should either:
+
+1. **Start a real HTTP server** using `@hono/node-server`'s `serve()`, connect the MCP Client SDK to it, run the protocol flow, then shut down.
+2. If the MCP SDK exposes an in-memory transport for testing (like `InMemoryTransport` used in stdio tests), use that.
+
+The implementer should check the MCP SDK for `StreamableHTTPClientTransport` or equivalent, start a local Hono server on a random port, and connect the MCP Client through the real transport.
+
+**Test cases to implement:**
+
 ```typescript
-import { describe, it, expect } from "vitest";
-import { Hono } from "hono";
-import { createANIPService, defineCapability } from "@anip/service";
-import { InMemoryStorage } from "@anip/server";
-import type { CapabilityDeclaration } from "@anip/core";
-import { mountAnip } from "@anip/hono";
-import { mountAnipMcpHono } from "../src/index.js";
-
-const API_KEY = "test-key-123";
-
-function greetCap() {
-  return defineCapability({
-    declaration: {
-      name: "greet",
-      description: "Say hello",
-      contract_version: "1.0",
-      inputs: [{ name: "name", type: "string", required: true, description: "Who" }],
-      output: { type: "object", fields: ["message"] },
-      side_effect: { type: "read", rollback_window: "not_applicable" },
-      minimum_scope: ["greet"],
-      response_modes: ["unary"],
-    } as CapabilityDeclaration,
-    handler: (_ctx, params) => ({ message: `Hello, ${params.name}!` }),
-  });
-}
-
-async function makeApp() {
-  const service = createANIPService({
-    serviceId: "test-mcp-http",
-    capabilities: [greetCap()],
-    storage: new InMemoryStorage(),
-    authenticate: (bearer) => (bearer === API_KEY ? "test-agent" : null),
-  });
-  const app = new Hono();
-  const { shutdown } = await mountAnip(app, service);
-  await mountAnipMcpHono(app, service);
-  return { app, shutdown };
-}
+// Pseudocode — adapt to actual MCP Client SDK API
 
 describe("MCP Streamable HTTP (Hono)", () => {
-  it("POST /mcp with initialize returns success", async () => {
-    const { app, shutdown } = await makeApp();
-    const res = await app.request("/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "initialize",
-        params: {
-          protocolVersion: "2024-11-05",
-          capabilities: {},
-          clientInfo: { name: "test", version: "1.0" },
-        },
-      }),
-    });
-    expect(res.status).toBe(200);
-    await shutdown();
+  // Start real HTTP server, connect MCP Client, run protocol
+
+  it("listTools returns registered tools", async () => {
+    // client.listTools() → expect tools.length === 1, tools[0].name === "greet"
   });
 
-  it("POST /mcp with tools/list returns tools", async () => {
-    const { app, shutdown } = await makeApp();
-    // Initialize first
-    await app.request("/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0", id: 1, method: "initialize",
-        params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test", version: "1.0" } },
-      }),
-    });
-
-    const res = await app.request("/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }),
-    });
-    expect(res.status).toBe(200);
-    // Response may be SSE or JSON depending on transport mode
-    const text = await res.text();
-    expect(text).toContain("greet");
-    await shutdown();
+  it("callTool with valid API key returns result", async () => {
+    // Set Authorization header on client transport
+    // client.callTool({ name: "greet", arguments: { name: "World" } })
+    // → expect result contains "Hello, World!"
   });
 
-  it("POST /mcp with tools/call and valid API key returns result", async () => {
-    const { app, shutdown } = await makeApp();
-    // Initialize
-    await app.request("/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0", id: 1, method: "initialize",
-        params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test", version: "1.0" } },
-      }),
-    });
-
-    const res = await app.request("/mcp", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${API_KEY}`,
-      },
-      body: JSON.stringify({
-        jsonrpc: "2.0", id: 3, method: "tools/call",
-        params: { name: "greet", arguments: { name: "World" } },
-      }),
-    });
-    expect(res.status).toBe(200);
-    const text = await res.text();
-    expect(text).toContain("Hello, World!");
-    await shutdown();
+  it("callTool without auth returns authentication_required", async () => {
+    // No Authorization header
+    // client.callTool(...) → expect isError + "authentication_required"
   });
 
-  it("POST /mcp with tools/call without auth returns error", async () => {
-    const { app, shutdown } = await makeApp();
-    // Initialize
-    await app.request("/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0", id: 1, method: "initialize",
-        params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test", version: "1.0" } },
-      }),
-    });
+  it("callTool with unknown tool returns error", async () => {
+    // client.callTool({ name: "nonexistent", ... }) → expect isError
+  });
 
-    const res = await app.request("/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0", id: 3, method: "tools/call",
-        params: { name: "greet", arguments: { name: "World" } },
-      }),
-    });
-    expect(res.status).toBe(200);
-    const text = await res.text();
-    expect(text).toContain("authentication_required");
-    await shutdown();
+  it("cleanup: server shuts down cleanly", async () => {
+    // Close client, stop server, verify no errors
   });
 });
 ```
 
-**Note:** The exact response format depends on the Streamable HTTP transport — it may return SSE events or JSON. Tests assert on the response text containing the expected content. The implementer should adapt assertions if the transport returns structured JSON-RPC responses differently than expected. Check how `WebStandardStreamableHTTPServerTransport` formats responses and adjust.
+The implementer MUST check the MCP SDK for the correct client transport class and adapt. The key requirement is that tests exercise the real Streamable HTTP protocol flow, not hand-crafted JSON-RPC.
 
 - [ ] **Step 7: Run tests**
 
@@ -598,13 +496,17 @@ export async function mountAnipMcpExpress(
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   await server.connect(transport);
 
-  app.all(mcpPath, (req, res) => {
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
-    if (token) {
-      (req as any).auth = { token, clientId: "", scopes: [] };
+  app.all(mcpPath, async (req, res, next) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
+      if (token) {
+        (req as any).auth = { token, clientId: "", scopes: [] };
+      }
+      await transport.handleRequest(req, res);
+    } catch (err) {
+      next(err);
     }
-    transport.handleRequest(req, res);
   });
 }
 ```
@@ -663,14 +565,14 @@ export async function mountAnipMcpFastify(
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   await server.connect(transport);
 
-  app.all(mcpPath, (request, reply) => {
+  app.all(mcpPath, async (request, reply) => {
     const authHeader = request.headers.authorization;
     const token = typeof authHeader === "string" && authHeader.startsWith("Bearer ")
       ? authHeader.slice(7).trim() : undefined;
     if (token) {
       (request.raw as any).auth = { token, clientId: "", scopes: [] };
     }
-    transport.handleRequest(request.raw, reply.raw);
+    await transport.handleRequest(request.raw, reply.raw);
   });
 }
 ```
@@ -824,28 +726,30 @@ git commit -m "refactor(mcp): extract shared Python invocation core"
 
 - [ ] **Step 1: Create http.py**
 
+The Python `mcp` library (v1.26+) provides `StreamableHTTPServerTransport` as an ASGI app. Key API:
+- Constructor: `StreamableHTTPServerTransport(mcp_session_id=None)` — `None` for stateless mode
+- `handle_request(scope, receive, send)` — ASGI entry point, handles GET/POST/DELETE
+- `connect()` — async context manager yielding `(read_stream, write_stream)` for bidirectional message passing
+- Auth context: `session_message.metadata.request_context` contains the Starlette `Request` object with headers
+
+The transport is ASGI-native, so it mounts on FastAPI via `app.mount()`. The MCP Server runs in a background task, reading from the transport's message streams.
+
 ```python
 """ANIP MCP Streamable HTTP transport for FastAPI."""
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
-from fastapi import FastAPI, Request
-from fastapi.responses import Response
+import mcp.types as mcp_types
+from mcp.server.lowlevel import Server
+from mcp.server.streamable_http import StreamableHTTPServerTransport
 
-from anip_service import ANIPService
-from .invocation import resolve_auth, invoke_with_token, translate_response, InvokeResult
+from fastapi import FastAPI
 
-# The implementer should check what the Python mcp library exposes for
-# Streamable HTTP transport and adapt this module accordingly.
-# Expected: mcp.server.streamable_http.StreamableHTTPServerTransport
-# The module should:
-# 1. Create an MCP Server with tools from the ANIPService
-# 2. Create a StreamableHTTPServerTransport (stateless)
-# 3. Connect server to transport once at mount time
-# 4. Mount GET/POST/DELETE handlers on the FastAPI app at the given path
-# 5. Extract bearer from Authorization header per-request
-# 6. Pass auth context to the transport
+from anip_service import ANIPService, ANIPError
+from .invocation import resolve_auth, invoke_with_token, InvokeResult
+from .translation import capability_to_input_schema, enrich_description
 
 
 def mount_anip_mcp_http(
@@ -858,36 +762,230 @@ def mount_anip_mcp_http(
     """Mount MCP Streamable HTTP transport on a FastAPI app.
 
     Does not own service lifecycle — mount_anip() handles that.
+
+    Creates an MCP Server with tools registered from the ANIPService,
+    connects it to a StreamableHTTPServerTransport (stateless, ASGI),
+    and mounts the transport on the FastAPI app at the given path.
+
+    Auth is per-request: the tool call handler extracts Authorization
+    from the Starlette Request in session_message.metadata.request_context,
+    then resolves via resolve_auth (JWT-first, API-key fallback).
     """
-    # Implementation depends on the Python mcp library's StreamableHTTPServerTransport API.
-    # The implementer should:
-    # 1. Import from mcp.server.streamable_http
-    # 2. Build MCP server with tool handlers that use resolve_auth + invoke_with_token
-    # 3. Create transport, connect server
-    # 4. Mount request handlers on the FastAPI app
-    raise NotImplementedError(
-        "Python MCP Streamable HTTP transport — "
-        "implement using mcp.server.streamable_http.StreamableHTTPServerTransport"
-    )
+    # Build tool map from service
+    manifest = service.get_manifest()
+    mcp_tools: dict[str, mcp_types.Tool] = {}
+    tool_declarations: dict[str, Any] = {}
+
+    for name in manifest.capabilities:
+        decl = service.get_capability_declaration(name)
+        if not decl:
+            continue
+        decl_dict = decl.model_dump()
+        description = enrich_description(decl_dict) if enrich_descriptions else decl.description
+        mcp_tools[name] = mcp_types.Tool(
+            name=name,
+            description=description,
+            inputSchema=capability_to_input_schema(decl_dict),
+        )
+
+    # Create MCP Server with tool handlers
+    mcp_server = Server("anip-mcp-http")
+
+    @mcp_server.list_tools()
+    async def handle_list_tools() -> list[mcp_types.Tool]:
+        return list(mcp_tools.values())
+
+    @mcp_server.call_tool()
+    async def handle_call_tool(
+        name: str, arguments: dict,
+    ) -> list[mcp_types.TextContent]:
+        if name not in mcp_tools:
+            return [mcp_types.TextContent(
+                type="text",
+                text=f"Unknown tool: {name}. Available: {list(mcp_tools.keys())}",
+            )]
+
+        # Auth is resolved per-request from the HTTP context
+        # The request_context is injected by the transport via
+        # session_message.metadata — but for call_tool handlers registered
+        # via decorators, the mcp library passes it through the server's
+        # request_context. Check server.request_context for the Starlette Request.
+        bearer = None
+        ctx = mcp_server.request_context
+        if ctx and hasattr(ctx, "request_context") and ctx.request_context:
+            request = ctx.request_context
+            auth_header = getattr(request, "headers", {}).get("authorization", "")
+            if auth_header.startswith("Bearer "):
+                bearer = auth_header[7:].strip()
+
+        if not bearer:
+            return [mcp_types.TextContent(
+                type="text",
+                text="FAILED: authentication_required\nDetail: No Authorization header\nRetryable: yes",
+            )]
+
+        try:
+            token = await resolve_auth(bearer, service, name)
+            result = await invoke_with_token(service, name, arguments or {}, token)
+            return [mcp_types.TextContent(type="text", text=result.text)]
+        except ANIPError as e:
+            return [mcp_types.TextContent(
+                type="text",
+                text=f"FAILED: {e.error_type}\nDetail: {e.detail}\nRetryable: no",
+            )]
+        except Exception as e:
+            return [mcp_types.TextContent(
+                type="text",
+                text=f"ANIP invocation error: {e}",
+            )]
+
+    # Create transport (stateless — no session ID)
+    transport = StreamableHTTPServerTransport(mcp_session_id=None)
+
+    # Start the MCP server message loop in a background task on app startup
+    @app.on_event("startup")
+    async def start_mcp():
+        async def run_server():
+            async with transport.connect() as (read_stream, write_stream):
+                await mcp_server.run(
+                    read_stream, write_stream,
+                    mcp_server.create_initialization_options(),
+                )
+        asyncio.create_task(run_server())
+
+    # Mount the ASGI transport on the FastAPI app
+    app.mount(path, transport.handle_request)
 ```
 
-**Note:** The Python `mcp` library's Streamable HTTP API may differ from TypeScript. The implementer should check `mcp.server.streamable_http` for the actual class interface and adapt. The core logic (resolve_auth, invoke_with_token, translate_response) is already extracted and ready to use.
+**Note:** The exact way the `mcp` library's `Server` passes `request_context` to decorated handlers may vary. The implementer should verify how `server.request_context` works in the `mcp` library version installed (1.26+). If the server doesn't expose request context on `server.request_context`, check `mcp.server.lowlevel.Server` for the actual mechanism and adapt the bearer extraction accordingly.
 
 - [ ] **Step 2: Update __init__.py**
 
-Add `mount_anip_mcp_http` to exports.
+```python
+"""ANIP MCP bindings — expose ANIPService capabilities as MCP tools."""
+from .routes import mount_anip_mcp, McpCredentials, McpLifecycle
+from .http import mount_anip_mcp_http
 
-- [ ] **Step 3: Write tests**
+__all__ = ["mount_anip_mcp", "McpCredentials", "McpLifecycle", "mount_anip_mcp_http"]
+```
 
-Follow the FastAPI TestClient pattern. Tests should cover:
-- POST /mcp with initialize
-- tools/list
-- tools/call with valid auth
-- tools/call without auth
+- [ ] **Step 3: Add pyproject.toml dependency**
 
-The implementer should adapt test structure to match the actual transport behavior.
+Add `sse-starlette>=2.0` to dependencies (required by the mcp transport for SSE responses).
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Write tests**
+
+```python
+"""Tests for MCP Streamable HTTP transport on FastAPI."""
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from anip_core import (
+    CapabilityDeclaration, SideEffect, SideEffectType,
+    CapabilityInput, CapabilityOutput,
+)
+from anip_service import ANIPService, Capability
+from anip_fastapi import mount_anip
+from anip_mcp.http import mount_anip_mcp_http
+
+API_KEY = "test-key"
+
+
+@pytest.fixture
+def client():
+    service = ANIPService(
+        service_id="test-mcp-http",
+        capabilities=[
+            Capability(
+                declaration=CapabilityDeclaration(
+                    name="greet",
+                    description="Say hello",
+                    inputs=[CapabilityInput(name="name", type="string", required=True, description="Who")],
+                    output=CapabilityOutput(type="object", fields=["message"]),
+                    side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+                    minimum_scope=["greet"],
+                ),
+                handler=lambda ctx, params: {"message": f"Hello, {params['name']}!"},
+            ),
+        ],
+        storage=":memory:",
+        authenticate=lambda bearer: "test-agent" if bearer == API_KEY else None,
+    )
+    app = FastAPI()
+    mount_anip(app, service)
+    mount_anip_mcp_http(app, service)
+    return TestClient(app)
+
+
+class TestMcpHttpTransport:
+    def test_post_initialize(self, client):
+        resp = client.post("/mcp", json={
+            "jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {},
+                "clientInfo": {"name": "test", "version": "1.0"},
+            },
+        }, headers={
+            "Accept": "application/json, text/event-stream",
+            "Content-Type": "application/json",
+        })
+        assert resp.status_code == 200
+
+    def test_list_tools(self, client):
+        # Initialize first
+        client.post("/mcp", json={
+            "jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}},
+        }, headers={"Accept": "application/json, text/event-stream", "Content-Type": "application/json"})
+
+        resp = client.post("/mcp", json={
+            "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {},
+        }, headers={"Accept": "application/json, text/event-stream", "Content-Type": "application/json"})
+        assert resp.status_code == 200
+        assert "greet" in resp.text
+
+    def test_call_tool_with_auth(self, client):
+        # Initialize
+        client.post("/mcp", json={
+            "jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}},
+        }, headers={"Accept": "application/json, text/event-stream", "Content-Type": "application/json"})
+
+        resp = client.post("/mcp", json={
+            "jsonrpc": "2.0", "id": 3, "method": "tools/call",
+            "params": {"name": "greet", "arguments": {"name": "World"}},
+        }, headers={
+            "Accept": "application/json, text/event-stream",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {API_KEY}",
+        })
+        assert resp.status_code == 200
+        assert "Hello, World!" in resp.text
+
+    def test_call_tool_without_auth(self, client):
+        # Initialize
+        client.post("/mcp", json={
+            "jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}},
+        }, headers={"Accept": "application/json, text/event-stream", "Content-Type": "application/json"})
+
+        resp = client.post("/mcp", json={
+            "jsonrpc": "2.0", "id": 3, "method": "tools/call",
+            "params": {"name": "greet", "arguments": {"name": "World"}},
+        }, headers={"Accept": "application/json, text/event-stream", "Content-Type": "application/json"})
+        assert resp.status_code == 200
+        assert "authentication_required" in resp.text
+```
+
+**Note:** The Python tests use direct JSON-RPC HTTP requests because the Python MCP Client SDK may not expose a Streamable HTTP client transport suitable for TestClient. The implementer should check if the `mcp` library has a client-side HTTP transport and use it if available. The important thing is that the protocol flow (initialize → list → call) is exercised through real HTTP.
+
+- [ ] **Step 5: Run tests**
+
+Run: `pytest packages/python/anip-mcp/tests/test_http.py -v`
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add packages/python/anip-mcp/
