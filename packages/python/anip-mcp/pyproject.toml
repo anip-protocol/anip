@@ -1,0 +1,25 @@
+[project]
+name = "anip-mcp"
+version = "0.8.0"
+description = "ANIP MCP bindings — expose ANIPService capabilities as MCP tools"
+requires-python = ">=3.11"
+dependencies = [
+    "anip-service>=0.8.0",
+    "mcp>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[tool.setuptools.packages.find]
+where = ["src"]
