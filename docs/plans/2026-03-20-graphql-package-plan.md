@@ -335,6 +335,10 @@ const FAILURE_STATUS: Record<string, number> = {
   invalid_token: 401,
 };
 
+/**
+ * Resolve auth — JWT first, then API key.
+ * See REST plan for rationale on ordering.
+ */
 async function resolveAuth(
   authHeader: string | undefined,
   service: ANIPService,
@@ -343,6 +347,14 @@ async function resolveAuth(
   if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
   const bearer = authHeader.slice(7).trim();
 
+  // Try as JWT first — preserves original delegation chain
+  try {
+    return await service.resolveBearerToken(bearer);
+  } catch {
+    // Not a valid JWT — fall through to API-key mode
+  }
+
+  // Try as API key — issue synthetic token
   const principal = await service.authenticateBearer(bearer);
   if (principal) {
     const capDecl = service.getCapabilityDeclaration(capabilityName);
@@ -356,19 +368,23 @@ async function resolveAuth(
     return await service.resolveBearerToken(tokenResult.token as string);
   }
 
-  return await service.resolveBearerToken(bearer);
+  return null;
 }
 
+/**
+ * Mount a GraphQL endpoint on a Hono app.
+ *
+ * Does NOT own service lifecycle — the caller (or mountAnip) is
+ * responsible for start/shutdown.
+ */
 export async function mountAnipGraphQL(
   app: Hono,
   service: ANIPService,
   opts?: GraphQLMountOptions,
-): Promise<{ stop: () => void; shutdown: () => Promise<void> }> {
+): Promise<void> {
   const gqlPath = opts?.path ?? "/graphql";
   const prefix = opts?.prefix ?? "";
   const fullPath = `${prefix}${gqlPath}`;
-
-  await service.start();
 
   // Build capabilities map
   const manifest = service.getManifest();
@@ -465,10 +481,6 @@ export async function mountAnipGraphQL(
     return c.text(schemaSdl);
   });
 
-  return {
-    stop: () => service.stop(),
-    shutdown: async () => await service.shutdown(),
-  };
 }
 ```
 
@@ -494,6 +506,7 @@ import { Hono } from "hono";
 import { createANIPService, defineCapability } from "@anip/service";
 import { InMemoryStorage } from "@anip/server";
 import type { CapabilityDeclaration } from "@anip/core";
+import { mountAnip } from "@anip/hono";
 import { mountAnipGraphQL } from "../src/routes.js";
 import { generateSchema, toCamelCase, toSnakeCase } from "../src/translation.js";
 
@@ -539,8 +552,9 @@ async function makeApp() {
     authenticate: (bearer) => (bearer === API_KEY ? "test-agent" : null),
   });
   const app = new Hono();
-  const lifecycle = await mountAnipGraphQL(app, service);
-  return { app, lifecycle };
+  const { shutdown } = await mountAnip(app, service);
+  await mountAnipGraphQL(app, service);
+  return { app, shutdown };
 }
 
 describe("Case conversion", () => {
@@ -581,7 +595,7 @@ describe("GraphQL endpoint", () => {
   });
 
   it("query executes read capability", async () => {
-    const { app, lifecycle } = await makeApp();
+    const { app, shutdown } = await makeApp();
     const res = await app.request("/graphql", {
       method: "POST",
       headers: {
@@ -596,11 +610,11 @@ describe("GraphQL endpoint", () => {
     const data = await res.json();
     expect(data.data.greet.success).toBe(true);
     expect(data.data.greet.result.message).toBe("Hello, World!");
-    await lifecycle.shutdown();
+    await shutdown();
   });
 
   it("mutation executes write capability", async () => {
-    const { app, lifecycle } = await makeApp();
+    const { app, shutdown } = await makeApp();
     const res = await app.request("/graphql", {
       method: "POST",
       headers: {
@@ -614,11 +628,11 @@ describe("GraphQL endpoint", () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.data.bookItem.success).toBe(true);
-    await lifecycle.shutdown();
+    await shutdown();
   });
 
   it("query without auth returns failure in result", async () => {
-    const { app, lifecycle } = await makeApp();
+    const { app, shutdown } = await makeApp();
     const res = await app.request("/graphql", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -630,16 +644,14 @@ describe("GraphQL endpoint", () => {
     const data = await res.json();
     expect(data.data.greet.success).toBe(false);
     expect(data.data.greet.failure.type).toBe("authentication_required");
-    await lifecycle.shutdown();
+    await shutdown();
   });
 });
 
 describe("Lifecycle", () => {
-  it("returns stop and shutdown", async () => {
-    const { lifecycle } = await makeApp();
-    expect(lifecycle.stop).toBeTypeOf("function");
-    expect(lifecycle.shutdown).toBeTypeOf("function");
-    await lifecycle.shutdown();
+  it("mountAnipGraphQL returns void — lifecycle owned by mountAnip", async () => {
+    const { shutdown } = await makeApp();
+    await shutdown();
   });
 });
 ```
@@ -918,12 +930,19 @@ from .translation import (
 
 
 async def _resolve_auth(request, service: ANIPService, capability_name: str):
-    """Resolve auth from request headers."""
+    """Resolve auth — JWT first, then API key."""
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer "):
         return None
     bearer = auth[7:].strip()
 
+    # Try as JWT first — preserves original delegation chain
+    try:
+        return await service.resolve_bearer_token(bearer)
+    except Exception:
+        pass
+
+    # Try as API key — issue synthetic token
     principal = await service.authenticate_bearer(bearer)
     if principal:
         cap_decl = service.get_capability_declaration(capability_name)
@@ -936,7 +955,7 @@ async def _resolve_auth(request, service: ANIPService, capability_name: str):
         })
         return await service.resolve_bearer_token(token_result["token"])
 
-    return await service.resolve_bearer_token(bearer)
+    return None
 
 
 def _make_resolver(capability_name: str, service: ANIPService):
@@ -1147,16 +1166,70 @@ class TestResponseMapping:
         assert result["costActual"]["varianceFromEstimate"] == "-5%"
 
 
-# Integration tests: the implementer should add tests following the pattern in
-# packages/python/anip-fastapi/tests/test_routes.py:
-#
-# 1. Create ANIPService with test capabilities and API key auth
-# 2. Mount mount_anip_graphql(app, service)
-# 3. Use TestClient to:
-#    - POST /graphql with query { greet(name: "World") { success result } } → success
-#    - POST /graphql with mutation { bookItem(itemName: "x") { success result } } → success
-#    - POST /graphql without auth → failure in result (not HTTP error)
-#    - GET /schema.graphql → 200 with SDL text
+class TestMountIntegration:
+    """Integration tests using a real ANIPService + FastAPI TestClient."""
+
+    API_KEY = "test-key"
+
+    @pytest.fixture
+    def client(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from anip_service import ANIPService
+        from anip_graphql import mount_anip_graphql
+
+        service = ANIPService(
+            service_id="test-graphql",
+            capabilities=[
+                {
+                    "declaration": GREET_DECL,
+                    "handler": lambda token, params: {"message": f"Hello, {params['name']}!"},
+                },
+                {
+                    "declaration": BOOK_DECL,
+                    "handler": lambda token, params: {"booking_id": "BK-001"},
+                },
+            ],
+            authenticate=lambda bearer: "test-agent" if bearer == self.API_KEY else None,
+        )
+        app = FastAPI()
+        mount_anip_graphql(app, service)
+        return TestClient(app)
+
+    def test_query_read_capability(self, client):
+        resp = client.post(
+            "/graphql",
+            json={"query": '{ greet(name: "World") { success result } }'},
+            headers={"Authorization": f"Bearer {self.API_KEY}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["data"]["greet"]["success"] is True
+        assert data["data"]["greet"]["result"]["message"] == "Hello, World!"
+
+    def test_mutation_write_capability(self, client):
+        resp = client.post(
+            "/graphql",
+            json={"query": 'mutation { bookItem(itemName: "x") { success result } }'},
+            headers={"Authorization": f"Bearer {self.API_KEY}"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["data"]["bookItem"]["success"] is True
+
+    def test_query_without_auth_returns_failure(self, client):
+        resp = client.post(
+            "/graphql",
+            json={"query": '{ greet(name: "World") { success failure { type } } }'},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["data"]["greet"]["success"] is False
+        assert data["data"]["greet"]["failure"]["type"] == "authentication_required"
+
+    def test_schema_endpoint(self, client):
+        resp = client.get("/schema.graphql")
+        assert resp.status_code == 200
+        assert "type Query" in resp.text
 ```
 
 - [ ] **Step 2: Run tests**

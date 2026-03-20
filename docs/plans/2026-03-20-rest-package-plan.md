@@ -345,7 +345,11 @@ const FAILURE_STATUS: Record<string, number> = {
 
 /**
  * Resolve auth from Authorization header.
- * Returns { token, principal } for JWT mode or API-key mode.
+ *
+ * Order matters: try JWT first, then API key. authenticateBearer()
+ * also accepts valid JWTs internally, so calling it first would
+ * misidentify a caller-supplied JWT as an API key and issue a
+ * synthetic token, losing the original delegation chain.
  */
 async function resolveAuth(
   authHeader: string | undefined,
@@ -358,10 +362,16 @@ async function resolveAuth(
   }
   const bearer = authHeader.slice(7).trim();
 
-  // Try as API key first
+  // Try as JWT first — preserves original delegation chain
+  try {
+    return await service.resolveBearerToken(bearer);
+  } catch {
+    // Not a valid JWT — fall through to API-key mode
+  }
+
+  // Try as API key — issue synthetic token scoped to this capability
   const principal = await service.authenticateBearer(bearer);
   if (principal) {
-    // API-key mode: issue synthetic token scoped to this capability
     const capDecl = service.getCapabilityDeclaration(capabilityName);
     const minScope = (capDecl?.minimum_scope as string[]) ?? [];
     const tokenResult = await service.issueToken(principal, {
@@ -374,8 +384,7 @@ async function resolveAuth(
     return await service.resolveBearerToken(jwt);
   }
 
-  // Try as JWT
-  return await service.resolveBearerToken(bearer);
+  return null;
 }
 
 /**
@@ -398,14 +407,20 @@ function convertQueryParams(
   return result;
 }
 
+/**
+ * Mount RESTful API endpoints on a Hono app.
+ *
+ * Does NOT own service lifecycle — the caller (or mountAnip) is
+ * responsible for calling service.start() before and service.shutdown()
+ * after. This avoids double-starting when multiple mount functions
+ * share the same ANIPService.
+ */
 export async function mountAnipRest(
   app: Hono,
   service: ANIPService,
   opts?: RestMountOptions,
-): Promise<{ stop: () => void; shutdown: () => Promise<void> }> {
+): Promise<void> {
   const prefix = opts?.prefix ?? "";
-
-  await service.start();
 
   // Build routes from manifest
   const manifest = service.getManifest();
@@ -499,10 +514,6 @@ export async function mountAnipRest(
     }
   }
 
-  return {
-    stop: () => service.stop(),
-    shutdown: async () => await service.shutdown(),
-  };
 }
 ```
 
@@ -534,6 +545,7 @@ import { Hono } from "hono";
 import { createANIPService, defineCapability } from "@anip/service";
 import { InMemoryStorage } from "@anip/server";
 import type { CapabilityDeclaration } from "@anip/core";
+import { mountAnip } from "@anip/hono";
 import { mountAnipRest } from "../src/routes.js";
 
 const API_KEY = "test-key-123";
@@ -578,8 +590,10 @@ async function makeApp(routeOverrides?: Record<string, any>) {
     authenticate: (bearer) => (bearer === API_KEY ? "test-agent" : null),
   });
   const app = new Hono();
-  const lifecycle = await mountAnipRest(app, service, { routes: routeOverrides });
-  return { app, lifecycle, service };
+  // mountAnip owns lifecycle; mountAnipRest just adds routes
+  const { stop, shutdown } = await mountAnip(app, service);
+  await mountAnipRest(app, service, { routes: routeOverrides });
+  return { app, stop, shutdown, service };
 }
 
 async function getToken(app: Hono): Promise<string> {
@@ -678,11 +692,10 @@ describe("Auth errors", () => {
 });
 
 describe("Lifecycle", () => {
-  it("returns stop and shutdown", async () => {
-    const { lifecycle } = await makeApp();
-    expect(lifecycle.stop).toBeTypeOf("function");
-    expect(lifecycle.shutdown).toBeTypeOf("function");
-    await lifecycle.shutdown();
+  it("service lifecycle owned by mountAnip, not mountAnipRest", async () => {
+    const { shutdown } = await makeApp();
+    // mountAnipRest returns void — it doesn't own lifecycle
+    await shutdown();
   });
 });
 ```
@@ -936,13 +949,24 @@ async def _resolve_auth(
     service: ANIPService,
     capability_name: str,
 ):
-    """Resolve auth from Authorization header. Returns DelegationToken or None."""
+    """Resolve auth from Authorization header.
+
+    Order: try JWT first, then API key. authenticate_bearer() also
+    accepts valid JWTs internally, so calling it first would misidentify
+    a caller-supplied JWT as an API key and issue a synthetic token.
+    """
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer "):
         return None
     bearer = auth[7:].strip()
 
-    # Try as API key
+    # Try as JWT first — preserves original delegation chain
+    try:
+        return await service.resolve_bearer_token(bearer)
+    except Exception:
+        pass  # Not a valid JWT — fall through to API-key mode
+
+    # Try as API key — issue synthetic token
     principal = await service.authenticate_bearer(bearer)
     if principal:
         cap_decl = service.get_capability_declaration(capability_name)
@@ -956,8 +980,7 @@ async def _resolve_auth(
         jwt_str = token_result["token"]
         return await service.resolve_bearer_token(jwt_str)
 
-    # Try as JWT
-    return await service.resolve_bearer_token(bearer)
+    return None
 
 
 def _error_response(error: ANIPError) -> JSONResponse:
@@ -1157,19 +1180,72 @@ class TestTranslation:
         assert "/api/greet" in spec["paths"]
 
 
-# Integration tests require a real ANIPService.
-# The implementer should add tests following the pattern in
-# packages/python/anip-fastapi/tests/test_routes.py:
-#
-# 1. Create ANIPService with test capabilities and API key auth
-# 2. Mount mount_anip_rest(app, service)
-# 3. Use TestClient to:
-#    - GET /api/greet?name=World with Bearer API_KEY → 200 success
-#    - POST /api/book with Bearer API_KEY → 200 success
-#    - GET /api/greet without auth → 401
-#    - GET /api/greet with invalid bearer → 401
-#    - GET /openapi.json → 200 with valid spec
-#    - GET /docs → 200 with HTML
+class TestMountIntegration:
+    """Integration tests using a real ANIPService + FastAPI TestClient."""
+
+    API_KEY = "test-key"
+
+    @pytest.fixture
+    def client(self):
+        """Create service, mount REST routes, return TestClient."""
+        from anip_service import ANIPService
+        from anip_rest import mount_anip_rest
+
+        service = ANIPService(
+            service_id="test-rest",
+            capabilities=[
+                {
+                    "declaration": GREET_DECL,
+                    "handler": lambda token, params: {"message": f"Hello, {params['name']}!"},
+                },
+                {
+                    "declaration": BOOK_DECL,
+                    "handler": lambda token, params: {"booking_id": "BK-001", "item": params["item"]},
+                },
+            ],
+            authenticate=lambda bearer: "test-agent" if bearer == self.API_KEY else None,
+        )
+        app = FastAPI()
+        # Note: service lifecycle managed externally (by mount_anip or app hooks)
+        mount_anip_rest(app, service)
+        return TestClient(app)
+
+    def test_get_read_capability(self, client):
+        resp = client.get("/api/greet", params={"name": "World"},
+                          headers={"Authorization": f"Bearer {self.API_KEY}"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert data["result"]["message"] == "Hello, World!"
+
+    def test_post_write_capability(self, client):
+        resp = client.post("/api/book",
+                           json={"item": "flight"},
+                           headers={"Authorization": f"Bearer {self.API_KEY}"})
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+
+    def test_missing_auth_returns_401(self, client):
+        resp = client.get("/api/greet", params={"name": "World"})
+        assert resp.status_code == 401
+        assert resp.json()["failure"]["type"] == "authentication_required"
+
+    def test_invalid_bearer_returns_401(self, client):
+        resp = client.get("/api/greet", params={"name": "World"},
+                          headers={"Authorization": "Bearer garbage"})
+        assert resp.status_code == 401
+
+    def test_openapi_spec(self, client):
+        resp = client.get("/openapi.json")
+        assert resp.status_code == 200
+        spec = resp.json()
+        assert spec["openapi"] == "3.1.0"
+        assert "/api/greet" in spec["paths"]
+
+    def test_docs_html(self, client):
+        resp = client.get("/docs")
+        assert resp.status_code == 200
+        assert "swagger-ui" in resp.text
 ```
 
 - [ ] **Step 2: Install and run tests**
