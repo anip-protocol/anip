@@ -1088,22 +1088,22 @@ class TestTranslateResponse:
 class TestInvokeCapability:
     """Integration tests using a real ANIPService instance."""
 
+    API_KEY = "test-key"
+
     @pytest.fixture
-    def service(self):
-        """Create a test service with a greet capability."""
+    async def service(self):
+        """Create and start a test service with a greet capability."""
         from anip_core.models import (
             CapabilityDeclaration, SideEffect, SideEffectType,
             CapabilityInput, CapabilityOutput,
         )
-        from anip_service import ANIPService
+        from anip_service import ANIPService, Capability
 
-        API_KEY = "test-key"
-
-        service = ANIPService(
+        svc = ANIPService(
             service_id="test-mcp",
             capabilities=[
-                {
-                    "declaration": CapabilityDeclaration(
+                Capability(
+                    declaration=CapabilityDeclaration(
                         name="greet",
                         description="Say hello",
                         inputs=[CapabilityInput(name="name", type="string", required=True, description="Who")],
@@ -1111,43 +1111,91 @@ class TestInvokeCapability:
                         side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
                         minimum_scope=["greet"],
                     ),
-                    "handler": lambda token, params: {"message": f"Hello, {params['name']}!"},
-                },
+                    handler=lambda ctx, params: {"message": f"Hello, {params['name']}!"},
+                ),
             ],
-            authenticate=lambda bearer: "test-agent" if bearer == API_KEY else None,
+            authenticate=lambda bearer: "test-agent" if bearer == self.API_KEY else None,
         )
-        return service, API_KEY
+        await svc.start()
+        yield svc
+        await svc.shutdown()
 
     async def test_invoke_with_valid_credentials(self, service):
-        svc, api_key = service
-        await svc.start()
-        creds = McpCredentials(api_key=api_key, scope=["greet"], subject="test-agent")
-        result = await _invoke_capability(svc, "greet", {"name": "World"}, creds)
+        creds = McpCredentials(api_key=self.API_KEY, scope=["greet"], subject="test-agent")
+        result = await _invoke_capability(service, "greet", {"name": "World"}, creds)
         assert "Hello, World!" in result
-        svc.stop()
 
     async def test_invoke_with_invalid_credentials(self, service):
-        svc, _ = service
-        await svc.start()
         creds = McpCredentials(api_key="wrong-key", scope=["greet"], subject="test")
-        result = await _invoke_capability(svc, "greet", {"name": "World"}, creds)
+        result = await _invoke_capability(service, "greet", {"name": "World"}, creds)
         assert "FAILED" in result
         assert "authentication_required" in result
-        svc.stop()
 ```
 
 **Note:** The `TestInvokeCapability` tests create a real `ANIPService` and test the full invocation path: authenticate → issue token → resolve token → invoke. The exact fixture shape depends on the service's constructor — the implementer should adapt the fixture to match the actual `ANIPService` API (which may use `create_anip_service()` or the class constructor directly). Check `packages/python/anip-fastapi/tests/test_routes.py` for the working pattern.
 
-**Important:** The implementer MUST also add an integration test that exercises the full `mount_anip_mcp()` → `list_tools` → `call_tool` path on a real MCP `Server` instance — mirroring the TypeScript `InMemoryTransport` integration tests. The Python `mcp` library provides `mcp.server.stdio.stdio_server()` for production and in-process testing patterns. The test should:
+The following integration test exercises the full `mount_anip_mcp()` → `list_tools` → `call_tool` path by calling the decorated handler functions directly on the MCP server. Add these to the same test file:
 
-1. Create a real `ANIPService` and MCP `Server`
-2. Call `await mount_anip_mcp(server, service, credentials=...)` to register handlers
-3. Verify `list_tools` returns the expected tool(s)
-4. Verify `call_tool` with valid args returns a success result
-5. Verify `call_tool` with an unknown tool name returns an error
-6. Call `lifecycle.shutdown()` to verify clean teardown
+```python
+class TestMountIntegration:
+    """Integration tests for mount_anip_mcp on a real MCP Server."""
 
-If the `mcp` library does not expose an in-memory transport for testing (check `mcp.server` and `mcp.client` modules), the implementer should test handler registration by calling the decorated handler functions directly (`handle_list_tools()`, `handle_call_tool("greet", {"name": "World"})`) — these are async functions registered on the server object.
+    API_KEY = "test-key"
+
+    @pytest.fixture
+    async def mounted(self):
+        from anip_core.models import (
+            CapabilityDeclaration, SideEffect, SideEffectType,
+            CapabilityInput, CapabilityOutput,
+        )
+        from anip_service import ANIPService, Capability
+        from mcp.server.lowlevel import Server
+        from anip_mcp import mount_anip_mcp, McpCredentials
+
+        svc = ANIPService(
+            service_id="test-mcp",
+            capabilities=[
+                Capability(
+                    declaration=CapabilityDeclaration(
+                        name="greet",
+                        description="Say hello",
+                        inputs=[CapabilityInput(name="name", type="string", required=True, description="Who")],
+                        output=CapabilityOutput(type="object", fields=["message"]),
+                        side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+                        minimum_scope=["greet"],
+                    ),
+                    handler=lambda ctx, params: {"message": f"Hello, {params['name']}!"},
+                ),
+            ],
+            authenticate=lambda bearer: "test-agent" if bearer == self.API_KEY else None,
+        )
+        server = Server("test-mcp-server")
+        creds = McpCredentials(api_key=self.API_KEY, scope=["greet"], subject="test-agent")
+        lifecycle = await mount_anip_mcp(server, svc, credentials=creds)
+        yield server, lifecycle
+        await lifecycle.shutdown()
+
+    async def test_list_tools(self, mounted):
+        server, _ = mounted
+        # Call the registered list_tools handler directly
+        tools = await server._list_tools_handler()
+        assert len(tools) == 1
+        assert tools[0].name == "greet"
+
+    async def test_call_tool_success(self, mounted):
+        server, _ = mounted
+        # Call the registered call_tool handler directly
+        result = await server._call_tool_handler("greet", {"name": "World"})
+        assert len(result) == 1
+        assert "Hello, World!" in result[0].text
+
+    async def test_call_tool_unknown(self, mounted):
+        server, _ = mounted
+        result = await server._call_tool_handler("nonexistent", {})
+        assert "Unknown tool" in result[0].text
+```
+
+**Note:** The handler method names (`_list_tools_handler`, `_call_tool_handler`) depend on how the `mcp` library stores decorated handlers. The implementer should check the actual `Server` API — if handlers are stored differently, adapt the calls accordingly. The goal is to exercise the full path without needing a transport layer.
 
 - [ ] **Step 2: Install and run tests**
 

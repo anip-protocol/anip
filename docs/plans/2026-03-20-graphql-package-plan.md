@@ -1195,25 +1195,27 @@ class TestMountIntegration:
     def client(self):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
-        from anip_service import ANIPService
+        from anip_service import ANIPService, Capability
+        from anip_fastapi import mount_anip
         from anip_graphql import mount_anip_graphql
 
         service = ANIPService(
             service_id="test-graphql",
             capabilities=[
-                {
-                    "declaration": GREET_DECL,
-                    "handler": lambda token, params: {"message": f"Hello, {params['name']}!"},
-                },
-                {
-                    "declaration": BOOK_DECL,
-                    "handler": lambda token, params: {"booking_id": "BK-001"},
-                },
+                Capability(
+                    declaration=GREET_DECL,
+                    handler=lambda ctx, params: {"message": f"Hello, {params['name']}!"},
+                ),
+                Capability(
+                    declaration=BOOK_DECL,
+                    handler=lambda ctx, params: {"booking_id": "BK-001"},
+                ),
             ],
             authenticate=lambda bearer: "test-agent" if bearer == self.API_KEY else None,
         )
         app = FastAPI()
-        mount_anip_graphql(app, service)
+        mount_anip(app, service)          # owns lifecycle via app hooks
+        mount_anip_graphql(app, service)  # adds GraphQL routes only
         return TestClient(app)
 
     def test_query_read_capability(self, client):

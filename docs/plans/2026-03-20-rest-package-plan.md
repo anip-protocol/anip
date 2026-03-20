@@ -1193,27 +1193,32 @@ class TestMountIntegration:
 
     @pytest.fixture
     def client(self):
-        """Create service, mount REST routes, return TestClient."""
-        from anip_service import ANIPService
+        """Create service, mount ANIP + REST routes, return TestClient.
+
+        mount_anip() wires FastAPI startup/shutdown hooks for service lifecycle.
+        TestClient triggers them automatically.
+        """
+        from anip_service import ANIPService, Capability
+        from anip_fastapi import mount_anip
         from anip_rest import mount_anip_rest
 
         service = ANIPService(
             service_id="test-rest",
             capabilities=[
-                {
-                    "declaration": GREET_DECL,
-                    "handler": lambda token, params: {"message": f"Hello, {params['name']}!"},
-                },
-                {
-                    "declaration": BOOK_DECL,
-                    "handler": lambda token, params: {"booking_id": "BK-001", "item": params["item"]},
-                },
+                Capability(
+                    declaration=GREET_DECL,
+                    handler=lambda ctx, params: {"message": f"Hello, {params['name']}!"},
+                ),
+                Capability(
+                    declaration=BOOK_DECL,
+                    handler=lambda ctx, params: {"booking_id": "BK-001", "item": params["item"]},
+                ),
             ],
             authenticate=lambda bearer: "test-agent" if bearer == self.API_KEY else None,
         )
         app = FastAPI()
-        # Note: service lifecycle managed externally (by mount_anip or app hooks)
-        mount_anip_rest(app, service)
+        mount_anip(app, service)       # owns lifecycle via app hooks
+        mount_anip_rest(app, service)  # adds REST routes only
         return TestClient(app)
 
     def test_get_read_capability(self, client):
