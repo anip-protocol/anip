@@ -50,6 +50,7 @@ jobs:
           pip install -e "./packages/python/anip-fastapi[dev]"
           pip install -e "./packages/python/anip-mcp[dev]"
           pip install -e "./packages/python/anip-rest[dev]"
+          pip install -e "./packages/python/anip-graphql[dev]"
 
       - name: Compile check
         run: python -m compileall packages/python/ examples/anip/
@@ -74,6 +75,9 @@ jobs:
 
       - name: Test anip-rest
         run: pytest packages/python/anip-rest/tests/ -v
+
+      - name: Test anip-graphql
+        run: pytest packages/python/anip-graphql/tests/ -v
 
       - name: Install Python example
         working-directory: examples/anip
