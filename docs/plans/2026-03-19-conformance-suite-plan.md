@@ -435,6 +435,7 @@ Conformance Categories 3 and 5.
 """
 import re
 
+import pytest
 from conftest import issue_token
 
 
