@@ -111,8 +111,9 @@ def _build_directives(decl: CapabilityDeclaration) -> str:
         cost_dir = f'@anipCost(certainty: "{certainty}"'
         if decl.cost.financial:
             financial = decl.cost.financial
-            if hasattr(financial, "currency") and financial.currency:
-                cost_dir += f', currency: "{financial.currency}"'
+            currency = financial.get("currency") if isinstance(financial, dict) else getattr(financial, "currency", None)
+            if currency:
+                cost_dir += f', currency: "{currency}"'
         cost_dir += ")"
         parts.append(cost_dir)
 
