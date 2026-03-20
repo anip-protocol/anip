@@ -63,14 +63,6 @@ def discovery(client):
     return resp.json()["anip_discovery"]
 
 
-def _first_capability_with_scope(discovery: dict, scope_prefix: str) -> tuple[str, list[str]]:
-    """Find the first capability whose minimum_scope starts with the given prefix."""
-    for name, meta in discovery["capabilities"].items():
-        min_scope = meta.get("minimum_scope", [])
-        if any(s.startswith(scope_prefix) for s in min_scope):
-            return name, min_scope
-    raise LookupError(f"No capability with scope prefix '{scope_prefix}'")
-
 
 @pytest.fixture(scope="session")
 def read_capability(discovery):

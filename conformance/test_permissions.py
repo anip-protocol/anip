@@ -22,7 +22,7 @@ class TestPermissions:
         assert isinstance(data["restricted"], list)
         assert isinstance(data["denied"], list)
 
-    def test_full_scope_shows_available(self, client, bootstrap_bearer, discovery, read_capability, all_scopes):
+    def test_full_scope_shows_available(self, client, bootstrap_bearer, read_capability, all_scopes):
         cap_name, _ = read_capability
         token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
         resp = client.post(
@@ -34,9 +34,9 @@ class TestPermissions:
         # At least one capability should be available with full scope
         assert len(available_names) > 0
 
-    def test_narrow_scope_restricts_capabilities(self, client, bootstrap_bearer, discovery, read_capability, write_capability):
+    def test_narrow_scope_restricts_capabilities(self, client, bootstrap_bearer, read_capability, write_capability):
         read_name, read_scope = read_capability
-        write_name, write_scope = write_capability
+        write_name, _ = write_capability
         # Issue token with only read scope
         token = issue_token(client, read_scope, read_name, bootstrap_bearer)
         resp = client.post(

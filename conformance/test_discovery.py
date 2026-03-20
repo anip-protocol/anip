@@ -49,7 +49,7 @@ class TestManifest:
         resp = client.get("/anip/manifest")
         assert "x-anip-signature" in resp.headers, "Manifest missing X-ANIP-Signature header"
 
-    def test_manifest_contains_capabilities(self, client, discovery):
+    def test_manifest_contains_capabilities(self, client):
         resp = client.get("/anip/manifest")
         data = resp.json()
         # Manifest should declare the same capabilities as discovery

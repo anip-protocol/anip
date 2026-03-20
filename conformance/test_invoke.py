@@ -10,7 +10,7 @@ from conftest import issue_token
 
 
 class TestInvocationSuccess:
-    def test_invoke_with_sample_inputs(self, client, bootstrap_bearer, discovery, read_capability, all_scopes, sample_inputs):
+    def test_invoke_with_sample_inputs(self, client, bootstrap_bearer, read_capability, all_scopes, sample_inputs):
         """Test successful invocation using sample inputs if provided."""
         cap_name, _ = read_capability
         params = sample_inputs.get(cap_name)
