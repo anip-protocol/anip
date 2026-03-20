@@ -14,25 +14,29 @@
 |---------|----------|----------|------------|
 | `@anip/mcp` | TypeScript | `packages/typescript/mcp/` | `@anip/service`, `@modelcontextprotocol/sdk` |
 | `anip-mcp` | Python | `packages/python/anip-mcp/` | `anip-service`, `mcp` |
-| `@anip/rest` | TypeScript | `packages/typescript/rest/` | `@anip/service`, `hono` |
+| `@anip/rest` | TypeScript | `packages/typescript/rest/` | `@anip/service` (framework-agnostic translation core, framework adapters mirror `@anip/hono`/`@anip/express`/`@anip/fastify` split) |
 | `anip-rest` | Python | `packages/python/anip-rest/` | `anip-service`, `fastapi` |
-| `@anip/graphql` | TypeScript | `packages/typescript/graphql/` | `@anip/service`, `hono`, `graphql` |
+| `@anip/graphql` | TypeScript | `packages/typescript/graphql/` | `@anip/service` (same framework split as REST) |
 | `anip-graphql` | Python | `packages/python/anip-graphql/` | `anip-service`, `fastapi`, `ariadne` |
 
 ## Public API
 
 All packages follow the existing binding pattern: you bring the framework instance, the package registers on it.
 
+**Framework split (TypeScript):** The existing ANIP protocol bindings support Hono, Express, and Fastify (`@anip/hono`, `@anip/express`, `@anip/fastify`). The new REST and GraphQL packages follow the same split — each has a framework-agnostic translation core plus thin framework adapters. Examples below use Hono; Express and Fastify equivalents (`mountAnipRest`, `mountAnipGraphQL`) follow the same signature pattern as `@anip/express`/`@anip/fastify`.
+
+**Python** has a single framework (FastAPI) so no split is needed.
+
 ### REST & GraphQL (mount on HTTP app)
 
 ```typescript
-// TypeScript — single server, all interfaces
+// TypeScript — single server, all interfaces (Hono example)
 const app = new Hono();
 const service = createANIPService({ ... });
 
-mountAnip(app, service);              // @anip/hono — ANIP protocol routes
-mountAnipRest(app, service);          // @anip/rest — /api/* REST endpoints
-mountAnipGraphQL(app, service);       // @anip/graphql — /graphql endpoint
+await mountAnip(app, service);              // @anip/hono — ANIP protocol routes
+await mountAnipRest(app, service);          // @anip/rest — /api/* REST endpoints
+await mountAnipGraphQL(app, service);       // @anip/graphql — /graphql endpoint
 
 serve(app, { port: 4100 });
 ```
@@ -54,14 +58,20 @@ uvicorn.run(app, port=8090)
 **SSE (remote) — mounts on HTTP app alongside other interfaces:**
 
 ```typescript
-mountAnipMcp(app, service);           // @anip/mcp — /mcp SSE endpoint
+await mountAnipMcp(app, service);           // @anip/mcp — /mcp SSE endpoint
 ```
 
 **stdio (local) — mounts on MCP Server for CLI/IDE use:**
 
 ```typescript
 const mcpServer = new Server({ name: "flights", version: "1.0" });
-mountAnipMcp(mcpServer, service);
+await mountAnipMcp(mcpServer, service, {
+  credentials: {
+    apiKey: "demo-human-key",
+    scope: ["travel.search", "travel.book"],
+    subject: "agent:mcp-bridge",
+  }
+});
 await mcpServer.connect(new StdioServerTransport());
 ```
 
@@ -119,9 +129,35 @@ No network hop. No token issuance dance. Direct method calls on the `ANIPService
 
 ### Authentication
 
-REST and GraphQL endpoints accept `Authorization: Bearer <token>` headers. The package calls `service.resolveBearerToken(jwt)` to get a `DelegationToken`, then passes it to `service.invoke()`. For API-key convenience, the package calls `service.authenticateBearer(apiKey)` then `service.issueToken()`.
+**REST and GraphQL** endpoints accept `Authorization: Bearer <token>` headers. Two modes:
 
-MCP tools receive credentials through the MCP protocol context.
+1. **JWT mode (default):** The package calls `service.resolveBearerToken(jwt)` to get a `DelegationToken`, then passes it to `service.invoke()`. The caller is responsible for obtaining a token first via `POST /anip/tokens`.
+
+2. **API-key convenience mode:** When a bearer credential resolves as an API key (via `service.authenticateBearer(apiKey)`), the package issues a synthetic token before invoking. The synthetic token uses these concrete policies (matching what the current adapters do today):
+   - **subject:** `"adapter:{package-name}"` (e.g., `"adapter:anip-rest"`)
+   - **scope:** derived from the target capability's `minimum_scope` declaration
+   - **capability:** bound to the specific capability being invoked
+   - **purpose_parameters:** `{ "source": "rest" }` or `{ "source": "graphql" }`
+
+   These choices affect audit lineage — the synthetic subject appears in the delegation chain, and scope is narrowed to exactly what the capability requires.
+
+**MCP** tools need credentials at mount time, not per-request (especially for stdio where there are no HTTP headers). The package accepts an explicit credential config:
+
+```typescript
+// SSE — credentials come from MCP protocol context headers
+mountAnipMcp(app, service);
+
+// stdio — credentials provided at mount time
+mountAnipMcp(mcpServer, service, {
+  credentials: {
+    apiKey: "demo-human-key",
+    scope: ["travel.search", "travel.book"],
+    subject: "agent:mcp-bridge",
+  }
+});
+```
+
+For SSE transport, the MCP protocol context provides an auth header per-request. For stdio transport, the mount-time `credentials` config is required — it works identically to the current adapter's `bridge.yaml` delegation config. The package issues one token per tool call using these credentials, scoped to the specific capability being invoked.
 
 ## What Changes
 
@@ -157,10 +193,10 @@ import { mountAnipGraphQL } from "@anip/graphql";
 import { mountAnipMcp } from "@anip/mcp";
 
 const app = new Hono();
-mountAnip(app, service);
-mountAnipRest(app, service);
-mountAnipGraphQL(app, service);
-mountAnipMcp(app, service);
+await mountAnip(app, service);
+await mountAnipRest(app, service);
+await mountAnipGraphQL(app, service);
+await mountAnipMcp(app, service);
 ```
 
 ## Testing
