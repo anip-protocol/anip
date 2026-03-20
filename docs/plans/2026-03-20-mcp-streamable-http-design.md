@@ -179,7 +179,9 @@ export async function mountAnipMcpHono(
 
 ### Express (Node.js wrapper):
 
-Uses `StreamableHTTPServerTransport` which wraps the Web Standard transport for Node.js `IncomingMessage`/`ServerResponse`. The SDK also ships `createMcpExpressApp()` but that creates a standalone Express app with DNS rebinding protection — not useful here since we're mounting on an existing app. Instead, we use `StreamableHTTPServerTransport` directly:
+Uses `StreamableHTTPServerTransport` which wraps the Web Standard transport for Node.js `IncomingMessage`/`ServerResponse`. The SDK also ships `createMcpExpressApp()` but that creates a standalone Express app with DNS rebinding protection — not useful here since we're mounting on an existing app. Instead, we use `StreamableHTTPServerTransport` directly.
+
+**Auth mechanism:** The Node wrapper's `handleRequest` signature is `(req: IncomingMessage & { auth?: AuthInfo }, res, parsedBody?)`. Auth is read from `req.auth`, not from an options object. The framework sets `req.auth` before calling `handleRequest`.
 
 ```typescript
 export async function mountAnipMcpExpress(
@@ -194,16 +196,18 @@ export async function mountAnipMcpExpress(
   app.all(mcpPath, (req, res) => {
     const authHeader = req.headers.authorization;
     const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
-    transport.handleRequest(req, res, {
-      authInfo: token ? { token, clientId: "", scopes: [] } : undefined,
-    });
+    // Node wrapper reads auth from req.auth, not an options object
+    if (token) {
+      (req as any).auth = { token, clientId: "", scopes: [] };
+    }
+    transport.handleRequest(req, res);
   });
 }
 ```
 
 ### Fastify (Node.js wrapper):
 
-Fastify encapsulates Node.js `req`/`res` behind its own request/reply objects. To use `StreamableHTTPServerTransport`, the handler accesses Fastify's raw Node.js objects via `request.raw` and `reply.raw`:
+Fastify encapsulates Node.js `req`/`res` behind its own request/reply objects. To use `StreamableHTTPServerTransport`, the handler accesses Fastify's raw Node.js objects via `request.raw` and `reply.raw`. Auth is set on `request.raw.auth` (the raw `IncomingMessage`).
 
 ```typescript
 export async function mountAnipMcpFastify(
@@ -219,10 +223,11 @@ export async function mountAnipMcpFastify(
     const authHeader = request.headers.authorization;
     const token = typeof authHeader === "string" && authHeader.startsWith("Bearer ")
       ? authHeader.slice(7).trim() : undefined;
-    // Fastify: use raw Node.js req/res for the Node-wrapper transport
-    transport.handleRequest(request.raw, reply.raw, {
-      authInfo: token ? { token, clientId: "", scopes: [] } : undefined,
-    });
+    // Set auth on raw Node.js IncomingMessage — Node wrapper reads req.auth
+    if (token) {
+      (request.raw as any).auth = { token, clientId: "", scopes: [] };
+    }
+    transport.handleRequest(request.raw, reply.raw);
   });
 }
 ```
