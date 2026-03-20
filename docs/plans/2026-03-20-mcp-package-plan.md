@@ -565,13 +565,9 @@ describe("mountAnipMcp", () => {
     );
     const lifecycle = await mountAnipMcp(server, service, { credentials: CREDENTIALS });
 
-    // Simulate a list_tools request through the server's handler
-    // The MCP SDK stores handlers internally — we test via the protocol
-    // by sending a JSON-RPC request through the server's onRequest path.
-    // Since the SDK doesn't expose a direct test API, we verify the tool
-    // was registered by checking the handler doesn't throw.
-    // A full integration test would use Client + Server over in-memory transport.
-    stop();
+    // Full list_tools verification is in the integration tests below.
+    // Here we just confirm mount succeeded and lifecycle works.
+    await lifecycle.shutdown();
   });
 });
 
