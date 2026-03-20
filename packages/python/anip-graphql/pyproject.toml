@@ -1,0 +1,26 @@
+[project]
+name = "anip-graphql"
+version = "0.8.0"
+description = "ANIP GraphQL bindings — expose ANIPService capabilities via GraphQL"
+requires-python = ">=3.11"
+dependencies = [
+    "anip-service>=0.8.0",
+    "fastapi>=0.115.0",
+    "ariadne>=0.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "httpx>=0.27.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[tool.setuptools.packages.find]
+where = ["src"]
