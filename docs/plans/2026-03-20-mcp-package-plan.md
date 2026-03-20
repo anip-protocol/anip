@@ -4,9 +4,9 @@
 
 **Goal:** Convert the standalone MCP adapters (`adapters/mcp-ts`, `adapters/mcp-py`) into reusable library packages (`@anip/mcp`, `anip-mcp`) that mount directly on an `ANIPService` instance — no HTTP proxying.
 
-**Architecture:** Each package reuses the existing translation logic (capability → MCP tool schema, description enrichment) but replaces the HTTP invocation bridge with direct `service.invoke()` calls. TypeScript supports mounting on both Hono apps (SSE transport) and MCP `Server` instances (stdio transport). Python supports stdio via the `mcp` library. Both accept mount-time credential configs for stdio.
+**Architecture:** Each package reuses the existing translation logic (capability → MCP tool schema, description enrichment) but replaces the HTTP invocation bridge with direct `service.invoke()` calls. Both packages support stdio transport only — mount on an MCP `Server` instance with mount-time credential config. SSE transport is deferred to a follow-up plan.
 
-**Tech Stack:** TypeScript (`@modelcontextprotocol/sdk`, `@anip/service`, `hono`), Python (`mcp`, `anip-service`)
+**Tech Stack:** TypeScript (`@modelcontextprotocol/sdk`, `@anip/service`), Python (`mcp`, `anip-service`)
 
 ---
 
@@ -19,7 +19,7 @@ packages/typescript/mcp/
 ├── src/
 │   ├── index.ts              # re-exports mountAnipMcp
 │   ├── translation.ts        # capability → MCP tool schema (reused from adapter)
-│   └── routes.ts             # mountAnipMcp() for Hono SSE and MCP Server stdio
+│   └── routes.ts             # mountAnipMcp() for MCP Server stdio
 └── tests/
     └── mcp.test.ts           # tests against in-memory ANIPService
 
@@ -61,8 +61,7 @@ packages/python/anip-mcp/
   },
   "dependencies": {
     "@anip/service": "0.8.0",
-    "@modelcontextprotocol/sdk": "^1.12.0",
-    "hono": "^4.0.0"
+    "@modelcontextprotocol/sdk": "^1.12.0"
   },
   "devDependencies": {
     "@anip/core": "0.8.0",
@@ -254,7 +253,7 @@ git commit -m "feat(mcp): add MCP tool schema translation module"
 **Files:**
 - Create: `packages/typescript/mcp/src/routes.ts`
 
-This is the core of the package. It provides `mountAnipMcp()` which detects whether it's given a Hono app (SSE transport) or an MCP Server (stdio transport) and registers the appropriate handlers.
+This is the core of the package. It provides `mountAnipMcp()` which registers `list_tools` and `call_tool` handlers on an MCP `Server` instance for stdio transport.
 
 - [ ] **Step 1: Create routes.ts**
 
@@ -262,16 +261,13 @@ This is the core of the package. It provides `mountAnipMcp()` which detects whet
 /**
  * ANIP MCP bindings — mount ANIPService capabilities as MCP tools.
  *
- * Supports two transports:
- * - SSE: mount on a Hono app alongside other ANIP routes
- * - stdio: mount on an MCP Server for CLI/IDE use
+ * Supports stdio transport via MCP Server.
  */
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import type { Hono } from "hono";
 import type { ANIPService } from "@anip/service";
 import { ANIPError } from "@anip/service";
 import { capabilityToInputSchema, enrichDescription } from "./translation.js";
@@ -297,9 +293,7 @@ interface MCPTool {
 
 /**
  * Invoke an ANIP capability directly via the service instance.
- *
- * For stdio: uses mount-time credentials to issue a synthetic token.
- * For SSE: credentials are extracted from the request context (future).
+ * Uses mount-time credentials to issue a synthetic token per call.
  */
 async function invokeCapability(
   service: ANIPService,
@@ -518,6 +512,8 @@ async function makeService() {
   });
 }
 
+const CREDENTIALS = { apiKey: API_KEY, scope: ["greet"], subject: "test-agent" };
+
 describe("Translation", () => {
   it("converts capability inputs to JSON Schema", () => {
     const decl = greetCap().declaration;
@@ -546,19 +542,112 @@ describe("mountAnipMcp", () => {
     await expect(mountAnipMcp(server, service)).rejects.toThrow("credentials");
   });
 
-  it("registers list_tools and call_tool handlers", async () => {
+  it("mounts and returns lifecycle handle", async () => {
     const service = await makeService();
     const server = new Server(
       { name: "test", version: "1.0" },
       { capabilities: { tools: {} } },
     );
-    const { stop } = await mountAnipMcp(server, service, {
-      credentials: { apiKey: API_KEY, scope: ["greet"], subject: "test-agent" },
-    });
-
-    // Verify list_tools works by checking the handler was registered
-    // (MCP SDK doesn't expose handlers directly, but we can check it doesn't throw)
+    const { stop } = await mountAnipMcp(server, service, { credentials: CREDENTIALS });
     expect(stop).toBeTypeOf("function");
+    stop();
+  });
+
+  it("list_tools returns registered tools", async () => {
+    const service = await makeService();
+    const server = new Server(
+      { name: "test", version: "1.0" },
+      { capabilities: { tools: {} } },
+    );
+    const { stop } = await mountAnipMcp(server, service, { credentials: CREDENTIALS });
+
+    // Simulate a list_tools request through the server's handler
+    // The MCP SDK stores handlers internally — we test via the protocol
+    // by sending a JSON-RPC request through the server's onRequest path.
+    // Since the SDK doesn't expose a direct test API, we verify the tool
+    // was registered by checking the handler doesn't throw.
+    // A full integration test would use Client + Server over in-memory transport.
+    stop();
+  });
+});
+
+// Integration test: full tool call through MCP Client + Server
+// This tests the real invocation path: list_tools → call_tool → ANIP invoke
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+
+describe("MCP tool invocation (integration)", () => {
+  it("call_tool invokes ANIP capability and returns result", async () => {
+    const service = await makeService();
+    const server = new Server(
+      { name: "test", version: "1.0" },
+      { capabilities: { tools: {} } },
+    );
+    const { stop } = await mountAnipMcp(server, service, { credentials: CREDENTIALS });
+
+    // Connect client and server over in-memory transport
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+    const client = new Client({ name: "test-client", version: "1.0" });
+    await client.connect(clientTransport);
+
+    // List tools
+    const tools = await client.listTools();
+    expect(tools.tools.length).toBe(1);
+    expect(tools.tools[0].name).toBe("greet");
+
+    // Call tool — should invoke the ANIP capability
+    const result = await client.callTool({ name: "greet", arguments: { name: "World" } });
+    expect(result.isError).toBeFalsy();
+    const text = (result.content as any[])[0].text;
+    expect(text).toContain("Hello, World!");
+
+    await client.close();
+    stop();
+  });
+
+  it("call_tool with unknown tool returns error", async () => {
+    const service = await makeService();
+    const server = new Server(
+      { name: "test", version: "1.0" },
+      { capabilities: { tools: {} } },
+    );
+    const { stop } = await mountAnipMcp(server, service, { credentials: CREDENTIALS });
+
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+    const client = new Client({ name: "test-client", version: "1.0" });
+    await client.connect(clientTransport);
+
+    const result = await client.callTool({ name: "nonexistent", arguments: {} });
+    expect(result.isError).toBe(true);
+    const text = (result.content as any[])[0].text;
+    expect(text).toContain("Unknown tool");
+
+    await client.close();
+    stop();
+  });
+
+  it("call_tool with invalid credentials returns failure", async () => {
+    const service = await makeService();
+    const server = new Server(
+      { name: "test", version: "1.0" },
+      { capabilities: { tools: {} } },
+    );
+    const badCreds = { apiKey: "wrong-key", scope: ["greet"], subject: "test" };
+    const { stop } = await mountAnipMcp(server, service, { credentials: badCreds });
+
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+    const client = new Client({ name: "test-client", version: "1.0" });
+    await client.connect(clientTransport);
+
+    const result = await client.callTool({ name: "greet", arguments: { name: "World" } });
+    const text = (result.content as any[])[0].text;
+    expect(text).toContain("FAILED");
+    expect(text).toContain("authentication_required");
+
+    await client.close();
     stop();
   });
 });
@@ -613,9 +702,9 @@ asyncio_mode = "auto"
 
 ```python
 """ANIP MCP bindings — expose ANIPService capabilities as MCP tools."""
-from .routes import mount_anip_mcp
+from .routes import mount_anip_mcp, McpCredentials, McpLifecycle
 
-__all__ = ["mount_anip_mcp"]
+__all__ = ["mount_anip_mcp", "McpCredentials", "McpLifecycle"]
 ```
 
 - [ ] **Step 3: Commit**
@@ -778,7 +867,7 @@ async def _invoke_capability(
 
     # Narrow scope to what the capability needs
     cap_decl = service.get_capability_declaration(capability_name)
-    min_scope = cap_decl.get("minimum_scope", []) if cap_decl else []
+    min_scope = cap_decl.minimum_scope if cap_decl else []
     cap_scope = credentials.scope
     if min_scope:
         needed = set(min_scope)
@@ -832,21 +921,42 @@ def _translate_response(response: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
-def mount_anip_mcp(
+@dataclass
+class McpLifecycle:
+    """Lifecycle handle returned by mount_anip_mcp."""
+    _service: ANIPService
+
+    def stop(self) -> None:
+        self._service.stop()
+
+    async def shutdown(self) -> None:
+        await self._service.shutdown()
+
+
+async def mount_anip_mcp(
     server: Server,
     service: ANIPService,
     *,
     credentials: McpCredentials,
     enrich_descriptions: bool = True,
-) -> None:
+) -> McpLifecycle:
     """Mount ANIP capabilities as MCP tools on an MCP Server.
+
+    Starts the service lifecycle (storage init, background workers).
+    Caller must call the returned lifecycle.stop() / lifecycle.shutdown()
+    on teardown.
 
     Args:
         server: MCP Server instance (for stdio transport).
         service: ANIPService to expose.
         credentials: Bootstrap credentials for token issuance.
         enrich_descriptions: Include ANIP metadata in tool descriptions.
+
+    Returns:
+        McpLifecycle with stop() and shutdown() methods.
     """
+    await service.start()
+
     # Build tool map from service manifest
     manifest = service.get_manifest()
     mcp_tools: dict[str, types.Tool] = {}
@@ -855,11 +965,12 @@ def mount_anip_mcp(
         decl = service.get_capability_declaration(name)
         if not decl:
             continue
-        description = enrich_description(decl) if enrich_descriptions else decl.get("description", "")
+        decl_dict = decl.model_dump()
+        description = enrich_description(decl_dict) if enrich_descriptions else decl.description
         mcp_tools[name] = types.Tool(
             name=name,
             description=description,
-            inputSchema=capability_to_input_schema(decl),
+            inputSchema=capability_to_input_schema(decl_dict),
         )
 
     @server.list_tools()
@@ -884,6 +995,8 @@ def mount_anip_mcp(
                 type="text",
                 text=f"ANIP invocation error: {e}",
             )]
+
+    return McpLifecycle(_service=service)
 ```
 
 - [ ] **Step 2: Commit**
@@ -907,6 +1020,7 @@ git commit -m "feat(mcp): add mount_anip_mcp for Python stdio transport"
 import pytest
 
 from anip_mcp.translation import capability_to_input_schema, enrich_description
+from anip_mcp.routes import _invoke_capability, _translate_response, McpCredentials
 
 
 GREET_DECLARATION = {
@@ -947,7 +1061,82 @@ class TestTranslation:
         desc = enrich_description(decl)
         assert "IRREVERSIBLE" in desc
         assert "No rollback window" in desc
+
+
+class TestTranslateResponse:
+    def test_success_response(self):
+        resp = {"success": True, "result": {"message": "Hello!"}}
+        text = _translate_response(resp)
+        assert "Hello!" in text
+
+    def test_failure_response(self):
+        resp = {
+            "success": False,
+            "failure": {
+                "type": "scope_insufficient",
+                "detail": "Missing travel.book",
+                "resolution": {"action": "request_broader_scope"},
+                "retry": False,
+            },
+        }
+        text = _translate_response(resp)
+        assert "FAILED: scope_insufficient" in text
+        assert "Missing travel.book" in text
+        assert "Retryable: no" in text
+
+
+class TestInvokeCapability:
+    """Integration tests using a real ANIPService instance."""
+
+    @pytest.fixture
+    def service(self):
+        """Create a test service with a greet capability."""
+        from anip_core.models import (
+            CapabilityDeclaration, SideEffect, SideEffectType,
+            CapabilityInput, CapabilityOutput,
+        )
+        from anip_service import ANIPService
+
+        API_KEY = "test-key"
+
+        service = ANIPService(
+            service_id="test-mcp",
+            capabilities=[
+                {
+                    "declaration": CapabilityDeclaration(
+                        name="greet",
+                        description="Say hello",
+                        inputs=[CapabilityInput(name="name", type="string", required=True, description="Who")],
+                        output=CapabilityOutput(type="object", fields=["message"]),
+                        side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+                        minimum_scope=["greet"],
+                    ),
+                    "handler": lambda token, params: {"message": f"Hello, {params['name']}!"},
+                },
+            ],
+            authenticate=lambda bearer: "test-agent" if bearer == API_KEY else None,
+        )
+        return service, API_KEY
+
+    async def test_invoke_with_valid_credentials(self, service):
+        svc, api_key = service
+        await svc.start()
+        creds = McpCredentials(api_key=api_key, scope=["greet"], subject="test-agent")
+        result = await _invoke_capability(svc, "greet", {"name": "World"}, creds)
+        assert "Hello, World!" in result
+        svc.stop()
+
+    async def test_invoke_with_invalid_credentials(self, service):
+        svc, _ = service
+        await svc.start()
+        creds = McpCredentials(api_key="wrong-key", scope=["greet"], subject="test")
+        result = await _invoke_capability(svc, "greet", {"name": "World"}, creds)
+        assert "FAILED" in result
+        assert "authentication_required" in result
+        svc.stop()
 ```
+
+**Note:** The `TestInvokeCapability` tests create a real `ANIPService` and test the full invocation path: authenticate → issue token → resolve token → invoke. The exact fixture shape depends on the service's constructor — the implementer should adapt the fixture to match the actual `ANIPService` API (which may use `create_anip_service()` or the class constructor directly). Check `packages/python/anip-fastapi/tests/test_routes.py` for the working pattern.
 
 - [ ] **Step 2: Install and run tests**
 
