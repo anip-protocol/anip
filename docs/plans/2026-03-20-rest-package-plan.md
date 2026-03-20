@@ -365,8 +365,9 @@ async function resolveAuth(
   // Try as JWT first — preserves original delegation chain
   try {
     return await service.resolveBearerToken(bearer);
-  } catch {
-    // Not a valid JWT — fall through to API-key mode
+  } catch (e) {
+    // Only swallow ANIPError (invalid_token) — rethrow unexpected failures
+    if (!(e instanceof ANIPError)) throw e;
   }
 
   // Try as API key — issue synthetic token scoped to this capability
@@ -963,8 +964,8 @@ async def _resolve_auth(
     # Try as JWT first — preserves original delegation chain
     try:
         return await service.resolve_bearer_token(bearer)
-    except Exception:
-        pass  # Not a valid JWT — fall through to API-key mode
+    except ANIPError:
+        pass  # Invalid token — fall through to API-key mode
 
     # Try as API key — issue synthetic token
     principal = await service.authenticate_bearer(bearer)

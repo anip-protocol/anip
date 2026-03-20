@@ -350,8 +350,9 @@ async function resolveAuth(
   // Try as JWT first — preserves original delegation chain
   try {
     return await service.resolveBearerToken(bearer);
-  } catch {
-    // Not a valid JWT — fall through to API-key mode
+  } catch (e) {
+    // Only swallow ANIPError (invalid_token) — rethrow unexpected failures
+    if (!(e instanceof ANIPError)) throw e;
   }
 
   // Try as API key — issue synthetic token
@@ -474,6 +475,25 @@ export async function mountAnipGraphQL(
     });
 
     return c.json(result);
+  });
+
+  // GET /graphql — simple playground
+  app.get(fullPath, (c) => {
+    return c.html(`<!DOCTYPE html>
+<html><head><title>ANIP GraphQL</title></head><body>
+<h2>ANIP GraphQL Playground</h2>
+<textarea id="q" rows="10" cols="60">{ }</textarea><br>
+<button onclick="run()">Run</button><pre id="r"></pre>
+<script>
+async function run() {
+  const r = await fetch("${fullPath}", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({query: document.getElementById("q").value})
+  });
+  document.getElementById("r").textContent = JSON.stringify(await r.json(), null, 2);
+}
+</script></body></html>`);
   });
 
   // GET /schema.graphql — raw SDL
@@ -939,8 +959,8 @@ async def _resolve_auth(request, service: ANIPService, capability_name: str):
     # Try as JWT first — preserves original delegation chain
     try:
         return await service.resolve_bearer_token(bearer)
-    except Exception:
-        pass
+    except ANIPError:
+        pass  # Invalid token — fall through to API-key mode
 
     # Try as API key — issue synthetic token
     principal = await service.authenticate_bearer(bearer)
