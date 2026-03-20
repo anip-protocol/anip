@@ -68,9 +68,9 @@ def pytest_addoption(parser):
         help="Base URL of the ANIP service to test (e.g. http://localhost:8090)",
     )
     parser.addoption(
-        "--api-key",
+        "--bootstrap-bearer",
         required=True,
-        help="API key for bootstrap token issuance on the target service",
+        help="Bearer credential for bootstrap token issuance (API key, OIDC token, etc.)",
     )
     parser.addoption(
         "--sample-inputs",
@@ -85,8 +85,8 @@ def base_url(request):
 
 
 @pytest.fixture(scope="session")
-def api_key(request):
-    return request.config.getoption("--api-key")
+def bootstrap_bearer(request):
+    return request.config.getoption("--bootstrap-bearer")
 
 
 @pytest.fixture(scope="session")
@@ -158,12 +158,12 @@ def issue_token(
     client: httpx.Client,
     scope: list[str],
     capability: str,
-    api_key: str,
+    bootstrap_bearer: str,
 ) -> str:
     """Issue a delegation token via API key. Returns the JWT string."""
     resp = client.post(
         "/anip/tokens",
-        headers={"Authorization": f"Bearer {api_key}"},
+        headers={"Authorization": f"Bearer {bootstrap_bearer}"},
         json={
             "scope": scope,
             "capability": capability,
@@ -276,7 +276,7 @@ class TestJWKS:
 
 **Step 2: Run tests to verify they pass**
 
-Run: `cd conformance && pytest test_discovery.py -v --base-url=http://localhost:8090 --api-key=demo-human-key`
+Run: `cd conformance && pytest test_discovery.py -v --base-url=http://localhost:8090 --bootstrap-bearer=demo-human-key`
 Expected: All pass (run against the Python example app)
 
 **Step 3: Commit**
@@ -306,11 +306,11 @@ import jwt as pyjwt
 
 
 class TestTokenIssuance:
-    def test_issue_token_success(self, client, api_key, read_capability):
+    def test_issue_token_success(self, client, bootstrap_bearer, read_capability):
         cap_name, cap_scope = read_capability
         resp = client.post(
             "/anip/tokens",
-            headers={"Authorization": f"Bearer {api_key}"},
+            headers={"Authorization": f"Bearer {bootstrap_bearer}"},
             json={
                 "scope": cap_scope,
                 "capability": cap_name,
@@ -324,11 +324,11 @@ class TestTokenIssuance:
         assert "token_id" in data
         assert "expires" in data
 
-    def test_token_expires_in_future(self, client, api_key, read_capability):
+    def test_token_expires_in_future(self, client, bootstrap_bearer, read_capability):
         cap_name, cap_scope = read_capability
         resp = client.post(
             "/anip/tokens",
-            headers={"Authorization": f"Bearer {api_key}"},
+            headers={"Authorization": f"Bearer {bootstrap_bearer}"},
             json={
                 "scope": cap_scope,
                 "capability": cap_name,
@@ -339,7 +339,7 @@ class TestTokenIssuance:
         expires = datetime.fromisoformat(data["expires"].replace("Z", "+00:00"))
         assert expires > datetime.now(timezone.utc)
 
-    def test_token_verifiable_against_jwks(self, client, api_key, read_capability):
+    def test_token_verifiable_against_jwks(self, client, bootstrap_bearer, read_capability):
         cap_name, cap_scope = read_capability
         # Get JWKS
         jwks_resp = client.get("/.well-known/jwks.json")
@@ -348,7 +348,7 @@ class TestTokenIssuance:
         # Issue token
         token_resp = client.post(
             "/anip/tokens",
-            headers={"Authorization": f"Bearer {api_key}"},
+            headers={"Authorization": f"Bearer {bootstrap_bearer}"},
             json={
                 "scope": cap_scope,
                 "capability": cap_name,
@@ -357,13 +357,23 @@ class TestTokenIssuance:
         )
         token_str = token_resp.json()["token"]
 
-        # Verify — decode with the service's public keys
-        from jwt import PyJWKSet
+        # Verify — resolve the matching key by kid from the JWT header
+        from jwt import PyJWKSet, get_unverified_header
+        header = get_unverified_header(token_str)
         keyset = PyJWKSet.from_dict(jwks_data)
+        kid = header.get("kid")
+        signing_key = None
+        for jwk in keyset.keys:
+            if jwk.key_id == kid:
+                signing_key = jwk.key
+                break
+        if signing_key is None:
+            # Fall back to first key if no kid match (single-key services)
+            signing_key = keyset.keys[0].key
         # Should not raise
         decoded = pyjwt.decode(
             token_str,
-            keyset.keys[0].key,
+            signing_key,
             algorithms=["ES256"],
             options={"verify_aud": False},
         )
@@ -398,7 +408,7 @@ class TestTokenDenial:
 
 **Step 2: Run tests**
 
-Run: `cd conformance && pytest test_tokens.py -v --base-url=http://localhost:8090 --api-key=demo-human-key`
+Run: `cd conformance && pytest test_tokens.py -v --base-url=http://localhost:8090 --bootstrap-bearer=demo-human-key`
 Expected: All pass
 
 **Step 3: Commit**
@@ -429,13 +439,13 @@ from conftest import issue_token
 
 
 class TestInvocationSuccess:
-    def test_invoke_with_sample_inputs(self, client, api_key, discovery, read_capability, all_scopes, sample_inputs):
+    def test_invoke_with_sample_inputs(self, client, bootstrap_bearer, discovery, read_capability, all_scopes, sample_inputs):
         """Test successful invocation using sample inputs if provided."""
         cap_name, _ = read_capability
         params = sample_inputs.get(cap_name)
         if params is None:
             pytest.skip(f"No sample inputs for '{cap_name}' — provide via --sample-inputs")
-        token = issue_token(client, all_scopes, cap_name, api_key)
+        token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
         resp = client.post(
             f"/anip/invoke/{cap_name}",
             headers={"Authorization": f"Bearer {token}"},
@@ -447,9 +457,9 @@ class TestInvocationSuccess:
         assert "invocation_id" in data
         assert re.match(r"^inv-[0-9a-f]{12}$", data["invocation_id"])
 
-    def test_invocation_id_format(self, client, api_key, read_capability, all_scopes):
+    def test_invocation_id_format(self, client, bootstrap_bearer, read_capability, all_scopes):
         cap_name, _ = read_capability
-        token = issue_token(client, all_scopes, cap_name, api_key)
+        token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
         resp = client.post(
             f"/anip/invoke/{cap_name}",
             headers={"Authorization": f"Bearer {token}"},
@@ -460,9 +470,9 @@ class TestInvocationSuccess:
         assert "invocation_id" in data
         assert re.match(r"^inv-[0-9a-f]{12}$", data["invocation_id"])
 
-    def test_client_reference_id_echoed(self, client, api_key, read_capability, all_scopes):
+    def test_client_reference_id_echoed(self, client, bootstrap_bearer, read_capability, all_scopes):
         cap_name, _ = read_capability
-        token = issue_token(client, all_scopes, cap_name, api_key)
+        token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
         ref_id = "conformance-test-ref-001"
         resp = client.post(
             f"/anip/invoke/{cap_name}",
@@ -477,8 +487,9 @@ class TestInvocationSuccess:
 
 
 class TestInvocationFailures:
-    def test_unknown_capability_returns_404(self, client, api_key, all_scopes):
-        token = issue_token(client, all_scopes, list(all_scopes)[0] if all_scopes else "test", api_key)
+    def test_unknown_capability_returns_404(self, client, bootstrap_bearer, read_capability, all_scopes):
+        cap_name, _ = read_capability
+        token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
         resp = client.post(
             "/anip/invoke/nonexistent_capability_xyz",
             headers={"Authorization": f"Bearer {token}"},
@@ -549,12 +560,12 @@ class TestInvocationFailures:
         assert "retry" in failure
         assert isinstance(failure["retry"], bool)
 
-    def test_scope_mismatch(self, client, api_key, write_capability, read_capability):
+    def test_scope_mismatch(self, client, bootstrap_bearer, write_capability, read_capability):
         """Token scoped for read should be denied for write capability."""
         write_name, _ = write_capability
         read_name, read_scope = read_capability
         # Issue token with only read scope
-        token = issue_token(client, read_scope, read_name, api_key)
+        token = issue_token(client, read_scope, read_name, bootstrap_bearer)
         resp = client.post(
             f"/anip/invoke/{write_name}",
             headers={"Authorization": f"Bearer {token}"},
@@ -565,7 +576,7 @@ class TestInvocationFailures:
 
 
 class TestCostSignaling:
-    def test_financial_capability_includes_cost_actual(self, client, api_key, discovery, all_scopes, sample_inputs):
+    def test_financial_capability_includes_cost_actual(self, client, bootstrap_bearer, discovery, all_scopes, sample_inputs):
         """If a capability declares financial=true and sample inputs are provided,
         successful invoke should include cost_actual."""
         for name, meta in discovery["capabilities"].items():
@@ -573,7 +584,7 @@ class TestCostSignaling:
                 params = sample_inputs.get(name)
                 if params is None:
                     pytest.skip(f"No sample inputs for financial capability '{name}' — provide via --sample-inputs")
-                token = issue_token(client, all_scopes, name, api_key)
+                token = issue_token(client, all_scopes, name, bootstrap_bearer)
                 resp = client.post(
                     f"/anip/invoke/{name}",
                     headers={"Authorization": f"Bearer {token}"},
@@ -592,7 +603,7 @@ class TestCostSignaling:
 
 **Step 2: Run tests**
 
-Run: `cd conformance && pytest test_invoke.py -v --base-url=http://localhost:8090 --api-key=demo-human-key --sample-inputs=samples/flight-service.json`
+Run: `cd conformance && pytest test_invoke.py -v --base-url=http://localhost:8090 --bootstrap-bearer=demo-human-key --sample-inputs=samples/flight-service.json`
 Expected: All pass
 
 **Step 3: Commit**
@@ -620,9 +631,9 @@ from conftest import issue_token
 
 
 class TestPermissions:
-    def test_permissions_response_shape(self, client, api_key, read_capability, all_scopes):
+    def test_permissions_response_shape(self, client, bootstrap_bearer, read_capability, all_scopes):
         cap_name, _ = read_capability
-        token = issue_token(client, all_scopes, cap_name, api_key)
+        token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
         resp = client.post(
             "/anip/permissions",
             headers={"Authorization": f"Bearer {token}"},
@@ -636,9 +647,9 @@ class TestPermissions:
         assert isinstance(data["restricted"], list)
         assert isinstance(data["denied"], list)
 
-    def test_full_scope_shows_available(self, client, api_key, discovery, read_capability, all_scopes):
+    def test_full_scope_shows_available(self, client, bootstrap_bearer, discovery, read_capability, all_scopes):
         cap_name, _ = read_capability
-        token = issue_token(client, all_scopes, cap_name, api_key)
+        token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
         resp = client.post(
             "/anip/permissions",
             headers={"Authorization": f"Bearer {token}"},
@@ -648,11 +659,11 @@ class TestPermissions:
         # At least one capability should be available with full scope
         assert len(available_names) > 0
 
-    def test_narrow_scope_restricts_capabilities(self, client, api_key, discovery, read_capability, write_capability):
+    def test_narrow_scope_restricts_capabilities(self, client, bootstrap_bearer, discovery, read_capability, write_capability):
         read_name, read_scope = read_capability
         write_name, write_scope = write_capability
         # Issue token with only read scope
-        token = issue_token(client, read_scope, read_name, api_key)
+        token = issue_token(client, read_scope, read_name, bootstrap_bearer)
         resp = client.post(
             "/anip/permissions",
             headers={"Authorization": f"Bearer {token}"},
@@ -665,9 +676,9 @@ class TestPermissions:
             f"got restricted: {restricted_names}"
         )
 
-    def test_available_entry_has_capability_field(self, client, api_key, read_capability, all_scopes):
+    def test_available_entry_has_capability_field(self, client, bootstrap_bearer, read_capability, all_scopes):
         cap_name, _ = read_capability
-        token = issue_token(client, all_scopes, cap_name, api_key)
+        token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
         resp = client.post(
             "/anip/permissions",
             headers={"Authorization": f"Bearer {token}"},
@@ -675,9 +686,9 @@ class TestPermissions:
         for entry in resp.json()["available"]:
             assert "capability" in entry
 
-    def test_restricted_entry_has_reason(self, client, api_key, read_capability):
+    def test_restricted_entry_has_reason(self, client, bootstrap_bearer, read_capability):
         cap_name, read_scope = read_capability
-        token = issue_token(client, read_scope, cap_name, api_key)
+        token = issue_token(client, read_scope, cap_name, bootstrap_bearer)
         resp = client.post(
             "/anip/permissions",
             headers={"Authorization": f"Bearer {token}"},
@@ -696,7 +707,7 @@ class TestPermissions:
 
 **Step 2: Run tests**
 
-Run: `cd conformance && pytest test_permissions.py -v --base-url=http://localhost:8090 --api-key=demo-human-key`
+Run: `cd conformance && pytest test_permissions.py -v --base-url=http://localhost:8090 --bootstrap-bearer=demo-human-key`
 Expected: All pass
 
 **Step 3: Commit**
@@ -724,9 +735,9 @@ from conftest import issue_token
 
 
 class TestAudit:
-    def test_audit_response_shape(self, client, api_key, read_capability, all_scopes):
+    def test_audit_response_shape(self, client, bootstrap_bearer, read_capability, all_scopes):
         cap_name, _ = read_capability
-        token = issue_token(client, all_scopes, cap_name, api_key)
+        token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
 
         # Make an invocation so there's at least one audit entry
         client.post(
@@ -745,9 +756,9 @@ class TestAudit:
         assert "entries" in data
         assert isinstance(data["entries"], list)
 
-    def test_audit_entry_required_fields(self, client, api_key, read_capability, all_scopes):
+    def test_audit_entry_required_fields(self, client, bootstrap_bearer, read_capability, all_scopes):
         cap_name, _ = read_capability
-        token = issue_token(client, all_scopes, cap_name, api_key)
+        token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
 
         # Ensure at least one entry
         client.post(
@@ -768,9 +779,9 @@ class TestAudit:
         assert "timestamp" in entry
         assert "success" in entry
 
-    def test_audit_filter_by_capability(self, client, api_key, read_capability, all_scopes):
+    def test_audit_filter_by_capability(self, client, bootstrap_bearer, read_capability, all_scopes):
         cap_name, _ = read_capability
-        token = issue_token(client, all_scopes, cap_name, api_key)
+        token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
 
         # Make an invocation
         client.post(
@@ -790,10 +801,10 @@ class TestAudit:
         for entry in data["entries"]:
             assert entry["capability"] == cap_name
 
-    def test_audit_filter_combination(self, client, api_key, read_capability, all_scopes):
+    def test_audit_filter_combination(self, client, bootstrap_bearer, read_capability, all_scopes):
         """Combined filters (capability + since) should work together."""
         cap_name, _ = read_capability
-        token = issue_token(client, all_scopes, cap_name, api_key)
+        token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
 
         resp = client.post(
             f"/anip/audit?capability={cap_name}&since=2020-01-01T00:00:00Z",
@@ -814,7 +825,7 @@ class TestAudit:
 
 **Step 2: Run tests**
 
-Run: `cd conformance && pytest test_audit.py -v --base-url=http://localhost:8090 --api-key=demo-human-key`
+Run: `cd conformance && pytest test_audit.py -v --base-url=http://localhost:8090 --bootstrap-bearer=demo-human-key`
 Expected: All pass
 
 **Step 3: Commit**
@@ -906,7 +917,7 @@ class TestCheckpoints:
 
 **Step 2: Run tests**
 
-Run: `cd conformance && pytest test_checkpoints.py -v --base-url=http://localhost:8090 --api-key=demo-human-key`
+Run: `cd conformance && pytest test_checkpoints.py -v --base-url=http://localhost:8090 --bootstrap-bearer=demo-human-key`
 Expected: All pass
 
 **Step 3: Commit**
@@ -934,7 +945,7 @@ A sample inputs file for the example apps should be created at `conformance/samp
 ```bash
 cd examples/anip && python3 -m uvicorn app:app --port 8090 &
 sleep 2
-cd conformance && pytest --base-url=http://localhost:8090 --api-key=demo-human-key --sample-inputs=samples/flight-service.json -v
+cd conformance && pytest --base-url=http://localhost:8090 --bootstrap-bearer=demo-human-key --sample-inputs=samples/flight-service.json -v
 kill %1
 ```
 
@@ -945,7 +956,7 @@ Expected: All tests pass
 ```bash
 cd examples/anip-ts && npm start &
 sleep 2
-cd conformance && pytest --base-url=http://localhost:4100 --api-key=demo-human-key --sample-inputs=samples/flight-service.json -v
+cd conformance && pytest --base-url=http://localhost:4100 --bootstrap-bearer=demo-human-key --sample-inputs=samples/flight-service.json -v
 kill %1
 ```
 
@@ -1044,7 +1055,7 @@ jobs:
         run: >
           pytest conformance/
           --base-url=${{ matrix.target.url }}
-          --api-key=demo-human-key
+          --bootstrap-bearer=demo-human-key
           --sample-inputs=conformance/samples/flight-service.json
           -v
 ```
