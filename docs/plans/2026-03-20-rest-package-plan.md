@@ -1093,8 +1093,13 @@ def _register_route(app: FastAPI, service: ANIPService, route: RESTRoute, prefix
             body = await request.json()
             params = body.get("parameters", body)
 
+        client_reference_id = request.headers.get("x-client-reference-id")
+
         try:
-            result = await service.invoke(route.capability_name, token, params)
+            result = await service.invoke(
+                route.capability_name, token, params,
+                client_reference_id=client_reference_id,
+            )
             return JSONResponse(result)
         except ANIPError as e:
             return _error_response(e)
