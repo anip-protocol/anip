@@ -3,19 +3,28 @@ name: CI — Python
 on:
   push:
     branches: [main]
-    paths:
-      - "packages/python/**"
-      - "examples/anip/**"
-      - ".github/workflows/*.yml"
   pull_request:
     branches: [main]
-    paths:
-      - "packages/python/**"
-      - "examples/anip/**"
-      - ".github/workflows/*.yml"
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should_test: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+              - "packages/python/**"
+              - "examples/anip/**"
+              - ".github/workflows/ci-python.yml"
+
   test:
+    needs: changes
+    if: needs.changes.outputs.should_test == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -64,3 +73,15 @@ jobs:
 
       - name: Test Python example
         run: pytest examples/anip/tests/ -v
+
+  python-ci:
+    if: always()
+    needs: [changes, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Passed
+        if: needs.test.result == 'success' || needs.test.result == 'skipped'
+        run: echo "Python CI passed"
+      - name: Failed
+        if: needs.test.result == 'failure' || needs.test.result == 'cancelled'
+        run: exit 1

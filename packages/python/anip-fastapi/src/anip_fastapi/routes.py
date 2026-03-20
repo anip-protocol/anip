@@ -63,7 +63,7 @@ def mount_anip(
     async def issue_token(request: Request):
         principal = await _extract_principal(request, service)
         if principal is None:
-            return JSONResponse({"error": "Authentication required"}, status_code=401)
+            return _auth_failure_token_endpoint()
 
         body = await request.json()
         try:
@@ -76,18 +76,24 @@ def mount_anip(
 
     @app.post(f"{prefix}/anip/permissions")
     async def permissions(request: Request):
-        token = await _resolve_token(request, service)
-        if token is None:
-            return JSONResponse({"error": "Authentication required"}, status_code=401)
+        result = await _resolve_token(request, service)
+        if result is None:
+            return _auth_failure_jwt_endpoint()
+        if isinstance(result, ANIPError):
+            return _error_response(result)
+        token = result
         return service.discover_permissions(token)
 
     # --- Invoke ---
 
     @app.post(f"{prefix}/anip/invoke/{{capability}}")
     async def invoke(capability: str, request: Request):
-        token = await _resolve_token(request, service)
-        if token is None:
-            return JSONResponse({"error": "Authentication required"}, status_code=401)
+        result = await _resolve_token(request, service)
+        if result is None:
+            return _auth_failure_jwt_endpoint()
+        if isinstance(result, ANIPError):
+            return _error_response(result)
+        token = result
 
         body = await request.json()
         params = body.get("parameters", body)
@@ -200,9 +206,12 @@ def mount_anip(
 
     @app.post(f"{prefix}/anip/audit")
     async def audit(request: Request):
-        token = await _resolve_token(request, service)
-        if token is None:
-            return JSONResponse({"error": "Authentication required"}, status_code=401)
+        result = await _resolve_token(request, service)
+        if result is None:
+            return _auth_failure_jwt_endpoint()
+        if isinstance(result, ANIPError):
+            return _error_response(result)
+        token = result
 
         filters = {
             "capability": request.query_params.get("capability"),
@@ -230,7 +239,23 @@ def mount_anip(
         }
         result = await service.get_checkpoint(checkpoint_id, options)
         if result is None:
-            return JSONResponse({"error": "Checkpoint not found"}, status_code=404)
+            return JSONResponse(
+                {
+                    "success": False,
+                    "failure": {
+                        "type": "not_found",
+                        "detail": f"Checkpoint {checkpoint_id} not found",
+                        "resolution": {
+                            "action": "list_checkpoints",
+                            "requires": "GET /anip/checkpoints to find valid checkpoint IDs",
+                            "grantable_by": None,
+                            "estimated_availability": None,
+                        },
+                        "retry": False,
+                    },
+                },
+                status_code=404,
+            )
         return result
 
     # --- Health ---
@@ -255,15 +280,19 @@ async def _extract_principal(request: Request, service: ANIPService) -> str | No
 
 
 async def _resolve_token(request: Request, service: ANIPService):
-    """Resolve a bearer token from the Authorization header."""
+    """Resolve a bearer token from the Authorization header.
+
+    Returns:
+        DelegationToken if valid, ANIPError if invalid/expired, None if no header.
+    """
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer "):
         return None
     jwt_str = auth[7:].strip()
     try:
         return await service.resolve_bearer_token(jwt_str)
-    except ANIPError:
-        return None
+    except ANIPError as e:
+        return e
 
 
 def _failure_status(failure_type: str | None) -> int:
@@ -289,4 +318,46 @@ def _error_response(error: ANIPError) -> JSONResponse:
     return JSONResponse(
         {"success": False, "failure": {"type": error.error_type, "detail": error.detail}},
         status_code=status,
+    )
+
+
+def _auth_failure_token_endpoint() -> JSONResponse:
+    """Structured auth failure for POST /anip/tokens (API key required)."""
+    return JSONResponse(
+        {
+            "success": False,
+            "failure": {
+                "type": "authentication_required",
+                "detail": "A valid API key is required to issue delegation tokens",
+                "resolution": {
+                    "action": "provide_api_key",
+                    "requires": "API key in Authorization header",
+                    "grantable_by": None,
+                    "estimated_availability": None,
+                },
+                "retry": True,
+            },
+        },
+        status_code=401,
+    )
+
+
+def _auth_failure_jwt_endpoint() -> JSONResponse:
+    """Structured auth failure for JWT-authenticated endpoints (no header)."""
+    return JSONResponse(
+        {
+            "success": False,
+            "failure": {
+                "type": "authentication_required",
+                "detail": "A valid delegation token (JWT) is required in the Authorization header",
+                "resolution": {
+                    "action": "obtain_delegation_token",
+                    "requires": "Bearer token from POST /anip/tokens",
+                    "grantable_by": None,
+                    "estimated_availability": None,
+                },
+                "retry": True,
+            },
+        },
+        status_code=401,
     )

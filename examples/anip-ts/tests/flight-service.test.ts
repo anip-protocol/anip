@@ -68,6 +68,10 @@ describe("Tokens", () => {
       body: JSON.stringify({ scope: ["travel.search"] }),
     });
     expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("authentication_required");
+    expect(data.failure.resolution.action).toBe("provide_api_key");
   });
 });
 
@@ -136,6 +140,10 @@ describe("Invoke", () => {
       body: JSON.stringify({ parameters: { origin: "SEA", destination: "SFO", date: "2026-03-10" } }),
     });
     expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("authentication_required");
+    expect(data.failure.resolution.action).toBe("obtain_delegation_token");
   });
 
   it("returns 404 for unknown capability", async () => {
@@ -161,5 +169,144 @@ describe("Checkpoints", () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.checkpoints).toBeDefined();
+  });
+});
+
+describe("Permissions", () => {
+  it("shows search and book as available", async () => {
+    const token = await getToken("search_flights");
+    const res = await app.request("/anip/permissions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    const names = data.available.map((c: any) => c.capability);
+    expect(names).toContain("search_flights");
+    expect(names).toContain("book_flight");
+  });
+
+  it("shows book_flight as restricted without book scope", async () => {
+    const token = await getToken("search_flights", ["travel.search"]);
+    const res = await app.request("/anip/permissions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    const restricted = data.restricted.map((c: any) => c.capability);
+    expect(restricted).toContain("book_flight");
+  });
+});
+
+describe("Audit", () => {
+  it("returns entries after invocation", async () => {
+    const token = await getToken("search_flights");
+    await app.request("/anip/invoke/search_flights", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        parameters: { origin: "SEA", destination: "SFO", date: "2026-03-10" },
+      }),
+    });
+    const res = await app.request("/anip/audit", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.count).toBeGreaterThanOrEqual(1);
+    expect(data.entries).toBeDefined();
+  });
+
+  it("filters by capability", async () => {
+    const token = await getToken("search_flights");
+    await app.request("/anip/invoke/search_flights", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        parameters: { origin: "SEA", destination: "SFO", date: "2026-03-10" },
+      }),
+    });
+    const res = await app.request("/anip/audit?capability=search_flights", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.capability_filter).toBe("search_flights");
+  });
+});
+
+describe("Failure scenarios", () => {
+  it("scope mismatch — search token for booking", async () => {
+    const token = await getToken("search_flights", ["travel.search"]);
+    const res = await app.request("/anip/invoke/book_flight", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        parameters: { flight_number: "AA100", date: "2026-03-10", passengers: 1 },
+      }),
+    });
+    const data = await res.json();
+    expect(data.success).toBe(false);
+  });
+
+  it("unknown capability returns 404", async () => {
+    const token = await getToken("search_flights");
+    const res = await app.request("/anip/invoke/cancel_flight", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ parameters: {} }),
+    });
+    expect(res.status).toBe(404);
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("unknown_capability");
+  });
+
+  it("invalid JWT returns structured invalid_token error", async () => {
+    const res = await app.request("/anip/invoke/search_flights", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer garbage-jwt-string",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        parameters: { origin: "SEA", destination: "SFO", date: "2026-03-10" },
+      }),
+    });
+    expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("invalid_token");
   });
 });

@@ -81,6 +81,9 @@ describe("Fastify routes", () => {
     stopFn = stop;
     const res = await app.inject({ method: "GET", url: "/anip/checkpoints/ckpt-nonexistent" });
     expect(res.statusCode).toBe(404);
+    const data = JSON.parse(res.payload);
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("not_found");
   });
 
   it("POST /anip/tokens without auth returns 401", async () => {
@@ -185,6 +188,96 @@ describe("Fastify routes", () => {
   });
 });
 
+describe("Permissions endpoint", () => {
+  let stopFn: (() => void) | undefined;
+
+  afterEach(() => {
+    stopFn?.();
+    stopFn = undefined;
+  });
+
+  it("returns available/restricted/denied buckets", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const tokenRes = await app.inject({
+      method: "POST",
+      url: "/anip/tokens",
+      headers: { authorization: `Bearer ${API_KEY}` },
+      payload: { scope: ["greet"], capability: "greet" },
+    });
+    const token = JSON.parse(tokenRes.payload).token;
+    const res = await app.inject({
+      method: "POST",
+      url: "/anip/permissions",
+      headers: { authorization: `Bearer ${token}` },
+      payload: {},
+    });
+    expect(res.statusCode).toBe(200);
+    const data = JSON.parse(res.payload);
+    expect(data.available).toBeDefined();
+    expect(data.restricted).toBeDefined();
+    expect(data.denied).toBeDefined();
+  });
+
+  it("shows restricted for missing scope", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const tokenRes = await app.inject({
+      method: "POST",
+      url: "/anip/tokens",
+      headers: { authorization: `Bearer ${API_KEY}` },
+      payload: { scope: ["unrelated"], capability: "greet" },
+    });
+    const token = JSON.parse(tokenRes.payload).token;
+    const res = await app.inject({
+      method: "POST",
+      url: "/anip/permissions",
+      headers: { authorization: `Bearer ${token}` },
+      payload: {},
+    });
+    expect(res.statusCode).toBe(200);
+    const data = JSON.parse(res.payload);
+    expect(data.restricted.some((c: any) => c.capability === "greet")).toBe(true);
+  });
+});
+
+describe("Audit endpoint", () => {
+  let stopFn: (() => void) | undefined;
+
+  afterEach(() => {
+    stopFn?.();
+    stopFn = undefined;
+  });
+
+  it("returns entries after invocation", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const tokenRes = await app.inject({
+      method: "POST",
+      url: "/anip/tokens",
+      headers: { authorization: `Bearer ${API_KEY}` },
+      payload: { scope: ["greet"], capability: "greet" },
+    });
+    const token = JSON.parse(tokenRes.payload).token;
+    await app.inject({
+      method: "POST",
+      url: "/anip/invoke/greet",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { parameters: { name: "World" } },
+    });
+    const res = await app.inject({
+      method: "POST",
+      url: "/anip/audit",
+      headers: { authorization: `Bearer ${token}` },
+      payload: {},
+    });
+    expect(res.statusCode).toBe(200);
+    const data = JSON.parse(res.payload);
+    expect(data.entries).toBeDefined();
+    expect(data.count).toBeGreaterThanOrEqual(1);
+  });
+});
+
 // --- Health endpoint tests ---
 
 async function makeHealthApp() {
@@ -223,6 +316,107 @@ describe("Fastify health endpoint", () => {
     expect(data.status).toBeDefined();
     expect(data.storage).toBeDefined();
     expect(data.retention).toBeDefined();
+  });
+});
+
+describe("Auth error responses", () => {
+  let stopFn: (() => void) | undefined;
+
+  afterEach(() => {
+    stopFn?.();
+    stopFn = undefined;
+  });
+
+  it("POST /anip/tokens without auth returns ANIPFailure with provide_api_key", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await app.inject({
+      method: "POST",
+      url: "/anip/tokens",
+      payload: { scope: ["greet"] },
+    });
+    expect(res.statusCode).toBe(401);
+    const data = JSON.parse(res.payload);
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("authentication_required");
+    expect(data.failure.resolution.action).toBe("provide_api_key");
+    expect(data.failure.retry).toBe(true);
+  });
+
+  it("POST /anip/invoke without auth returns ANIPFailure with obtain_delegation_token", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await app.inject({
+      method: "POST",
+      url: "/anip/invoke/greet",
+      payload: { parameters: { name: "X" } },
+    });
+    expect(res.statusCode).toBe(401);
+    const data = JSON.parse(res.payload);
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("authentication_required");
+    expect(data.failure.resolution.action).toBe("obtain_delegation_token");
+    expect(data.failure.retry).toBe(true);
+  });
+
+  it("POST /anip/permissions without auth returns ANIPFailure with obtain_delegation_token", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await app.inject({
+      method: "POST",
+      url: "/anip/permissions",
+      payload: {},
+    });
+    expect(res.statusCode).toBe(401);
+    const data = JSON.parse(res.payload);
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("authentication_required");
+    expect(data.failure.resolution.action).toBe("obtain_delegation_token");
+  });
+
+  it("POST /anip/audit without auth returns ANIPFailure with obtain_delegation_token", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await app.inject({
+      method: "POST",
+      url: "/anip/audit",
+      payload: {},
+    });
+    expect(res.statusCode).toBe(401);
+    const data = JSON.parse(res.payload);
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("authentication_required");
+    expect(data.failure.resolution.action).toBe("obtain_delegation_token");
+  });
+
+  it("POST /anip/invoke with invalid JWT returns structured invalid_token", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await app.inject({
+      method: "POST",
+      url: "/anip/invoke/greet",
+      headers: { authorization: "Bearer not-a-valid-jwt" },
+      payload: { parameters: { name: "X" } },
+    });
+    expect(res.statusCode).toBe(401);
+    const data = JSON.parse(res.payload);
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("invalid_token");
+  });
+
+  it("POST /anip/permissions with invalid JWT returns structured invalid_token", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const res = await app.inject({
+      method: "POST",
+      url: "/anip/permissions",
+      headers: { authorization: "Bearer not-a-valid-jwt" },
+      payload: {},
+    });
+    expect(res.statusCode).toBe(401);
+    const data = JSON.parse(res.payload);
+    expect(data.success).toBe(false);
+    expect(data.failure.type).toBe("invalid_token");
   });
 });
 

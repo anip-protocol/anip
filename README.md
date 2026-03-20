@@ -290,15 +290,15 @@ For advanced use cases that need direct access to the SDK primitives (KeyManager
 
 ## Status
 
-ANIP is under active development. The spec is at v0.10 with horizontal scaling readiness — PostgreSQL storage, leader-elected Merkle checkpointing, and a deployment guide for multi-replica production environments — building on v0.9's audit aggregation, v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, and earlier foundations. Multi-agent coordination and federated trust remain open. See [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v1) for the full breakdown.
+ANIP is under active development. The spec is at v0.11 with runtime observability — callback-based hooks for logging, metrics, tracing, and diagnostics, plus a `getHealth()` snapshot and optional health endpoint — building on v0.10's horizontal scaling, v0.9's audit aggregation, v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, and earlier foundations. Multi-agent coordination and federated trust remain open. See [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v1) for the full breakdown.
 
-> **v0.10 adds horizontal scaling readiness.** PostgreSQL storage backend for multi-replica deployments (§6.11). Leader-elected Merkle checkpointing so exactly one replica advances the tree (§6.12). A deployment guide covering connection pooling, replica coordination, and operational concerns (§6.13). Building on v0.9's audit aggregation, v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, v0.4's invocation lineage, v0.5's async storage, and v0.3's anchored trust.
+> **v0.11 adds runtime observability.** Callback-based hooks for logging (8 hooks), metrics (10 hooks), tracing (2 hooks, 8 stable span names), and diagnostics (1 hook) — all optional, zero-overhead when absent (§6.12). `getHealth()` returns a cached runtime snapshot covering storage, checkpoint, retention, and aggregation state. Optional `GET /-/health` endpoint in all framework bindings. Hook callbacks are isolated from correctness paths — throwing hooks never affect requests or background workers. Building on v0.10's horizontal scaling, v0.9's audit aggregation, v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, and earlier foundations.
 
 This is a community effort. We'd rather define this standard thoughtfully and in the open than let it emerge ad-hoc.
 
 **What exists today:**
 - [Manifesto](MANIFESTO.md) — why this moment matters
-- [Spec](SPEC.md) — the technical design (v0.10)
+- [Spec](SPEC.md) — the technical design (v0.11)
 - [Guide](GUIDE.md) — walkthrough of the reference implementation with design rationale
 - [Reference implementation — Python](examples/anip/) — `anip-service` + FastAPI, ~150 lines of business logic
 - [Reference implementation — TypeScript](examples/anip-ts/) — `@anip/service` + Hono, same capabilities and endpoints
