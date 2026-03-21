@@ -87,7 +87,7 @@ func (s *Service) Invoke(
 	}
 
 	// 5. Call handler.
-	result, err := capDef.Handler(ctx, params)
+	result, err := capDef.Handler(&ctx, params)
 	if err != nil {
 		// Handler returned an error.
 		if anipErr, ok := err.(*core.ANIPError); ok {

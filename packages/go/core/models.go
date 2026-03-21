@@ -212,7 +212,11 @@ type AuditEntry struct {
 
 // AuditResponse wraps audit query results.
 type AuditResponse struct {
-	Entries []AuditEntry `json:"entries"`
+	Entries          []AuditEntry `json:"entries"`
+	Count            int          `json:"count"`
+	RootPrincipal    string       `json:"root_principal,omitempty"`
+	CapabilityFilter *string      `json:"capability_filter"`
+	SinceFilter      *string      `json:"since_filter"`
 }
 
 // --- Checkpoints ---

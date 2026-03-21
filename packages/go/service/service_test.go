@@ -32,7 +32,7 @@ func testCapabilities() []CapabilityDef {
 				MinimumScope:  []string{"travel.search"},
 				ResponseModes: []string{"unary"},
 			},
-			Handler: func(ctx InvocationContext, params map[string]any) (map[string]any, error) {
+			Handler: func(ctx *InvocationContext, params map[string]any) (map[string]any, error) {
 				return map[string]any{
 					"flights": []map[string]any{
 						{
@@ -82,7 +82,7 @@ func testCapabilities() []CapabilityDef {
 				},
 				ResponseModes: []string{"unary"},
 			},
-			Handler: func(ctx InvocationContext, params map[string]any) (map[string]any, error) {
+			Handler: func(ctx *InvocationContext, params map[string]any) (map[string]any, error) {
 				ctx.SetCostActual(&core.CostActual{
 					Financial: map[string]any{
 						"currency": "USD",
@@ -831,7 +831,7 @@ func TestInvokeHandlerError(t *testing.T) {
 					SideEffect:      core.SideEffect{Type: "read", RollbackWindow: "not_applicable"},
 					MinimumScope:    []string{"test.fail"},
 				},
-				Handler: func(ctx InvocationContext, params map[string]any) (map[string]any, error) {
+				Handler: func(ctx *InvocationContext, params map[string]any) (map[string]any, error) {
 					return nil, core.NewANIPError(core.FailureUnavailable, "service temporarily unavailable")
 				},
 			},

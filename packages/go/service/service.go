@@ -24,7 +24,7 @@ type Config struct {
 // CapabilityDef binds a capability declaration to a handler function.
 type CapabilityDef struct {
 	Declaration core.CapabilityDeclaration
-	Handler     func(ctx InvocationContext, params map[string]any) (map[string]any, error)
+	Handler     func(ctx *InvocationContext, params map[string]any) (map[string]any, error)
 }
 
 // InvocationContext provides the handler with delegation context.
@@ -290,7 +290,22 @@ func (s *Service) QueryAudit(token *core.DelegationToken, filters server.AuditFi
 	if rootPrincipal == "" {
 		rootPrincipal = token.Issuer
 	}
-	return server.QueryAudit(s.storage, rootPrincipal, filters)
+	resp, err := server.QueryAudit(s.storage, rootPrincipal, filters)
+	if err != nil {
+		return resp, err
+	}
+	// Populate metadata fields expected by the protocol.
+	resp.Count = len(resp.Entries)
+	resp.RootPrincipal = rootPrincipal
+	if filters.Capability != "" {
+		cap := filters.Capability
+		resp.CapabilityFilter = &cap
+	}
+	if filters.Since != "" {
+		since := filters.Since
+		resp.SinceFilter = &since
+	}
+	return resp, nil
 }
 
 // ListCheckpoints returns a list of checkpoints.
