@@ -97,16 +97,15 @@ func MountAnipMCP(target McpServer, svc *service.Service, opts *MountOptions) (*
 			continue
 		}
 
-		// Set MCP annotations based on side-effect type
+		// Build tool with raw schema (avoids InputSchema/RawInputSchema conflict)
 		readOnly := fullDecl.SideEffect.Type == "read"
 		destructive := fullDecl.SideEffect.Type == "irreversible"
 
-		tool := mcp.NewTool(capName,
-			mcp.WithDescription(description),
-			mcp.WithRawInputSchema(json.RawMessage(schemaBytes)),
-			mcp.WithReadOnlyHintAnnotation(readOnly),
-			mcp.WithDestructiveHintAnnotation(destructive),
-		)
+		tool := mcp.NewToolWithRawSchema(capName, description, json.RawMessage(schemaBytes))
+		tool.Annotations = mcp.ToolAnnotation{
+			ReadOnlyHint:    mcp.ToBoolPtr(readOnly),
+			DestructiveHint: mcp.ToBoolPtr(destructive),
+		}
 
 		handler := func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			args := request.GetArguments()

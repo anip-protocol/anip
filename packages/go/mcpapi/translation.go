@@ -1,4 +1,4 @@
-// Package mcpapi exposes ANIP capabilities as MCP tools for stdio transport.
+// Package mcpapi exposes ANIP capabilities as MCP tools for stdio and HTTP transports.
 package mcpapi
 
 import (
