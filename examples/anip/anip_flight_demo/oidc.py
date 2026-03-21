@@ -39,7 +39,6 @@ class OidcValidator:
         self.audience = audience
         self._jwks_url = jwks_url
         self._jwk_client: PyJWKClient | None = None
-        self._discovery_done = False
 
     def _get_jwk_client(self) -> PyJWKClient | None:
         """Get or create the JWKS client, discovering the URL if needed."""
@@ -49,8 +48,7 @@ class OidcValidator:
         jwks_url = self._jwks_url
 
         # Discover JWKS URL from OIDC discovery if not explicit
-        if not jwks_url and not self._discovery_done:
-            self._discovery_done = True
+        if not jwks_url:
             try:
                 discovery_url = f"{self.issuer_url}/.well-known/openid-configuration"
                 resp = httpx.get(discovery_url, timeout=10)

@@ -29,14 +29,12 @@ export function createOidcValidator(
 ): (bearer: string) => Promise<string | null> {
   let jwksUrl: string | null = config.jwksUrl ?? null;
   let jwks: ReturnType<typeof jose.createRemoteJWKSet> | null = null;
-  let discoveryDone = false;
 
   async function getJwks(): Promise<ReturnType<typeof jose.createRemoteJWKSet> | null> {
     if (jwks) return jwks;
 
     // Discover JWKS URL from OIDC discovery if not explicitly set
-    if (!jwksUrl && !discoveryDone) {
-      discoveryDone = true;
+    if (!jwksUrl) {
       try {
         const discoveryUrl = `${config.issuerUrl.replace(/\/$/, "")}/.well-known/openid-configuration`;
         const resp = await fetch(discoveryUrl);
@@ -45,7 +43,7 @@ export function createOidcValidator(
           jwksUrl = doc.jwks_uri ?? null;
         }
       } catch {
-        // Discovery failed — will return null on validation
+        // Discovery failed — will retry on next validation attempt
       }
     }
 
