@@ -37,6 +37,7 @@ type InvocationContext struct {
 	InvocationID      string
 	ClientReferenceID string
 	costActual        *core.CostActual
+	EmitProgress      func(payload map[string]any) error
 }
 
 // SetCostActual sets the actual cost incurred by the invocation.
