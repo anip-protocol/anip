@@ -192,6 +192,10 @@ Both configurable (interval, min entries). Leader lease acquisition on every ite
 
 ## Spring Boot Binding (`anip-spring-boot`)
 
+### Lifecycle Wiring
+
+`ANIPService` lifecycle is managed via Spring's `SmartLifecycle`:
+
 ```java
 @Configuration
 public class AnipAutoConfiguration {
@@ -199,8 +203,36 @@ public class AnipAutoConfiguration {
     public AnipController anipController(ANIPService service) {
         return new AnipController(service);
     }
+
+    @Bean
+    public AnipLifecycle anipLifecycle(ANIPService service) {
+        return new AnipLifecycle(service);
+    }
+}
+
+public class AnipLifecycle implements SmartLifecycle {
+    private final ANIPService service;
+    private boolean running = false;
+
+    public void start() {
+        service.start();    // init storage, keys, background workers
+        running = true;
+    }
+    public void stop() {
+        service.shutdown(); // stop workers, close storage
+        running = false;
+    }
+    public boolean isRunning() { return running; }
+    public int getPhase() { return 0; } // start early, stop late
 }
 ```
+
+This ensures:
+- `service.start()` runs after Spring context is ready (storage init, key loading, background workers start)
+- `service.shutdown()` runs on application stop (workers stop, storage closes)
+- Background workers (retention, checkpoint) are fully managed by the Spring lifecycle
+
+### Controller
 
 `AnipController` is a `@RestController` with all 9 protocol endpoints. SSE streaming via `SseEmitter`. `/-/health` endpoint (not Actuator).
 
@@ -210,17 +242,41 @@ Auth extraction from `Authorization: Bearer` header. Same patterns as other bind
 
 ## Interface Packages
 
+### Auth Bridge (shared by REST, GraphQL, MCP HTTP)
+
+All three interface packages use the same auth resolution pattern. When a bearer token is received:
+
+1. Try `service.resolveBearerToken(bearer)` — JWT mode, preserves delegation chain
+2. If `ANIPError` → try `service.authenticateBearer(bearer)` — API key mode
+3. If API key succeeds → issue synthetic token:
+   - **subject:** `"adapter:anip-{package}"` (e.g., `"adapter:anip-rest"`, `"adapter:anip-graphql"`, `"adapter:anip-mcp"`)
+   - **scope:** from the capability's `minimum_scope` (or `["*"]` if empty)
+   - **capability:** bound to the specific capability being invoked
+   - **purpose_parameters:** `{"source": "rest"}`, `{"source": "graphql"}`, or `{"source": "mcp"}`
+4. If token issuance fails → return the actual issuance error (not the stale JWT error)
+5. If neither JWT nor API key → re-throw the original JWT `ANIPError`
+6. Only catch `ANIPError` from JWT resolution — rethrow unexpected exceptions
+
 ### REST (`anip-rest`)
 
-Spring MVC `@RestController` auto-generated from capabilities. GET for read, POST for write/irreversible. Route overrides. OpenAPI at `/rest/openapi.json`, Swagger UI at `/rest/docs`. JWT-first, API-key-fallback auth (same as Go/TS/Python REST).
+Spring MVC `@RestController` auto-generated from capabilities. GET for read, POST for write/irreversible. Route overrides. OpenAPI at `/rest/openapi.json`, Swagger UI at `/rest/docs`. Uses the shared auth bridge above.
 
 ### GraphQL (`anip-graphql`)
 
-`graphql-java` runtime schema. Query for read, Mutation for write. Custom `@anip*` directives. CamelCase field names matching existing ANIP GraphQL contract. Auth errors in result body, not HTTP errors.
+`graphql-java` runtime schema. Query for read, Mutation for write. Custom `@anip*` directives. Field names match the existing ANIP GraphQL contract exactly. Auth errors in result body, not HTTP errors. Uses the shared auth bridge — auth resolved per-field in the resolver, not at the HTTP layer.
 
 ### MCP (`anip-mcp`)
 
-Official MCP Java SDK. Stdio transport with mount-time credentials. Streamable HTTP transport with per-request auth. Tool translation with enriched descriptions. `isError` set correctly for failures.
+Official MCP Java SDK.
+
+**Stdio transport:** Mount-time credentials required:
+```java
+McpCredentials credentials = new McpCredentials(apiKey, scope, subject);
+AnipMcpServer.mountStdio(service, credentials, options);
+```
+Each tool call: authenticate API key → narrow scope to capability's `minimum_scope` → issue synthetic token (subject from credentials, purpose `{"source": "mcp"}`) → invoke with resolved token.
+
+**Streamable HTTP transport:** Per-request auth from `Authorization: Bearer` header. The MCP Java SDK's server transport provides request context access — the tool handler reads the bearer from the HTTP request context (via SDK's `McpServerContext` or equivalent) and calls the shared auth bridge (JWT-first, API-key-fallback with synthetic token). The exact context-access mechanism depends on the SDK's API — the implementer must check how the official Java SDK passes HTTP request metadata to tool handlers and adapt accordingly.
 
 ## Example App
 
