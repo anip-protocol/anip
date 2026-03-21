@@ -1,0 +1,4 @@
+dev/anip/crypto/JwsTest.class
+dev/anip/crypto/JwksTest.class
+dev/anip/crypto/JwtTest.class
+dev/anip/crypto/KeyManagerTest.class
