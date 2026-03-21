@@ -249,17 +249,35 @@ jobs:
             exit 1
           fi
 
-      - name: Validate CI checks passed
+      - name: Validate required CI checks passed
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           SHA=$(git rev-parse HEAD)
-          CHECKS=$(gh api repos/${{ github.repository }}/commits/$SHA/check-runs --jq '.check_runs[] | select(.conclusion != "success" and .conclusion != "skipped") | .name')
-          if [ -n "$CHECKS" ]; then
-            echo "FAIL: these CI checks have not passed:"
-            echo "$CHECKS"
+          REQUIRED_CHECKS=("test (3.11)" "test (3.12)" "test (20)" "test (22)")
+          ERRORS=0
+          for CHECK in "${REQUIRED_CHECKS[@]}"; do
+            STATUS=$(gh api "repos/$GH_REPO/commits/$SHA/check-runs" \
+              --jq ".check_runs[] | select(.name == \"$CHECK\") | .conclusion" \
+              | head -1)
+            if [ "$STATUS" = "success" ]; then
+              echo "OK: $CHECK = success"
+            else
+              echo "FAIL: $CHECK status is '${STATUS:-not found}' (expected 'success')"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+          if [ "$ERRORS" -gt 0 ]; then exit 1; fi
+
+      - name: Validate tag does not exist
+        run: |
+          TAG="v${{ github.event.inputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "FAIL: Tag '$TAG' already exists"
             exit 1
           fi
+          echo "OK: Tag '$TAG' is available"
 
       - name: Validate version format
         run: |
@@ -307,11 +325,17 @@ jobs:
               echo "FAIL: $pkg version is $PKG_VERSION, expected $VERSION"
               FAILED=1
             fi
-            # Check internal anip-* deps use exact lockstep pin
-            STALE=$(grep -E 'anip-(core|crypto|server|service|fastapi)==' packages/python/$pkg/pyproject.toml | grep -v "==$VERSION" || true)
-            if [ -n "$STALE" ]; then
-              echo "FAIL: $pkg has stale internal deps: $STALE"
-              FAILED=1
+            # Check internal anip-* deps use exact lockstep pin (==VERSION)
+            # Catch both wrong versions AND wrong operators (>= instead of ==)
+            INTERNAL_DEPS=$(grep -E '"anip-(core|crypto|server|service|fastapi)' packages/python/$pkg/pyproject.toml || true)
+            if [ -n "$INTERNAL_DEPS" ]; then
+              # Every internal dep line must contain ==VERSION
+              BAD=$(echo "$INTERNAL_DEPS" | grep -v "==$VERSION" || true)
+              if [ -n "$BAD" ]; then
+                echo "FAIL: $pkg has non-lockstep internal deps:"
+                echo "$BAD"
+                FAILED=1
+              fi
             fi
           done
           if [ "$FAILED" -eq 1 ]; then exit 1; fi
