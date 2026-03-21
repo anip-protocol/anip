@@ -7,6 +7,8 @@ dependencies = [
     "anip-service @ file:../../packages/python/anip-service",
     "anip-fastapi @ file:../../packages/python/anip-fastapi",
     "uvicorn>=0.34.0",
+    "PyJWT[crypto]>=2.8",
+    "httpx>=0.27",
 ]
 
 [project.optional-dependencies]
