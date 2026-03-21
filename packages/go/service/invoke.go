@@ -2,12 +2,75 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/anip-protocol/anip/packages/go/core"
 	"github.com/anip-protocol/anip/packages/go/server"
 )
+
+// validateInputs checks that required inputs are present and basic types match.
+func validateInputs(decl *core.CapabilityDeclaration, params map[string]any) error {
+	// Check required inputs are present.
+	for _, inp := range decl.Inputs {
+		if inp.Required {
+			if _, ok := params[inp.Name]; !ok {
+				return core.NewANIPError(core.FailureInvalidParameters,
+					fmt.Sprintf("missing required parameter: %s", inp.Name))
+			}
+		}
+	}
+	// Type checking for basic types.
+	for _, inp := range decl.Inputs {
+		val, ok := params[inp.Name]
+		if !ok {
+			continue
+		}
+		if err := validateType(val, inp.Type); err != nil {
+			return core.NewANIPError(core.FailureInvalidParameters,
+				fmt.Sprintf("parameter '%s': %s", inp.Name, err))
+		}
+	}
+	return nil
+}
+
+// validateType checks that a value matches the expected type string.
+func validateType(val any, typeName string) error {
+	switch typeName {
+	case "string", "airport_code", "date":
+		if _, ok := val.(string); !ok {
+			return fmt.Errorf("expected string, got %T", val)
+		}
+	case "integer":
+		switch val.(type) {
+		case int, int32, int64, float64:
+			// float64 is the default JSON number type; accept it
+		default:
+			return fmt.Errorf("expected integer, got %T", val)
+		}
+	case "number", "float":
+		switch val.(type) {
+		case float64, float32, int, int32, int64:
+		default:
+			return fmt.Errorf("expected number, got %T", val)
+		}
+	case "boolean":
+		if _, ok := val.(bool); !ok {
+			return fmt.Errorf("expected boolean, got %T", val)
+		}
+	case "object":
+		if _, ok := val.(map[string]any); !ok {
+			return fmt.Errorf("expected object, got %T", val)
+		}
+	case "array":
+		if _, ok := val.([]any); !ok {
+			return fmt.Errorf("expected array, got %T", val)
+		}
+	}
+	// Unknown types pass through (extensible).
+	return nil
+}
 
 // StreamEvent represents a single SSE event in a streaming invocation.
 type StreamEvent struct {
@@ -83,6 +146,23 @@ func (s *Service) Invoke(
 			"client_reference_id": opts.ClientReferenceID,
 		}
 		return resp, nil
+	}
+
+	// 2b. Validate inputs against capability declaration.
+	if err := validateInputs(&capDef.Declaration, params); err != nil {
+		if anipErr, ok := err.(*core.ANIPError); ok {
+			resp := map[string]any{
+				"success": false,
+				"failure": map[string]any{
+					"type":   anipErr.ErrorType,
+					"detail": anipErr.Detail,
+				},
+				"invocation_id":       invocationID,
+				"client_reference_id": opts.ClientReferenceID,
+			}
+			return resp, nil
+		}
+		return nil, err
 	}
 
 	// 3. Validate token scope covers capability's minimum_scope.
@@ -206,6 +286,11 @@ func (s *Service) InvokeStream(
 	// 2. Check streaming support.
 	if !capabilitySupportsStreaming(capDef.Declaration) {
 		return nil, core.NewANIPError(core.FailureStreamingNotSupported, "Capability '"+capName+"' does not support streaming")
+	}
+
+	// 2b. Validate inputs against capability declaration.
+	if err := validateInputs(&capDef.Declaration, params); err != nil {
+		return nil, err
 	}
 
 	// 3. Validate token scope.
