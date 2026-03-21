@@ -241,6 +241,8 @@ jobs:
     if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history + tags for tag-exists check
 
       - name: Validate running from main
         run: |
