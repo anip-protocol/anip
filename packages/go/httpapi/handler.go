@@ -3,6 +3,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -181,9 +182,14 @@ func handleInvoke(svc *service.Service) http.HandlerFunc {
 		clientRefID, _ := body["client_reference_id"].(string)
 		stream, _ := body["stream"].(bool)
 
+		if stream {
+			handleStreamInvoke(w, svc, capName, token, params, clientRefID)
+			return
+		}
+
 		result, err := svc.Invoke(capName, token, params, service.InvokeOpts{
 			ClientReferenceID: clientRefID,
-			Stream:            stream,
+			Stream:            false,
 		})
 		if err != nil {
 			status, respBody := httputil.SimpleFailureResponse(core.FailureInternalError, "Invocation failed", nil)
@@ -201,6 +207,44 @@ func handleInvoke(svc *service.Service) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, result)
+	}
+}
+
+func handleStreamInvoke(w http.ResponseWriter, svc *service.Service, capName string, token *core.DelegationToken, params map[string]any, clientRefID string) {
+	sr, err := svc.InvokeStream(capName, token, params, service.InvokeOpts{
+		ClientReferenceID: clientRefID,
+		Stream:            true,
+	})
+	if err != nil {
+		if anipErr, ok := err.(*core.ANIPError); ok {
+			status, body := httputil.FailureResponse(anipErr)
+			writeJSON(w, status, body)
+			return
+		}
+		status, body := httputil.SimpleFailureResponse(core.FailureInternalError, "Invocation failed", nil)
+		writeJSON(w, status, body)
+		return
+	}
+
+	// Set SSE headers.
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.WriteHeader(http.StatusOK)
+
+	flusher, hasFlusher := w.(http.Flusher)
+
+	for event := range sr.Events {
+		data, _ := json.Marshal(event.Payload)
+		_, writeErr := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event.Type, data)
+		if writeErr != nil {
+			// Client disconnected — signal handler to stop
+			sr.Cancel()
+			return
+		}
+		if hasFlusher {
+			flusher.Flush()
+		}
 	}
 }
 

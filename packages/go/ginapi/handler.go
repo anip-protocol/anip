@@ -2,6 +2,8 @@
 package ginapi
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -179,9 +181,14 @@ func handleInvoke(svc *service.Service) gin.HandlerFunc {
 		clientRefID, _ := body["client_reference_id"].(string)
 		stream, _ := body["stream"].(bool)
 
+		if stream {
+			handleStreamInvoke(c, svc, capName, token, params, clientRefID)
+			return
+		}
+
 		result, err := svc.Invoke(capName, token, params, service.InvokeOpts{
 			ClientReferenceID: clientRefID,
-			Stream:            stream,
+			Stream:            false,
 		})
 		if err != nil {
 			status, respBody := httputil.SimpleFailureResponse(core.FailureInternalError, "Invocation failed", nil)
@@ -199,6 +206,40 @@ func handleInvoke(svc *service.Service) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, result)
+	}
+}
+
+func handleStreamInvoke(c *gin.Context, svc *service.Service, capName string, token *core.DelegationToken, params map[string]any, clientRefID string) {
+	sr, err := svc.InvokeStream(capName, token, params, service.InvokeOpts{
+		ClientReferenceID: clientRefID,
+		Stream:            true,
+	})
+	if err != nil {
+		if anipErr, ok := err.(*core.ANIPError); ok {
+			status, body := httputil.FailureResponse(anipErr)
+			c.JSON(status, body)
+			return
+		}
+		status, body := httputil.SimpleFailureResponse(core.FailureInternalError, "Invocation failed", nil)
+		c.JSON(status, body)
+		return
+	}
+
+	// Set SSE headers.
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.WriteHeader(http.StatusOK)
+
+	for event := range sr.Events {
+		data, _ := json.Marshal(event.Payload)
+		_, writeErr := fmt.Fprintf(c.Writer, "event: %s\ndata: %s\n\n", event.Type, data)
+		if writeErr != nil {
+			// Client disconnected — signal handler to stop
+			sr.Cancel()
+			return
+		}
+		c.Writer.Flush()
 	}
 }
 

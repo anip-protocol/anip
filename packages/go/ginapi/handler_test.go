@@ -847,3 +847,247 @@ func TestInvokeFinancialCapabilityCostActual(t *testing.T) {
 		t.Fatal("expected cost_actual in response for financial capability")
 	}
 }
+
+// --- SSE Streaming Tests ---
+
+func newStreamingTestServer(t *testing.T) (*httptest.Server, *service.Service) {
+	t.Helper()
+	caps := append(testCapabilities(), streamingTestCapabilities()...)
+	svc := service.New(service.Config{
+		ServiceID:    "test-service",
+		Capabilities: caps,
+		Storage:      ":memory:",
+		Trust:        "signed",
+		Authenticate: func(bearer string) (string, bool) {
+			if bearer == "test-api-key" {
+				return "human:test@example.com", true
+			}
+			return "", false
+		},
+	})
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Service.Start() error: %v", err)
+	}
+	t.Cleanup(func() { svc.Shutdown() })
+
+	router := gin.New()
+	MountANIPGin(router, svc)
+	ts := httptest.NewServer(router)
+	t.Cleanup(ts.Close)
+	return ts, svc
+}
+
+func streamingTestCapabilities() []service.CapabilityDef {
+	return []service.CapabilityDef{
+		{
+			Declaration: core.CapabilityDeclaration{
+				Name:            "stream_search",
+				Description:     "Search with streaming progress",
+				ContractVersion: "1.0",
+				SideEffect:      core.SideEffect{Type: "read", RollbackWindow: "not_applicable"},
+				MinimumScope:    []string{"travel.search"},
+				ResponseModes:   []string{"unary", "streaming"},
+			},
+			Handler: func(ctx *service.InvocationContext, params map[string]any) (map[string]any, error) {
+				ctx.EmitProgress(map[string]any{"step": 1, "status": "searching"})
+				ctx.EmitProgress(map[string]any{"step": 2, "status": "filtering"})
+				return map[string]any{"flights": []string{"AA100"}, "count": 1}, nil
+			},
+		},
+		{
+			Declaration: core.CapabilityDeclaration{
+				Name:            "stream_fail",
+				Description:     "Streaming capability that fails",
+				ContractVersion: "1.0",
+				SideEffect:      core.SideEffect{Type: "read", RollbackWindow: "not_applicable"},
+				MinimumScope:    []string{"travel.search"},
+				ResponseModes:   []string{"streaming"},
+			},
+			Handler: func(ctx *service.InvocationContext, params map[string]any) (map[string]any, error) {
+				ctx.EmitProgress(map[string]any{"step": 1, "status": "starting"})
+				return nil, core.NewANIPError(core.FailureUnavailable, "service temporarily unavailable")
+			},
+		},
+	}
+}
+
+// parseSSEEvents parses SSE-formatted text into event type/data pairs.
+func parseSSEEvents(body string) []struct {
+	Type string
+	Data string
+} {
+	var events []struct {
+		Type string
+		Data string
+	}
+	lines := strings.Split(body, "\n")
+	var currentType, currentData string
+	for _, line := range lines {
+		if strings.HasPrefix(line, "event: ") {
+			currentType = strings.TrimPrefix(line, "event: ")
+		} else if strings.HasPrefix(line, "data: ") {
+			currentData = strings.TrimPrefix(line, "data: ")
+		} else if line == "" && currentType != "" {
+			events = append(events, struct {
+				Type string
+				Data string
+			}{currentType, currentData})
+			currentType = ""
+			currentData = ""
+		}
+	}
+	return events
+}
+
+func TestSSEStreamingSuccess(t *testing.T) {
+	ts, _ := newStreamingTestServer(t)
+	jwt := issueToken(t, ts, []string{"travel.search"}, "stream_search")
+
+	body := `{"parameters": {}, "stream": true}`
+	req, _ := http.NewRequest("POST", ts.URL+"/anip/invoke/stream_search", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+jwt)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Check SSE headers.
+	if ct := resp.Header.Get("Content-Type"); ct != "text/event-stream" {
+		t.Fatalf("expected Content-Type 'text/event-stream', got %q", ct)
+	}
+
+	// Read the full body.
+	var buf bytes.Buffer
+	buf.ReadFrom(resp.Body)
+	bodyStr := buf.String()
+
+	events := parseSSEEvents(bodyStr)
+	if len(events) != 3 {
+		t.Fatalf("expected 3 SSE events, got %d. Body:\n%s", len(events), bodyStr)
+	}
+
+	// First two should be progress.
+	if events[0].Type != "progress" {
+		t.Fatalf("expected event 0 type 'progress', got %q", events[0].Type)
+	}
+	if events[1].Type != "progress" {
+		t.Fatalf("expected event 1 type 'progress', got %q", events[1].Type)
+	}
+
+	// Last should be completed.
+	if events[2].Type != "completed" {
+		t.Fatalf("expected event 2 type 'completed', got %q", events[2].Type)
+	}
+
+	// Parse completed data.
+	var completedData map[string]any
+	if err := json.Unmarshal([]byte(events[2].Data), &completedData); err != nil {
+		t.Fatalf("failed to parse completed data: %v", err)
+	}
+	if completedData["success"] != true {
+		t.Fatal("expected completed event success=true")
+	}
+	if _, ok := completedData["invocation_id"]; !ok {
+		t.Fatal("completed event missing invocation_id")
+	}
+	if _, ok := completedData["timestamp"]; !ok {
+		t.Fatal("completed event missing timestamp")
+	}
+
+	// Parse first progress data.
+	var progressData map[string]any
+	if err := json.Unmarshal([]byte(events[0].Data), &progressData); err != nil {
+		t.Fatalf("failed to parse progress data: %v", err)
+	}
+	payload, _ := progressData["payload"].(map[string]any)
+	if payload == nil {
+		t.Fatal("progress event missing payload")
+	}
+}
+
+func TestSSEStreamingFailure(t *testing.T) {
+	ts, _ := newStreamingTestServer(t)
+	jwt := issueToken(t, ts, []string{"travel.search"}, "stream_fail")
+
+	body := `{"parameters": {}, "stream": true}`
+	req, _ := http.NewRequest("POST", ts.URL+"/anip/invoke/stream_fail", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+jwt)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if ct := resp.Header.Get("Content-Type"); ct != "text/event-stream" {
+		t.Fatalf("expected Content-Type 'text/event-stream', got %q", ct)
+	}
+
+	var buf bytes.Buffer
+	buf.ReadFrom(resp.Body)
+	bodyStr := buf.String()
+
+	events := parseSSEEvents(bodyStr)
+	if len(events) != 2 {
+		t.Fatalf("expected 2 SSE events, got %d. Body:\n%s", len(events), bodyStr)
+	}
+
+	if events[0].Type != "progress" {
+		t.Fatalf("expected event 0 type 'progress', got %q", events[0].Type)
+	}
+	if events[1].Type != "failed" {
+		t.Fatalf("expected event 1 type 'failed', got %q", events[1].Type)
+	}
+
+	var failedData map[string]any
+	if err := json.Unmarshal([]byte(events[1].Data), &failedData); err != nil {
+		t.Fatalf("failed to parse failed data: %v", err)
+	}
+	if failedData["success"] != false {
+		t.Fatal("expected failed event success=false")
+	}
+	failure, _ := failedData["failure"].(map[string]any)
+	if failure == nil {
+		t.Fatal("failed event missing failure")
+	}
+	if failure["type"] != core.FailureUnavailable {
+		t.Fatalf("expected failure type %q, got %v", core.FailureUnavailable, failure["type"])
+	}
+}
+
+func TestSSEStreamingNotSupportedReturnsJSON(t *testing.T) {
+	ts, _ := newStreamingTestServer(t)
+	jwt := issueToken(t, ts, []string{"travel.search"}, "search_flights")
+
+	// Request streaming on a unary-only capability.
+	body := `{"parameters": {}, "stream": true}`
+	req, _ := http.NewRequest("POST", ts.URL+"/anip/invoke/search_flights", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+jwt)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Should return JSON error, not SSE.
+	ct := resp.Header.Get("Content-Type")
+	if !strings.HasPrefix(ct, "application/json") {
+		t.Fatalf("expected Content-Type starting with 'application/json', got %q", ct)
+	}
+
+	var data map[string]any
+	json.NewDecoder(resp.Body).Decode(&data)
+	if data["success"] != false {
+		t.Fatal("expected success=false")
+	}
+	failure, _ := data["failure"].(map[string]any)
+	if failure["type"] != core.FailureStreamingNotSupported {
+		t.Fatalf("expected failure type %q, got %v", core.FailureStreamingNotSupported, failure["type"])
+	}
+}

@@ -3,6 +3,7 @@ package service
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/anip-protocol/anip/packages/go/core"
 	"github.com/anip-protocol/anip/packages/go/server"
@@ -876,5 +877,326 @@ func TestInvokeHandlerError(t *testing.T) {
 	failType, _ := failure["type"].(string)
 	if failType != core.FailureUnavailable {
 		t.Fatalf("expected failure type %q, got %q", core.FailureUnavailable, failType)
+	}
+}
+
+// streamingCapabilities returns capabilities that include streaming response_modes.
+func streamingCapabilities() []CapabilityDef {
+	return []CapabilityDef{
+		{
+			Declaration: core.CapabilityDeclaration{
+				Name:            "stream_search",
+				Description:     "Search with streaming progress",
+				ContractVersion: "1.0",
+				SideEffect:      core.SideEffect{Type: "read", RollbackWindow: "not_applicable"},
+				MinimumScope:    []string{"travel.search"},
+				ResponseModes:   []string{"unary", "streaming"},
+			},
+			Handler: func(ctx *InvocationContext, params map[string]any) (map[string]any, error) {
+				// Emit two progress events.
+				ctx.EmitProgress(map[string]any{"step": 1, "status": "searching"})
+				ctx.EmitProgress(map[string]any{"step": 2, "status": "filtering"})
+				return map[string]any{"flights": []string{"AA100"}, "count": 1}, nil
+			},
+		},
+		{
+			Declaration: core.CapabilityDeclaration{
+				Name:            "stream_fail",
+				Description:     "Streaming capability that fails",
+				ContractVersion: "1.0",
+				SideEffect:      core.SideEffect{Type: "read", RollbackWindow: "not_applicable"},
+				MinimumScope:    []string{"travel.search"},
+				ResponseModes:   []string{"streaming"},
+			},
+			Handler: func(ctx *InvocationContext, params map[string]any) (map[string]any, error) {
+				ctx.EmitProgress(map[string]any{"step": 1, "status": "starting"})
+				return nil, core.NewANIPError(core.FailureUnavailable, "service temporarily unavailable")
+			},
+		},
+	}
+}
+
+func newStreamTestService() *Service {
+	allCaps := append(testCapabilities(), streamingCapabilities()...)
+	svc := New(Config{
+		ServiceID:    "test-service",
+		Capabilities: allCaps,
+		Storage:      ":memory:",
+		Trust:        "signed",
+		Authenticate: func(bearer string) (string, bool) {
+			if bearer == "test-key" {
+				return "human:test@example.com", true
+			}
+			return "", false
+		},
+	})
+	return svc
+}
+
+func TestInvokeStreamSuccess(t *testing.T) {
+	svc := newStreamTestService()
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	resp, err := svc.IssueToken("human:test@example.com", core.TokenRequest{
+		Subject:    "human:test@example.com",
+		Scope:      []string{"travel.search"},
+		Capability: "stream_search",
+	})
+	if err != nil {
+		t.Fatalf("IssueToken() error: %v", err)
+	}
+
+	token, err := svc.ResolveBearerToken(resp.Token)
+	if err != nil {
+		t.Fatalf("ResolveBearerToken() error: %v", err)
+	}
+
+	sr, err := svc.InvokeStream("stream_search", token, map[string]any{}, InvokeOpts{ClientReferenceID: "ref-1"})
+	if err != nil {
+		t.Fatalf("InvokeStream() error: %v", err)
+	}
+
+	var events []StreamEvent
+	timeout := time.After(5 * time.Second)
+	for {
+		select {
+		case ev, ok := <-sr.Events:
+			if !ok {
+				goto done
+			}
+			events = append(events, ev)
+		case <-timeout:
+			t.Fatal("timed out waiting for stream events")
+		}
+	}
+done:
+
+	// Expect 2 progress events + 1 completed event.
+	if len(events) != 3 {
+		t.Fatalf("expected 3 events, got %d: %+v", len(events), events)
+	}
+
+	// First two should be progress events.
+	if events[0].Type != "progress" {
+		t.Fatalf("expected event 0 type 'progress', got %q", events[0].Type)
+	}
+	if events[1].Type != "progress" {
+		t.Fatalf("expected event 1 type 'progress', got %q", events[1].Type)
+	}
+
+	// Check progress payload has required fields.
+	payload0 := events[0].Payload
+	if _, ok := payload0["invocation_id"]; !ok {
+		t.Fatal("progress event missing invocation_id")
+	}
+	if _, ok := payload0["timestamp"]; !ok {
+		t.Fatal("progress event missing timestamp")
+	}
+	progressData, _ := payload0["payload"].(map[string]any)
+	if progressData == nil {
+		t.Fatal("progress event missing payload")
+	}
+
+	// Last should be completed.
+	if events[2].Type != "completed" {
+		t.Fatalf("expected event 2 type 'completed', got %q", events[2].Type)
+	}
+	completedPayload := events[2].Payload
+	if completedPayload["success"] != true {
+		t.Fatal("expected completed event success=true")
+	}
+	if _, ok := completedPayload["result"]; !ok {
+		t.Fatal("completed event missing result")
+	}
+	if _, ok := completedPayload["invocation_id"]; !ok {
+		t.Fatal("completed event missing invocation_id")
+	}
+	if completedPayload["client_reference_id"] != "ref-1" {
+		t.Fatalf("expected client_reference_id 'ref-1', got %v", completedPayload["client_reference_id"])
+	}
+}
+
+func TestInvokeStreamHandlerError(t *testing.T) {
+	svc := newStreamTestService()
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	resp, err := svc.IssueToken("human:test@example.com", core.TokenRequest{
+		Subject:    "human:test@example.com",
+		Scope:      []string{"travel.search"},
+		Capability: "stream_fail",
+	})
+	if err != nil {
+		t.Fatalf("IssueToken() error: %v", err)
+	}
+
+	token, err := svc.ResolveBearerToken(resp.Token)
+	if err != nil {
+		t.Fatalf("ResolveBearerToken() error: %v", err)
+	}
+
+	sr, err := svc.InvokeStream("stream_fail", token, map[string]any{}, InvokeOpts{})
+	if err != nil {
+		t.Fatalf("InvokeStream() error: %v", err)
+	}
+
+	var events []StreamEvent
+	timeout := time.After(5 * time.Second)
+	for {
+		select {
+		case ev, ok := <-sr.Events:
+			if !ok {
+				goto done
+			}
+			events = append(events, ev)
+		case <-timeout:
+			t.Fatal("timed out waiting for stream events")
+		}
+	}
+done:
+
+	// Expect 1 progress event + 1 failed event.
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events, got %d: %+v", len(events), events)
+	}
+
+	if events[0].Type != "progress" {
+		t.Fatalf("expected event 0 type 'progress', got %q", events[0].Type)
+	}
+
+	if events[1].Type != "failed" {
+		t.Fatalf("expected event 1 type 'failed', got %q", events[1].Type)
+	}
+
+	failedPayload := events[1].Payload
+	if failedPayload["success"] != false {
+		t.Fatal("expected failed event success=false")
+	}
+	failure, _ := failedPayload["failure"].(map[string]any)
+	if failure == nil {
+		t.Fatal("failed event missing failure")
+	}
+	if failure["type"] != core.FailureUnavailable {
+		t.Fatalf("expected failure type %q, got %v", core.FailureUnavailable, failure["type"])
+	}
+}
+
+func TestInvokeStreamUnaryOnlyCapability(t *testing.T) {
+	svc := newStreamTestService()
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	resp, err := svc.IssueToken("human:test@example.com", core.TokenRequest{
+		Subject:    "human:test@example.com",
+		Scope:      []string{"travel.search"},
+		Capability: "search_flights",
+	})
+	if err != nil {
+		t.Fatalf("IssueToken() error: %v", err)
+	}
+
+	token, err := svc.ResolveBearerToken(resp.Token)
+	if err != nil {
+		t.Fatalf("ResolveBearerToken() error: %v", err)
+	}
+
+	// InvokeStream on a unary-only capability should return an error.
+	_, err = svc.InvokeStream("search_flights", token, map[string]any{}, InvokeOpts{})
+	if err == nil {
+		t.Fatal("expected error for streaming on unary-only capability")
+	}
+
+	anipErr, ok := err.(*core.ANIPError)
+	if !ok {
+		t.Fatalf("expected ANIPError, got %T: %v", err, err)
+	}
+	if anipErr.ErrorType != core.FailureStreamingNotSupported {
+		t.Fatalf("expected failure type %q, got %q", core.FailureStreamingNotSupported, anipErr.ErrorType)
+	}
+}
+
+func TestEmitProgressAfterCompletion(t *testing.T) {
+	var capturedEmit func(payload map[string]any) error
+
+	svc := New(Config{
+		ServiceID: "test-service",
+		Capabilities: []CapabilityDef{
+			{
+				Declaration: core.CapabilityDeclaration{
+					Name:            "capture_emit",
+					Description:     "Captures EmitProgress for testing",
+					ContractVersion: "1.0",
+					SideEffect:      core.SideEffect{Type: "read", RollbackWindow: "not_applicable"},
+					MinimumScope:    []string{"test"},
+					ResponseModes:   []string{"streaming"},
+				},
+				Handler: func(ctx *InvocationContext, params map[string]any) (map[string]any, error) {
+					capturedEmit = ctx.EmitProgress
+					return map[string]any{"ok": true}, nil
+				},
+			},
+		},
+		Authenticate: func(bearer string) (string, bool) {
+			if bearer == "test-key" {
+				return "human:test@example.com", true
+			}
+			return "", false
+		},
+	})
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	resp, err := svc.IssueToken("human:test@example.com", core.TokenRequest{
+		Subject:    "human:test@example.com",
+		Scope:      []string{"test"},
+		Capability: "capture_emit",
+	})
+	if err != nil {
+		t.Fatalf("IssueToken() error: %v", err)
+	}
+
+	token, err := svc.ResolveBearerToken(resp.Token)
+	if err != nil {
+		t.Fatalf("ResolveBearerToken() error: %v", err)
+	}
+
+	sr, err := svc.InvokeStream("capture_emit", token, map[string]any{}, InvokeOpts{})
+	if err != nil {
+		t.Fatalf("InvokeStream() error: %v", err)
+	}
+
+	// Drain all events.
+	timeout := time.After(5 * time.Second)
+	for {
+		select {
+		case _, ok := <-sr.Events:
+			if !ok {
+				goto done
+			}
+		case <-timeout:
+			t.Fatal("timed out waiting for stream events")
+		}
+	}
+done:
+
+	// Now try to emit progress after stream is closed.
+	if capturedEmit == nil {
+		t.Fatal("capturedEmit was not set")
+	}
+	err = capturedEmit(map[string]any{"late": true})
+	if err == nil {
+		t.Fatal("expected error when calling EmitProgress after completion")
+	}
+	if err.Error() != "stream closed" {
+		t.Fatalf("expected error 'stream closed', got %q", err.Error())
 	}
 }
