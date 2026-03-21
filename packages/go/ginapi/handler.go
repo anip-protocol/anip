@@ -233,7 +233,12 @@ func handleStreamInvoke(c *gin.Context, svc *service.Service, capName string, to
 
 	for event := range sr.Events {
 		data, _ := json.Marshal(event.Payload)
-		fmt.Fprintf(c.Writer, "event: %s\ndata: %s\n\n", event.Type, data)
+		_, writeErr := fmt.Fprintf(c.Writer, "event: %s\ndata: %s\n\n", event.Type, data)
+		if writeErr != nil {
+			// Client disconnected — signal handler to stop
+			sr.Cancel()
+			return
+		}
 		c.Writer.Flush()
 	}
 }

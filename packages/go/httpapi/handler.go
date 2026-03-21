@@ -236,7 +236,12 @@ func handleStreamInvoke(w http.ResponseWriter, svc *service.Service, capName str
 
 	for event := range sr.Events {
 		data, _ := json.Marshal(event.Payload)
-		fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event.Type, data)
+		_, writeErr := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event.Type, data)
+		if writeErr != nil {
+			// Client disconnected — signal handler to stop
+			sr.Cancel()
+			return
+		}
 		if hasFlusher {
 			flusher.Flush()
 		}

@@ -17,8 +17,10 @@ type StreamEvent struct {
 
 // StreamResult holds a channel of streaming events.
 // The channel is closed after exactly one terminal event (completed or failed).
+// Call Cancel() to signal the handler that the client has disconnected.
 type StreamResult struct {
 	Events <-chan StreamEvent
+	Cancel func() // signals handler that client disconnected
 }
 
 // capabilitySupportsStreaming checks if a capability declares "streaming" in its response_modes.
@@ -268,9 +270,27 @@ func (s *Service) InvokeStream(
 			// Handler returned an error — send failed event.
 			failType := core.FailureInternalError
 			detail := "Internal error"
+			var failureObj map[string]any
 			if anipErr, ok := err.(*core.ANIPError); ok {
 				failType = anipErr.ErrorType
 				detail = anipErr.Detail
+				failureObj = map[string]any{
+					"type":   anipErr.ErrorType,
+					"detail": anipErr.Detail,
+					"retry":  anipErr.Retry,
+				}
+				if anipErr.Resolution != nil {
+					failureObj["resolution"] = anipErr.Resolution
+				} else {
+					failureObj["resolution"] = nil
+				}
+			} else {
+				failureObj = map[string]any{
+					"type":       failType,
+					"detail":     detail,
+					"resolution": nil,
+					"retry":      false,
+				}
 			}
 
 			s.appendAuditEntry(capName, token, false, failType, map[string]any{"detail": detail}, nil, invocationID, clientRefID)
@@ -282,12 +302,7 @@ func (s *Service) InvokeStream(
 					"client_reference_id": nilIfEmpty(clientRefID),
 					"timestamp":           time.Now().UTC().Format(time.RFC3339),
 					"success":             false,
-					"failure": map[string]any{
-						"type":       failType,
-						"detail":     detail,
-						"resolution": nil,
-						"retry":      false,
-					},
+					"failure":             failureObj,
 				},
 			}
 			return
@@ -315,7 +330,14 @@ func (s *Service) InvokeStream(
 		}
 	}()
 
-	return &StreamResult{Events: ch}, nil
+	return &StreamResult{
+		Events: ch,
+		Cancel: func() {
+			mu.Lock()
+			closed = true
+			mu.Unlock()
+		},
+	}, nil
 }
 
 // nilIfEmpty returns nil if s is empty, otherwise returns s.
