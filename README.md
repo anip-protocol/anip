@@ -289,7 +289,7 @@ search_flights = Capability(
 )
 ```
 
-The runtime handles discovery, JWT tokens, signed manifests, delegation validation, audit logging, and Merkle checkpoints. See the [Python example](examples/anip/) and [TypeScript example](examples/anip-ts/) for complete working services.
+The runtime handles discovery, JWT tokens, signed manifests, delegation validation, audit logging, and Merkle checkpoints. See the [Python example](examples/anip/), [TypeScript example](examples/anip-ts/), and [Go example](packages/go/examples/flights/) for complete working services.
 
 For advanced use cases that need direct access to the SDK primitives (KeyManager, DelegationEngine, AuditLog, MerkleTree), the underlying packages (`anip-core`/`anip-crypto`/`anip-server` and `@anip/core`/`@anip/crypto`/`@anip/server`) remain available.
 
@@ -307,8 +307,10 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 - [Guide](GUIDE.md) — walkthrough of the reference implementation with design rationale
 - [Reference implementation — Python](examples/anip/) — `anip-service` + FastAPI, ~150 lines of business logic
 - [Reference implementation — TypeScript](examples/anip-ts/) — `@anip/service` + Hono, same capabilities and endpoints
+- [Reference implementation — Go](packages/go/examples/flights/) — `anip-service` + net/http, same capabilities and endpoints
 - Python SDK packages: `anip-core`, `anip-crypto`, `anip-server`, `anip-service`, `anip-fastapi`, `anip-postgres`
 - TypeScript SDK packages: `@anip/core`, `@anip/crypto`, `@anip/server`, `@anip/service`, `@anip/hono`, `@anip/express`, `@anip/fastify`, `@anip/postgres`
+- Go SDK packages: `core`, `crypto`, `server`, `service`, `httpapi`, `ginapi`, `restapi`, `graphqlapi`, `mcpapi`
 - Interface packages — mount alongside ANIP on the same service:
   - MCP: `@anip/mcp` / `anip-mcp` (stdio), `@anip/mcp-hono` / `@anip/mcp-express` / `@anip/mcp-fastify` (Streamable HTTP)
   - REST: `@anip/rest` / `anip-rest` (auto-generated OpenAPI + Swagger UI)
