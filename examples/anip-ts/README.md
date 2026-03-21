@@ -2,6 +2,8 @@
 
 A working demonstration of the Agent-Native Interface Protocol using the `@anip/service` runtime.
 
+See also: [Python reference implementation](../anip/) | [Go reference implementation](../../packages/go/examples/flights/)
+
 ## What's Here
 
 The entire ANIP service is ~150 lines of business logic. All protocol plumbing — delegation, audit, signing, checkpoints — is handled by the service runtime.

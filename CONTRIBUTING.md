@@ -8,7 +8,7 @@ ANIP is an early-stage protocol specification. We're looking for people who thin
 
 **Spec changes** — Submit a PR against `SPEC.md`. Explain what you're changing and why. Changes to core primitives require more justification than changes to contextual primitives — that's by design.
 
-**Examples** — The `examples/` directory contains reference implementations. We welcome implementations in any language that demonstrate ANIP concepts.
+**Examples** — The `examples/` directory contains reference implementations (Python and TypeScript), and `packages/go/examples/` contains the Go reference implementation. We welcome implementations in any language that demonstrate ANIP concepts.
 
 ## Where to Start
 

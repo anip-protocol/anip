@@ -335,6 +335,8 @@ See `examples/anip/` in the ANIP repository for a complete working example (Pyth
 - `anip_server/main.py` — all endpoints
 - `demo.py` — full 7-step agent interaction flow
 
+See `examples/anip-ts/` for the TypeScript/Hono equivalent, and `packages/go/examples/flights/` for the Go reference implementation.
+
 ## References
 
 - **Spec:** https://github.com/anip-protocol/anip/blob/main/SPEC.md
@@ -343,3 +345,4 @@ See `examples/anip/` in the ANIP repository for a complete working example (Pyth
 - **Guide:** https://github.com/anip-protocol/anip/blob/main/GUIDE.md
 - **Reference implementation (Python):** https://github.com/anip-protocol/anip/tree/main/examples/anip
 - **Reference implementation (TypeScript):** https://github.com/anip-protocol/anip/tree/main/examples/anip-ts
+- **Reference implementation (Go):** https://github.com/anip-protocol/anip/tree/main/packages/go/examples/flights
