@@ -75,4 +75,54 @@ public final class JwtSigner {
 
         return signedJWT.serialize();
     }
+
+    /**
+     * Signs a JWT with ES256 using the audit key pair.
+     * Used for signing audit entries (contains audit_hash claim).
+     *
+     * @param km     the key manager containing the audit key pair
+     * @param claims the claims to include in the JWT
+     * @return the compact serialized JWT string
+     */
+    public static String signAuditJwt(KeyManager km, Map<String, Object> claims) throws JOSEException {
+        JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.ES256)
+                .keyID(km.getAuditKid())
+                .type(com.nimbusds.jose.JOSEObjectType.JWT)
+                .build();
+
+        JWTClaimsSet.Builder claimsBuilder = new JWTClaimsSet.Builder();
+        for (Map.Entry<String, Object> entry : claims.entrySet()) {
+            claimsBuilder.claim(entry.getKey(), entry.getValue());
+        }
+
+        SignedJWT signedJWT = new SignedJWT(header, claimsBuilder.build());
+        ECDSASigner signer = new ECDSASigner(km.getAuditECKey());
+        signedJWT.sign(signer);
+
+        return signedJWT.serialize();
+    }
+
+    /**
+     * Creates a detached JWS signature using the audit key pair.
+     * Used for signing checkpoints.
+     *
+     * @param km      the key manager containing the audit key pair
+     * @param payload the payload bytes to sign
+     * @return the detached JWS string in format "header..signature"
+     */
+    public static String signDetachedJwsAudit(KeyManager km, byte[] payload) throws JOSEException {
+        JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.ES256)
+                .keyID(km.getAuditKid())
+                .build();
+
+        com.nimbusds.jose.JWSObject jwsObject =
+                new com.nimbusds.jose.JWSObject(header, new com.nimbusds.jose.Payload(payload));
+        ECDSASigner signer = new ECDSASigner(km.getAuditECKey());
+        jwsObject.sign(signer);
+
+        // Serialize as compact, then remove the payload part to make it detached.
+        String compact = jwsObject.serialize();
+        String[] parts = compact.split("\\.", 3);
+        return parts[0] + ".." + parts[2];
+    }
 }

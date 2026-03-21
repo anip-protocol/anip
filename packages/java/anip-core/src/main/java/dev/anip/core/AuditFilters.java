@@ -6,6 +6,7 @@ package dev.anip.core;
 public class AuditFilters {
 
     private final String capability;
+    private final String rootPrincipal;
     private final String since;
     private final String invocationId;
     private final String clientReferenceId;
@@ -13,7 +14,13 @@ public class AuditFilters {
 
     public AuditFilters(String capability, String since, String invocationId,
                         String clientReferenceId, int limit) {
+        this(capability, null, since, invocationId, clientReferenceId, limit);
+    }
+
+    public AuditFilters(String capability, String rootPrincipal, String since,
+                        String invocationId, String clientReferenceId, int limit) {
         this.capability = capability;
+        this.rootPrincipal = rootPrincipal;
         this.since = since;
         this.invocationId = invocationId;
         this.clientReferenceId = clientReferenceId;
@@ -22,6 +29,10 @@ public class AuditFilters {
 
     public String getCapability() {
         return capability;
+    }
+
+    public String getRootPrincipal() {
+        return rootPrincipal;
     }
 
     public String getSince() {

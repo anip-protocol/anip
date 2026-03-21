@@ -22,6 +22,7 @@
     <modules>
         <module>anip-core</module>
         <module>anip-crypto</module>
+        <module>anip-server</module>
     </modules>
 
     <dependencyManagement>
@@ -42,6 +43,11 @@
                 <artifactId>anip-crypto</artifactId>
                 <version>${anip.version}</version>
             </dependency>
+            <dependency>
+                <groupId>dev.anip</groupId>
+                <artifactId>anip-server</artifactId>
+                <version>${anip.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -53,6 +59,9 @@
                 <version>3.13.0</version>
                 <configuration>
                     <release>17</release>
+                    <compilerArgs>
+                        <arg>-parameters</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
             <plugin>
