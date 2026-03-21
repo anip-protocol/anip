@@ -94,7 +94,7 @@ Test invocation ID format (`inv-[0-9a-f]{12}`), ANIPError behavior, failure stat
 - [ ] **Step 4: Build and verify**
 
 ```bash
-cd packages/java && mvn compile test -pl anip-core
+cd packages/java && mvn install -pl anip-core
 ```
 
 - [ ] **Step 5: Commit**
@@ -135,7 +135,7 @@ For `X-ANIP-Signature` header on manifest endpoint.
 - [ ] **Step 6: Tests + commit**
 
 ```bash
-mvn test -pl anip-crypto
+mvn verify -pl anip-crypto -am
 git commit -m "feat(java): add anip-crypto — Nimbus JOSE+JWT"
 ```
 
@@ -176,7 +176,7 @@ RFC 6962 Merkle tree. Checkpoint creation, inclusion proof, `proof_unavailable` 
 - [ ] **Step 7: Tests + commit**
 
 ```bash
-mvn test -pl anip-server
+mvn verify -pl anip-server -am
 git commit -m "feat(java): add anip-server — storage, delegation, audit, checkpoints"
 ```
 
@@ -221,7 +221,7 @@ Build discovery document matching Go/Python/TS structure exactly. Signed manifes
 - [ ] **Step 8: Tests + commit**
 
 ```bash
-mvn test -pl anip-service
+mvn verify -pl anip-service -am
 git commit -m "feat(java): add anip-service — orchestration, hooks, health, streaming"
 ```
 
@@ -252,7 +252,7 @@ Dependencies: `anip-service`, `org.springframework.boot:spring-boot-starter-web`
 Spring Boot test with `@SpringBootTest` + `TestRestTemplate` or `MockMvc`.
 
 ```bash
-mvn test -pl anip-spring-boot
+mvn verify -pl anip-spring-boot -am
 git commit -m "feat(java): add anip-spring-boot — Spring MVC binding"
 ```
 
@@ -270,9 +270,32 @@ Dependencies: `anip-service`, `spring-boot-starter-web`
 
 JWT-first, API-key-fallback. Synthetic token: subject `"adapter:anip-rest"`, scope from `minimum_scope`, purpose `{"source": "rest"}`. Return real issuance error on failure.
 
-- [ ] **Step 2: Implement REST controller**
+- [ ] **Step 2: Implement REST dispatcher controller**
 
-Auto-generate `@RequestMapping` handlers from capabilities. GET for read, POST for write. Route overrides. Query param type conversion for GET. `/rest/openapi.json` and `/rest/docs`.
+Use a single `@RestController` with a generic dispatcher pattern — NOT dynamic `@RequestMapping` annotation generation (which is not possible at runtime in Spring MVC):
+
+```java
+@RestController
+public class AnipRestController {
+    @GetMapping("/api/{capability}")
+    public ResponseEntity<?> handleGet(@PathVariable String capability, HttpServletRequest request) {
+        // Route to capability handler based on name, extract query params
+    }
+
+    @PostMapping("/api/{capability}")
+    public ResponseEntity<?> handlePost(@PathVariable String capability, @RequestBody Map<String, Object> body, HttpServletRequest request) {
+        // Route to capability handler based on name, extract body params
+    }
+
+    @GetMapping("/rest/openapi.json")
+    public ResponseEntity<?> openApi() { ... }
+
+    @GetMapping("/rest/docs")
+    public ResponseEntity<?> docs() { ... }
+}
+```
+
+The controller checks capability side_effect type to enforce GET-only for read capabilities and POST for write/irreversible. Route overrides are checked before the default `/api/{capability}` pattern — if overrides exist, register additional `@RequestMapping` entries programmatically via `RequestMappingHandlerMapping.registerMapping()` at startup.
 
 - [ ] **Step 3: Implement OpenAPI generator**
 
@@ -281,7 +304,7 @@ OpenAPI 3.1 spec from capabilities with `x-anip-*` extensions.
 - [ ] **Step 4: Tests + commit**
 
 ```bash
-mvn test -pl anip-rest
+mvn verify -pl anip-rest -am
 git commit -m "feat(java): add anip-rest — REST interface package"
 ```
 
@@ -310,7 +333,7 @@ POST `/graphql`, GET `/graphql` (playground), GET `/schema.graphql`.
 - [ ] **Step 4: Tests + commit**
 
 ```bash
-mvn test -pl anip-graphql
+mvn verify -pl anip-graphql -am
 git commit -m "feat(java): add anip-graphql — GraphQL interface package"
 ```
 
@@ -322,7 +345,11 @@ git commit -m "feat(java): add anip-graphql — GraphQL interface package"
 - Create: `packages/java/anip-mcp/pom.xml`
 - Create: `packages/java/anip-mcp/src/main/java/dev/anip/mcp/` — McpToolRegistry, StdioServer, HttpTransport, AuthBridge
 
-Dependencies: `anip-service`, official MCP Java SDK (`io.modelcontextprotocol:mcp-spring-webmvc` or similar)
+Dependencies: `anip-service`, official MCP Java SDK artifacts:
+- `io.modelcontextprotocol.sdk:mcp` (core SDK — tool definitions, server, transport abstractions)
+- `io.modelcontextprotocol.sdk:mcp-spring-webmvc` (Spring WebMVC Streamable HTTP transport provider)
+
+Check https://central.sonatype.com for the latest version. The SDK uses group ID `io.modelcontextprotocol.sdk`.
 
 - [ ] **Step 1: Implement tool translation**
 
@@ -339,7 +366,7 @@ Mount-time credentials (`McpCredentials`). Per-call: authenticate → narrow sco
 - [ ] **Step 4: Tests + commit**
 
 ```bash
-mvn test -pl anip-mcp
+mvn verify -pl anip-mcp -am
 git commit -m "feat(java): add anip-mcp — MCP stdio + Streamable HTTP"
 ```
 
