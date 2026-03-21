@@ -106,6 +106,8 @@ func (s *Service) startWithDSN(storageDSN, keyPath string) error {
 	} else if strings.HasPrefix(storageDSN, "sqlite:///") {
 		dbPath := strings.TrimPrefix(storageDSN, "sqlite:///")
 		store, err = server.NewSQLiteStorage(dbPath)
+	} else if strings.HasPrefix(storageDSN, "postgres://") || strings.HasPrefix(storageDSN, "postgresql://") {
+		store, err = server.NewPostgresStorage(storageDSN)
 	} else {
 		return fmt.Errorf("unsupported storage: %s", storageDSN)
 	}
