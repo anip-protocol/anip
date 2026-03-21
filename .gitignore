@@ -16,3 +16,8 @@ build/
 *.egg-info/
 .worktrees/
 .serena/
+
+# Go binaries
+packages/go/flight-service
+packages/go/flights-gin
+*.exe
