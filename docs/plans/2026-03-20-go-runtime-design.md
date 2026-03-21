@@ -189,9 +189,16 @@ SQLite implementation via `modernc.org/sqlite` through `database/sql`. Same sche
 
 ### Checkpoints
 
-- Merkle tree over audit entries
-- Checkpoint creation with `checkpoint_id`, `merkle_root`, `timestamp`, `entry_count`
-- Optional inclusion proof generation
+- Merkle tree over audit entries (SHA-256)
+- Checkpoint creation with `checkpoint_id`, `merkle_root`, `timestamp`, `entry_count`, `range` (from/to entry indices)
+- Pagination via `next_cursor` on list endpoint
+- Inclusion proof generation when `include_proof=true&leaf_index=N` is requested
+- If proof generation fails because audit entries have been deleted by retention enforcement:
+  - Return HTTP 200 (not an error)
+  - Omit `inclusion_proof` field
+  - Include `proof_unavailable: "audit_entries_expired"`
+  - The checkpoint itself remains valid (merkle root was computed at checkpoint time)
+- Not-found checkpoint returns 404
 
 ## Service (`service/`)
 
@@ -235,10 +242,14 @@ func MountANIP(mux *http.ServeMux, svc *service.Service)
 
 No error return — route registration is deterministic.
 
-Registers all 9 protocol endpoints. Auth handling:
-- Extract `Authorization: Bearer` header
-- For token issuance: bootstrap auth via `svc.AuthenticateBearer()`
-- For other protected routes: try `svc.ResolveBearerToken()` (ANIP JWT) first; if it fails with `ANIPError`, try `svc.AuthenticateBearer()` (API key fallback with synthetic token)
+Registers all 9 protocol endpoints. Auth handling follows the reference bindings exactly:
+
+**Token issuance (`POST /anip/tokens`):** Bootstrap auth only — extract bearer, call `svc.AuthenticateBearer()` to get a principal. API keys, OIDC tokens, etc. This is the bootstrap entry point.
+
+**Protected routes (`/anip/invoke/*`, `/anip/permissions`, `/anip/audit`):** ANIP delegation JWT only — extract bearer, call `svc.ResolveBearerToken()` to get a `DelegationToken`. No API key fallback. If JWT resolution fails, return structured `ANIPError` (`invalid_token`, `authentication_required`). The caller must first obtain a token via `/anip/tokens`.
+
+This matches the Python/TS bindings where `_extract_principal` handles token issuance and `_resolve_token` handles protected routes — they are separate code paths, not fallback chains.
+
 - Failure responses use structured `ANIPError` with `type`, `detail`, `resolution`, `retry`
 - HTTP status mapping: 401 for auth errors, 403 for scope/budget, 404 for unknown capability
 
@@ -282,12 +293,16 @@ Add a `ci-go.yml` workflow:
 - `go test ./...`
 - Start example app, run conformance suite
 
+## Known Protocol Gaps
+
+**Streaming invocations:** The ANIP protocol defines streaming response mode (`response_modes: ["streaming"]`) with SSE transport (progress events → completed/failed). Phase 1 implements **unary invocation only**. Capabilities that declare `response_modes: ["unary"]` work correctly. Capabilities requesting `stream: true` should return a structured error (`streaming_not_supported`). This is an honest protocol gap — the Go runtime is not a complete v0.11 implementation until streaming is added in Phase 2.
+
 ## What This Does NOT Cover
 
 - Gin framework binding (Phase 2)
 - REST, GraphQL, MCP interface packages (Phase 2)
 - PostgreSQL storage (Phase 2)
 - OIDC authentication
-- Streaming invocations (SSE)
+- Streaming invocations / SSE (Phase 2 — see Known Protocol Gaps above)
 - Horizontal scaling / multi-replica
 - Go module publishing to proxy.golang.org (happens automatically via git tags)
