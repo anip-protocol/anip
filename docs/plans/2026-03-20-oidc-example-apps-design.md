@@ -126,10 +126,12 @@ class OidcValidator:
 
 ```typescript
 // TypeScript
+const serviceId = process.env.ANIP_SERVICE_ID ?? "anip-flight-service";
+
 const oidcValidator = process.env.OIDC_ISSUER_URL
   ? createOidcValidator({
       issuerUrl: process.env.OIDC_ISSUER_URL,
-      audience: process.env.OIDC_AUDIENCE ?? "anip-flight-service",
+      audience: process.env.OIDC_AUDIENCE ?? serviceId,
     })
   : null;
 
