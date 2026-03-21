@@ -49,8 +49,8 @@ func resolveRestAuth(bearer string, svc *service.Service, capabilityName string)
 			PurposeParameters: map[string]any{"source": "rest"},
 		})
 		if issueErr != nil {
-			// If token issuance fails, surface original JWT error
-			return nil, jwtError
+			// API key authenticated but token issuance failed — surface the real error
+			return nil, issueErr
 		}
 
 		return svc.ResolveBearerToken(tokenResult.Token)
