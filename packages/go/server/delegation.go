@@ -48,16 +48,13 @@ func IssueDelegationToken(
 	rootPrincipal := principal
 	parent := ""
 
-	// If there's a parent token, resolve it for sub-delegation.
+	// If there's a parent token, look it up by ID for sub-delegation.
+	// parent_token is a stored token ID (e.g., "tok_root_001"), not a JWT.
 	if req.ParentToken != "" {
-		parentClaims, err := crypto.VerifyDelegationJWT(km, req.ParentToken, serviceID, serviceID)
-		if err != nil {
-			return core.TokenResponse{}, core.NewANIPError(core.FailureInvalidToken, "invalid parent token: "+err.Error())
-		}
-		parentTokenID, _ := parentClaims["jti"].(string)
-		parentToken, err := storage.LoadToken(parentTokenID)
+		parentToken, err := storage.LoadToken(req.ParentToken)
 		if err != nil || parentToken == nil {
-			return core.TokenResponse{}, core.NewANIPError(core.FailureInvalidToken, "parent token not found")
+			return core.TokenResponse{}, core.NewANIPError(core.FailureInvalidToken,
+				fmt.Sprintf("parent token not found: %s", req.ParentToken))
 		}
 
 		issuer = parentToken.Subject
@@ -66,11 +63,17 @@ func IssueDelegationToken(
 		constraints = parentToken.Constraints
 	}
 
+	// Default subject to the authenticated principal if not provided.
+	subject := req.Subject
+	if subject == "" {
+		subject = principal
+	}
+
 	// Build the token record.
 	token := &core.DelegationToken{
 		TokenID:       tokenID,
 		Issuer:        issuer,
-		Subject:       req.Subject,
+		Subject:       subject,
 		Scope:         req.Scope,
 		Purpose:       purpose,
 		Parent:        parent,
@@ -89,7 +92,7 @@ func IssueDelegationToken(
 	claims := map[string]any{
 		"jti":             tokenID,
 		"iss":             serviceID,
-		"sub":             req.Subject,
+		"sub":             subject,
 		"aud":             serviceID,
 		"iat":             now.Unix(),
 		"exp":             expires.Unix(),

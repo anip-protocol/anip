@@ -27,7 +27,7 @@ func main() {
 		},
 	})
 
-	if err := svc.StartWithConfig("sqlite:///anip.db", "./anip-keys"); err != nil {
+	if err := svc.Start(); err != nil {
 		log.Fatalf("Failed to start service: %v", err)
 	}
 	defer svc.Shutdown()

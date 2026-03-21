@@ -58,6 +58,8 @@ type Service struct {
 	storage      server.Storage
 	keys         *crypto.KeyManager
 	authenticate func(bearer string) (string, bool)
+	storageDSN   string
+	keyPath      string
 }
 
 // New creates a new Service from the given configuration.
@@ -73,36 +75,28 @@ func New(cfg Config) *Service {
 		trust = "signed"
 	}
 
+	storageDSN := cfg.Storage
+	if storageDSN == "" {
+		storageDSN = ":memory:"
+	}
+
 	return &Service{
 		serviceID:    cfg.ServiceID,
 		trustLevel:   trust,
 		capabilities: caps,
 		authenticate: cfg.Authenticate,
+		storageDSN:   storageDSN,
+		keyPath:      cfg.KeyPath,
 	}
 }
 
-// Start initializes storage and loads or generates cryptographic keys.
+// Start initializes storage and loads or generates cryptographic keys
+// using the Storage and KeyPath from the Config passed to New().
 func (s *Service) Start() error {
-	// Initialize storage - for now, always use SQLite in-memory for simplicity.
-	// A future version can parse the storage string.
-	store, err := server.NewSQLiteStorage(":memory:")
-	if err != nil {
-		return fmt.Errorf("init storage: %w", err)
-	}
-	s.storage = store
-
-	// Initialize keys.
-	km, err := crypto.NewKeyManager("")
-	if err != nil {
-		return fmt.Errorf("init keys: %w", err)
-	}
-	s.keys = km
-
-	return nil
+	return s.startWithDSN(s.storageDSN, s.keyPath)
 }
 
-// StartWithConfig initializes storage from the config's storage string and key path.
-func (s *Service) StartWithConfig(storageDSN, keyPath string) error {
+func (s *Service) startWithDSN(storageDSN, keyPath string) error {
 	// Parse storage string.
 	var store server.Storage
 	var err error
