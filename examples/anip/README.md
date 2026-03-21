@@ -36,44 +36,45 @@ python -m anip_flight_demo.main
 pytest tests/ -v
 ```
 
-## Adapter Surfaces
+## Additional Interfaces
 
-The ANIP server can be accessed through REST, GraphQL, and MCP adapters — all auto-generated, zero per-service code. This example uses **custom semantic REST routes** to demonstrate configurable path mapping.
+The ANIP service can expose REST, GraphQL, and MCP interfaces alongside the native ANIP protocol — all auto-generated from the same capabilities, mounted on the same app.
 
-### Start the adapters (each in a separate terminal)
+To add these interfaces, install the corresponding packages (`anip-rest`, `anip-graphql`, `anip-mcp`) and mount them in `app.py`:
 
-```bash
-# REST adapter — semantic routes: GET /flights/search, POST /flights/book
-cd adapters/rest-py
-pip install -e .
-anip-rest-adapter --config ../../examples/anip/rest-adapter.yaml
-# → http://localhost:3001/docs (Swagger UI)
-# → http://localhost:3001/openapi.json
+```python
+from anip_rest import mount_anip_rest
+from anip_graphql import mount_anip_graphql
 
-# GraphQL adapter
-cd adapters/graphql-py
-pip install -e .
-anip-graphql-adapter --config ../../examples/anip/graphql-adapter.yaml
-# → http://localhost:3002/graphql
-# → http://localhost:3002/schema.graphql
+mount_anip_rest(app, service)      # REST at /api/*
+mount_anip_graphql(app, service)   # GraphQL at /graphql
 ```
 
 ### Try it
 
 ```bash
-# REST — search flights via semantic route
-curl "http://localhost:3001/flights/search?origin=SEA&destination=SFO&date=2026-03-10"
-
-# REST — book flight
-curl -X POST http://localhost:3001/flights/book \
-  -H "Content-Type: application/json" \
-  -d '{"flight_number": "AA100", "date": "2026-03-10", "passengers": 1}'
+# REST — search flights (GET for read capabilities)
+curl "http://localhost:8090/api/search_flights?origin=SEA&destination=SFO&date=2026-03-10" \
+  -H "Authorization: Bearer demo-human-key"
 
 # GraphQL — search flights
-curl -L -X POST http://localhost:3002/graphql \
+curl -X POST http://localhost:8090/graphql \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer demo-human-key" \
   -d '{"query": "{ searchFlights(origin: \"SEA\", destination: \"SFO\", date: \"2026-03-10\") { success result } }"}'
 ```
+
+## OIDC Authentication
+
+The example app supports optional OIDC/OAuth2 authentication alongside API keys. Set the following environment variables to enable:
+
+```bash
+OIDC_ISSUER_URL=https://keycloak.example.com/realms/anip
+OIDC_AUDIENCE=anip-flight-service  # defaults to service ID
+# OIDC_JWKS_URL=...               # optional override
+```
+
+When configured, the service validates external OIDC JWTs and maps claims to ANIP principals (`email` → `human:{email}`, `sub` → `oidc:{sub}`). API keys continue to work alongside OIDC tokens.
 
 ## Endpoints
 
