@@ -1,6 +1,6 @@
 # ANIP Deployment Guide
 
-This guide covers deploying ANIP services in single-instance and cluster configurations. It applies to both the Python and TypeScript reference runtimes starting from v0.11.
+This guide covers deploying ANIP services in single-instance and cluster configurations. It applies to the Python, TypeScript, and Go reference runtimes starting from v0.11.
 
 ---
 
