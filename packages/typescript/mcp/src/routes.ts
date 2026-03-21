@@ -10,6 +10,8 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import type { ANIPService } from "@anip/service";
 import { ANIPError } from "@anip/service";
+import { invokeWithToken } from "./invocation.js";
+import type { InvokeResult } from "./invocation.js";
 import { capabilityToInputSchema, enrichDescription } from "./translation.js";
 
 export interface McpCredentials {
@@ -32,15 +34,10 @@ interface MCPTool {
 }
 
 /**
- * Invoke an ANIP capability directly via the service instance.
- * Uses mount-time credentials to issue a synthetic token per call.
+ * Invoke an ANIP capability using mount-time credentials.
+ * Issues a synthetic token per call then delegates to invokeWithToken.
  */
-interface InvokeResult {
-  text: string;
-  isError: boolean;
-}
-
-async function invokeCapability(
+async function invokeWithMountCredentials(
   service: ANIPService,
   capabilityName: string,
   args: Record<string, unknown>,
@@ -90,37 +87,7 @@ async function invokeCapability(
   const jwt = tokenResult.token as string;
   const token = await service.resolveBearerToken(jwt);
 
-  // Invoke the capability
-  const result = await service.invoke(capabilityName, token, args);
-  return translateResponse(result);
-}
-
-function translateResponse(response: Record<string, unknown>): InvokeResult {
-  if (response.success) {
-    const result = response.result as Record<string, unknown>;
-    const parts = [JSON.stringify(result, null, 2)];
-    const costActual = response.cost_actual as Record<string, unknown> | undefined;
-    if (costActual) {
-      const financial = costActual.financial as Record<string, unknown>;
-      const amount = financial?.amount;
-      const currency = (financial?.currency as string) ?? "USD";
-      if (amount !== undefined) parts.push(`\n[Cost: ${currency} ${amount}]`);
-    }
-    return { text: parts.join(""), isError: false };
-  }
-
-  const failure = response.failure as Record<string, unknown>;
-  const parts = [
-    `FAILED: ${failure?.type ?? "unknown"}`,
-    `Detail: ${failure?.detail ?? "no detail"}`,
-  ];
-  const resolution = failure?.resolution as Record<string, unknown> | undefined;
-  if (resolution) {
-    parts.push(`Resolution: ${resolution.action ?? ""}`);
-    if (resolution.requires) parts.push(`Requires: ${resolution.requires}`);
-  }
-  parts.push(`Retryable: ${(failure?.retry as boolean) ? "yes" : "no"}`);
-  return { text: parts.join("\n"), isError: true };
+  return invokeWithToken(service, capabilityName, args, token);
 }
 
 /**
@@ -179,7 +146,7 @@ export async function mountAnipMcp(
     }
 
     try {
-      const result = await invokeCapability(
+      const result = await invokeWithMountCredentials(
         service, name, (args ?? {}) as Record<string, unknown>, credentials,
       );
       return {

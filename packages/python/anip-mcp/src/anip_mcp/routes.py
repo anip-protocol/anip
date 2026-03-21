@@ -4,7 +4,6 @@ Supports stdio transport via the mcp library.
 """
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -13,6 +12,7 @@ from mcp.server.lowlevel import Server
 
 from anip_service import ANIPService, ANIPError
 from .translation import capability_to_input_schema, enrich_description
+from .invocation import translate_response, invoke_with_token, InvokeResult
 
 
 @dataclass
@@ -23,13 +23,21 @@ class McpCredentials:
     subject: str
 
 
-async def _invoke_capability(
+def _translate_response(response: dict[str, Any]) -> str:
+    """Translate an ANIP InvokeResponse into an MCP result string.
+
+    Thin wrapper around invocation.translate_response for backward compat.
+    """
+    return translate_response(response).text
+
+
+async def invoke_with_mount_credentials(
     service: ANIPService,
     capability_name: str,
     args: dict[str, Any],
     credentials: McpCredentials,
 ) -> str:
-    """Invoke an ANIP capability directly via the service instance."""
+    """Invoke an ANIP capability using mount-time (stdio) credentials."""
     principal = await service.authenticate_bearer(credentials.api_key)
     if not principal:
         return "FAILED: authentication_required\nDetail: Invalid bootstrap credential\nRetryable: no"
@@ -58,36 +66,21 @@ async def _invoke_capability(
     jwt_str = token_result["token"]
     token = await service.resolve_bearer_token(jwt_str)
 
-    result = await service.invoke(capability_name, token, args)
-    return _translate_response(result)
+    result = await invoke_with_token(service, capability_name, args, token)
+    return result.text
 
 
-def _translate_response(response: dict[str, Any]) -> str:
-    """Translate an ANIP InvokeResponse into an MCP result string."""
-    if response.get("success"):
-        result = response.get("result", {})
-        parts = [json.dumps(result, indent=2, default=str)]
-        cost_actual = response.get("cost_actual")
-        if cost_actual:
-            financial = cost_actual.get("financial", {})
-            amount = financial.get("amount")
-            currency = financial.get("currency", "USD")
-            if amount is not None:
-                parts.append(f"\n[Cost: {currency} {amount}]")
-        return "".join(parts)
+async def _invoke_capability(
+    service: ANIPService,
+    capability_name: str,
+    args: dict[str, Any],
+    credentials: McpCredentials,
+) -> str:
+    """Invoke an ANIP capability directly via the service instance.
 
-    failure = response.get("failure", {})
-    parts = [
-        f"FAILED: {failure.get('type', 'unknown')}",
-        f"Detail: {failure.get('detail', 'no detail')}",
-    ]
-    resolution = failure.get("resolution", {})
-    if resolution:
-        parts.append(f"Resolution: {resolution.get('action', '')}")
-        if resolution.get("requires"):
-            parts.append(f"Requires: {resolution['requires']}")
-    parts.append(f"Retryable: {'yes' if failure.get('retry') else 'no'}")
-    return "\n".join(parts)
+    Backward-compat alias for invoke_with_mount_credentials.
+    """
+    return await invoke_with_mount_credentials(service, capability_name, args, credentials)
 
 
 @dataclass
@@ -142,19 +135,15 @@ async def mount_anip_mcp(
     async def handle_call_tool(
         name: str, arguments: dict,
     ) -> list[types.TextContent]:
+        # Raise on errors — the mcp server catches exceptions and creates
+        # CallToolResult(isError=True). Returning text only produces isError=False.
         if name not in mcp_tools:
-            return [types.TextContent(
-                type="text",
-                text=f"Unknown tool: {name}. Available: {list(mcp_tools.keys())}",
-            )]
+            raise ValueError(f"Unknown tool: {name}. Available: {list(mcp_tools.keys())}")
 
-        try:
-            result = await _invoke_capability(service, name, arguments or {}, credentials)
-            return [types.TextContent(type="text", text=result)]
-        except Exception as e:
-            return [types.TextContent(
-                type="text",
-                text=f"ANIP invocation error: {e}",
-            )]
+        result = await _invoke_capability(service, name, arguments or {}, credentials)
+        # _invoke_capability returns "FAILED: ..." strings for ANIP errors
+        if result.startswith("FAILED:"):
+            raise ValueError(result)
+        return [types.TextContent(type="text", text=result)]
 
     return McpLifecycle(_service=service)

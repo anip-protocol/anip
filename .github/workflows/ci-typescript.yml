@@ -55,6 +55,9 @@ jobs:
           npx tsc -p mcp/tsconfig.json
           npx tsc -p rest/tsconfig.json
           npx tsc -p graphql/tsconfig.json
+          npx tsc -p mcp-hono/tsconfig.json
+          npx tsc -p mcp-express/tsconfig.json
+          npx tsc -p mcp-fastify/tsconfig.json
 
       - name: Test @anip/core
         working-directory: packages/typescript
@@ -95,6 +98,18 @@ jobs:
       - name: Test @anip/graphql
         working-directory: packages/typescript
         run: npm test --workspace=@anip/graphql
+
+      - name: Test @anip/mcp-hono
+        working-directory: packages/typescript
+        run: npm test --workspace=@anip/mcp-hono
+
+      - name: Test @anip/mcp-express
+        working-directory: packages/typescript
+        run: npm test --workspace=@anip/mcp-express
+
+      - name: Test @anip/mcp-fastify
+        working-directory: packages/typescript
+        run: npm test --workspace=@anip/mcp-fastify
 
       - name: Install and test TypeScript example
         working-directory: examples/anip-ts
