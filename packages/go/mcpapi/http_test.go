@@ -15,8 +15,8 @@ import (
 	"github.com/anip-protocol/anip/packages/go/service"
 )
 
-// newHTTPTestService creates a test service without calling Start (the mount
-// functions call Start themselves).
+// newHTTPTestService creates and starts a test service.
+// The caller (or the test) is responsible for lifecycle — mounts do NOT start the service.
 func newHTTPTestService(t *testing.T) *service.Service {
 	t.Helper()
 	svc := service.New(service.Config{
@@ -31,6 +31,9 @@ func newHTTPTestService(t *testing.T) *service.Service {
 			return "", false
 		},
 	})
+	if err := svc.Start(); err != nil {
+		t.Fatalf("svc.Start(): %v", err)
+	}
 	t.Cleanup(func() { svc.Shutdown() })
 	return svc
 }
@@ -42,9 +45,6 @@ func newHTTPTestService(t *testing.T) *service.Service {
 func startHTTPTestServer(t *testing.T) (string, *service.Service) {
 	t.Helper()
 	svc := newHTTPTestService(t)
-	if err := svc.Start(); err != nil {
-		t.Fatalf("svc.Start(): %v", err)
-	}
 
 	httpServer := newStreamableHTTPServer(svc, true)
 	ts := httptest.NewServer(httpServer)
@@ -227,9 +227,6 @@ func TestHTTP_Gin_InitializeAndListTools(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	svc := newHTTPTestService(t)
-	if err := svc.Start(); err != nil {
-		t.Fatalf("svc.Start(): %v", err)
-	}
 
 	router := gin.New()
 	httpServer := newStreamableHTTPServer(svc, true)
@@ -266,9 +263,6 @@ func TestHTTP_Gin_CallToolWithValidAPIKey(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	svc := newHTTPTestService(t)
-	if err := svc.Start(); err != nil {
-		t.Fatalf("svc.Start(): %v", err)
-	}
 
 	router := gin.New()
 	httpServer := newStreamableHTTPServer(svc, true)
@@ -314,9 +308,6 @@ func TestHTTP_Gin_CallToolWithoutAuth(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	svc := newHTTPTestService(t)
-	if err := svc.Start(); err != nil {
-		t.Fatalf("svc.Start(): %v", err)
-	}
 
 	router := gin.New()
 	httpServer := newStreamableHTTPServer(svc, true)

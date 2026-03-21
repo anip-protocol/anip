@@ -211,11 +211,10 @@ func newStreamableHTTPServer(svc *service.Service, enrichDescs bool) *mcpserver.
 // MountAnipMcpHTTP mounts MCP Streamable HTTP on a net/http ServeMux.
 // Per-request auth is resolved from the Authorization: Bearer header.
 // JWT-first, API-key fallback.
+//
+// Does NOT own service lifecycle — the caller must call svc.Start() before
+// and svc.Shutdown() after. This is consistent with REST and GraphQL mounts.
 func MountAnipMcpHTTP(mux *http.ServeMux, svc *service.Service, opts *McpHTTPOptions) {
-	if err := svc.Start(); err != nil {
-		panic(fmt.Sprintf("mcpapi: start service: %v", err))
-	}
-
 	enrichDescs := opts.enrichDescs()
 	path := opts.path()
 
@@ -229,11 +228,10 @@ func MountAnipMcpHTTP(mux *http.ServeMux, svc *service.Service, opts *McpHTTPOpt
 // MountAnipMcpHTTPGin mounts MCP Streamable HTTP on a Gin router.
 // Per-request auth is resolved from the Authorization: Bearer header.
 // JWT-first, API-key fallback.
+//
+// Does NOT own service lifecycle — the caller must call svc.Start() before
+// and svc.Shutdown() after. This is consistent with REST and GraphQL mounts.
 func MountAnipMcpHTTPGin(router *gin.Engine, svc *service.Service, opts *McpHTTPOptions) {
-	if err := svc.Start(); err != nil {
-		panic(fmt.Sprintf("mcpapi: start service: %v", err))
-	}
-
 	enrichDescs := opts.enrichDescs()
 	path := opts.path()
 
