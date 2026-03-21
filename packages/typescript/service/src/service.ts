@@ -63,7 +63,7 @@ export interface ANIPServiceOpts {
         };
       };
   checkpointPolicy?: CheckpointPolicy;
-  authenticate?: (bearer: string) => string | null;
+  authenticate?: (bearer: string) => string | null | Promise<string | null>;
   retentionPolicy?: RetentionPolicy;
   disclosureLevel?: string;
   disclosurePolicy?: Record<string, string>;
@@ -674,7 +674,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     async authenticateBearer(bearerValue: string): Promise<string | null> {
       // Try bootstrap auth (API keys, external auth)
       if (authenticateFn) {
-        const principal = authenticateFn(bearerValue);
+        const principal = await authenticateFn(bearerValue);
         if (principal !== null) {
           return principal;
         }
