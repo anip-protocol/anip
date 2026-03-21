@@ -25,9 +25,6 @@ type Config struct {
 	// Observability hooks (optional). Nil means no hooks.
 	Hooks *ObservabilityHooks
 
-	// HealthEndpoint enables the /-/health endpoint when true.
-	HealthEndpoint bool
-
 	// CheckpointPolicy configures automatic checkpoint scheduling.
 	// If nil, no automatic checkpoints are created.
 	CheckpointPolicy *CheckpointPolicy
@@ -101,9 +98,9 @@ type Service struct {
 	startedAt    time.Time
 
 	// Background goroutine management
-	healthEndpoint           bool
 	checkpointPolicy         *CheckpointPolicy
 	retentionIntervalSeconds int
+	retentionRunning         bool
 	stopCh                   chan struct{}
 	wg                       sync.WaitGroup
 }
@@ -143,7 +140,6 @@ func New(cfg Config) *Service {
 		storageDSN:               storageDSN,
 		keyPath:                  cfg.KeyPath,
 		hooks:                    cfg.Hooks,
-		healthEndpoint:           cfg.HealthEndpoint,
 		checkpointPolicy:         cfg.CheckpointPolicy,
 		retentionIntervalSeconds: retentionInterval,
 	}
@@ -160,6 +156,7 @@ func (s *Service) Start() error {
 
 	// Start retention enforcement goroutine.
 	if s.retentionIntervalSeconds > 0 {
+		s.retentionRunning = true
 		s.wg.Add(1)
 		go s.runRetentionLoop()
 	}
@@ -292,7 +289,7 @@ func (s *Service) GetDiscovery(baseURL string) map[string]any {
 		"posture": map[string]any{
 			"audit": map[string]any{
 				"retention":          "P90D",
-				"retention_enforced": s.retentionIntervalSeconds > 0,
+				"retention_enforced": s.retentionRunning,
 			},
 			"failure_disclosure": map[string]any{
 				"detail_level": "full",

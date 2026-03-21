@@ -1503,7 +1503,6 @@ func TestRetentionAndCheckpointConfig(t *testing.T) {
 			MinEntries:      5,
 		},
 		RetentionIntervalSeconds: 120,
-		HealthEndpoint:           true,
 		Authenticate: func(bearer string) (string, bool) {
 			return "", false
 		},
