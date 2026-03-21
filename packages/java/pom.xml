@@ -23,6 +23,7 @@
         <module>anip-core</module>
         <module>anip-crypto</module>
         <module>anip-server</module>
+        <module>anip-service</module>
     </modules>
 
     <dependencyManagement>
@@ -46,6 +47,11 @@
             <dependency>
                 <groupId>dev.anip</groupId>
                 <artifactId>anip-server</artifactId>
+                <version>${anip.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.anip</groupId>
+                <artifactId>anip-service</artifactId>
                 <version>${anip.version}</version>
             </dependency>
         </dependencies>
