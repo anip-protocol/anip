@@ -76,7 +76,7 @@ capability:
 
 A service MUST declare all capabilities in its manifest. Each capability MUST include a name, description, inputs with types, output shape, and side-effect type. Capabilities MAY declare `response_modes` (default: `["unary"]`) to indicate support for streaming invocations (see §6.6).
 
-ANIP uses JSON Schema (draft 2020-12) for capability declarations. Canonical schemas are defined in Section 9 and validated across three reference implementations (Python/Pydantic, TypeScript/Zod, and Go).
+ANIP uses JSON Schema (draft 2020-12) for capability declarations. Canonical schemas are defined in Section 9 and validated across the Python/Pydantic and TypeScript/Zod reference implementations. The Go runtime validates protocol conformance via the HTTP conformance suite.
 
 ### 4.2 Side-effect Typing
 
@@ -1759,7 +1759,7 @@ These are unresolved design questions where community input is needed:
 
 **Resolved:**
 
-- **Capability declaration format.** ANIP uses JSON Schema (draft 2020-12). Canonical schemas are defined in Section 9 and validated across three reference implementations (Python/Pydantic, TypeScript/Zod, and Go). *(Resolved in v0.1)*
+- **Capability declaration format.** ANIP uses JSON Schema (draft 2020-12). Canonical schemas are defined in Section 9 and validated across the Python/Pydantic and TypeScript/Zod reference implementations. Go validates protocol conformance via the HTTP conformance suite. *(Resolved in v0.1)*
 - **Delegation chain auth format.** JWT with ES256 (ECDSA P-256). Server-issued tokens with JWKS discovery. *(Resolved in v0.2)*
 - **Audit log verifiability.** Merkle tree checkpoints with RFC 6962 hash scheme, inclusion and consistency proofs, detached JWS signatures, and external sink publication. Three trust levels: signed (Bronze), anchored (Silver), attested (Gold). *(Resolved in v0.3)*
 - **Invocation traceability.** Server-generated `invocation_id` and caller-supplied `client_reference_id` on every invoke response and audit entry, enabling end-to-end correlation. *(Resolved in v0.4)*
