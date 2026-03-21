@@ -117,13 +117,17 @@ func makeResolver(svc *service.Service, capName string) graphql.FieldResolveFn {
 		token, err := resolveGraphQLAuth(bearer, svc, capName)
 		if err != nil {
 			if anipErr, ok := err.(*core.ANIPError); ok {
+				failure := map[string]any{
+					"type":   anipErr.ErrorType,
+					"detail": anipErr.Detail,
+					"retry":  anipErr.Retry,
+				}
+				if anipErr.Resolution != nil {
+					failure["resolution"] = anipErr.Resolution
+				}
 				return BuildGraphQLResponse(map[string]any{
 					"success": false,
-					"failure": map[string]any{
-						"type":   anipErr.ErrorType,
-						"detail": anipErr.Detail,
-						"retry":  anipErr.Retry,
-					},
+					"failure": failure,
 				}), nil
 			}
 			return nil, err
@@ -137,13 +141,22 @@ func makeResolver(svc *service.Service, capName string) graphql.FieldResolveFn {
 
 		result, err := svc.Invoke(capName, token, snakeArgs, service.InvokeOpts{})
 		if err != nil {
+			failure := map[string]any{
+				"type":   core.FailureInternalError,
+				"detail": "Invocation failed",
+				"retry":  false,
+			}
+			if anipErr, ok := err.(*core.ANIPError); ok {
+				failure["type"] = anipErr.ErrorType
+				failure["detail"] = anipErr.Detail
+				failure["retry"] = anipErr.Retry
+				if anipErr.Resolution != nil {
+					failure["resolution"] = anipErr.Resolution
+				}
+			}
 			return BuildGraphQLResponse(map[string]any{
 				"success": false,
-				"failure": map[string]any{
-					"type":   core.FailureInternalError,
-					"detail": "Invocation failed",
-					"retry":  false,
-				},
+				"failure": failure,
 			}), nil
 		}
 
