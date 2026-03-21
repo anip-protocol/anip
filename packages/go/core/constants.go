@@ -25,6 +25,7 @@ const (
 	FailureConcurrentLock        = "concurrent_lock"
 	FailureInternalError         = "internal_error"
 	FailureStreamingNotSupported = "streaming_not_supported"
+	FailureInvalidParameters     = "invalid_parameters"
 )
 
 // Supported algorithms for signing.

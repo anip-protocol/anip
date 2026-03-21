@@ -51,6 +51,8 @@ func FailureStatusCode(failureType string) int {
 		return 409
 	case FailureInternalError:
 		return 500
+	case FailureInvalidParameters:
+		return 400
 	default:
 		return 400
 	}

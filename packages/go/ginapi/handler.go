@@ -15,8 +15,14 @@ import (
 	"github.com/anip-protocol/anip/packages/go/service"
 )
 
+// MountANIPGinOpts holds optional configuration for MountANIPGin.
+type MountANIPGinOpts struct {
+	// HealthEndpoint enables GET /-/health when true.
+	HealthEndpoint bool
+}
+
 // MountANIPGin registers all 9 ANIP protocol routes on a Gin router.
-func MountANIPGin(router *gin.Engine, svc *service.Service) {
+func MountANIPGin(router *gin.Engine, svc *service.Service, opts ...MountANIPGinOpts) {
 	// Public routes (no auth).
 	router.GET("/.well-known/anip", handleDiscovery(svc))
 	router.GET("/.well-known/jwks.json", handleJWKS(svc))
@@ -31,6 +37,18 @@ func MountANIPGin(router *gin.Engine, svc *service.Service) {
 	router.POST("/anip/permissions", handlePermissions(svc))
 	router.POST("/anip/invoke/:capability", handleInvoke(svc))
 	router.POST("/anip/audit", handleAudit(svc))
+
+	// Optional health endpoint.
+	if len(opts) > 0 && opts[0].HealthEndpoint {
+		router.GET("/-/health", handleHealthGin(svc))
+	}
+}
+
+func handleHealthGin(svc *service.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		report := svc.GetHealth()
+		c.JSON(http.StatusOK, report)
+	}
 }
 
 // --- Public Routes ---

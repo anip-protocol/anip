@@ -13,9 +13,15 @@ import (
 	"github.com/anip-protocol/anip/packages/go/service"
 )
 
+// MountANIPOpts holds optional configuration for MountANIP.
+type MountANIPOpts struct {
+	// HealthEndpoint enables GET /-/health when true.
+	HealthEndpoint bool
+}
+
 // MountANIP registers all 9 ANIP protocol routes on the given ServeMux.
 // Requires Go 1.22+ ServeMux for path parameter support.
-func MountANIP(mux *http.ServeMux, svc *service.Service) {
+func MountANIP(mux *http.ServeMux, svc *service.Service, opts ...MountANIPOpts) {
 	// Public routes (no auth).
 	mux.HandleFunc("GET /.well-known/anip", handleDiscovery(svc))
 	mux.HandleFunc("GET /.well-known/jwks.json", handleJWKS(svc))
@@ -30,6 +36,18 @@ func MountANIP(mux *http.ServeMux, svc *service.Service) {
 	mux.HandleFunc("POST /anip/permissions", handlePermissions(svc))
 	mux.HandleFunc("POST /anip/invoke/{capability}", handleInvoke(svc))
 	mux.HandleFunc("POST /anip/audit", handleAudit(svc))
+
+	// Optional health endpoint.
+	if len(opts) > 0 && opts[0].HealthEndpoint {
+		mux.HandleFunc("GET /-/health", handleHealth(svc))
+	}
+}
+
+func handleHealth(svc *service.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		report := svc.GetHealth()
+		writeJSON(w, http.StatusOK, report)
+	}
 }
 
 // --- Public Routes ---

@@ -967,6 +967,146 @@ func TestFullDelegationAuditFlow(t *testing.T) {
 	}
 }
 
+// --- Lease Tests ---
+
+func TestExclusiveLeaseAcquireRelease(t *testing.T) {
+	s := newTestStorage(t)
+
+	// Acquire should succeed.
+	acquired, err := s.TryAcquireExclusive("my-key", "holder-1", 60)
+	if err != nil {
+		t.Fatalf("TryAcquireExclusive: %v", err)
+	}
+	if !acquired {
+		t.Fatal("expected to acquire exclusive lease")
+	}
+
+	// Different holder should fail.
+	acquired, err = s.TryAcquireExclusive("my-key", "holder-2", 60)
+	if err != nil {
+		t.Fatalf("TryAcquireExclusive: %v", err)
+	}
+	if acquired {
+		t.Fatal("expected NOT to acquire lease held by another holder")
+	}
+
+	// Same holder can re-acquire (renew).
+	acquired, err = s.TryAcquireExclusive("my-key", "holder-1", 60)
+	if err != nil {
+		t.Fatalf("TryAcquireExclusive: %v", err)
+	}
+	if !acquired {
+		t.Fatal("expected same holder to renew lease")
+	}
+
+	// Release.
+	if err := s.ReleaseExclusive("my-key", "holder-1"); err != nil {
+		t.Fatalf("ReleaseExclusive: %v", err)
+	}
+
+	// Now holder-2 can acquire.
+	acquired, err = s.TryAcquireExclusive("my-key", "holder-2", 60)
+	if err != nil {
+		t.Fatalf("TryAcquireExclusive: %v", err)
+	}
+	if !acquired {
+		t.Fatal("expected holder-2 to acquire after release")
+	}
+}
+
+func TestLeaderLeaseAcquireRelease(t *testing.T) {
+	s := newTestStorage(t)
+
+	acquired, err := s.TryAcquireLeader("retention", "instance-1", 60)
+	if err != nil {
+		t.Fatalf("TryAcquireLeader: %v", err)
+	}
+	if !acquired {
+		t.Fatal("expected to acquire leader lease")
+	}
+
+	// Different holder should fail.
+	acquired, err = s.TryAcquireLeader("retention", "instance-2", 60)
+	if err != nil {
+		t.Fatalf("TryAcquireLeader: %v", err)
+	}
+	if acquired {
+		t.Fatal("expected NOT to acquire leader held by another")
+	}
+
+	// Release and re-acquire.
+	if err := s.ReleaseLeader("retention", "instance-1"); err != nil {
+		t.Fatalf("ReleaseLeader: %v", err)
+	}
+	acquired, err = s.TryAcquireLeader("retention", "instance-2", 60)
+	if err != nil {
+		t.Fatalf("TryAcquireLeader: %v", err)
+	}
+	if !acquired {
+		t.Fatal("expected instance-2 to acquire after release")
+	}
+}
+
+// --- Retention Tests ---
+
+func TestDeleteExpiredAuditEntries(t *testing.T) {
+	s := newTestStorage(t)
+	km := newTestKM(t)
+
+	// Entry with past expiry.
+	entry1 := &core.AuditEntry{
+		Capability:    "cap_expired",
+		RootPrincipal: "human:test@example.com",
+		InvocationID:  "inv-exp",
+		Success:       true,
+		ExpiresAt:     "2020-01-01T00:00:00Z",
+	}
+	if err := AppendAudit(km, s, entry1); err != nil {
+		t.Fatalf("AppendAudit: %v", err)
+	}
+
+	// Entry with future expiry.
+	entry2 := &core.AuditEntry{
+		Capability:    "cap_future",
+		RootPrincipal: "human:test@example.com",
+		InvocationID:  "inv-future",
+		Success:       true,
+		ExpiresAt:     "2099-01-01T00:00:00Z",
+	}
+	if err := AppendAudit(km, s, entry2); err != nil {
+		t.Fatalf("AppendAudit: %v", err)
+	}
+
+	// Entry with no expiry.
+	entry3 := &core.AuditEntry{
+		Capability:    "cap_no_exp",
+		RootPrincipal: "human:test@example.com",
+		InvocationID:  "inv-noexp",
+		Success:       true,
+	}
+	if err := AppendAudit(km, s, entry3); err != nil {
+		t.Fatalf("AppendAudit: %v", err)
+	}
+
+	// Delete expired.
+	deleted, err := s.DeleteExpiredAuditEntries("2025-01-01T00:00:00Z")
+	if err != nil {
+		t.Fatalf("DeleteExpiredAuditEntries: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("expected 1 deleted, got %d", deleted)
+	}
+
+	// Verify remaining entries.
+	entries, err := s.GetAuditEntriesRange(1, 3)
+	if err != nil {
+		t.Fatalf("GetAuditEntriesRange: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 remaining entries, got %d", len(entries))
+	}
+}
+
 func TestTokenResponseJSON(t *testing.T) {
 	resp := core.TokenResponse{
 		Issued:  true,

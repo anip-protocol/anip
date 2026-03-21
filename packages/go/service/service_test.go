@@ -1200,3 +1200,352 @@ done:
 		t.Fatalf("expected error 'stream closed', got %q", err.Error())
 	}
 }
+
+// --- Gap 1: Input Validation Tests ---
+
+func TestInvokeMissingRequiredParam(t *testing.T) {
+	t.Skip("Input validation removed — handlers validate their own inputs, matching Python/TS")
+}
+
+func unused_TestInvokeMissingRequiredParam(t *testing.T) {
+	svc := newTestService()
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	resp, err := svc.IssueToken("human:test@example.com", core.TokenRequest{
+		Subject:    "human:test@example.com",
+		Scope:      []string{"travel.search"},
+		Capability: "search_flights",
+	})
+	if err != nil {
+		t.Fatalf("IssueToken() error: %v", err)
+	}
+	token, err := svc.ResolveBearerToken(resp.Token)
+	if err != nil {
+		t.Fatalf("ResolveBearerToken() error: %v", err)
+	}
+
+	// Missing required "origin" parameter.
+	result, err := svc.Invoke("search_flights", token, map[string]any{
+		"destination": "SFO",
+		"date":        "2026-03-10",
+	}, InvokeOpts{})
+	if err != nil {
+		t.Fatalf("Invoke() error: %v", err)
+	}
+
+	success, _ := result["success"].(bool)
+	if success {
+		t.Fatal("expected success=false for missing required parameter")
+	}
+	failure, _ := result["failure"].(map[string]any)
+	failType, _ := failure["type"].(string)
+	if failType != core.FailureInvalidParameters {
+		t.Fatalf("expected failure type %q, got %q", core.FailureInvalidParameters, failType)
+	}
+}
+
+func TestInvokeWrongParamType(t *testing.T) {
+	t.Skip("Input validation removed — handlers validate their own inputs, matching Python/TS")
+}
+
+func unused_TestInvokeWrongParamType(t *testing.T) {
+	svc := newTestService()
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	resp, err := svc.IssueToken("human:test@example.com", core.TokenRequest{
+		Subject:    "human:test@example.com",
+		Scope:      []string{"travel.book"},
+		Capability: "book_flight",
+	})
+	if err != nil {
+		t.Fatalf("IssueToken() error: %v", err)
+	}
+	token, err := svc.ResolveBearerToken(resp.Token)
+	if err != nil {
+		t.Fatalf("ResolveBearerToken() error: %v", err)
+	}
+
+	// "passengers" should be an integer, not a bool.
+	result, err := svc.Invoke("book_flight", token, map[string]any{
+		"flight_number": "AS-100",
+		"date":          "2026-03-10",
+		"passengers":    true,
+	}, InvokeOpts{})
+	if err != nil {
+		t.Fatalf("Invoke() error: %v", err)
+	}
+
+	success, _ := result["success"].(bool)
+	if success {
+		t.Fatal("expected success=false for wrong parameter type")
+	}
+	failure, _ := result["failure"].(map[string]any)
+	failType, _ := failure["type"].(string)
+	if failType != core.FailureInvalidParameters {
+		t.Fatalf("expected failure type %q, got %q", core.FailureInvalidParameters, failType)
+	}
+}
+
+func TestInvokeStreamMissingRequiredParam(t *testing.T) {
+	t.Skip("Input validation removed — handlers validate their own inputs, matching Python/TS")
+}
+
+func unused_TestInvokeStreamMissingRequiredParam(t *testing.T) {
+	svc := newStreamTestService()
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	resp, err := svc.IssueToken("human:test@example.com", core.TokenRequest{
+		Subject:    "human:test@example.com",
+		Scope:      []string{"travel.search"},
+		Capability: "search_flights",
+	})
+	if err != nil {
+		t.Fatalf("IssueToken() error: %v", err)
+	}
+	token, err := svc.ResolveBearerToken(resp.Token)
+	if err != nil {
+		t.Fatalf("ResolveBearerToken() error: %v", err)
+	}
+
+	// stream_search has no required inputs (no Inputs declared), so this should succeed.
+	// But search_flights does -- and it's unary only. Test the stream_search which has no inputs.
+	sr, err := svc.InvokeStream("stream_search", token, map[string]any{}, InvokeOpts{})
+	if err != nil {
+		t.Fatalf("InvokeStream() error: %v", err)
+	}
+
+	// Drain events.
+	timeout := time.After(5 * time.Second)
+	for {
+		select {
+		case _, ok := <-sr.Events:
+			if !ok {
+				return
+			}
+		case <-timeout:
+			t.Fatal("timed out")
+		}
+	}
+}
+
+// --- Gap 3: Observability Hooks Tests ---
+
+func TestObservabilityHooksFired(t *testing.T) {
+	var invokeStartCalled, invokeCompleteCalled, scopeGranted, auditAppendCalled bool
+	var invokeCapability string
+	var invokeSuccess bool
+
+	hooks := &ObservabilityHooks{
+		OnInvokeStart: func(invocationID, capability, subject string) {
+			invokeStartCalled = true
+			invokeCapability = capability
+		},
+		OnInvokeComplete: func(invocationID, capability string, success bool, durationMs int64) {
+			invokeCompleteCalled = true
+			invokeSuccess = success
+		},
+		OnScopeValidation: func(capability string, granted bool) {
+			scopeGranted = granted
+		},
+		OnAuditAppend: func(sequenceNum int, capability, invocationID string) {
+			auditAppendCalled = true
+		},
+	}
+
+	svc := New(Config{
+		ServiceID:    "test-service",
+		Capabilities: testCapabilities(),
+		Storage:      ":memory:",
+		Trust:        "signed",
+		Hooks:        hooks,
+		Authenticate: func(bearer string) (string, bool) {
+			if bearer == "test-key" {
+				return "human:test@example.com", true
+			}
+			return "", false
+		},
+	})
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	resp, err := svc.IssueToken("human:test@example.com", core.TokenRequest{
+		Subject:    "human:test@example.com",
+		Scope:      []string{"travel.search"},
+		Capability: "search_flights",
+	})
+	if err != nil {
+		t.Fatalf("IssueToken() error: %v", err)
+	}
+	token, err := svc.ResolveBearerToken(resp.Token)
+	if err != nil {
+		t.Fatalf("ResolveBearerToken() error: %v", err)
+	}
+
+	_, err = svc.Invoke("search_flights", token, map[string]any{
+		"origin":      "SEA",
+		"destination": "SFO",
+		"date":        "2026-03-10",
+	}, InvokeOpts{})
+	if err != nil {
+		t.Fatalf("Invoke() error: %v", err)
+	}
+
+	if !invokeStartCalled {
+		t.Error("expected OnInvokeStart to be called")
+	}
+	if invokeCapability != "search_flights" {
+		t.Errorf("expected capability 'search_flights', got %q", invokeCapability)
+	}
+	if !invokeCompleteCalled {
+		t.Error("expected OnInvokeComplete to be called")
+	}
+	if !invokeSuccess {
+		t.Error("expected OnInvokeComplete success=true")
+	}
+	if !scopeGranted {
+		t.Error("expected OnScopeValidation granted=true")
+	}
+	if !auditAppendCalled {
+		t.Error("expected OnAuditAppend to be called")
+	}
+}
+
+func TestObservabilityHooksPanicRecovery(t *testing.T) {
+	hooks := &ObservabilityHooks{
+		OnInvokeStart: func(invocationID, capability, subject string) {
+			panic("hook panic!")
+		},
+	}
+
+	svc := New(Config{
+		ServiceID:    "test-service",
+		Capabilities: testCapabilities(),
+		Storage:      ":memory:",
+		Trust:        "signed",
+		Hooks:        hooks,
+		Authenticate: func(bearer string) (string, bool) {
+			if bearer == "test-key" {
+				return "human:test@example.com", true
+			}
+			return "", false
+		},
+	})
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	resp, err := svc.IssueToken("human:test@example.com", core.TokenRequest{
+		Subject:    "human:test@example.com",
+		Scope:      []string{"travel.search"},
+		Capability: "search_flights",
+	})
+	if err != nil {
+		t.Fatalf("IssueToken() error: %v", err)
+	}
+	token, err := svc.ResolveBearerToken(resp.Token)
+	if err != nil {
+		t.Fatalf("ResolveBearerToken() error: %v", err)
+	}
+
+	// This should NOT panic even though the hook panics.
+	result, err := svc.Invoke("search_flights", token, map[string]any{
+		"origin":      "SEA",
+		"destination": "SFO",
+		"date":        "2026-03-10",
+	}, InvokeOpts{})
+	if err != nil {
+		t.Fatalf("Invoke() error: %v", err)
+	}
+	success, _ := result["success"].(bool)
+	if !success {
+		t.Fatal("expected success=true despite panicking hook")
+	}
+}
+
+// --- Gap 4: Health Tests ---
+
+func TestGetHealth(t *testing.T) {
+	svc := newTestService()
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	report := svc.GetHealth()
+	if report.Status != "healthy" {
+		t.Fatalf("expected status 'healthy', got %q", report.Status)
+	}
+	if !report.Storage.Connected {
+		t.Fatal("expected storage connected=true")
+	}
+	if report.Storage.Type != "sqlite" {
+		t.Fatalf("expected storage type 'sqlite', got %q", report.Storage.Type)
+	}
+	if report.Version != core.ProtocolVersion {
+		t.Fatalf("expected version %q, got %q", core.ProtocolVersion, report.Version)
+	}
+	if report.Uptime == "" {
+		t.Fatal("expected non-empty uptime")
+	}
+}
+
+// --- Gap 5+6: Background Workers Tests ---
+
+func TestRetentionAndCheckpointConfig(t *testing.T) {
+	// Test that config fields are preserved.
+	svc := New(Config{
+		ServiceID:    "test-service",
+		Capabilities: testCapabilities(),
+		Storage:      ":memory:",
+		Trust:        "signed",
+		CheckpointPolicy: &CheckpointPolicy{
+			IntervalSeconds: 30,
+			MinEntries:      5,
+		},
+		RetentionIntervalSeconds: 120,
+		Authenticate: func(bearer string) (string, bool) {
+			return "", false
+		},
+	})
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	if svc.checkpointPolicy == nil {
+		t.Fatal("expected checkpointPolicy to be set")
+	}
+	if svc.checkpointPolicy.IntervalSeconds != 30 {
+		t.Fatalf("expected IntervalSeconds=30, got %d", svc.checkpointPolicy.IntervalSeconds)
+	}
+	if svc.retentionIntervalSeconds != 120 {
+		t.Fatalf("expected retentionIntervalSeconds=120, got %d", svc.retentionIntervalSeconds)
+	}
+}
+
+func TestShutdownIdempotent(t *testing.T) {
+	svc := newTestService()
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+
+	// Calling Shutdown multiple times should not panic.
+	if err := svc.Shutdown(); err != nil {
+		t.Fatalf("first Shutdown() error: %v", err)
+	}
+	if err := svc.Shutdown(); err != nil {
+		t.Fatalf("second Shutdown() error: %v", err)
+	}
+}

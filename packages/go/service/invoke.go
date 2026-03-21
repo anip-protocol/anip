@@ -2,12 +2,75 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/anip-protocol/anip/packages/go/core"
 	"github.com/anip-protocol/anip/packages/go/server"
 )
+
+// validateInputs checks that required inputs are present and basic types match.
+func validateInputs(decl *core.CapabilityDeclaration, params map[string]any) error {
+	// Check required inputs are present.
+	for _, inp := range decl.Inputs {
+		if inp.Required {
+			if _, ok := params[inp.Name]; !ok {
+				return core.NewANIPError(core.FailureInvalidParameters,
+					fmt.Sprintf("missing required parameter: %s", inp.Name))
+			}
+		}
+	}
+	// Type checking for basic types.
+	for _, inp := range decl.Inputs {
+		val, ok := params[inp.Name]
+		if !ok {
+			continue
+		}
+		if err := validateType(val, inp.Type); err != nil {
+			return core.NewANIPError(core.FailureInvalidParameters,
+				fmt.Sprintf("parameter '%s': %s", inp.Name, err))
+		}
+	}
+	return nil
+}
+
+// validateType checks that a value matches the expected type string.
+func validateType(val any, typeName string) error {
+	switch typeName {
+	case "string", "airport_code", "date":
+		if _, ok := val.(string); !ok {
+			return fmt.Errorf("expected string, got %T", val)
+		}
+	case "integer":
+		switch val.(type) {
+		case int, int32, int64, float64:
+			// float64 is the default JSON number type; accept it
+		default:
+			return fmt.Errorf("expected integer, got %T", val)
+		}
+	case "number", "float":
+		switch val.(type) {
+		case float64, float32, int, int32, int64:
+		default:
+			return fmt.Errorf("expected number, got %T", val)
+		}
+	case "boolean":
+		if _, ok := val.(bool); !ok {
+			return fmt.Errorf("expected boolean, got %T", val)
+		}
+	case "object":
+		if _, ok := val.(map[string]any); !ok {
+			return fmt.Errorf("expected object, got %T", val)
+		}
+	case "array":
+		if _, ok := val.([]any); !ok {
+			return fmt.Errorf("expected array, got %T", val)
+		}
+	}
+	// Unknown types pass through (extensible).
+	return nil
+}
 
 // StreamEvent represents a single SSE event in a streaming invocation.
 type StreamEvent struct {
@@ -41,6 +104,21 @@ func (s *Service) Invoke(
 	opts InvokeOpts,
 ) (map[string]any, error) {
 	invocationID := core.GenerateInvocationID()
+	invokeStart := time.Now()
+	invokeSuccess := false
+
+	// Fire completion hooks on all exit paths (success and failure).
+	defer func() {
+		if s.hooks != nil {
+			durationMs := time.Since(invokeStart).Milliseconds()
+			if s.hooks.OnInvokeComplete != nil {
+				callHook(func() { s.hooks.OnInvokeComplete(invocationID, capName, invokeSuccess, durationMs) })
+			}
+			if s.hooks.OnInvokeDuration != nil {
+				callHook(func() { s.hooks.OnInvokeDuration(capName, durationMs, invokeSuccess) })
+			}
+		}
+	}()
 
 	// 1. Look up capability.
 	capDef, ok := s.capabilities[capName]
@@ -55,6 +133,11 @@ func (s *Service) Invoke(
 			"client_reference_id": opts.ClientReferenceID,
 		}
 		return resp, nil
+	}
+
+	// Fire OnInvokeStart hook.
+	if s.hooks != nil && s.hooks.OnInvokeStart != nil {
+		callHook(func() { s.hooks.OnInvokeStart(invocationID, capName, token.Subject) })
 	}
 
 	// 2. Check streaming support.
@@ -85,9 +168,19 @@ func (s *Service) Invoke(
 		return resp, nil
 	}
 
+	// Note: Input validation is intentionally NOT done at the protocol layer.
+	// The Python and TypeScript runtimes pass params directly to the handler,
+	// which decides how to handle missing/invalid inputs. The conformance suite
+	// invokes with empty params and expects the handler to produce a result.
+
 	// 3. Validate token scope covers capability's minimum_scope.
 	if err := server.ValidateScope(token, capDef.Declaration.MinimumScope); err != nil {
 		if anipErr, ok := err.(*core.ANIPError); ok {
+			// Fire scope validation hook (denied).
+			if s.hooks != nil && s.hooks.OnScopeValidation != nil {
+				callHook(func() { s.hooks.OnScopeValidation(capName, false) })
+			}
+
 			failure := map[string]any{
 				"type":   anipErr.ErrorType,
 				"detail": anipErr.Detail,
@@ -110,6 +203,11 @@ func (s *Service) Invoke(
 			return resp, nil
 		}
 		return nil, err
+	}
+
+	// Fire scope validation hook (granted).
+	if s.hooks != nil && s.hooks.OnScopeValidation != nil {
+		callHook(func() { s.hooks.OnScopeValidation(capName, true) })
 	}
 
 	// 4. Build invocation context.
@@ -183,6 +281,7 @@ func (s *Service) Invoke(
 		resp["cost_actual"] = costActual
 	}
 
+	invokeSuccess = true
 	return resp, nil
 }
 
@@ -381,5 +480,8 @@ func (s *Service) appendAuditEntry(
 	}
 
 	// Best effort - don't fail the invocation if audit logging fails.
-	_ = server.AppendAudit(s.keys, s.storage, entry)
+	err := server.AppendAudit(s.keys, s.storage, entry)
+	if err == nil && s.hooks != nil && s.hooks.OnAuditAppend != nil {
+		callHook(func() { s.hooks.OnAuditAppend(entry.SequenceNumber, capability, invocationID) })
+	}
 }

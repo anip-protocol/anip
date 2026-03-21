@@ -1,6 +1,6 @@
 # ANIP Deployment Guide
 
-This guide covers deploying ANIP services in single-instance and cluster configurations. It applies to the Python and TypeScript reference runtimes starting from v0.11. The Go runtime supports single-instance deployment with SQLite and PostgreSQL storage, but does not yet implement cluster coordination (lease tables), observability hooks, or the health endpoint — those are deferred to a future Go release.
+This guide covers deploying ANIP services in single-instance and cluster configurations. It applies to the Python, TypeScript, and Go reference runtimes starting from v0.11.
 
 ---
 
