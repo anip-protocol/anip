@@ -185,23 +185,28 @@ An ANIP manifest is not just a description of a service — it is enough to deri
 
 And there's a second adoption argument we didn't expect: implement ANIP once and you get every surface for free.
 
-ANIP ships with generic adapters for REST/OpenAPI, GraphQL, and MCP. They're fully generic — point any adapter at any ANIP service URL and it auto-generates the entire surface. No per-service code. No glue. No second implementation.
+ANIP ships with library packages for REST/OpenAPI, GraphQL, and MCP that mount directly on your service — one `ANIPService`, multiple interfaces, zero proxying.
 
 ```
-                              ┌─→ REST/OpenAPI (auto-generated spec + Swagger UI)
-                              │
-ANIP service ──→ adapters ────┼─→ GraphQL (auto-generated schema + directives)
-                              │
-                              └─→ MCP (auto-generated tools for Claude, Cursor, etc.)
+                                ┌─→ REST/OpenAPI (auto-generated spec + Swagger UI)
+                                │
+ANIP service ──→ mount packages ┼─→ GraphQL (auto-generated schema + directives)
+                                │
+                                └─→ MCP (auto-generated tools for Claude, Cursor, etc.)
+```
+
+```typescript
+await mountAnip(app, service);           // ANIP protocol routes
+await mountAnipRest(app, service);       // REST at /api/*
+await mountAnipGraphQL(app, service);    // GraphQL at /graphql
+await mountAnipMcpHono(app, service);    // MCP Streamable HTTP at /mcp
 ```
 
 This inverts the usual calculus. The conventional path — build a REST API, then layer MCP on top for agents — gives you two surfaces that each need maintenance and neither speaks the agent's language natively. ANIP gives you the native agent interface *and* REST, GraphQL, and MCP as byproducts. You're actually better off implementing ANIP than building REST first.
 
 Standard REST and GraphQL clients work normally — they ignore the ANIP metadata (`x-anip-*` OpenAPI extensions, `@anip*` GraphQL directives). ANIP-aware agents use the metadata for delegation, cost awareness, and side-effect reasoning. Graceful degradation by design.
 
-**One honest caveat.** The REST and GraphQL adapters translate the protocol surface but lose visibility into the delegation chain, cost signaling, and capability graph. For read and write capabilities, that's fine. For irreversible financial operations, native ANIP is strongly recommended — purpose-bound authority and multi-hop delegation don't survive the translation. The [adapter READMEs](adapters/) document the exact translation loss for each surface.
-
-**These adapters are reference implementations.** They run as separate proxy processes to demonstrate that ANIP translates cleanly to existing surfaces. For production, the recommended path is direct integration — ANIP client SDKs and libraries that speak the protocol natively, giving agents full access to delegation chains, budget constraints, and side-effect reasoning without translation loss. The adapters prove interoperability; direct ANIP integration is the production deployment path.
+**One honest caveat.** The REST and GraphQL packages translate the protocol surface but lose visibility into the delegation chain, cost signaling, and capability graph. For read and write capabilities, that's fine. For irreversible financial operations, native ANIP is strongly recommended — purpose-bound authority and multi-hop delegation don't survive the translation.
 
 ## Core Principles
 
@@ -304,16 +309,15 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 - [Reference implementation — TypeScript](examples/anip-ts/) — `@anip/service` + Hono, same capabilities and endpoints
 - Python SDK packages: `anip-core`, `anip-crypto`, `anip-server`, `anip-service`, `anip-fastapi`, `anip-postgres`
 - TypeScript SDK packages: `@anip/core`, `@anip/crypto`, `@anip/server`, `@anip/service`, `@anip/hono`, `@anip/express`, `@anip/fastify`, `@anip/postgres`
+- Interface packages — mount alongside ANIP on the same service:
+  - MCP: `@anip/mcp` / `anip-mcp` (stdio), `@anip/mcp-hono` / `@anip/mcp-express` / `@anip/mcp-fastify` (Streamable HTTP)
+  - REST: `@anip/rest` / `anip-rest` (auto-generated OpenAPI + Swagger UI)
+  - GraphQL: `@anip/graphql` / `anip-graphql` (auto-generated SDL + directives)
+- [Conformance suite](conformance/) — language-agnostic HTTP-based protocol compliance tests
 - [Demo agent](examples/agent/) — an AI agent that consumes ANIP to reason before acting, handle budget failures, and verify audit trails
 - [JSON Schema](schema/) — validate any ANIP implementation against the spec
 - [Security policy](SECURITY.md) — vulnerability reporting, trust model summary, deployment guidance
 - [Trust model](docs/trust-model.md) — deep dive on cryptographic architecture and anchored trust
-- [MCP adapter — Python](adapters/mcp-py/) — use ANIP with your existing MCP tooling today
-- [MCP adapter — TypeScript](adapters/mcp-ts/) — same adapter, TypeScript/Node implementation
-- [REST/OpenAPI adapter — Python](adapters/rest-py/) — expose ANIP as REST with auto-generated OpenAPI spec
-- [REST/OpenAPI adapter — TypeScript](adapters/rest-ts/) — same adapter, TypeScript/Hono implementation
-- [GraphQL adapter — Python](adapters/graphql-py/) — expose ANIP as GraphQL with custom @anip* directives
-- [GraphQL adapter — TypeScript](adapters/graphql-ts/) — same adapter, TypeScript/Hono implementation
 - [Agent skills](skills/) — machine-optimized guides for consuming and building ANIP services
 - [Deployment guide](docs/deployment-guide.md) — horizontal scaling, PostgreSQL storage, and multi-replica production deployment
 - [Open questions](SPEC.md#open-questions) — where we need input
@@ -335,7 +339,7 @@ ANIP was designed through parallel sessions with Claude Opus and Claude Code as 
 ## License
 
 Specification documents (SPEC.md, MANIFESTO.md, GUIDE.md, skills/, docs/): [CC-BY 4.0](LICENSE-SPEC)
-Reference implementations and tooling (examples/, adapters/, schema/): [Apache 2.0](LICENSE-CODE)
+Reference implementations and tooling (examples/, packages/, conformance/, schema/): [Apache 2.0](LICENSE-CODE)
 
 ## Attribution
 
