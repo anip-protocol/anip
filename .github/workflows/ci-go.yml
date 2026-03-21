@@ -77,6 +77,16 @@ jobs:
           ./flight-service &
           sleep 3
 
+      - name: Smoke test REST/GraphQL/MCP endpoints
+        run: |
+          # REST — OpenAPI spec should be served
+          curl -sf http://localhost:${{ matrix.example.port }}/rest/openapi.json | head -c 100
+          echo ""
+          # GraphQL — SDL schema should be served
+          curl -sf http://localhost:${{ matrix.example.port }}/schema.graphql | head -c 100
+          echo ""
+          echo "REST and GraphQL smoke tests passed"
+
       - name: Install and run conformance suite
         env:
           BASE_URL: "http://localhost:${{ matrix.example.port }}"

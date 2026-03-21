@@ -124,6 +124,14 @@ jobs:
           if [ "$FAILED" -eq 1 ]; then exit 1; fi
           echo "All 8 Python packages and internal deps at version $VERSION"
 
+      - name: Validate Go module exists
+        run: |
+          if [ ! -f packages/go/go.mod ]; then
+            echo "FAIL: packages/go/go.mod not found"
+            exit 1
+          fi
+          echo "OK: Go module found at packages/go/go.mod"
+
   publish-typescript:
     needs: validate
     runs-on: ubuntu-latest
@@ -275,6 +283,14 @@ jobs:
         run: |
           git tag "v$VERSION"
           git push origin "v$VERSION"
+
+      - name: Create Go module tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          GO_TAG="packages/go/v$VERSION"
+          git tag "$GO_TAG"
+          git push origin "$GO_TAG"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
