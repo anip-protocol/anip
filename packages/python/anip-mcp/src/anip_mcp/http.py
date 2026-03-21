@@ -76,15 +76,13 @@ def mount_anip_mcp_http(
     async def handle_call_tool(
         name: str, arguments: dict,
     ) -> list[mcp_types.TextContent]:
+        # The mcp server wraps the return into CallToolResult(isError=False).
+        # To signal errors, raise an exception — the server catches it and
+        # creates CallToolResult(isError=True, content=[TextContent(str(e))]).
         if name not in mcp_tools:
-            return [mcp_types.TextContent(
-                type="text",
-                text=f"Unknown tool: {name}. Available: {list(mcp_tools.keys())}",
-            )]
+            raise ValueError(f"Unknown tool: {name}. Available: {list(mcp_tools.keys())}")
 
         # Extract Authorization header from the per-request Starlette Request.
-        # The mcp library stores it in server.request_context.request (set from
-        # ServerMessageMetadata.request_context by _handle_request in server.py).
         bearer: str | None = None
         try:
             ctx = mcp_server.request_context
@@ -94,29 +92,16 @@ def mount_anip_mcp_http(
                 if auth_header.startswith("Bearer "):
                     bearer = auth_header[7:].strip()
         except LookupError:
-            # request_context not set (called outside request scope)
             pass
 
         if not bearer:
-            return [mcp_types.TextContent(
-                type="text",
-                text="FAILED: authentication_required\nDetail: No Authorization header\nRetryable: yes",
-            )]
+            raise ValueError("FAILED: authentication_required\nDetail: No Authorization header\nRetryable: yes")
 
-        try:
-            token = await resolve_auth(bearer, service, name)
-            result = await invoke_with_token(service, name, arguments or {}, token)
-            return [mcp_types.TextContent(type="text", text=result.text)]
-        except ANIPError as e:
-            return [mcp_types.TextContent(
-                type="text",
-                text=f"FAILED: {e.error_type}\nDetail: {e.detail}\nRetryable: no",
-            )]
-        except Exception as e:
-            return [mcp_types.TextContent(
-                type="text",
-                text=f"ANIP invocation error: {e}",
-            )]
+        token = await resolve_auth(bearer, service, name)
+        result = await invoke_with_token(service, name, arguments or {}, token)
+        if result.is_error:
+            raise ValueError(result.text)
+        return [mcp_types.TextContent(type="text", text=result.text)]
 
     # Use the session manager in stateless mode: each request gets its own
     # transport, so no shared state between HTTP requests.

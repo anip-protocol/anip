@@ -135,19 +135,15 @@ async def mount_anip_mcp(
     async def handle_call_tool(
         name: str, arguments: dict,
     ) -> list[types.TextContent]:
+        # Raise on errors — the mcp server catches exceptions and creates
+        # CallToolResult(isError=True). Returning text only produces isError=False.
         if name not in mcp_tools:
-            return [types.TextContent(
-                type="text",
-                text=f"Unknown tool: {name}. Available: {list(mcp_tools.keys())}",
-            )]
+            raise ValueError(f"Unknown tool: {name}. Available: {list(mcp_tools.keys())}")
 
-        try:
-            result = await _invoke_capability(service, name, arguments or {}, credentials)
-            return [types.TextContent(type="text", text=result)]
-        except Exception as e:
-            return [types.TextContent(
-                type="text",
-                text=f"ANIP invocation error: {e}",
-            )]
+        result = await _invoke_capability(service, name, arguments or {}, credentials)
+        # _invoke_capability returns "FAILED: ..." strings for ANIP errors
+        if result.startswith("FAILED:"):
+            raise ValueError(result)
+        return [types.TextContent(type="text", text=result)]
 
     return McpLifecycle(_service=service)

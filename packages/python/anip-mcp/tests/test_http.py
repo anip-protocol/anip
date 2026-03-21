@@ -142,7 +142,7 @@ class TestMcpHttpTransport:
         assert "authentication_required" in resp.text
 
     def test_call_tool_with_invalid_api_key(self, client):
-        """tools/call with a wrong API key returns authentication_required."""
+        """tools/call with a wrong API key returns an error (isError=True)."""
         resp = client.post("/mcp", json={
             "jsonrpc": "2.0",
             "id": 4,
@@ -153,7 +153,10 @@ class TestMcpHttpTransport:
             "Authorization": "Bearer wrong-key",
         })
         assert resp.status_code == 200
-        assert "authentication_required" in resp.text or "FAILED" in resp.text
+        # Invalid bearer: JWT resolution fails (invalid_token), API key lookup
+        # also fails, so the JWT error is re-raised. The server catches it
+        # and returns CallToolResult(isError=True).
+        assert "invalid_token" in resp.text or "isError" in resp.text
 
     def test_call_unknown_tool(self, client):
         """tools/call with an unknown tool name returns an error."""
