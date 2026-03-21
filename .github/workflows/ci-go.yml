@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ["1.22", "1.23"]
+        go-version: ["1.24", "1.25"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -45,30 +45,45 @@ jobs:
   conformance:
     needs: test
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        example:
+          - name: net-http
+            dir: flights
+            port: "8080"
+          - name: gin
+            dir: flights-gin
+            port: "8081"
+    name: "conformance (${{ matrix.example.name }})"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: "1.25"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Build Go example
-        working-directory: packages/go/examples/flights
+        working-directory: packages/go/examples/${{ matrix.example.dir }}
         run: go build -o flight-service .
 
       - name: Start Go example
-        working-directory: packages/go/examples/flights
+        working-directory: packages/go/examples/${{ matrix.example.dir }}
+        env:
+          PORT: ${{ matrix.example.port }}
         run: |
           ./flight-service &
           sleep 3
 
       - name: Install and run conformance suite
+        env:
+          BASE_URL: "http://localhost:${{ matrix.example.port }}"
         run: |
           pip install -e "./conformance"
           pytest conformance/ \
-            --base-url=http://localhost:8080 \
+            --base-url="$BASE_URL" \
             --bootstrap-bearer=demo-human-key \
             --sample-inputs=conformance/samples/flight-service.json \
             -v

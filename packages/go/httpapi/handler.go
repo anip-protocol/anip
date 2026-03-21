@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/anip-protocol/anip/packages/go/core"
+	"github.com/anip-protocol/anip/packages/go/internal/httputil"
 	"github.com/anip-protocol/anip/packages/go/server"
 	"github.com/anip-protocol/anip/packages/go/service"
 )
@@ -70,7 +70,8 @@ func handleListCheckpoints(svc *service.Service) http.HandlerFunc {
 		}
 		resp, err := svc.ListCheckpoints(limit)
 		if err != nil {
-			writeFailure(w, core.FailureInternalError, "Failed to list checkpoints", nil)
+			status, body := httputil.SimpleFailureResponse(core.FailureInternalError, "Failed to list checkpoints", nil)
+			writeJSON(w, status, body)
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -91,10 +92,12 @@ func handleGetCheckpoint(svc *service.Service) http.HandlerFunc {
 		resp, err := svc.GetCheckpoint(id, includeProof, leafIndex)
 		if err != nil {
 			if anipErr, ok := err.(*core.ANIPError); ok {
-				writeANIPError(w, anipErr)
+				status, body := httputil.FailureResponse(anipErr)
+				writeJSON(w, status, body)
 				return
 			}
-			writeFailure(w, core.FailureInternalError, "Failed to get checkpoint", nil)
+			status, body := httputil.SimpleFailureResponse(core.FailureInternalError, "Failed to get checkpoint", nil)
+			writeJSON(w, status, body)
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -105,31 +108,36 @@ func handleGetCheckpoint(svc *service.Service) http.HandlerFunc {
 
 func handleTokens(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		bearer := extractBearer(r)
+		bearer := httputil.ExtractBearer(r.Header.Get("Authorization"))
 		if bearer == "" {
-			writeAuthFailureTokenEndpoint(w)
+			status, body := httputil.AuthFailureTokenEndpoint()
+			writeJSON(w, status, body)
 			return
 		}
 
 		principal, ok := svc.AuthenticateBearer(bearer)
 		if !ok {
-			writeAuthFailureTokenEndpoint(w)
+			status, body := httputil.AuthFailureTokenEndpoint()
+			writeJSON(w, status, body)
 			return
 		}
 
 		var req core.TokenRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeFailure(w, core.FailureInternalError, "Invalid request body", nil)
+			status, body := httputil.SimpleFailureResponse(core.FailureInternalError, "Invalid request body", nil)
+			writeJSON(w, status, body)
 			return
 		}
 
 		resp, err := svc.IssueToken(principal, req)
 		if err != nil {
 			if anipErr, ok := err.(*core.ANIPError); ok {
-				writeANIPError(w, anipErr)
+				status, body := httputil.FailureResponse(anipErr)
+				writeJSON(w, status, body)
 				return
 			}
-			writeFailure(w, core.FailureInternalError, "Token issuance failed", nil)
+			status, body := httputil.SimpleFailureResponse(core.FailureInternalError, "Token issuance failed", nil)
+			writeJSON(w, status, body)
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -160,7 +168,8 @@ func handleInvoke(svc *service.Service) http.HandlerFunc {
 
 		var body map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			writeFailure(w, core.FailureInternalError, "Invalid request body", nil)
+			status, respBody := httputil.SimpleFailureResponse(core.FailureInternalError, "Invalid request body", nil)
+			writeJSON(w, status, respBody)
 			return
 		}
 
@@ -177,7 +186,8 @@ func handleInvoke(svc *service.Service) http.HandlerFunc {
 			Stream:            stream,
 		})
 		if err != nil {
-			writeFailure(w, core.FailureInternalError, "Invocation failed", nil)
+			status, respBody := httputil.SimpleFailureResponse(core.FailureInternalError, "Invocation failed", nil)
+			writeJSON(w, status, respBody)
 			return
 		}
 
@@ -217,7 +227,8 @@ func handleAudit(svc *service.Service) http.HandlerFunc {
 
 		resp, err := svc.QueryAudit(token, filters)
 		if err != nil {
-			writeFailure(w, core.FailureInternalError, "Audit query failed", nil)
+			status, body := httputil.SimpleFailureResponse(core.FailureInternalError, "Audit query failed", nil)
+			writeJSON(w, status, body)
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -226,32 +237,27 @@ func handleAudit(svc *service.Service) http.HandlerFunc {
 
 // --- Auth Helpers ---
 
-// extractBearer extracts the bearer token from the Authorization header.
-func extractBearer(r *http.Request) string {
-	auth := r.Header.Get("Authorization")
-	if !strings.HasPrefix(auth, "Bearer ") {
-		return ""
-	}
-	return strings.TrimSpace(auth[7:])
-}
-
 // resolveToken extracts and resolves the JWT from the Authorization header.
 // On failure, it writes the appropriate error response and returns (nil, false).
 func resolveToken(w http.ResponseWriter, r *http.Request, svc *service.Service) (*core.DelegationToken, bool) {
-	bearer := extractBearer(r)
+	bearer := httputil.ExtractBearer(r.Header.Get("Authorization"))
 	if bearer == "" {
-		writeAuthFailureJWTEndpoint(w)
+		status, body := httputil.AuthFailureJWTEndpoint()
+		writeJSON(w, status, body)
 		return nil, false
 	}
 
 	token, err := svc.ResolveBearerToken(bearer)
 	if err != nil {
 		if anipErr, ok := err.(*core.ANIPError); ok {
-			writeANIPError(w, anipErr)
+			status, body := httputil.FailureResponse(anipErr)
+			writeJSON(w, status, body)
 			return nil, false
 		}
-		writeANIPError(w, core.NewANIPError(core.FailureInvalidToken, "Invalid or expired delegation token").
-			WithResolution("obtain_delegation_token"))
+		anipErr := core.NewANIPError(core.FailureInvalidToken, "Invalid or expired delegation token").
+			WithResolution("obtain_delegation_token")
+		status, body := httputil.FailureResponse(anipErr)
+		writeJSON(w, status, body)
 		return nil, false
 	}
 	return token, true
@@ -263,120 +269,6 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(v)
-}
-
-func writeFailure(w http.ResponseWriter, failureType, detail string, resolution *core.Resolution) {
-	status := core.FailureStatusCode(failureType)
-	resp := map[string]any{
-		"success": false,
-		"failure": buildFailureBody(failureType, detail, resolution, false),
-	}
-	writeJSON(w, status, resp)
-}
-
-func writeANIPError(w http.ResponseWriter, anipErr *core.ANIPError) {
-	status := core.FailureStatusCode(anipErr.ErrorType)
-	resolution := anipErr.Resolution
-	if resolution == nil {
-		resolution = defaultResolution(anipErr.ErrorType)
-	}
-	resp := map[string]any{
-		"success": false,
-		"failure": buildFailureBody(anipErr.ErrorType, anipErr.Detail, resolution, anipErr.Retry),
-	}
-	writeJSON(w, status, resp)
-}
-
-func buildFailureBody(failureType, detail string, resolution *core.Resolution, retry bool) map[string]any {
-	body := map[string]any{
-		"type":   failureType,
-		"detail": detail,
-		"retry":  retry,
-	}
-	if resolution != nil {
-		body["resolution"] = map[string]any{
-			"action":                 resolution.Action,
-			"requires":              nilIfEmpty(resolution.Requires),
-			"grantable_by":          nilIfEmpty(resolution.GrantableBy),
-			"estimated_availability": nilIfEmpty(resolution.EstimatedAvailability),
-		}
-	} else {
-		body["resolution"] = map[string]any{
-			"action":                 "contact_service_owner",
-			"requires":              nil,
-			"grantable_by":          nil,
-			"estimated_availability": nil,
-		}
-	}
-	return body
-}
-
-func nilIfEmpty(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
-}
-
-func writeAuthFailureTokenEndpoint(w http.ResponseWriter) {
-	resp := map[string]any{
-		"success": false,
-		"failure": map[string]any{
-			"type":   core.FailureAuthRequired,
-			"detail": "A valid API key is required to issue delegation tokens",
-			"resolution": map[string]any{
-				"action":                 "provide_api_key",
-				"requires":              "API key in Authorization header",
-				"grantable_by":          nil,
-				"estimated_availability": nil,
-			},
-			"retry": true,
-		},
-	}
-	writeJSON(w, http.StatusUnauthorized, resp)
-}
-
-func writeAuthFailureJWTEndpoint(w http.ResponseWriter) {
-	resp := map[string]any{
-		"success": false,
-		"failure": map[string]any{
-			"type":   core.FailureAuthRequired,
-			"detail": "A valid delegation token (JWT) is required in the Authorization header",
-			"resolution": map[string]any{
-				"action":                 "obtain_delegation_token",
-				"requires":              "Bearer token from POST /anip/tokens",
-				"grantable_by":          nil,
-				"estimated_availability": nil,
-			},
-			"retry": true,
-		},
-	}
-	writeJSON(w, http.StatusUnauthorized, resp)
-}
-
-// defaultResolution returns a default resolution for known failure types.
-func defaultResolution(failureType string) *core.Resolution {
-	switch failureType {
-	case core.FailureInvalidToken, core.FailureTokenExpired:
-		return &core.Resolution{
-			Action:   "obtain_delegation_token",
-			Requires: "Valid JWT from POST /anip/tokens",
-		}
-	case core.FailureScopeInsufficient:
-		return &core.Resolution{
-			Action:   "request_broader_scope",
-			Requires: "Token with required scope",
-		}
-	case core.FailureUnknownCapability:
-		return &core.Resolution{
-			Action:   "check_manifest",
-			Requires: "Valid capability name from GET /anip/manifest",
-		}
-	default:
-		return &core.Resolution{
-			Action: "contact_service_owner",
-		}
-	}
 }
 
 // deriveBaseURL extracts the base URL from the request.
