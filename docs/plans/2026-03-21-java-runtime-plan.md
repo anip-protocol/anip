@@ -345,11 +345,8 @@ git commit -m "feat(java): add anip-graphql — GraphQL interface package"
 - Create: `packages/java/anip-mcp/pom.xml`
 - Create: `packages/java/anip-mcp/src/main/java/dev/anip/mcp/` — McpToolRegistry, StdioServer, HttpTransport, AuthBridge
 
-Dependencies: `anip-service`, official MCP Java SDK artifacts:
-- `io.modelcontextprotocol.sdk:mcp` (core SDK — tool definitions, server, transport abstractions)
-- `io.modelcontextprotocol.sdk:mcp-spring-webmvc` (Spring WebMVC Streamable HTTP transport provider)
-
-Check https://central.sonatype.com for the latest version. The SDK uses group ID `io.modelcontextprotocol.sdk`.
+Dependencies: `anip-service`, official MCP Java SDK artifacts (group `io.modelcontextprotocol.sdk`):
+- `mcp-spring-webmvc:0.18.1` (Spring WebMVC Streamable HTTP transport provider — includes core SDK transitively)
 
 - [ ] **Step 1: Implement tool translation**
 
