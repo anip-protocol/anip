@@ -1,6 +1,6 @@
 {
   "name": "@anip/fastify",
-  "version": "0.8.0",
+  "version": "0.11.0",
   "description": "ANIP Fastify bindings — mount an ANIPService as HTTP routes",
   "type": "module",
   "engines": {
@@ -13,11 +13,21 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip/service": "0.8.0",
+    "@anip/service": "0.11.0",
     "fastify": "^5.0.0"
   },
   "devDependencies": {
     "typescript": "^5.5.0",
     "vitest": "^4.1.0"
-  }
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anip-protocol/anip.git",
+    "directory": "packages/typescript/fastify"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist", "README.md"]
 }

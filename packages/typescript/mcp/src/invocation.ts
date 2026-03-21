@@ -147,7 +147,7 @@ export function buildMcpServer(
   }
 
   const server = new Server(
-    { name: "anip-mcp", version: "0.8.0" },
+    { name: "anip-mcp", version: "0.11.0" },
     { capabilities: { tools: {} } },
   );
 

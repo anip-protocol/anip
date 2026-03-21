@@ -1,6 +1,6 @@
 {
   "name": "@anip/core",
-  "version": "0.8.0",
+  "version": "0.11.0",
   "description": "ANIP protocol types, models, and constants",
   "type": "module",
   "engines": {
@@ -18,5 +18,15 @@
   "devDependencies": {
     "typescript": "^5.5.0",
     "vitest": "^4.1.0"
-  }
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anip-protocol/anip.git",
+    "directory": "packages/typescript/core"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist", "README.md"]
 }

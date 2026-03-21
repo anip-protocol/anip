@@ -4,107 +4,48 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to release (must match all package versions, e.g. 0.3.1)"
+        description: "Release version (e.g., 0.11.0)"
         required: true
-        type: string
       prerelease:
         description: "Mark as prerelease"
-        required: false
         type: boolean
         default: false
 
 jobs:
-  release:
+  validate:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # full history + tags for tag-exists check
 
-      - name: Validate ref is main
-        env:
-          REF_NAME: ${{ github.ref_name }}
+      - name: Validate running from main
         run: |
-          if [ "$REF_NAME" != "main" ]; then
-            echo "::error::Release must run from main, got '$REF_NAME'"
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Releases must run from the main branch"
             exit 1
           fi
 
-      - name: Validate version against all 12 packages
-        env:
-          EXPECTED: ${{ inputs.version }}
-        run: |
-          ERRORS=0
-
-          echo "Expected version: $EXPECTED"
-          echo ""
-
-          # Python packages
-          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi; do
-            ACTUAL=$(python3 -c "
-          import tomllib
-          with open('packages/python/$pkg/pyproject.toml', 'rb') as f:
-              print(tomllib.load(f)['project']['version'])
-          ")
-            if [ "$ACTUAL" != "$EXPECTED" ]; then
-              echo "::error::$pkg version is '$ACTUAL', expected '$EXPECTED'"
-              ERRORS=$((ERRORS + 1))
-            else
-              echo "✓ $pkg = $ACTUAL"
-            fi
-          done
-
-          # TypeScript packages
-          for pkg in core crypto server service hono express fastify; do
-            ACTUAL=$(node -e "console.log(JSON.parse(require('fs').readFileSync('packages/typescript/$pkg/package.json','utf8')).version)")
-            if [ "$ACTUAL" != "$EXPECTED" ]; then
-              echo "::error::@anip/$pkg version is '$ACTUAL', expected '$EXPECTED'"
-              ERRORS=$((ERRORS + 1))
-            else
-              echo "✓ @anip/$pkg = $ACTUAL"
-            fi
-          done
-
-          if [ $ERRORS -gt 0 ]; then
-            echo ""
-            echo "::error::$ERRORS package(s) have mismatched versions"
-            exit 1
-          fi
-
-          echo ""
-          echo "All 12 packages at version $EXPECTED"
-
-      - name: Validate CI checks passed on this commit
+      - name: Validate required CI checks passed
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           SHA=$(git rev-parse HEAD)
-          echo "Validating CI checks for commit $SHA"
-
           REQUIRED_CHECKS=("test (3.11)" "test (3.12)" "test (20)" "test (22)")
           ERRORS=0
-
           for CHECK in "${REQUIRED_CHECKS[@]}"; do
             STATUS=$(gh api "repos/$GH_REPO/commits/$SHA/check-runs" \
               --jq ".check_runs[] | select(.name == \"$CHECK\") | .conclusion" \
               | head -1)
             if [ "$STATUS" = "success" ]; then
-              echo "✓ $CHECK = success"
+              echo "OK: $CHECK = success"
             else
-              echo "::error::$CHECK status is '${STATUS:-not found}' (expected 'success')"
+              echo "FAIL: $CHECK status is '${STATUS:-not found}' (expected 'success')"
               ERRORS=$((ERRORS + 1))
             fi
           done
-
-          if [ $ERRORS -gt 0 ]; then
-            echo ""
-            echo "::error::$ERRORS CI check(s) have not passed on this commit"
-            exit 1
-          fi
+          if [ "$ERRORS" -gt 0 ]; then exit 1; fi
 
       - name: Validate tag does not exist
         env:
@@ -112,31 +53,232 @@ jobs:
         run: |
           TAG="v$VERSION"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "::error::Tag '$TAG' already exists"
+            echo "FAIL: Tag '$TAG' already exists"
             exit 1
           fi
-          echo "Tag '$TAG' is available"
+          echo "OK: Tag '$TAG' is available"
+
+      - name: Validate version format
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "Invalid version format"
+            exit 1
+          fi
+
+      - name: Validate TypeScript package versions and internal deps
+        working-directory: packages/typescript
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          FAILED=0
+          for pkg in core crypto server service hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql; do
+            PKG_VERSION=$(node -p "require('./$pkg/package.json').version")
+            if [ "$PKG_VERSION" != "$VERSION" ]; then
+              echo "FAIL: $pkg version is $PKG_VERSION, expected $VERSION"
+              FAILED=1
+            fi
+            # Check all @anip/* deps match the release version
+            for dep_field in dependencies devDependencies; do
+              STALE=$(node -p "
+                const deps = require('./$pkg/package.json')['$dep_field'] || {};
+                Object.entries(deps)
+                  .filter(([k,v]) => k.startsWith('@anip/') && v !== process.env.VERSION)
+                  .map(([k,v]) => k + '=' + v)
+                  .join(',')
+              ")
+              if [ -n "$STALE" ]; then
+                echo "FAIL: $pkg $dep_field has stale @anip deps: $STALE"
+                FAILED=1
+              fi
+            done
+          done
+          if [ "$FAILED" -eq 1 ]; then exit 1; fi
+          echo "All 13 TypeScript packages and internal deps at version $VERSION"
+
+      - name: Validate Python package versions and internal deps
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          FAILED=0
+          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi anip-mcp anip-rest anip-graphql; do
+            PKG_VERSION=$(grep '^version' packages/python/$pkg/pyproject.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+            if [ "$PKG_VERSION" != "$VERSION" ]; then
+              echo "FAIL: $pkg version is $PKG_VERSION, expected $VERSION"
+              FAILED=1
+            fi
+            # Check internal anip-* deps use exact lockstep pin (==VERSION)
+            # Catch both wrong versions AND wrong operators (>= instead of ==)
+            INTERNAL_DEPS=$(grep -E '"anip-(core|crypto|server|service|fastapi)' packages/python/$pkg/pyproject.toml || true)
+            if [ -n "$INTERNAL_DEPS" ]; then
+              # Every internal dep line must contain ==VERSION
+              BAD=$(echo "$INTERNAL_DEPS" | grep -v "==$VERSION" || true)
+              if [ -n "$BAD" ]; then
+                echo "FAIL: $pkg has non-lockstep internal deps:"
+                echo "$BAD"
+                FAILED=1
+              fi
+            fi
+          done
+          if [ "$FAILED" -eq 1 ]; then exit 1; fi
+          echo "All 8 Python packages and internal deps at version $VERSION"
+
+  publish-typescript:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install and build
+        working-directory: packages/typescript
+        run: |
+          npm ci
+          npm run build --workspaces
+
+      - name: Dry run — verify packages
+        working-directory: packages/typescript
+        run: |
+          for pkg in core crypto server service hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql; do
+            echo "=== Checking $pkg ==="
+            cd $pkg && npm pack --dry-run && cd ..
+          done
+
+      - name: Publish in topological order
+        working-directory: packages/typescript
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -e
+          publish_or_skip() {
+            local pkg=$1
+            cd $pkg
+            OUTPUT=$(npm publish --access public 2>&1) && {
+              echo "OK: $pkg published"
+              cd ..
+              return 0
+            }
+            # npm publish failed — check if it's "already exists"
+            if echo "$OUTPUT" | grep -qi "cannot publish over the previously published"; then
+              echo "SKIP: $pkg@$(node -p 'require("./package.json").version') already published"
+              cd ..
+              return 0
+            fi
+            echo "FAIL: $pkg publish failed:"
+            echo "$OUTPUT"
+            cd ..
+            return 1
+          }
+
+          # Layer 1: no deps
+          publish_or_skip core
+
+          # Layer 2: depends on core
+          publish_or_skip crypto
+
+          # Layer 3: depends on core, crypto
+          publish_or_skip server
+
+          # Layer 4: depends on core, crypto, server
+          publish_or_skip service
+
+          # Layer 5: depends on service
+          publish_or_skip hono
+          publish_or_skip express
+          publish_or_skip fastify
+
+          # Layer 6: depends on service
+          publish_or_skip mcp
+
+          # Layer 7: depends on mcp + framework
+          publish_or_skip mcp-hono
+          publish_or_skip mcp-express
+          publish_or_skip mcp-fastify
+
+          # Layer 8: depends on service
+          publish_or_skip rest
+          publish_or_skip graphql
+
+  publish-python:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: pip install build twine
+
+      - name: Build and check all packages
+        run: |
+          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi anip-mcp anip-rest anip-graphql; do
+            echo "=== Building $pkg ==="
+            cd packages/python/$pkg
+            rm -rf dist/
+            python -m build
+            twine check dist/*
+            cd ../../..
+          done
+
+      - name: Publish in dependency order
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          set -e
+          publish_or_skip() {
+            local pkg=$1
+            cd packages/python/$pkg
+            OUTPUT=$(twine upload dist/* 2>&1) && {
+              echo "OK: $pkg published"
+              cd ../../..
+              return 0
+            }
+            # twine upload failed — check if it's "already exists"
+            if echo "$OUTPUT" | grep -qi "File already exists"; then
+              echo "SKIP: $pkg already published on PyPI"
+              cd ../../..
+              return 0
+            fi
+            echo "FAIL: $pkg publish failed:"
+            echo "$OUTPUT"
+            cd ../../..
+            return 1
+          }
+
+          publish_or_skip anip-core
+          publish_or_skip anip-crypto
+          publish_or_skip anip-server
+          publish_or_skip anip-service
+          publish_or_skip anip-fastapi
+          publish_or_skip anip-mcp
+          publish_or_skip anip-rest
+          publish_or_skip anip-graphql
+
+  release:
+    needs: [publish-typescript, publish-python]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Create tag
         env:
           VERSION: ${{ inputs.version }}
         run: |
-          TAG="v$VERSION"
-          git tag "$TAG"
-          git push origin "$TAG"
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
 
       - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ inputs.version }}
-          IS_PRERELEASE: ${{ inputs.prerelease }}
-        run: |
-          TAG="v$VERSION"
-          FLAGS=""
-          if [ "$IS_PRERELEASE" = "true" ]; then
-            FLAGS="--prerelease"
-          fi
-          gh release create "$TAG" \
-            --title "$TAG" \
-            --generate-notes \
-            $FLAGS
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ inputs.version }}"
+          generate_release_notes: true
+          prerelease: ${{ inputs.prerelease }}
