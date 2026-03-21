@@ -32,7 +32,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           SHA=$(git rev-parse HEAD)
-          REQUIRED_CHECKS=("test (3.11)" "test (3.12)" "test (20)" "test (22)")
+          REQUIRED_CHECKS=("test (3.11)" "test (3.12)" "test (20)" "test (22)" "go-ci")
           ERRORS=0
           for CHECK in "${REQUIRED_CHECKS[@]}"; do
             STATUS=$(gh api "repos/$GH_REPO/commits/$SHA/check-runs" \
@@ -47,16 +47,22 @@ jobs:
           done
           if [ "$ERRORS" -gt 0 ]; then exit 1; fi
 
-      - name: Validate tag does not exist
+      - name: Validate tags do not exist
         env:
           VERSION: ${{ inputs.version }}
         run: |
           TAG="v$VERSION"
+          GO_TAG="packages/go/v$VERSION"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "FAIL: Tag '$TAG' already exists"
             exit 1
           fi
           echo "OK: Tag '$TAG' is available"
+          if git rev-parse "$GO_TAG" >/dev/null 2>&1; then
+            echo "FAIL: Go module tag '$GO_TAG' already exists"
+            exit 1
+          fi
+          echo "OK: Go module tag '$GO_TAG' is available"
 
       - name: Validate version format
         env:
