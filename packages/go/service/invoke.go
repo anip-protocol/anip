@@ -104,6 +104,7 @@ func (s *Service) Invoke(
 	opts InvokeOpts,
 ) (map[string]any, error) {
 	invocationID := core.GenerateInvocationID()
+	invokeStart := time.Now()
 
 	// 1. Look up capability.
 	capDef, ok := s.capabilities[capName]
@@ -118,6 +119,11 @@ func (s *Service) Invoke(
 			"client_reference_id": opts.ClientReferenceID,
 		}
 		return resp, nil
+	}
+
+	// Fire OnInvokeStart hook.
+	if s.hooks != nil && s.hooks.OnInvokeStart != nil {
+		callHook(func() { s.hooks.OnInvokeStart(invocationID, capName, token.Subject) })
 	}
 
 	// 2. Check streaming support.
@@ -168,6 +174,11 @@ func (s *Service) Invoke(
 	// 3. Validate token scope covers capability's minimum_scope.
 	if err := server.ValidateScope(token, capDef.Declaration.MinimumScope); err != nil {
 		if anipErr, ok := err.(*core.ANIPError); ok {
+			// Fire scope validation hook (denied).
+			if s.hooks != nil && s.hooks.OnScopeValidation != nil {
+				callHook(func() { s.hooks.OnScopeValidation(capName, false) })
+			}
+
 			failure := map[string]any{
 				"type":   anipErr.ErrorType,
 				"detail": anipErr.Detail,
@@ -190,6 +201,11 @@ func (s *Service) Invoke(
 			return resp, nil
 		}
 		return nil, err
+	}
+
+	// Fire scope validation hook (granted).
+	if s.hooks != nil && s.hooks.OnScopeValidation != nil {
+		callHook(func() { s.hooks.OnScopeValidation(capName, true) })
 	}
 
 	// 4. Build invocation context.
@@ -261,6 +277,17 @@ func (s *Service) Invoke(
 	}
 	if costActual != nil {
 		resp["cost_actual"] = costActual
+	}
+
+	// Fire completion hooks.
+	durationMs := time.Since(invokeStart).Milliseconds()
+	if s.hooks != nil {
+		if s.hooks.OnInvokeComplete != nil {
+			callHook(func() { s.hooks.OnInvokeComplete(invocationID, capName, true, durationMs) })
+		}
+		if s.hooks.OnInvokeDuration != nil {
+			callHook(func() { s.hooks.OnInvokeDuration(capName, durationMs, true) })
+		}
 	}
 
 	return resp, nil
@@ -466,5 +493,8 @@ func (s *Service) appendAuditEntry(
 	}
 
 	// Best effort - don't fail the invocation if audit logging fails.
-	_ = server.AppendAudit(s.keys, s.storage, entry)
+	err := server.AppendAudit(s.keys, s.storage, entry)
+	if err == nil && s.hooks != nil && s.hooks.OnAuditAppend != nil {
+		callHook(func() { s.hooks.OnAuditAppend(entry.SequenceNumber, capability, invocationID) })
+	}
 }
