@@ -1,0 +1,201 @@
+package server
+
+import (
+	"crypto/rand"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/anip-protocol/anip/packages/go/core"
+	"github.com/anip-protocol/anip/packages/go/crypto"
+)
+
+// IssueDelegationToken creates a delegation token, signs it as a JWT, and stores it.
+func IssueDelegationToken(
+	km *crypto.KeyManager,
+	storage Storage,
+	serviceID string,
+	principal string,
+	req core.TokenRequest,
+) (core.TokenResponse, error) {
+	tokenID := generateTokenID()
+	now := time.Now().UTC()
+
+	ttlHours := req.TTLHours
+	if ttlHours <= 0 {
+		ttlHours = 2
+	}
+	expires := now.Add(time.Duration(ttlHours) * time.Hour)
+
+	// Build purpose.
+	purpose := core.Purpose{
+		Capability: req.Capability,
+		Parameters: req.PurposeParameters,
+		TaskID:     fmt.Sprintf("task-%s", tokenID),
+	}
+	if purpose.Parameters == nil {
+		purpose.Parameters = map[string]any{}
+	}
+
+	// Build constraints.
+	constraints := core.DelegationConstraints{
+		MaxDelegationDepth: 3,
+		ConcurrentBranches: "allowed",
+	}
+
+	// Determine issuer and root_principal.
+	issuer := serviceID
+	rootPrincipal := principal
+	parent := ""
+
+	// If there's a parent token, resolve it for sub-delegation.
+	if req.ParentToken != "" {
+		parentClaims, err := crypto.VerifyDelegationJWT(km, req.ParentToken, serviceID, serviceID)
+		if err != nil {
+			return core.TokenResponse{}, core.NewANIPError(core.FailureInvalidToken, "invalid parent token: "+err.Error())
+		}
+		parentTokenID, _ := parentClaims["jti"].(string)
+		parentToken, err := storage.LoadToken(parentTokenID)
+		if err != nil || parentToken == nil {
+			return core.TokenResponse{}, core.NewANIPError(core.FailureInvalidToken, "parent token not found")
+		}
+
+		issuer = parentToken.Subject
+		rootPrincipal = parentToken.RootPrincipal
+		parent = parentToken.TokenID
+		constraints = parentToken.Constraints
+	}
+
+	// Build the token record.
+	token := &core.DelegationToken{
+		TokenID:       tokenID,
+		Issuer:        issuer,
+		Subject:       req.Subject,
+		Scope:         req.Scope,
+		Purpose:       purpose,
+		Parent:        parent,
+		Expires:       expires.Format(time.RFC3339),
+		Constraints:   constraints,
+		RootPrincipal: rootPrincipal,
+		CallerClass:   req.CallerClass,
+	}
+
+	// Store the token.
+	if err := storage.StoreToken(token); err != nil {
+		return core.TokenResponse{}, fmt.Errorf("store token: %w", err)
+	}
+
+	// Sign as JWT.
+	claims := map[string]any{
+		"jti":             tokenID,
+		"iss":             serviceID,
+		"sub":             req.Subject,
+		"aud":             serviceID,
+		"iat":             now.Unix(),
+		"exp":             expires.Unix(),
+		"scope":           req.Scope,
+		"root_principal":  rootPrincipal,
+		"capability":      req.Capability,
+		"purpose":         purpose,
+		"constraints":     constraints,
+	}
+	if parent != "" {
+		claims["parent_token_id"] = parent
+	}
+
+	jwt, err := crypto.SignDelegationJWT(km, claims)
+	if err != nil {
+		return core.TokenResponse{}, fmt.Errorf("sign JWT: %w", err)
+	}
+
+	return core.TokenResponse{
+		Issued:  true,
+		TokenID: tokenID,
+		Token:   jwt,
+		Expires: expires.Format(time.RFC3339),
+	}, nil
+}
+
+// ResolveBearerToken verifies a JWT, loads the stored token, and compares signed claims
+// against stored state to prevent forged inline fields.
+func ResolveBearerToken(
+	km *crypto.KeyManager,
+	storage Storage,
+	serviceID string,
+	jwtStr string,
+) (*core.DelegationToken, error) {
+	// 1. Verify JWT signature + expiry + issuer/audience.
+	claims, err := crypto.VerifyDelegationJWT(km, jwtStr, serviceID, serviceID)
+	if err != nil {
+		if strings.Contains(err.Error(), "expired") {
+			return nil, core.NewANIPError(core.FailureTokenExpired, "delegation token has expired")
+		}
+		return nil, core.NewANIPError(core.FailureInvalidToken, "JWT verification failed: "+err.Error())
+	}
+
+	// 2. Extract jti -> token_id.
+	tokenID, ok := claims["jti"].(string)
+	if !ok || tokenID == "" {
+		return nil, core.NewANIPError(core.FailureInvalidToken, "JWT missing jti claim")
+	}
+
+	// 3. Load stored token.
+	stored, err := storage.LoadToken(tokenID)
+	if err != nil {
+		return nil, core.NewANIPError(core.FailureInternalError, "error loading token: "+err.Error())
+	}
+	if stored == nil {
+		return nil, core.NewANIPError(core.FailureInvalidToken, "token not found in storage")
+	}
+
+	// 4. Compare signed claims against stored state.
+	if sub, ok := claims["sub"].(string); ok && sub != stored.Subject {
+		return nil, core.NewANIPError(core.FailureInvalidToken, "subject mismatch between JWT and stored token")
+	}
+
+	if rp, ok := claims["root_principal"].(string); ok && rp != stored.RootPrincipal {
+		return nil, core.NewANIPError(core.FailureInvalidToken, "root_principal mismatch between JWT and stored token")
+	}
+
+	// 5. Return stored token.
+	return stored, nil
+}
+
+// ValidateScope checks if the token's scope covers the capability's minimum_scope.
+// Returns nil if valid, or an ANIPError if insufficient.
+func ValidateScope(token *core.DelegationToken, minimumScope []string) error {
+	tokenScopeBases := make([]string, len(token.Scope))
+	for i, s := range token.Scope {
+		tokenScopeBases[i] = strings.Split(s, ":")[0]
+	}
+
+	var missing []string
+	for _, required := range minimumScope {
+		matched := false
+		for _, base := range tokenScopeBases {
+			if base == required || strings.HasPrefix(required, base+".") {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			missing = append(missing, required)
+		}
+	}
+
+	if len(missing) > 0 {
+		return core.NewANIPError(
+			core.FailureScopeInsufficient,
+			fmt.Sprintf("delegation chain lacks scope(s): %s", strings.Join(missing, ", ")),
+		).WithResolution("request_scope_grant")
+	}
+
+	return nil
+}
+
+// generateTokenID creates a random token ID.
+func generateTokenID() string {
+	b := make([]byte, 6)
+	_, _ = rand.Read(b)
+	return fmt.Sprintf("anip-%x", b)
+}
