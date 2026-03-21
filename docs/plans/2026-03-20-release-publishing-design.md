@@ -62,7 +62,9 @@ Update `version` in each `pyproject.toml` and internal dependency floor versions
 | `anip-rest` | `packages/python/anip-rest/` |
 | `anip-graphql` | `packages/python/anip-graphql/` |
 
-Example: `anip-service>=0.8.0` → `anip-service>=0.11.0`.
+Internal ANIP dependencies use exact version pins for lockstep: `anip-service>=0.8.0` → `anip-service==0.11.0`. This matches the TypeScript model where workspace dependencies use exact versions (`"@anip/service": "0.11.0"`). Floor bounds (`>=`) would allow mixed-version installs once future versions exist, breaking the lockstep guarantee.
+
+External dependencies (e.g., `fastapi>=0.115.0`, `mcp>=1.0.0`) keep floor bounds — those are not lockstep-versioned.
 
 ### Not bumped
 
