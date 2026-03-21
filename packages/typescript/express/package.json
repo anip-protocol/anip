@@ -1,6 +1,6 @@
 {
   "name": "@anip/express",
-  "version": "0.8.0",
+  "version": "0.11.0",
   "description": "ANIP Express bindings — mount an ANIPService as HTTP routes",
   "type": "module",
   "engines": {
@@ -13,7 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip/service": "0.8.0",
+    "@anip/service": "0.11.0",
     "express": "^4.21.0"
   },
   "devDependencies": {

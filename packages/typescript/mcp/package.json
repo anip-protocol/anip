@@ -1,6 +1,6 @@
 {
   "name": "@anip/mcp",
-  "version": "0.8.0",
+  "version": "0.11.0",
   "description": "ANIP MCP bindings — expose ANIPService capabilities as MCP tools",
   "type": "module",
   "engines": { "node": ">=20" },
@@ -11,12 +11,12 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip/service": "0.8.0",
+    "@anip/service": "0.11.0",
     "@modelcontextprotocol/sdk": "^1.12.0"
   },
   "devDependencies": {
-    "@anip/core": "0.8.0",
-    "@anip/server": "0.8.0",
+    "@anip/core": "0.11.0",
+    "@anip/server": "0.11.0",
     "typescript": "^5.5.0",
     "vitest": "^4.1.0"
   }

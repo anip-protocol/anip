@@ -1,10 +1,10 @@
 [project]
 name = "anip-fastapi"
-version = "0.8.0"
+version = "0.11.0"
 description = "ANIP FastAPI bindings — mount an ANIPService as HTTP routes"
 requires-python = ">=3.11"
 dependencies = [
-    "anip-service>=0.8.0",
+    "anip-service==0.11.0",
     "fastapi>=0.115.0",
 ]
 
