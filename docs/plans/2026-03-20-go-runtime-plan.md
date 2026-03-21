@@ -189,10 +189,10 @@ git commit -m "feat(go): add core types, models, and constants"
 - [ ] **Step 1: Add go-jose dependency**
 
 ```bash
-cd packages/go && go get go.step.sm/crypto && go get github.com/go-jose/go-jose/v4
+cd packages/go && go get github.com/go-jose/go-jose/v4
 ```
 
-Or use the correct import path — check the actual go-jose v4 module path.
+The module path is `github.com/go-jose/go-jose/v4`. Import as `jose "github.com/go-jose/go-jose/v4"`. No other crypto dependencies needed — `go-jose` plus Go stdlib `crypto/ecdsa`, `crypto/elliptic`, `crypto/sha256` cover the full surface.
 
 - [ ] **Step 2: Implement keys.go**
 
@@ -258,22 +258,24 @@ This is the largest task. The implementer should build incrementally: storage fi
 ```go
 type Storage interface {
 	// Tokens
-	StoreToken(token map[string]any) error
-	LoadToken(tokenID string) (map[string]any, error)
+	StoreToken(token *core.DelegationToken) error
+	LoadToken(tokenID string) (*core.DelegationToken, error)
 
 	// Audit
-	AppendAuditEntry(entry map[string]any) (map[string]any, error) // returns entry with sequence_number, previous_hash
-	QueryAuditEntries(filters AuditFilters) ([]map[string]any, error)
+	AppendAuditEntry(entry *core.AuditEntry) (*core.AuditEntry, error) // assigns sequence_number, previous_hash
+	QueryAuditEntries(filters AuditFilters) ([]core.AuditEntry, error)
 	GetMaxAuditSequence() (int, error)
-	GetAuditEntriesRange(first, last int) ([]map[string]any, error)
+	GetAuditEntriesRange(first, last int) ([]core.AuditEntry, error)
 	UpdateAuditSignature(seqNum int, signature string) error
 
 	// Checkpoints
-	StoreCheckpoint(body map[string]any, signature string) error
-	ListCheckpoints(limit int) ([]map[string]any, error)
-	GetCheckpointByID(id string) (map[string]any, error)
+	StoreCheckpoint(cp *core.Checkpoint, signature string) error
+	ListCheckpoints(limit int) ([]core.Checkpoint, error)
+	GetCheckpointByID(id string) (*core.Checkpoint, error)
 }
 ```
+
+Uses typed models from `core/` throughout. Storage implementations serialize/deserialize to the typed structs, not `map[string]any`.
 
 - [ ] **Step 2: Implement SQLite storage (sqlite.go)**
 
@@ -376,8 +378,8 @@ Methods:
 - `GetSignedManifest() → (manifestJSON, signature)` — manifest + detached JWS
 - `GetJWKS() → map[string]any`
 - `QueryAudit(token, filters) → (AuditResponse, error)`
-- `ListCheckpoints() → ([]Checkpoint, error)`
-- `GetCheckpoint(id, includeProof, leafIndex) → (any, error)`
+- `ListCheckpoints(limit int) → (CheckpointListResponse, error)` — includes `Checkpoints []Checkpoint` and optional `NextCursor string`
+- `GetCheckpoint(id string, includeProof bool, leafIndex int) → (CheckpointDetailResponse, error)` — includes checkpoint, optional inclusion proof, optional `ProofUnavailable string`
 
 - [ ] **Step 2: Implement invoke.go**
 
@@ -681,14 +683,18 @@ jobs:
 
   go-ci:
     if: always()
-    needs: [changes, test]
+    needs: [changes, test, conformance]
     runs-on: ubuntu-latest
     steps:
       - name: Passed
-        if: needs.test.result == 'success' || needs.test.result == 'skipped'
+        if: |
+          (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+          (needs.conformance.result == 'success' || needs.conformance.result == 'skipped')
         run: echo "Go CI passed"
       - name: Failed
-        if: needs.test.result == 'failure' || needs.test.result == 'cancelled'
+        if: |
+          needs.test.result == 'failure' || needs.test.result == 'cancelled' ||
+          needs.conformance.result == 'failure' || needs.conformance.result == 'cancelled'
         run: exit 1
 ```
 
