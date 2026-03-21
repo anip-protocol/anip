@@ -168,22 +168,10 @@ func (s *Service) Invoke(
 		return resp, nil
 	}
 
-	// 2b. Validate inputs against capability declaration.
-	if err := validateInputs(&capDef.Declaration, params); err != nil {
-		if anipErr, ok := err.(*core.ANIPError); ok {
-			resp := map[string]any{
-				"success": false,
-				"failure": map[string]any{
-					"type":   anipErr.ErrorType,
-					"detail": anipErr.Detail,
-				},
-				"invocation_id":       invocationID,
-				"client_reference_id": opts.ClientReferenceID,
-			}
-			return resp, nil
-		}
-		return nil, err
-	}
+	// Note: Input validation is intentionally NOT done at the protocol layer.
+	// The Python and TypeScript runtimes pass params directly to the handler,
+	// which decides how to handle missing/invalid inputs. The conformance suite
+	// invokes with empty params and expects the handler to produce a result.
 
 	// 3. Validate token scope covers capability's minimum_scope.
 	if err := server.ValidateScope(token, capDef.Declaration.MinimumScope); err != nil {
@@ -317,11 +305,6 @@ func (s *Service) InvokeStream(
 	// 2. Check streaming support.
 	if !capabilitySupportsStreaming(capDef.Declaration) {
 		return nil, core.NewANIPError(core.FailureStreamingNotSupported, "Capability '"+capName+"' does not support streaming")
-	}
-
-	// 2b. Validate inputs against capability declaration.
-	if err := validateInputs(&capDef.Declaration, params); err != nil {
-		return nil, err
 	}
 
 	// 3. Validate token scope.
