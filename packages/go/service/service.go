@@ -33,7 +33,7 @@ type Config struct {
 	CheckpointPolicy *CheckpointPolicy
 
 	// RetentionIntervalSeconds sets how often the retention sweep runs (default 60).
-	// Set to 0 to disable automatic retention enforcement.
+	// Set to -1 to disable automatic retention enforcement.
 	RetentionIntervalSeconds int
 }
 
@@ -128,7 +128,11 @@ func New(cfg Config) *Service {
 
 	retentionInterval := cfg.RetentionIntervalSeconds
 	if retentionInterval == 0 {
-		retentionInterval = 60
+		retentionInterval = 60 // default
+	}
+	// -1 means disabled
+	if retentionInterval < 0 {
+		retentionInterval = 0
 	}
 
 	return &Service{
@@ -227,12 +231,29 @@ func (s *Service) AuthenticateBearer(bearer string) (string, bool) {
 
 // ResolveBearerToken verifies a JWT and returns the stored DelegationToken.
 func (s *Service) ResolveBearerToken(jwtStr string) (*core.DelegationToken, error) {
-	return server.ResolveBearerToken(s.keys, s.storage, s.serviceID, jwtStr)
+	token, err := server.ResolveBearerToken(s.keys, s.storage, s.serviceID, jwtStr)
+	if err != nil {
+		if anipErr, ok := err.(*core.ANIPError); ok && s.hooks != nil && s.hooks.OnAuthFailure != nil {
+			callHook(func() { s.hooks.OnAuthFailure(anipErr.ErrorType, anipErr.Detail) })
+		}
+		return nil, err
+	}
+	if s.hooks != nil && s.hooks.OnTokenResolved != nil {
+		callHook(func() { s.hooks.OnTokenResolved(token.TokenID, token.Subject) })
+	}
+	return token, nil
 }
 
 // IssueToken issues a delegation token for the authenticated principal.
 func (s *Service) IssueToken(principal string, req core.TokenRequest) (core.TokenResponse, error) {
-	return server.IssueDelegationToken(s.keys, s.storage, s.serviceID, principal, req)
+	resp, err := server.IssueDelegationToken(s.keys, s.storage, s.serviceID, principal, req)
+	if err != nil {
+		return resp, err
+	}
+	if s.hooks != nil && s.hooks.OnTokenIssued != nil {
+		callHook(func() { s.hooks.OnTokenIssued(resp.TokenID, principal, req.Capability) })
+	}
+	return resp, nil
 }
 
 // GetDiscovery builds the full discovery document per SPEC.md section 6.1.
@@ -271,7 +292,7 @@ func (s *Service) GetDiscovery(baseURL string) map[string]any {
 		"posture": map[string]any{
 			"audit": map[string]any{
 				"retention":          "P90D",
-				"retention_enforced": false,
+				"retention_enforced": s.retentionIntervalSeconds > 0,
 			},
 			"failure_disclosure": map[string]any{
 				"detail_level": "full",
@@ -487,25 +508,32 @@ func (s *Service) GetHealth() HealthReport {
 }
 
 // runRetentionLoop periodically deletes expired audit entries.
+// Uses leader lease to prevent duplicate work across replicas.
 func (s *Service) runRetentionLoop() {
 	defer s.wg.Done()
 	ticker := time.NewTicker(time.Duration(s.retentionIntervalSeconds) * time.Second)
 	defer ticker.Stop()
 
+	holderID := fmt.Sprintf("retention-%s-%d", s.serviceID, time.Now().UnixNano())
+
 	for {
 		select {
 		case <-s.stopCh:
+			s.storage.ReleaseLeader("retention", holderID)
 			return
 		case <-ticker.C:
+			acquired, _ := s.storage.TryAcquireLeader("retention", holderID, s.retentionIntervalSeconds*2)
+			if !acquired {
+				continue // another instance holds the lease
+			}
 			now := time.Now().UTC().Format(time.RFC3339)
-			deleted, err := s.storage.DeleteExpiredAuditEntries(now)
-			_ = err
-			_ = deleted
+			_, _ = s.storage.DeleteExpiredAuditEntries(now)
 		}
 	}
 }
 
 // runCheckpointLoop periodically creates checkpoints from new audit entries.
+// Uses leader lease to prevent duplicate work across replicas.
 func (s *Service) runCheckpointLoop() {
 	defer s.wg.Done()
 
@@ -518,14 +546,21 @@ func (s *Service) runCheckpointLoop() {
 		minEntries = 1
 	}
 
+	holderID := fmt.Sprintf("checkpoint-%s-%d", s.serviceID, time.Now().UnixNano())
+
 	ticker := time.NewTicker(time.Duration(interval) * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-s.stopCh:
+			s.storage.ReleaseLeader("checkpoint", holderID)
 			return
 		case <-ticker.C:
+			acquired, _ := s.storage.TryAcquireLeader("checkpoint", holderID, interval*2)
+			if !acquired {
+				continue // another instance holds the lease
+			}
 			// Check if there are enough new entries.
 			maxSeq, err := s.storage.GetMaxAuditSequence()
 			if err != nil || maxSeq == 0 {

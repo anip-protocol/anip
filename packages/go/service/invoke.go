@@ -105,6 +105,20 @@ func (s *Service) Invoke(
 ) (map[string]any, error) {
 	invocationID := core.GenerateInvocationID()
 	invokeStart := time.Now()
+	invokeSuccess := false
+
+	// Fire completion hooks on all exit paths (success and failure).
+	defer func() {
+		if s.hooks != nil {
+			durationMs := time.Since(invokeStart).Milliseconds()
+			if s.hooks.OnInvokeComplete != nil {
+				callHook(func() { s.hooks.OnInvokeComplete(invocationID, capName, invokeSuccess, durationMs) })
+			}
+			if s.hooks.OnInvokeDuration != nil {
+				callHook(func() { s.hooks.OnInvokeDuration(capName, durationMs, invokeSuccess) })
+			}
+		}
+	}()
 
 	// 1. Look up capability.
 	capDef, ok := s.capabilities[capName]
@@ -279,17 +293,7 @@ func (s *Service) Invoke(
 		resp["cost_actual"] = costActual
 	}
 
-	// Fire completion hooks.
-	durationMs := time.Since(invokeStart).Milliseconds()
-	if s.hooks != nil {
-		if s.hooks.OnInvokeComplete != nil {
-			callHook(func() { s.hooks.OnInvokeComplete(invocationID, capName, true, durationMs) })
-		}
-		if s.hooks.OnInvokeDuration != nil {
-			callHook(func() { s.hooks.OnInvokeDuration(capName, durationMs, true) })
-		}
-	}
-
+	invokeSuccess = true
 	return resp, nil
 }
 
