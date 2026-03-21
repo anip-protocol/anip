@@ -103,10 +103,10 @@ This updates the lockfile to reflect the new versions.
 cd packages/typescript && npm run build --workspaces && npm test --workspaces
 ```
 
-For Python, reinstall and test (use an existing venv or the example app's venv):
+For Python, reinstall all 8 packages and test (use an existing venv or the example app's venv):
 ```bash
-pip install -e "packages/python/anip-core" -e "packages/python/anip-crypto" -e "packages/python/anip-server" -e "packages/python/anip-service" -e "packages/python/anip-fastapi"
-pytest packages/python/anip-core/tests/ packages/python/anip-crypto/tests/ packages/python/anip-server/tests/ packages/python/anip-service/tests/ packages/python/anip-fastapi/tests/ -v
+pip install -e "packages/python/anip-core" -e "packages/python/anip-crypto" -e "packages/python/anip-server" -e "packages/python/anip-service" -e "packages/python/anip-fastapi" -e "packages/python/anip-mcp" -e "packages/python/anip-rest" -e "packages/python/anip-graphql"
+pytest packages/python/anip-core/tests/ packages/python/anip-crypto/tests/ packages/python/anip-server/tests/ packages/python/anip-service/tests/ packages/python/anip-fastapi/tests/ packages/python/anip-mcp/tests/ packages/python/anip-rest/tests/ packages/python/anip-graphql/tests/ -v
 ```
 
 - [ ] **Step 6: Commit**
@@ -238,8 +238,28 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate running from main
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "Releases must run from the main branch"
+            exit 1
+          fi
+
+      - name: Validate CI checks passed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SHA=$(git rev-parse HEAD)
+          CHECKS=$(gh api repos/${{ github.repository }}/commits/$SHA/check-runs --jq '.check_runs[] | select(.conclusion != "success" and .conclusion != "skipped") | .name')
+          if [ -n "$CHECKS" ]; then
+            echo "FAIL: these CI checks have not passed:"
+            echo "$CHECKS"
+            exit 1
+          fi
 
       - name: Validate version format
         run: |
@@ -248,7 +268,7 @@ jobs:
             exit 1
           fi
 
-      - name: Validate TypeScript package versions
+      - name: Validate TypeScript package versions and internal deps
         working-directory: packages/typescript
         run: |
           VERSION="${{ github.event.inputs.version }}"
@@ -259,11 +279,25 @@ jobs:
               echo "FAIL: $pkg version is $PKG_VERSION, expected $VERSION"
               FAILED=1
             fi
+            # Check all @anip/* deps match the release version
+            for dep_field in dependencies devDependencies; do
+              STALE=$(node -p "
+                const deps = require('./$pkg/package.json')['$dep_field'] || {};
+                Object.entries(deps)
+                  .filter(([k,v]) => k.startsWith('@anip/') && v !== '$VERSION')
+                  .map(([k,v]) => k + '=' + v)
+                  .join(',')
+              ")
+              if [ -n "$STALE" ]; then
+                echo "FAIL: $pkg $dep_field has stale @anip deps: $STALE"
+                FAILED=1
+              fi
+            done
           done
           if [ "$FAILED" -eq 1 ]; then exit 1; fi
-          echo "All 13 TypeScript packages at version $VERSION"
+          echo "All 13 TypeScript packages and internal deps at version $VERSION"
 
-      - name: Validate Python package versions
+      - name: Validate Python package versions and internal deps
         run: |
           VERSION="${{ github.event.inputs.version }}"
           FAILED=0
@@ -273,9 +307,15 @@ jobs:
               echo "FAIL: $pkg version is $PKG_VERSION, expected $VERSION"
               FAILED=1
             fi
+            # Check internal anip-* deps use exact lockstep pin
+            STALE=$(grep -E 'anip-(core|crypto|server|service|fastapi)==' packages/python/$pkg/pyproject.toml | grep -v "==$VERSION" || true)
+            if [ -n "$STALE" ]; then
+              echo "FAIL: $pkg has stale internal deps: $STALE"
+              FAILED=1
+            fi
           done
           if [ "$FAILED" -eq 1 ]; then exit 1; fi
-          echo "All 8 Python packages at version $VERSION"
+          echo "All 8 Python packages and internal deps at version $VERSION"
 
   publish-typescript:
     needs: validate
@@ -306,18 +346,25 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          set -e
           publish_or_skip() {
             local pkg=$1
             cd $pkg
-            npm publish --access public 2>&1 || {
-              if echo "$?" | grep -q "EPUBLISH"; then
-                echo "SKIP: $pkg already published"
-              else
-                echo "FAIL: $pkg publish failed"
-                exit 1
-              fi
+            OUTPUT=$(npm publish --access public 2>&1) && {
+              echo "OK: $pkg published"
+              cd ..
+              return 0
             }
+            # npm publish failed — check if it's "already exists"
+            if echo "$OUTPUT" | grep -qi "cannot publish over the previously published"; then
+              echo "SKIP: $pkg@$(node -p 'require("./package.json").version') already published"
+              cd ..
+              return 0
+            fi
+            echo "FAIL: $pkg publish failed:"
+            echo "$OUTPUT"
             cd ..
+            return 1
           }
 
           # Layer 1: no deps
@@ -377,18 +424,25 @@ jobs:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: |
+          set -e
           publish_or_skip() {
             local pkg=$1
             cd packages/python/$pkg
-            twine upload dist/* 2>&1 || {
-              if echo "$?" | grep -q "already exists"; then
-                echo "SKIP: $pkg already published"
-              else
-                echo "FAIL: $pkg publish failed"
-                exit 1
-              fi
+            OUTPUT=$(twine upload dist/* 2>&1) && {
+              echo "OK: $pkg published"
+              cd ../../..
+              return 0
             }
+            # twine upload failed — check if it's "already exists"
+            if echo "$OUTPUT" | grep -qi "File already exists"; then
+              echo "SKIP: $pkg already published on PyPI"
+              cd ../../..
+              return 0
+            fi
+            echo "FAIL: $pkg publish failed:"
+            echo "$OUTPUT"
             cd ../../..
+            return 1
           }
 
           publish_or_skip anip-core
@@ -449,7 +503,7 @@ cd packages/typescript && npm ci && npm run build --workspaces && npm test --wor
 - [ ] **Step 2: Run all Python tests**
 
 ```bash
-pytest packages/python/anip-core/tests/ packages/python/anip-fastapi/tests/ -v
+pytest packages/python/anip-core/tests/ packages/python/anip-crypto/tests/ packages/python/anip-server/tests/ packages/python/anip-service/tests/ packages/python/anip-fastapi/tests/ packages/python/anip-mcp/tests/ packages/python/anip-rest/tests/ packages/python/anip-graphql/tests/ -v
 ```
 
 - [ ] **Step 3: Run conformance suite against both example apps**
