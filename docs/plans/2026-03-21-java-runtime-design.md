@@ -276,7 +276,38 @@ AnipMcpServer.mountStdio(service, credentials, options);
 ```
 Each tool call: authenticate API key → narrow scope to capability's `minimum_scope` → issue synthetic token (subject from credentials, purpose `{"source": "mcp"}`) → invoke with resolved token.
 
-**Streamable HTTP transport:** Per-request auth from `Authorization: Bearer` header. The MCP Java SDK's server transport provides request context access — the tool handler reads the bearer from the HTTP request context (via SDK's `McpServerContext` or equivalent) and calls the shared auth bridge (JWT-first, API-key-fallback with synthetic token). The exact context-access mechanism depends on the SDK's API — the implementer must check how the official Java SDK passes HTTP request metadata to tool handlers and adapt accordingly.
+**Streamable HTTP transport:** Per-request auth from `Authorization: Bearer` header via the SDK's `McpTransportContext` mechanism.
+
+The MCP Java SDK does NOT pass HTTP headers to tool handlers by default — `McpTransportContext` is empty unless a `McpTransportContextExtractor` is configured on the transport provider.
+
+Concrete wiring:
+
+```java
+WebMvcStreamableServerTransportProvider.builder()
+    .contextExtractor((serverRequest) -> {
+        Map<String, Object> context = new HashMap<>();
+        String auth = serverRequest.headers().firstHeader("Authorization");
+        if (auth != null) {
+            context.put("authorization", auth);
+        }
+        return McpTransportContext.create(context);
+    })
+    .build();
+```
+
+Tool handler reads the bearer from `McpTransportContext`:
+
+```java
+@Tool("search_flights")
+public ToolResponse searchFlights(McpTransportContext ctx, Map<String, Object> args) {
+    String auth = (String) ctx.getAttribute("authorization");
+    String bearer = extractBearer(auth); // strip "Bearer " prefix
+    DelegationToken token = resolveAuth(bearer, service, "search_flights");
+    // ... invoke with resolved token
+}
+```
+
+This is the same pattern as TypeScript's `HandleRequestOptions.authInfo` and Go's `WithHTTPContextFunc` — the transport layer injects auth context, the tool handler resolves it.
 
 ## Example App
 
