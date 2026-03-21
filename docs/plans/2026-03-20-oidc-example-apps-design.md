@@ -119,7 +119,7 @@ function createOidcValidator(config: OidcConfig): (bearer: string) => Promise<st
 ```python
 class OidcValidator:
     def __init__(self, issuer_url: str, audience: str, jwks_url: str | None = None): ...
-    async def validate(self, bearer: str) -> str | None: ...
+    def validate(self, bearer: str) -> str | None: ...  # sync — matches ANIPService authenticate callback
 ```
 
 ### Usage in `app.ts` / `app.py`

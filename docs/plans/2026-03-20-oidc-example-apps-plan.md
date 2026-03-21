@@ -374,13 +374,62 @@ describe("OIDC Validator", () => {
   });
 
   it("handles unknown kid by refreshing JWKS", async () => {
-    // jose's createRemoteJWKSet automatically refreshes on kid miss
-    const validate = createOidcValidator({ issuerUrl: issuer(), audience: AUDIENCE });
-    // Use a different kid — jose will refresh JWKS and find the key
-    // (Our test server always returns the same key set, so this tests the refresh path)
-    const token = await signToken({ email: "samir@example.com" }, { kid: "test-key-1" });
-    const principal = await validate(token);
-    expect(principal).toBe("human:samir@example.com");
+    // Generate a second key pair and add it to the server's key set mid-test
+    const { privateKey: newPriv, publicKey: newPub } = await jose.generateKeyPair("RS256");
+    const newJwk = await jose.exportJWK(newPub);
+    newJwk.kid = "rotated-key-2";
+    newJwk.alg = "RS256";
+    newJwk.use = "sig";
+
+    // Update the JWKS server to serve both keys
+    // We need a fresh server that returns the new key
+    const rotatedServer = createServer((req, res) => {
+      if (req.url === "/.well-known/openid-configuration") {
+        const port = (rotatedServer.address() as any).port;
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ issuer: `http://localhost:${port}`, jwks_uri: `http://localhost:${port}/jwks` }));
+      } else if (req.url === "/jwks") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ keys: [publicJwk, newJwk] }));
+      } else {
+        res.writeHead(404); res.end();
+      }
+    });
+    const rotatedPort = await new Promise<number>((resolve) => {
+      rotatedServer.listen(0, () => resolve((rotatedServer.address() as any).port));
+    });
+
+    try {
+      const validate = createOidcValidator({
+        issuerUrl: `http://localhost:${rotatedPort}`,
+        audience: AUDIENCE,
+      });
+
+      // First call with original key — caches JWKS
+      const token1 = await signToken({ email: "first@example.com" });
+      // Override issuer to match rotated server
+      const token1Fixed = await new jose.SignJWT({ email: "first@example.com" } as jose.JWTPayload)
+        .setProtectedHeader({ alg: "RS256", kid: "test-key-1" })
+        .setIssuer(`http://localhost:${rotatedPort}`)
+        .setAudience(AUDIENCE)
+        .setIssuedAt()
+        .setExpirationTime("1h")
+        .sign(privateKey);
+      expect(await validate(token1Fixed)).toBe("human:first@example.com");
+
+      // Second call with rotated kid — triggers JWKS refresh
+      const token2 = await new jose.SignJWT({ email: "rotated@example.com" } as jose.JWTPayload)
+        .setProtectedHeader({ alg: "RS256", kid: "rotated-key-2" })
+        .setIssuer(`http://localhost:${rotatedPort}`)
+        .setAudience(AUDIENCE)
+        .setIssuedAt()
+        .setExpirationTime("1h")
+        .sign(newPriv);
+      const principal = await validate(token2);
+      expect(principal).toBe("human:rotated@example.com");
+    } finally {
+      rotatedServer.close();
+    }
   });
 
   it("returns null for non-JWT strings", async () => {
@@ -452,6 +501,10 @@ from jwt import PyJWKClient
 class OidcValidator:
     """Validates OIDC bearer tokens and maps claims to ANIP principals.
 
+    Fully synchronous — the ANIPService authenticate callback is sync.
+    JWKS discovery and fetching use httpx sync client. PyJWKClient
+    handles JWKS caching and kid-miss refresh internally.
+
     Args:
         issuer_url: Expected issuer (iss claim).
         audience: Expected audience (aud claim).
@@ -495,8 +548,11 @@ class OidcValidator:
         self._jwk_client = PyJWKClient(jwks_url)
         return self._jwk_client
 
-    async def validate(self, bearer: str) -> str | None:
-        """Validate an OIDC bearer token and return an ANIP principal, or None."""
+    def validate(self, bearer: str) -> str | None:
+        """Validate an OIDC bearer token and return an ANIP principal, or None.
+
+        Synchronous — matches the ANIPService authenticate callback signature.
+        """
         try:
             client = self._get_jwk_client()
             if client is None:
@@ -590,15 +646,18 @@ _oidc_validator = (
 )
 
 
-async def _authenticate(bearer: str) -> str | None:
-    """Bootstrap auth: API keys, then OIDC (if configured)."""
+def _authenticate(bearer: str) -> str | None:
+    """Bootstrap auth: API keys, then OIDC (if configured).
+
+    Synchronous — matches the ANIPService authenticate callback signature.
+    """
     # 1. API key map
     principal = API_KEYS.get(bearer)
     if principal:
         return principal
     # 2. OIDC (if configured)
     if _oidc_validator:
-        return await _oidc_validator.validate(bearer)
+        return _oidc_validator.validate(bearer)
     # 3. Not recognized — service will try ANIP JWT separately
     return None
 
@@ -730,62 +789,62 @@ class TestOidcValidator:
     def validator(self, jwks_server):
         return OidcValidator(issuer_url=jwks_server, audience="test-service")
 
-    async def test_valid_token_with_email(self, validator, jwks_server):
+    def test_valid_token_with_email(self, validator, jwks_server):
         token = _sign_token(jwks_server, "test-service", {"email": "samir@example.com"})
-        result = await validator.validate(token)
+        result = validator.validate(token)
         assert result == "human:samir@example.com"
 
-    async def test_valid_token_with_username(self, validator, jwks_server):
+    def test_valid_token_with_username(self, validator, jwks_server):
         token = _sign_token(jwks_server, "test-service", {"preferred_username": "samir", "sub": "u1"})
-        result = await validator.validate(token)
+        result = validator.validate(token)
         assert result == "human:samir"
 
-    async def test_valid_token_sub_only(self, validator, jwks_server):
+    def test_valid_token_sub_only(self, validator, jwks_server):
         token = _sign_token(jwks_server, "test-service", {"sub": "svc-account"})
-        result = await validator.validate(token)
+        result = validator.validate(token)
         assert result == "oidc:svc-account"
 
-    async def test_expired_token(self, validator, jwks_server):
+    def test_expired_token(self, validator, jwks_server):
         token = _sign_token(jwks_server, "test-service", {"email": "x@x.com"}, exp_offset=-3600)
-        result = await validator.validate(token)
+        result = validator.validate(token)
         assert result is None
 
-    async def test_wrong_issuer(self, jwks_server):
+    def test_wrong_issuer(self, jwks_server):
         validator = OidcValidator(issuer_url="https://wrong.example.com", audience="test-service",
                                   jwks_url=f"{jwks_server}/jwks")
         token = _sign_token(jwks_server, "test-service", {"email": "x@x.com"})
-        result = await validator.validate(token)
+        result = validator.validate(token)
         assert result is None
 
-    async def test_wrong_audience(self, jwks_server):
+    def test_wrong_audience(self, jwks_server):
         validator = OidcValidator(issuer_url=jwks_server, audience="wrong-aud")
         token = _sign_token(jwks_server, "wrong-aud-not-matching", {"email": "x@x.com"})
-        result = await validator.validate(token)
+        result = validator.validate(token)
         assert result is None
 
-    async def test_invalid_signature(self, validator, jwks_server):
+    def test_invalid_signature(self, validator, jwks_server):
         other_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         payload = {"iss": jwks_server, "aud": "test-service", "email": "x@x.com",
                    "iat": int(time.time()), "exp": int(time.time()) + 3600}
         token = pyjwt.encode(payload, other_key, algorithm="RS256", headers={"kid": "test-key-1"})
-        result = await validator.validate(token)
+        result = validator.validate(token)
         assert result is None
 
-    async def test_jwks_fetch_failure(self):
+    def test_jwks_fetch_failure(self):
         validator = OidcValidator(issuer_url="http://localhost:1", audience="x",
                                   jwks_url="http://localhost:1/jwks")
-        result = await validator.validate("some-token")
+        result = validator.validate("some-token")
         assert result is None
 
-    async def test_non_jwt_string(self, validator):
-        result = await validator.validate("not-a-jwt")
+    def test_non_jwt_string(self, validator):
+        result = validator.validate("not-a-jwt")
         assert result is None
 
-    async def test_explicit_jwks_url(self, jwks_server):
+    def test_explicit_jwks_url(self, jwks_server):
         validator = OidcValidator(issuer_url=jwks_server, audience="test-service",
                                   jwks_url=f"{jwks_server}/jwks")
         token = _sign_token(jwks_server, "test-service", {"email": "direct@example.com"})
-        result = await validator.validate(token)
+        result = validator.validate(token)
         assert result == "human:direct@example.com"
 ```
 
