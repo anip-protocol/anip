@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/anip-protocol/anip/packages/go/core"
 	"github.com/jackc/pgx/v5"
@@ -47,6 +48,18 @@ CREATE TABLE IF NOT EXISTS checkpoints (
 	checkpoint_id TEXT PRIMARY KEY,
 	data TEXT NOT NULL,
 	signature TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS exclusive_leases (
+	key TEXT PRIMARY KEY,
+	holder TEXT NOT NULL,
+	expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS leader_leases (
+	role TEXT PRIMARY KEY,
+	holder TEXT NOT NULL,
+	expires_at TIMESTAMPTZ NOT NULL
 );
 `
 
@@ -425,4 +438,104 @@ func (s *PostgresStorage) GetCheckpointByID(id string) (*core.Checkpoint, error)
 		return nil, fmt.Errorf("unmarshal checkpoint: %w", err)
 	}
 	return &cp, nil
+}
+
+// --- Retention ---
+
+// DeleteExpiredAuditEntries deletes audit entries whose expires_at in the JSON data is before now.
+func (s *PostgresStorage) DeleteExpiredAuditEntries(now string) (int, error) {
+	// Scan all entries and check the JSON data blob for expires_at.
+	rows, err := s.pool.Query(context.Background(),
+		"SELECT sequence_number, data FROM audit_log",
+	)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	var toDelete []int64
+	for rows.Next() {
+		var seqNum int64
+		var data string
+		if err := rows.Scan(&seqNum, &data); err != nil {
+			return 0, err
+		}
+		var entry core.AuditEntry
+		if err := json.Unmarshal([]byte(data), &entry); err != nil {
+			continue
+		}
+		if entry.ExpiresAt != "" && entry.ExpiresAt < now {
+			toDelete = append(toDelete, seqNum)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+
+	for _, seqNum := range toDelete {
+		if _, err := s.pool.Exec(context.Background(),
+			"DELETE FROM audit_log WHERE sequence_number = $1", seqNum,
+		); err != nil {
+			return 0, err
+		}
+	}
+	return len(toDelete), nil
+}
+
+// --- Leases ---
+
+// TryAcquireExclusive attempts to acquire an exclusive lease. Returns true if acquired.
+func (s *PostgresStorage) TryAcquireExclusive(key, holder string, ttlSeconds int) (bool, error) {
+	now := time.Now().UTC()
+	expires := now.Add(time.Duration(ttlSeconds) * time.Second)
+	tag, err := s.pool.Exec(context.Background(),
+		`INSERT INTO exclusive_leases (key, holder, expires_at)
+		 VALUES ($1, $2, $3)
+		 ON CONFLICT (key) DO UPDATE
+		     SET holder = EXCLUDED.holder, expires_at = EXCLUDED.expires_at
+		     WHERE exclusive_leases.expires_at < $4
+		        OR exclusive_leases.holder = $5`,
+		key, holder, expires, now, holder,
+	)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() == 1, nil
+}
+
+// ReleaseExclusive releases an exclusive lease if held by the given holder.
+func (s *PostgresStorage) ReleaseExclusive(key, holder string) error {
+	_, err := s.pool.Exec(context.Background(),
+		"DELETE FROM exclusive_leases WHERE key = $1 AND holder = $2",
+		key, holder,
+	)
+	return err
+}
+
+// TryAcquireLeader attempts to acquire a leader lease for a background role.
+func (s *PostgresStorage) TryAcquireLeader(role, holder string, ttlSeconds int) (bool, error) {
+	now := time.Now().UTC()
+	expires := now.Add(time.Duration(ttlSeconds) * time.Second)
+	tag, err := s.pool.Exec(context.Background(),
+		`INSERT INTO leader_leases (role, holder, expires_at)
+		 VALUES ($1, $2, $3)
+		 ON CONFLICT (role) DO UPDATE
+		     SET holder = EXCLUDED.holder, expires_at = EXCLUDED.expires_at
+		     WHERE leader_leases.expires_at < $4
+		        OR leader_leases.holder = $5`,
+		role, holder, expires, now, holder,
+	)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() == 1, nil
+}
+
+// ReleaseLeader releases a leader lease if held by the given holder.
+func (s *PostgresStorage) ReleaseLeader(role, holder string) error {
+	_, err := s.pool.Exec(context.Background(),
+		"DELETE FROM leader_leases WHERE role = $1 AND holder = $2",
+		role, holder,
+	)
+	return err
 }

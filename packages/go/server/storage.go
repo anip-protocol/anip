@@ -30,6 +30,15 @@ type Storage interface {
 	ListCheckpoints(limit int) ([]core.Checkpoint, error)
 	GetCheckpointByID(id string) (*core.Checkpoint, error)
 
+	// Retention
+	DeleteExpiredAuditEntries(now string) (int, error)
+
+	// Leases (for horizontal scaling coordination)
+	TryAcquireExclusive(key, holder string, ttlSeconds int) (bool, error)
+	ReleaseExclusive(key, holder string) error
+	TryAcquireLeader(role, holder string, ttlSeconds int) (bool, error)
+	ReleaseLeader(role, holder string) error
+
 	// Close releases storage resources.
 	Close() error
 }

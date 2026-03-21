@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/anip-protocol/anip/packages/go/core"
 	_ "modernc.org/sqlite"
@@ -45,8 +46,16 @@ CREATE TABLE IF NOT EXISTS checkpoints (
 
 // SQLiteStorage implements Storage using modernc.org/sqlite.
 type SQLiteStorage struct {
-	db *sql.DB
-	mu sync.Mutex
+	db              *sql.DB
+	mu              sync.Mutex
+	exclusiveLeases map[string]leaseEntry
+	leaderLeases    map[string]leaseEntry
+}
+
+// leaseEntry tracks holder and expiry for in-memory leases.
+type leaseEntry struct {
+	holder    string
+	expiresAt time.Time
 }
 
 // NewSQLiteStorage opens or creates a SQLite database at the given path.
@@ -68,7 +77,11 @@ func NewSQLiteStorage(dbPath string) (*SQLiteStorage, error) {
 		return nil, fmt.Errorf("create schema: %w", err)
 	}
 
-	return &SQLiteStorage{db: db}, nil
+	return &SQLiteStorage{
+		db:              db,
+		exclusiveLeases: make(map[string]leaseEntry),
+		leaderLeases:    make(map[string]leaseEntry),
+	}, nil
 }
 
 // Close closes the database connection.
@@ -446,4 +459,87 @@ func (s *SQLiteStorage) GetCheckpointByID(id string) (*core.Checkpoint, error) {
 		return nil, fmt.Errorf("unmarshal checkpoint: %w", err)
 	}
 	return &cp, nil
+}
+
+// --- Retention ---
+
+// DeleteExpiredAuditEntries deletes audit entries whose expires_at in the JSON data is before now.
+// Since the Go SQLite backend stores entries as a JSON data blob, we parse and filter.
+func (s *SQLiteStorage) DeleteExpiredAuditEntries(now string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Find expired entries by scanning the data blobs.
+	rows, err := s.db.Query("SELECT sequence_number, data FROM audit_log")
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	var toDelete []int
+	for rows.Next() {
+		var seqNum int
+		var data string
+		if err := rows.Scan(&seqNum, &data); err != nil {
+			return 0, err
+		}
+		var entry core.AuditEntry
+		if err := json.Unmarshal([]byte(data), &entry); err != nil {
+			continue
+		}
+		if entry.ExpiresAt != "" && entry.ExpiresAt < now {
+			toDelete = append(toDelete, seqNum)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+
+	for _, seqNum := range toDelete {
+		if _, err := s.db.Exec("DELETE FROM audit_log WHERE sequence_number = ?", seqNum); err != nil {
+			return 0, err
+		}
+	}
+	return len(toDelete), nil
+}
+
+// --- Leases (in-memory, single-process) ---
+
+// TryAcquireExclusive attempts to acquire an exclusive lease. Returns true if acquired.
+func (s *SQLiteStorage) TryAcquireExclusive(key, holder string, ttlSeconds int) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now().UTC()
+	existing, ok := s.exclusiveLeases[key]
+	if !ok || existing.expiresAt.Before(now) || existing.holder == holder {
+		s.exclusiveLeases[key] = leaseEntry{
+			holder:    holder,
+			expiresAt: now.Add(time.Duration(ttlSeconds) * time.Second),
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+// ReleaseExclusive releases an exclusive lease if held by the given holder.
+func (s *SQLiteStorage) ReleaseExclusive(key, holder string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	existing, ok := s.exclusiveLeases[key]
+	if ok && existing.holder == holder {
+		delete(s.exclusiveLeases, key)
+	}
+	return nil
+}
+
+// TryAcquireLeader attempts to acquire a leader lease for a background role.
+func (s *SQLiteStorage) TryAcquireLeader(role, holder string, ttlSeconds int) (bool, error) {
+	return s.TryAcquireExclusive("leader:"+role, holder, ttlSeconds)
+}
+
+// ReleaseLeader releases a leader lease if held by the given holder.
+func (s *SQLiteStorage) ReleaseLeader(role, holder string) error {
+	return s.ReleaseExclusive("leader:"+role, holder)
 }
