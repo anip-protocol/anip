@@ -106,11 +106,19 @@ jobs:
           java -jar anip-example-flights-quarkus/target/quarkus-app/quarkus-run.jar &
           sleep 8
 
-      - name: Smoke test ANIP discovery
+      - name: Smoke test ANIP + MCP endpoints
         run: |
           curl -sf http://localhost:8080/.well-known/anip | head -c 100
           echo ""
-          echo "Quarkus ANIP smoke test passed"
+          # Verify MCP endpoint is mounted and responds to initialize
+          MCP_RESPONSE=$(curl -sf -X POST http://localhost:8080/mcp \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json, text/event-stream" \
+            -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"1.0"}}}')
+          echo "$MCP_RESPONSE" | head -c 100
+          echo ""
+          echo "$MCP_RESPONSE" | grep -q '"protocolVersion"' || { echo "FAIL: MCP initialize did not return protocolVersion"; exit 1; }
+          echo "Quarkus ANIP + MCP smoke tests passed"
 
       - name: Install and run conformance suite
         run: |
