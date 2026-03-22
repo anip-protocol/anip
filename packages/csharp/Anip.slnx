@@ -1,8 +1,10 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Anip.Core/Anip.Core.csproj" />
+    <Project Path="src/Anip.Crypto/Anip.Crypto.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/Anip.Core.Tests/Anip.Core.Tests.csproj" />
+    <Project Path="test/Anip.Crypto.Tests/Anip.Crypto.Tests.csproj" />
   </Folder>
 </Solution>
