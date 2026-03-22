@@ -1,5 +1,8 @@
 using Anip.AspNetCore;
 using Anip.Example.Flights;
+using Anip.GraphQL.AspNetCore;
+using Anip.Mcp.AspNetCore;
+using Anip.Rest.AspNetCore;
 using Anip.Service;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,7 +29,14 @@ var service = new AnipService(new ServiceConfig
 });
 
 builder.Services.AddAnip(service);
+builder.Services.AddAnipMcp(service);
+
+// Mount REST and GraphQL interface controllers.
+builder.Services.AddControllers()
+    .AddApplicationPart(typeof(AnipRestController).Assembly)
+    .AddApplicationPart(typeof(AnipGraphQLController).Assembly);
 
 var app = builder.Build();
 app.MapControllers();
+app.MapAnipMcp();
 app.Run();

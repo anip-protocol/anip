@@ -10,7 +10,13 @@ public class ServiceConfig
     public string ServiceId { get; set; } = "";
     public List<CapabilityDef> Capabilities { get; set; } = new();
 
-    /// <summary>"sqlite:///path" or ":memory:" (default).</summary>
+    /// <summary>
+    /// Storage DSN. Supported formats:
+    /// - ":memory:" (default) — in-memory SQLite
+    /// - "sqlite:///path" — file-backed SQLite
+    /// - "postgres://user:pass@host:5432/dbname" — PostgreSQL
+    /// - "postgresql://user:pass@host:5432/dbname" — PostgreSQL (alternate scheme)
+    /// </summary>
     public string Storage { get; set; } = ":memory:";
 
     /// <summary>"signed" or "anchored".</summary>
