@@ -40,18 +40,13 @@
 
     <build>
         <plugins>
+            <!-- extensions=true enables @QuarkusTest in this library module;
+                 no build goal — downstream apps provide that. -->
             <plugin>
                 <groupId>io.quarkus.platform</groupId>
                 <artifactId>quarkus-maven-plugin</artifactId>
                 <version>${quarkus.version}</version>
                 <extensions>true</extensions>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>build</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>

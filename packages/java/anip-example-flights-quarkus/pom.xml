@@ -10,10 +10,18 @@
     </parent>
 
     <artifactId>anip-example-flights-quarkus</artifactId>
-    <name>ANIP Example Flights Quarkus</name>
-    <description>Example ANIP flight service using Quarkus (stub — implementation pending)</description>
+    <name>ANIP Example Flights (Quarkus)</name>
+    <description>Example ANIP flight service on Quarkus</description>
 
     <dependencies>
+        <dependency>
+            <groupId>dev.anip</groupId>
+            <artifactId>anip-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.anip</groupId>
+            <artifactId>anip-service</artifactId>
+        </dependency>
         <dependency>
             <groupId>dev.anip</groupId>
             <artifactId>anip-quarkus</artifactId>
