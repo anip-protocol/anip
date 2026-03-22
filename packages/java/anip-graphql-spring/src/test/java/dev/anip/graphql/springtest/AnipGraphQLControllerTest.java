@@ -1,4 +1,4 @@
-package dev.anip.graphqltest;
+package dev.anip.graphql.springtest;
 
 import dev.anip.core.CapabilityDeclaration;
 import dev.anip.core.CapabilityInput;
@@ -6,7 +6,7 @@ import dev.anip.core.CapabilityOutput;
 import dev.anip.core.SideEffect;
 import dev.anip.core.TokenRequest;
 import dev.anip.core.TokenResponse;
-import dev.anip.graphql.AnipGraphQLController;
+import dev.anip.graphql.spring.AnipGraphQLController;
 import dev.anip.service.ANIPService;
 import dev.anip.service.CapabilityDef;
 import dev.anip.service.ServiceConfig;

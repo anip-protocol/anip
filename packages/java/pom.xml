@@ -55,6 +55,8 @@
         <module>anip-rest-spring</module>
         <module>anip-rest-quarkus</module>
         <module>anip-graphql</module>
+        <module>anip-graphql-spring</module>
+        <module>anip-graphql-quarkus</module>
         <module>anip-mcp</module>
         <module>anip-quarkus</module>
         <module>anip-example-flights</module>
@@ -128,6 +130,21 @@
             <dependency>
                 <groupId>dev.anip</groupId>
                 <artifactId>anip-rest-quarkus</artifactId>
+                <version>${anip.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.anip</groupId>
+                <artifactId>anip-graphql</artifactId>
+                <version>${anip.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.anip</groupId>
+                <artifactId>anip-graphql-spring</artifactId>
+                <version>${anip.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.anip</groupId>
+                <artifactId>anip-graphql-quarkus</artifactId>
                 <version>${anip.version}</version>
             </dependency>
             <dependency>

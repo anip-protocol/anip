@@ -1,7 +1,8 @@
-package dev.anip.graphql;
+package dev.anip.graphql.spring;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import dev.anip.graphql.SchemaBuilder;
 import dev.anip.service.ANIPService;
 
 import graphql.ExecutionInput;
