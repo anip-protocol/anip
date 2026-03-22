@@ -32,7 +32,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           SHA=$(git rev-parse HEAD)
-          REQUIRED_CHECKS=("test (3.11)" "test (3.12)" "test (20)" "test (22)" "go-ci" "java-ci")
+          REQUIRED_CHECKS=("test (3.11)" "test (3.12)" "test (20)" "test (22)" "go-ci" "java-ci" "csharp-ci")
           ERRORS=0
           for CHECK in "${REQUIRED_CHECKS[@]}"; do
             STATUS=$(gh api "repos/$GH_REPO/commits/$SHA/check-runs" \
@@ -54,6 +54,7 @@ jobs:
           TAG="v$VERSION"
           GO_TAG="packages/go/v$VERSION"
           JAVA_TAG="packages/java/v$VERSION"
+          CSHARP_TAG="packages/csharp/v$VERSION"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "FAIL: Tag '$TAG' already exists"
             exit 1
@@ -69,6 +70,11 @@ jobs:
             exit 1
           fi
           echo "OK: Java tag '$JAVA_TAG' is available"
+          if git rev-parse "$CSHARP_TAG" >/dev/null 2>&1; then
+            echo "FAIL: C# tag '$CSHARP_TAG' already exists"
+            exit 1
+          fi
+          echo "OK: C# tag '$CSHARP_TAG' is available"
 
       - name: Validate version format
         env:
@@ -391,6 +397,14 @@ jobs:
           JAVA_TAG="packages/java/v$VERSION"
           git tag "$JAVA_TAG"
           git push origin "$JAVA_TAG"
+
+      - name: Create C# tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          CSHARP_TAG="packages/csharp/v$VERSION"
+          git tag "$CSHARP_TAG"
+          git push origin "$CSHARP_TAG"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
