@@ -26,7 +26,7 @@ import java.util.Map;
 /**
  * JAX-RS resource for ANIP GraphQL capabilities.
  * POST /graphql: execute query/mutation
- * GET /graphql/playground: playground HTML
+ * GET /graphql (Accept: text/html): playground HTML
  * GET /schema.graphql: SDL text
  */
 @ApplicationScoped
