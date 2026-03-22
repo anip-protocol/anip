@@ -42,6 +42,7 @@
         <spring-boot.version>3.4.3</spring-boot.version>
         <graphql-java.version>22.3</graphql-java.version>
         <mcp-sdk.version>0.18.1</mcp-sdk.version>
+        <quarkus.version>3.17.8</quarkus.version>
     </properties>
 
     <modules>
@@ -53,7 +54,9 @@
         <module>anip-rest</module>
         <module>anip-graphql</module>
         <module>anip-mcp</module>
+        <module>anip-quarkus</module>
         <module>anip-example-flights</module>
+        <module>anip-example-flights-quarkus</module>
     </modules>
 
     <dependencyManagement>
@@ -63,6 +66,14 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
                 <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Quarkus BOM -->
+            <dependency>
+                <groupId>io.quarkus.platform</groupId>
+                <artifactId>quarkus-bom</artifactId>
+                <version>${quarkus.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -95,6 +106,11 @@
             <dependency>
                 <groupId>dev.anip</groupId>
                 <artifactId>anip-spring-boot</artifactId>
+                <version>${anip.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.anip</groupId>
+                <artifactId>anip-quarkus</artifactId>
                 <version>${anip.version}</version>
             </dependency>
             <dependency>
