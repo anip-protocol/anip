@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Anip.Core/Anip.Core.csproj" />
+    <Project Path="src/Anip.Crypto/Anip.Crypto.csproj" />
+    <Project Path="src/Anip.Server/Anip.Server.csproj" />
+    <Project Path="src/Anip.Service/Anip.Service.csproj" />
+    <Project Path="src/Anip.AspNetCore/Anip.AspNetCore.csproj" />
+    <Project Path="src/Anip.Example.Flights/Anip.Example.Flights.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/Anip.Core.Tests/Anip.Core.Tests.csproj" />
+    <Project Path="test/Anip.Crypto.Tests/Anip.Crypto.Tests.csproj" />
+    <Project Path="test/Anip.Server.Tests/Anip.Server.Tests.csproj" />
+    <Project Path="test/Anip.Service.Tests/Anip.Service.Tests.csproj" />
+    <Project Path="test/Anip.AspNetCore.Tests/Anip.AspNetCore.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,91 @@
+name: CI — C#
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should_test: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+              - "packages/csharp/**"
+              - ".github/workflows/ci-csharp.yml"
+
+  test:
+    needs: changes
+    if: needs.changes.outputs.should_test == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build and test
+        working-directory: packages/csharp
+        run: |
+          dotnet build
+          dotnet test --no-build
+
+  conformance:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build C# example
+        working-directory: packages/csharp
+        run: dotnet build src/Anip.Example.Flights
+
+      - name: Start C# example
+        working-directory: packages/csharp/src/Anip.Example.Flights
+        run: |
+          dotnet run &
+          sleep 8
+
+      - name: Smoke test ANIP discovery
+        run: |
+          curl -sf http://localhost:8080/.well-known/anip | head -c 100
+          echo ""
+          echo "C# ANIP smoke test passed"
+
+      - name: Install and run conformance suite
+        run: |
+          pip install -e "./conformance"
+          pytest conformance/ \
+            --base-url=http://localhost:8080 \
+            --bootstrap-bearer=demo-human-key \
+            --sample-inputs=conformance/samples/flight-service.json \
+            -v
+
+  csharp-ci:
+    if: always()
+    needs: [changes, test, conformance]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Passed
+        if: |
+          (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+          (needs.conformance.result == 'success' || needs.conformance.result == 'skipped')
+        run: echo "C# CI passed"
+      - name: Failed
+        if: |
+          needs.test.result == 'failure' || needs.test.result == 'cancelled' ||
+          needs.conformance.result == 'failure' || needs.conformance.result == 'cancelled'
+        run: exit 1
