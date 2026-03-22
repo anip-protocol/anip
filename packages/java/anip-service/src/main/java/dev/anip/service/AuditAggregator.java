@@ -56,6 +56,7 @@ public class AuditAggregator {
                 aggregated.put("representative_detail", bucket.representativeDetail);
                 aggregated.put("capability", wk.capability);
                 aggregated.put("failure_type", wk.failureType);
+                aggregated.put("actor_key", wk.actorKey);
                 aggregated.put("success", false);
                 results.add(aggregated);
             }

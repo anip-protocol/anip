@@ -1004,7 +1004,14 @@ public class ANIPService {
         entry.setEventClass((String) entryData.get("event_class"));
         entry.setRetentionTier((String) entryData.get("retention_tier"));
         entry.setExpiresAt((String) entryData.get("expires_at"));
-        entry.setRootPrincipal((String) entryData.get("actor_key"));
+        // Derive root principal: top-level actor_key, or from grouping_key for aggregated entries.
+        String rootPrincipal = (String) entryData.get("actor_key");
+        if (rootPrincipal == null && entryData.get("grouping_key") instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, String> gk = (Map<String, String>) entryData.get("grouping_key");
+            rootPrincipal = gk.get("actor_key");
+        }
+        entry.setRootPrincipal(rootPrincipal);
         entry.setTimestamp((String) entryData.get("timestamp"));
         entry.setInvocationId((String) entryData.get("invocation_id"));
         entry.setClientReferenceId((String) entryData.get("client_reference_id"));
@@ -1026,6 +1033,10 @@ public class ANIPService {
         entry.setFirstSeen((String) entryData.get("first_seen"));
         entry.setLastSeen((String) entryData.get("last_seen"));
         entry.setRepresentativeDetail((String) entryData.get("representative_detail"));
+        // Restore storage redaction flag from the redacted map.
+        if (Boolean.TRUE.equals(entryData.get("storage_redacted"))) {
+            entry.setStorageRedacted(true);
+        }
         try {
             AuditLog.appendAudit(keys, storage, entry);
         } catch (Exception ignored) {}
