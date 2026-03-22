@@ -62,7 +62,7 @@ jobs:
           java -jar anip-example-flights/target/anip-example-flights-0.11.0.jar &
           sleep 10
 
-      - name: Smoke test REST/GraphQL endpoints
+      - name: Smoke test REST/GraphQL/MCP endpoints
         run: |
           curl -sf http://localhost:8080/.well-known/anip | head -c 100
           echo ""
@@ -70,7 +70,9 @@ jobs:
           echo ""
           curl -sf http://localhost:8080/schema.graphql | head -c 100
           echo ""
-          echo "REST and GraphQL smoke tests passed"
+          curl -sf -X POST http://localhost:8080/mcp -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | head -c 100
+          echo ""
+          echo "REST, GraphQL, and MCP smoke tests passed"
 
       - name: Install and run conformance suite
         run: |

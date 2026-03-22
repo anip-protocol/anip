@@ -1,7 +1,10 @@
 package dev.anip.example.flights;
 
 import dev.anip.graphql.AnipGraphQLController;
+import dev.anip.mcp.AnipMcpHttp;
 import dev.anip.rest.AnipRestController;
+import org.springframework.web.servlet.function.RouterFunction;
+import org.springframework.web.servlet.function.ServerResponse;
 import dev.anip.service.ANIPService;
 import dev.anip.service.ServiceConfig;
 import dev.anip.spring.AnipController;
@@ -84,5 +87,10 @@ public class Application {
     @Bean
     public AnipGraphQLController graphqlController(ANIPService service) {
         return new AnipGraphQLController(service);
+    }
+
+    @Bean
+    public RouterFunction<ServerResponse> mcpRoutes(ANIPService service) {
+        return AnipMcpHttp.mount(service);
     }
 }

@@ -17,6 +17,9 @@ build/
 .worktrees/
 .serena/
 
+# Java build outputs
+target/
+
 # Go binaries
 packages/go/flight-service
 packages/go/flights-gin

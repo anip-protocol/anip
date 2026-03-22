@@ -30,6 +30,7 @@ import dev.anip.crypto.KeyManager;
 import dev.anip.server.AuditLog;
 import dev.anip.server.CheckpointManager;
 import dev.anip.server.DelegationEngine;
+import dev.anip.server.PostgresStorage;
 import dev.anip.server.SqliteStorage;
 import dev.anip.server.Storage;
 
@@ -129,8 +130,7 @@ public class ANIPService {
             String dbPath = storageDSN.substring("sqlite:///".length());
             storage = new SqliteStorage(dbPath);
         } else if (storageDSN.startsWith("postgres://") || storageDSN.startsWith("postgresql://")) {
-            // PostgresStorage would be used here in production.
-            throw new UnsupportedOperationException("PostgreSQL storage not yet wired in service layer");
+            storage = new PostgresStorage(storageDSN);
         } else {
             throw new IllegalArgumentException("Unsupported storage: " + storageDSN);
         }
