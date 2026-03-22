@@ -94,7 +94,7 @@ public class AnipGraphQLResource {
     }
 
     @GET
-    @Path("/graphql/playground")
+    @Path("/graphql")
     @Produces(MediaType.TEXT_HTML)
     public Response playground() {
         String html = """

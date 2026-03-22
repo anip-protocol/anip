@@ -54,7 +54,8 @@ class AnipGraphQLResourceTest {
     @Test
     void playgroundReturnsHtml() {
         given()
-            .when().get("/graphql/playground")
+            .accept("text/html")
+            .when().get("/graphql")
             .then().statusCode(200)
             .contentType(containsString("text/html"))
             .body(containsString("ANIP GraphQL"));
