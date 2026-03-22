@@ -3,15 +3,16 @@ package dev.anip.example.flights;
 import dev.anip.graphql.spring.AnipGraphQLController;
 import dev.anip.mcp.spring.AnipMcpHttp;
 import dev.anip.rest.spring.AnipRestController;
-import org.springframework.web.servlet.function.RouterFunction;
-import org.springframework.web.servlet.function.ServerResponse;
 import dev.anip.service.ANIPService;
 import dev.anip.service.ServiceConfig;
 import dev.anip.spring.AnipController;
 import dev.anip.spring.AnipLifecycle;
 
+import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
 
 import java.util.List;
@@ -90,14 +91,15 @@ public class Application {
     }
 
     @Bean
-    public RouterFunction<ServerResponse> mcpRoutes(ANIPService service) {
+    public ServletRegistrationBean<HttpServletStreamableServerTransportProvider> mcpServlet(
+            ANIPService service) {
         try {
             return AnipMcpHttp.mount(service);
         } catch (Throwable t) {
             // MCP SDK may require additional SPI providers at runtime.
             // If unavailable, skip MCP HTTP and log the issue.
             System.err.println("MCP HTTP transport not available: " + t.getMessage());
-            return request -> Optional.empty();
+            return null;
         }
     }
 }
