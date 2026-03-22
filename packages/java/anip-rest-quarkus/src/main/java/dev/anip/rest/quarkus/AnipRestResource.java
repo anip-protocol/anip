@@ -13,6 +13,7 @@ import dev.anip.service.InvokeOpts;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -42,12 +43,17 @@ public class AnipRestResource {
     @Inject
     ANIPService service;
 
+    @Inject
+    Instance<Map<String, RouteOverride>> overridesInstance;
+
     private List<RestRoute> routes;
     private Map<String, Object> openApiSpec;
 
     @PostConstruct
     void init() {
-        this.routes = RestRouter.generateRoutes(service, null);
+        Map<String, RouteOverride> overrides = overridesInstance.isResolvable()
+                ? overridesInstance.get() : null;
+        this.routes = RestRouter.generateRoutes(service, overrides);
         this.openApiSpec = OpenApiGenerator.generateSpec(service.getServiceId(), routes);
     }
 
