@@ -29,15 +29,11 @@ public class AnipRestController : ControllerBase
     /// <summary>
     /// Creates the REST controller from the service and optional route overrides.
     /// </summary>
-    public AnipRestController(AnipService service, Dictionary<string, RouteOverride>? overrides)
+    public AnipRestController(AnipService service, Dictionary<string, RouteOverride>? overrides = null)
     {
         _service = service;
         _routes = RestRouter.GenerateRoutes(service, overrides);
         _openApiSpec = OpenApiGenerator.GenerateSpec(service.ServiceId, _routes);
-    }
-
-    public AnipRestController(AnipService service) : this(service, null)
-    {
     }
 
     // --- OpenAPI ---
@@ -228,5 +224,6 @@ public class AnipRestController : ControllerBase
     /// <summary>
     /// Returns generated routes (for testing).
     /// </summary>
+    [Microsoft.AspNetCore.Mvc.NonAction]
     public List<RestRoute> GetRoutes() => _routes;
 }
