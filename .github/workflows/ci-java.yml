@@ -1,0 +1,100 @@
+name: CI — Java
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should_test: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+              - "packages/java/**"
+              - ".github/workflows/ci-java.yml"
+
+  test:
+    needs: changes
+    if: needs.changes.outputs.should_test == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java-version: ["17", "21"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java-version }}
+
+      - name: Build and test
+        working-directory: packages/java
+        run: mvn verify
+
+  conformance:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build Java example
+        working-directory: packages/java
+        run: mvn package -pl anip-example-flights -am -DskipTests
+
+      - name: Start Java example
+        working-directory: packages/java
+        run: |
+          java -jar anip-example-flights/target/anip-example-flights-0.11.0.jar &
+          sleep 10
+
+      - name: Smoke test REST/GraphQL/MCP endpoints
+        run: |
+          curl -sf http://localhost:8080/.well-known/anip | head -c 100
+          echo ""
+          curl -sf http://localhost:8080/rest/openapi.json | head -c 100
+          echo ""
+          curl -sf http://localhost:8080/schema.graphql | head -c 100
+          echo ""
+          curl -sf -X POST http://localhost:8080/mcp -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | head -c 100
+          echo ""
+          echo "REST, GraphQL, and MCP smoke tests passed"
+
+      - name: Install and run conformance suite
+        run: |
+          pip install -e "./conformance"
+          pytest conformance/ \
+            --base-url=http://localhost:8080 \
+            --bootstrap-bearer=demo-human-key \
+            --sample-inputs=conformance/samples/flight-service.json \
+            -v
+
+  java-ci:
+    if: always()
+    needs: [changes, test, conformance]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Passed
+        if: |
+          (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+          (needs.conformance.result == 'success' || needs.conformance.result == 'skipped')
+        run: echo "Java CI passed"
+      - name: Failed
+        if: |
+          needs.test.result == 'failure' || needs.test.result == 'cancelled' ||
+          needs.conformance.result == 'failure' || needs.conformance.result == 'cancelled'
+        run: exit 1
