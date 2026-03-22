@@ -52,6 +52,8 @@
         <module>anip-service</module>
         <module>anip-spring-boot</module>
         <module>anip-rest</module>
+        <module>anip-rest-spring</module>
+        <module>anip-rest-quarkus</module>
         <module>anip-graphql</module>
         <module>anip-mcp</module>
         <module>anip-quarkus</module>
@@ -111,6 +113,21 @@
             <dependency>
                 <groupId>dev.anip</groupId>
                 <artifactId>anip-quarkus</artifactId>
+                <version>${anip.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.anip</groupId>
+                <artifactId>anip-rest</artifactId>
+                <version>${anip.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.anip</groupId>
+                <artifactId>anip-rest-spring</artifactId>
+                <version>${anip.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.anip</groupId>
+                <artifactId>anip-rest-quarkus</artifactId>
                 <version>${anip.version}</version>
             </dependency>
             <dependency>

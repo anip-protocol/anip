@@ -9,14 +9,27 @@
         <version>0.11.0</version>
     </parent>
 
-    <artifactId>anip-rest</artifactId>
-    <name>ANIP REST</name>
-    <description>REST interface for ANIP capabilities with OpenAPI generation</description>
+    <artifactId>anip-rest-spring</artifactId>
+    <name>ANIP REST Spring</name>
+    <description>Spring MVC adapter for the ANIP REST interface</description>
 
     <dependencies>
         <dependency>
             <groupId>dev.anip</groupId>
+            <artifactId>anip-rest</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.anip</groupId>
             <artifactId>anip-service</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -24,5 +37,4 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
 </project>
