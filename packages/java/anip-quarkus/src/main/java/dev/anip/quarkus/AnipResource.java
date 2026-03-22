@@ -25,6 +25,7 @@ import dev.anip.service.StreamResult;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
@@ -222,8 +223,9 @@ public class AnipResource {
 
     @POST
     @Path("anip/audit")
+    @Consumes(MediaType.WILDCARD)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response audit(Map<String, Object> body,
+    public Response audit(String rawBody,
                           @HeaderParam("Authorization") String authHeader,
                           @QueryParam("capability") String qCapability,
                           @QueryParam("since") String qSince,
@@ -233,6 +235,11 @@ public class AnipResource {
         DelegationToken token = resolveJwt(authHeader);
 
         try {
+            // Parse body as JSON if present.
+            @SuppressWarnings("unchecked")
+            Map<String, Object> body = (rawBody != null && !rawBody.isBlank())
+                    ? MAPPER.readValue(rawBody, Map.class) : null;
+
             // Read filters from body.
             String capability = body != null ? (String) body.get("capability") : null;
             String since = body != null ? (String) body.get("since") : null;
