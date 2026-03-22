@@ -93,10 +93,10 @@ public class Application {
     public RouterFunction<ServerResponse> mcpRoutes(ANIPService service) {
         try {
             return AnipMcpHttp.mount(service);
-        } catch (Exception e) {
+        } catch (Throwable t) {
             // MCP SDK may require additional SPI providers at runtime.
             // If unavailable, skip MCP HTTP and log the issue.
-            System.err.println("MCP HTTP transport not available: " + e.getMessage());
+            System.err.println("MCP HTTP transport not available: " + t.getMessage());
             return request -> Optional.empty();
         }
     }
