@@ -9,18 +9,27 @@
         <version>0.11.0</version>
     </parent>
 
-    <artifactId>anip-graphql</artifactId>
-    <name>ANIP GraphQL</name>
-    <description>GraphQL interface for ANIP capabilities</description>
+    <artifactId>anip-graphql-spring</artifactId>
+    <name>ANIP GraphQL Spring</name>
+    <description>Spring MVC adapter for the ANIP GraphQL interface</description>
 
     <dependencies>
+        <dependency>
+            <groupId>dev.anip</groupId>
+            <artifactId>anip-graphql</artifactId>
+        </dependency>
         <dependency>
             <groupId>dev.anip</groupId>
             <artifactId>anip-service</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.graphql-java</groupId>
-            <artifactId>graphql-java</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -28,5 +37,4 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
 </project>

@@ -41,7 +41,7 @@
         </dependency>
         <dependency>
             <groupId>dev.anip</groupId>
-            <artifactId>anip-graphql</artifactId>
+            <artifactId>anip-graphql-spring</artifactId>
             <version>${anip.version}</version>
         </dependency>
         <dependency>
