@@ -124,6 +124,10 @@ public class AnipService : IDisposable
             var dbPath = storageDsn["sqlite:///".Length..];
             _storage = new SqliteStorage(dbPath);
         }
+        else if (storageDsn.StartsWith("postgres://") || storageDsn.StartsWith("postgresql://"))
+        {
+            _storage = new NpgsqlStorage(storageDsn);
+        }
         else
         {
             throw new InvalidOperationException($"unsupported storage: {storageDsn}");
@@ -965,7 +969,7 @@ public class AnipService : IDisposable
     /// <summary>Returns the current health status of the service.</summary>
     public HealthReport GetHealth()
     {
-        var storageType = "sqlite";
+        var storageType = _storage is NpgsqlStorage ? "postgres" : "sqlite";
         var connected = _storage != null;
         var status = connected ? "healthy" : "unhealthy";
         var uptime = (DateTime.UtcNow - _startedAt).ToString(@"hh\:mm\:ss");
