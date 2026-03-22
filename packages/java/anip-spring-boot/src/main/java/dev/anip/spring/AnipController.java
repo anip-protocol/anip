@@ -224,12 +224,27 @@ public class AnipController {
         }
 
         try {
+            // Read filters from body and/or query params (query params take precedence).
             String capability = body != null ? (String) body.get("capability") : null;
             String since = body != null ? (String) body.get("since") : null;
             String invocationId = body != null ? (String) body.get("invocation_id") : null;
             String clientReferenceId = body != null ? (String) body.get("client_reference_id") : null;
             int limit = body != null && body.get("limit") != null
                     ? ((Number) body.get("limit")).intValue() : 50;
+
+            // Query params override body.
+            String qCapability = request.getParameter("capability");
+            if (qCapability != null && !qCapability.isEmpty()) capability = qCapability;
+            String qSince = request.getParameter("since");
+            if (qSince != null && !qSince.isEmpty()) since = qSince;
+            String qInvocationId = request.getParameter("invocation_id");
+            if (qInvocationId != null && !qInvocationId.isEmpty()) invocationId = qInvocationId;
+            String qClientReferenceId = request.getParameter("client_reference_id");
+            if (qClientReferenceId != null && !qClientReferenceId.isEmpty()) clientReferenceId = qClientReferenceId;
+            String qLimit = request.getParameter("limit");
+            if (qLimit != null && !qLimit.isEmpty()) {
+                try { limit = Integer.parseInt(qLimit); } catch (NumberFormatException ignored) {}
+            }
 
             AuditFilters filters = new AuditFilters(capability, since, invocationId,
                     clientReferenceId, limit);
@@ -424,6 +439,7 @@ public class AnipController {
         Map<String, Object> failure = new LinkedHashMap<>();
         failure.put("type", type);
         failure.put("detail", detail);
+        failure.put("resolution", defaultResolution(type));
         failure.put("retry", retry);
 
         Map<String, Object> body = new LinkedHashMap<>();
@@ -436,7 +452,6 @@ public class AnipController {
         Map<String, Object> failure = new LinkedHashMap<>();
         failure.put("type", e.getErrorType());
         failure.put("detail", e.getDetail());
-        failure.put("retry", e.isRetry());
         if (e.getResolution() != null) {
             Map<String, Object> res = new LinkedHashMap<>();
             res.put("action", e.getResolution().getAction());
@@ -447,12 +462,34 @@ public class AnipController {
                 res.put("grantable_by", e.getResolution().getGrantableBy());
             }
             failure.put("resolution", res);
+        } else {
+            failure.put("resolution", defaultResolution(e.getErrorType()));
         }
+        failure.put("retry", e.isRetry());
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("success", false);
         body.put("failure", failure);
         return ResponseEntity.status(status).body(body);
+    }
+
+    private Map<String, Object> defaultResolution(String failureType) {
+        return switch (failureType) {
+            case Constants.FAILURE_AUTH_REQUIRED -> Map.of(
+                    "action", "provide_credentials",
+                    "requires", "Bearer token"
+            );
+            case Constants.FAILURE_INVALID_TOKEN, Constants.FAILURE_TOKEN_EXPIRED -> Map.of(
+                    "action", "reauthenticate"
+            );
+            case Constants.FAILURE_SCOPE_INSUFFICIENT -> Map.of(
+                    "action", "request_scope"
+            );
+            case Constants.FAILURE_BUDGET_EXCEEDED -> Map.of(
+                    "action", "request_budget_increase"
+            );
+            default -> Map.of("action", "contact_administrator");
+        };
     }
 
     @SuppressWarnings("unchecked")

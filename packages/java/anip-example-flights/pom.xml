@@ -1,0 +1,75 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>dev.anip</groupId>
+        <artifactId>anip-parent</artifactId>
+        <version>0.11.0</version>
+    </parent>
+
+    <artifactId>anip-example-flights</artifactId>
+    <name>ANIP Example Flights</name>
+    <description>Example ANIP flight service demonstrating all protocol features</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>dev.anip</groupId>
+            <artifactId>anip-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.anip</groupId>
+            <artifactId>anip-crypto</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.anip</groupId>
+            <artifactId>anip-server</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.anip</groupId>
+            <artifactId>anip-service</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.anip</groupId>
+            <artifactId>anip-spring-boot</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.anip</groupId>
+            <artifactId>anip-rest</artifactId>
+            <version>${anip.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.anip</groupId>
+            <artifactId>anip-graphql</artifactId>
+            <version>${anip.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.anip</groupId>
+            <artifactId>anip-mcp</artifactId>
+            <version>${anip.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

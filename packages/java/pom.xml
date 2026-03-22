@@ -31,6 +31,7 @@
         <module>anip-rest</module>
         <module>anip-graphql</module>
         <module>anip-mcp</module>
+        <module>anip-example-flights</module>
     </modules>
 
     <dependencyManagement>
