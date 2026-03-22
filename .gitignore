@@ -24,3 +24,9 @@ target/
 packages/go/flight-service
 packages/go/flights-gin
 *.exe
+
+# .NET build outputs
+bin/
+obj/
+*.user
+.vs/
