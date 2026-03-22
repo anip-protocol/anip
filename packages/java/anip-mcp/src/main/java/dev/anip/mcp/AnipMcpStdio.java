@@ -49,15 +49,13 @@ public class AnipMcpStdio {
             McpSchema.Tool tool = McpToolTranslator.buildTool(name, decl, enrichDescriptions);
 
             String capName = name;
-            BiFunction<McpSyncServerExchange, Map<String, Object>, McpSchema.CallToolResult> handler =
-                    (exchange, args) -> {
+            BiFunction<McpSyncServerExchange, McpSchema.CallToolRequest, McpSchema.CallToolResult> handler =
+                    (exchange, request) -> {
+                        Map<String, Object> args = request.arguments();
                         if (args == null) args = Map.of();
                         McpToolTranslator.McpInvokeResult result =
                                 invokeWithMountCredentials(service, capName, args, credentials);
-                        if (result.isError()) {
-                            return new McpSchema.CallToolResult(result.text(), true);
-                        }
-                        return new McpSchema.CallToolResult(result.text(), false);
+                        return McpToolTranslator.buildCallToolResult(result.text(), result.isError());
                     };
 
             tools.add(new McpServerFeatures.SyncToolSpecification(tool, handler));

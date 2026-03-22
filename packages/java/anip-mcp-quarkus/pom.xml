@@ -9,38 +9,26 @@
         <version>0.11.0</version>
     </parent>
 
-    <artifactId>anip-example-flights-quarkus</artifactId>
-    <name>ANIP Example Flights (Quarkus)</name>
-    <description>Example ANIP flight service on Quarkus</description>
+    <artifactId>anip-mcp-quarkus</artifactId>
+    <name>ANIP MCP Quarkus</name>
+    <description>Quarkus adapter for ANIP MCP Streamable HTTP transport</description>
 
     <dependencies>
         <dependency>
             <groupId>dev.anip</groupId>
-            <artifactId>anip-core</artifactId>
+            <artifactId>anip-mcp</artifactId>
         </dependency>
         <dependency>
             <groupId>dev.anip</groupId>
             <artifactId>anip-service</artifactId>
         </dependency>
         <dependency>
-            <groupId>dev.anip</groupId>
-            <artifactId>anip-quarkus</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>dev.anip</groupId>
-            <artifactId>anip-rest-quarkus</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>dev.anip</groupId>
-            <artifactId>anip-graphql-quarkus</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>dev.anip</groupId>
-            <artifactId>anip-mcp-quarkus</artifactId>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp-core</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-rest-jackson</artifactId>
+            <artifactId>quarkus-undertow</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -55,11 +43,15 @@
                 <artifactId>quarkus-maven-plugin</artifactId>
                 <version>${quarkus.version}</version>
                 <extensions>true</extensions>
+            </plugin>
+            <plugin>
+                <groupId>io.smallrye</groupId>
+                <artifactId>jandex-maven-plugin</artifactId>
+                <version>3.2.7</version>
                 <executions>
                     <execution>
-                        <goals>
-                            <goal>build</goal>
-                        </goals>
+                        <id>make-index</id>
+                        <goals><goal>jandex</goal></goals>
                     </execution>
                 </executions>
             </plugin>

@@ -1,4 +1,4 @@
-package dev.anip.mcp.spring;
+package dev.anip.mcp.quarkus;
 
 import dev.anip.core.ANIPError;
 import dev.anip.core.CapabilityDeclaration;
@@ -16,23 +16,22 @@ import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 
-import org.springframework.boot.web.servlet.ServletRegistrationBean;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 
 /**
- * ANIP MCP Streamable HTTP transport with per-request auth
+ * ANIP MCP Streamable HTTP transport for Quarkus with per-request auth
  * from the Authorization: Bearer header.
  *
- * Uses the Servlet-based transport from mcp-core, registered
- * as a Spring Boot {@link ServletRegistrationBean}.
+ * <p>Use {@link #mount(ANIPService, String, boolean)} to build a configured
+ * {@link HttpServletStreamableServerTransportProvider} and register it via
+ * Quarkus Undertow's {@code ServletContextInitializer} or {@code web.xml}.
  */
-public class AnipMcpHttp {
+public class AnipMcpQuarkus {
 
-    private AnipMcpHttp() {}
+    private AnipMcpQuarkus() {}
 
     /**
      * Creates the Streamable HTTP Servlet transport provider with auth context extraction.
@@ -114,10 +113,12 @@ public class AnipMcpHttp {
     }
 
     /**
-     * Mounts the MCP Streamable HTTP server and returns a
-     * {@link ServletRegistrationBean} for Spring Boot integration.
+     * Creates and configures the MCP transport servlet with ANIP tools.
+     *
+     * <p>Returns the servlet which must be registered in the Quarkus app,
+     * for example via {@link AnipMcpServletContextListener}.
      */
-    public static ServletRegistrationBean<HttpServletStreamableServerTransportProvider> mount(
+    public static HttpServletStreamableServerTransportProvider mount(
             ANIPService service, String endpoint, boolean enrichDescriptions) {
         HttpServletStreamableServerTransportProvider transport = createTransport(endpoint);
         List<McpServerFeatures.SyncToolSpecification> tools =
@@ -128,11 +129,10 @@ public class AnipMcpHttp {
                 .tools(tools)
                 .build();
 
-        return new ServletRegistrationBean<>(transport, endpoint);
+        return transport;
     }
 
-    public static ServletRegistrationBean<HttpServletStreamableServerTransportProvider> mount(
-            ANIPService service) {
+    public static HttpServletStreamableServerTransportProvider mount(ANIPService service) {
         return mount(service, "/mcp", true);
     }
 

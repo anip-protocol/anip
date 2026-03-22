@@ -164,7 +164,7 @@ public class McpToolTranslator {
     }
 
     /**
-     * Translates an ANIP invoke result to MCP text result.
+     * Translates an ANIP invoke result to MCP CallToolResult.
      */
     @SuppressWarnings("unchecked")
     public static McpInvokeResult translateResponse(Map<String, Object> response) {
@@ -231,6 +231,16 @@ public class McpToolTranslator {
         textParts.add(retry ? "Retryable: yes" : "Retryable: no");
 
         return new McpInvokeResult(String.join("\n", textParts), true);
+    }
+
+    /**
+     * Builds a CallToolResult from text and error flag.
+     */
+    public static McpSchema.CallToolResult buildCallToolResult(String text, boolean isError) {
+        return McpSchema.CallToolResult.builder()
+                .addTextContent(text)
+                .isError(isError)
+                .build();
     }
 
     /**
