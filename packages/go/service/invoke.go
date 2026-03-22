@@ -123,13 +123,19 @@ func (s *Service) Invoke(
 	// 1. Look up capability.
 	capDef, ok := s.capabilities[capName]
 	if !ok {
+		failure := map[string]any{
+			"type":   core.FailureUnknownCapability,
+			"detail": "Capability '" + capName + "' not found",
+		}
+
+		// Apply failure redaction (no token available).
+		effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, nil, s.disclosurePolicy)
+		failure = RedactFailure(failure, effectiveLevel)
+
 		resp := map[string]any{
-			"success": false,
-			"failure": map[string]any{
-				"type":   core.FailureUnknownCapability,
-				"detail": "Capability '" + capName + "' not found",
-			},
-			"invocation_id":      invocationID,
+			"success":             false,
+			"failure":             failure,
+			"invocation_id":       invocationID,
 			"client_reference_id": opts.ClientReferenceID,
 		}
 		return resp, nil
@@ -143,26 +149,38 @@ func (s *Service) Invoke(
 	// 2. Check streaming support.
 	if opts.Stream {
 		if !capabilitySupportsStreaming(capDef.Declaration) {
+			failure := map[string]any{
+				"type":   core.FailureStreamingNotSupported,
+				"detail": "Capability '" + capName + "' does not support streaming",
+			}
+
+			// Apply failure redaction (no token claims needed for streaming check).
+			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, nil, s.disclosurePolicy)
+			failure = RedactFailure(failure, effectiveLevel)
+
 			resp := map[string]any{
-				"success": false,
-				"failure": map[string]any{
-					"type":   core.FailureStreamingNotSupported,
-					"detail": "Capability '" + capName + "' does not support streaming",
-				},
-				"invocation_id":      invocationID,
+				"success":             false,
+				"failure":             failure,
+				"invocation_id":       invocationID,
 				"client_reference_id": opts.ClientReferenceID,
 			}
 			return resp, nil
 		}
 		// Streaming is supported but Invoke is for unary only;
 		// callers wanting streaming must use InvokeStream.
+		failure := map[string]any{
+			"type":   core.FailureStreamingNotSupported,
+			"detail": "Use InvokeStream for streaming invocations",
+		}
+
+		// Apply failure redaction (no token claims needed for streaming check).
+		effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, nil, s.disclosurePolicy)
+		failure = RedactFailure(failure, effectiveLevel)
+
 		resp := map[string]any{
-			"success": false,
-			"failure": map[string]any{
-				"type":   core.FailureStreamingNotSupported,
-				"detail": "Use InvokeStream for streaming invocations",
-			},
-			"invocation_id":      invocationID,
+			"success":             false,
+			"failure":             failure,
+			"invocation_id":       invocationID,
 			"client_reference_id": opts.ClientReferenceID,
 		}
 		return resp, nil
@@ -192,7 +210,14 @@ func (s *Service) Invoke(
 			}
 
 			// Log audit for scope failure.
-			s.appendAuditEntry(capName, token, false, anipErr.ErrorType, nil, nil, invocationID, opts.ClientReferenceID)
+			s.appendAuditEntry(capName, token, false, anipErr.ErrorType, nil, nil, invocationID, opts.ClientReferenceID, capDef.Declaration.SideEffect.Type)
+
+			// Apply failure redaction.
+			tokenClaims := map[string]any{
+				"scope": token.Scope,
+			}
+			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaims, s.disclosurePolicy)
+			failure = RedactFailure(failure, effectiveLevel)
 
 			resp := map[string]any{
 				"success":             false,
@@ -235,14 +260,23 @@ func (s *Service) Invoke(
 	if err != nil {
 		// Handler returned an error.
 		if anipErr, ok := err.(*core.ANIPError); ok {
-			s.appendAuditEntry(capName, token, false, anipErr.ErrorType, map[string]any{"detail": anipErr.Detail}, nil, invocationID, opts.ClientReferenceID)
+			s.appendAuditEntry(capName, token, false, anipErr.ErrorType, map[string]any{"detail": anipErr.Detail}, nil, invocationID, opts.ClientReferenceID, capDef.Declaration.SideEffect.Type)
+
+			failure := map[string]any{
+				"type":   anipErr.ErrorType,
+				"detail": anipErr.Detail,
+			}
+
+			// Apply failure redaction.
+			tokenClaims := map[string]any{
+				"scope": token.Scope,
+			}
+			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaims, s.disclosurePolicy)
+			failure = RedactFailure(failure, effectiveLevel)
 
 			resp := map[string]any{
-				"success": false,
-				"failure": map[string]any{
-					"type":   anipErr.ErrorType,
-					"detail": anipErr.Detail,
-				},
+				"success":              false,
+				"failure":             failure,
 				"invocation_id":       invocationID,
 				"client_reference_id": opts.ClientReferenceID,
 			}
@@ -250,14 +284,23 @@ func (s *Service) Invoke(
 		}
 
 		// Generic error -> internal_error.
-		s.appendAuditEntry(capName, token, false, core.FailureInternalError, nil, nil, invocationID, opts.ClientReferenceID)
+		s.appendAuditEntry(capName, token, false, core.FailureInternalError, nil, nil, invocationID, opts.ClientReferenceID, capDef.Declaration.SideEffect.Type)
+
+		failure := map[string]any{
+			"type":   core.FailureInternalError,
+			"detail": "Internal error",
+		}
+
+		// Apply failure redaction.
+		tokenClaims := map[string]any{
+			"scope": token.Scope,
+		}
+		effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaims, s.disclosurePolicy)
+		failure = RedactFailure(failure, effectiveLevel)
 
 		resp := map[string]any{
-			"success": false,
-			"failure": map[string]any{
-				"type":   core.FailureInternalError,
-				"detail": "Internal error",
-			},
+			"success":              false,
+			"failure":             failure,
 			"invocation_id":       invocationID,
 			"client_reference_id": opts.ClientReferenceID,
 		}
@@ -268,7 +311,7 @@ func (s *Service) Invoke(
 	costActual := ctx.costActual
 
 	// 7. Log audit (success).
-	s.appendAuditEntry(capName, token, true, "", result, costActual, invocationID, opts.ClientReferenceID)
+	s.appendAuditEntry(capName, token, true, "", result, costActual, invocationID, opts.ClientReferenceID, capDef.Declaration.SideEffect.Type)
 
 	// 8. Build response.
 	resp := map[string]any{
@@ -392,7 +435,14 @@ func (s *Service) InvokeStream(
 				}
 			}
 
-			s.appendAuditEntry(capName, token, false, failType, map[string]any{"detail": detail}, nil, invocationID, clientRefID)
+			s.appendAuditEntry(capName, token, false, failType, map[string]any{"detail": detail}, nil, invocationID, clientRefID, capDef.Declaration.SideEffect.Type)
+
+			// Apply failure redaction to streaming failure.
+			tokenClaims := map[string]any{
+				"scope": token.Scope,
+			}
+			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaims, s.disclosurePolicy)
+			failureObj = RedactFailure(failureObj, effectiveLevel)
 
 			ch <- StreamEvent{
 				Type: "failed",
@@ -409,7 +459,7 @@ func (s *Service) InvokeStream(
 
 		// Success — send completed event.
 		costActual := ctx.costActual
-		s.appendAuditEntry(capName, token, true, "", result, costActual, invocationID, clientRefID)
+		s.appendAuditEntry(capName, token, true, "", result, costActual, invocationID, clientRefID, capDef.Declaration.SideEffect.Type)
 
 		payload := map[string]any{
 			"invocation_id":       invocationID,
@@ -458,11 +508,16 @@ func (s *Service) appendAuditEntry(
 	costActual *core.CostActual,
 	invocationID string,
 	clientReferenceID string,
+	sideEffectType string,
 ) {
 	rootPrincipal := token.RootPrincipal
 	if rootPrincipal == "" {
 		rootPrincipal = token.Issuer
 	}
+
+	eventClass := ClassifyEvent(sideEffectType, success, failureType)
+	tier := s.retentionPolicy.ResolveTier(eventClass)
+	expiresAt := s.retentionPolicy.ComputeExpiresAt(tier, time.Now().UTC())
 
 	entry := &core.AuditEntry{
 		Capability:        capability,
@@ -477,6 +532,26 @@ func (s *Service) appendAuditEntry(
 		DelegationChain:   []string{token.TokenID},
 		InvocationID:      invocationID,
 		ClientReferenceID: clientReferenceID,
+		EventClass:        eventClass,
+		RetentionTier:     tier,
+		ExpiresAt:         expiresAt,
+	}
+
+	// Apply storage-side redaction.
+	entryMap := map[string]any{
+		"event_class": entry.EventClass,
+		"parameters":  entry.Parameters,
+	}
+	redacted := StorageRedactEntry(entryMap)
+	if redacted["storage_redacted"] == true {
+		entry.Parameters = nil
+		entry.StorageRedacted = true
+	}
+
+	// Route low-value events through aggregator if enabled.
+	if s.aggregator != nil && eventClass == "malformed_or_spam" {
+		s.aggregator.Submit(s.entryToMap(entry))
+		return
 	}
 
 	// Best effort - don't fail the invocation if audit logging fails.
@@ -484,4 +559,23 @@ func (s *Service) appendAuditEntry(
 	if err == nil && s.hooks != nil && s.hooks.OnAuditAppend != nil {
 		callHook(func() { s.hooks.OnAuditAppend(entry.SequenceNumber, capability, invocationID) })
 	}
+}
+
+func (s *Service) entryToMap(entry *core.AuditEntry) map[string]any {
+	m := map[string]any{
+		"timestamp":      entry.Timestamp,
+		"capability":     entry.Capability,
+		"actor_key":      entry.RootPrincipal,
+		"failure_type":   entry.FailureType,
+		"event_class":    entry.EventClass,
+		"retention_tier": entry.RetentionTier,
+		"expires_at":     entry.ExpiresAt,
+		"invocation_id":  entry.InvocationID,
+	}
+	if entry.ResultSummary != nil {
+		if detail, ok := entry.ResultSummary["detail"]; ok {
+			m["detail"] = detail
+		}
+	}
+	return m
 }
