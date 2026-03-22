@@ -34,7 +34,7 @@ func TestAggregator_MultipleEventsAggregate(t *testing.T) {
 	agg := NewAuditAggregator(60)
 	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		agg.Submit(map[string]any{
 			"actor_key":    "agent:spam",
 			"capability":   "search",

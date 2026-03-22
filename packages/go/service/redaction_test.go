@@ -1,6 +1,9 @@
 package service
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestRedactFailure_Full(t *testing.T) {
 	failure := map[string]any{
@@ -81,10 +84,7 @@ func TestRedactFailure_Redacted(t *testing.T) {
 }
 
 func TestRedactFailure_ReducedTruncatesLongDetail(t *testing.T) {
-	longDetail := ""
-	for i := 0; i < 300; i++ {
-		longDetail += "x"
-	}
+	longDetail := strings.Repeat("x", 300)
 	failure := map[string]any{
 		"type":   "internal_error",
 		"detail": longDetail,
