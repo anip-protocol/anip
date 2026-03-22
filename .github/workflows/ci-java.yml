@@ -83,18 +83,58 @@ jobs:
             --sample-inputs=conformance/samples/flight-service.json \
             -v
 
+  conformance-quarkus:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build Quarkus example
+        working-directory: packages/java
+        run: mvn package -pl anip-example-flights-quarkus -am -DskipTests
+
+      - name: Start Quarkus example
+        working-directory: packages/java
+        run: |
+          java -jar anip-example-flights-quarkus/target/quarkus-app/quarkus-run.jar &
+          sleep 8
+
+      - name: Smoke test ANIP discovery
+        run: |
+          curl -sf http://localhost:8080/.well-known/anip | head -c 100
+          echo ""
+          echo "Quarkus ANIP smoke test passed"
+
+      - name: Install and run conformance suite
+        run: |
+          pip install -e "./conformance"
+          pytest conformance/ \
+            --base-url=http://localhost:8080 \
+            --bootstrap-bearer=demo-human-key \
+            --sample-inputs=conformance/samples/flight-service.json \
+            -v
+
   java-ci:
     if: always()
-    needs: [changes, test, conformance]
+    needs: [changes, test, conformance, conformance-quarkus]
     runs-on: ubuntu-latest
     steps:
       - name: Passed
         if: |
           (needs.test.result == 'success' || needs.test.result == 'skipped') &&
-          (needs.conformance.result == 'success' || needs.conformance.result == 'skipped')
+          (needs.conformance.result == 'success' || needs.conformance.result == 'skipped') &&
+          (needs.conformance-quarkus.result == 'success' || needs.conformance-quarkus.result == 'skipped')
         run: echo "Java CI passed"
       - name: Failed
         if: |
           needs.test.result == 'failure' || needs.test.result == 'cancelled' ||
-          needs.conformance.result == 'failure' || needs.conformance.result == 'cancelled'
+          needs.conformance.result == 'failure' || needs.conformance.result == 'cancelled' ||
+          needs.conformance-quarkus.result == 'failure' || needs.conformance-quarkus.result == 'cancelled'
         run: exit 1
