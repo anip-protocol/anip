@@ -3,6 +3,7 @@ package dev.anip.service;
 import dev.anip.core.CapabilityDeclaration;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -20,6 +21,10 @@ public class ServiceConfig {
     private ObservabilityHooks hooks;
     private CheckpointPolicy checkpointPolicy;
     private int retentionIntervalSeconds = 60; // default 60, -1 to disable
+    private RetentionPolicy retentionPolicy;
+    private String disclosureLevel = "full";
+    private Map<String, String> disclosurePolicy;
+    private int aggregationWindowSeconds;
 
     public ServiceConfig() {}
 
@@ -101,6 +106,42 @@ public class ServiceConfig {
 
     public ServiceConfig setRetentionIntervalSeconds(int retentionIntervalSeconds) {
         this.retentionIntervalSeconds = retentionIntervalSeconds;
+        return this;
+    }
+
+    public RetentionPolicy getRetentionPolicy() {
+        return retentionPolicy;
+    }
+
+    public ServiceConfig setRetentionPolicy(RetentionPolicy retentionPolicy) {
+        this.retentionPolicy = retentionPolicy;
+        return this;
+    }
+
+    public String getDisclosureLevel() {
+        return disclosureLevel;
+    }
+
+    public ServiceConfig setDisclosureLevel(String disclosureLevel) {
+        this.disclosureLevel = disclosureLevel;
+        return this;
+    }
+
+    public Map<String, String> getDisclosurePolicy() {
+        return disclosurePolicy;
+    }
+
+    public ServiceConfig setDisclosurePolicy(Map<String, String> disclosurePolicy) {
+        this.disclosurePolicy = disclosurePolicy;
+        return this;
+    }
+
+    public int getAggregationWindowSeconds() {
+        return aggregationWindowSeconds;
+    }
+
+    public ServiceConfig setAggregationWindowSeconds(int aggregationWindowSeconds) {
+        this.aggregationWindowSeconds = aggregationWindowSeconds;
         return this;
     }
 }

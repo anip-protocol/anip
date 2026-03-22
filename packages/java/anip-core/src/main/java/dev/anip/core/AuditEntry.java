@@ -30,6 +30,12 @@ public class AuditEntry {
     private String expiresAt;
     private boolean storageRedacted;
     private String entryType;
+    private Map<String, String> groupingKey;
+    private Map<String, String> aggregationWindow;
+    private int aggregationCount;
+    private String firstSeen;
+    private String lastSeen;
+    private String representativeDetail;
     private Map<String, Object> streamSummary;
 
     public AuditEntry() {}
@@ -99,6 +105,24 @@ public class AuditEntry {
 
     public String getEntryType() { return entryType; }
     public void setEntryType(String entryType) { this.entryType = entryType; }
+
+    public Map<String, String> getGroupingKey() { return groupingKey; }
+    public void setGroupingKey(Map<String, String> groupingKey) { this.groupingKey = groupingKey; }
+
+    public Map<String, String> getAggregationWindow() { return aggregationWindow; }
+    public void setAggregationWindow(Map<String, String> aggregationWindow) { this.aggregationWindow = aggregationWindow; }
+
+    public int getAggregationCount() { return aggregationCount; }
+    public void setAggregationCount(int aggregationCount) { this.aggregationCount = aggregationCount; }
+
+    public String getFirstSeen() { return firstSeen; }
+    public void setFirstSeen(String firstSeen) { this.firstSeen = firstSeen; }
+
+    public String getLastSeen() { return lastSeen; }
+    public void setLastSeen(String lastSeen) { this.lastSeen = lastSeen; }
+
+    public String getRepresentativeDetail() { return representativeDetail; }
+    public void setRepresentativeDetail(String representativeDetail) { this.representativeDetail = representativeDetail; }
 
     public Map<String, Object> getStreamSummary() { return streamSummary; }
     public void setStreamSummary(Map<String, Object> streamSummary) { this.streamSummary = streamSummary; }
