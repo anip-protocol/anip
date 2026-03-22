@@ -1,13 +1,13 @@
 package service
 
+import "maps"
+
 // StorageRedactEntry strips parameters from low-value audit entries
 // before persistence. Implements SPEC §6.10.
 // Returns a shallow copy — does not mutate the input.
 func StorageRedactEntry(entry map[string]any) map[string]any {
 	result := make(map[string]any, len(entry))
-	for k, v := range entry {
-		result[k] = v
-	}
+	maps.Copy(result, entry)
 
 	ec, _ := result["event_class"].(string)
 	if isLowValueClass(ec) {

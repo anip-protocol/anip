@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
 	"strconv"
 	"time"
@@ -33,19 +34,11 @@ type RetentionPolicy struct {
 // NewRetentionPolicy creates a retention policy with optional overrides. Nil maps use defaults.
 func NewRetentionPolicy(classOverrides, tierOverrides map[string]string) *RetentionPolicy {
 	ct := make(map[string]string, len(defaultClassToTier))
-	for k, v := range defaultClassToTier {
-		ct[k] = v
-	}
-	for k, v := range classOverrides {
-		ct[k] = v
-	}
+	maps.Copy(ct, defaultClassToTier)
+	maps.Copy(ct, classOverrides)
 	td := make(map[string]string, len(defaultTierToDuration))
-	for k, v := range defaultTierToDuration {
-		td[k] = v
-	}
-	for k, v := range tierOverrides {
-		td[k] = v
-	}
+	maps.Copy(td, defaultTierToDuration)
+	maps.Copy(td, tierOverrides)
 	return &RetentionPolicy{classToTier: ct, tierToDuration: td}
 }
 
