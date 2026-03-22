@@ -91,6 +91,13 @@ public class Application {
 
     @Bean
     public RouterFunction<ServerResponse> mcpRoutes(ANIPService service) {
-        return AnipMcpHttp.mount(service);
+        try {
+            return AnipMcpHttp.mount(service);
+        } catch (Exception e) {
+            // MCP SDK may require additional SPI providers at runtime.
+            // If unavailable, skip MCP HTTP and log the issue.
+            System.err.println("MCP HTTP transport not available: " + e.getMessage());
+            return request -> Optional.empty();
+        }
     }
 }
