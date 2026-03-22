@@ -6,6 +6,8 @@
     <Project Path="src/Anip.Service/Anip.Service.csproj" />
     <Project Path="src/Anip.AspNetCore/Anip.AspNetCore.csproj" />
     <Project Path="src/Anip.Example.Flights/Anip.Example.Flights.csproj" />
+    <Project Path="src/Anip.Rest/Anip.Rest.csproj" />
+    <Project Path="src/Anip.Rest.AspNetCore/Anip.Rest.AspNetCore.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/Anip.Core.Tests/Anip.Core.Tests.csproj" />
@@ -13,5 +15,6 @@
     <Project Path="test/Anip.Server.Tests/Anip.Server.Tests.csproj" />
     <Project Path="test/Anip.Service.Tests/Anip.Service.Tests.csproj" />
     <Project Path="test/Anip.AspNetCore.Tests/Anip.AspNetCore.Tests.csproj" />
+    <Project Path="test/Anip.Rest.Tests/Anip.Rest.Tests.csproj" />
   </Folder>
 </Solution>
