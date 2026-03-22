@@ -317,7 +317,7 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 - TypeScript SDK packages: `@anip/core`, `@anip/crypto`, `@anip/server`, `@anip/service`, `@anip/hono`, `@anip/express`, `@anip/fastify`, `@anip/postgres`
 - Go SDK packages: `core`, `crypto`, `server`, `service`, `httpapi`, `ginapi`, `restapi`, `graphqlapi`, `mcpapi`
 - Java SDK packages: `anip-core`, `anip-crypto`, `anip-server`, `anip-service`, `anip-spring-boot`, `anip-quarkus`, `anip-rest` (shared), `anip-rest-spring`, `anip-rest-quarkus`, `anip-graphql` (shared), `anip-graphql-spring`, `anip-graphql-quarkus`, `anip-mcp` (shared), `anip-mcp-spring`, `anip-mcp-quarkus`
-- C# SDK packages: `Anip.Core`, `Anip.Crypto`, `Anip.Server`, `Anip.Service`, `Anip.AspNetCore`, `Anip.Rest`, `Anip.Rest.AspNetCore`, `Anip.GraphQL`, `Anip.GraphQL.AspNetCore`, `Anip.Mcp`, `Anip.Mcp.AspNetCore`
+- C# projects (in-repo, NuGet publishing not yet configured): `Anip.Core`, `Anip.Crypto`, `Anip.Server`, `Anip.Service`, `Anip.AspNetCore`, `Anip.Rest`, `Anip.Rest.AspNetCore`, `Anip.GraphQL`, `Anip.GraphQL.AspNetCore`, `Anip.Mcp`, `Anip.Mcp.AspNetCore`
 - Interface packages — mount alongside ANIP on the same service:
   - MCP: `@anip/mcp` / `anip-mcp` (shared), framework adapters for Streamable HTTP
   - REST: `@anip/rest` / `anip-rest` (shared, auto-generated OpenAPI + Swagger UI)
