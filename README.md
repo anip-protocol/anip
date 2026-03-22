@@ -38,7 +38,9 @@ Today's interfaces were designed for humans. When agents interact with them, the
 
 **REST APIs** assume a human developer reads docs, writes deterministic code, and ships a program. When an agent uses an API directly, it discovers auth requirements by getting a 401, learns permissions by getting a 403, finds out costs after being charged, and can't undo what it doesn't know is irreversible.
 
-**MCP** (Model Context Protocol) adds a discovery layer but is still REST with a wrapper. The agent still guesses, still fails forward, still treats errors as learning opportunities rather than having the information upfront.
+**MCP** (Model Context Protocol) improves discovery and standardizes tool access, but it still does not make execution boundaries first-class. Authority, scope,
+  side effects, reversibility, cost, and failure posture are not protocol-level primitives. An agent may still complete the task, but it is doing so without the
+  system defining upfront what it is allowed to do, what risks it is taking, and whether a mistaken call can be rolled back at all.
 
 ## What It Looks Like
 
