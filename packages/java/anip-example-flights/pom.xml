@@ -36,7 +36,7 @@
         </dependency>
         <dependency>
             <groupId>dev.anip</groupId>
-            <artifactId>anip-rest</artifactId>
+            <artifactId>anip-rest-spring</artifactId>
             <version>${anip.version}</version>
         </dependency>
         <dependency>

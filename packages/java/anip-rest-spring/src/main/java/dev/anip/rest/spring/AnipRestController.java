@@ -1,16 +1,13 @@
-package dev.anip.rest;
-
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.fasterxml.jackson.databind.SerializationFeature;
+package dev.anip.rest.spring;
 
 import dev.anip.core.ANIPError;
-import dev.anip.core.CapabilityDeclaration;
-import dev.anip.core.CapabilityInput;
 import dev.anip.core.Constants;
 import dev.anip.core.DelegationToken;
+import dev.anip.rest.OpenApiGenerator;
+import dev.anip.rest.RestAuthBridge;
+import dev.anip.rest.RestRoute;
+import dev.anip.rest.RestRouter;
+import dev.anip.rest.RouteOverride;
 import dev.anip.service.ANIPService;
 import dev.anip.service.InvokeOpts;
 
@@ -24,24 +21,17 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * REST controller that dispatches to ANIP capabilities via /api/{capability}.
+ * Spring MVC REST controller that dispatches to ANIP capabilities via /api/{capability}.
  * GET for read capabilities, POST for write/irreversible.
  * Also serves OpenAPI spec at /rest/openapi.json and Swagger UI at /rest/docs.
  */
 @RestController
 public class AnipRestController {
-
-    private static final ObjectMapper MAPPER = new ObjectMapper()
-            .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
-            .setSerializationInclusion(JsonInclude.Include.NON_NULL)
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
 
     private final ANIPService service;
     private final List<RestRoute> routes;
@@ -52,7 +42,7 @@ public class AnipRestController {
      */
     public AnipRestController(ANIPService service, Map<String, RouteOverride> overrides) {
         this.service = service;
-        this.routes = generateRoutes(service, overrides);
+        this.routes = RestRouter.generateRoutes(service, overrides);
         this.openApiSpec = OpenApiGenerator.generateSpec(service.getServiceId(), routes);
     }
 
@@ -104,13 +94,7 @@ public class AnipRestController {
                                                 Map<String, Object> body,
                                                 HttpServletRequest request) {
         // Find route.
-        RestRoute route = null;
-        for (RestRoute r : routes) {
-            if (r.getCapabilityName().equals(capability)) {
-                route = r;
-                break;
-            }
-        }
+        RestRoute route = RestRouter.findRoute(routes, capability);
         if (route == null) {
             return failureResponse(404, Constants.FAILURE_UNKNOWN_CAPABILITY,
                     "Capability '" + capability + "' not found", false);
@@ -149,20 +133,9 @@ public class AnipRestController {
         // Extract parameters.
         Map<String, Object> params;
         if ("GET".equals(method)) {
-            params = convertQueryParams(request, route.getDeclaration());
+            params = RestRouter.convertQueryParams(request.getParameterMap(), route.getDeclaration());
         } else {
-            if (body == null) {
-                body = new LinkedHashMap<>();
-            }
-            // Accept both {parameters: {...}} and flat body.
-            @SuppressWarnings("unchecked")
-            Map<String, Object> p = (Map<String, Object>) body.get("parameters");
-            if (p != null) {
-                params = p;
-            } else {
-                params = new LinkedHashMap<>(body);
-                params.remove("parameters");
-            }
+            params = RestRouter.extractBodyParams(body);
         }
 
         String clientRefId = request.getHeader("X-Client-Reference-Id");
@@ -189,49 +162,6 @@ public class AnipRestController {
         return null;
     }
 
-    private Map<String, Object> convertQueryParams(HttpServletRequest request,
-                                                     CapabilityDeclaration decl) {
-        Map<String, String> typeMap = new LinkedHashMap<>();
-        if (decl.getInputs() != null) {
-            for (CapabilityInput inp : decl.getInputs()) {
-                typeMap.put(inp.getName(), inp.getType());
-            }
-        }
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        Map<String, String[]> paramMap = request.getParameterMap();
-        for (Map.Entry<String, String[]> entry : paramMap.entrySet()) {
-            String key = entry.getKey();
-            String[] values = entry.getValue();
-            if (values == null || values.length == 0) continue;
-            String value = values[0];
-
-            String inputType = typeMap.get(key);
-            if (inputType == null) inputType = "string";
-
-            switch (inputType) {
-                case "integer" -> {
-                    try {
-                        result.put(key, Integer.parseInt(value));
-                    } catch (NumberFormatException e) {
-                        result.put(key, value);
-                    }
-                }
-                case "number" -> {
-                    try {
-                        result.put(key, Double.parseDouble(value));
-                    } catch (NumberFormatException e) {
-                        result.put(key, value);
-                    }
-                }
-                case "boolean" -> result.put(key, "true".equals(value));
-                default -> result.put(key, value);
-            }
-        }
-
-        return result;
-    }
-
     private ResponseEntity<Object> failureResponse(int status, String type,
                                                      String detail, boolean retry) {
         Map<String, Object> failure = new LinkedHashMap<>();
@@ -243,42 +173,6 @@ public class AnipRestController {
         resp.put("success", false);
         resp.put("failure", failure);
         return ResponseEntity.status(status).body(resp);
-    }
-
-    // --- Route generation ---
-
-    private static List<RestRoute> generateRoutes(ANIPService service,
-                                                    Map<String, RouteOverride> overrides) {
-        List<RestRoute> routes = new ArrayList<>();
-        // Iterate through all capabilities.
-        @SuppressWarnings("unchecked")
-        Map<String, Object> manifest = (Map<String, Object>) service.getManifest();
-        @SuppressWarnings("unchecked")
-        Map<String, Object> capabilities = (Map<String, Object>) manifest.get("capabilities");
-
-        for (String name : capabilities.keySet()) {
-            CapabilityDeclaration decl = service.getCapabilityDeclaration(name);
-            if (decl == null) continue;
-
-            String path = "/api/" + name;
-            String method = "POST";
-            if (decl.getSideEffect() != null && "read".equals(decl.getSideEffect().getType())) {
-                method = "GET";
-            }
-
-            if (overrides != null && overrides.containsKey(name)) {
-                RouteOverride override = overrides.get(name);
-                if (override.getPath() != null && !override.getPath().isEmpty()) {
-                    path = override.getPath();
-                }
-                if (override.getMethod() != null && !override.getMethod().isEmpty()) {
-                    method = override.getMethod();
-                }
-            }
-
-            routes.add(new RestRoute(name, path, method, decl));
-        }
-        return routes;
     }
 
     /**
