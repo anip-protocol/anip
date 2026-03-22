@@ -12,6 +12,7 @@
     <ProjectReference Include="../Anip.Server/Anip.Server.csproj" />
     <ProjectReference Include="../Anip.Service/Anip.Service.csproj" />
     <ProjectReference Include="../Anip.AspNetCore/Anip.AspNetCore.csproj" />
+    <ProjectReference Include="../Anip.Mcp.AspNetCore/Anip.Mcp.AspNetCore.csproj" />
   </ItemGroup>
 
 </Project>

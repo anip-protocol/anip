@@ -11,6 +11,7 @@
     <Project Path="src/Anip.GraphQL/Anip.GraphQL.csproj" />
     <Project Path="src/Anip.Rest.AspNetCore/Anip.Rest.AspNetCore.csproj" />
     <Project Path="src/Anip.Mcp/Anip.Mcp.csproj" />
+    <Project Path="src/Anip.Mcp.AspNetCore/Anip.Mcp.AspNetCore.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/Anip.Core.Tests/Anip.Core.Tests.csproj" />

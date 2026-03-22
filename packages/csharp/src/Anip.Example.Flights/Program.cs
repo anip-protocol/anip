@@ -1,5 +1,6 @@
 using Anip.AspNetCore;
 using Anip.Example.Flights;
+using Anip.Mcp.AspNetCore;
 using Anip.Service;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,7 +27,9 @@ var service = new AnipService(new ServiceConfig
 });
 
 builder.Services.AddAnip(service);
+builder.Services.AddAnipMcp(service);
 
 var app = builder.Build();
 app.MapControllers();
+app.MapAnipMcp();
 app.Run();
