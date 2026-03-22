@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Anip.Core/Anip.Core.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/Anip.Core.Tests/Anip.Core.Tests.csproj" />
+  </Folder>
+</Solution>
