@@ -76,7 +76,7 @@ capability:
 
 A service MUST declare all capabilities in its manifest. Each capability MUST include a name, description, inputs with types, output shape, and side-effect type. Capabilities MAY declare `response_modes` (default: `["unary"]`) to indicate support for streaming invocations (see §6.6).
 
-ANIP uses JSON Schema (draft 2020-12) for capability declarations. Canonical schemas are defined in Section 9 and validated across the Python/Pydantic and TypeScript/Zod reference implementations. The Go runtime validates protocol conformance via the HTTP conformance suite.
+ANIP uses JSON Schema (draft 2020-12) for capability declarations. Canonical schemas are defined in Section 9 and validated across the Python/Pydantic and TypeScript/Zod reference implementations. The Go and Java runtimes validate protocol conformance via the HTTP conformance suite.
 
 ### 4.2 Side-effect Typing
 
@@ -1708,7 +1708,7 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 |---------|---------------------------|--------------------------------|---------------------|
 | **Budget enforcement** | MUST — v0.1 core (§6.3) | Implemented | — |
 | **Scope narrowing** | MUST — v0.1+ | Implemented: reference servers reject child tokens that widen parent scope | — |
-| **Concurrent branch exclusivity** | SHOULD — v0.1+ | Implemented: reference servers enforce `concurrent_branches: "exclusive"` per root principal with atomic check-and-acquire (Python uses `threading.Lock`; TypeScript is single-threaded) | Distributed enforcement across replicas is a deployment concern |
+| **Concurrent branch exclusivity** | SHOULD — v0.1+ | Implemented: reference servers enforce `concurrent_branches: "exclusive"` per root principal with atomic check-and-acquire (Python uses `threading.Lock`; TypeScript is single-threaded; Go and Java use `sync.Mutex` / `synchronized`) | Distributed enforcement across replicas is a deployment concern |
 | **Cost variance tracking** | MAY — v0.1+ | Implemented: reference servers record declared vs actual costs in audit log | — |
 | **Signed delegation tokens** | MUST — v0.2 core | Implemented: server-issued JWT/ES256, JWKS discovery, trust boundary verification | Interoperable trust semantics: issuer trust, revocation, DAG-aware key discovery |
 | **Signed manifests** | MUST — v0.2 core | Implemented: detached JWS (ES256) in `X-ANIP-Signature` header, manifest metadata with SHA-256 hash | Third-party manifest attestation |
@@ -1721,7 +1721,7 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Sink publication (§7.6)** | MUST for anchored — v0.3 | Implemented: witness: and https: qualifying sinks, file: for dev | Standardized witness receipt format |
 | **Checkpoint endpoints (§6.5)** | MUST for anchored — v0.3 | Implemented: GET /anip/checkpoints (list) and GET /anip/checkpoints/{id} (detail with proofs) | — |
 | **Invocation lineage (§6.3)** | MUST — v0.4 core | Implemented: `invocation_id` (server-generated, `inv-{hex12}`) and `client_reference_id` (caller-supplied, max 256 chars) on every invoke request/response and audit entry | — |
-| **Async storage** | SHOULD — v0.5 | Implemented: fully async storage layer in both runtimes, non-blocking audit writes | — |
+| **Async storage** | SHOULD — v0.5 | Implemented: fully async storage layer in Python and TypeScript runtimes, non-blocking audit writes; Go and Java use synchronous storage with connection pooling | — |
 | **Streaming invocations (§6.6)** | MAY — v0.6 | Implemented: `ResponseMode`, `StreamSummary`, SSE transport, progress sink with delivery tracking, sink isolation, error redaction | Backpressure signaling, binary payload support |
 | **Discovery posture (§6.7)** | MAY — v0.7 | Implemented: posture block with audit, lineage, metadata_policy, failure_disclosure, and anchoring sub-objects | — |
 | **Security hardening (§6.8)** | MAY — v0.8 | Implemented: event classification, two-layer retention enforcement, failure redaction, proof safety guard | — |
@@ -1759,7 +1759,7 @@ These are unresolved design questions where community input is needed:
 
 **Resolved:**
 
-- **Capability declaration format.** ANIP uses JSON Schema (draft 2020-12). Canonical schemas are defined in Section 9 and validated across the Python/Pydantic and TypeScript/Zod reference implementations. Go validates protocol conformance via the HTTP conformance suite. *(Resolved in v0.1)*
+- **Capability declaration format.** ANIP uses JSON Schema (draft 2020-12). Canonical schemas are defined in Section 9 and validated across the Python/Pydantic and TypeScript/Zod reference implementations. Go and Java validate protocol conformance via the HTTP conformance suite. *(Resolved in v0.1)*
 - **Delegation chain auth format.** JWT with ES256 (ECDSA P-256). Server-issued tokens with JWKS discovery. *(Resolved in v0.2)*
 - **Audit log verifiability.** Merkle tree checkpoints with RFC 6962 hash scheme, inclusion and consistency proofs, detached JWS signatures, and external sink publication. Three trust levels: signed (Bronze), anchored (Silver), attested (Gold). *(Resolved in v0.3)*
 - **Invocation traceability.** Server-generated `invocation_id` and caller-supplied `client_reference_id` on every invoke response and audit entry, enabling end-to-end correlation. *(Resolved in v0.4)*

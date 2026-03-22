@@ -1,6 +1,6 @@
 # ANIP Deployment Guide
 
-This guide covers deploying ANIP services in single-instance and cluster configurations. It applies to the Python, TypeScript, and Go reference runtimes starting from v0.11.
+This guide covers deploying ANIP services in single-instance and cluster configurations. It applies to the Python, TypeScript, Go, and Java reference runtimes starting from v0.11.
 
 ---
 
@@ -48,7 +48,7 @@ Replicas are stateless with respect to audit data and coordination. Each replica
 
 ### Storage
 
-The `storage` parameter on `ANIPService` (Python) or `createANIPService` (TypeScript) selects the backend.
+The `storage` parameter on `ANIPService` (Python/Java) or `createANIPService` (TypeScript) selects the backend.
 
 **Python:**
 
@@ -74,6 +74,28 @@ createANIPService({ serviceId: "my-service", storage: { type: "memory" }, ... })
 
 // Cluster — PostgreSQL
 createANIPService({ serviceId: "my-service", storage: "postgres://user:pass@host:5432/anip", ... })
+```
+
+**Java (Spring Boot):**
+
+```java
+// Single-instance — SQLite
+new ANIPService(new ServiceConfig()
+    .setServiceId("my-service")
+    .setStorage("sqlite:///anip.db")
+    ...);
+
+// Single-instance — in-memory (testing)
+new ANIPService(new ServiceConfig()
+    .setServiceId("my-service")
+    .setStorage(":memory:")
+    ...);
+
+// Cluster — PostgreSQL
+new ANIPService(new ServiceConfig()
+    .setServiceId("my-service")
+    .setStorage("postgres://user:pass@host:5432/anip")
+    ...);
 ```
 
 The PostgreSQL backend (`PostgresStorage`) creates all required tables on first connection: `audit_log`, `audit_append_head`, `tokens`, `checkpoints`, `exclusive_leases`, `leader_leases`, and related indexes.
@@ -229,11 +251,26 @@ createANIPService({
 });
 ```
 
+**Java (Spring Boot):**
+
+```java
+new ANIPService(new ServiceConfig()
+    .setServiceId("my-service")
+    .setStorage("postgres://...")
+    .setHooks(new ANIPHooks()
+        .setOnInvocationStart(e -> logger.info("invoke {}", e))
+        .setOnInvocationEnd(e -> logger.info("invoke_end {}", e))
+        .setOnInvocationDuration(e -> histogram.observe(e.get("duration_ms")))
+        .setOnCheckpointCreated(e -> gauge.set(e.get("lag_seconds")))
+    )
+    ...);
+```
+
 **Hook isolation guarantee:** All hook invocations are wrapped in try/catch. A throwing hook never affects service correctness — no request fails, no background job stops, no audit entry is lost because a hook threw.
 
 ### Health Endpoint
 
-Framework bindings (FastAPI, Hono, Express, Fastify) can expose `GET /-/health`, which returns the output of `service.getHealth()`. It is **disabled by default**.
+Framework bindings (FastAPI, Hono, Express, Fastify, Spring Boot) can expose `GET /-/health`, which returns the output of `service.getHealth()`. It is **disabled by default**.
 
 **Python (FastAPI):**
 
@@ -323,7 +360,7 @@ When stopping a replica, the runtime's `shutdown()` method performs three steps 
 
 ### Framework Integration
 
-The ANIP framework bindings (FastAPI, Hono, Express, Fastify) wire `shutdown()` into the application server's shutdown lifecycle. If you are using a framework binding, graceful shutdown happens automatically when the server receives a termination signal.
+The ANIP framework bindings (FastAPI, Hono, Express, Fastify, Spring Boot) wire `shutdown()` into the application server's shutdown lifecycle. If you are using a framework binding, graceful shutdown happens automatically when the server receives a termination signal. The Java Spring Boot binding uses `SmartLifecycle` to coordinate startup and shutdown with the Spring context.
 
 If you are using `ANIPService` directly, call `shutdown()` before process exit:
 
