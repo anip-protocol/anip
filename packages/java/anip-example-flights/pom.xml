@@ -46,7 +46,7 @@
         </dependency>
         <dependency>
             <groupId>dev.anip</groupId>
-            <artifactId>anip-mcp</artifactId>
+            <artifactId>anip-mcp-spring</artifactId>
             <version>${anip.version}</version>
         </dependency>
         <dependency>

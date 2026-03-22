@@ -150,7 +150,7 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           FAILED=0
-          for pom in anip-core anip-crypto anip-server anip-service anip-spring-boot anip-quarkus anip-rest anip-rest-spring anip-rest-quarkus anip-graphql anip-graphql-spring anip-graphql-quarkus anip-mcp anip-example-flights anip-example-flights-quarkus; do
+          for pom in anip-core anip-crypto anip-server anip-service anip-spring-boot anip-quarkus anip-rest anip-rest-spring anip-rest-quarkus anip-graphql anip-graphql-spring anip-graphql-quarkus anip-mcp anip-mcp-spring anip-example-flights anip-example-flights-quarkus; do
             if [ ! -f "$pom/pom.xml" ]; then
               echo "FAIL: $pom/pom.xml not found"
               FAILED=1
@@ -176,7 +176,7 @@ jobs:
             FAILED=1
           fi
           if [ "$FAILED" -eq 1 ]; then exit 1; fi
-          echo "All 15 Java modules and anip.version property at version $VERSION"
+          echo "All 16 Java modules and anip.version property at version $VERSION"
 
   publish-typescript:
     needs: validate
@@ -346,7 +346,7 @@ jobs:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
         run: |
           set -e
-          for mod in anip-core anip-crypto anip-server anip-service anip-spring-boot anip-quarkus anip-rest anip-rest-spring anip-rest-quarkus anip-graphql anip-graphql-spring anip-graphql-quarkus anip-mcp; do
+          for mod in anip-core anip-crypto anip-server anip-service anip-spring-boot anip-quarkus anip-rest anip-rest-spring anip-rest-quarkus anip-graphql anip-graphql-spring anip-graphql-quarkus anip-mcp anip-mcp-spring; do
             echo "=== Deploying $mod ==="
             OUTPUT=$(mvn deploy -pl $mod -am -DskipTests -Prelease 2>&1) && {
               echo "OK: $mod deployed"
