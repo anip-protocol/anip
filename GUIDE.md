@@ -2,7 +2,7 @@
 
 > For developers who want to understand how ANIP works by walking through a real implementation.
 
-This guide walks through the [reference implementation](examples/anip/) — a flight booking service built with Python and FastAPI. Each section explains *what* the code does, *why* it's designed that way, and the design decisions behind it.
+This guide walks through the [reference implementation](examples/anip/) — a flight booking service built with Python and FastAPI. The same service is available in [TypeScript](examples/anip-ts/), [Go](packages/go/examples/flights/), and [Java](packages/java/anip-example-flights/). Each section explains *what* the code does, *why* it's designed that way, and the design decisions behind it.
 
 Read the [README](README.md) first for the big picture. Read this guide to understand how the pieces fit together. Read the [Spec](SPEC.md) when you need the formal contract.
 

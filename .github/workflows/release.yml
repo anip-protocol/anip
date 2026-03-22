@@ -32,7 +32,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           SHA=$(git rev-parse HEAD)
-          REQUIRED_CHECKS=("test (3.11)" "test (3.12)" "test (20)" "test (22)" "go-ci")
+          REQUIRED_CHECKS=("test (3.11)" "test (3.12)" "test (20)" "test (22)" "go-ci" "java-ci")
           ERRORS=0
           for CHECK in "${REQUIRED_CHECKS[@]}"; do
             STATUS=$(gh api "repos/$GH_REPO/commits/$SHA/check-runs" \
@@ -53,6 +53,7 @@ jobs:
         run: |
           TAG="v$VERSION"
           GO_TAG="packages/go/v$VERSION"
+          JAVA_TAG="packages/java/v$VERSION"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "FAIL: Tag '$TAG' already exists"
             exit 1
@@ -63,6 +64,11 @@ jobs:
             exit 1
           fi
           echo "OK: Go module tag '$GO_TAG' is available"
+          if git rev-parse "$JAVA_TAG" >/dev/null 2>&1; then
+            echo "FAIL: Java tag '$JAVA_TAG' already exists"
+            exit 1
+          fi
+          echo "OK: Java tag '$JAVA_TAG' is available"
 
       - name: Validate version format
         env:
@@ -137,6 +143,40 @@ jobs:
             exit 1
           fi
           echo "OK: Go module found at packages/go/go.mod"
+
+      - name: Validate Java package versions
+        working-directory: packages/java
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          FAILED=0
+          for pom in anip-core anip-crypto anip-server anip-service anip-spring-boot anip-rest anip-graphql anip-mcp anip-example-flights; do
+            if [ ! -f "$pom/pom.xml" ]; then
+              echo "FAIL: $pom/pom.xml not found"
+              FAILED=1
+              continue
+            fi
+            # Check parent version in child pom
+            PARENT_VERSION=$(grep -A5 '<parent>' "$pom/pom.xml" | grep '<version>' | sed 's/.*<version>\(.*\)<\/version>.*/\1/')
+            if [ "$PARENT_VERSION" != "$VERSION" ]; then
+              echo "FAIL: $pom parent version is $PARENT_VERSION, expected $VERSION"
+              FAILED=1
+            fi
+          done
+          # Check parent POM version
+          POM_VERSION=$(grep '^    <version>' pom.xml | head -1 | sed 's/.*<version>\(.*\)<\/version>.*/\1/')
+          if [ "$POM_VERSION" != "$VERSION" ]; then
+            echo "FAIL: parent POM version is $POM_VERSION, expected $VERSION"
+            FAILED=1
+          fi
+          # Check anip.version property (drives internal dependency versions via dependencyManagement)
+          ANIP_PROP=$(grep '<anip.version>' pom.xml | sed 's/.*<anip.version>\(.*\)<\/anip.version>.*/\1/')
+          if [ "$ANIP_PROP" != "$VERSION" ]; then
+            echo "FAIL: anip.version property is $ANIP_PROP, expected $VERSION"
+            FAILED=1
+          fi
+          if [ "$FAILED" -eq 1 ]; then exit 1; fi
+          echo "All 9 Java modules and anip.version property at version $VERSION"
 
   publish-typescript:
     needs: validate
@@ -275,8 +315,54 @@ jobs:
           publish_or_skip anip-rest
           publish_or_skip anip-graphql
 
+  publish-java:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          server-id: central
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+
+      - name: Build and verify
+        working-directory: packages/java
+        run: mvn verify
+
+      - name: Import GPG key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+
+      - name: Deploy to Maven Central
+        working-directory: packages/java
+        env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+        run: |
+          set -e
+          for mod in anip-core anip-crypto anip-server anip-service anip-spring-boot anip-rest anip-graphql anip-mcp; do
+            echo "=== Deploying $mod ==="
+            OUTPUT=$(mvn deploy -pl $mod -am -DskipTests -Prelease 2>&1) && {
+              echo "OK: $mod deployed"
+              continue
+            }
+            if echo "$OUTPUT" | grep -qi "already exists"; then
+              echo "SKIP: $mod already published"
+              continue
+            fi
+            echo "FAIL: $mod deploy failed:"
+            echo "$OUTPUT"
+            exit 1
+          done
+
   release:
-    needs: [publish-typescript, publish-python]
+    needs: [publish-typescript, publish-python, publish-java]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -297,6 +383,14 @@ jobs:
           GO_TAG="packages/go/v$VERSION"
           git tag "$GO_TAG"
           git push origin "$GO_TAG"
+
+      - name: Create Java tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          JAVA_TAG="packages/java/v$VERSION"
+          git tag "$JAVA_TAG"
+          git push origin "$JAVA_TAG"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
