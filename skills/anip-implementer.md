@@ -335,7 +335,7 @@ See `examples/anip/` in the ANIP repository for a complete working example (Pyth
 - `anip_server/main.py` — all endpoints
 - `demo.py` — full 7-step agent interaction flow
 
-See `examples/anip-ts/` for the TypeScript/Hono equivalent, `packages/go/examples/flights/` for the Go reference implementation, and `packages/java/anip-example-flights/` for the Java/Spring Boot reference implementation.
+See `examples/anip-ts/` for the TypeScript/Hono equivalent, `packages/go/examples/flights/` for the Go reference implementation, `packages/java/anip-example-flights/` for the Java/Spring Boot reference implementation, and `packages/csharp/src/Anip.Example.Flights/` for the C#/ASP.NET Core reference implementation.
 
 ## References
 
@@ -347,3 +347,4 @@ See `examples/anip-ts/` for the TypeScript/Hono equivalent, `packages/go/example
 - **Reference implementation (TypeScript):** https://github.com/anip-protocol/anip/tree/main/examples/anip-ts
 - **Reference implementation (Go):** https://github.com/anip-protocol/anip/tree/main/packages/go/examples/flights
 - **Reference implementation (Java):** https://github.com/anip-protocol/anip/tree/main/packages/java/anip-example-flights
+- **Reference implementation (C#):** https://github.com/anip-protocol/anip/tree/main/packages/csharp/src/Anip.Example.Flights

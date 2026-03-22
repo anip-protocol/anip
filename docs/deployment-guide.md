@@ -1,6 +1,6 @@
 # ANIP Deployment Guide
 
-This guide covers deploying ANIP services in single-instance and cluster configurations. It applies to the Python, TypeScript, Go, and Java reference runtimes starting from v0.11.
+This guide covers deploying ANIP services in single-instance and cluster configurations. It applies to the Python, TypeScript, Go, Java, and C# reference runtimes starting from v0.11.
 
 ---
 
@@ -96,6 +96,19 @@ new ANIPService(new ServiceConfig()
     .setServiceId("my-service")
     .setStorage("postgres://user:pass@host:5432/anip")
     ...);
+```
+
+**C# (ASP.NET Core):**
+
+```csharp
+// Single-instance — SQLite
+new AnipService(new ServiceConfig { ServiceId = "my-service", Storage = "sqlite:///anip.db" });
+
+// Single-instance — in-memory (testing)
+new AnipService(new ServiceConfig { ServiceId = "my-service", Storage = ":memory:" });
+
+// Cluster — PostgreSQL
+new AnipService(new ServiceConfig { ServiceId = "my-service", Storage = "postgres://user:pass@host:5432/anip" });
 ```
 
 The PostgreSQL backend (`PostgresStorage`) creates all required tables on first connection: `audit_log`, `audit_append_head`, `tokens`, `checkpoints`, `exclusive_leases`, `leader_leases`, and related indexes.
@@ -270,7 +283,7 @@ new ANIPService(new ServiceConfig()
 
 ### Health Endpoint
 
-Framework bindings (FastAPI, Hono, Express, Fastify, Spring Boot) can expose `GET /-/health`, which returns the output of `service.getHealth()`. It is **disabled by default**.
+Framework bindings (FastAPI, Hono, Express, Fastify, Spring Boot, Quarkus, ASP.NET Core) can expose `GET /-/health`, which returns the output of `service.getHealth()`. It is **disabled by default**.
 
 **Python (FastAPI):**
 
@@ -360,7 +373,7 @@ When stopping a replica, the runtime's `shutdown()` method performs three steps 
 
 ### Framework Integration
 
-The ANIP framework bindings (FastAPI, Hono, Express, Fastify, Spring Boot) wire `shutdown()` into the application server's shutdown lifecycle. If you are using a framework binding, graceful shutdown happens automatically when the server receives a termination signal. The Java Spring Boot binding uses `SmartLifecycle` to coordinate startup and shutdown with the Spring context.
+The ANIP framework bindings (FastAPI, Hono, Express, Fastify, Spring Boot, Quarkus, ASP.NET Core) wire `shutdown()` into the application server's shutdown lifecycle. If you are using a framework binding, graceful shutdown happens automatically when the server receives a termination signal. The Java Spring Boot binding uses `SmartLifecycle`, Quarkus uses `StartupEvent`/`ShutdownEvent`, and C# uses `IHostedService`.
 
 If you are using `ANIPService` directly, call `shutdown()` before process exit:
 

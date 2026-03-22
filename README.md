@@ -291,7 +291,7 @@ search_flights = Capability(
 )
 ```
 
-The runtime handles discovery, JWT tokens, signed manifests, delegation validation, audit logging, and Merkle checkpoints. See the [Python example](examples/anip/), [TypeScript example](examples/anip-ts/), [Go example](packages/go/examples/flights/), and [Java example](packages/java/anip-example-flights/) for complete working services.
+The runtime handles discovery, JWT tokens, signed manifests, delegation validation, audit logging, and Merkle checkpoints. See the [Python example](examples/anip/), [TypeScript example](examples/anip-ts/), [Go example](packages/go/examples/flights/), [Java example](packages/java/anip-example-flights/), and [C# example](packages/csharp/src/Anip.Example.Flights/) for complete working services.
 
 For advanced use cases that need direct access to the SDK primitives (KeyManager, DelegationEngine, AuditLog, MerkleTree), the underlying packages (`anip-core`/`anip-crypto`/`anip-server` and `@anip/core`/`@anip/crypto`/`@anip/server`) remain available.
 
@@ -310,15 +310,18 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 - [Reference implementation — Python](examples/anip/) — `anip-service` + FastAPI, ~150 lines of business logic
 - [Reference implementation — TypeScript](examples/anip-ts/) — `@anip/service` + Hono, same capabilities and endpoints
 - [Reference implementation — Go](packages/go/examples/flights/) — `anip-service` + net/http, same capabilities and endpoints
-- [Reference implementation — Java](packages/java/anip-example-flights/) — `anip-service` + Spring Boot, same capabilities and endpoints
+- [Reference implementation — Java (Spring Boot)](packages/java/anip-example-flights/) — `anip-service` + Spring Boot, same capabilities and endpoints
+- [Reference implementation — Java (Quarkus)](packages/java/anip-example-flights-quarkus/) — `anip-service` + Quarkus, same capabilities and endpoints
+- [Reference implementation — C#](packages/csharp/src/Anip.Example.Flights/) — `Anip.Service` + ASP.NET Core, same capabilities and endpoints
 - Python SDK packages: `anip-core`, `anip-crypto`, `anip-server`, `anip-service`, `anip-fastapi`, `anip-postgres`
 - TypeScript SDK packages: `@anip/core`, `@anip/crypto`, `@anip/server`, `@anip/service`, `@anip/hono`, `@anip/express`, `@anip/fastify`, `@anip/postgres`
 - Go SDK packages: `core`, `crypto`, `server`, `service`, `httpapi`, `ginapi`, `restapi`, `graphqlapi`, `mcpapi`
-- Java SDK packages: `anip-core`, `anip-crypto`, `anip-server`, `anip-service`, `anip-spring-boot`, `anip-rest`, `anip-graphql`, `anip-mcp`
+- Java SDK packages: `anip-core`, `anip-crypto`, `anip-server`, `anip-service`, `anip-spring-boot`, `anip-quarkus`, `anip-rest` (shared), `anip-rest-spring`, `anip-rest-quarkus`, `anip-graphql` (shared), `anip-graphql-spring`, `anip-graphql-quarkus`, `anip-mcp` (shared), `anip-mcp-spring`, `anip-mcp-quarkus`
+- C# projects (in-repo, NuGet publishing not yet configured): `Anip.Core`, `Anip.Crypto`, `Anip.Server`, `Anip.Service`, `Anip.AspNetCore`, `Anip.Rest`, `Anip.Rest.AspNetCore`, `Anip.GraphQL`, `Anip.GraphQL.AspNetCore`, `Anip.Mcp`, `Anip.Mcp.AspNetCore`
 - Interface packages — mount alongside ANIP on the same service:
-  - MCP: `@anip/mcp` / `anip-mcp` (stdio), `@anip/mcp-hono` / `@anip/mcp-express` / `@anip/mcp-fastify` (Streamable HTTP)
-  - REST: `@anip/rest` / `anip-rest` (auto-generated OpenAPI + Swagger UI)
-  - GraphQL: `@anip/graphql` / `anip-graphql` (auto-generated SDL + directives)
+  - MCP: `@anip/mcp` / `anip-mcp` (shared), framework adapters for Streamable HTTP
+  - REST: `@anip/rest` / `anip-rest` (shared, auto-generated OpenAPI + Swagger UI)
+  - GraphQL: `@anip/graphql` / `anip-graphql` (shared, auto-generated SDL + directives)
 - [Conformance suite](conformance/) — language-agnostic HTTP-based protocol compliance tests
 - [Demo agent](examples/agent/) — an AI agent that consumes ANIP to reason before acting, handle budget failures, and verify audit trails
 - [JSON Schema](schema/) — validate any ANIP implementation against the spec
