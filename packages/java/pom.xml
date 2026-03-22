@@ -58,6 +58,7 @@
         <module>anip-graphql-spring</module>
         <module>anip-graphql-quarkus</module>
         <module>anip-mcp</module>
+        <module>anip-mcp-spring</module>
         <module>anip-quarkus</module>
         <module>anip-example-flights</module>
         <module>anip-example-flights-quarkus</module>
@@ -148,9 +149,24 @@
                 <version>${anip.version}</version>
             </dependency>
             <dependency>
+                <groupId>dev.anip</groupId>
+                <artifactId>anip-mcp</artifactId>
+                <version>${anip.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.anip</groupId>
+                <artifactId>anip-mcp-spring</artifactId>
+                <version>${anip.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>com.graphql-java</groupId>
                 <artifactId>graphql-java</artifactId>
                 <version>${graphql-java.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.modelcontextprotocol.sdk</groupId>
+                <artifactId>mcp-core</artifactId>
+                <version>${mcp-sdk.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.modelcontextprotocol.sdk</groupId>

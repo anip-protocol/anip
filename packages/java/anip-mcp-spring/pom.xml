@@ -9,18 +9,26 @@
         <version>0.11.0</version>
     </parent>
 
-    <artifactId>anip-mcp</artifactId>
-    <name>ANIP MCP</name>
-    <description>MCP interface for ANIP capabilities — framework-agnostic core</description>
+    <artifactId>anip-mcp-spring</artifactId>
+    <name>ANIP MCP Spring</name>
+    <description>Spring WebMvc Streamable HTTP transport adapter for ANIP MCP</description>
 
     <dependencies>
+        <dependency>
+            <groupId>dev.anip</groupId>
+            <artifactId>anip-mcp</artifactId>
+        </dependency>
         <dependency>
             <groupId>dev.anip</groupId>
             <artifactId>anip-service</artifactId>
         </dependency>
         <dependency>
             <groupId>io.modelcontextprotocol.sdk</groupId>
-            <artifactId>mcp-core</artifactId>
+            <artifactId>mcp-spring-webmvc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -28,5 +36,4 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
 </project>

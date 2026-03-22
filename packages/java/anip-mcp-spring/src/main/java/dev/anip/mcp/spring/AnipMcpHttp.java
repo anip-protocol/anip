@@ -1,8 +1,10 @@
-package dev.anip.mcp;
+package dev.anip.mcp.spring;
 
 import dev.anip.core.ANIPError;
 import dev.anip.core.CapabilityDeclaration;
 import dev.anip.core.DelegationToken;
+import dev.anip.mcp.McpAuthBridge;
+import dev.anip.mcp.McpToolTranslator;
 import dev.anip.service.ANIPService;
 import dev.anip.service.InvokeOpts;
 

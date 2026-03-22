@@ -1,7 +1,7 @@
 package dev.anip.example.flights;
 
 import dev.anip.graphql.spring.AnipGraphQLController;
-import dev.anip.mcp.AnipMcpHttp;
+import dev.anip.mcp.spring.AnipMcpHttp;
 import dev.anip.rest.spring.AnipRestController;
 import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.ServerResponse;
