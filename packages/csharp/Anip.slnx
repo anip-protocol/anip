@@ -5,6 +5,7 @@
     <Project Path="src/Anip.Server/Anip.Server.csproj" />
     <Project Path="src/Anip.Service/Anip.Service.csproj" />
     <Project Path="src/Anip.AspNetCore/Anip.AspNetCore.csproj" />
+    <Project Path="src/Anip.Example.Flights/Anip.Example.Flights.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/Anip.Core.Tests/Anip.Core.Tests.csproj" />
