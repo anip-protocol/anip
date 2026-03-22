@@ -1,5 +1,7 @@
 package service
 
+import "slices"
+
 // ResolveDisclosureLevel resolves the effective disclosure level.
 // Fixed modes ("full", "reduced", "redacted") pass through.
 // "policy" mode resolves caller class from token claims and applies the policy map.
@@ -35,7 +37,13 @@ func resolveCallerClass(claims map[string]any) string {
 		return cc
 	}
 
-	if scopes, ok := claims["scope"].([]any); ok {
+	// Handle both []string (Go tokens) and []any (generic JSON).
+	switch scopes := claims["scope"].(type) {
+	case []string:
+		if slices.Contains(scopes, "audit:full") {
+			return "audit_full"
+		}
+	case []any:
 		for _, s := range scopes {
 			if str, ok := s.(string); ok && str == "audit:full" {
 				return "audit_full"

@@ -686,18 +686,25 @@ func (s *Service) flushAggregator() {
 
 func (s *Service) persistAuditMap(entryData map[string]any) {
 	entry := &core.AuditEntry{
-		Capability:    strVal(entryData, "capability"),
-		Success:       false,
-		FailureType:   strVal(entryData, "failure_type"),
-		EventClass:    strVal(entryData, "event_class"),
-		RetentionTier: strVal(entryData, "retention_tier"),
-		ExpiresAt:     strVal(entryData, "expires_at"),
-		EntryType:     strVal(entryData, "entry_type"),
-		RootPrincipal: strVal(entryData, "actor_key"),
+		Capability:        strVal(entryData, "capability"),
+		Success:           false,
+		FailureType:       strVal(entryData, "failure_type"),
+		EventClass:        strVal(entryData, "event_class"),
+		RetentionTier:     strVal(entryData, "retention_tier"),
+		ExpiresAt:         strVal(entryData, "expires_at"),
+		EntryType:         strVal(entryData, "entry_type"),
+		RootPrincipal:     strVal(entryData, "actor_key"),
+		Timestamp:         strVal(entryData, "timestamp"),
+		InvocationID:      strVal(entryData, "invocation_id"),
+		ClientReferenceID: strVal(entryData, "client_reference_id"),
+		TokenID:           strVal(entryData, "token_id"),
+		Issuer:            strVal(entryData, "issuer"),
+		Subject:           strVal(entryData, "subject"),
 	}
 	if entry.EntryType == "" {
 		entry.EntryType = "normal"
 	}
+	// Carry aggregation-specific fields for aggregated entries.
 	if gk, ok := entryData["grouping_key"].(map[string]string); ok {
 		entry.GroupingKey = gk
 	}

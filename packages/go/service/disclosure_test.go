@@ -55,3 +55,33 @@ func TestResolveDisclosureLevel_PolicyFromScope(t *testing.T) {
 		t.Errorf("audit:full scope should resolve to audit_full class, got %q", got)
 	}
 }
+
+func TestResolveDisclosureLevel_PolicyFromStringSliceScope(t *testing.T) {
+	// Go tokens carry scope as []string, not []any.
+	claims := map[string]any{
+		"scope": []string{"travel.search", "audit:full"},
+	}
+	policy := map[string]string{
+		"audit_full": "full",
+		"default":    "redacted",
+	}
+	got := ResolveDisclosureLevel("policy", claims, policy)
+	if got != "full" {
+		t.Errorf("[]string scope with audit:full should resolve to audit_full, got %q", got)
+	}
+}
+
+func TestResolveDisclosureLevel_PolicyFromCallerClassClaim(t *testing.T) {
+	claims := map[string]any{
+		"anip:caller_class": "partner",
+		"scope":             []string{"travel.search"},
+	}
+	policy := map[string]string{
+		"partner": "reduced",
+		"default": "redacted",
+	}
+	got := ResolveDisclosureLevel("policy", claims, policy)
+	if got != "reduced" {
+		t.Errorf("explicit caller_class=partner should get reduced, got %q", got)
+	}
+}

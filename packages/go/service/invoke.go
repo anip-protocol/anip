@@ -213,10 +213,7 @@ func (s *Service) Invoke(
 			s.appendAuditEntry(capName, token, false, anipErr.ErrorType, nil, nil, invocationID, opts.ClientReferenceID, capDef.Declaration.SideEffect.Type)
 
 			// Apply failure redaction.
-			tokenClaims := map[string]any{
-				"scope": token.Scope,
-			}
-			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaims, s.disclosurePolicy)
+			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 			failure = RedactFailure(failure, effectiveLevel)
 
 			resp := map[string]any{
@@ -268,10 +265,7 @@ func (s *Service) Invoke(
 			}
 
 			// Apply failure redaction.
-			tokenClaims := map[string]any{
-				"scope": token.Scope,
-			}
-			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaims, s.disclosurePolicy)
+			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 			failure = RedactFailure(failure, effectiveLevel)
 
 			resp := map[string]any{
@@ -292,10 +286,7 @@ func (s *Service) Invoke(
 		}
 
 		// Apply failure redaction.
-		tokenClaims := map[string]any{
-			"scope": token.Scope,
-		}
-		effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaims, s.disclosurePolicy)
+		effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 		failure = RedactFailure(failure, effectiveLevel)
 
 		resp := map[string]any{
@@ -438,10 +429,7 @@ func (s *Service) InvokeStream(
 			s.appendAuditEntry(capName, token, false, failType, map[string]any{"detail": detail}, nil, invocationID, clientRefID, capDef.Declaration.SideEffect.Type)
 
 			// Apply failure redaction to streaming failure.
-			tokenClaims := map[string]any{
-				"scope": token.Scope,
-			}
-			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaims, s.disclosurePolicy)
+			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 			failureObj = RedactFailure(failureObj, effectiveLevel)
 
 			ch <- StreamEvent{
@@ -563,14 +551,18 @@ func (s *Service) appendAuditEntry(
 
 func (s *Service) entryToMap(entry *core.AuditEntry) map[string]any {
 	m := map[string]any{
-		"timestamp":      entry.Timestamp,
-		"capability":     entry.Capability,
-		"actor_key":      entry.RootPrincipal,
-		"failure_type":   entry.FailureType,
-		"event_class":    entry.EventClass,
-		"retention_tier": entry.RetentionTier,
-		"expires_at":     entry.ExpiresAt,
-		"invocation_id":  entry.InvocationID,
+		"timestamp":            entry.Timestamp,
+		"capability":           entry.Capability,
+		"actor_key":            entry.RootPrincipal,
+		"failure_type":         entry.FailureType,
+		"event_class":          entry.EventClass,
+		"retention_tier":       entry.RetentionTier,
+		"expires_at":           entry.ExpiresAt,
+		"invocation_id":        entry.InvocationID,
+		"client_reference_id":  entry.ClientReferenceID,
+		"token_id":             entry.TokenID,
+		"issuer":               entry.Issuer,
+		"subject":              entry.Subject,
 	}
 	if entry.ResultSummary != nil {
 		if detail, ok := entry.ResultSummary["detail"]; ok {
@@ -578,4 +570,15 @@ func (s *Service) entryToMap(entry *core.AuditEntry) map[string]any {
 		}
 	}
 	return m
+}
+
+// tokenClaimsMap builds the claims map used for disclosure level resolution.
+func tokenClaimsMap(token *core.DelegationToken) map[string]any {
+	claims := map[string]any{
+		"scope": token.Scope,
+	}
+	if token.CallerClass != "" {
+		claims["anip:caller_class"] = token.CallerClass
+	}
+	return claims
 }
