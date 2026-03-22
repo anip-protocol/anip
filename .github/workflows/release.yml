@@ -169,8 +169,14 @@ jobs:
             echo "FAIL: parent POM version is $POM_VERSION, expected $VERSION"
             FAILED=1
           fi
+          # Check anip.version property (drives internal dependency versions via dependencyManagement)
+          ANIP_PROP=$(grep '<anip.version>' pom.xml | sed 's/.*<anip.version>\(.*\)<\/anip.version>.*/\1/')
+          if [ "$ANIP_PROP" != "$VERSION" ]; then
+            echo "FAIL: anip.version property is $ANIP_PROP, expected $VERSION"
+            FAILED=1
+          fi
           if [ "$FAILED" -eq 1 ]; then exit 1; fi
-          echo "All 9 Java modules at version $VERSION"
+          echo "All 9 Java modules and anip.version property at version $VERSION"
 
   publish-typescript:
     needs: validate
@@ -326,6 +332,12 @@ jobs:
         working-directory: packages/java
         run: mvn verify
 
+      - name: Import GPG key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+
       - name: Deploy to Maven Central
         working-directory: packages/java
         env:
@@ -336,7 +348,7 @@ jobs:
           set -e
           for mod in anip-core anip-crypto anip-server anip-service anip-spring-boot anip-rest anip-graphql anip-mcp; do
             echo "=== Deploying $mod ==="
-            OUTPUT=$(mvn deploy -pl $mod -am -DskipTests 2>&1) && {
+            OUTPUT=$(mvn deploy -pl $mod -am -DskipTests -Prelease 2>&1) && {
               echo "OK: $mod deployed"
               continue
             }
