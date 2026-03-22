@@ -32,6 +32,22 @@ type Config struct {
 	// RetentionIntervalSeconds sets how often the retention sweep runs (default 60).
 	// Set to -1 to disable automatic retention enforcement.
 	RetentionIntervalSeconds int
+
+	// RetentionPolicy configures event class → tier → duration mapping.
+	// If nil, default retention policy is used.
+	RetentionPolicy *RetentionPolicy
+
+	// DisclosureLevel controls failure detail disclosure.
+	// One of "full", "reduced", "redacted", "policy". Default: "full".
+	DisclosureLevel string
+
+	// DisclosurePolicy maps caller classes to disclosure levels.
+	// Only used when DisclosureLevel is "policy".
+	DisclosurePolicy map[string]string
+
+	// AggregationWindowSeconds sets the aggregation window size.
+	// 0 or negative disables aggregation. Default: 0 (disabled).
+	AggregationWindowSeconds int
 }
 
 // CapabilityDef binds a capability declaration to a handler function.
@@ -94,8 +110,12 @@ type Service struct {
 	authenticate func(bearer string) (string, bool)
 	storageDSN   string
 	keyPath      string
-	hooks        *ObservabilityHooks
-	startedAt    time.Time
+	hooks            *ObservabilityHooks
+	retentionPolicy  *RetentionPolicy
+	disclosureLevel  string
+	disclosurePolicy map[string]string
+	aggregator       *AuditAggregator
+	startedAt        time.Time
 
 	// Background goroutine management
 	checkpointPolicy         *CheckpointPolicy
@@ -132,6 +152,21 @@ func New(cfg Config) *Service {
 		retentionInterval = 0
 	}
 
+	rp := cfg.RetentionPolicy
+	if rp == nil {
+		rp = NewRetentionPolicy(nil, nil)
+	}
+
+	disclosureLevel := cfg.DisclosureLevel
+	if disclosureLevel == "" {
+		disclosureLevel = "full"
+	}
+
+	var aggregator *AuditAggregator
+	if cfg.AggregationWindowSeconds > 0 {
+		aggregator = NewAuditAggregator(cfg.AggregationWindowSeconds)
+	}
+
 	return &Service{
 		serviceID:                cfg.ServiceID,
 		trustLevel:               trust,
@@ -142,6 +177,10 @@ func New(cfg Config) *Service {
 		hooks:                    cfg.Hooks,
 		checkpointPolicy:         cfg.CheckpointPolicy,
 		retentionIntervalSeconds: retentionInterval,
+		retentionPolicy:          rp,
+		disclosureLevel:          disclosureLevel,
+		disclosurePolicy:         cfg.DisclosurePolicy,
+		aggregator:               aggregator,
 	}
 }
 
@@ -165,6 +204,12 @@ func (s *Service) Start() error {
 	if s.checkpointPolicy != nil {
 		s.wg.Add(1)
 		go s.runCheckpointLoop()
+	}
+
+	// Start aggregator flush goroutine.
+	if s.aggregator != nil {
+		s.wg.Add(1)
+		go s.runAggregatorFlush()
 	}
 
 	return nil
@@ -285,29 +330,40 @@ func (s *Service) GetDiscovery(baseURL string) map[string]any {
 			"minimum_scope_for_discovery": "none",
 		},
 		"capabilities": capsSummary,
-		"trust_level":  s.trustLevel,
-		"posture": map[string]any{
-			"audit": map[string]any{
-				"retention":          "P90D",
-				"retention_enforced": s.retentionRunning,
-			},
-			"failure_disclosure": map[string]any{
-				"detail_level": "full",
-			},
-			"anchoring": map[string]any{
-				"enabled":          false,
-				"proofs_available": false,
-			},
+		"trust_level": s.trustLevel,
+	}
+
+	failureDisc := map[string]any{
+		"detail_level": s.disclosureLevel,
+	}
+	if s.disclosureLevel == "policy" && s.disclosurePolicy != nil {
+		classes := make([]string, 0, len(s.disclosurePolicy))
+		for k := range s.disclosurePolicy {
+			classes = append(classes, k)
+		}
+		failureDisc["caller_classes"] = classes
+	}
+
+	doc["posture"] = map[string]any{
+		"audit": map[string]any{
+			"retention":          s.retentionPolicy.DefaultRetention(),
+			"retention_enforced": s.retentionRunning,
 		},
-		"endpoints": map[string]any{
-			"manifest":    "/anip/manifest",
-			"permissions": "/anip/permissions",
-			"invoke":      "/anip/invoke/{capability}",
-			"tokens":      "/anip/tokens",
-			"audit":       "/anip/audit",
-			"checkpoints": "/anip/checkpoints",
-			"jwks":        "/.well-known/jwks.json",
+		"failure_disclosure": failureDisc,
+		"anchoring": map[string]any{
+			"enabled":          false,
+			"proofs_available": false,
 		},
+	}
+
+	doc["endpoints"] = map[string]any{
+		"manifest":    "/anip/manifest",
+		"permissions": "/anip/permissions",
+		"invoke":      "/anip/invoke/{capability}",
+		"tokens":      "/anip/tokens",
+		"audit":       "/anip/audit",
+		"checkpoints": "/anip/checkpoints",
+		"jwks":        "/.well-known/jwks.json",
 	}
 
 	if baseURL != "" {
@@ -593,4 +649,72 @@ func (s *Service) runCheckpointLoop() {
 			}
 		}
 	}
+}
+
+// runAggregatorFlush periodically flushes closed aggregation windows.
+func (s *Service) runAggregatorFlush() {
+	defer s.wg.Done()
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.stopCh:
+			s.flushAggregator()
+			return
+		case <-ticker.C:
+			s.flushAggregator()
+		}
+	}
+}
+
+func (s *Service) flushAggregator() {
+	results := s.aggregator.Flush(time.Now().UTC())
+	for _, item := range results {
+		var entryData map[string]any
+		switch v := item.(type) {
+		case *AggregatedEntry:
+			entryData = StorageRedactEntry(v.ToAuditDict())
+		case map[string]any:
+			entryData = StorageRedactEntry(v)
+		default:
+			continue
+		}
+		s.persistAuditMap(entryData)
+	}
+}
+
+func (s *Service) persistAuditMap(entryData map[string]any) {
+	entry := &core.AuditEntry{
+		Capability:    strVal(entryData, "capability"),
+		Success:       false,
+		FailureType:   strVal(entryData, "failure_type"),
+		EventClass:    strVal(entryData, "event_class"),
+		RetentionTier: strVal(entryData, "retention_tier"),
+		ExpiresAt:     strVal(entryData, "expires_at"),
+		EntryType:     strVal(entryData, "entry_type"),
+		RootPrincipal: strVal(entryData, "actor_key"),
+	}
+	if entry.EntryType == "" {
+		entry.EntryType = "normal"
+	}
+	if gk, ok := entryData["grouping_key"].(map[string]string); ok {
+		entry.GroupingKey = gk
+	}
+	if aw, ok := entryData["aggregation_window"].(map[string]string); ok {
+		entry.AggregationWindow = aw
+	}
+	if count, ok := entryData["aggregation_count"].(int); ok {
+		entry.AggregationCount = count
+	}
+	entry.FirstSeen = strVal(entryData, "first_seen")
+	entry.LastSeen = strVal(entryData, "last_seen")
+	entry.RepresentativeDetail = strVal(entryData, "representative_detail")
+
+	_ = server.AppendAudit(s.keys, s.storage, entry)
+}
+
+func strVal(m map[string]any, key string) string {
+	v, _ := m[key].(string)
+	return v
 }

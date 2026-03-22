@@ -206,8 +206,14 @@ type AuditEntry struct {
 	RetentionTier       string         `json:"retention_tier,omitempty"`
 	ExpiresAt           string         `json:"expires_at,omitempty"`
 	StorageRedacted     bool           `json:"storage_redacted,omitempty"`
-	EntryType           string         `json:"entry_type,omitempty"`
-	StreamSummary       map[string]any `json:"stream_summary,omitempty"`
+	EntryType            string            `json:"entry_type,omitempty"`
+	GroupingKey          map[string]string `json:"grouping_key,omitempty"`
+	AggregationWindow    map[string]string `json:"aggregation_window,omitempty"`
+	AggregationCount     int               `json:"aggregation_count,omitempty"`
+	FirstSeen            string            `json:"first_seen,omitempty"`
+	LastSeen             string            `json:"last_seen,omitempty"`
+	RepresentativeDetail string            `json:"representative_detail,omitempty"`
+	StreamSummary        map[string]any    `json:"stream_summary,omitempty"`
 }
 
 // AuditResponse wraps audit query results.
