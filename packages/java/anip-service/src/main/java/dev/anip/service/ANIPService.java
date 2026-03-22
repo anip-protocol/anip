@@ -74,6 +74,10 @@ public class ANIPService {
     private final ObservabilityHooks hooks;
     private final CheckpointPolicy checkpointPolicy;
     private final int retentionIntervalSeconds;
+    private RetentionPolicy retentionPolicy;
+    private String disclosureLevel;
+    private Map<String, String> disclosurePolicy;
+    private AuditAggregator aggregator;
 
     private Storage storage;
     private KeyManager keys;
@@ -117,6 +121,15 @@ public class ANIPService {
                 this.capabilities.put(cap.getDeclaration().getName(), cap);
             }
         }
+
+        this.retentionPolicy = config.getRetentionPolicy() != null
+            ? config.getRetentionPolicy() : new RetentionPolicy(null, null);
+        this.disclosureLevel = config.getDisclosureLevel() != null
+            ? config.getDisclosureLevel() : "full";
+        this.disclosurePolicy = config.getDisclosurePolicy();
+        if (config.getAggregationWindowSeconds() > 0) {
+            this.aggregator = new AuditAggregator(config.getAggregationWindowSeconds());
+        }
     }
 
     /**
@@ -143,6 +156,7 @@ public class ANIPService {
         int workerCount = 0;
         if (retentionIntervalSeconds > 0) workerCount++;
         if (checkpointPolicy != null) workerCount++;
+        if (aggregator != null) workerCount++;
 
         if (workerCount > 0) {
             scheduler = Executors.newScheduledThreadPool(workerCount);
@@ -168,6 +182,10 @@ public class ANIPService {
                         () -> runCheckpoint(holderId, finalInterval, finalMinEntries),
                         interval, interval, TimeUnit.SECONDS
                 );
+            }
+
+            if (aggregator != null) {
+                scheduler.scheduleAtFixedRate(this::flushAggregator, 10, 10, TimeUnit.SECONDS);
             }
         }
     }
@@ -296,8 +314,14 @@ public class ANIPService {
                     failure.put("resolution", Map.of("action", e.getResolution().getAction()));
                 }
 
+                String sideEffectType = capDef.getDeclaration().getSideEffect() != null
+                    ? capDef.getDeclaration().getSideEffect().getType() : null;
                 appendAuditEntry(capName, token, false, e.getErrorType(), null, null,
-                        invocationId, clientRefId);
+                        invocationId, clientRefId, sideEffectType);
+
+                Map<String, Object> tokenClaims = tokenClaimsMap(token);
+                String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+                failure = FailureRedaction.redact(failure, effectiveLevel);
 
                 Map<String, Object> resp = new LinkedHashMap<>();
                 resp.put("success", false);
@@ -328,20 +352,37 @@ public class ANIPService {
             try {
                 result = capDef.getHandler().apply(ctx, params);
             } catch (ANIPError e) {
+                String sideEffectType2 = capDef.getDeclaration().getSideEffect() != null
+                    ? capDef.getDeclaration().getSideEffect().getType() : null;
                 appendAuditEntry(capName, token, false, e.getErrorType(),
-                        Map.of("detail", e.getDetail()), null, invocationId, clientRefId);
+                        Map.of("detail", e.getDetail()), null, invocationId, clientRefId,
+                        sideEffectType2);
+                Map<String, Object> failure = new LinkedHashMap<>();
+                failure.put("type", e.getErrorType());
+                failure.put("detail", e.getDetail());
+                Map<String, Object> tokenClaims = tokenClaimsMap(token);
+                String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+                failure = FailureRedaction.redact(failure, effectiveLevel);
                 Map<String, Object> resp = new LinkedHashMap<>();
                 resp.put("success", false);
-                resp.put("failure", Map.of("type", e.getErrorType(), "detail", e.getDetail()));
+                resp.put("failure", failure);
                 resp.put("invocation_id", invocationId);
                 resp.put("client_reference_id", clientRefId);
                 return resp;
             } catch (Exception e) {
+                String sideEffectType3 = capDef.getDeclaration().getSideEffect() != null
+                    ? capDef.getDeclaration().getSideEffect().getType() : null;
                 appendAuditEntry(capName, token, false, Constants.FAILURE_INTERNAL_ERROR,
-                        null, null, invocationId, clientRefId);
+                        null, null, invocationId, clientRefId, sideEffectType3);
+                Map<String, Object> failure = new LinkedHashMap<>();
+                failure.put("type", Constants.FAILURE_INTERNAL_ERROR);
+                failure.put("detail", "Internal error");
+                Map<String, Object> tokenClaims = tokenClaimsMap(token);
+                String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+                failure = FailureRedaction.redact(failure, effectiveLevel);
                 Map<String, Object> resp = new LinkedHashMap<>();
                 resp.put("success", false);
-                resp.put("failure", Map.of("type", Constants.FAILURE_INTERNAL_ERROR, "detail", "Internal error"));
+                resp.put("failure", failure);
                 resp.put("invocation_id", invocationId);
                 resp.put("client_reference_id", clientRefId);
                 return resp;
@@ -351,7 +392,10 @@ public class ANIPService {
             CostActual costActual = ctx.getCostActual();
 
             // 7. Log audit (success).
-            appendAuditEntry(capName, token, true, "", result, costActual, invocationId, clientRefId);
+            String sideEffectType4 = capDef.getDeclaration().getSideEffect() != null
+                ? capDef.getDeclaration().getSideEffect().getType() : null;
+            appendAuditEntry(capName, token, true, "", result, costActual, invocationId, clientRefId,
+                    sideEffectType4);
 
             // 8. Build response.
             Map<String, Object> resp = new LinkedHashMap<>();
@@ -442,8 +486,10 @@ public class ANIPService {
 
                 // Success -- send completed event.
                 CostActual costActual = ctx.getCostActual();
+                String streamSideEffect = capDef.getDeclaration().getSideEffect() != null
+                    ? capDef.getDeclaration().getSideEffect().getType() : null;
                 appendAuditEntry(capName, token, true, "", result, costActual,
-                        invocationId, clientRefId);
+                        invocationId, clientRefId, streamSideEffect);
 
                 Map<String, Object> payload = new LinkedHashMap<>();
                 payload.put("invocation_id", invocationId);
@@ -456,8 +502,11 @@ public class ANIPService {
                 queue.put(new StreamEvent("completed", payload));
                 success = true;
             } catch (ANIPError e) {
+                String streamSideEffect2 = capDef.getDeclaration().getSideEffect() != null
+                    ? capDef.getDeclaration().getSideEffect().getType() : null;
                 appendAuditEntry(capName, token, false, e.getErrorType(),
-                        Map.of("detail", e.getDetail()), null, invocationId, clientRefId);
+                        Map.of("detail", e.getDetail()), null, invocationId, clientRefId,
+                        streamSideEffect2);
 
                 Map<String, Object> failureObj = new LinkedHashMap<>();
                 failureObj.put("type", e.getErrorType());
@@ -465,6 +514,10 @@ public class ANIPService {
                 failureObj.put("retry", e.isRetry());
                 failureObj.put("resolution", e.getResolution() != null
                         ? Map.of("action", e.getResolution().getAction()) : null);
+
+                Map<String, Object> streamTokenClaims = tokenClaimsMap(token);
+                String streamEffLevel = DisclosureControl.resolve(disclosureLevel, streamTokenClaims, disclosurePolicy);
+                failureObj = FailureRedaction.redact(failureObj, streamEffLevel);
 
                 Map<String, Object> payload = new LinkedHashMap<>();
                 payload.put("invocation_id", invocationId);
@@ -479,14 +532,20 @@ public class ANIPService {
                     Thread.currentThread().interrupt();
                 }
             } catch (Exception e) {
+                String streamSideEffect3 = capDef.getDeclaration().getSideEffect() != null
+                    ? capDef.getDeclaration().getSideEffect().getType() : null;
                 appendAuditEntry(capName, token, false, Constants.FAILURE_INTERNAL_ERROR,
-                        null, null, invocationId, clientRefId);
+                        null, null, invocationId, clientRefId, streamSideEffect3);
 
                 Map<String, Object> failureObj = new LinkedHashMap<>();
                 failureObj.put("type", Constants.FAILURE_INTERNAL_ERROR);
                 failureObj.put("detail", "Internal error");
                 failureObj.put("resolution", null);
                 failureObj.put("retry", false);
+
+                Map<String, Object> streamTokenClaims2 = tokenClaimsMap(token);
+                String streamEffLevel2 = DisclosureControl.resolve(disclosureLevel, streamTokenClaims2, disclosurePolicy);
+                failureObj = FailureRedaction.redact(failureObj, streamEffLevel2);
 
                 Map<String, Object> payload = new LinkedHashMap<>();
                 payload.put("invocation_id", invocationId);
@@ -640,12 +699,18 @@ public class ANIPService {
         ));
         doc.put("capabilities", capsSummary);
         doc.put("trust_level", trustLevel);
+        Map<String, Object> failureDisc = new LinkedHashMap<>();
+        failureDisc.put("detail_level", disclosureLevel);
+        if ("policy".equals(disclosureLevel) && disclosurePolicy != null) {
+            failureDisc.put("caller_classes", new ArrayList<>(disclosurePolicy.keySet()));
+        }
+
         doc.put("posture", Map.of(
                 "audit", Map.of(
-                        "retention", "P90D",
+                        "retention", retentionPolicy.getDefaultRetention(),
                         "retention_enforced", retentionRunning
                 ),
-                "failure_disclosure", Map.of("detail_level", "full"),
+                "failure_disclosure", failureDisc,
                 "anchoring", Map.of("enabled", false, "proofs_available", false)
         ));
         doc.put("endpoints", Map.of(
@@ -841,7 +906,8 @@ public class ANIPService {
     private void appendAuditEntry(String capability, DelegationToken token,
                                    boolean success, String failureType,
                                    Map<String, Object> resultSummary, CostActual costActual,
-                                   String invocationId, String clientReferenceId) {
+                                   String invocationId, String clientReferenceId,
+                                   String sideEffectType) {
         String rootPrincipal = token.getRootPrincipal();
         if (rootPrincipal == null || rootPrincipal.isEmpty()) {
             rootPrincipal = token.getIssuer();
@@ -861,12 +927,119 @@ public class ANIPService {
         entry.setInvocationId(invocationId);
         entry.setClientReferenceId(clientReferenceId);
 
+        // Classification + retention
+        String eventClass = EventClassification.classify(sideEffectType, success, failureType);
+        String tier = retentionPolicy.resolveTier(eventClass);
+        String expiresAt = retentionPolicy.computeExpiresAt(tier, Instant.now());
+        entry.setEventClass(eventClass);
+        entry.setRetentionTier(tier);
+        entry.setExpiresAt(expiresAt);
+
+        // Storage redaction
+        if (StorageRedaction.isLowValue(eventClass)) {
+            entry.setParameters(null);
+            entry.setStorageRedacted(true);
+        }
+
+        // Route through aggregator if applicable
+        if (aggregator != null && "malformed_or_spam".equals(eventClass)) {
+            aggregator.submit(entryToMap(entry));
+            return;
+        }
+
         try {
             AuditLog.appendAudit(keys, storage, entry);
             fireAuditAppend(entry.getSequenceNumber(), capability, invocationId);
         } catch (Exception ignored) {
             // Best effort -- don't fail invocation if audit logging fails.
         }
+    }
+
+    private Map<String, Object> tokenClaimsMap(DelegationToken token) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("scope", token.getScope());
+        if (token.getCallerClass() != null && !token.getCallerClass().isEmpty()) {
+            claims.put("anip:caller_class", token.getCallerClass());
+        }
+        return claims;
+    }
+
+    private Map<String, Object> entryToMap(AuditEntry entry) {
+        Map<String, Object> m = new HashMap<>();
+        m.put("timestamp", entry.getTimestamp());
+        m.put("capability", entry.getCapability());
+        m.put("actor_key", entry.getRootPrincipal());
+        m.put("failure_type", entry.getFailureType());
+        m.put("event_class", entry.getEventClass());
+        m.put("retention_tier", entry.getRetentionTier());
+        m.put("expires_at", entry.getExpiresAt());
+        m.put("invocation_id", entry.getInvocationId());
+        m.put("client_reference_id", entry.getClientReferenceId());
+        m.put("token_id", entry.getTokenId());
+        m.put("issuer", entry.getIssuer());
+        m.put("subject", entry.getSubject());
+        if (entry.getResultSummary() != null) {
+            Object detail = entry.getResultSummary().get("detail");
+            if (detail != null) m.put("detail", detail);
+        }
+        return m;
+    }
+
+    private void flushAggregator() {
+        if (aggregator == null) return;
+        List<Object> results = aggregator.flush(Instant.now());
+        for (Object item : results) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> entryData = StorageRedaction.redactEntry((Map<String, Object>) item);
+            persistAuditMap(entryData);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void persistAuditMap(Map<String, Object> entryData) {
+        AuditEntry entry = new AuditEntry();
+        entry.setCapability((String) entryData.get("capability"));
+        entry.setSuccess(false);
+        entry.setFailureType((String) entryData.get("failure_type"));
+        entry.setEventClass((String) entryData.get("event_class"));
+        entry.setRetentionTier((String) entryData.get("retention_tier"));
+        entry.setExpiresAt((String) entryData.get("expires_at"));
+        // Derive root principal: top-level actor_key, or from grouping_key for aggregated entries.
+        String rootPrincipal = (String) entryData.get("actor_key");
+        if (rootPrincipal == null && entryData.get("grouping_key") instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, String> gk = (Map<String, String>) entryData.get("grouping_key");
+            rootPrincipal = gk.get("actor_key");
+        }
+        entry.setRootPrincipal(rootPrincipal);
+        entry.setTimestamp((String) entryData.get("timestamp"));
+        entry.setInvocationId((String) entryData.get("invocation_id"));
+        entry.setClientReferenceId((String) entryData.get("client_reference_id"));
+        entry.setTokenId((String) entryData.get("token_id"));
+        entry.setIssuer((String) entryData.get("issuer"));
+        entry.setSubject((String) entryData.get("subject"));
+        String entryType = (String) entryData.get("entry_type");
+        entry.setEntryType(entryType != null ? entryType : "normal");
+        // Aggregation fields
+        if (entryData.get("grouping_key") instanceof Map) {
+            entry.setGroupingKey((Map<String, String>) entryData.get("grouping_key"));
+        }
+        if (entryData.get("aggregation_window") instanceof Map) {
+            entry.setAggregationWindow((Map<String, String>) entryData.get("aggregation_window"));
+        }
+        if (entryData.get("aggregation_count") instanceof Integer count) {
+            entry.setAggregationCount(count);
+        }
+        entry.setFirstSeen((String) entryData.get("first_seen"));
+        entry.setLastSeen((String) entryData.get("last_seen"));
+        entry.setRepresentativeDetail((String) entryData.get("representative_detail"));
+        // Restore storage redaction flag from the redacted map.
+        if (Boolean.TRUE.equals(entryData.get("storage_redacted"))) {
+            entry.setStorageRedacted(true);
+        }
+        try {
+            AuditLog.appendAudit(keys, storage, entry);
+        } catch (Exception ignored) {}
     }
 
     // --- Hook helpers (null-safe, exception-safe) ---
