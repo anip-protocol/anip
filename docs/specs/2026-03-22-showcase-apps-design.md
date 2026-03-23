@@ -94,9 +94,9 @@ All three apps use the same Python stack:
 - `anip-service` + `anip-fastapi` for the core ANIP protocol
 - `anip-rest` for REST/OpenAPI interface
 - `anip-graphql` for GraphQL interface
-- `anip-mcp` for MCP interface (stdio + Streamable HTTP)
+- `anip-mcp` for MCP Streamable HTTP interface (mounted on FastAPI)
 
-Each app mounts all four surfaces (ANIP protocol + REST + GraphQL + MCP) on a single FastAPI service.
+Each app mounts all four HTTP surfaces (ANIP protocol + REST + GraphQL + MCP Streamable HTTP) on a single FastAPI service. MCP stdio is a separate integration mode (not mounted on the web server) and is not part of the showcase app demos.
 
 ### Storage
 
