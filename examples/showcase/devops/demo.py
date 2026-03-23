@@ -117,7 +117,7 @@ class DevOpsDemo:
         print("  3. Infrastructure overview — read-only deployment listing via delegated token")
         print("  4. Health check — service health metrics via delegated token")
         print("  5. Scale operation — write operation (scale replicas) via delegated token")
-        print("  6. Purpose-bound token — rollback-only token for incident response")
+        print("  6. Scope-bound rollback token — infra.deploy scope for incident response")
         print("  7. Scope enforcement — repeated delete_resource denials with structured failure")
         print("  8. Audit + health — audit log with event_class and /-/health endpoint")
 
@@ -322,16 +322,16 @@ class DevOpsDemo:
         print_kv("new_replicas", scale["new_replicas"])
         print_kv("status", scale["status"])
 
-    # ---- Step 6: Purpose-Bound Token ----
+    # ---- Step 6: Scope-Bound Rollback Token ----
 
     def step_6_purpose_bound_token(self) -> None:
-        print_header(6, "PURPOSE-BOUND TOKEN (centerpiece)")
-        print("      Platform engineer issues a purpose-bound rollback token.")
-        print("      Scope: infra.deploy only.  Purpose: incident-response for api-gateway.")
-        print("      This token can rollback but NOT scale or delete.\n")
+        print_header(6, "SCOPE-BOUND ROLLBACK TOKEN (centerpiece)")
+        print("      Platform engineer issues a rollback-only token via infra.deploy scope.")
+        print("      Purpose parameters (incident-response, target api-gateway) are metadata,")
+        print("      not enforced by the handler — scope is what restricts the token.\n")
 
-        # Issue a purpose-bound token for rollback only
-        print_action("POST", "/anip/tokens (purpose-bound: rollback only)")
+        # Issue a scope-bound token for rollback only
+        print_action("POST", "/anip/tokens (scope: infra.deploy, rollback only)")
         rollback_resp = self._post(
             "/anip/tokens",
             json_body={
@@ -354,8 +354,8 @@ class DevOpsDemo:
         print_kv("capability", "rollback_deployment")
         print_kv("purpose", "incident-response for api-gateway")
 
-        # Use the purpose-bound token to rollback api-gateway
-        print("\n      Using purpose-bound token to rollback api-gateway to v2.3.0:")
+        # Use the scope-bound token to rollback api-gateway
+        print("\n      Using rollback-only token to rollback api-gateway to v2.3.0:")
         print_action("POST", "/anip/invoke/rollback_deployment (api-gateway -> v2.3.0)")
         result = self._post(
             "/anip/invoke/rollback_deployment",
@@ -390,7 +390,7 @@ class DevOpsDemo:
             print_kv("failure type", failure.get("type", "?"))
             print_kv("detail", failure.get("detail", "(none)"))
             print_kv("retry", failure.get("retry", "?"))
-            print("\n      Purpose-bound token correctly blocked: can rollback, cannot scale.")
+            print("\n      Scope-bound token correctly blocked: can rollback, cannot scale.")
 
         # Show that this token CANNOT delete (scope is infra.deploy, not infra.admin)
         print("\n      Attempting delete_resource with rollback-only token (should fail):")
@@ -408,7 +408,7 @@ class DevOpsDemo:
             print_kv("failure type", failure.get("type", "?"))
             print_kv("detail", failure.get("detail", "(none)"))
             print_kv("retry", failure.get("retry", "?"))
-            print("\n      Purpose-bound token correctly blocked: can rollback, cannot delete.")
+            print("\n      Scope-bound token correctly blocked: can rollback, cannot delete.")
 
     # ---- Step 7: Scope Enforcement + Repeated Denials ----
 
