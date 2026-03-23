@@ -1,0 +1,10 @@
+-e ../../../packages/python/anip-core
+-e ../../../packages/python/anip-crypto
+-e ../../../packages/python/anip-server
+-e ../../../packages/python/anip-service
+-e ../../../packages/python/anip-fastapi
+-e ../../../packages/python/anip-rest
+-e ../../../packages/python/anip-graphql
+-e ../../../packages/python/anip-mcp
+uvicorn
+httpx
