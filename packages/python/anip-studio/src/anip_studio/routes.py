@@ -35,7 +35,7 @@ def mount_anip_studio(
     @app.get(f"{prefix}/config.json")
     async def studio_config():
         return JSONResponse({
-            "service_id": service.service_id,
+            "service_id": service._service_id,
             "embedded": True,
         })
 
