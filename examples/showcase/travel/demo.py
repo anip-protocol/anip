@@ -329,7 +329,7 @@ class TravelDemo:
         print_header(7, "SUCCESSFUL BOOKING")
 
         flight = "AA100"
-        print_action("POST", f"/anip/invoke/book_flight ({flight}, $180)")
+        print_action("POST", f"/anip/invoke/book_flight ({flight}, $420)")
 
         result = self._post(
             "/anip/invoke/book_flight",
