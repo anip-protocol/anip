@@ -7,14 +7,14 @@ A rich demonstration of ANIP's core protocol features using a travel booking dom
 | ANIP Feature | How It Appears |
 |---|---|
 | Cost estimation vs actual | Search shows price estimates; booking confirms actual cost |
-| Budget enforcement | Agent has a $300 budget; nonstop flights exceed it |
+| Scope enforcement | Agent with search-only token is blocked from booking, with structured resolution |
 | Scope narrowing | Broad travel token → narrowed search-only and booking-only child tokens |
 | Capability prerequisites | `book_flight` requires prior `search_flights` |
 | Permission discovery | Agent checks what it can do before acting |
 | Delegation chain | Human delegates to agent with bounded authority |
 | Audit trail | Full invocation history with event classification |
 | Side-effect typing | read (search), irreversible (book), transactional (cancel) |
-| Streaming | Search results arrive as progressive SSE events |
+| Streaming declaration | `search_flights` declares streaming support (progressive SSE is a future demo enhancement) |
 
 ## Capabilities
 
