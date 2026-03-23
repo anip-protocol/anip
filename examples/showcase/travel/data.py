@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
+from datetime import timezone
 from datetime import datetime
 
 
@@ -30,7 +31,7 @@ class Booking:
     booked_by: str
     on_behalf_of: str
     status: str = "confirmed"
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 # ---------------------------------------------------------------------------
