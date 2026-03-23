@@ -1,8 +1,8 @@
 """DevOps infrastructure capabilities — ANIP capability declarations and handlers."""
 from anip_service import Capability, InvocationContext, ANIPError
 from anip_core import (
-    CapabilityDeclaration, CapabilityInput, CapabilityOutput, CapabilityRequirement,
-    Cost, CostCertainty, ObservabilityContract, ResponseMode, SessionInfo,
+    CapabilityDeclaration, CapabilityInput, CapabilityOutput,
+    Cost, CostCertainty, ObservabilityContract, SessionInfo,
     SideEffect, SideEffectType,
 )
 import data
