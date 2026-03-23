@@ -1,6 +1,7 @@
 """ANIP Travel Booking Showcase — all four HTTP surfaces."""
 import os
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from anip_service import ANIPService
 from anip_fastapi import mount_anip
 from anip_rest import mount_anip_rest
@@ -24,6 +25,13 @@ service = ANIPService(
 )
 
 app = FastAPI(title="ANIP Travel Booking Showcase")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-ANIP-Signature"],
+)
 mount_anip(app, service, health_endpoint=True)
 mount_anip_rest(app, service)
 mount_anip_graphql(app, service)
