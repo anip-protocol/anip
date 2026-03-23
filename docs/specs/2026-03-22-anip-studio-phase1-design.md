@@ -70,16 +70,16 @@ All fetches go directly to the ANIP service — no proxy, no backend. When embed
 
 ### Bootstrap Config
 
-When embedded, the adapter serves a small `config.json` at `/studio/config.json`:
+When embedded, the adapter dynamically generates `/studio/config.json`:
 
 ```json
 {
-  "base_url": "http://localhost:8000",
-  "service_id": "anip-travel-showcase"
+  "service_id": "anip-travel-showcase",
+  "embedded": true
 }
 ```
 
-The frontend reads this on load to set the default service URL. If absent (standalone mode), the URL bar starts empty.
+The frontend reads this on load. In embedded mode (`embedded: true`), it derives the ANIP service base URL from `window.location.origin` — no hardcoded absolute URL, works correctly behind reverse proxies and non-root hosting. In standalone mode (no `config.json` or `embedded: false`), the URL bar starts empty and the user enters the target service URL manually.
 
 ## Distribution
 
@@ -97,6 +97,9 @@ Built assets are checked into the repo. Regenerated when the frontend changes.
 
 New Python package: `anip-studio` at `packages/python/anip-studio/`.
 
+**Packaging the built frontend into the Python package:**
+The `studio/dist/` directory is copied into the Python package tree at `packages/python/anip-studio/src/anip_studio/static/` during a sync step. This copy is checked in alongside the source package so that `pip install` works without Node. A Makefile or script at `studio/sync.sh` performs: `cp -r studio/dist/* packages/python/anip-studio/src/anip_studio/static/`. The `pyproject.toml` declares `static/**` as package data.
+
 ```python
 from anip_studio import mount_anip_studio
 
@@ -105,10 +108,10 @@ mount_anip_studio(app, service)
 
 This mounts:
 - `GET /studio` → serves `index.html`
-- `GET /studio/{path:path}` → serves static assets from `dist/`
-- `GET /studio/config.json` → returns bootstrap config with service URL and ID
+- `GET /studio/{path:path}` → serves static assets from the `static/` package data directory
+- `GET /studio/config.json` → returns bootstrap config (dynamically generated, see below)
 
-The `dist/` files are included as Python package data. No Node runtime needed at serving time.
+No Node runtime needed at serving time.
 
 SPA routing: all `/studio/*` paths that don't match a static file fall back to `index.html`.
 
