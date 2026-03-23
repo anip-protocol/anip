@@ -1,0 +1,8 @@
+{
+  "list_deployments": {},
+  "get_service_health": {"service_name": "api-gateway"},
+  "scale_replicas": {"service_name": "api-gateway", "replicas": 3},
+  "update_config": {"service_name": "api-gateway", "key": "log_level", "value": "debug"},
+  "rollback_deployment": {"service_name": "api-gateway", "target_version": "v1.0.0"},
+  "delete_resource": {"resource_type": "deployment", "resource_name": "old-service"}
+}
