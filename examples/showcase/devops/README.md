@@ -1,16 +1,16 @@
 # ANIP DevOps Infrastructure Showcase
 
-A governance-focused demonstration of ANIP's protocol features using a DevOps infrastructure domain. The centerpiece is the **purpose-bound token** — showing how a token can be scoped to a single action (rollback) for incident response, blocking scale and delete operations even though the issuer has broader authority.
+A governance-focused demonstration of ANIP's protocol features using a DevOps infrastructure domain. The centerpiece is the **scope-bound rollback token** — showing how a token can be scoped to a single capability (rollback) via `infra.deploy` scope, blocking scale and delete operations even though the issuer has broader authority. Purpose parameters (e.g., `target_service`) are carried as metadata but not enforced by the handler — scope enforcement is what actually restricts the token.
 
 ## What This Demonstrates
 
 | ANIP Feature | How It Appears |
 |---|---|
-| **Purpose-bound tokens** (centerpiece) | Platform engineer issues a rollback-only token for incident response; token can rollback but cannot scale or delete |
+| **Scope-bound tokens** (centerpiece) | Platform engineer issues a rollback-only token (infra.deploy scope); token can rollback but cannot scale or delete. Purpose parameters carried as metadata. |
 | Side-effect types | All four types present: read (list deployments, health), write (scale, config), transactional (rollback with 2h window), irreversible (delete) |
 | Health / observability | `/-/health` endpoint, observability hooks logging invocation start/end with timing |
 | Scoped delegation | Platform engineer -> app-developer -> CI agent, each narrowing scope |
-| Repeated-denial aggregation | Three consecutive delete attempts denied; with `aggregation_window=60`, these are aggregated in the audit log |
+| Repeated-denial aggregation | Three consecutive delete attempts denied; with `aggregation_window=60`, these will be aggregated after the window closes (~60s). The demo audit step may show individual entries if queried before flush. |
 | Scope enforcement | CI agent with read+write scope blocked from admin-only `delete_resource`, with structured failure and resolution |
 
 ## Capabilities
@@ -61,7 +61,7 @@ python demo.py
 | `ANIP_KEY_PATH` | `./anip-keys` | Key directory |
 | `PORT` | `8000` | HTTP port |
 
-## Purpose-Bound Tokens
+## Scope-Bound Rollback Token
 
 The demo's centerpiece shows how a platform engineer can issue a narrowly-scoped token for incident response:
 
@@ -77,4 +77,6 @@ The demo's centerpiece shows how a platform engineer can issue a narrowly-scoped
 }
 ```
 
-This token grants only `rollback_deployment` capability with `infra.deploy` scope. Attempts to use it for `scale_replicas` (requires `infra.write`) or `delete_resource` (requires `infra.admin`) are rejected with structured failure responses including resolution guidance.
+This token grants only `rollback_deployment` capability via `infra.deploy` scope. Attempts to use it for `scale_replicas` (requires `infra.write`) or `delete_resource` (requires `infra.admin`) are rejected with structured failure responses including resolution guidance.
+
+**Note:** The `purpose_parameters` (reason, target_service) are carried as token metadata but are not enforced by the handler — the scope restriction is what actually constrains the token. Handler-level purpose parameter enforcement is a future enhancement.
