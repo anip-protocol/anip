@@ -8,7 +8,7 @@ A governance-focused demonstration of ANIP's protocol features using a financial
 |---|---|
 | **Disclosure policy** (centerpiece) | Same scope_insufficient failure returns full/reduced/redacted detail based on caller_class (internal vs partner vs default) |
 | Retention tiers | Audit entries classified by event_class with tiered retention (long/medium/short/aggregate_only) |
-| Checkpoint proofs | Merkle-tree anchored audit log with verifiable inclusion proofs |
+| Checkpoint proofs | Anchored trust level with scheduled checkpoints (may require ~30s for first checkpoint to appear) |
 | Multi-hop delegation | Compliance officer -> trader -> execution agent, each narrowing scope |
 | Cost signaling | Trade cost estimated via `get_market_data`, confirmed via `cost_actual` |
 | Scope enforcement | Read-only token blocked from executing trades, with structured resolution |
@@ -46,11 +46,13 @@ python demo.py
 
 ## API Keys
 
-| Key | Principal | Caller Class |
-|---|---|---|
-| `compliance-key` | `human:compliance-officer@example.com` | internal |
-| `trader-key` | `human:trader@example.com` | internal |
-| `partner-key` | `partner:external-fund@example.com` | partner |
+| Key | Principal |
+|---|---|
+| `compliance-key` | `human:compliance-officer@example.com` |
+| `trader-key` | `human:trader@example.com` |
+| `partner-key` | `partner:external-fund@example.com` |
+
+**Note:** Caller class is NOT determined by the API key — it is set explicitly on each token at issuance time via the `caller_class` field. The demo sets `caller_class="internal"` for compliance tokens, `caller_class="partner"` for partner tokens, and omits it (defaults to `"default"` → redacted disclosure) to show all three levels.
 
 ## Configuration
 
