@@ -434,10 +434,11 @@ class ANIPService:
 
         token, token_id = result
 
-        # Apply caller_class from request
+        # Apply caller_class from request and persist the update
         caller_class = request.get("caller_class")
         if caller_class is not None:
             token = token.model_copy(update={"caller_class": caller_class})
+            await self._engine.register_token(token)
 
         # Build and sign JWT
         now = datetime.now(timezone.utc)

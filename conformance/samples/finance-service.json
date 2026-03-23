@@ -1,0 +1,7 @@
+{
+  "query_portfolio": {},
+  "get_market_data": {"symbol": "AAPL"},
+  "execute_trade": {"symbol": "AAPL", "side": "buy", "quantity": 10},
+  "transfer_funds": {"from_account": "trading", "to_account": "savings", "amount": 1000},
+  "generate_report": {"report_type": "daily_summary"}
+}

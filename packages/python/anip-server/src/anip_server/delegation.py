@@ -520,7 +520,7 @@ class DelegationEngine:
 
     async def register_token(self, token: DelegationToken) -> None:
         """Persist a delegation token to storage."""
-        await self._storage.store_token({
+        data: dict[str, Any] = {
             "token_id": token.token_id,
             "issuer": token.issuer,
             "subject": token.subject,
@@ -530,7 +530,10 @@ class DelegationEngine:
             "expires": token.expires.isoformat(),
             "constraints": token.constraints.model_dump(),
             "root_principal": token.root_principal,
-        })
+        }
+        if token.caller_class is not None:
+            data["caller_class"] = token.caller_class
+        await self._storage.store_token(data)
 
     async def get_token(self, token_id: str) -> DelegationToken | None:
         """Load a delegation token from storage."""
