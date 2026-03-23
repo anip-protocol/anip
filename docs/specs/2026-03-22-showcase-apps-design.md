@@ -13,24 +13,24 @@ These are not minimal starters (that's `examples/anip/`). These are richer demon
 **Role:** Accessible introductory scenario. Shows the core ANIP value without policy complexity.
 
 **Capabilities:**
-- `search_flights` — read, streaming (progressive results via SSE)
+- `search_flights` — read, streaming declared (unary invocation in demo)
 - `check_availability` — read
 - `book_flight` — irreversible, cost: financial (estimated range), requires: `search_flights`
 - `cancel_booking` — transactional, rollback_window: "PT24H"
 
 **ANIP features exercised:**
 - Cost estimation vs cost actual (search estimates, booking confirms)
-- Budget enforcement (agent has a $500 budget, nonstop flights exceed it)
-- Scope narrowing (full travel scope → booking-only token)
+- Scope enforcement (search-only token blocked from booking, with structured resolution)
+- Scope narrowing (broad parent token → narrowed search-only and booking-only child tokens)
 - Capability prerequisites (`book_flight` requires prior `search_flights`)
 - Permission discovery (agent checks what it can do before acting)
-- Audit trail (full invocation history)
-- Streaming (search results arrive progressively)
+- Audit trail (full invocation history with event classification)
+- Streaming declaration (`search_flights` declares streaming support)
 - Side-effect typing (read vs irreversible vs transactional)
 
-**Delegation model:** Simple — human → agent. One bounded delegated booking token. No sub-agent chains.
+**Delegation model:** Simple — human → agent. Broad parent token narrowed to child tokens. No sub-agent chains.
 
-**Demo script (`demo.py`):** An agent searches flights, hits the budget wall, requests budget increase (simulated human approval), books, and verifies the audit trail. Same flow as the existing `examples/agent/` demo but richer.
+**Demo script (`demo.py`):** An agent searches flights, attempts booking with a search-only token (scope enforcement), gets a new booking-scoped token (simulated human approval), books, and verifies the audit trail.
 
 ---
 
@@ -40,23 +40,22 @@ These are not minimal starters (that's `examples/anip/`). These are richer demon
 
 **Capabilities:**
 - `query_portfolio` — read
-- `get_market_data` — read, streaming (live price updates via SSE)
+- `get_market_data` — read, streaming declared (unary invocation in demo)
 - `execute_trade` — irreversible, cost: financial (fixed per trade), requires: `get_market_data`
 - `transfer_funds` — transactional, rollback_window: "PT1H", cost: financial (fixed fee)
 - `generate_report` — write
 
 **ANIP features exercised (centerpieces):**
-- **Disclosure policy** — this is the main place to show caller-class-aware failure detail:
+- **Disclosure policy** (centerpiece) — same scope_insufficient failure rendered three different ways based on caller_class:
   - `internal` class → full disclosure (type, detail, resolution with grantable_by)
   - `partner` class → reduced disclosure (detail truncated, grantable_by hidden)
   - `default` class → redacted disclosure (generic messages only)
-- **Retention tiers** — trades and transfers on long retention (P365D), queries on short (P7D), denied attempts on medium (P90D)
-- **Checkpoint proofs** — anchored trust level, automatic checkpoint scheduling, inclusion proof verification
-- **Strict delegation narrowing** — compliance officer → trader ($50K budget) → execution agent ($10K sub-budget). Child cannot widen parent scope or budget.
-- **Multi-hop delegation chain** — three levels of authority, each narrower
-- **Cost signaling with variance tracking** — declared estimate vs actual, logged in audit
+- **Retention tiers** — audit entries classified by event_class with tiered retention (long/medium/short/aggregate_only)
+- **Anchored trust** — checkpoint scheduling every 30s (may require ~30s for first checkpoint to appear)
+- **Multi-hop delegation narrowing** — compliance officer → trader ($50K) → execution agent ($10K). Child cannot widen parent scope or budget.
+- **Cost signaling** — trade cost estimated via `get_market_data`, confirmed via `cost_actual`
 
-**Demo script (`demo.py`):** A compliance officer delegates to a trader agent, who sub-delegates to an execution agent. The execution agent queries the portfolio, checks market data (streaming), attempts a trade that exceeds its budget (denied with full resolution for internal callers), gets the budget increased, executes, and the compliance officer verifies the audit trail with checkpoint proof.
+**Demo script (`demo.py`):** A compliance officer delegates to a trader, who sub-delegates to an execution agent. The agent queries portfolio, checks market data, executes a trade with cost tracking. Then the disclosure policy centerpiece: the same scope failure is shown at full, reduced, and redacted levels based on caller_class. Audit entries show event classification and retention tiers.
 
 ---
 
@@ -73,16 +72,14 @@ These are not minimal starters (that's `examples/anip/`). These are richer demon
 - `delete_resource` — irreversible
 
 **ANIP features exercised (centerpieces):**
-- **Purpose-bound tokens** — rollback token scoped to incident response only, not general deployment
+- **Scope-bound rollback token** (centerpiece) — rollback-only token via `infra.deploy` scope. Purpose parameters (reason, target_service) carried as metadata but not enforced by the handler — scope is what restricts the token.
 - **Side-effect typing** — all four types represented (read, write, transactional, irreversible)
 - **Health endpoint** — enabled, integrated with the service's own operational story
-- **Repeated-denial aggregation** — a CI agent repeatedly tries to scale beyond its scope, aggregated into a single audit entry
+- **Repeated-denial aggregation** — three consecutive delete attempts denied; with `aggregation_window=60`, these will be aggregated after the window closes (~60s). Demo audit step may show individual entries if queried before flush.
 - **Scoped delegation** — platform-team → app-team → CI agent, each with narrower scope
 - **Observability hooks** — logging hooks fire on every invocation, demonstrating the hook system
 
-**Streaming:** deployment rollout progress events (scale_replicas emits progress as pods come online)
-
-**Demo script (`demo.py`):** A platform engineer delegates deployment authority to an app team, who delegates to a CI agent. The CI agent lists deployments, checks health, scales replicas (with streaming progress), attempts to delete a resource (denied — scope insufficient, resolution says "request from platform-team"), and the platform engineer reviews the audit showing the aggregated denial entries.
+**Demo script (`demo.py`):** A platform engineer delegates deployment authority to an app team, who delegates to a CI agent. The CI agent lists deployments, checks health, scales replicas, then a scope-bound rollback token is demonstrated (can rollback, blocked from scaling and deleting). Three delete attempts show scope enforcement with structured resolution. Audit entries show event classification.
 
 ---
 
