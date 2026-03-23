@@ -270,7 +270,7 @@ class TravelDemo:
         # Try booking with the search-only token — should fail with
         # scope_insufficient or purpose_mismatch because the search token
         # does not carry travel.book scope.
-        flight = "SK100"
+        flight = "AA100"
         print(f"\n      Attempting to book {flight} using the search-only token...")
         print_action("POST", f"/anip/invoke/book_flight ({flight}) [search token]")
 
@@ -328,7 +328,7 @@ class TravelDemo:
     def step_7_booking(self) -> None:
         print_header(7, "SUCCESSFUL BOOKING")
 
-        flight = "SK100"
+        flight = "AA100"
         print_action("POST", f"/anip/invoke/book_flight ({flight}, $180)")
 
         result = self._post(
