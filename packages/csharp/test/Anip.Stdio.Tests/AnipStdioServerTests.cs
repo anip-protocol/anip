@@ -38,6 +38,27 @@ public class AnipStdioServerTests : IDisposable
                         };
                     }
                 ),
+                new(
+                    new CapabilityDeclaration
+                    {
+                        Name = "stream-echo",
+                        Description = "Echoes input back with streaming progress",
+                        ContractVersion = "1.0",
+                        SideEffect = new SideEffect { Type = "none" },
+                        MinimumScope = new List<string> { "data" },
+                        ResponseModes = new List<string> { "streaming" },
+                    },
+                    (ctx, parameters) =>
+                    {
+                        // Emit two progress events before returning final result.
+                        ctx.EmitProgress(new Dictionary<string, object?> { ["step"] = "first" });
+                        ctx.EmitProgress(new Dictionary<string, object?> { ["step"] = "second" });
+                        return new Dictionary<string, object?>
+                        {
+                            ["echoed"] = parameters.TryGetValue("message", out var msg) ? msg : "no message",
+                        };
+                    }
+                ),
             },
             Authenticate = bearer =>
             {
@@ -78,11 +99,16 @@ public class AnipStdioServerTests : IDisposable
 
     private string IssueTestToken(params string[] scopes)
     {
+        return IssueTokenForCapability("echo", scopes);
+    }
+
+    private string IssueTokenForCapability(string capability, params string[] scopes)
+    {
         var req = new TokenRequest
         {
             Subject = "agent-1",
             Scope = scopes.ToList(),
-            Capability = "echo",
+            Capability = capability,
             TtlHours = 1,
         };
         var resp = _service.IssueToken(_principal, req);
@@ -507,5 +533,122 @@ public class AnipStdioServerTests : IDisposable
         var response = AsDict(await _server.HandleRequestAsync(msg));
 
         Assert.Equal("my-req-id", response["id"]);
+    }
+
+    // --- Streaming invoke ---
+
+    [Fact]
+    public async Task Invoke_Streaming_ReturnsProgressNotificationsAndFinalResult()
+    {
+        var jwt = IssueTokenForCapability("stream-echo", "data");
+
+        var parameters = WithAuth(new Dictionary<string, object?>
+        {
+            ["capability"] = "stream-echo",
+            ["stream"] = true,
+            ["parameters"] = new Dictionary<string, object?>
+            {
+                ["message"] = "hello-stream",
+            },
+        }, jwt);
+
+        var msg = MakeRequest("anip.invoke", 1, parameters);
+        var response = await _server.HandleRequestAsync(msg);
+
+        // Streaming returns a list: [notification..., final_response]
+        var messages = Assert.IsType<List<Dictionary<string, object?>>>(response);
+        Assert.True(messages.Count >= 3, $"Expected at least 3 messages (2 progress + 1 result), got {messages.Count}");
+
+        // Verify progress notifications
+        var notification1 = messages[0];
+        Assert.Equal("2.0", notification1["jsonrpc"]);
+        Assert.Equal("anip.invoke.progress", notification1["method"]);
+        Assert.False(notification1.ContainsKey("id"), "Notifications must not have an id");
+        var params1 = (Dictionary<string, object?>)notification1["params"]!;
+        var payload1 = (Dictionary<string, object?>)params1["payload"]!;
+        Assert.Equal("first", payload1["step"]);
+
+        var notification2 = messages[1];
+        Assert.Equal("anip.invoke.progress", notification2["method"]);
+        var params2 = (Dictionary<string, object?>)notification2["params"]!;
+        var payload2 = (Dictionary<string, object?>)params2["payload"]!;
+        Assert.Equal("second", payload2["step"]);
+
+        // Verify final response
+        var finalResponse = messages[^1];
+        Assert.Equal("2.0", finalResponse["jsonrpc"]);
+        Assert.Equal(1, finalResponse["id"]);
+        var result = (Dictionary<string, object?>)finalResponse["result"]!;
+        Assert.True((bool)result["success"]!);
+        var innerResult = (Dictionary<string, object?>)result["result"]!;
+        Assert.Equal("hello-stream", innerResult["echoed"]);
+    }
+
+    [Fact]
+    public async Task Invoke_Streaming_ServeAsync_WritesMultipleLines()
+    {
+        var jwt = IssueTokenForCapability("stream-echo", "data");
+
+        var requestDict = new Dictionary<string, object?>
+        {
+            ["jsonrpc"] = "2.0",
+            ["id"] = 1,
+            ["method"] = "anip.invoke",
+            ["params"] = new Dictionary<string, object?>
+            {
+                ["capability"] = "stream-echo",
+                ["stream"] = true,
+                ["parameters"] = new Dictionary<string, object?> { ["message"] = "stream-serve" },
+                ["auth"] = new Dictionary<string, object?> { ["bearer"] = jwt },
+            },
+        };
+
+        var input = JsonSerializer.Serialize(requestDict) + "\n";
+        using var reader = new StringReader(input);
+        using var writer = new StringWriter();
+
+        await _server.ServeAsync(reader, writer);
+
+        var output = writer.ToString();
+        var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        // 2 progress notifications + 1 final response = 3 lines
+        Assert.True(lines.Length >= 3, $"Expected at least 3 lines, got {lines.Length}");
+
+        // First two lines should be notifications
+        using var notif1 = JsonDocument.Parse(lines[0]);
+        Assert.Equal("anip.invoke.progress", notif1.RootElement.GetProperty("method").GetString());
+        Assert.False(notif1.RootElement.TryGetProperty("id", out _));
+
+        using var notif2 = JsonDocument.Parse(lines[1]);
+        Assert.Equal("anip.invoke.progress", notif2.RootElement.GetProperty("method").GetString());
+
+        // Last line should be the final response with id
+        using var finalDoc = JsonDocument.Parse(lines[^1]);
+        Assert.Equal(1, finalDoc.RootElement.GetProperty("id").GetInt32());
+        Assert.True(finalDoc.RootElement.TryGetProperty("result", out _));
+    }
+
+    [Fact]
+    public async Task Invoke_NonStreaming_StillWorks()
+    {
+        // Ensure that non-streaming invoke with stream=false (or absent) still works.
+        var jwt = IssueTestToken("data");
+
+        var parameters = WithAuth(new Dictionary<string, object?>
+        {
+            ["capability"] = "echo",
+            ["parameters"] = new Dictionary<string, object?> { ["message"] = "hello-unary" },
+        }, jwt);
+
+        var msg = MakeRequest("anip.invoke", 1, parameters);
+        var response = await _server.HandleRequestAsync(msg);
+
+        // Non-streaming returns a single dict, not a list.
+        var dict = AsDict(response);
+        var result = (Dictionary<string, object?>)dict["result"]!;
+        Assert.True((bool)result["success"]!);
+        var innerResult = (Dictionary<string, object?>)result["result"]!;
+        Assert.Equal("hello-unary", innerResult["echoed"]);
     }
 }

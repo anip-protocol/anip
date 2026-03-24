@@ -194,19 +194,19 @@ public class AnipStdioServer
 
     // --- Method handlers ---
 
-    private Task<object> DispatchAsync(string method, Dictionary<string, object?> parameters)
+    private async Task<object> DispatchAsync(string method, Dictionary<string, object?> parameters)
     {
         return method switch
         {
-            "anip.discovery" => Task.FromResult<object>(HandleDiscovery(parameters)),
-            "anip.manifest" => Task.FromResult<object>(HandleManifest(parameters)),
-            "anip.jwks" => Task.FromResult<object>(HandleJwks(parameters)),
-            "anip.tokens.issue" => Task.FromResult<object>(HandleTokensIssue(parameters)),
-            "anip.permissions" => Task.FromResult<object>(HandlePermissions(parameters)),
-            "anip.invoke" => Task.FromResult<object>(HandleInvoke(parameters)),
-            "anip.audit.query" => Task.FromResult<object>(HandleAuditQuery(parameters)),
-            "anip.checkpoints.list" => Task.FromResult<object>(HandleCheckpointsList(parameters)),
-            "anip.checkpoints.get" => Task.FromResult<object>(HandleCheckpointsGet(parameters)),
+            "anip.discovery" => HandleDiscovery(parameters),
+            "anip.manifest" => HandleManifest(parameters),
+            "anip.jwks" => HandleJwks(parameters),
+            "anip.tokens.issue" => HandleTokensIssue(parameters),
+            "anip.permissions" => HandlePermissions(parameters),
+            "anip.invoke" => await HandleInvokeAsync(parameters),
+            "anip.audit.query" => HandleAuditQuery(parameters),
+            "anip.checkpoints.list" => HandleCheckpointsList(parameters),
+            "anip.checkpoints.get" => HandleCheckpointsGet(parameters),
             _ => throw new InvalidOperationException($"No handler for {method}"),
         };
     }
@@ -267,7 +267,7 @@ public class AnipStdioServer
         return SerializeToDict(perms);
     }
 
-    private object HandleInvoke(Dictionary<string, object?> parameters)
+    private async Task<object> HandleInvokeAsync(Dictionary<string, object?> parameters)
     {
         var token = ResolveJwt(parameters);
 
@@ -279,11 +279,44 @@ public class AnipStdioServer
 
         var invokeParams = GetDict(parameters, "parameters");
         var clientReferenceId = GetString(parameters, "client_reference_id");
+        var stream = GetBool(parameters, "stream");
 
+        if (stream)
+        {
+            // Streaming invocation — collect progress notifications then return final result.
+            var streamResult = _service.InvokeStream(capability, token, invokeParams, new InvokeOpts
+            {
+                ClientReferenceId = clientReferenceId,
+                Stream = true,
+            });
+
+            var notifications = new List<Dictionary<string, object?>>();
+            Dictionary<string, object?>? finalResult = null;
+
+            while (await streamResult.Events.WaitToReadAsync())
+            {
+                while (streamResult.Events.TryRead(out var evt))
+                {
+                    switch (evt.Type)
+                    {
+                        case "progress":
+                            notifications.Add(MakeNotification("anip.invoke.progress", evt.Payload));
+                            break;
+                        case "completed":
+                        case "failed":
+                            finalResult = evt.Payload;
+                            break;
+                    }
+                }
+            }
+
+            return (notifications, finalResult ?? new Dictionary<string, object?>());
+        }
+
+        // Unary invocation.
         var opts = new InvokeOpts
         {
             ClientReferenceId = clientReferenceId,
-            Stream = false,
         };
 
         return _service.Invoke(capability, token, invokeParams, opts);
@@ -375,6 +408,16 @@ public class AnipStdioServer
             ["jsonrpc"] = "2.0",
             ["id"] = requestId,
             ["result"] = result,
+        };
+    }
+
+    private static Dictionary<string, object?> MakeNotification(string method, object parameters)
+    {
+        return new Dictionary<string, object?>
+        {
+            ["jsonrpc"] = "2.0",
+            ["method"] = method,
+            ["params"] = parameters,
         };
     }
 
