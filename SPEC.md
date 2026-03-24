@@ -1686,7 +1686,9 @@ Capability declarations say "invoke," not "POST." Failure objects are ANIP struc
 
 The first non-HTTP transport binding is **stdio** — ANIP over JSON-RPC 2.0 on stdin/stdout. This carries all 9 protocol operations (discovery, manifest, JWKS, token issuance, permissions, invoke with streaming, audit query, checkpoint list, checkpoint detail) over local process communication, enabling agent-to-service interaction without HTTP. The stdio binding is implemented across all five reference runtimes. See the [stdio transport spec](docs/specs/2026-03-22-anip-stdio-transport-design.md).
 
-Future versions may define bindings for other transports (gRPC, NATS, WebSocket, etc.). The key constraint: no HTTP-isms leak into the semantic layer.
+The second non-HTTP transport binding is **gRPC** — ANIP over protobuf with a shared service definition at `proto/anip/v1/anip.proto`. This provides 10 RPCs (9 protocol operations + server-streaming invoke) with per-call auth via gRPC metadata. ANIP protocol failures stay in response messages (not gRPC status codes) — gRPC status is reserved for transport errors only. The gRPC binding is implemented in Python and Go, with Java, C#, and TypeScript planned. See the [gRPC transport spec](docs/specs/2026-03-23-anip-grpc-transport-design.md).
+
+Future versions may define bindings for additional transports (NATS, WebSocket, etc.). The key constraint: no HTTP-isms leak into the semantic layer.
 
 ---
 

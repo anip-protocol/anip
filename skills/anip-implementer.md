@@ -351,3 +351,5 @@ See `examples/anip-ts/` for the TypeScript/Hono equivalent, `packages/go/example
 - **Showcase apps:** https://github.com/anip-protocol/anip/tree/main/examples/showcase (travel, finance, DevOps)
 - **ANIP Studio:** https://github.com/anip-protocol/anip/tree/main/studio (embedded inspection UI)
 - **Stdio transport spec:** https://github.com/anip-protocol/anip/tree/main/docs/specs/2026-03-22-anip-stdio-transport-design.md
+- **gRPC transport spec:** https://github.com/anip-protocol/anip/tree/main/docs/specs/2026-03-23-anip-grpc-transport-design.md
+- **Shared proto:** https://github.com/anip-protocol/anip/tree/main/proto/anip/v1/anip.proto

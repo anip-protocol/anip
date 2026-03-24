@@ -12,7 +12,7 @@ ANIP is an early-stage protocol specification. We're looking for people who thin
 
 **Studio** — The `studio/` directory contains ANIP Studio, a Vue-based inspection UI. A Python/FastAPI adapter (`anip-studio`) mounts it at `/studio`. Adapters for other runtimes are a future addition.
 
-**Transports** — ANIP supports HTTP (default) and stdio (JSON-RPC 2.0 over stdin/stdout). Stdio packages exist in all 5 runtimes.
+**Transports** — ANIP supports HTTP (default), stdio (JSON-RPC 2.0 over stdin/stdout, all 5 runtimes), and gRPC (shared proto at `proto/anip/v1/anip.proto`, Python + Go currently).
 
 ## Where to Start
 
