@@ -724,6 +724,156 @@ func TestMerkleEmptyTree(t *testing.T) {
 	}
 }
 
+// --- Consistency Proof Tests ---
+
+func TestMerkleConsistencyProofTwoToFour(t *testing.T) {
+	// Build a tree with 4 leaves and generate a consistency proof from size 2 to 4.
+	tree := NewMerkleTree()
+	for _, s := range []string{"a", "b", "c", "d"} {
+		tree.AddLeaf([]byte(s))
+	}
+
+	proof, err := tree.ConsistencyProof(2)
+	if err != nil {
+		t.Fatalf("ConsistencyProof(2) error: %v", err)
+	}
+
+	// For a 4-leaf tree with old_size=2:
+	// Tree structure:
+	//        root
+	//       /    \
+	//     AB      CD
+	//    / \     / \
+	//   A   B  C   D
+	//
+	// SUBPROOF(2, [0:4], true):
+	//   n=4, m=2, k=2 (largest power of 2 < 4)
+	//   m <= k, so:
+	//     SUBPROOF(2, [0:2], true) → m==n with start=true → []
+	//     + computeRoot([2:4]) → hash(CD)
+	// Result: [CD]
+	leafC := sha256.Sum256(append([]byte{0x00}, 'c'))
+	leafD := sha256.Sum256(append([]byte{0x00}, 'd'))
+	nodeCD := sha256.Sum256(append(append([]byte{0x01}, leafC[:]...), leafD[:]...))
+
+	if len(proof) != 1 {
+		t.Fatalf("expected 1 proof element, got %d", len(proof))
+	}
+	if fmt.Sprintf("%x", proof[0]) != fmt.Sprintf("%x", nodeCD) {
+		t.Errorf("proof[0] = %x, want %x", proof[0], nodeCD)
+	}
+}
+
+func TestMerkleConsistencyProofThreeToFive(t *testing.T) {
+	// Build a tree with 5 leaves and prove consistency from size 3.
+	tree := NewMerkleTree()
+	for _, s := range []string{"a", "b", "c", "d", "e"} {
+		tree.AddLeaf([]byte(s))
+	}
+
+	proof, err := tree.ConsistencyProof(3)
+	if err != nil {
+		t.Fatalf("ConsistencyProof(3) error: %v", err)
+	}
+
+	// The proof should be non-empty and verifiable.
+	if len(proof) == 0 {
+		t.Fatal("expected non-empty proof")
+	}
+
+	// Verify that old tree root and new tree root can be reconstructed.
+	// Build the old tree for comparison.
+	oldTree := NewMerkleTree()
+	for _, s := range []string{"a", "b", "c"} {
+		oldTree.AddLeaf([]byte(s))
+	}
+
+	// The proof must have the right number of elements.
+	// For old_size=3, new_size=5:
+	// SUBPROOF(3, [0:5], true):
+	//   n=5, k=4 (largest power of 2 < 5), m=3 <= 4
+	//   SUBPROOF(3, [0:4], true):
+	//     n=4, k=2, m=3 > 2
+	//     SUBPROOF(1, [2:4], false):
+	//       n=2, k=1, m=1 <= 1
+	//       SUBPROOF(1, [2:3], false):
+	//         m==n=1, start=false → [leaf_c]
+	//       + computeRoot([3:4]) → leaf_d
+	//     + computeRoot([0:2]) → node_ab
+	//   + computeRoot([4:5]) → leaf_e
+	// Total: [leaf_c, leaf_d, node_ab, leaf_e] = 4 elements
+	if len(proof) != 4 {
+		t.Fatalf("expected 4 proof elements, got %d", len(proof))
+	}
+}
+
+func TestMerkleConsistencyProofSameSize(t *testing.T) {
+	tree := NewMerkleTree()
+	for _, s := range []string{"a", "b"} {
+		tree.AddLeaf([]byte(s))
+	}
+
+	proof, err := tree.ConsistencyProof(2)
+	if err != nil {
+		t.Fatalf("ConsistencyProof(2) error: %v", err)
+	}
+	if len(proof) != 0 {
+		t.Fatalf("expected empty proof for same size, got %d elements", len(proof))
+	}
+}
+
+func TestMerkleConsistencyProofInvalidSize(t *testing.T) {
+	tree := NewMerkleTree()
+	tree.AddLeaf([]byte("a"))
+
+	_, err := tree.ConsistencyProof(2)
+	if err == nil {
+		t.Error("expected error for old_size > leaf count")
+	}
+
+	_, err = tree.ConsistencyProof(-1)
+	if err == nil {
+		t.Error("expected error for negative old_size")
+	}
+}
+
+func TestMerkleConsistencyProofOneToFour(t *testing.T) {
+	// Build a tree with 4 leaves, prove from size 1.
+	tree := NewMerkleTree()
+	for _, s := range []string{"a", "b", "c", "d"} {
+		tree.AddLeaf([]byte(s))
+	}
+
+	proof, err := tree.ConsistencyProof(1)
+	if err != nil {
+		t.Fatalf("ConsistencyProof(1) error: %v", err)
+	}
+
+	// SUBPROOF(1, [0:4], true):
+	//   n=4, k=2, m=1 <= 2
+	//   SUBPROOF(1, [0:2], true):
+	//     n=2, k=1, m=1 <= 1
+	//     SUBPROOF(1, [0:1], true):
+	//       m==n=1, start=true → []
+	//     + computeRoot([1:2]) → leaf_b
+	//   + computeRoot([2:4]) → node_cd
+	// Total: [leaf_b, node_cd]
+	leafB := sha256.Sum256(append([]byte{0x00}, 'b'))
+	leafC := sha256.Sum256(append([]byte{0x00}, 'c'))
+	leafD := sha256.Sum256(append([]byte{0x00}, 'd'))
+	nodeCD := sha256.Sum256(append(append([]byte{0x01}, leafC[:]...), leafD[:]...))
+
+	if len(proof) != 2 {
+		t.Fatalf("expected 2 proof elements, got %d", len(proof))
+	}
+	if fmt.Sprintf("%x", proof[0]) != fmt.Sprintf("%x", leafB) {
+		t.Errorf("proof[0] = %x, want %x (leaf_b)", proof[0], leafB)
+	}
+	if fmt.Sprintf("%x", proof[1]) != fmt.Sprintf("%x", nodeCD) {
+		t.Errorf("proof[1] = %x, want %x (node_cd)", proof[1], nodeCD)
+	}
+}
+
 // --- Checkpoint Tests ---
 
 func TestCheckpointCreation(t *testing.T) {

@@ -51,6 +51,42 @@ func (t *MerkleTree) InclusionProof(index int) ([]ProofStep, error) {
 	return path, nil
 }
 
+// ConsistencyProof generates the consistency proof path from an older tree
+// of size oldSize to this tree. The proof shows the old tree is a prefix
+// of the current tree (RFC 6962 §2.1.4 consistency proof).
+func (t *MerkleTree) ConsistencyProof(oldSize int) ([][]byte, error) {
+	if oldSize < 0 || oldSize > len(t.leaves) {
+		return nil, fmt.Errorf("old size %d out of range [0, %d]", oldSize, len(t.leaves))
+	}
+	if oldSize == 0 || oldSize == len(t.leaves) {
+		return [][]byte{}, nil // Trivially consistent
+	}
+	return t.subproof(oldSize, 0, len(t.leaves), true), nil
+}
+
+// subproof implements RFC 6962 §2.1.4 SUBPROOF(m, D[lo:hi], start).
+func (t *MerkleTree) subproof(m, lo, hi int, start bool) [][]byte {
+	n := hi - lo
+	if m == n {
+		if !start {
+			return [][]byte{t.computeRoot(lo, hi)}
+		}
+		return [][]byte{}
+	}
+	if m == 0 {
+		return [][]byte{t.computeRoot(lo, hi)}
+	}
+	k := largestPowerOf2LessThan(n)
+	if m <= k {
+		path := t.subproof(m, lo, lo+k, start)
+		path = append(path, t.computeRoot(lo+k, hi))
+		return path
+	}
+	path := t.subproof(m-k, lo+k, hi, false)
+	path = append(path, t.computeRoot(lo, lo+k))
+	return path
+}
+
 // VerifyInclusion verifies that data at index is included in the tree.
 func VerifyInclusion(data []byte, proof []ProofStep, expectedRoot string) bool {
 	current := leafHash(data)
@@ -295,4 +331,68 @@ func GenerateInclusionProof(
 	}
 
 	return proof, "", nil
+}
+
+// GenerateConsistencyProof generates a consistency proof between two checkpoints.
+// It rebuilds the Merkle trees for both the old and new checkpoints and returns
+// a proof that the old tree is a prefix of the new tree.
+// If entries have been deleted (expired), returns nil with a "proof_unavailable" indicator.
+func GenerateConsistencyProof(
+	storage Storage,
+	oldCP *core.Checkpoint,
+	newCP *core.Checkpoint,
+) (map[string]any, string, error) {
+	oldLastSeq := oldCP.Range["last_sequence"]
+	newLastSeq := newCP.Range["last_sequence"]
+
+	// Rebuild old Merkle tree from entries 1..oldLastSeq.
+	oldEntries, err := storage.GetAuditEntriesRange(1, oldLastSeq)
+	if err != nil {
+		return nil, "", fmt.Errorf("get old audit entries: %w", err)
+	}
+	if len(oldEntries) < oldLastSeq {
+		return nil, "audit_entries_expired", nil
+	}
+
+	// Rebuild new Merkle tree from entries 1..newLastSeq.
+	newEntries, err := storage.GetAuditEntriesRange(1, newLastSeq)
+	if err != nil {
+		return nil, "", fmt.Errorf("get new audit entries: %w", err)
+	}
+	if len(newEntries) < newLastSeq {
+		return nil, "audit_entries_expired", nil
+	}
+
+	oldTree := NewMerkleTree()
+	for i := range oldEntries {
+		oldTree.AddLeaf(canonicalBytes(&oldEntries[i]))
+	}
+
+	newTree := NewMerkleTree()
+	for i := range newEntries {
+		newTree.AddLeaf(canonicalBytes(&newEntries[i]))
+	}
+
+	proof, err := newTree.ConsistencyProof(oldTree.LeafCount())
+	if err != nil {
+		return nil, "", fmt.Errorf("generate consistency proof: %w", err)
+	}
+
+	// Convert proof bytes to hex strings.
+	path := make([]string, len(proof))
+	for i, p := range proof {
+		path[i] = fmt.Sprintf("%x", p)
+	}
+
+	result := map[string]any{
+		"old_checkpoint_id": oldCP.CheckpointID,
+		"new_checkpoint_id": newCP.CheckpointID,
+		"old_size":          oldTree.LeafCount(),
+		"new_size":          newTree.LeafCount(),
+		"old_root":          oldTree.Root(),
+		"new_root":          newTree.Root(),
+		"path":              path,
+	}
+
+	return result, "", nil
 }

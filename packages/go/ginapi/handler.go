@@ -107,7 +107,9 @@ func handleGetCheckpoint(svc *service.Service) gin.HandlerFunc {
 			}
 		}
 
-		resp, err := svc.GetCheckpoint(id, includeProof, leafIndex)
+		consistencyFrom := c.Query("consistency_from")
+
+		resp, err := svc.GetCheckpoint(id, includeProof, leafIndex, consistencyFrom)
 		if err != nil {
 			if anipErr, ok := err.(*core.ANIPError); ok {
 				status, body := httputil.FailureResponse(anipErr)

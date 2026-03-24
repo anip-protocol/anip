@@ -717,7 +717,7 @@ func TestGetCheckpointNotFound(t *testing.T) {
 	}
 	defer svc.Shutdown()
 
-	_, err := svc.GetCheckpoint("nonexistent", false, 0)
+	_, err := svc.GetCheckpoint("nonexistent", false, 0, "")
 	if err == nil {
 		t.Fatal("expected error for nonexistent checkpoint")
 	}
@@ -797,7 +797,7 @@ func TestCreateCheckpointAndRetrieve(t *testing.T) {
 	}
 
 	// Retrieve it.
-	detail, err := svc.GetCheckpoint(cp.CheckpointID, false, 0)
+	detail, err := svc.GetCheckpoint(cp.CheckpointID, false, 0, "")
 	if err != nil {
 		t.Fatalf("GetCheckpoint() error: %v", err)
 	}

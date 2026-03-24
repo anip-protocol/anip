@@ -451,12 +451,9 @@ func (s *AnipGrpcServer) ListCheckpoints(ctx context.Context, req *pb.ListCheckp
 	return &pb.ListCheckpointsResponse{Json: string(jsonBytes)}, nil
 }
 
-// GetCheckpoint returns a single checkpoint with optional proof.
-// Note: consistency_from (req.ConsistencyFrom) is accepted per the proto contract
-// but the Go service's GetCheckpoint does not yet support consistency proofs.
-// This is a known runtime limitation, not a gRPC binding gap.
+// GetCheckpoint returns a single checkpoint with optional inclusion proof and/or consistency proof.
 func (s *AnipGrpcServer) GetCheckpoint(ctx context.Context, req *pb.GetCheckpointRequest) (*pb.GetCheckpointResponse, error) {
-	resp, err := s.service.GetCheckpoint(req.Id, req.IncludeProof, int(req.LeafIndex))
+	resp, err := s.service.GetCheckpoint(req.Id, req.IncludeProof, int(req.LeafIndex), req.ConsistencyFrom)
 	if err != nil {
 		var anipErr *core.ANIPError
 		if ok := isANIPError(err, &anipErr); ok {

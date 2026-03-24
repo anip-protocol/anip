@@ -481,8 +481,9 @@ func (s *Service) ListCheckpoints(limit int) (core.CheckpointListResponse, error
 	}, nil
 }
 
-// GetCheckpoint returns a single checkpoint with optional inclusion proof.
-func (s *Service) GetCheckpoint(id string, includeProof bool, leafIndex int) (*core.CheckpointDetailResponse, error) {
+// GetCheckpoint returns a single checkpoint with optional inclusion proof and/or consistency proof.
+// When consistencyFrom is non-empty, a consistency proof from that checkpoint to this one is included.
+func (s *Service) GetCheckpoint(id string, includeProof bool, leafIndex int, consistencyFrom string) (*core.CheckpointDetailResponse, error) {
 	cp, err := s.storage.GetCheckpointByID(id)
 	if err != nil {
 		return nil, fmt.Errorf("get checkpoint: %w", err)
@@ -514,6 +515,24 @@ func (s *Service) GetCheckpoint(id string, includeProof bool, leafIndex int) (*c
 				"path":        proofSteps,
 			}
 			resp.InclusionProof = proofMap
+		}
+	}
+
+	if consistencyFrom != "" {
+		oldCP, err := s.storage.GetCheckpointByID(consistencyFrom)
+		if err != nil {
+			return nil, fmt.Errorf("get old checkpoint: %w", err)
+		}
+		if oldCP != nil {
+			consProof, unavailable, err := server.GenerateConsistencyProof(s.storage, oldCP, cp)
+			if err != nil {
+				return nil, fmt.Errorf("generate consistency proof: %w", err)
+			}
+			if unavailable != "" {
+				resp.ProofUnavailable = unavailable
+			} else {
+				resp.ConsistencyProof = consProof
+			}
 		}
 	}
 
