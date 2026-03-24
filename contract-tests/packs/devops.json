@@ -1,0 +1,15 @@
+{
+  "service_id": "anip-devops-showcase",
+  "credentials": {
+    "api_key_env": "ANIP_TEST_API_KEY",
+    "api_key_default": "platform-key"
+  },
+  "samples": {
+    "list_deployments": {},
+    "get_service_health": {"service_name": "api-gateway"},
+    "scale_replicas": {"service_name": "api-gateway", "replicas": 5},
+    "update_config": {"service_name": "api-gateway", "key": "log_level", "value": "debug"},
+    "rollback_deployment": {"service_name": "user-service", "target_version": "v1.7.2"}
+  },
+  "compensation_scenarios": []
+}
