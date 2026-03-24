@@ -18,7 +18,7 @@ class TestAuditEventClassMapping:
         entry = {"event_class": "low_risk_success"}
         result, confidence, detail = AuditProbe.check_event_class(entry, "read")
         assert result == "PASS"
-        assert confidence == "elevated"
+        assert confidence == "medium"
 
     def test_write_maps_to_high_risk(self):
         entry = {"event_class": "high_risk_success"}

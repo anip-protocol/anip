@@ -21,12 +21,16 @@ class AuditProbe:
         self.bearer = bearer
 
     async def query_latest(self, capability: str, limit: int = 5) -> list[dict]:
-        """Query ``POST /anip/audit`` and return entries for *capability*."""
+        """Query ``POST /anip/audit`` and return entries for *capability*.
+
+        Filters are passed as query parameters (not body), matching the
+        ANIP HTTP binding which reads from ``request.query_params``.
+        """
         async with httpx.AsyncClient() as client:
             resp = await client.post(
                 f"{self.base_url}/anip/audit",
                 headers={"Authorization": f"Bearer {self.bearer}"},
-                json={"capability": capability, "limit": limit},
+                params={"capability": capability, "limit": str(limit)},
             )
             resp.raise_for_status()
             data = resp.json()
@@ -57,13 +61,13 @@ class AuditProbe:
         if actual_class == expected_class:
             return (
                 "PASS",
-                "elevated",
+                "medium",
                 f"event_class '{actual_class}' matches expected for {expected_side_effect}",
             )
 
         return (
             "FAIL",
-            "elevated",
+            "medium",
             f"event_class '{actual_class}' != expected '{expected_class}' "
             f"for side_effect '{expected_side_effect}'",
         )
