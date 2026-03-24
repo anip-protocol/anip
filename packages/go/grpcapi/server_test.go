@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net"
+	"strings"
 	"testing"
 
 	"google.golang.org/grpc"
@@ -608,5 +609,62 @@ func TestGetCheckpointNotFound(t *testing.T) {
 	}
 	if st.Code() != codes.NotFound {
 		t.Fatalf("expected NotFound, got %v", st.Code())
+	}
+}
+
+func TestGetCheckpointConsistencyFrom(t *testing.T) {
+	env := newTestEnv(t)
+	defer env.stop()
+
+	// Issue token and invoke to create audit entries.
+	tokResp, err := env.client.IssueToken(
+		metadata.AppendToOutgoingContext(context.Background(), "authorization", "Bearer test-api-key"),
+		&pb.IssueTokenRequest{Subject: "agent:test", Scope: []string{"test"}, Capability: "echo"},
+	)
+	if err != nil {
+		t.Fatalf("IssueToken: %v", err)
+	}
+	jwt := tokResp.Token
+
+	ctx := metadata.AppendToOutgoingContext(context.Background(), "authorization", "Bearer "+jwt)
+	env.client.Invoke(ctx, &pb.InvokeRequest{
+		Capability:     "echo",
+		ParametersJson: `{"message":"a"}`,
+	})
+
+	// Create first checkpoint.
+	cp1, err := env.svc.CreateCheckpoint()
+	if err != nil || cp1 == nil {
+		t.Fatalf("first CreateCheckpoint: %v", err)
+	}
+
+	// More invocations.
+	env.client.Invoke(ctx, &pb.InvokeRequest{
+		Capability:     "echo",
+		ParametersJson: `{"message":"b"}`,
+	})
+	env.client.Invoke(ctx, &pb.InvokeRequest{
+		Capability:     "echo",
+		ParametersJson: `{"message":"c"}`,
+	})
+
+	// Create second checkpoint.
+	cp2, err := env.svc.CreateCheckpoint()
+	if err != nil || cp2 == nil {
+		t.Fatalf("second CreateCheckpoint: %v", err)
+	}
+
+	// Get checkpoint 2 with consistency proof from checkpoint 1.
+	resp, err := env.client.GetCheckpoint(context.Background(), &pb.GetCheckpointRequest{
+		Id:              cp2.CheckpointID,
+		ConsistencyFrom: cp1.CheckpointID,
+	})
+	if err != nil {
+		t.Fatalf("GetCheckpoint with consistency_from: %v", err)
+	}
+
+	// The response JSON should contain "consistency_proof".
+	if !strings.Contains(resp.Json, "consistency_proof") {
+		t.Errorf("expected consistency_proof in response, got: %s", resp.Json[:min(200, len(resp.Json))])
 	}
 }

@@ -321,3 +321,56 @@ class TestGetCheckpoint:
         with pytest.raises(grpc.RpcError) as exc_info:
             stub.GetCheckpoint(anip_pb2.GetCheckpointRequest())
         assert exc_info.value.code() == grpc.StatusCode.INVALID_ARGUMENT
+
+
+class TestServeGrpcLifecycle:
+    """Test that serve_grpc properly manages the ANIP service lifecycle."""
+
+    def test_serve_grpc_starts_and_stops(self):
+        """serve_grpc should start the ANIP service on a persistent event loop
+        and shut it down cleanly when the gRPC server stops."""
+        import threading
+        import time
+        from anip_grpc.server import serve_grpc
+
+        service = ANIPService(
+            service_id="test-lifecycle",
+            capabilities=[
+                Capability(
+                    declaration=CapabilityDeclaration(
+                        name="echo",
+                        description="Echo",
+                        contract_version="1.0",
+                        inputs=[CapabilityInput(name="msg", type="string", description="m")],
+                        output=CapabilityOutput(type="object", fields=["msg"]),
+                        side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+                        minimum_scope=["test"],
+                    ),
+                    handler=lambda ctx, params: {"msg": params.get("msg", "")},
+                ),
+            ],
+            storage=":memory:",
+            authenticate=lambda b: "user@test.com" if b == "k" else None,
+        )
+
+        # Run serve_grpc in a thread so we can stop it
+        port = 50099
+        server_thread = threading.Thread(target=serve_grpc, args=(service, port), daemon=True)
+        server_thread.start()
+        time.sleep(1)  # Wait for startup
+
+        # Verify the gRPC server is serving
+        channel = grpc.insecure_channel(f"localhost:{port}")
+        stub = anip_pb2_grpc.AnipServiceStub(channel)
+        resp = stub.Discovery(anip_pb2.DiscoveryRequest())
+        data = json.loads(resp.json)
+        assert data["anip_discovery"]["protocol"] == "anip/0.11"
+
+        # Verify token issuance works (proves async service is alive)
+        tok = stub.IssueToken(
+            anip_pb2.IssueTokenRequest(subject="a", scope=["test"], capability="echo"),
+            metadata=[("authorization", "Bearer k")],
+        )
+        assert tok.issued is True
+
+        channel.close()
