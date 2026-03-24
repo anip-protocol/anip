@@ -488,7 +488,9 @@ func handleCheckpointsGet(s *Server, params map[string]any) (any, error) {
 		leafIndex = int(v)
 	}
 
-	resp, err := s.svc.GetCheckpoint(id, includeProof, leafIndex)
+	consistencyFrom, _ := params["consistency_from"].(string)
+
+	resp, err := s.svc.GetCheckpoint(id, includeProof, leafIndex, consistencyFrom)
 	if err != nil {
 		return nil, err
 	}

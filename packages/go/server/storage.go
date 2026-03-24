@@ -9,6 +9,7 @@ type AuditFilters struct {
 	Since             string `json:"since,omitempty"`
 	InvocationID      string `json:"invocation_id,omitempty"`
 	ClientReferenceID string `json:"client_reference_id,omitempty"`
+	EventClass        string `json:"event_class,omitempty"`
 	Limit             int    `json:"limit,omitempty"`
 }
 

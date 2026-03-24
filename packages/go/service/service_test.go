@@ -717,7 +717,7 @@ func TestGetCheckpointNotFound(t *testing.T) {
 	}
 	defer svc.Shutdown()
 
-	_, err := svc.GetCheckpoint("nonexistent", false, 0)
+	_, err := svc.GetCheckpoint("nonexistent", false, 0, "")
 	if err == nil {
 		t.Fatal("expected error for nonexistent checkpoint")
 	}
@@ -797,7 +797,7 @@ func TestCreateCheckpointAndRetrieve(t *testing.T) {
 	}
 
 	// Retrieve it.
-	detail, err := svc.GetCheckpoint(cp.CheckpointID, false, 0)
+	detail, err := svc.GetCheckpoint(cp.CheckpointID, false, 0, "")
 	if err != nil {
 		t.Fatalf("GetCheckpoint() error: %v", err)
 	}
@@ -817,6 +817,75 @@ func TestCreateCheckpointAndRetrieve(t *testing.T) {
 	}
 	if len(cpList.Checkpoints) != 1 {
 		t.Fatalf("expected 1 checkpoint, got %d", len(cpList.Checkpoints))
+	}
+}
+
+func TestGetCheckpointConsistencyFrom(t *testing.T) {
+	svc := New(Config{
+		ServiceID:    "test-service",
+		Capabilities: testCapabilities(),
+		Storage:      ":memory:",
+		Authenticate: func(bearer string) (string, bool) {
+			if bearer == "test-key" {
+				return "user@test.com", true
+			}
+			return "", false
+		},
+	})
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	// Issue token and invoke to create audit entries.
+	tokResp, _ := svc.IssueToken("user@test.com", core.TokenRequest{
+		Subject: "agent:test", Scope: []string{"travel.search"}, Capability: "search_flights",
+	})
+	token, _ := svc.ResolveBearerToken(tokResp.Token)
+	svc.Invoke("search_flights", token, map[string]any{"origin": "SEA", "destination": "SFO", "date": "2026-01-01"}, InvokeOpts{})
+
+	// Create first checkpoint.
+	cp1, err := svc.CreateCheckpoint()
+	if err != nil || cp1 == nil {
+		t.Fatalf("first CreateCheckpoint() failed: %v", err)
+	}
+
+	// Create more audit entries.
+	svc.Invoke("search_flights", token, map[string]any{"origin": "LAX", "destination": "JFK", "date": "2026-01-02"}, InvokeOpts{})
+	svc.Invoke("search_flights", token, map[string]any{"origin": "SFO", "destination": "SEA", "date": "2026-01-03"}, InvokeOpts{})
+
+	// Create second checkpoint.
+	cp2, err := svc.CreateCheckpoint()
+	if err != nil || cp2 == nil {
+		t.Fatalf("second CreateCheckpoint() failed: %v", err)
+	}
+
+	// Request checkpoint 2 with consistency proof from checkpoint 1.
+	detail, err := svc.GetCheckpoint(cp2.CheckpointID, false, 0, cp1.CheckpointID)
+	if err != nil {
+		t.Fatalf("GetCheckpoint with consistency_from failed: %v", err)
+	}
+	if detail.ConsistencyProof == nil {
+		t.Fatal("expected consistency_proof to be present")
+	}
+	proof := detail.ConsistencyProof
+	if proof["old_checkpoint_id"] != cp1.CheckpointID {
+		t.Errorf("expected old_checkpoint_id=%q, got %q", cp1.CheckpointID, proof["old_checkpoint_id"])
+	}
+	if proof["new_checkpoint_id"] != cp2.CheckpointID {
+		t.Errorf("expected new_checkpoint_id=%q, got %q", cp2.CheckpointID, proof["new_checkpoint_id"])
+	}
+	switch p := proof["path"].(type) {
+	case []string:
+		if len(p) == 0 {
+			t.Error("expected non-empty consistency proof path")
+		}
+	case []any:
+		if len(p) == 0 {
+			t.Error("expected non-empty consistency proof path")
+		}
+	default:
+		t.Errorf("unexpected path type %T", proof["path"])
 	}
 }
 
