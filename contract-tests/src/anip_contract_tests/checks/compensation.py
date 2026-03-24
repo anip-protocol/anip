@@ -17,10 +17,32 @@ class CompensationCheck:
         return scenario is not None
 
     @staticmethod
+    async def _issue_token(
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        capability: str,
+        cap_by_name: dict[str, dict],
+    ) -> str | None:
+        """Issue a scoped token for *capability*, returning the bearer string."""
+        declaration = cap_by_name.get(capability, {})
+        scopes = declaration.get("minimum_scope", [])
+        resp = await client.post(
+            f"{base_url}/anip/tokens",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={"capability": capability, "scope": scopes},
+        )
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        return data.get("token", data.get("access_token", ""))
+
+    @staticmethod
     async def run(
         base_url: str,
-        bearer: str,
+        api_key: str,
         scenario: dict,
+        cap_by_name: dict[str, dict] | None = None,
     ) -> CheckResult:
         """Execute a compensation scenario.
 
@@ -32,16 +54,29 @@ class CompensationCheck:
         - ``compensate_params_template``: dict with ``{field}`` placeholders
         """
         base_url = base_url.rstrip("/")
-        headers = {"Authorization": f"Bearer {bearer}"}
+        if cap_by_name is None:
+            cap_by_name = {}
 
         setup_cap = scenario["setup_capability"]
         compensate_cap = scenario["compensate_capability"]
 
         async with httpx.AsyncClient() as client:
-            # Step 1: Invoke setup capability.
+            # Step 1: Issue token and invoke setup capability.
+            setup_bearer = await CompensationCheck._issue_token(
+                client, base_url, api_key, setup_cap, cap_by_name,
+            )
+            if setup_bearer is None:
+                return CheckResult(
+                    check_name="compensation",
+                    capability=compensate_cap,
+                    result="FAIL",
+                    confidence="medium",
+                    detail=f"Token issuance for setup capability '{setup_cap}' failed",
+                )
+
             setup_resp = await client.post(
                 f"{base_url}/anip/invoke/{setup_cap}",
-                headers=headers,
+                headers={"Authorization": f"Bearer {setup_bearer}"},
                 json=scenario.get("setup_params", {}),
             )
             if setup_resp.status_code != 200:
@@ -83,10 +118,22 @@ class CompensationCheck:
                 else:
                     comp_params[key] = val
 
-            # Step 4: Invoke compensation capability.
+            # Step 4: Issue token and invoke compensation capability.
+            comp_bearer = await CompensationCheck._issue_token(
+                client, base_url, api_key, compensate_cap, cap_by_name,
+            )
+            if comp_bearer is None:
+                return CheckResult(
+                    check_name="compensation",
+                    capability=compensate_cap,
+                    result="FAIL",
+                    confidence="medium",
+                    detail=f"Token issuance for compensation capability '{compensate_cap}' failed",
+                )
+
             comp_resp = await client.post(
                 f"{base_url}/anip/invoke/{compensate_cap}",
-                headers=headers,
+                headers={"Authorization": f"Bearer {comp_bearer}"},
                 json=comp_params,
             )
             if comp_resp.status_code != 200:

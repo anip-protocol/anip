@@ -38,8 +38,11 @@ class ContractTestRunner:
             resp.raise_for_status()
             manifest = resp.json()
 
-        capabilities = manifest.get("capabilities", [])
-        cap_by_name: dict[str, dict] = {c["name"]: c for c in capabilities}
+        raw_caps = manifest.get("capabilities", {})
+        if isinstance(raw_caps, dict):
+            cap_by_name: dict[str, dict] = raw_caps
+        else:
+            cap_by_name = {c["name"]: c for c in raw_caps}
 
         # 2. Resolve credentials from test pack.
         creds = self.test_pack.get("credentials", {})
@@ -69,7 +72,10 @@ class ContractTestRunner:
                 token_resp = await client.post(
                     f"{self.base_url}/anip/tokens",
                     headers={"Authorization": f"Bearer {api_key}"},
-                    json={"capability": cap_name},
+                    json={
+                        "capability": cap_name,
+                        "scope": declaration.get("minimum_scope", []),
+                    },
                 )
                 if token_resp.status_code != 200:
                     results.append(
@@ -135,9 +141,10 @@ class ContractTestRunner:
         # 4. Compensation scenarios.
         for scenario in self.test_pack.get("compensation_scenarios", []):
             if CompensationCheck.applies(scenario):
-                # Use API key directly for compensation (needs full scope).
                 results.append(
-                    await CompensationCheck.run(self.base_url, api_key, scenario)
+                    await CompensationCheck.run(
+                        self.base_url, api_key, scenario, cap_by_name,
+                    )
                 )
 
         return results

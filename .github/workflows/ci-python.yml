@@ -20,6 +20,7 @@ jobs:
             src:
               - "packages/python/**"
               - "examples/anip/**"
+              - "contract-tests/**"
               - ".github/workflows/ci-python.yml"
 
   test:
@@ -87,6 +88,12 @@ jobs:
 
       - name: Test anip-grpc
         run: pytest packages/python/anip-grpc/tests/ -v
+
+      - name: Install contract-tests
+        run: pip install -e "./contract-tests"
+
+      - name: Test contract-tests
+        run: pytest contract-tests/tests/ -v
 
       - name: Install Python example
         working-directory: examples/anip

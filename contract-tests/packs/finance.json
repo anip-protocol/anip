@@ -1,0 +1,15 @@
+{
+  "service_id": "anip-finance-showcase",
+  "credentials": {
+    "api_key_env": "ANIP_TEST_API_KEY",
+    "api_key_default": "trader-key"
+  },
+  "samples": {
+    "query_portfolio": {},
+    "get_market_data": {"symbol": "AAPL"},
+    "execute_trade": {"symbol": "AAPL", "side": "buy", "quantity": 10},
+    "transfer_funds": {"from_account": "checking", "to_account": "savings", "amount": 500},
+    "generate_report": {"report_type": "daily_summary"}
+  },
+  "compensation_scenarios": []
+}
