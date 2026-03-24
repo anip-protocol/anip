@@ -4,7 +4,7 @@
 
 This guide walks through the [reference implementation](examples/anip/) — a flight booking service built with Python and FastAPI. The same service is available in [TypeScript](examples/anip-ts/), [Go](packages/go/examples/flights/), [Java](packages/java/anip-example-flights/), and [C#](packages/csharp/src/Anip.Example.Flights/). Each section explains *what* the code does, *why* it's designed that way, and the design decisions behind it.
 
-Read the [README](README.md) first for the big picture. Read this guide to understand how the pieces fit together. Read the [Spec](SPEC.md) when you need the formal contract. For richer demos, see the [showcase apps](examples/showcase/) (travel, finance, DevOps). To inspect a running service visually, mount [ANIP Studio](studio/) at `/studio`. For local agent-to-service communication without HTTP, see the [stdio transport](docs/specs/2026-03-22-anip-stdio-transport-design.md).
+Read the [README](README.md) first for the big picture. Read this guide to understand how the pieces fit together. Read the [Spec](SPEC.md) when you need the formal contract. For richer demos, see the [showcase apps](examples/showcase/) (travel, finance, DevOps). To inspect a running service visually, mount [ANIP Studio](studio/) at `/studio`. For local agent-to-service communication without HTTP, see the [stdio transport](docs/specs/2026-03-22-anip-stdio-transport-design.md). For internal service-to-service gRPC, see the [gRPC transport](docs/specs/2026-03-23-anip-grpc-transport-design.md) and the shared [proto definition](proto/anip/v1/anip.proto).
 
 ---
 

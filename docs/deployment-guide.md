@@ -449,6 +449,24 @@ See the [stdio transport spec](specs/2026-03-22-anip-stdio-transport-design.md) 
 
 ---
 
+## gRPC Transport (Internal Service-to-Service)
+
+For internal platforms, service meshes, and high-throughput deployments, ANIP supports a gRPC transport binding using a shared protobuf service definition (`proto/anip/v1/anip.proto`).
+
+This is useful for:
+- Internal service-to-service agent communication
+- Enterprise infrastructure with existing gRPC tooling
+- High-throughput or streaming-heavy deployments
+- Environments with mTLS and service mesh
+
+Currently implemented in Python (`anip-grpc`) and Go (`grpcapi`). Java, C#, and TypeScript implementations will generate stubs from the same shared proto.
+
+Auth uses standard gRPC metadata (`authorization: Bearer <token>`). ANIP protocol failures stay in response messages — gRPC status codes are reserved for transport errors only (UNAUTHENTICATED, INTERNAL).
+
+See the [gRPC transport spec](specs/2026-03-23-anip-grpc-transport-design.md) for the full protocol definition.
+
+---
+
 ## ANIP Studio (Inspection UI)
 
 ANIP Studio is an embedded inspection UI. Currently available as a Python/FastAPI adapter (`anip-studio`) that mounts at `/studio`. Adapters for other runtimes are a future addition. It provides read-only views for discovery, manifest, JWKS, audit, and checkpoints.
