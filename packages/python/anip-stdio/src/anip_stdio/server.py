@@ -206,6 +206,40 @@ class AnipStdioServer:
     }
 
 
+class _StdioWriter:
+    """Minimal async writer wrapping sys.stdout.buffer."""
+
+    def __init__(self):
+        self._out = sys.stdout.buffer
+
+    def write(self, data: bytes) -> None:
+        self._out.write(data)
+
+    async def drain(self) -> None:
+        self._out.flush()
+
+    def close(self) -> None:
+        pass
+
+
+def _make_stdio_streams():
+    """Create async reader/writer for stdin/stdout without connect_*_pipe."""
+    reader = asyncio.StreamReader()
+
+    async def _feed_stdin():
+        loop = asyncio.get_event_loop()
+        while True:
+            line = await loop.run_in_executor(None, sys.stdin.buffer.readline)
+            if not line:
+                reader.feed_eof()
+                break
+            reader.feed_data(line)
+
+    asyncio.get_event_loop().create_task(_feed_stdin())
+    writer = _StdioWriter()
+    return reader, writer
+
+
 async def serve_stdio(
     service: ANIPService,
     reader: asyncio.StreamReader | None = None,
@@ -216,16 +250,10 @@ async def serve_stdio(
     If reader/writer are not provided, connects stdin/stdout as asyncio streams.
     """
     if reader is None or writer is None:
-        loop = asyncio.get_event_loop()
-        _reader = asyncio.StreamReader()
-        protocol = asyncio.StreamReaderProtocol(_reader)
-        await loop.connect_read_pipe(lambda: protocol, sys.stdin)
-        w_transport, w_protocol = await loop.connect_write_pipe(
-            asyncio.streams.FlowControlMixin, sys.stdout,
-        )
-        _writer = asyncio.StreamWriter(w_transport, w_protocol, _reader, loop)
-        reader = _reader
-        writer = _writer
+        # Use a simple sync wrapper for stdin/stdout.
+        # This avoids connect_read_pipe/connect_write_pipe which fail
+        # when stdin/stdout are not real pipes (e.g., terminals, redirected files).
+        reader, writer = _make_stdio_streams()
 
     server = AnipStdioServer(service)
     await service.start()
