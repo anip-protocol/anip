@@ -51,6 +51,8 @@ jobs:
           pip install -e "./packages/python/anip-mcp[dev]"
           pip install -e "./packages/python/anip-rest[dev]"
           pip install -e "./packages/python/anip-graphql[dev]"
+          pip install -e "./packages/python/anip-stdio"
+          pip install pytest-asyncio
 
       - name: Compile check
         run: python -m compileall packages/python/ examples/anip/
@@ -78,6 +80,9 @@ jobs:
 
       - name: Test anip-graphql
         run: pytest packages/python/anip-graphql/tests/ -v
+
+      - name: Test anip-stdio
+        run: pytest packages/python/anip-stdio/tests/ -v
 
       - name: Install Python example
         working-directory: examples/anip

@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "anip-stdio"
+version = "0.11.0"
+description = "ANIP stdio transport binding — JSON-RPC 2.0 over stdin/stdout"
+requires-python = ">=3.11"
+dependencies = [
+    "anip-service==0.11.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/anip_stdio"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
