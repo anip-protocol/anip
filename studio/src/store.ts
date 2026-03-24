@@ -18,6 +18,18 @@ export async function initFromConfig() {
         store.baseUrl = window.location.origin
       }
       store.serviceId = config.service_id || ''
+
+      // Auto-connect in embedded mode
+      if (store.baseUrl) {
+        try {
+          const disco = await fetch(`${store.baseUrl}/.well-known/anip`)
+          if (disco.ok) {
+            store.connected = true
+          }
+        } catch {
+          // Service not reachable — user can connect manually
+        }
+      }
     }
   } catch {
     // Standalone mode

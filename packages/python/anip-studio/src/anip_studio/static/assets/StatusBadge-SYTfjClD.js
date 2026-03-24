@@ -1,1 +1,0 @@
-import{A as e,C as t,_ as n,b as r,k as i,t as a}from"./index-D4qs049e.js";var o=a(r({__name:`StatusBadge`,props:{label:{},type:{}},setup(r){return(a,o)=>(t(),n(`span`,{class:i([`status-badge`,r.type])},e(r.label),3))}}),[[`__scopeId`,`data-v-3c865407`]]);export{o as t};
