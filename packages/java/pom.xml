@@ -60,6 +60,7 @@
         <module>anip-mcp</module>
         <module>anip-mcp-spring</module>
         <module>anip-mcp-quarkus</module>
+        <module>anip-stdio</module>
         <module>anip-quarkus</module>
         <module>anip-example-flights</module>
         <module>anip-example-flights-quarkus</module>
@@ -162,6 +163,11 @@
             <dependency>
                 <groupId>dev.anip</groupId>
                 <artifactId>anip-mcp-quarkus</artifactId>
+                <version>${anip.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.anip</groupId>
+                <artifactId>anip-stdio</artifactId>
                 <version>${anip.version}</version>
             </dependency>
             <dependency>
