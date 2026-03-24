@@ -340,20 +340,39 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
 def serve_grpc(service: ANIPService, port: int = 50051) -> None:
     """Start a gRPC server wrapping an ANIPService.
 
-    Blocks until the server is terminated.
+    Blocks until the server is terminated. Runs the ANIP service's
+    async event loop in a background thread so background tasks
+    (retention, checkpoints, aggregation) stay alive alongside the
+    blocking gRPC server.
     """
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    import threading
+
+    # Create a persistent event loop for the ANIP service's async tasks.
+    loop = asyncio.new_event_loop()
+
+    def _run_loop():
+        asyncio.set_event_loop(loop)
+        loop.run_forever()
+
+    loop_thread = threading.Thread(target=_run_loop, daemon=True)
+    loop_thread.start()
+
+    # Start the ANIP service on the persistent loop.
+    future = asyncio.run_coroutine_threadsafe(service.start(), loop)
+    future.result()  # Wait for start to complete
+
+    grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     anip_pb2_grpc.add_AnipServiceServicer_to_server(
-        AnipGrpcServicer(service), server,
+        AnipGrpcServicer(service), grpc_server,
     )
-    server.add_insecure_port(f"[::]:{port}")
+    grpc_server.add_insecure_port(f"[::]:{port}")
+    grpc_server.start()
 
-    # Start the ANIP service (async background tasks)
-    asyncio.run(service.start())
-
-    server.start()
     try:
-        server.wait_for_termination()
+        grpc_server.wait_for_termination()
     finally:
-        asyncio.run(service.shutdown())
+        fut = asyncio.run_coroutine_threadsafe(service.shutdown(), loop)
+        fut.result()
         service.stop()
+        loop.call_soon_threadsafe(loop.stop)
+        loop_thread.join(timeout=5)

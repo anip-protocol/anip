@@ -409,6 +409,7 @@ func (s *AnipGrpcServer) QueryAudit(ctx context.Context, req *pb.QueryAuditReque
 		Since:             req.Since,
 		InvocationID:      req.InvocationId,
 		ClientReferenceID: req.ClientReferenceId,
+		EventClass:        req.EventClass,
 		Limit:             int(req.Limit),
 	}
 
@@ -451,6 +452,9 @@ func (s *AnipGrpcServer) ListCheckpoints(ctx context.Context, req *pb.ListCheckp
 }
 
 // GetCheckpoint returns a single checkpoint with optional proof.
+// Note: consistency_from (req.ConsistencyFrom) is accepted per the proto contract
+// but the Go service's GetCheckpoint does not yet support consistency proofs.
+// This is a known runtime limitation, not a gRPC binding gap.
 func (s *AnipGrpcServer) GetCheckpoint(ctx context.Context, req *pb.GetCheckpointRequest) (*pb.GetCheckpointResponse, error) {
 	resp, err := s.service.GetCheckpoint(req.Id, req.IncludeProof, int(req.LeafIndex))
 	if err != nil {
