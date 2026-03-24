@@ -20,6 +20,7 @@ jobs:
             src:
               - "packages/python/**"
               - "examples/anip/**"
+              - "contract-tests/**"
               - ".github/workflows/ci-python.yml"
 
   test:
@@ -88,6 +89,12 @@ jobs:
       - name: Test anip-grpc
         run: pytest packages/python/anip-grpc/tests/ -v
 
+      - name: Install contract-tests
+        run: pip install -e "./contract-tests"
+
+      - name: Test contract-tests
+        run: pytest contract-tests/tests/ -v
+
       - name: Install Python example
         working-directory: examples/anip
         run: pip install -e ".[dev]"
@@ -95,14 +102,68 @@ jobs:
       - name: Test Python example
         run: pytest examples/anip/tests/ -v
 
+  contract-test:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ANIP packages
+        run: |
+          pip install -e "./packages/python/anip-core"
+          pip install -e "./packages/python/anip-crypto"
+          pip install -e "./packages/python/anip-server"
+          pip install -e "./packages/python/anip-service"
+          pip install -e "./packages/python/anip-fastapi"
+          pip install -e "./packages/python/anip-rest"
+          pip install -e "./packages/python/anip-graphql"
+          pip install -e "./packages/python/anip-mcp"
+          pip install -e "./packages/python/anip-studio"
+          pip install -e "./contract-tests"
+          pip install uvicorn
+
+      - name: Run contract tests against travel showcase
+        run: |
+          (cd examples/showcase/travel && python app.py) &
+          APP_PID=$!
+          sleep 5
+          anip-contract-tests --base-url=http://localhost:8000 --test-pack=contract-tests/packs/travel.json
+          kill $APP_PID 2>/dev/null || true
+          wait $APP_PID 2>/dev/null || true
+
+      - name: Run contract tests against finance showcase
+        run: |
+          (cd examples/showcase/finance && python app.py) &
+          APP_PID=$!
+          sleep 5
+          anip-contract-tests --base-url=http://localhost:8000 --test-pack=contract-tests/packs/finance.json
+          kill $APP_PID 2>/dev/null || true
+          wait $APP_PID 2>/dev/null || true
+
+      - name: Run contract tests against devops showcase
+        run: |
+          (cd examples/showcase/devops && python app.py) &
+          APP_PID=$!
+          sleep 5
+          anip-contract-tests --base-url=http://localhost:8000 --test-pack=contract-tests/packs/devops.json
+          kill $APP_PID 2>/dev/null || true
+          wait $APP_PID 2>/dev/null || true
+
   python-ci:
     if: always()
-    needs: [changes, test]
+    needs: [changes, test, contract-test]
     runs-on: ubuntu-latest
     steps:
       - name: Passed
-        if: needs.test.result == 'success' || needs.test.result == 'skipped'
+        if: |
+          (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+          (needs.contract-test.result == 'success' || needs.contract-test.result == 'skipped')
         run: echo "Python CI passed"
       - name: Failed
-        if: needs.test.result == 'failure' || needs.test.result == 'cancelled'
+        if: |
+          needs.test.result == 'failure' || needs.test.result == 'cancelled' ||
+          needs.contract-test.result == 'failure' || needs.contract-test.result == 'cancelled'
         run: exit 1

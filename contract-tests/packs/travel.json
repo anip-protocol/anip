@@ -1,0 +1,21 @@
+{
+  "service_id": "anip-travel-showcase",
+  "credentials": {
+    "api_key_env": "ANIP_TEST_API_KEY",
+    "api_key_default": "demo-agent-key"
+  },
+  "samples": {
+    "search_flights": {"origin": "SEA", "destination": "SFO"},
+    "check_availability": {"flight_number": "AA100"},
+    "book_flight": {"flight_number": "DL310"}
+  },
+  "compensation_scenarios": [
+    {
+      "setup_capability": "book_flight",
+      "setup_params": {"flight_number": "DL310"},
+      "extract_fields": ["booking_id"],
+      "compensate_capability": "cancel_booking",
+      "compensate_params_template": {"booking_id": "{booking_id}"}
+    }
+  ]
+}

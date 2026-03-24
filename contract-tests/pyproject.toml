@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "anip-contract-tests"
+version = "0.11.0"
+description = "ANIP side-effect contract testing harness"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.25.0",
+]
+
+[project.scripts]
+anip-contract-tests = "anip_contract_tests.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/anip_contract_tests"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
