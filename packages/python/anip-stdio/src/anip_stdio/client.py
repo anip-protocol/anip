@@ -38,12 +38,18 @@ class InvokeStream:
 
 
 class AnipStdioClient:
-    """Async context manager that spawns an ANIP service subprocess and talks JSON-RPC 2.0."""
+    """Async context manager that spawns an ANIP service subprocess and talks JSON-RPC 2.0.
+
+    IMPORTANT: This client is single-request-at-a-time. Do not issue concurrent
+    calls or overlap a streaming invoke with other requests — there is no response
+    demultiplexer. Concurrent request support is a future enhancement.
+    """
 
     def __init__(self, *cmd: str) -> None:
         self._cmd = cmd
         self._proc: asyncio.subprocess.Process | None = None
         self._id_counter = itertools.count(1)
+        self._stderr_task: asyncio.Task | None = None
 
     async def __aenter__(self) -> AnipStdioClient:
         self._proc = await asyncio.create_subprocess_exec(
@@ -52,13 +58,34 @@ class AnipStdioClient:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
+        # Drain stderr in background to prevent pipe buffer deadlock.
+        # The stdio spec reserves stderr for logs/diagnostics — a chatty service
+        # can fill the pipe buffer and block if nobody reads it.
+        self._stderr_task = asyncio.create_task(self._drain_stderr())
         return self
+
+    async def _drain_stderr(self) -> None:
+        """Read and discard stderr to prevent pipe buffer deadlock."""
+        assert self._proc is not None and self._proc.stderr is not None
+        try:
+            while True:
+                line = await self._proc.stderr.readline()
+                if not line:
+                    break
+        except Exception:
+            pass
 
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         if self._proc is not None:
             if self._proc.stdin is not None:
                 self._proc.stdin.close()
             await self._proc.wait()
+        if self._stderr_task is not None:
+            self._stderr_task.cancel()
+            try:
+                await self._stderr_task
+            except asyncio.CancelledError:
+                pass
 
     # --- Core RPC plumbing ---
 
