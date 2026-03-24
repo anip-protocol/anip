@@ -1,0 +1,198 @@
+// ANIP gRPC Transport Binding — canonical service definition.
+// All language runtimes generate stubs from this file.
+// See: docs/specs/2026-03-23-anip-grpc-transport-design.md
+
+syntax = "proto3";
+
+package anip.v1;
+
+option go_package = "github.com/anip-protocol/anip/packages/go/grpcapi/proto/anip/v1";
+
+// AnipService exposes the full ANIP protocol over gRPC.
+// Auth: bearer token via "authorization" call metadata.
+service AnipService {
+  // --- Public (no auth) ---
+  rpc Discovery(DiscoveryRequest) returns (DiscoveryResponse);
+  rpc Manifest(ManifestRequest) returns (ManifestResponse);
+  rpc Jwks(JwksRequest) returns (JwksResponse);
+  rpc ListCheckpoints(ListCheckpointsRequest) returns (ListCheckpointsResponse);
+  rpc GetCheckpoint(GetCheckpointRequest) returns (GetCheckpointResponse);
+
+  // --- Bootstrap or JWT auth ---
+  rpc IssueToken(IssueTokenRequest) returns (IssueTokenResponse);
+
+  // --- JWT auth ---
+  rpc Permissions(PermissionsRequest) returns (PermissionsResponse);
+  rpc Invoke(InvokeRequest) returns (InvokeResponse);
+  rpc InvokeStream(InvokeRequest) returns (stream InvokeEvent);
+  rpc QueryAudit(QueryAuditRequest) returns (QueryAuditResponse);
+}
+
+// ============================================================
+// Shared types
+// ============================================================
+
+// AnipFailure carries structured ANIP protocol failures.
+// These are NOT gRPC status errors — they are application-level outcomes.
+message AnipFailure {
+  string type = 1;              // e.g., "scope_insufficient", "unknown_capability"
+  string detail = 2;
+  string resolution_json = 3;   // Optional, JSON string for resolution object
+  bool retry = 4;
+}
+
+// ============================================================
+// Discovery
+// ============================================================
+
+message DiscoveryRequest {}
+
+message DiscoveryResponse {
+  string json = 1;  // Full discovery document as JSON string
+}
+
+// ============================================================
+// Manifest
+// ============================================================
+
+message ManifestRequest {}
+
+message ManifestResponse {
+  string manifest_json = 1;  // Full manifest as JSON string
+  string signature = 2;      // X-ANIP-Signature equivalent
+}
+
+// ============================================================
+// JWKS
+// ============================================================
+
+message JwksRequest {}
+
+message JwksResponse {
+  string json = 1;  // Full JWKS document as JSON string
+}
+
+// ============================================================
+// Token Issuance
+// ============================================================
+
+message IssueTokenRequest {
+  string subject = 1;
+  repeated string scope = 2;
+  string capability = 3;
+  string purpose_parameters_json = 4;  // Optional, JSON string
+  string parent_token = 5;             // Optional, JWT string for sub-delegation
+  int32 ttl_hours = 6;
+  string caller_class = 7;
+}
+
+message IssueTokenResponse {
+  bool issued = 1;
+  string token_id = 2;
+  string token = 3;             // JWT string (when issued)
+  string expires = 4;           // ISO 8601 (when issued)
+  AnipFailure failure = 5;      // When !issued
+}
+
+// ============================================================
+// Permissions
+// ============================================================
+
+message PermissionsRequest {}
+
+message PermissionsResponse {
+  bool success = 1;
+  string json = 2;              // Full permissions response as JSON string (when success)
+  AnipFailure failure = 3;      // When !success
+}
+
+// ============================================================
+// Invoke (unary)
+// ============================================================
+
+message InvokeRequest {
+  string capability = 1;
+  string parameters_json = 2;       // JSON string
+  string client_reference_id = 3;
+}
+
+message InvokeResponse {
+  bool success = 1;
+  string invocation_id = 2;
+  string client_reference_id = 3;
+  string result_json = 4;           // JSON string (when success)
+  string cost_actual_json = 5;      // Optional, JSON string
+  AnipFailure failure = 6;          // When !success
+}
+
+// ============================================================
+// Invoke (server-streaming)
+// ============================================================
+
+message InvokeEvent {
+  oneof event {
+    ProgressEvent progress = 1;
+    CompletedEvent completed = 2;
+    FailedEvent failed = 3;
+  }
+}
+
+message ProgressEvent {
+  string invocation_id = 1;
+  string payload_json = 2;  // JSON string
+}
+
+message CompletedEvent {
+  string invocation_id = 1;
+  string client_reference_id = 2;
+  string result_json = 3;
+  string cost_actual_json = 4;
+}
+
+message FailedEvent {
+  string invocation_id = 1;
+  string client_reference_id = 2;
+  AnipFailure failure = 3;
+}
+
+// ============================================================
+// Audit
+// ============================================================
+
+message QueryAuditRequest {
+  string capability = 1;
+  string since = 2;
+  string invocation_id = 3;
+  string client_reference_id = 4;
+  string event_class = 5;
+  int32 limit = 6;
+}
+
+message QueryAuditResponse {
+  bool success = 1;
+  string json = 2;              // Full audit response as JSON string (when success)
+  AnipFailure failure = 3;      // When !success
+}
+
+// ============================================================
+// Checkpoints
+// ============================================================
+
+message ListCheckpointsRequest {
+  int32 limit = 1;
+}
+
+message ListCheckpointsResponse {
+  string json = 1;  // Full checkpoint list as JSON string
+}
+
+message GetCheckpointRequest {
+  string id = 1;
+  bool include_proof = 2;
+  int32 leaf_index = 3;
+  string consistency_from = 4;
+}
+
+message GetCheckpointResponse {
+  string json = 1;  // Full checkpoint detail as JSON string
+}
