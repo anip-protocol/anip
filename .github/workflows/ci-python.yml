@@ -102,14 +102,50 @@ jobs:
       - name: Test Python example
         run: pytest examples/anip/tests/ -v
 
+  contract-test:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ANIP packages
+        run: |
+          pip install -e "./packages/python/anip-core"
+          pip install -e "./packages/python/anip-crypto"
+          pip install -e "./packages/python/anip-server"
+          pip install -e "./packages/python/anip-service"
+          pip install -e "./packages/python/anip-fastapi"
+          pip install -e "./packages/python/anip-rest"
+          pip install -e "./packages/python/anip-graphql"
+          pip install -e "./packages/python/anip-mcp"
+          pip install -e "./contract-tests"
+          pip install uvicorn
+
+      - name: Start travel showcase
+        working-directory: examples/showcase/travel
+        run: |
+          python app.py &
+          sleep 5
+
+      - name: Run contract tests against travel
+        run: |
+          anip-contract-tests --base-url=http://localhost:8000 --test-pack=contract-tests/packs/travel.json
+
   python-ci:
     if: always()
-    needs: [changes, test]
+    needs: [changes, test, contract-test]
     runs-on: ubuntu-latest
     steps:
       - name: Passed
-        if: needs.test.result == 'success' || needs.test.result == 'skipped'
+        if: |
+          (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+          (needs.contract-test.result == 'success' || needs.contract-test.result == 'skipped')
         run: echo "Python CI passed"
       - name: Failed
-        if: needs.test.result == 'failure' || needs.test.result == 'cancelled'
+        if: |
+          needs.test.result == 'failure' || needs.test.result == 'cancelled' ||
+          needs.contract-test.result == 'failure' || needs.contract-test.result == 'cancelled'
         run: exit 1
