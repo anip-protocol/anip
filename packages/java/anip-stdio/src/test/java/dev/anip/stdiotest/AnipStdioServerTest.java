@@ -15,6 +15,7 @@ import dev.anip.core.TokenRequest;
 import dev.anip.core.TokenResponse;
 import dev.anip.service.ANIPService;
 import dev.anip.service.CapabilityDef;
+import dev.anip.service.InvocationContext;
 import dev.anip.service.ServiceConfig;
 import dev.anip.stdio.AnipStdioServer;
 
@@ -63,9 +64,32 @@ class AnipStdioServerTest {
             return result;
         });
 
+        // Streaming capability: emits progress events then returns final result.
+        CapabilityDeclaration streamDecl = new CapabilityDeclaration(
+                "stream-echo",
+                "Echoes input with progress events",
+                "1.0",
+                List.of(new CapabilityInput("message", "string", true, null, "Message")),
+                new CapabilityOutput("object", List.of("echo")),
+                new SideEffect("read", "not_applicable"),
+                List.of("general"),
+                null, null,
+                List.of("sync", "streaming")
+        );
+
+        CapabilityDef streamCap = new CapabilityDef(streamDecl, (ctx, params) -> {
+            // Emit two progress events.
+            ctx.getEmitProgress().apply(Map.of("step", 1, "status", "processing"));
+            ctx.getEmitProgress().apply(Map.of("step", 2, "status", "almost done"));
+            // Return final result.
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("echo", params.get("message"));
+            return result;
+        });
+
         ServiceConfig config = new ServiceConfig()
                 .setServiceId("stdio-test-service")
-                .setCapabilities(List.of(echoCap))
+                .setCapabilities(List.of(echoCap, streamCap))
                 .setStorage(":memory:")
                 .setAuthenticate(bearer -> {
                     if ("test-api-key".equals(bearer)) {
@@ -118,8 +142,12 @@ class AnipStdioServerTest {
     }
 
     private String issueTestToken() throws Exception {
+        return issueTestToken("echo");
+    }
+
+    private String issueTestToken(String capability) throws Exception {
         TokenRequest req = new TokenRequest(
-                "agent@test.com", List.of("general"), "echo",
+                "agent@test.com", List.of("general"), capability,
                 null, null, 2, null
         );
         TokenResponse resp = service.issueToken("user@test.com", req);
@@ -310,6 +338,100 @@ class AnipStdioServerTest {
         Map<String, Object> error = getError(resp);
         assertNotNull(error);
         assertEquals(-32001, error.get("code"));
+    }
+
+    // --- anip.invoke streaming ---
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void testInvokeStreaming() throws Exception {
+        String jwt = issueTestToken("stream-echo");
+        Map<String, Object> extra = new LinkedHashMap<>();
+        extra.put("capability", "stream-echo");
+        extra.put("parameters", Map.of("message", "hello-stream"));
+        extra.put("stream", true);
+        Map<String, Object> params = authParams(jwt, extra);
+
+        Map<String, Object> req = request("anip.invoke", params);
+        Object result = server.handleRequest(req);
+
+        // Streaming returns a List of [notification..., final_response].
+        assertInstanceOf(List.class, result);
+        List<Map<String, Object>> messages = (List<Map<String, Object>>) result;
+
+        // Should have 2 progress notifications + 1 final response = 3 messages.
+        assertTrue(messages.size() >= 3,
+                "Expected at least 3 messages (2 progress + 1 response), got " + messages.size());
+
+        // First two messages should be progress notifications.
+        Map<String, Object> notif1 = messages.get(0);
+        assertEquals("2.0", notif1.get("jsonrpc"));
+        assertEquals("anip.invoke.progress", notif1.get("method"));
+        assertNull(notif1.get("id")); // Notifications have no id.
+        Map<String, Object> notif1Params = (Map<String, Object>) notif1.get("params");
+        assertNotNull(notif1Params);
+        assertNotNull(notif1Params.get("invocation_id"));
+        Map<String, Object> notif1Payload = (Map<String, Object>) notif1Params.get("payload");
+        assertEquals(1, notif1Payload.get("step"));
+        assertEquals("processing", notif1Payload.get("status"));
+
+        Map<String, Object> notif2 = messages.get(1);
+        assertEquals("anip.invoke.progress", notif2.get("method"));
+        Map<String, Object> notif2Params = (Map<String, Object>) notif2.get("params");
+        Map<String, Object> notif2Payload = (Map<String, Object>) notif2Params.get("payload");
+        assertEquals(2, notif2Payload.get("step"));
+        assertEquals("almost done", notif2Payload.get("status"));
+
+        // Last message should be the final JSON-RPC response.
+        Map<String, Object> finalResp = messages.get(messages.size() - 1);
+        assertEquals("2.0", finalResp.get("jsonrpc"));
+        assertNotNull(finalResp.get("id")); // Response has the request id.
+        Map<String, Object> finalResult = (Map<String, Object>) finalResp.get("result");
+        assertNotNull(finalResult);
+        assertTrue((Boolean) finalResult.get("success"));
+        Map<String, Object> innerResult = (Map<String, Object>) finalResult.get("result");
+        assertEquals("hello-stream", innerResult.get("echo"));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void testInvokeStreamingServeIntegration() throws Exception {
+        String jwt = issueTestToken("stream-echo");
+        Map<String, Object> extra = new LinkedHashMap<>();
+        extra.put("capability", "stream-echo");
+        extra.put("parameters", Map.of("message", "stream-integration"));
+        extra.put("stream", true);
+        Map<String, Object> req = new LinkedHashMap<>();
+        req.put("jsonrpc", "2.0");
+        req.put("id", 42);
+        req.put("method", "anip.invoke");
+        req.put("params", authParams(jwt, extra));
+
+        String input = MAPPER.writeValueAsString(req) + "\n";
+        ByteArrayInputStream in = new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8));
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        server.serve(in, out);
+
+        String output = out.toString(StandardCharsets.UTF_8);
+        String[] lines = output.trim().split("\n");
+
+        // 2 progress notifications + 1 final response = 3 lines.
+        assertEquals(3, lines.length, "Expected 3 output lines, got: " + output);
+
+        // First two lines are notifications.
+        Map<String, Object> notif1 = MAPPER.readValue(lines[0], Map.class);
+        assertEquals("anip.invoke.progress", notif1.get("method"));
+        assertNull(notif1.get("id"));
+
+        Map<String, Object> notif2 = MAPPER.readValue(lines[1], Map.class);
+        assertEquals("anip.invoke.progress", notif2.get("method"));
+
+        // Last line is the final response with the request id.
+        Map<String, Object> finalResp = MAPPER.readValue(lines[2], Map.class);
+        assertEquals(42, finalResp.get("id"));
+        Map<String, Object> finalResult = (Map<String, Object>) finalResp.get("result");
+        assertTrue((Boolean) finalResult.get("success"));
     }
 
     // --- anip.audit.query ---

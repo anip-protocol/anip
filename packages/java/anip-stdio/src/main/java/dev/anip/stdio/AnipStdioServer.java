@@ -19,6 +19,8 @@ import dev.anip.core.TokenResponse;
 import dev.anip.service.ANIPService;
 import dev.anip.service.InvokeOpts;
 import dev.anip.service.SignedManifest;
+import dev.anip.service.StreamEvent;
+import dev.anip.service.StreamResult;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -32,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * JSON-RPC 2.0 server wrapping an ANIPService for stdio transport.
@@ -297,6 +301,49 @@ public class AnipStdioServer {
         boolean stream = Boolean.TRUE.equals(params.get("stream"));
 
         InvokeOpts opts = new InvokeOpts(clientReferenceId, stream);
+
+        if (stream) {
+            // Streaming invocation: collect progress notifications then return final result.
+            StreamResult sr = service.invokeStream(capability, token, parameters, opts);
+            BlockingQueue<StreamEvent> events = sr.getEvents();
+
+            List<Map<String, Object>> notifications = new ArrayList<>();
+            Map<String, Object> finalResult = null;
+
+            while (true) {
+                StreamEvent event = events.poll(30, TimeUnit.SECONDS);
+                if (event == null) {
+                    // Timeout waiting for events — cancel and break.
+                    sr.getCancel().run();
+                    break;
+                }
+
+                String eventType = event.getType();
+                if (StreamResult.DONE_TYPE.equals(eventType)) {
+                    break;
+                }
+
+                switch (eventType) {
+                    case "progress":
+                        notifications.add(
+                                makeNotification("anip.invoke.progress", event.getPayload()));
+                        break;
+                    case "completed", "failed":
+                        finalResult = event.getPayload();
+                        break;
+                }
+            }
+
+            if (finalResult == null) {
+                finalResult = Map.of("success", false,
+                        "failure", Map.of("type", "internal_error",
+                                "detail", "Stream ended without terminal event"));
+            }
+
+            return new Object[] { notifications, finalResult };
+        }
+
+        // Unary invocation.
         Map<String, Object> result = service.invoke(capability, token, parameters, opts);
         return result;
     }
