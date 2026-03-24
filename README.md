@@ -210,6 +210,24 @@ Standard REST and GraphQL clients work normally — they ignore the ANIP metadat
 
 **One honest caveat.** The REST and GraphQL packages translate the protocol surface but lose visibility into the delegation chain, cost signaling, and capability graph. For read and write capabilities, that's fine. For irreversible financial operations, native ANIP is strongly recommended — purpose-bound authority and multi-hop delegation don't survive the translation.
 
+## Transport Bindings
+
+ANIP is transport-agnostic. The protocol semantics — delegation, scope, side effects, cost, audit — stay the same regardless of transport. The same service can be consumed over any binding.
+
+```
+              ┌─→ HTTP    (default — REST-style JSON, all 5 runtimes)
+              │
+ANIP service ─┼─→ stdio   (JSON-RPC 2.0 on stdin/stdout — local agents)
+              │
+              └─→ gRPC    (shared proto contract — internal platforms, service mesh)
+```
+
+- **HTTP** is the default. All 5 runtimes, all framework adapters (FastAPI, Hono, Express, Spring Boot, Quarkus, ASP.NET Core, net/http, Gin).
+- **stdio** is for local agents. An agent spawns the service as a subprocess and talks the full ANIP protocol over stdin/stdout. No network, no port. All 5 runtimes.
+- **gRPC** is for internal platforms. A shared [protobuf service definition](proto/anip/v1/anip.proto) defines the wire contract. Strongly typed, efficient, works with service mesh and mTLS. Python + Go currently, other runtimes from the same proto.
+
+An agent that speaks ANIP can discover, delegate, invoke, and audit over any of these transports.
+
 ## Core Principles
 
 ANIP defines 9 primitives in two tiers:
