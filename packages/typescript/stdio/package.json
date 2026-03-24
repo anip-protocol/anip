@@ -1,0 +1,32 @@
+{
+  "name": "@anip/stdio",
+  "version": "0.11.0",
+  "description": "ANIP stdio transport — JSON-RPC 2.0 over stdin/stdout",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@anip/service": "0.11.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.0"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anip-protocol/anip.git",
+    "directory": "packages/typescript/stdio"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist", "README.md"]
+}

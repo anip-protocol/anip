@@ -1,0 +1,31 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>dev.anip</groupId>
+        <artifactId>anip-parent</artifactId>
+        <version>0.11.0</version>
+    </parent>
+
+    <artifactId>anip-stdio</artifactId>
+    <name>ANIP Stdio</name>
+    <description>ANIP stdio transport binding — JSON-RPC 2.0 over stdin/stdout</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>dev.anip</groupId>
+            <artifactId>anip-service</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
