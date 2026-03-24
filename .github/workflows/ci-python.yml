@@ -127,25 +127,29 @@ jobs:
       - name: Run contract tests against travel showcase
         run: |
           (cd examples/showcase/travel && python app.py) &
+          APP_PID=$!
           sleep 5
           anip-contract-tests --base-url=http://localhost:8000 --test-pack=contract-tests/packs/travel.json
-          kill %1 2>/dev/null || true
-          sleep 1
+          kill $APP_PID 2>/dev/null || true
+          wait $APP_PID 2>/dev/null || true
 
       - name: Run contract tests against finance showcase
         run: |
           (cd examples/showcase/finance && python app.py) &
+          APP_PID=$!
           sleep 5
           anip-contract-tests --base-url=http://localhost:8000 --test-pack=contract-tests/packs/finance.json
-          kill %1 2>/dev/null || true
-          sleep 1
+          kill $APP_PID 2>/dev/null || true
+          wait $APP_PID 2>/dev/null || true
 
       - name: Run contract tests against devops showcase
         run: |
           (cd examples/showcase/devops && python app.py) &
+          APP_PID=$!
           sleep 5
           anip-contract-tests --base-url=http://localhost:8000 --test-pack=contract-tests/packs/devops.json
-          kill %1 2>/dev/null || true
+          kill $APP_PID 2>/dev/null || true
+          wait $APP_PID 2>/dev/null || true
 
   python-ci:
     if: always()
