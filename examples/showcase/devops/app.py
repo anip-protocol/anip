@@ -6,6 +6,7 @@ from anip_fastapi import mount_anip
 from anip_rest import mount_anip_rest
 from anip_graphql import mount_anip_graphql
 from anip_mcp import mount_anip_mcp_http
+from anip_studio import mount_anip_studio
 
 from capabilities import (
     list_deployments, get_service_health, scale_replicas,
@@ -49,6 +50,7 @@ mount_anip(app, service, health_endpoint=True)
 mount_anip_rest(app, service)
 mount_anip_graphql(app, service)
 mount_anip_mcp_http(app, service)
+mount_anip_studio(app, service)
 
 if __name__ == "__main__":
     import uvicorn

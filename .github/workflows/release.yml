@@ -120,7 +120,7 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           FAILED=0
-          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi anip-mcp anip-rest anip-graphql; do
+          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi anip-mcp anip-rest anip-graphql anip-studio; do
             PKG_VERSION=$(grep '^version' packages/python/$pkg/pyproject.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
             if [ "$PKG_VERSION" != "$VERSION" ]; then
               echo "FAIL: $pkg version is $PKG_VERSION, expected $VERSION"
@@ -140,7 +140,7 @@ jobs:
             fi
           done
           if [ "$FAILED" -eq 1 ]; then exit 1; fi
-          echo "All 8 Python packages and internal deps at version $VERSION"
+          echo "All 9 Python packages and internal deps at version $VERSION"
 
       - name: Validate Go module exists
         run: |
@@ -277,7 +277,7 @@ jobs:
 
       - name: Build and check all packages
         run: |
-          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi anip-mcp anip-rest anip-graphql; do
+          for pkg in anip-core anip-crypto anip-server anip-service anip-fastapi anip-mcp anip-rest anip-graphql anip-studio; do
             echo "=== Building $pkg ==="
             cd packages/python/$pkg
             rm -rf dist/
@@ -320,6 +320,7 @@ jobs:
           publish_or_skip anip-mcp
           publish_or_skip anip-rest
           publish_or_skip anip-graphql
+          publish_or_skip anip-studio
 
   publish-java:
     needs: validate

@@ -6,5 +6,6 @@
 -e ../../../packages/python/anip-rest
 -e ../../../packages/python/anip-graphql
 -e ../../../packages/python/anip-mcp
+-e ../../../packages/python/anip-studio
 uvicorn
 httpx
