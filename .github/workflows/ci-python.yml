@@ -121,6 +121,7 @@ jobs:
           pip install -e "./packages/python/anip-rest"
           pip install -e "./packages/python/anip-graphql"
           pip install -e "./packages/python/anip-mcp"
+          pip install -e "./packages/python/anip-studio"
           pip install -e "./contract-tests"
           pip install uvicorn
 
