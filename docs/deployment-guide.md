@@ -436,7 +436,7 @@ The `PostgresStorage` backend creates tables automatically on initialization usi
 
 ## Stdio Transport (Local Deployments)
 
-For local agent-to-service communication without HTTP, ANIP supports a stdio transport binding (JSON-RPC 2.0 over stdin/stdout). An agent spawns the ANIP service as a subprocess and communicates the full protocol — discovery, tokens, invoke, audit, checkpoints — over stdin/stdout.
+For local agent-to-service communication without HTTP, ANIP supports a stdio transport binding (JSON-RPC 2.0 over stdin/stdout). An agent spawns the ANIP service as a subprocess and communicates all 9 protocol operations — including discovery, manifest, JWKS, token issuance, permissions, invoke (with streaming), audit query, and checkpoints — over stdin/stdout.
 
 This is useful for:
 - Local agent-to-tool execution
@@ -451,7 +451,7 @@ See the [stdio transport spec](specs/2026-03-22-anip-stdio-transport-design.md) 
 
 ## ANIP Studio (Inspection UI)
 
-ANIP Studio is an embedded inspection UI that mounts at `/studio` on any ANIP service. It provides read-only views for discovery, manifest, JWKS, audit, and checkpoints.
+ANIP Studio is an embedded inspection UI. Currently available as a Python/FastAPI adapter (`anip-studio`) that mounts at `/studio`. Adapters for other runtimes are a future addition. It provides read-only views for discovery, manifest, JWKS, audit, and checkpoints.
 
 To mount Studio on a Python FastAPI service:
 
