@@ -1684,7 +1684,9 @@ ANIP v1 is defined over HTTP. The semantic layer — capability declarations, de
 
 Capability declarations say "invoke," not "POST." Failure objects are ANIP structures, not HTTP status codes. The HTTP binding maps ANIP semantics to HTTP mechanics, but the semantics do not depend on HTTP.
 
-Future versions will define bindings for other transports (gRPC, NATS, WebSocket, etc.). The key constraint: no HTTP-isms leak into the semantic layer.
+The first non-HTTP transport binding is **stdio** — ANIP over JSON-RPC 2.0 on stdin/stdout. This carries the full protocol (discovery, manifest, tokens, invoke with streaming, audit, checkpoints) over local process communication, enabling agent-to-service interaction without HTTP. The stdio binding is implemented across all five reference runtimes. See the [stdio transport spec](docs/specs/2026-03-22-anip-stdio-transport-design.md).
+
+Future versions may define bindings for other transports (gRPC, NATS, WebSocket, etc.). The key constraint: no HTTP-isms leak into the semantic layer.
 
 ---
 

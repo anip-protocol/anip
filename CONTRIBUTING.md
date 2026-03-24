@@ -8,7 +8,11 @@ ANIP is an early-stage protocol specification. We're looking for people who thin
 
 **Spec changes** — Submit a PR against `SPEC.md`. Explain what you're changing and why. Changes to core primitives require more justification than changes to contextual primitives — that's by design.
 
-**Examples** — The `examples/` directory contains reference implementations (Python and TypeScript), `packages/go/examples/` contains the Go reference implementation, `packages/java/anip-example-flights/` contains the Java reference implementation, and `packages/csharp/src/Anip.Example.Flights/` contains the C# reference implementation. We welcome implementations in any language that demonstrate ANIP concepts.
+**Examples** — The `examples/` directory contains reference implementations (Python and TypeScript), `packages/go/examples/` contains the Go reference implementation, `packages/java/anip-example-flights/` contains the Java reference implementation, and `packages/csharp/src/Anip.Example.Flights/` contains the C# reference implementation. Richer showcase apps are in `examples/showcase/` (travel, finance, DevOps). We welcome implementations in any language that demonstrate ANIP concepts.
+
+**Studio** — The `studio/` directory contains ANIP Studio, a Vue-based inspection UI that mounts at `/studio` on any ANIP service.
+
+**Transports** — ANIP supports HTTP (default) and stdio (JSON-RPC 2.0 over stdin/stdout). Stdio packages exist in all 5 runtimes.
 
 ## Where to Start
 

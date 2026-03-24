@@ -348,3 +348,6 @@ See `examples/anip-ts/` for the TypeScript/Hono equivalent, `packages/go/example
 - **Reference implementation (Go):** https://github.com/anip-protocol/anip/tree/main/packages/go/examples/flights
 - **Reference implementation (Java):** https://github.com/anip-protocol/anip/tree/main/packages/java/anip-example-flights
 - **Reference implementation (C#):** https://github.com/anip-protocol/anip/tree/main/packages/csharp/src/Anip.Example.Flights
+- **Showcase apps:** https://github.com/anip-protocol/anip/tree/main/examples/showcase (travel, finance, DevOps)
+- **ANIP Studio:** https://github.com/anip-protocol/anip/tree/main/studio (embedded inspection UI)
+- **Stdio transport spec:** https://github.com/anip-protocol/anip/tree/main/docs/specs/2026-03-22-anip-stdio-transport-design.md
