@@ -91,7 +91,7 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           FAILED=0
-          for pkg in core crypto server service hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql; do
+          for pkg in core crypto server service hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql stdio; do
             PKG_VERSION=$(node -p "require('./$pkg/package.json').version")
             if [ "$PKG_VERSION" != "$VERSION" ]; then
               echo "FAIL: $pkg version is $PKG_VERSION, expected $VERSION"
@@ -156,7 +156,7 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           FAILED=0
-          for pom in anip-core anip-crypto anip-server anip-service anip-spring-boot anip-quarkus anip-rest anip-rest-spring anip-rest-quarkus anip-graphql anip-graphql-spring anip-graphql-quarkus anip-mcp anip-mcp-spring anip-mcp-quarkus anip-example-flights anip-example-flights-quarkus; do
+          for pom in anip-core anip-crypto anip-server anip-service anip-spring-boot anip-quarkus anip-rest anip-rest-spring anip-rest-quarkus anip-graphql anip-graphql-spring anip-graphql-quarkus anip-mcp anip-mcp-spring anip-mcp-quarkus anip-stdio anip-example-flights anip-example-flights-quarkus; do
             if [ ! -f "$pom/pom.xml" ]; then
               echo "FAIL: $pom/pom.xml not found"
               FAILED=1
@@ -203,7 +203,7 @@ jobs:
       - name: Dry run — verify packages
         working-directory: packages/typescript
         run: |
-          for pkg in core crypto server service hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql; do
+          for pkg in core crypto server service hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql stdio; do
             echo "=== Checking $pkg ==="
             cd $pkg && npm pack --dry-run && cd ..
           done
@@ -262,6 +262,7 @@ jobs:
           # Layer 8: depends on service
           publish_or_skip rest
           publish_or_skip graphql
+          publish_or_skip stdio
 
   publish-python:
     needs: validate
@@ -354,7 +355,7 @@ jobs:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
         run: |
           set -e
-          for mod in anip-core anip-crypto anip-server anip-service anip-spring-boot anip-quarkus anip-rest anip-rest-spring anip-rest-quarkus anip-graphql anip-graphql-spring anip-graphql-quarkus anip-mcp anip-mcp-spring anip-mcp-quarkus; do
+          for mod in anip-core anip-crypto anip-server anip-service anip-spring-boot anip-quarkus anip-rest anip-rest-spring anip-rest-quarkus anip-graphql anip-graphql-spring anip-graphql-quarkus anip-mcp anip-mcp-spring anip-mcp-quarkus anip-stdio; do
             echo "=== Deploying $mod ==="
             OUTPUT=$(mvn deploy -pl $mod -am -DskipTests -Prelease 2>&1) && {
               echo "OK: $mod deployed"
