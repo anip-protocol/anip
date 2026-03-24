@@ -431,3 +431,34 @@ The `PostgresStorage` backend creates tables automatically on initialization usi
    - Same `trust`, `checkpoint_policy`, and `retention_policy` settings
 4. Place replicas behind a load balancer. Any replica can handle any request.
 5. Verify: query `audit_append_head` to confirm entries are being appended; query `leader_leases` to confirm a checkpoint leader is elected.
+
+---
+
+## Stdio Transport (Local Deployments)
+
+For local agent-to-service communication without HTTP, ANIP supports a stdio transport binding (JSON-RPC 2.0 over stdin/stdout). An agent spawns the ANIP service as a subprocess and communicates all 9 protocol operations — including discovery, manifest, JWKS, token issuance, permissions, invoke (with streaming), audit query, and checkpoints — over stdin/stdout.
+
+This is useful for:
+- Local agent-to-tool execution
+- Desktop or CLI agents
+- Sandboxed single-host deployments
+
+All 5 runtimes include stdio packages: `anip-stdio` (Python), `stdioapi` (Go), `anip-stdio` (Java), `Anip.Stdio` (C#), `@anip/stdio` (TypeScript).
+
+See the [stdio transport spec](specs/2026-03-22-anip-stdio-transport-design.md) for the full protocol definition.
+
+---
+
+## ANIP Studio (Inspection UI)
+
+ANIP Studio is an embedded inspection UI. Currently available as a Python/FastAPI adapter (`anip-studio`) that mounts at `/studio`. Adapters for other runtimes are a future addition. It provides read-only views for discovery, manifest, JWKS, audit, and checkpoints.
+
+To mount Studio on a Python FastAPI service:
+
+```python
+from anip_studio import mount_anip_studio
+mount_anip_studio(app, service)
+# → Open http://localhost:8000/studio/
+```
+
+Studio is available as the `anip-studio` Python package. Adapters for other runtimes are a future addition.

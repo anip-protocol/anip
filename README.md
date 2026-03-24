@@ -313,16 +313,21 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 - [Reference implementation — Java (Spring Boot)](packages/java/anip-example-flights/) — `anip-service` + Spring Boot, same capabilities and endpoints
 - [Reference implementation — Java (Quarkus)](packages/java/anip-example-flights-quarkus/) — `anip-service` + Quarkus, same capabilities and endpoints
 - [Reference implementation — C#](packages/csharp/src/Anip.Example.Flights/) — `Anip.Service` + ASP.NET Core, same capabilities and endpoints
-- Python SDK packages: `anip-core`, `anip-crypto`, `anip-server`, `anip-service`, `anip-fastapi`, `anip-postgres`
-- TypeScript SDK packages: `@anip/core`, `@anip/crypto`, `@anip/server`, `@anip/service`, `@anip/hono`, `@anip/express`, `@anip/fastify`, `@anip/postgres`
-- Go SDK packages: `core`, `crypto`, `server`, `service`, `httpapi`, `ginapi`, `restapi`, `graphqlapi`, `mcpapi`
-- Java SDK packages: `anip-core`, `anip-crypto`, `anip-server`, `anip-service`, `anip-spring-boot`, `anip-quarkus`, `anip-rest` (shared), `anip-rest-spring`, `anip-rest-quarkus`, `anip-graphql` (shared), `anip-graphql-spring`, `anip-graphql-quarkus`, `anip-mcp` (shared), `anip-mcp-spring`, `anip-mcp-quarkus`
-- C# projects (in-repo, NuGet publishing not yet configured): `Anip.Core`, `Anip.Crypto`, `Anip.Server`, `Anip.Service`, `Anip.AspNetCore`, `Anip.Rest`, `Anip.Rest.AspNetCore`, `Anip.GraphQL`, `Anip.GraphQL.AspNetCore`, `Anip.Mcp`, `Anip.Mcp.AspNetCore`
+- Python SDK packages: `anip-core`, `anip-crypto`, `anip-server`, `anip-service`, `anip-fastapi`, `anip-rest`, `anip-graphql`, `anip-mcp`, `anip-stdio`, `anip-studio`
+- TypeScript SDK packages: `@anip/core`, `@anip/crypto`, `@anip/server`, `@anip/service`, `@anip/hono`, `@anip/express`, `@anip/fastify`, `@anip/mcp`, `@anip/mcp-hono`, `@anip/mcp-express`, `@anip/mcp-fastify`, `@anip/rest`, `@anip/graphql`, `@anip/stdio`
+- Go SDK packages: `core`, `crypto`, `server`, `service`, `httpapi`, `ginapi`, `restapi`, `graphqlapi`, `mcpapi`, `stdioapi`
+- Java SDK packages: `anip-core`, `anip-crypto`, `anip-server`, `anip-service`, `anip-spring-boot`, `anip-quarkus`, `anip-rest` (shared), `anip-rest-spring`, `anip-rest-quarkus`, `anip-graphql` (shared), `anip-graphql-spring`, `anip-graphql-quarkus`, `anip-mcp` (shared), `anip-mcp-spring`, `anip-mcp-quarkus`, `anip-stdio`
+- C# projects (in-repo, NuGet publishing not yet configured): `Anip.Core`, `Anip.Crypto`, `Anip.Server`, `Anip.Service`, `Anip.AspNetCore`, `Anip.Rest`, `Anip.Rest.AspNetCore`, `Anip.GraphQL`, `Anip.GraphQL.AspNetCore`, `Anip.Mcp`, `Anip.Mcp.AspNetCore`, `Anip.Stdio`
+- Transport bindings:
+  - HTTP: default transport, all runtimes, all framework adapters
+  - stdio: native ANIP-over-stdio via JSON-RPC 2.0 on stdin/stdout — all 5 runtimes
 - Interface packages — mount alongside ANIP on the same service:
   - MCP: `@anip/mcp` / `anip-mcp` (shared), framework adapters for Streamable HTTP
   - REST: `@anip/rest` / `anip-rest` (shared, auto-generated OpenAPI + Swagger UI)
   - GraphQL: `@anip/graphql` / `anip-graphql` (shared, auto-generated SDL + directives)
+- [ANIP Studio](studio/) — embedded inspection UI at `/studio` (discovery, manifest, JWKS, audit, checkpoints)
 - [Conformance suite](conformance/) — language-agnostic HTTP-based protocol compliance tests
+- [Showcase apps](examples/showcase/) — travel booking, financial operations, DevOps infrastructure
 - [Demo agent](examples/agent/) — an AI agent that consumes ANIP to reason before acting, handle budget failures, and verify audit trails
 - [JSON Schema](schema/) — validate any ANIP implementation against the spec
 - [Security policy](SECURITY.md) — vulnerability reporting, trust model summary, deployment guidance
