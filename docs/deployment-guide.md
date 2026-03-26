@@ -467,11 +467,13 @@ See the [gRPC transport spec](specs/2026-03-23-anip-grpc-transport-design.md) fo
 
 ---
 
-## ANIP Studio (Inspection UI)
+## ANIP Studio
 
-ANIP Studio is an embedded inspection UI. Currently available as a Python/FastAPI adapter (`anip-studio`) that mounts at `/studio`. Adapters for other runtimes are a future addition. It provides read-only views for discovery, manifest, JWKS, audit, and checkpoints.
+ANIP Studio is an inspection and invocation UI for ANIP services. It runs in two modes:
 
-To mount Studio on a Python FastAPI service:
+### Embedded Mode
+
+Mount Studio at `/studio` inside a Python/FastAPI ANIP service using the `anip-studio` adapter:
 
 ```python
 from anip_studio import mount_anip_studio
@@ -479,4 +481,32 @@ mount_anip_studio(app, service)
 # → Open http://localhost:9100/studio/
 ```
 
-Studio is available as the `anip-studio` Python package. Adapters for other runtimes are a future addition.
+In embedded mode, Studio auto-connects to the host service. No CORS configuration needed.
+
+### Standalone Mode (Docker)
+
+Run Studio as an independent container that connects to any ANIP service:
+
+```bash
+docker build -t anip-studio studio/
+docker run -p 3000:80 anip-studio
+# → Open http://localhost:3000, enter service URL in connect bar
+```
+
+### CORS for Standalone Studio
+
+When running Studio standalone (at a different origin than the ANIP service), the service must allow cross-origin requests:
+
+```python
+from starlette.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # or restrict to your Studio origin
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-ANIP-Signature"],
+)
+```
+
+This is not needed in embedded mode since Studio and the service share the same origin. The ANIP showcase apps already include this middleware.
