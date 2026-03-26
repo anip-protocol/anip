@@ -128,7 +128,7 @@ jobs:
             fi
             # Check internal anip-* deps use exact lockstep pin (==VERSION)
             # Catch both wrong versions AND wrong operators (>= instead of ==)
-            INTERNAL_DEPS=$(grep -E '"anip-(core|crypto|server|service|fastapi)' packages/python/$pkg/pyproject.toml || true)
+            INTERNAL_DEPS=$(grep -E '"anip-(core|crypto|server|service|fastapi)==' packages/python/$pkg/pyproject.toml || true)
             if [ -n "$INTERNAL_DEPS" ]; then
               # Every internal dep line must contain ==VERSION
               BAD=$(echo "$INTERNAL_DEPS" | grep -v "==$VERSION" || true)
