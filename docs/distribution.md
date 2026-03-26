@@ -70,7 +70,7 @@ The conformance suite validates that an ANIP implementation speaks the protocol 
 
 ```bash
 pip install -e ./conformance
-anip-conformance --base-url=http://localhost:9100
+pytest conformance/ --base-url=http://localhost:9100
 ```
 
 ## Contract Testing
