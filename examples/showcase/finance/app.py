@@ -1,6 +1,7 @@
 """ANIP Financial Operations Showcase — all four HTTP surfaces."""
 import os
 from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
 from anip_service import ANIPService
 from anip_service.retention import RetentionPolicy
 from anip_fastapi import mount_anip
@@ -45,6 +46,13 @@ service = ANIPService(
 )
 
 app = FastAPI(title="ANIP Financial Operations Showcase")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-ANIP-Signature"],
+)
 mount_anip(app, service, health_endpoint=True)
 mount_anip_rest(app, service)
 mount_anip_graphql(app, service)
