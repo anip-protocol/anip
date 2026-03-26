@@ -1,0 +1,12 @@
+{
+  "service_id": "anip-flight-service",
+  "description": "Generic flight service test pack — works with the Go, Java, C#, and TypeScript examples which all use the same search_flights + book_flight capabilities with demo-human-key bootstrap auth.",
+  "credentials": {
+    "api_key_env": "ANIP_TEST_API_KEY",
+    "api_key_default": "demo-human-key"
+  },
+  "samples": {
+    "search_flights": {"origin": "SEA", "destination": "SFO", "date": "2026-03-10"},
+    "book_flight": {"flight_number": "AA100", "date": "2026-03-10", "passengers": 1}
+  }
+}
