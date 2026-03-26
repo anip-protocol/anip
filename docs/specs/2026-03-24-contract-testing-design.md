@@ -15,7 +15,7 @@ contract-tests/
 ├── pyproject.toml
 ├── src/anip_contract_tests/
 │   ├── __init__.py
-│   ├── cli.py             # anip-contract-tests run ... entry point
+│   ├── cli.py             # anip-contract-tests --base-url=... --test-pack=... entry point
 │   ├── runner.py           # Discovers capabilities from manifest, runs checks
 │   ├── checks/
 │   │   ├── __init__.py
@@ -186,7 +186,7 @@ anip-contract-tests \
 Also works directly via pytest:
 ```bash
 pytest contract-tests/ \
-  --base-url=http://localhost:8000 \
+  --base-url=http://localhost:9100 \
   --test-pack=contract-tests/packs/travel.json
 ```
 
