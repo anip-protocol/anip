@@ -1,8 +1,11 @@
 # ANIP Studio
 
-An embedded inspection UI for ANIP services. Mount it at `/studio` on any ANIP service to get a rich, interactive dashboard for exploring discovery documents, manifests, keys, audit logs, and checkpoints.
+An inspection and invocation UI for ANIP services. Runs in two modes:
 
-## Quick Start
+- **Embedded** — mounted at `/studio` inside an ANIP service via the Python `anip-studio` adapter
+- **Standalone** — served from a Docker container, connects to any ANIP service via URL
+
+## Embedded Mode
 
 ```python
 # In your ANIP FastAPI app:
@@ -10,6 +13,19 @@ from anip_studio import mount_anip_studio
 
 mount_anip_studio(app, service)
 # → Open http://localhost:9100/studio/
+```
+
+## Standalone Mode (Docker)
+
+```bash
+# Build the image
+docker build -t anip-studio studio/
+
+# Run locally
+docker run -p 3000:80 anip-studio
+
+# Open http://localhost:3000
+# Enter your ANIP service URL in the connect bar
 ```
 
 ## Views
@@ -21,6 +37,7 @@ mount_anip_studio(app, service)
 | JWKS | Public signing keys |
 | Audit | Browsable audit entries with filtering (requires bearer token) |
 | Checkpoints | Merkle checkpoint list with detail inspection |
+| Invoke | Form-based capability invocation with permissions and structured failure display |
 
 ## Development
 
@@ -29,18 +46,42 @@ cd studio
 npm install
 npm run dev    # Dev server at http://localhost:5173/studio/
 npm run build  # Production build to dist/
-bash sync.sh   # Sync dist/ to Python package
+npm test       # Run vitest suite
+bash sync.sh   # Build for embedded mode and sync to Python package
 ```
+
+## Build Configuration
+
+The base path is controlled by the `VITE_BASE_PATH` environment variable:
+
+| Target | Value | Command |
+|--------|-------|---------|
+| Embedded | `/studio/` | `bash sync.sh` (sets it automatically) |
+| Standalone | `/` | `VITE_BASE_PATH=/ npx vite build` |
+| Dev server | `/studio/` | `npm run dev` (uses default) |
 
 ## Architecture
 
 - Vue 3 + Vite + TypeScript frontend
 - Builds to static assets (no runtime Node dependency)
-- Python adapter (`anip-studio`) serves assets at `/studio`
-- Bootstrap config at `/studio/config.json` tells the SPA it's embedded
+- **Embedded:** Python adapter (`anip-studio`) serves assets at `/studio` with `config.json` marking `embedded: true`
+- **Standalone:** nginx serves assets at `/` with `config.json` marking `embedded: false`
+- Connect bar in header for manual URL entry (standalone) or auto-connect (embedded)
 
-## Phase 1 Limitations
+## CORS Requirement
 
-- Read-only inspection (no capability invocation)
-- Assumes ANIP service is mounted at origin root (no path prefix support)
-- Manifest signature displayed but not verified client-side
+When running Studio standalone (at a different origin than the ANIP service), the service must allow cross-origin requests. Add CORS middleware to your service:
+
+```python
+from starlette.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # or restrict to your Studio origin
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-ANIP-Signature"],
+)
+```
+
+This is not needed in embedded mode since Studio and the service share the same origin.

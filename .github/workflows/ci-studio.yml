@@ -46,19 +46,18 @@ jobs:
         working-directory: studio
         run: npx vue-tsc --noEmit
 
-      - name: Build
-        working-directory: studio
-        run: npx vite build
-
-      - name: Verify synced assets are up to date
+      - name: Build and verify synced assets
         run: |
           bash studio/sync.sh
           if [ -n "$(git status --porcelain packages/python/anip-studio/src/anip_studio/static/)" ]; then
-            echo "ERROR: Studio assets are stale. Run 'cd studio && npm run build && bash sync.sh' and commit the result."
+            echo "ERROR: Studio assets are stale. Run 'cd studio && bash sync.sh' and commit the result."
             git diff --stat packages/python/anip-studio/src/anip_studio/static/
             exit 1
           fi
           echo "Studio assets are in sync."
+
+      - name: Docker build smoke test
+        run: docker build -t anip-studio-test studio/
 
   studio-ci:
     if: always()
