@@ -40,6 +40,13 @@ const observability = computed(() => props.capability.observability)
       <span class="cap-name">{{ name }}</span>
       <StatusBadge :label="sideEffectBadge.label" :type="sideEffectBadge.type" />
       <span v-for="s in scope" :key="s" class="scope-chip">{{ s }}</span>
+      <router-link
+        :to="'/invoke/' + name"
+        class="invoke-link"
+        @click.stop
+      >
+        Invoke
+      </router-link>
       <span class="cap-version" v-if="capability.contract_version">v{{ capability.contract_version }}</span>
     </div>
 
@@ -209,10 +216,24 @@ const observability = computed(() => props.capability.observability)
 }
 
 .cap-version {
-  margin-left: auto;
+  margin-left: 8px;
   font-size: 11px;
   color: var(--text-muted);
   font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.invoke-link {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 2px 8px;
+  border-radius: 4px;
+  transition: background 150ms ease;
+}
+
+.invoke-link:hover {
+  background: var(--accent-glow);
 }
 
 .scope-chip {

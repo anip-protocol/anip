@@ -17,6 +17,7 @@ const navItems = [
   { name: 'jwks', label: 'JWKS', icon: '\u{1F511}', path: '/jwks' },
   { name: 'audit', label: 'Audit', icon: '\u{1F4CA}', path: '/audit' },
   { name: 'checkpoints', label: 'Checkpoints', icon: '\u2713', path: '/checkpoints' },
+  { name: 'invoke', label: 'Invoke', icon: '\u26A1', path: '/invoke' },
 ]
 
 const activeRoute = computed(() => route.name as string)

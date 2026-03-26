@@ -26,6 +26,11 @@ const routes = [
     name: 'checkpoints',
     component: () => import('./views/CheckpointsView.vue'),
   },
+  {
+    path: '/invoke/:capability?',
+    name: 'invoke',
+    component: () => import('./views/InvokeView.vue'),
+  },
 ]
 
 export const router = createRouter({
