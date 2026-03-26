@@ -1,5 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+function normalizeBase(base: string): string {
+  return base.endsWith('/') ? base : base + '/'
+}
+
 const routes = [
   {
     path: '/',
@@ -34,6 +38,6 @@ const routes = [
 ]
 
 export const router = createRouter({
-  history: createWebHistory('/studio/'),
+  history: createWebHistory(normalizeBase(import.meta.env.VITE_BASE_PATH || '/studio/')),
   routes,
 })
