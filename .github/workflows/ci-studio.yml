@@ -1,0 +1,69 @@
+name: CI — Studio
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should_test: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+              - "studio/**"
+              - "packages/python/anip-studio/**"
+              - ".github/workflows/ci-studio.yml"
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.should_test == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        working-directory: studio
+        run: npm ci
+
+      - name: Type check
+        working-directory: studio
+        run: npx vue-tsc --noEmit
+
+      - name: Build
+        working-directory: studio
+        run: npx vite build
+
+      - name: Verify synced assets are up to date
+        run: |
+          bash studio/sync.sh
+          if [ -n "$(git status --porcelain packages/python/anip-studio/src/anip_studio/static/)" ]; then
+            echo "ERROR: Studio assets are stale. Run 'cd studio && npm run build && bash sync.sh' and commit the result."
+            git diff --stat packages/python/anip-studio/src/anip_studio/static/
+            exit 1
+          fi
+          echo "Studio assets are in sync."
+
+  studio-ci:
+    if: always()
+    needs: [changes, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Passed
+        if: needs.build.result == 'success' || needs.build.result == 'skipped'
+        run: echo "Studio CI passed"
+      - name: Failed
+        if: needs.build.result == 'failure' || needs.build.result == 'cancelled'
+        run: exit 1
