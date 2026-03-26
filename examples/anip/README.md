@@ -56,11 +56,11 @@ mount_anip_graphql(app, service)   # GraphQL at /graphql
 
 ```bash
 # REST — search flights (GET for read capabilities)
-curl "http://localhost:8090/api/search_flights?origin=SEA&destination=SFO&date=2026-03-10" \
+curl "http://localhost:9100/api/search_flights?origin=SEA&destination=SFO&date=2026-03-10" \
   -H "Authorization: Bearer demo-human-key"
 
 # GraphQL — search flights
-curl -X POST http://localhost:8090/graphql \
+curl -X POST http://localhost:9100/graphql \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer demo-human-key" \
   -d '{"query": "{ searchFlights(origin: \"SEA\", destination: \"SFO\", date: \"2026-03-10\") { success result } }"}'
