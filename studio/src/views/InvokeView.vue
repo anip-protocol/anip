@@ -44,16 +44,28 @@ watch(() => store.connected, (connected) => {
 // Sync route param → selected capability
 watch(() => route.params.capability, (cap) => {
   const name = cap as string | undefined
-  if (name && name !== selectedCapability.value) {
-    selectedCapability.value = name
+  if (name) {
+    if (name !== selectedCapability.value) {
+      selectedCapability.value = name
+      invokeResult.value = null
+    }
+  } else {
+    // Back to picker — clear selection
+    selectedCapability.value = null
     invokeResult.value = null
   }
 }, { immediate: true })
 
 const capabilities = computed(() => manifest.value?.capabilities || {})
 const capabilityNames = computed(() => Object.keys(capabilities.value))
-const declaration = computed(() =>
-  selectedCapability.value ? capabilities.value[selectedCapability.value] : null
+
+// Validate selected capability exists in manifest — handles invalid deep links
+const declaration = computed(() => {
+  if (!selectedCapability.value) return null
+  return capabilities.value[selectedCapability.value] || null
+})
+const invalidCapability = computed(() =>
+  selectedCapability.value != null && manifest.value != null && declaration.value == null
 )
 
 const sideEffectType = computed(() => {
@@ -134,6 +146,12 @@ async function onInvoke(inputs: Record<string, string>) {
     <div v-else-if="error" class="placeholder">
       <p class="error-text">{{ error }}</p>
       <button class="retry-btn" @click="loadManifest">Retry</button>
+    </div>
+
+    <!-- Invalid capability -->
+    <div v-else-if="invalidCapability" class="placeholder">
+      <p class="error-text">Unknown capability: {{ selectedCapability }}</p>
+      <button class="retry-btn" @click="router.push('/invoke')">Back to picker</button>
     </div>
 
     <!-- Main content -->
