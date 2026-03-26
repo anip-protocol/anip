@@ -77,7 +77,7 @@ jobs:
 
       - name: Smoke test ANIP discovery
         run: |
-          curl -sf http://localhost:8080/.well-known/anip | head -c 100
+          curl -sf http://localhost:9203/.well-known/anip | head -c 100
           echo ""
           echo "C# ANIP smoke test passed"
 
@@ -85,7 +85,7 @@ jobs:
         run: |
           pip install -e "./conformance"
           pytest conformance/ \
-            --base-url=http://localhost:8080 \
+            --base-url=http://localhost:9203 \
             --bootstrap-bearer=demo-human-key \
             --sample-inputs=conformance/samples/flight-service.json \
             -v

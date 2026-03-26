@@ -66,7 +66,7 @@ func main() {
 	graphqlapi.MountANIPGraphQL(mux, svc, nil)
 	mcpapi.MountAnipMcpHTTP(mux, svc, nil)
 
-	addr := ":8080"
+	addr := ":9200"
 	if port := os.Getenv("PORT"); port != "" {
 		addr = ":" + port
 	}

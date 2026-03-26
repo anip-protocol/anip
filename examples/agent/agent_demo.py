@@ -328,7 +328,7 @@ def main() -> None:
     parser.add_argument("--live", action="store_true", help="Use live LLM reasoning (requires ANTHROPIC_API_KEY)")
     parser.add_argument("--agent", action="store_true", help="Run as autonomous agent (requires ANTHROPIC_API_KEY)")
     parser.add_argument("--human-in-the-loop", action="store_true", help="Interactive human delegation (with --agent)")
-    parser.add_argument("--base-url", default="http://127.0.0.1:8000", help="ANIP service URL")
+    parser.add_argument("--base-url", default="http://127.0.0.1:9100", help="ANIP service URL")
     args = parser.parse_args()
 
     if args.agent:

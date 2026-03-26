@@ -130,7 +130,7 @@ jobs:
           (cd examples/showcase/travel && python app.py) &
           APP_PID=$!
           sleep 5
-          anip-contract-tests --base-url=http://localhost:8000 --test-pack=contract-tests/packs/travel.json
+          anip-contract-tests --base-url=http://localhost:9100 --test-pack=contract-tests/packs/travel.json
           kill $APP_PID 2>/dev/null || true
           wait $APP_PID 2>/dev/null || true
 
@@ -139,7 +139,7 @@ jobs:
           (cd examples/showcase/finance && python app.py) &
           APP_PID=$!
           sleep 5
-          anip-contract-tests --base-url=http://localhost:8000 --test-pack=contract-tests/packs/finance.json
+          anip-contract-tests --base-url=http://localhost:9100 --test-pack=contract-tests/packs/finance.json
           kill $APP_PID 2>/dev/null || true
           wait $APP_PID 2>/dev/null || true
 
@@ -148,7 +148,7 @@ jobs:
           (cd examples/showcase/devops && python app.py) &
           APP_PID=$!
           sleep 5
-          anip-contract-tests --base-url=http://localhost:8000 --test-pack=contract-tests/packs/devops.json
+          anip-contract-tests --base-url=http://localhost:9100 --test-pack=contract-tests/packs/devops.json
           kill $APP_PID 2>/dev/null || true
           wait $APP_PID 2>/dev/null || true
 

@@ -10,7 +10,7 @@ import httpx
 class ANIPClient:
     """Stateless client for an ANIP-compliant service."""
 
-    def __init__(self, base_url: str = "http://127.0.0.1:8000", timeout: float = 10):
+    def __init__(self, base_url: str = "http://127.0.0.1:9100", timeout: float = 10):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 

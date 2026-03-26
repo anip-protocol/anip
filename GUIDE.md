@@ -464,7 +464,7 @@ uvicorn anip_server.main:app --reload
 
 # Option 2: Docker
 docker build -t anip-demo .
-docker run -p 8000:8000 anip-demo
+docker run -p 9100:9100 anip-demo
 
 # Run the demo
 python demo.py
