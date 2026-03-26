@@ -70,8 +70,10 @@ The conformance suite validates that an ANIP implementation speaks the protocol 
 
 ```bash
 pip install -e ./conformance
-pytest conformance/ --base-url=http://localhost:9100
+pytest conformance/ --base-url=http://localhost:9100 --bootstrap-bearer=demo-human-key
 ```
+
+Required options: `--base-url` (service URL) and `--bootstrap-bearer` (API key or token for token issuance). Optional: `--sample-inputs` (JSON file mapping capability names to test parameters).
 
 ## Contract Testing
 

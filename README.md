@@ -377,7 +377,7 @@ Third-party implementors can validate ANIP protocol compliance with the conforma
 
 ```bash
 pip install -e ./conformance
-pytest conformance/ --base-url=http://localhost:9100
+pytest conformance/ --base-url=http://localhost:9100 --bootstrap-bearer=demo-human-key
 ```
 
 ### Contract Testing
