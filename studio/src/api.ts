@@ -51,3 +51,39 @@ export async function fetchCheckpointDetail(baseUrl: string, id: string) {
   if (!res.ok) throw new Error(`Checkpoint: ${res.status}`)
   return res.json()
 }
+
+export async function invokeCapability(
+  baseUrl: string,
+  bearer: string,
+  capability: string,
+  inputs: Record<string, any>,
+): Promise<any> {
+  const res = await fetch(`${baseUrl}/anip/invoke/${capability}`, {
+    method: 'POST',
+    headers: headers(bearer),
+    body: JSON.stringify({ parameters: inputs }),
+  })
+  // ANIP returns invocation failures as non-2xx JSON bodies.
+  // Parse the body regardless of status — InvokeResult needs the full
+  // { success, failure, invocation_id } payload for structured failure UX.
+  const contentType = res.headers.get('content-type') || ''
+  if (contentType.includes('application/json')) {
+    return res.json()
+  }
+  // Non-JSON response is a transport error — throw.
+  throw new Error(`Invoke ${capability}: ${res.status} (non-JSON response)`)
+}
+
+export async function fetchPermissions(
+  baseUrl: string,
+  bearer: string,
+  capability?: string,
+): Promise<any> {
+  const res = await fetch(`${baseUrl}/anip/permissions`, {
+    method: 'POST',
+    headers: headers(bearer),
+    body: JSON.stringify(capability ? { capability } : {}),
+  })
+  if (!res.ok) throw new Error(`Permissions: ${res.status}`)
+  return res.json()
+}
