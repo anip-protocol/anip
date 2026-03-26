@@ -167,15 +167,20 @@ Primary interface: a CLI wrapper around pytest.
 pip install -e ./contract-tests
 
 # Run against travel showcase (audit probe only)
-anip-contract-tests run \
-  --base-url=http://localhost:8000 \
+anip-contract-tests \
+  --base-url=http://localhost:9100 \
   --test-pack=contract-tests/packs/travel.json
 
-# Run with storage probing (higher confidence)
-anip-contract-tests run \
-  --base-url=http://localhost:8000 \
+# Run with storage probing (elevated confidence)
+anip-contract-tests \
+  --base-url=http://localhost:9100 \
   --test-pack=contract-tests/packs/travel.json \
   --storage-dsn=sqlite:///showcase.db
+
+# Run against Go/Java/C#/TS flight service examples
+anip-contract-tests \
+  --base-url=http://localhost:9200 \
+  --test-pack=contract-tests/packs/flight-service.json
 ```
 
 Also works directly via pytest:
