@@ -313,6 +313,84 @@ The runtime handles discovery, JWT tokens, signed manifests, delegation validati
 
 For advanced use cases that need direct access to the SDK primitives (KeyManager, DelegationEngine, AuditLog, MerkleTree), the underlying packages (`anip-core`/`anip-crypto`/`anip-server` and `@anip/core`/`@anip/crypto`/`@anip/server`) remain available.
 
+## Install
+
+ANIP is available today across multiple ecosystems:
+
+- **TypeScript** via npm
+- **Python** via PyPI
+- **Java** via Maven Central
+- **Go** via module tags
+- **C#** source/runtime in-repo today; NuGet publishing not yet configured
+
+### TypeScript
+
+```bash
+npm install @anip/service @anip/hono
+```
+
+Other published packages include `@anip/core`, `@anip/crypto`, `@anip/server`, `@anip/express`, `@anip/fastify`, `@anip/rest`, `@anip/graphql`, `@anip/mcp`, and `@anip/stdio`.
+
+### Python
+
+```bash
+pip install anip-service anip-fastapi
+```
+
+Other published packages include `anip-core`, `anip-crypto`, `anip-server`, `anip-rest`, `anip-graphql`, `anip-mcp`, `anip-studio`, `anip-stdio`, and `anip-grpc`.
+
+### Java
+
+Artifacts are published to Maven Central under `dev.anip`.
+
+```xml
+<dependency>
+  <groupId>dev.anip</groupId>
+  <artifactId>anip-service</artifactId>
+  <version>VERSION</version>
+</dependency>
+```
+
+### Go
+
+Go is consumed as a module:
+
+```bash
+go get github.com/anip-protocol/anip/packages/go@vVERSION
+```
+
+### Studio
+
+Studio can run:
+
+- **embedded** at `/studio` inside a Python ANIP service via `anip-studio`
+- **standalone** as a Dockerized static app built from `studio/`
+
+```bash
+docker build -t anip-studio studio/
+docker run -p 3000:80 anip-studio
+```
+
+### Conformance
+
+Third-party implementors can validate ANIP protocol compliance with the conformance suite. Currently available as an in-repo tool (PyPI publishing planned for the first tagged release):
+
+```bash
+pip install -e ./conformance
+pytest conformance/ --base-url=http://localhost:9100 --bootstrap-bearer=demo-human-key
+```
+
+### Contract Testing
+
+Service authors can validate that declared side effects match observed behavior with the contract-testing harness. Currently available as an in-repo tool:
+
+```bash
+pip install -e ./contract-tests
+anip-contract-tests --base-url=http://localhost:9100 --test-pack=contract-tests/packs/travel.json
+```
+
+For more install, packaging, and distribution details, see [docs/distribution.md](docs/distribution.md).
+
 ## Status
 
 ANIP is under active development. The spec is at v0.11 with runtime observability — callback-based hooks for logging, metrics, tracing, and diagnostics, plus a `getHealth()` snapshot and optional health endpoint — building on v0.10's horizontal scaling, v0.9's audit aggregation, v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, and earlier foundations. Multi-agent coordination and federated trust remain open. See [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v1) for the full breakdown.
