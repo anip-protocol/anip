@@ -38,11 +38,11 @@ python demo.py
 
 ## Endpoints
 
-- **ANIP Protocol:** `http://localhost:8000/.well-known/anip`
-- **REST API:** `http://localhost:8000/rest/openapi.json`
-- **GraphQL:** `http://localhost:8000/graphql`
-- **MCP:** `http://localhost:8000/mcp`
-- **Health:** `http://localhost:8000/-/health`
+- **ANIP Protocol:** `http://localhost:9100/.well-known/anip`
+- **REST API:** `http://localhost:9100/rest/openapi.json`
+- **GraphQL:** `http://localhost:9100/graphql`
+- **MCP:** `http://localhost:9100/mcp`
+- **Health:** `http://localhost:9100/-/health`
 
 ## API Keys
 
@@ -61,7 +61,7 @@ python demo.py
 | `ANIP_STORAGE` | `:memory:` | Storage DSN (`:memory:` or `sqlite:///path.db`) |
 | `ANIP_TRUST_LEVEL` | `anchored` | Trust level (`signed` or `anchored`) |
 | `ANIP_KEY_PATH` | `./anip-keys` | Key directory |
-| `PORT` | `8000` | HTTP port |
+| `PORT` | `9100` | HTTP port |
 
 ## Disclosure Policy
 

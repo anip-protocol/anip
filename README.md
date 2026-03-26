@@ -123,7 +123,7 @@ sequenceDiagram
 **See it in action.** This is real output from an autonomous agent consuming the ANIP [reference server](examples/anip/). No scripting — the agent discovers its authority, searches flights, hits the budget wall, escalates, books, and verifies the audit trail, all from ANIP metadata.
 
 ```
-ANIP Agent Mode | Server: http://127.0.0.1:8000 | Human delegation: simulated
+ANIP Agent Mode | Server: http://127.0.0.1:9100 | Human delegation: simulated
 
 SETUP: Fetching ANIP manifest and requesting tokens
 Generated 5 tools from manifest: search_flights, book_flight,

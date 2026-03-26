@@ -69,7 +69,7 @@ func main() {
 	graphqlapi.MountANIPGraphQLGin(router, svc, nil)
 	mcpapi.MountAnipMcpHTTPGin(router, svc, nil)
 
-	addr := ":8080"
+	addr := ":9200"
 	if port := os.Getenv("PORT"); port != "" {
 		addr = ":" + port
 	}

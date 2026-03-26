@@ -476,7 +476,7 @@ To mount Studio on a Python FastAPI service:
 ```python
 from anip_studio import mount_anip_studio
 mount_anip_studio(app, service)
-# → Open http://localhost:8000/studio/
+# → Open http://localhost:9100/studio/
 ```
 
 Studio is available as the `anip-studio` Python package. Adapters for other runtimes are a future addition.

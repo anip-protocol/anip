@@ -9,7 +9,7 @@ An embedded inspection UI for ANIP services. Mount it at `/studio` on any ANIP s
 from anip_studio import mount_anip_studio
 
 mount_anip_studio(app, service)
-# → Open http://localhost:8000/studio/
+# → Open http://localhost:9100/studio/
 ```
 
 ## Views

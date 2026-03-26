@@ -437,7 +437,7 @@ MAX_TOOL_CALLS = 15
 
 
 def run_agent_loop(
-    base_url: str = "http://127.0.0.1:8000",
+    base_url: str = "http://127.0.0.1:9100",
     human_in_the_loop: bool = False,
     api_key: str = "demo-human-key",
 ) -> None:

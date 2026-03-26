@@ -83,7 +83,7 @@ This is real output from a single run. The agent autonomously discovers its auth
 
 ```
 ANIP Agent Mode
-Server: http://127.0.0.1:8000
+Server: http://127.0.0.1:9100
 Human delegation: simulated
 
 ============================================================

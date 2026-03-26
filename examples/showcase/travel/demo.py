@@ -401,8 +401,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="ANIP Travel Booking Showcase Demo")
     parser.add_argument(
         "--base-url",
-        default=os.getenv("BASE_URL", "http://127.0.0.1:8000"),
-        help="Base URL of the travel showcase server (default: $BASE_URL or http://127.0.0.1:8000)",
+        default=os.getenv("BASE_URL", "http://127.0.0.1:9100"),
+        help="Base URL of the travel showcase server (default: $BASE_URL or http://127.0.0.1:9100)",
     )
     args = parser.parse_args()
 

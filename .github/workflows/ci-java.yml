@@ -64,13 +64,13 @@ jobs:
 
       - name: Smoke test REST/GraphQL/MCP endpoints
         run: |
-          curl -sf http://localhost:8080/.well-known/anip | head -c 100
+          curl -sf http://localhost:9201/.well-known/anip | head -c 100
           echo ""
-          curl -sf http://localhost:8080/rest/openapi.json | head -c 100
+          curl -sf http://localhost:9201/rest/openapi.json | head -c 100
           echo ""
-          curl -sf http://localhost:8080/schema.graphql | head -c 100
+          curl -sf http://localhost:9201/schema.graphql | head -c 100
           echo ""
-          curl -sf -X POST http://localhost:8080/mcp -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | head -c 100
+          curl -sf -X POST http://localhost:9201/mcp -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | head -c 100
           echo ""
           echo "REST, GraphQL, and MCP smoke tests passed"
 
@@ -78,7 +78,7 @@ jobs:
         run: |
           pip install -e "./conformance"
           pytest conformance/ \
-            --base-url=http://localhost:8080 \
+            --base-url=http://localhost:9201 \
             --bootstrap-bearer=demo-human-key \
             --sample-inputs=conformance/samples/flight-service.json \
             -v
@@ -108,10 +108,10 @@ jobs:
 
       - name: Smoke test ANIP + MCP endpoints
         run: |
-          curl -sf http://localhost:8080/.well-known/anip | head -c 100
+          curl -sf http://localhost:9202/.well-known/anip | head -c 100
           echo ""
           # Verify MCP endpoint is mounted and responds to initialize
-          MCP_RESPONSE=$(curl -sf -X POST http://localhost:8080/mcp \
+          MCP_RESPONSE=$(curl -sf -X POST http://localhost:9202/mcp \
             -H "Content-Type: application/json" \
             -H "Accept: application/json, text/event-stream" \
             -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"1.0"}}}')
@@ -124,7 +124,7 @@ jobs:
         run: |
           pip install -e "./conformance"
           pytest conformance/ \
-            --base-url=http://localhost:8080 \
+            --base-url=http://localhost:9202 \
             --bootstrap-bearer=demo-human-key \
             --sample-inputs=conformance/samples/flight-service.json \
             -v

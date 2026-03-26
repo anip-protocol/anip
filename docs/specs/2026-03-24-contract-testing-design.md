@@ -15,7 +15,7 @@ contract-tests/
 ├── pyproject.toml
 ├── src/anip_contract_tests/
 │   ├── __init__.py
-│   ├── cli.py             # anip-contract-tests run ... entry point
+│   ├── cli.py             # anip-contract-tests --base-url=... --test-pack=... entry point
 │   ├── runner.py           # Discovers capabilities from manifest, runs checks
 │   ├── checks/
 │   │   ├── __init__.py
@@ -167,21 +167,26 @@ Primary interface: a CLI wrapper around pytest.
 pip install -e ./contract-tests
 
 # Run against travel showcase (audit probe only)
-anip-contract-tests run \
-  --base-url=http://localhost:8000 \
+anip-contract-tests \
+  --base-url=http://localhost:9100 \
   --test-pack=contract-tests/packs/travel.json
 
-# Run with storage probing (higher confidence)
-anip-contract-tests run \
-  --base-url=http://localhost:8000 \
+# Run with storage probing (elevated confidence)
+anip-contract-tests \
+  --base-url=http://localhost:9100 \
   --test-pack=contract-tests/packs/travel.json \
   --storage-dsn=sqlite:///showcase.db
+
+# Run against Go/Java/C#/TS flight service examples
+anip-contract-tests \
+  --base-url=http://localhost:9200 \
+  --test-pack=contract-tests/packs/flight-service.json
 ```
 
 Also works directly via pytest:
 ```bash
 pytest contract-tests/ \
-  --base-url=http://localhost:8000 \
+  --base-url=http://localhost:9100 \
   --test-pack=contract-tests/packs/travel.json
 ```
 
@@ -227,4 +232,4 @@ The report clearly distinguishes confidence levels so operators know how much to
 
 ## First Pass
 
-Python only. Three test packs for the showcase apps (travel, finance, devops). Validates the harness design before expanding.
+Python harness, four test packs: three for showcase apps (travel, finance, devops) and one generic pack (flight-service) for Go/Java/C#/TypeScript examples. Automated CI runs the showcase packs; cross-runtime packs are manually verified for now.

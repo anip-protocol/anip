@@ -51,10 +51,10 @@ jobs:
         example:
           - name: net-http
             dir: flights
-            port: "8080"
+            port: "9200"
           - name: gin
             dir: flights-gin
-            port: "8081"
+            port: "9201"
     name: "conformance (${{ matrix.example.name }})"
     steps:
       - uses: actions/checkout@v4
