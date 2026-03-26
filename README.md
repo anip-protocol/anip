@@ -313,6 +313,18 @@ The runtime handles discovery, JWT tokens, signed manifests, delegation validati
 
 For advanced use cases that need direct access to the SDK primitives (KeyManager, DelegationEngine, AuditLog, MerkleTree), the underlying packages (`anip-core`/`anip-crypto`/`anip-server` and `@anip/core`/`@anip/crypto`/`@anip/server`) remain available.
 
+## Install
+
+| Ecosystem | Registry | Install |
+|-----------|----------|---------|
+| TypeScript | npm | `npm install @anip/service @anip/hono` |
+| Python | PyPI | `pip install anip-service anip-fastapi` |
+| Java | Maven Central | `dev.anip:anip-service` |
+| Go | Module | `go get github.com/anip-protocol/anip/packages/go` |
+| C# | In-repo | NuGet publishing not yet configured |
+
+[ANIP Studio](studio/) runs [embedded](studio/README.md#embedded-mode) or [standalone via Docker](studio/README.md#standalone-mode-docker). [Conformance suite](conformance/) and [contract testing](contract-tests/) available in-repo. Full package lists and details in [docs/distribution.md](docs/distribution.md).
+
 ## Status
 
 ANIP is under active development. The spec is at v0.11 with runtime observability — callback-based hooks for logging, metrics, tracing, and diagnostics, plus a `getHealth()` snapshot and optional health endpoint — building on v0.10's horizontal scaling, v0.9's audit aggregation, v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, and earlier foundations. Multi-agent coordination and federated trust remain open. See [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v1) for the full breakdown.
