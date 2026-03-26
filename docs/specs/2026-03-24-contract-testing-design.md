@@ -232,4 +232,4 @@ The report clearly distinguishes confidence levels so operators know how much to
 
 ## First Pass
 
-Python only. Three test packs for the showcase apps (travel, finance, devops). Validates the harness design before expanding.
+Python harness, four test packs: three for showcase apps (travel, finance, devops) and one generic pack (flight-service) for Go/Java/C#/TypeScript examples. Automated CI runs the showcase packs; cross-runtime packs are manually verified for now.
