@@ -57,16 +57,21 @@ Package family:
 - `anip-studio`
 - `anip-stdio`
 - `anip-grpc`
-- `anip-conformance`
 
-Examples:
+Example:
 
 ```bash
 pip install anip-service anip-fastapi
-pip install anip-conformance
 ```
 
-The conformance suite is intended for implementors who want to validate that their ANIP implementation matches the protocol expectations.
+## Conformance Suite
+
+The conformance suite validates that an ANIP implementation speaks the protocol correctly. It is currently an in-repo tool, not yet published to PyPI (planned for the first tagged release):
+
+```bash
+pip install -e ./conformance
+anip-conformance --base-url=http://localhost:9100
+```
 
 ## Contract Testing
 
@@ -126,7 +131,7 @@ Go is consumed as a module rather than through a separate package registry.
 Example:
 
 ```bash
-go get github.com/anip-protocol/anip/packages/go@packages/go/vVERSION
+go get github.com/anip-protocol/anip/packages/go@vVERSION
 ```
 
 ## C\#
@@ -179,5 +184,6 @@ It does **not yet** publish:
 
 - NuGet packages
 - Docker images
+- Conformance suite to PyPI
 - Contract-testing harness to PyPI
 - Packaged showcase/demo artifacts

@@ -356,7 +356,7 @@ Artifacts are published to Maven Central under `dev.anip`.
 Go is consumed as a module:
 
 ```bash
-go get github.com/anip-protocol/anip/packages/go@packages/go/vVERSION
+go get github.com/anip-protocol/anip/packages/go@vVERSION
 ```
 
 ### Studio
@@ -373,10 +373,11 @@ docker run -p 3000:80 anip-studio
 
 ### Conformance
 
-Third-party implementors can validate ANIP protocol compliance with the conformance suite:
+Third-party implementors can validate ANIP protocol compliance with the conformance suite. Currently available as an in-repo tool (PyPI publishing planned for the first tagged release):
 
 ```bash
-pip install anip-conformance
+pip install -e ./conformance
+anip-conformance --base-url=http://localhost:9100
 ```
 
 ### Contract Testing
