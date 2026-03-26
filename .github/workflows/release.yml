@@ -32,7 +32,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           SHA=$(git rev-parse HEAD)
-          REQUIRED_CHECKS=("test (3.11)" "test (3.12)" "test (20)" "test (22)" "go-ci" "java-ci" "csharp-ci")
+          REQUIRED_CHECKS=("python-ci" "typescript-ci" "go-ci" "java-ci" "csharp-ci")
           ERRORS=0
           for CHECK in "${REQUIRED_CHECKS[@]}"; do
             STATUS=$(gh api "repos/$GH_REPO/commits/$SHA/check-runs" \
