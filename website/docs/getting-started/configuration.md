@@ -28,19 +28,143 @@ These are the three backends ANIP supports today. Other databases (MySQL, MongoD
 
 ANIP's storage is for protocol state only — audit logs, tokens, checkpoints, and leases. It does **not** store your application data. Your capability handlers can use any database, ORM, or data layer you want (SQLAlchemy, Prisma, GORM, Hibernate, Entity Framework — anything). The ANIP storage configuration only affects the protocol runtime's own state.
 
+```mermaid
+graph LR
+    subgraph Your Application
+        H["Capability handlers"] -->|"any ORM, any DB"| YDB["Your database<br/>(MySQL, Mongo, Redis, etc.)"]
+        R["ANIP runtime"] -->|"protocol state only"| ADB["ANIP storage<br/>(SQLite or PostgreSQL)"]
+    end
 ```
-┌─────────────────────────────────────────────┐
-│              Your Application               │
-│                                             │
-│  Capability handlers ──→ Your database      │
-│  (any ORM, any DB)       (MySQL, Mongo,     │
-│                           Redis, etc.)       │
-│                                             │
-│  ANIP runtime ──────────→ ANIP storage      │
-│  (audit, tokens,          (SQLite or        │
-│   checkpoints)             PostgreSQL)       │
-└─────────────────────────────────────────────┘
+
+### Using ORMs in your capability handlers
+
+Your capability handlers are normal application code — they can use any ORM, database client, or data layer. ANIP doesn't interfere with your application's data access patterns.
+
+<Tabs groupId="language" queryString>
+<TabItem value="python" label="Python (SQLAlchemy)" default>
+
+```python
+from sqlalchemy.orm import Session
+from anip_service import Capability
+
+def search_flights_handler(ctx, params):
+    # Use your own database connection — ANIP doesn't touch it
+    with Session(your_engine) as session:
+        flights = session.query(Flight).filter(
+            Flight.origin == params["origin"],
+            Flight.destination == params["destination"],
+        ).all()
+        return {"flights": [f.to_dict() for f in flights]}
+
+search_flights = Capability(
+    name="search_flights",
+    description="Search available flights",
+    side_effect="read",
+    scope=["travel.search"],
+    handler=search_flights_handler,
+)
 ```
+
+</TabItem>
+<TabItem value="typescript" label="TypeScript (Prisma)">
+
+```typescript
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
+
+const searchFlights = defineCapability({
+  name: "search_flights",
+  description: "Search available flights",
+  sideEffect: "read",
+  scope: ["travel.search"],
+  handler: async (ctx, params) => {
+    // Use Prisma, Drizzle, TypeORM, Knex — whatever you want
+    const flights = await prisma.flight.findMany({
+      where: {
+        origin: params.origin,
+        destination: params.destination,
+      },
+    });
+    return { flights };
+  },
+});
+```
+
+</TabItem>
+<TabItem value="go" label="Go (GORM)">
+
+```go
+import "gorm.io/gorm"
+
+func searchFlights(db *gorm.DB) service.CapabilityDef {
+    return service.CapabilityDef{
+        Name:       "search_flights",
+        SideEffect: "read",
+        Scope:      []string{"travel.search"},
+        Handler: func(ctx service.InvokeContext, params map[string]any) (any, error) {
+            var flights []Flight
+            // Use GORM, sqlx, pgx — whatever you want
+            db.Where("origin = ? AND destination = ?",
+                params["origin"], params["destination"]).Find(&flights)
+            return map[string]any{"flights": flights}, nil
+        },
+    }
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java (JPA/Hibernate)">
+
+```java
+@Component
+public class SearchFlightsCapability {
+    @PersistenceContext
+    private EntityManager em;
+
+    public CapabilityDef create() {
+        return new CapabilityDef()
+            .setName("search_flights")
+            .setSideEffect("read")
+            .setScope(List.of("travel.search"))
+            .setHandler((ctx, params) -> {
+                // Use JPA, Hibernate, jOOQ, JDBC — whatever you want
+                var flights = em.createQuery(
+                    "SELECT f FROM Flight f WHERE f.origin = :origin AND f.destination = :dest",
+                    Flight.class)
+                    .setParameter("origin", params.get("origin"))
+                    .setParameter("dest", params.get("destination"))
+                    .getResultList();
+                return Map.of("flights", flights);
+            });
+    }
+}
+```
+
+</TabItem>
+<TabItem value="csharp" label="C# (Entity Framework)">
+
+```csharp
+public static CapabilityDef CreateSearchFlights(AppDbContext db) {
+    return new CapabilityDef {
+        Name = "search_flights",
+        SideEffect = "read",
+        Scope = ["travel.search"],
+        Handler = async (ctx, parameters) => {
+            // Use EF Core, Dapper, ADO.NET — whatever you want
+            var flights = await db.Flights
+                .Where(f => f.Origin == (string)parameters["origin"]
+                          && f.Destination == (string)parameters["destination"])
+                .ToListAsync();
+            return new { flights };
+        }
+    };
+}
+```
+
+</TabItem>
+</Tabs>
+
+The key point: **ANIP's `storage` config is for the protocol runtime only.** Your handlers talk to your own database with your own ORM. The two never mix.
 
 ### In-memory (development)
 
