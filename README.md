@@ -4,7 +4,7 @@
 
 The value is not "agents can call APIs better." The value is "agents can reason before acting."
 
-Read the [Manifesto](MANIFESTO.md) | Read the [Spec](SPEC.md) | Read the [Guide](GUIDE.md) | [Contribute](CONTRIBUTING.md)
+[anip.dev](https://anip.dev) | [Docs](https://anip.dev/docs/intro) | [Install](https://anip.dev/docs/getting-started/install) | [Blog](https://anip.dev/blog) | [Spec](SPEC.md) | [Contribute](CONTRIBUTING.md)
 
 ---
 
