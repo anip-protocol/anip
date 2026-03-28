@@ -12,7 +12,35 @@ Every ANIP service is configured through a service config object. This page cove
 
 ## Storage
 
-ANIP supports three storage backends. Storage holds audit logs, delegation tokens, checkpoints, and internal state.
+ANIP manages its own storage for audit logs, delegation tokens, checkpoints, and internal coordination state. You configure it with a connection string — the runtime handles schema creation, migrations, and all database operations internally.
+
+### Supported backends
+
+| Backend | Connection string | Use case |
+|---------|------------------|----------|
+| **In-memory** | `"memory"` or `":memory:"` | Development, testing |
+| **SQLite** | `"sqlite:///path/to/db"` | Single-instance production |
+| **PostgreSQL** | `"postgres://user:pass@host:5432/db"` | Multi-replica production |
+
+These are the three backends ANIP supports today. Other databases (MySQL, MongoDB, etc.) are not currently supported.
+
+### ANIP storage is separate from your application database
+
+ANIP's storage is for protocol state only — audit logs, tokens, checkpoints, and leases. It does **not** store your application data. Your capability handlers can use any database, ORM, or data layer you want (SQLAlchemy, Prisma, GORM, Hibernate, Entity Framework — anything). The ANIP storage configuration only affects the protocol runtime's own state.
+
+```
+┌─────────────────────────────────────────────┐
+│              Your Application               │
+│                                             │
+│  Capability handlers ──→ Your database      │
+│  (any ORM, any DB)       (MySQL, Mongo,     │
+│                           Redis, etc.)       │
+│                                             │
+│  ANIP runtime ──────────→ ANIP storage      │
+│  (audit, tokens,          (SQLite or        │
+│   checkpoints)             PostgreSQL)       │
+└─────────────────────────────────────────────┘
+```
 
 ### In-memory (development)
 
@@ -212,7 +240,7 @@ var service = new AnipService(new ServiceConfig {
 </TabItem>
 </Tabs>
 
-With PostgreSQL, multiple replicas can run behind a load balancer. Coordination happens through lease tables — any replica can handle any request. See the [deployment guide](https://github.com/anip-protocol/anip/blob/main/docs/deployment-guide.md) for cluster setup details.
+The runtime creates all required tables automatically on first connection — just point it at an empty PostgreSQL database. With PostgreSQL, multiple replicas can run behind a load balancer with automatic coordination. See [Horizontal Scaling](/docs/getting-started/scaling) for details.
 
 ## Authentication
 
