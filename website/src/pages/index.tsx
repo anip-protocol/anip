@@ -4,6 +4,8 @@ import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
 import CodeBlock from '@theme/CodeBlock';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
 
 import styles from './index.module.css';
 
@@ -139,15 +141,118 @@ service = ANIPService(
             description="Search available flights",
             side_effect="read",
             scope=["travel.search"],
-            handler=lambda ctx, params: {"flights": [{"number": "AA100", "price": 420}]},
+            handler=lambda ctx, params: {
+                "flights": [{"number": "AA100", "price": 420}]
+            },
         ),
     ],
-    authenticate=lambda bearer: {"demo-key": "human:demo@example.com"}.get(bearer),
+    authenticate=lambda bearer: {
+        "demo-key": "human:demo@example.com"
+    }.get(bearer),
 )
 
 app = FastAPI()
-mount_anip(app, service)
-# 9 endpoints, signed manifest, delegation, audit — all handled`;
+mount_anip(app, service)`;
+
+  const typescriptExample = `import { Hono } from "hono";
+import { createANIPService, defineCapability } from "@anip/service";
+import { mountAnip } from "@anip/hono";
+
+const searchFlights = defineCapability({
+  name: "search_flights",
+  description: "Search available flights",
+  sideEffect: "read",
+  scope: ["travel.search"],
+  handler: async (ctx, params) => ({
+    flights: [{ number: "AA100", price: 420 }],
+  }),
+});
+
+const service = createANIPService({
+  serviceId: "my-service",
+  capabilities: [searchFlights],
+  trust: "signed",
+  authenticate: (bearer) =>
+    ({ "demo-key": "human:demo@example.com" })[bearer] ?? null,
+});
+
+const app = new Hono();
+mountAnip(app, service);`;
+
+  const goExample = `package main
+
+import (
+    "net/http"
+    "github.com/anip-protocol/anip/packages/go/service"
+    "github.com/anip-protocol/anip/packages/go/httpapi"
+)
+
+func main() {
+    svc, _ := service.New(service.Config{
+        ServiceID:    "my-service",
+        Capabilities: []service.CapabilityDef{searchFlights()},
+        Storage:      "sqlite:///anip.db",
+        Trust:        "signed",
+        Authenticate: func(bearer string) *string {
+            keys := map[string]string{
+                "demo-key": "human:demo@example.com",
+            }
+            if p, ok := keys[bearer]; ok { return &p }
+            return nil
+        },
+    })
+    defer svc.Shutdown()
+    svc.Start()
+
+    mux := http.NewServeMux()
+    httpapi.MountANIP(mux, svc)
+    http.ListenAndServe(":9100", mux)
+}`;
+
+  const javaExample = `@SpringBootApplication
+public class Application {
+    @Bean
+    public ANIPService anipService() {
+        return new ANIPService(new ServiceConfig()
+            .setServiceId("my-service")
+            .setCapabilities(List.of(
+                SearchFlightsCapability.create()
+            ))
+            .setStorage("sqlite:///anip.db")
+            .setTrust("signed")
+            .setAuthenticate(bearer -> {
+                Map<String, String> keys = Map.of(
+                    "demo-key", "human:demo@example.com"
+                );
+                return Optional.ofNullable(keys.get(bearer));
+            }));
+    }
+
+    @Bean
+    public AnipController anipController(ANIPService s) {
+        return new AnipController(s);
+    }
+}`;
+
+  const csharpExample = `var builder = WebApplication.CreateBuilder(args);
+
+var service = new AnipService(new ServiceConfig {
+    ServiceId = "my-service",
+    Capabilities = [SearchFlightsCapability.Create()],
+    Storage = "sqlite:///anip.db",
+    Trust = "signed",
+    Authenticate = bearer => {
+        var keys = new Dictionary<string, string> {
+            ["demo-key"] = "human:demo@example.com"
+        };
+        return keys.TryGetValue(bearer, out var p) ? p : null;
+    }
+});
+
+builder.Services.AddAnip(service);
+var app = builder.Build();
+app.MapControllers();
+app.Run();`;
 
   return (
     <section className={styles.section}>
@@ -156,15 +261,28 @@ mount_anip(app, service)
           <Heading as="h2">Build an ANIP service in minutes</Heading>
           <p>You write business logic. The runtime handles discovery, JWT tokens, signed manifests, delegation validation, audit logging, and Merkle checkpoints.</p>
         </div>
-        <div className={styles.codeSection}>
-          <CodeBlock language="python" title="app.py">{pythonExample}</CodeBlock>
-          <div className={styles.codeMeta}>
-            <p>This gives you 9 protocol endpoints, a signed manifest, delegation-based auth, structured failures, and a verifiable audit log — from 20 lines of code.</p>
-            <p>Available in <strong>Python</strong>, <strong>TypeScript</strong>, <strong>Java</strong>, <strong>Go</strong>, and <strong>C#</strong>.</p>
-            <Link className="button button--primary" to="/docs/getting-started/quickstart">
-              Follow the quickstart
-            </Link>
-          </div>
+        <Tabs groupId="language" queryString>
+          <TabItem value="python" label="Python" default>
+            <CodeBlock language="python" title="app.py">{pythonExample}</CodeBlock>
+          </TabItem>
+          <TabItem value="typescript" label="TypeScript">
+            <CodeBlock language="typescript" title="app.ts">{typescriptExample}</CodeBlock>
+          </TabItem>
+          <TabItem value="go" label="Go">
+            <CodeBlock language="go" title="main.go">{goExample}</CodeBlock>
+          </TabItem>
+          <TabItem value="java" label="Java">
+            <CodeBlock language="java" title="Application.java">{javaExample}</CodeBlock>
+          </TabItem>
+          <TabItem value="csharp" label="C#">
+            <CodeBlock language="csharp" title="Program.cs">{csharpExample}</CodeBlock>
+          </TabItem>
+        </Tabs>
+        <div className={styles.codeMeta}>
+          <p>Same result in every language — 9 protocol endpoints, signed manifest, delegation-based auth, structured failures, and a verifiable audit log.</p>
+          <Link className="button button--primary" to="/docs/getting-started/quickstart">
+            Follow the quickstart
+          </Link>
         </div>
       </div>
     </section>

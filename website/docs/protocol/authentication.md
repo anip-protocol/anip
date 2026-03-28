@@ -3,6 +3,9 @@ title: Authentication
 description: How ANIP handles authentication — API keys, OIDC, and the delegation model.
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Authentication
 
 ANIP separates authentication (who are you?) from authorization (what can you do?). This separation is fundamental — it's what enables purpose-bound delegation instead of the "token valid or invalid" model that makes agents vulnerable to confused deputy attacks.
@@ -27,6 +30,9 @@ Authorization: Bearer <token>
 
 Map bearer strings directly to principal identities:
 
+<Tabs groupId="language" queryString>
+<TabItem value="python" label="Python" default>
+
 ```python
 service = ANIPService(
     service_id="my-service",
@@ -38,7 +44,71 @@ service = ANIPService(
 )
 ```
 
-The authenticate function returns `None` for unknown tokens, which results in a 401 response.
+</TabItem>
+<TabItem value="typescript" label="TypeScript">
+
+```typescript
+const service = createANIPService({
+  serviceId: "my-service",
+  capabilities: [...],
+  authenticate: (bearer) => ({
+    "demo-human-key": "human:demo@example.com",
+    "agent-key": "agent:triage-bot",
+  })[bearer] ?? null,
+});
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+svc, _ := service.New(service.Config{
+    ServiceID: "my-service",
+    Capabilities: capabilities,
+    Authenticate: func(bearer string) *string {
+        keys := map[string]string{
+            "demo-human-key": "human:demo@example.com",
+            "agent-key":      "agent:triage-bot",
+        }
+        if p, ok := keys[bearer]; ok { return &p }
+        return nil
+    },
+})
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+new ANIPService(new ServiceConfig()
+    .setAuthenticate(bearer -> {
+        var keys = Map.of(
+            "demo-human-key", "human:demo@example.com",
+            "agent-key", "agent:triage-bot"
+        );
+        return Optional.ofNullable(keys.get(bearer));
+    }));
+```
+
+</TabItem>
+<TabItem value="csharp" label="C#">
+
+```csharp
+var service = new AnipService(new ServiceConfig {
+    Authenticate = bearer => {
+        var keys = new Dictionary<string, string> {
+            ["demo-human-key"] = "human:demo@example.com",
+            ["agent-key"] = "agent:triage-bot",
+        };
+        return keys.TryGetValue(bearer, out var p) ? p : null;
+    }
+});
+```
+
+</TabItem>
+</Tabs>
+
+The authenticate function returns `null`/`None`/`nil` for unknown tokens, which results in a 401 response.
 
 ### 2. OIDC / OAuth2
 
