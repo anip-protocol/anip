@@ -20,14 +20,13 @@ function HomepageHeader() {
           </Heading>
           <p className="hero__subtitle">{siteConfig.tagline}</p>
           <p className={styles.heroLead}>
-            ANIP is a protocol for agent execution where permissions, side
-            effects, rollback posture, cost, failure recovery, and auditability
-            are explicit before an action runs.
+            ANIP is the governance, trust, and lineage layer for agent actions.
           </p>
           <p className={styles.heroDetail}>
-            REST and MCP can expose tools and interfaces, but they still leave
-            critical execution context implicit. ANIP makes that context part of
-            the contract.
+            It makes permissions, side effects, rollback posture, cost, failure
+            recovery, auditability, and lineage explicit before an action runs.
+            That is what turns agent execution from a tool call into a
+            governable interface contract.
           </p>
           <div className={styles.ctaRow}>
             <Link className="button button--secondary button--lg" to="/docs/intro">
@@ -78,7 +77,8 @@ export default function Home(): ReactNode {
                   <li>Agents can inspect permissions before trying a sensitive action.</li>
                   <li>Service authors can declare whether an action is read-only, transactional, or irreversible.</li>
                   <li>Infra and internal platform services can expose recoverable failure guidance instead of opaque errors.</li>
-                  <li>Teams can review what happened through audit logs, checkpoints, Studio, and testing tools.</li>
+                  <li>Planners, policy services, approval layers, and execution workers can share one governed execution model.</li>
+                  <li>Teams can review what happened through lineage, audit logs, checkpoints, Studio, and testing tools.</li>
                   <li>One execution model can be exposed over HTTP, stdio, and gRPC.</li>
                 </ul>
               </div>
