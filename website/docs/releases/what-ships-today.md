@@ -33,4 +33,4 @@ ANIP is not a spec waiting for implementations. Here's what's available now.
 - Conformance suite to PyPI
 - Contract testing harness to PyPI
 
-For detailed package lists per ecosystem, see [distribution](/docs/distribution.md) (in repo at `docs/distribution.md`).
+For detailed package lists per ecosystem, see the [distribution page](https://github.com/anip-protocol/anip/blob/main/docs/distribution.md) in the repo.
