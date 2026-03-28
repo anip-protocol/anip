@@ -25,6 +25,7 @@
   --ifm-color-primary-lighter: #a9e4e2;
   --ifm-color-primary-lightest: #d3f2f1;
   --ifm-background-color: #08161f;
+  --ifm-heading-color: #e8ecf0;
   --ifm-navbar-background-color: rgba(8, 22, 31, 0.9);
   --ifm-footer-background-color: #061017;
   --docusaurus-highlighted-code-line-bg: rgba(127, 215, 212, 0.18);
@@ -33,6 +34,10 @@
 .navbar {
   backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(16, 42, 67, 0.08);
+}
+
+[data-theme='dark'] .navbar {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .footer a:hover {

@@ -1,55 +1,57 @@
 ---
 title: Studio and Showcases
-description: The easiest way to see ANIP's features in a realistic service.
+description: The fastest way to see ANIP in action — run a showcase app and open Studio.
 ---
 
 # Studio and Showcases
 
-ANIP ships with three showcase domains:
+If you're evaluating ANIP, this is the fastest path to understanding what it does. Run a showcase app and open Studio to explore the full protocol surface visually.
 
-- travel
-- finance
-- DevOps
+## Quick start
 
-These are not toy one-endpoint demos. They exercise:
+```bash
+# Clone the repo
+git clone https://github.com/anip-protocol/anip.git
+cd anip
 
-- read vs write vs irreversible operations
-- permission discovery
-- cost signaling
-- structured failures
-- audit and checkpoints
-- Studio inspection and invocation
+# Install the travel showcase and its dependencies
+cd examples/showcase/travel
+pip install -e ".[dev]"
 
-## Studio
+# Run it
+python app.py
+```
 
-ANIP Studio lets you inspect and invoke ANIP services visually.
+Now open [http://localhost:9100/studio/](http://localhost:9100/studio/) in your browser.
 
-Current capabilities:
+## What to explore in Studio
 
-- discovery inspection
-- manifest and capability review
-- JWKS inspection
-- audit browsing
-- checkpoint inspection
-- invoke view with permissions and failure rendering
+1. **Discovery** — see the full service shape: capabilities, trust posture, endpoints
+2. **Manifest** — expand each capability to see side-effect declarations, cost hints, required scopes, input/output contracts
+3. **Invoke** — select a capability, enter `demo-human-key` as the bearer token, fill in inputs, and invoke. See success results or structured failures with resolution guidance
+4. **Audit** — browse the audit log to see every invocation recorded with event classification
 
-Studio runs:
+## Try these scenarios
 
-- **embedded** at `/studio`
-- **standalone** as a Dockerized static app
+### See permission discovery in action
+1. Go to the Invoke view → select `book_flight`
+2. Enter `demo-human-key` → permissions panel shows what's available vs. restricted
+3. Try invoking — see the structured failure if scope or budget is insufficient
 
-## Why start here
+### Compare side-effect types
+- `search_flights` is `read` — safe to call speculatively
+- `book_flight` is `irreversible` — the manifest warns the agent this is permanent
 
-If you are evaluating ANIP, Studio plus a showcase app is the fastest path to understanding:
+### See structured failures
+- Invoke `book_flight` with a budget below the flight cost
+- The failure response includes `failure.type`, `failure.detail`, `failure.resolution.action`, and `failure.resolution.grantable_by`
 
-- what the manifest actually looks like
-- how side effects and scope are declared
-- how permissions change with bearer tokens
-- what structured failures look like in practice
+## All three showcases
 
-## Where to look in the repo
+| Showcase | Command | Key patterns |
+|----------|---------|--------------|
+| Travel | `cd examples/showcase/travel && python app.py` | Cost signaling, irreversibility, compensation |
+| Finance | `cd examples/showcase/finance && python app.py` | Financial operations, budget delegation |
+| DevOps | `cd examples/showcase/devops && python app.py` | Transactional rollback, infrastructure changes |
 
-- `examples/showcase/travel/`
-- `examples/showcase/finance/`
-- `examples/showcase/devops/`
-- `studio/`
+Each runs at `http://localhost:9100` with Studio at `/studio/`.
