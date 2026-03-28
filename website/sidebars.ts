@@ -12,6 +12,7 @@ const sidebars: SidebarsConfig = {
         'getting-started/install',
         'getting-started/quickstart',
         'getting-started/configuration',
+        'getting-started/observability',
         'getting-started/studio-showcases',
       ],
     },
