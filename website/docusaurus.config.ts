@@ -127,6 +127,11 @@ const config: Config = {
       ],
       copyright: `Copyright © ${new Date().getFullYear()} ANIP Protocol.`,
     },
+    algolia: {
+      appId: 'WTD3QO6JFS',
+      apiKey: '867354f06b4f277fcfcbe40e0038a0cb',
+      indexName: 'ANIP Documentation',
+    },
     prism: {
       theme: prismThemes.vsLight,
       darkTheme: prismThemes.vsDark,
