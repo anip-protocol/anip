@@ -12,12 +12,12 @@ type FeatureItem = {
 const FeatureList: FeatureItem[] = [
   {
     eyebrow: 'What it is',
-    title: 'ANIP describes how an agent should reason before it acts',
+    title: 'ANIP is the governance, trust, and lineage layer for agent actions',
     description: (
       <>
         ANIP is a protocol for interfaces where authority, side effects,
-        rollback posture, cost, and failure semantics are explicit parts of the
-        contract.
+        rollback posture, cost, lineage, and failure semantics are explicit
+        parts of the contract.
       </>
     ),
   },
@@ -27,19 +27,19 @@ const FeatureList: FeatureItem[] = [
     description: (
       <>
         Agents still need to know what they are allowed to do, what will
-        happen if they act, what it may cost, and how to recover if execution
-        fails.
+        happen if they act, what it may cost, how it can be governed, and how
+        to recover if execution fails.
       </>
     ),
   },
   {
     eyebrow: 'What changes',
-    title: 'ANIP makes permissions, recovery, and auditability part of the surface',
+    title: 'ANIP makes permissions, recovery, trust, and auditability part of the surface',
     description: (
       <>
         Services can declare side effects, expose permission discovery, return
-        structured failures, and attach audit and checkpoint evidence to what
-        ran.
+        structured failures, and attach lineage, audit, and checkpoint
+        evidence to what ran.
       </>
     ),
   },
@@ -86,7 +86,7 @@ export default function HomepageFeatures(): ReactNode {
                 <li>Discovers capability</li>
                 <li>Checks permissions</li>
                 <li>Sees side effects</li>
-                <li>Sees rollback and cost</li>
+                <li>Sees rollback, cost, and trust posture</li>
               </ul>
             </div>
             <div className={styles.diagramCenter}>
@@ -104,7 +104,7 @@ export default function HomepageFeatures(): ReactNode {
               <ul>
                 <li>Structured result or failure</li>
                 <li>Recovery guidance</li>
-                <li>Audit trail</li>
+                <li>Lineage and audit trail</li>
                 <li>Trust evidence</li>
               </ul>
             </div>
@@ -126,13 +126,14 @@ export default function HomepageFeatures(): ReactNode {
               <li>Delegation and scoped JWT permissions</li>
               <li>Permission discovery before invoke</li>
               <li>Structured failures and recovery guidance</li>
-              <li>Audit logs, checkpoints, and trust signals</li>
+              <li>Lineage, audit logs, checkpoints, and trust signals</li>
             </ul>
           </div>
           <div>
             <Heading as="h3">What teams can build with it</Heading>
             <ul>
               <li>Higher-trust internal agent workflows</li>
+              <li>Agent control-plane surfaces across planners, policy services, approval layers, and execution workers</li>
               <li>Operational and infrastructure actions with explicit rollback posture</li>
               <li>Services that expose native ANIP plus REST, GraphQL, and MCP adapters</li>
               <li>Multi-transport runtimes over HTTP, stdio, and gRPC</li>

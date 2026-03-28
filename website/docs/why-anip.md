@@ -6,6 +6,8 @@ description: Why agent-facing execution needs a protocol designed for agents, no
 
 # Why ANIP
 
+ANIP is the governance, trust, and lineage layer for agent actions.
+
 Every interface paradigm changed when the primary consumer changed:
 
 - CLI for humans at terminals
@@ -26,6 +28,50 @@ When agents use REST APIs directly, they often discover important constraints to
 - audit posture only if someone thought to add a separate endpoint
 
 MCP improves discovery and tool transport, but it still does not make authority, cost, rollback posture, and recovery first-class protocol primitives.
+
+## Governance, trust, and lineage
+
+ANIP is designed for systems where agent actions need to stay governable,
+trustworthy, and traceable.
+
+- governable: the interface can express authority, boundaries, approvals, and what happens when authority is insufficient
+- trustworthy: manifests, delegation, checkpoints, and later attestation can move systems beyond pure trust-on-declaration
+- traceable: actions remain connected to their origin, authority, and downstream effects through lineage and audit
+
+That is why ANIP is strongest in environments where execution has real
+consequences, not just convenient tool invocation.
+
+## The missing middle
+
+There is a missing middle between "just trust the service" and overly heavy
+trust infrastructure.
+
+ANIP explores that middle path through:
+
+- signed delegation
+- signed manifests
+- anchored checkpoints
+- later, stronger attestation and federated trust
+
+The goal is not to turn ANIP into a blockchain project. The goal is to make
+agent execution more verifiable without making adoption unrealistic.
+
+## More than tool interoperability
+
+MCP is a tool-interoperability layer. ANIP can also act as an agent
+control-plane protocol.
+
+That matters in systems with:
+
+- planners
+- policy services
+- approval layers
+- execution workers
+- audit infrastructure
+
+In those environments, the key question is not only whether a model can call a
+tool. It is how authority, policy, side effects, cost, lineage, and audit move
+through the system.
 
 ## What ANIP changes
 
