@@ -1,86 +1,66 @@
 ---
 sidebar_position: 3
 title: Feature Map
-description: A high-level map of the protocol, transports, adapters, tooling, and ecosystem pieces that ANIP currently includes.
+description: Complete inventory of ANIP protocol features, runtimes, transports, and tooling.
 ---
 
 # Feature Map
 
-This page is the fast inventory of what ANIP includes today.
+A complete inventory of what ANIP includes today, organized by layer.
 
 ## Protocol primitives
 
-Core protocol features:
-
-- capability declaration
-- side-effect typing
-- delegation DAG and scoped JWT authority
-- permission discovery
-- structured failure semantics
-
-Contextual protocol features:
-
-- cost signaling
-- capability graph
-- state and session semantics
-- observability contract
+| Feature | Description | Spec section |
+|---------|-------------|-------------|
+| Capability declaration | Name, description, inputs, outputs, side-effect type, scope, cost | [Capabilities](/docs/protocol/capabilities) |
+| Side-effect typing | `read`, `write`, `transactional`, `irreversible` | [Capabilities](/docs/protocol/capabilities#side-effect-types) |
+| Delegation | Scoped JWT authority chains with budget and purpose constraints | [Delegation](/docs/protocol/delegation-permissions) |
+| Permission discovery | Pre-invoke check: available / restricted / denied | [Permissions](/docs/protocol/delegation-permissions#permission-discovery) |
+| Structured failures | Type, detail, resolution action, grantable_by, retry | [Failures](/docs/protocol/failures-cost-audit) |
+| Cost signaling | Declared range before invoke, actual cost after | [Cost](/docs/protocol/failures-cost-audit#cost-signaling) |
+| Capability graph | Prerequisites and compensation path declarations | [Capabilities](/docs/protocol/capabilities#capability-graph) |
 
 ## Trust and verification
 
-ANIP includes:
+| Feature | Description |
+|---------|-------------|
+| Signed manifests | Cryptographic signature via `X-ANIP-Signature` header |
+| JWKS | Standard JSON Web Key Set for signature verification |
+| Audit logging | Protocol-level logging with event classification, retention policy |
+| Merkle checkpoints | Tamper-evident audit history with inclusion proofs |
+| Trust posture | Service-declared trust level: declarative → signed → anchored |
 
-- signed manifests
-- JWKS exposure
-- audit logs
-- Merkle checkpoints
-- trust posture in discovery
+## Runtimes
+
+| Runtime | Service package | Framework adapters |
+|---------|----------------|-------------------|
+| TypeScript | `@anip/service` | Hono, Express, Fastify |
+| Python | `anip-service` | FastAPI |
+| Java | `anip-service` | Spring Boot, Quarkus |
+| Go | `service` | net/http, Gin |
+| C# | `Anip.Service` | ASP.NET Core |
 
 ## Transports
 
-ANIP currently has real bindings for:
+| Transport | Wire format | Runtimes |
+|-----------|------------|----------|
+| [HTTP](/docs/transports/http) | REST-like endpoints | All 5 |
+| [stdio](/docs/transports/stdio) | JSON-RPC 2.0 | All 5 |
+| [gRPC](/docs/transports/grpc) | Protobuf / HTTP/2 | Python, Go |
 
-- HTTP
-- stdio
-- gRPC
+## Interface adapters
 
-See [Transports](./transports/overview.md).
-
-## Runtime and interface ecosystem
-
-ANIP ships:
-
-- TypeScript runtime and adapters
-- Python runtime and adapters
-- Java runtime and adapters
-- Go runtime
-- C# runtime
-
-And interface surfaces for:
-
-- REST / OpenAPI
-- GraphQL
-- MCP
+| Adapter | Generated from | Endpoint |
+|---------|---------------|----------|
+| REST | Capability declarations | `/api/*` (OpenAPI + Swagger UI) |
+| GraphQL | Capability declarations | `/graphql` (SDL + directives) |
+| MCP | Capability declarations | `/mcp` (Streamable HTTP) |
 
 ## Tooling
 
-Current tooling includes:
-
-- ANIP Studio
-- conformance suite
-- contract-testing harness
-- showcase applications
-
-## Releases
-
-The current protocol line is **v0.11**.
-
-Highlights across recent versions:
-
-- `v0.6` streaming invocations
-- `v0.7` discovery posture
-- `v0.8` security hardening
-- `v0.9` audit aggregation
-- `v0.10` horizontal scaling
-- `v0.11` runtime observability
-
-See [Version History](./releases/version-history.md).
+| Tool | Purpose | How to use |
+|------|---------|-----------|
+| [Studio](/docs/tooling/studio) | Inspection + invocation UI | Embedded at `/studio` or standalone Docker |
+| [Conformance](/docs/tooling/conformance-contract-testing) | Protocol compliance testing | `pytest conformance/` against any HTTP service |
+| [Contract testing](/docs/tooling/conformance-contract-testing#contract-testing) | Behavioral truthfulness verification | `anip-contract-tests` with test packs |
+| Showcase apps | Reference implementations | Travel, finance, DevOps — full protocol surface |

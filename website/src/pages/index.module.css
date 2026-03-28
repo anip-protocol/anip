@@ -1,46 +1,41 @@
-.heroBanner {
+/* ── Hero ── */
+.hero {
   padding: 5rem 0 4rem;
   background:
     radial-gradient(circle at top left, rgba(20, 163, 161, 0.18), transparent 32%),
     radial-gradient(circle at top right, rgba(244, 176, 63, 0.18), transparent 28%),
     linear-gradient(180deg, #102a43 0%, #0b1f33 100%);
   color: #f8fbff;
-  position: relative;
-  overflow: hidden;
+  text-align: center;
 }
 
 .heroInner {
-  max-width: 56rem;
+  max-width: 52rem;
   margin: 0 auto;
 }
 
-:global(.hero__title) {
-  color: #f8fbff;
-}
-
 .eyebrow {
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #7fd7d4;
 }
 
+.heroTitle {
+  font-size: 2.6rem;
+  line-height: 1.2;
+  color: #f8fbff !important;
+  margin-bottom: 1.25rem;
+}
+
 .heroLead {
-  max-width: 44rem;
-  margin: 1rem auto 0;
+  max-width: 42rem;
+  margin: 0 auto 2rem;
   font-size: 1.15rem;
   line-height: 1.7;
   color: rgba(248, 251, 255, 0.86);
-}
-
-.heroDetail {
-  max-width: 40rem;
-  margin: 1rem auto 0;
-  font-size: 1rem;
-  line-height: 1.65;
-  color: rgba(248, 251, 255, 0.72);
 }
 
 .ctaRow {
@@ -48,84 +43,208 @@
   gap: 1rem;
   justify-content: center;
   flex-wrap: wrap;
-  margin-top: 2rem;
 }
 
-.metaGrid {
+/* ── Sections ── */
+.section {
+  padding: 4.5rem 0;
+}
+
+.sectionAlt {
+  background: var(--ifm-background-surface-color, #f0f4f3);
+}
+
+[data-theme='dark'] .sectionAlt {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sectionHeader {
+  text-align: center;
+  max-width: 42rem;
+  margin: 0 auto 2.5rem;
+}
+
+.sectionHeader p {
+  font-size: 1.05rem;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.6;
+}
+
+/* ── Before / After ── */
+.compareGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
-  margin-top: 2.5rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
 }
 
-.metaCard {
-  padding: 1rem 1.2rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.05);
-  text-align: left;
+.compareCard {
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--ifm-color-emphasis-200);
 }
 
-.metaLabel {
-  display: block;
-  margin-bottom: 0.25rem;
-  font-size: 0.78rem;
+.compareLabel {
+  padding: 0.6rem 1rem;
+  font-size: 0.8rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #7fd7d4;
 }
 
-.metaValue {
-  font-size: 0.98rem;
-  color: #f8fbff;
+.compareBefore .compareLabel {
+  background: rgba(248, 113, 113, 0.12);
+  color: #dc2626;
 }
 
-.section {
-  padding: 0 0 5rem;
+[data-theme='dark'] .compareBefore .compareLabel {
+  background: rgba(248, 113, 113, 0.15);
+  color: #fca5a5;
 }
 
-.sectionGrid {
+.compareAfter .compareLabel {
+  background: rgba(52, 211, 153, 0.12);
+  color: #059669;
+}
+
+[data-theme='dark'] .compareAfter .compareLabel {
+  background: rgba(52, 211, 153, 0.15);
+  color: #6ee7b7;
+}
+
+.compareContent pre {
+  margin: 0;
+  border-radius: 0;
+  border: none;
+}
+
+/* ── How it works (flow steps) ── */
+.flowSteps {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.flowStep {
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  background: var(--ifm-card-background-color);
+}
+
+.flowStep h3 {
+  margin-bottom: 0.5rem;
+}
+
+.flowStep p {
+  font-size: 0.92rem;
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 0.75rem;
+}
+
+.flowStep pre {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.flowNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--ifm-color-primary);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+/* ── Code section (quickstart) ── */
+.codeSection {
+  display: grid;
+  grid-template-columns: 1.3fr 0.7fr;
   gap: 2rem;
   align-items: start;
 }
 
-.sectionCard {
+.codeMeta {
+  padding-top: 1rem;
+}
+
+.codeMeta p {
+  font-size: 0.95rem;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+/* ── Feature grid (what ships) ── */
+.featureGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.featureCard {
   padding: 1.5rem;
-  border-radius: 1rem;
-  background: #ffffff;
-  border: 1px solid rgba(16, 42, 67, 0.08);
-  box-shadow: 0 10px 30px rgba(12, 46, 54, 0.06);
+  border-radius: 0.75rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  background: var(--ifm-card-background-color);
 }
 
-.sectionCard pre {
+.featureCard h3 {
+  margin-bottom: 0.5rem;
+  font-size: 1.05rem;
+}
+
+.featureCard p {
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-700);
   margin: 0;
+  line-height: 1.55;
 }
 
-.sectionList {
-  margin: 0;
-  padding-left: 1.2rem;
+/* ── Comparison table ── */
+.tableWrapper {
+  overflow-x: auto;
 }
 
-.linkList {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
+.compareTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
 }
 
-.linkList a {
-  font-weight: 600;
+.compareTable th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  background: var(--ifm-color-emphasis-100);
+  font-weight: 700;
+  border-bottom: 2px solid var(--ifm-color-emphasis-300);
 }
 
+.compareTable td {
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  vertical-align: top;
+}
+
+.compareTable td:last-child {
+  color: var(--ifm-color-primary);
+  font-weight: 500;
+}
+
+/* ── Responsive ── */
 @media screen and (max-width: 996px) {
-  .heroBanner {
-    padding: 2rem;
+  .heroTitle {
+    font-size: 2rem;
   }
 
-  .metaGrid,
-  .sectionGrid {
+  .compareGrid,
+  .flowSteps,
+  .codeSection,
+  .featureGrid {
     grid-template-columns: 1fr;
   }
 }

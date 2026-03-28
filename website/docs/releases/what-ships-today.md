@@ -1,32 +1,36 @@
 ---
 title: What Ships Today
-description: What ANIP artifacts are already published, what is repo-local, and what is still missing.
+description: Current distribution status across all ANIP ecosystems.
 ---
 
 # What Ships Today
 
-ANIP already has a real release surface.
+ANIP is not a spec waiting for implementations. Here's what's available now.
 
-## Published today
+## Published to package registries
 
-- TypeScript packages on npm
-- Python packages on PyPI
-- Java modules on Maven Central
-- Go as a module
+| Ecosystem | Registry | Packages | Install |
+|-----------|----------|----------|---------|
+| TypeScript | npm | 14 packages (`@anip/core` through `@anip/stdio`) | `npm install @anip/service @anip/hono` |
+| Python | PyPI | 11 packages (`anip-core` through `anip-grpc`) | `pip install anip-service anip-fastapi` |
+| Java | Maven Central | 16 modules under `dev.anip` | See [Install](/docs/getting-started/install) |
+| Go | Module tags | 1 module with 12 packages | `go get github.com/anip-protocol/anip/packages/go` |
 
-## Available in repo
+## Available in-repo
 
-- C# runtime and adapters
-- conformance suite
-- contract-testing harness
-- showcase applications
+| Artifact | Status |
+|----------|--------|
+| C# runtime + adapters (12 projects) | Source available, NuGet publishing not yet configured |
+| Conformance suite | `pip install -e ./conformance` |
+| Contract testing harness | `pip install -e ./contract-tests` |
+| Studio standalone Docker | `docker build -t anip-studio studio/` |
+| Showcase apps (travel, finance, DevOps) | Runnable from repo, not packaged as standalone artifacts |
 
-## Available to build locally
+## Not yet published
 
-- standalone Studio Docker image
+- C# NuGet packages
+- Studio Docker image to GHCR
+- Conformance suite to PyPI
+- Contract testing harness to PyPI
 
-## Not yet fully published
-
-- NuGet packages
-- published Studio container image
-- packaged showcase/demo images
+For detailed package lists per ecosystem, see [distribution](/docs/distribution.md) (in repo at `docs/distribution.md`).
