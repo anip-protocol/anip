@@ -31,6 +31,14 @@
   color: rgba(248, 251, 255, 0.86);
 }
 
+.heroDetail {
+  max-width: 40rem;
+  margin: 1rem auto 0;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: rgba(248, 251, 255, 0.72);
+}
+
 .ctaRow {
   display: flex;
   gap: 1rem;
@@ -95,6 +103,16 @@
 .sectionList {
   margin: 0;
   padding-left: 1.2rem;
+}
+
+.linkList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.linkList a {
+  font-weight: 600;
 }
 
 @media screen and (max-width: 996px) {

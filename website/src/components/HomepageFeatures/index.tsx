@@ -11,32 +11,35 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    eyebrow: 'Before action',
-    title: 'Agents see what will happen before they invoke',
+    eyebrow: 'What it is',
+    title: 'ANIP describes how an agent should reason before it acts',
     description: (
       <>
-        Capability declarations carry side effects, rollback windows, cost
-        expectations, prerequisites, and required authority up front.
+        ANIP is a protocol for interfaces where authority, side effects,
+        rollback posture, cost, and failure semantics are explicit parts of the
+        contract.
       </>
     ),
   },
   {
-    eyebrow: 'During action',
-    title: 'Delegation, permissions, and failures are first-class',
+    eyebrow: 'Why it exists',
+    title: 'REST and MCP expose actions, but leave execution context implicit',
     description: (
       <>
-        ANIP tells an agent what it is allowed to do, why a call failed, who
-        can grant missing authority, and how to recover.
+        Agents still need to know what they are allowed to do, what will
+        happen if they act, what it may cost, and how to recover if execution
+        fails.
       </>
     ),
   },
   {
-    eyebrow: 'After action',
-    title: 'Auditability and verification stay attached to execution',
+    eyebrow: 'What changes',
+    title: 'ANIP makes permissions, recovery, and auditability part of the surface',
     description: (
       <>
-        Signed manifests, JWT delegation, audit logs, checkpoints, Studio, and
-        testing tools make agent execution inspectable instead of opaque.
+        Services can declare side effects, expose permission discovery, return
+        structured failures, and attach audit and checkpoint evidence to what
+        ran.
       </>
     ),
   },
@@ -59,10 +62,10 @@ export default function HomepageFeatures(): ReactNode {
     <section className={styles.features}>
       <div className="container">
         <div className={styles.intro}>
-          <Heading as="h2">What ANIP adds</Heading>
+          <Heading as="h2">Why ANIP is different</Heading>
           <p>
-            ANIP is not just another transport or wrapper. It makes the
-            execution boundary legible to agents.
+            ANIP is not just another transport or wrapper. It is a protocol for
+            making agent execution legible, governable, and reviewable.
           </p>
         </div>
         <div className="row">
@@ -72,23 +75,23 @@ export default function HomepageFeatures(): ReactNode {
         </div>
         <div className={styles.matrix}>
           <div>
-            <Heading as="h3">Core protocol surface</Heading>
+            <Heading as="h3">What ANIP makes explicit</Heading>
             <ul>
-              <li>Capability declaration</li>
-              <li>Delegation and scoped JWT authority</li>
+              <li>Capability declarations and required authority</li>
+              <li>Delegation and scoped JWT permissions</li>
               <li>Permission discovery before invoke</li>
-              <li>Structured failures and recovery hints</li>
-              <li>Audit logs and checkpoints</li>
+              <li>Structured failures and recovery guidance</li>
+              <li>Audit logs, checkpoints, and trust signals</li>
             </ul>
           </div>
           <div>
-            <Heading as="h3">Shipping ecosystem</Heading>
+            <Heading as="h3">What teams can build with it</Heading>
             <ul>
-              <li>HTTP, stdio, and gRPC bindings</li>
-              <li>TypeScript, Python, Java, Go, and C# runtimes</li>
-              <li>REST, GraphQL, and MCP adapters</li>
-              <li>ANIP Studio for inspection and invocation</li>
-              <li>Conformance and contract testing</li>
+              <li>Higher-trust internal agent workflows</li>
+              <li>Operational and infrastructure actions with explicit rollback posture</li>
+              <li>Services that expose native ANIP plus REST, GraphQL, and MCP adapters</li>
+              <li>Multi-transport runtimes over HTTP, stdio, and gRPC</li>
+              <li>Inspection and verification through Studio and testing tools</li>
             </ul>
           </div>
         </div>
