@@ -14,6 +14,19 @@ const config: Config = {
   organizationName: 'anip-protocol',
   projectName: 'anip',
   onBrokenLinks: 'throw',
+  headTags: [
+    {
+      tagName: 'meta',
+      attributes: {
+        name: 'algolia-site-verification',
+        content: 'E586DBDFBA5FD8E7',
+      },
+    },
+  ],
+  markdown: {
+    mermaid: true,
+  },
+  themes: ['@docusaurus/theme-mermaid'],
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
