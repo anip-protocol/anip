@@ -19,7 +19,9 @@ const sidebars: SidebarsConfig = {
       label: 'Protocol',
       items: [
         'protocol/capabilities',
+        'protocol/authentication',
         'protocol/delegation-permissions',
+        'protocol/lineage',
         'protocol/failures-cost-audit',
         'protocol/checkpoints-trust',
       ],
