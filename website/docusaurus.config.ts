@@ -27,7 +27,12 @@ const config: Config = {
           editUrl:
             'https://github.com/anip-protocol/anip/tree/main/website/',
         },
-        blog: false,
+        blog: {
+          showReadingTime: true,
+          blogTitle: 'ANIP Blog',
+          blogDescription: 'Thoughts on agent interfaces, trust, and protocol design.',
+          editUrl: 'https://github.com/anip-protocol/anip/tree/main/website/',
+        },
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -56,6 +61,7 @@ const config: Config = {
         },
         {to: '/docs/getting-started/install', label: 'Install', position: 'left'},
         {to: '/docs/releases/version-history', label: 'Versions', position: 'left'},
+        {to: '/blog', label: 'Blog', position: 'left'},
         {href: 'https://studio.anip.dev', label: 'Studio', position: 'right'},
         {
           href: 'https://github.com/anip-protocol/anip',

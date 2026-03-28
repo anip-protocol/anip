@@ -76,4 +76,25 @@ In these environments, the important question is not "can the model call the too
 - Who can fix a block?
 - How do we verify what happened later?
 
+## More than tool interoperability
+
+The real difference between MCP and ANIP is not just transport or discovery. It is role.
+
+**MCP is a tool-interoperability layer.** It helps a model discover and call tools. That's valuable and important.
+
+**ANIP can also function as an agent control-plane protocol.** It governs how execution boundaries move through an agent system — across planners, policy services, approval layers, execution workers, and audit infrastructure.
+
+In simple systems, the model calls a tool directly and recovers from errors. In more serious systems, there are delegation chains, narrowed authority, approval steps, policy mediation, and checkpointed evidence. In those environments, ANIP isn't just a tool surface — it becomes part of the internal system that governs how agent actions are authorized, constrained, executed, and recorded.
+
+## Adoption is incremental
+
+ANIP does not require every service to implement the full trust stack. It has a lightweight core and optional trust layers:
+
+1. **Start with capabilities**: Declare what the service does, side effects, costs, structured failures. This alone is more useful than raw API access.
+2. **Add delegation**: Scoped JWT tokens, permission discovery. This enables purpose-bound agent access.
+3. **Add trust**: Signed manifests, JWKS, audit logging. This makes the service verifiable.
+4. **Add anchoring**: Merkle checkpoints, external anchoring. This provides tamper-evident evidence for compliance.
+
+A lightweight ANIP service is still a valid ANIP service. Stronger trust is layered on top as deployment requirements grow.
+
 That is the space ANIP is designed to occupy.
