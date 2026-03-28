@@ -1,0 +1,53 @@
+.features {
+  padding: 4rem 0 5rem;
+  width: 100%;
+}
+
+.intro {
+  max-width: 44rem;
+  margin: 0 auto 2rem;
+  text-align: center;
+}
+
+.card {
+  height: 100%;
+  padding: 1.5rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 1rem;
+  background: var(--ifm-card-background-color);
+  box-shadow: 0 10px 30px rgba(12, 46, 54, 0.06);
+}
+
+.eyebrow {
+  margin-bottom: 0.75rem;
+  color: var(--ifm-color-primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.matrix {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.matrix > div {
+  padding: 1.5rem;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(228, 247, 244, 0.85), rgba(255, 255, 255, 0.95));
+  border: 1px solid rgba(14, 124, 123, 0.16);
+}
+
+.matrix ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+@media screen and (max-width: 996px) {
+  .matrix {
+    grid-template-columns: 1fr;
+  }
+}
