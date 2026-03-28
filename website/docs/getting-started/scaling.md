@@ -12,18 +12,19 @@ ANIP services scale horizontally by running multiple stateless replicas behind a
 
 ## Architecture
 
-```
-                    +---> Replica 1 (API + background jobs)
-                    |
-Load Balancer ------+---> Replica 2 (API + background jobs + checkpoint leader*)
-                    |
-                    +---> Replica N (API + background jobs)
+```mermaid
+graph TD
+    LB["Load Balancer"] --> R1["Replica 1"]
+    LB --> R2["Replica 2"]
+    LB --> RN["Replica N"]
 
-                    * Leader elected per-tick via lease table.
-                      Any replica becomes leader if current one fails.
+    R1 --> PG["PostgreSQL<br/>(audit, tokens, checkpoints)"]
+    R2 --> PG
+    RN --> PG
 
-Shared: PostgreSQL (audit, tokens, checkpoints, leases)
-Shared: Signing key material (mounted secret or KMS)
+    R1 --> Keys["Signing Keys<br/>(mounted secret or KMS)"]
+    R2 --> Keys
+    RN --> Keys
 ```
 
 Any replica can handle any request. Coordination happens through lease tables in PostgreSQL:

@@ -26,19 +26,18 @@ ANIP fills that gap.
 
 An ANIP service exposes a standard set of endpoints that agents interact with in a predictable sequence:
 
-```
-┌─────────────────────────────────────────────────────┐
-│                    ANIP Service                      │
-│                                                      │
-│  /.well-known/anip          Discovery document       │
-│  /.well-known/jwks.json     Public signing keys      │
-│  /anip/manifest             Signed capability list   │
-│  /anip/tokens               Issue delegation tokens  │
-│  /anip/permissions          Check what's allowed     │
-│  /anip/invoke/{cap}         Invoke a capability      │
-│  /anip/audit                Query audit log          │
-│  /anip/checkpoints          Verification evidence    │
-└─────────────────────────────────────────────────────┘
+```mermaid
+graph LR
+    subgraph ANIP Service
+        A["/.well-known/anip — Discovery"]
+        B["/.well-known/jwks.json — Public keys"]
+        C["/anip/manifest — Signed capabilities"]
+        D["/anip/tokens — Issue delegation tokens"]
+        E["/anip/permissions — Check what's allowed"]
+        F["/anip/invoke/{cap} — Invoke capability"]
+        G["/anip/audit — Query audit log"]
+        H["/anip/checkpoints — Verification evidence"]
+    end
 ```
 
 **The agent workflow:**

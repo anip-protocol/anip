@@ -22,12 +22,12 @@ Without lineage, the audit log shows: "booking agent called book_flight and it f
 
 With ANIP lineage, the full chain is traceable:
 
-```
-human:alice@company.com
-  → delegated to agent:trip-planner (scope: travel.*, budget: $2000)
-    → delegated to agent:booking-agent (scope: travel.book, budget: $800)
-      → invoked book_flight (failed: budget_exceeded)
-        → resolution.grantable_by: human:alice@company.com
+```mermaid
+graph TD
+    A["human:alice@company.com"] -->|"delegates scope: travel.*, budget: $2000"| B["agent:trip-planner"]
+    B -->|"delegates scope: travel.book, budget: $800"| C["agent:booking-agent"]
+    C -->|"invokes book_flight"| D["FAILED: budget_exceeded"]
+    D -.->|"resolution.grantable_by"| A
 ```
 
 ## How lineage works in ANIP
@@ -85,15 +85,16 @@ The `actor_key` shows who directly invoked. The `root_principal` shows who origi
 
 When agents interact with multiple ANIP services as part of a single workflow, `client_reference_id` provides cross-service correlation:
 
-```
-Trip Planning Workflow (ref: "trip-2026")
-├── Travel Service
-│   ├── search_flights (ref: "trip-2026-search")     → inv_1a2b
-│   └── book_flight   (ref: "trip-2026-book")        → inv_3c4d
-├── Hotel Service
-│   └── book_hotel     (ref: "trip-2026-hotel")       → inv_5e6f
-└── Expense Service
-    └── create_expense (ref: "trip-2026-expense")      → inv_7g8h
+```mermaid
+graph TD
+    W["Trip Planning Workflow<br/>ref: trip-2026"] --> T["Travel Service"]
+    W --> H["Hotel Service"]
+    W --> E["Expense Service"]
+
+    T --> T1["search_flights<br/>ref: trip-2026-search → inv_1a2b"]
+    T --> T2["book_flight<br/>ref: trip-2026-book → inv_3c4d"]
+    H --> H1["book_hotel<br/>ref: trip-2026-hotel → inv_5e6f"]
+    E --> E1["create_expense<br/>ref: trip-2026-expense → inv_7g8h"]
 ```
 
 Each service has its own audit log with its own `invocation_id`, but the shared `client_reference_id` prefix lets an operator reconstruct the full workflow across services.
