@@ -3,6 +3,9 @@ title: Interface Adapters
 description: Mount REST, GraphQL, and MCP alongside native ANIP on the same service.
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Interface Adapters
 
 ANIP does not force you to choose between an agent-native interface and the rest of your API ecosystem. The same capability definitions that power ANIP can auto-generate REST, GraphQL, and MCP interfaces — all mounted on the same service.
@@ -19,6 +22,9 @@ ANIP does not force you to choose between an agent-native interface and the rest
 
 All adapters mount with one line alongside native ANIP:
 
+<Tabs groupId="language" queryString>
+<TabItem value="python" label="Python" default>
+
 ```python
 from anip_fastapi import mount_anip
 from anip_rest import mount_anip_rest
@@ -31,6 +37,9 @@ mount_anip_graphql(app, service)      # GraphQL at /graphql
 mount_anip_mcp_http(app, service)     # MCP at /mcp
 ```
 
+</TabItem>
+<TabItem value="typescript" label="TypeScript">
+
 ```typescript
 import { mountAnip } from "@anip/hono";
 import { mountAnipRest } from "@anip/rest";
@@ -42,6 +51,44 @@ await mountAnipRest(app, service);
 await mountAnipGraphQL(app, service);
 await mountAnipMcpHono(app, service);
 ```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+httpapi.MountANIP(mux, svc)              // Native ANIP
+restapi.MountANIPRest(mux, svc, nil)     // REST at /api/*
+graphqlapi.MountANIPGraphQL(mux, svc, nil) // GraphQL at /graphql
+mcpapi.MountAnipMcpHTTP(mux, svc, nil)   // MCP at /mcp
+```
+
+</TabItem>
+<TabItem value="java" label="Java (Spring)">
+
+```java
+// Spring auto-wires controllers as beans:
+@Bean public AnipController anip(ANIPService s) { return new AnipController(s); }
+@Bean public AnipRestController rest(ANIPService s) { return new AnipRestController(s); }
+@Bean public AnipGraphQLController gql(ANIPService s) { return new AnipGraphQLController(s); }
+// MCP via servlet registration
+```
+
+</TabItem>
+<TabItem value="csharp" label="C#">
+
+```csharp
+builder.Services.AddAnip(service);
+builder.Services.AddAnipMcp(service);
+builder.Services.AddControllers()
+    .AddApplicationPart(typeof(AnipRestController).Assembly)
+    .AddApplicationPart(typeof(AnipGraphQLController).Assembly);
+
+app.MapControllers();
+app.MapAnipMcp();
+```
+
+</TabItem>
+</Tabs>
 
 ## What adapters provide vs. native ANIP
 

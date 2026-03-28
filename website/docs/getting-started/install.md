@@ -3,101 +3,155 @@ title: Install
 description: Install ANIP by ecosystem and understand what is already published today.
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Install
 
-ANIP is already available across multiple ecosystems.
+ANIP is available across multiple ecosystems. Pick your language to get started.
 
-## TypeScript
+## Runtime packages
 
-Published to npm.
+<Tabs groupId="language" queryString>
+<TabItem value="python" label="Python" default>
 
-```bash
-npm install @anip/service @anip/hono
-```
-
-Other published packages include:
-
-- `@anip/core`
-- `@anip/crypto`
-- `@anip/server`
-- `@anip/express`
-- `@anip/fastify`
-- `@anip/rest`
-- `@anip/graphql`
-- `@anip/mcp`
-- `@anip/stdio`
-
-## Python
-
-Published to PyPI.
+Published to **PyPI**. Install the service runtime and a framework adapter:
 
 ```bash
 pip install anip-service anip-fastapi
 ```
 
-Other published packages include:
+**All published packages:**
 
-- `anip-core`
-- `anip-crypto`
-- `anip-server`
-- `anip-rest`
-- `anip-graphql`
-- `anip-mcp`
-- `anip-studio`
-- `anip-stdio`
-- `anip-grpc`
+| Package | Purpose |
+|---------|---------|
+| `anip-core` | Models, types, constants |
+| `anip-crypto` | Key management, JWT, signing |
+| `anip-server` | Protocol engine (delegation, audit, checkpoints) |
+| `anip-service` | Service runtime (capabilities, handlers) |
+| `anip-fastapi` | FastAPI framework adapter |
+| `anip-rest` | REST / OpenAPI interface adapter |
+| `anip-graphql` | GraphQL interface adapter |
+| `anip-mcp` | MCP Streamable HTTP interface adapter |
+| `anip-studio` | Studio embedded UI adapter |
+| `anip-stdio` | stdio transport (JSON-RPC 2.0) |
+| `anip-grpc` | gRPC transport |
 
-## Java
+</TabItem>
+<TabItem value="typescript" label="TypeScript">
 
-Published to Maven Central under `dev.anip`.
+Published to **npm** under the `@anip` scope. Install the service runtime and a framework adapter:
 
-```xml
-<dependency>
-  <groupId>dev.anip</groupId>
-  <artifactId>anip-service</artifactId>
-  <version>VERSION</version>
-</dependency>
+```bash
+npm install @anip/service @anip/hono
 ```
 
-## Go
+**All published packages:**
 
-Consumed as a Go module.
+| Package | Purpose |
+|---------|---------|
+| `@anip/core` | Models, types, constants |
+| `@anip/crypto` | Key management, JWT, signing |
+| `@anip/server` | Protocol engine |
+| `@anip/service` | Service runtime |
+| `@anip/hono` | Hono framework adapter |
+| `@anip/express` | Express framework adapter |
+| `@anip/fastify` | Fastify framework adapter |
+| `@anip/rest` | REST / OpenAPI interface adapter |
+| `@anip/graphql` | GraphQL interface adapter |
+| `@anip/mcp` | MCP shared core |
+| `@anip/mcp-hono` | MCP adapter for Hono |
+| `@anip/mcp-express` | MCP adapter for Express |
+| `@anip/mcp-fastify` | MCP adapter for Fastify |
+| `@anip/stdio` | stdio transport (JSON-RPC 2.0) |
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+Consumed as a **Go module** via version tags:
 
 ```bash
 go get github.com/anip-protocol/anip/packages/go@vVERSION
 ```
 
-## C#
+**Packages in the module:**
 
-Current status:
+`core`, `crypto`, `server`, `service`, `httpapi`, `ginapi`, `restapi`, `graphqlapi`, `mcpapi`, `stdioapi`, `grpcapi`
 
-- runtime exists in-repo
-- NuGet publishing is not configured yet
+</TabItem>
+<TabItem value="java" label="Java">
+
+Published to **Maven Central** under group `dev.anip`:
+
+```xml
+<dependency>
+  <groupId>dev.anip</groupId>
+  <artifactId>anip-service</artifactId>
+  <version>0.11.0</version>
+</dependency>
+```
+
+**All published modules:**
+
+| Module | Purpose |
+|--------|---------|
+| `anip-core` | Models, types |
+| `anip-crypto` | Key management, JWT |
+| `anip-server` | Protocol engine |
+| `anip-service` | Service runtime |
+| `anip-spring-boot` | Spring Boot adapter |
+| `anip-quarkus` | Quarkus adapter |
+| `anip-rest` / `anip-rest-spring` / `anip-rest-quarkus` | REST adapters |
+| `anip-graphql` / `anip-graphql-spring` / `anip-graphql-quarkus` | GraphQL adapters |
+| `anip-mcp` / `anip-mcp-spring` / `anip-mcp-quarkus` | MCP adapters |
+| `anip-stdio` | stdio transport |
+
+</TabItem>
+<TabItem value="csharp" label="C#">
+
+C# packages are available **in-repo** (NuGet publishing coming soon):
+
+```bash
+# From the ANIP repo root:
+dotnet add reference packages/csharp/src/Anip.Service
+dotnet add reference packages/csharp/src/Anip.AspNetCore
+```
+
+**All projects:** `Anip.Core`, `Anip.Crypto`, `Anip.Server`, `Anip.Service`, `Anip.AspNetCore`, `Anip.Rest`, `Anip.Rest.AspNetCore`, `Anip.GraphQL`, `Anip.GraphQL.AspNetCore`, `Anip.Mcp`, `Anip.Mcp.AspNetCore`, `Anip.Stdio`
+
+</TabItem>
+</Tabs>
 
 ## Studio
 
-Studio can run:
-
-- embedded at `/studio` inside a Python ANIP service
-- standalone as a Dockerized static app built from `studio/`
+Studio runs in two modes — no language dependency for standalone:
 
 ```bash
+# Standalone via Docker (connects to any ANIP service)
 docker build -t anip-studio studio/
 docker run -p 3000:80 anip-studio
 ```
 
-## Conformance and contract testing
-
-Conformance is currently an in-repo tool:
+Or embedded inside a Python service:
 
 ```bash
-pip install -e ./conformance
-pytest conformance/ --base-url=http://localhost:9100 --bootstrap-bearer=demo-human-key
+pip install anip-studio
 ```
 
-Contract testing is also currently in-repo:
+```python
+from anip_studio import mount_anip_studio
+mount_anip_studio(app, service)
+# → http://localhost:9100/studio/
+```
+
+## Testing tools
 
 ```bash
+# Conformance suite — validates protocol compliance
+pip install -e ./conformance
+pytest conformance/ --base-url=http://localhost:9100 --bootstrap-bearer=demo-human-key
+
+# Contract testing — validates behavioral truthfulness
 pip install -e ./contract-tests
 anip-contract-tests --base-url=http://localhost:9100 --test-pack=contract-tests/packs/travel.json
 ```

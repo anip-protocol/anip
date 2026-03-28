@@ -3,29 +3,90 @@ title: Quickstart
 description: Build and run an ANIP service, then inspect it with curl and Studio.
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Quickstart
 
-Build a working ANIP service in Python, run it, and explore all 9 protocol endpoints.
-
-## Prerequisites
-
-- Python 3.11+
-- pip
+Build a working ANIP service, run it, and explore all 9 protocol endpoints.
 
 ## 1. Install
+
+<Tabs groupId="language" queryString>
+<TabItem value="python" label="Python" default>
+
+**Prerequisites:** Python 3.11+
 
 ```bash
 pip install anip-service anip-fastapi uvicorn
 ```
 
+</TabItem>
+<TabItem value="typescript" label="TypeScript">
+
+**Prerequisites:** Node.js 20+
+
+```bash
+npm install @anip/service @anip/hono
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+**Prerequisites:** Go 1.22+
+
+```bash
+go get github.com/anip-protocol/anip/packages/go
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+**Prerequisites:** Java 21+, Maven
+
+```xml
+<dependency>
+  <groupId>dev.anip</groupId>
+  <artifactId>anip-service</artifactId>
+  <version>0.11.0</version>
+</dependency>
+<dependency>
+  <groupId>dev.anip</groupId>
+  <artifactId>anip-spring-boot</artifactId>
+  <version>0.11.0</version>
+</dependency>
+```
+
+</TabItem>
+<TabItem value="csharp" label="C#">
+
+**Prerequisites:** .NET 8+
+
+C# packages are available in-repo (NuGet publishing coming soon):
+
+```bash
+# From the ANIP repo root:
+dotnet add reference packages/csharp/src/Anip.Service
+dotnet add reference packages/csharp/src/Anip.AspNetCore
+```
+
+</TabItem>
+</Tabs>
+
 ## 2. Create your service
+
+<Tabs groupId="language" queryString>
+<TabItem value="python" label="Python" default>
 
 Create `app.py`:
 
 ```python
 from fastapi import FastAPI
 from anip_service import ANIPService, Capability
-from anip_core import CapabilityDeclaration, CapabilityInput, CapabilityOutput, SideEffect, SideEffectType
+from anip_core import (
+    CapabilityDeclaration, CapabilityInput, CapabilityOutput,
+    SideEffect, SideEffectType,
+)
 from anip_fastapi import mount_anip
 
 # Business logic — ANIP-free
@@ -35,7 +96,7 @@ def do_search(origin, destination):
         {"flight_number": "DL310", "origin": origin, "destination": destination, "price": 280},
     ]
 
-# Capability declaration — tells agents what this does before they call it
+# Capability declaration
 search_flights = Capability(
     declaration=CapabilityDeclaration(
         name="search_flights",
@@ -65,15 +126,214 @@ app = FastAPI()
 mount_anip(app, service)
 ```
 
-## 3. Run it
+Run it:
 
 ```bash
 uvicorn app:app --port 9100
 ```
 
-## 4. Explore the protocol
+</TabItem>
+<TabItem value="typescript" label="TypeScript">
 
-Now use curl to walk through each ANIP endpoint:
+Create `app.ts`:
+
+```typescript
+import { Hono } from "hono";
+import { createANIPService, defineCapability } from "@anip/service";
+import { mountAnip } from "@anip/hono";
+
+// Business logic — ANIP-free
+function doSearch(origin: string, destination: string) {
+  return [
+    { flight_number: "AA100", origin, destination, price: 420 },
+    { flight_number: "DL310", origin, destination, price: 280 },
+  ];
+}
+
+// Capability declaration
+const searchFlights = defineCapability({
+  name: "search_flights",
+  description: "Search available flights between airports",
+  contractVersion: "1.0",
+  inputs: [
+    { name: "origin", type: "airport_code", description: "Departure airport" },
+    { name: "destination", type: "airport_code", description: "Arrival airport" },
+  ],
+  output: { type: "flight_list", fields: ["flight_number", "price"] },
+  sideEffect: { type: "read" },
+  minimumScope: ["travel.search"],
+  handler: async (ctx, params) => ({
+    flights: doSearch(params.origin, params.destination),
+  }),
+});
+
+// Service setup
+const service = createANIPService({
+  serviceId: "quickstart-flights",
+  capabilities: [searchFlights],
+  storage: { type: "sqlite", path: "quickstart.db" },
+  trust: "signed",
+  authenticate: (bearer) =>
+    ({ "demo-key": "human:demo@example.com" })[bearer] ?? null,
+});
+
+const app = new Hono();
+mountAnip(app, service);
+export default { port: 9100, fetch: app.fetch };
+```
+
+Run it:
+
+```bash
+npx tsx app.ts
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+Create `main.go`:
+
+```go
+package main
+
+import (
+    "net/http"
+    "github.com/anip-protocol/anip/packages/go/service"
+    "github.com/anip-protocol/anip/packages/go/httpapi"
+)
+
+func searchFlights() service.CapabilityDef {
+    return service.CapabilityDef{
+        Name:        "search_flights",
+        Description: "Search available flights between airports",
+        SideEffect:  "read",
+        Scope:       []string{"travel.search"},
+        Handler: func(ctx service.InvokeContext, params map[string]any) (any, error) {
+            return map[string]any{
+                "flights": []map[string]any{
+                    {"flight_number": "AA100", "price": 420},
+                    {"flight_number": "DL310", "price": 280},
+                },
+            }, nil
+        },
+    }
+}
+
+func main() {
+    svc, _ := service.New(service.Config{
+        ServiceID:    "quickstart-flights",
+        Capabilities: []service.CapabilityDef{searchFlights()},
+        Storage:      "sqlite:///quickstart.db",
+        Trust:        "signed",
+        Authenticate: func(bearer string) *string {
+            keys := map[string]string{"demo-key": "human:demo@example.com"}
+            if p, ok := keys[bearer]; ok { return &p }
+            return nil
+        },
+    })
+    defer svc.Shutdown()
+    svc.Start()
+
+    mux := http.NewServeMux()
+    httpapi.MountANIP(mux, svc)
+    http.ListenAndServe(":9100", mux)
+}
+```
+
+Run it:
+
+```bash
+go run main.go
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+Create `Application.java`:
+
+```java
+@SpringBootApplication
+public class Application {
+
+    @Bean
+    public ANIPService anipService() {
+        return new ANIPService(new ServiceConfig()
+            .setServiceId("quickstart-flights")
+            .setCapabilities(List.of(searchFlightsCapability()))
+            .setStorage("sqlite:///quickstart.db")
+            .setTrust("signed")
+            .setAuthenticate(bearer -> {
+                var keys = Map.of("demo-key", "human:demo@example.com");
+                return Optional.ofNullable(keys.get(bearer));
+            }));
+    }
+
+    @Bean
+    public AnipController anipController(ANIPService svc) {
+        return new AnipController(svc);
+    }
+
+    static CapabilityDef searchFlightsCapability() {
+        return new CapabilityDef()
+            .setName("search_flights")
+            .setDescription("Search available flights")
+            .setSideEffect("read")
+            .setScope(List.of("travel.search"))
+            .setHandler((ctx, params) -> Map.of(
+                "flights", List.of(
+                    Map.of("flight_number", "AA100", "price", 420),
+                    Map.of("flight_number", "DL310", "price", 280)
+                )
+            ));
+    }
+}
+```
+
+Run it:
+
+```bash
+mvn spring-boot:run
+```
+
+</TabItem>
+<TabItem value="csharp" label="C#">
+
+Create `Program.cs`:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+var service = new AnipService(new ServiceConfig {
+    ServiceId = "quickstart-flights",
+    Capabilities = [SearchFlightsCapability.Create()],
+    Storage = "sqlite:///quickstart.db",
+    Trust = "signed",
+    Authenticate = bearer => {
+        var keys = new Dictionary<string, string> {
+            ["demo-key"] = "human:demo@example.com"
+        };
+        return keys.TryGetValue(bearer, out var p) ? p : null;
+    }
+});
+
+builder.Services.AddAnip(service);
+var app = builder.Build();
+app.MapControllers();
+app.Run("http://localhost:9100");
+```
+
+Run it:
+
+```bash
+dotnet run
+```
+
+</TabItem>
+</Tabs>
+
+## 3. Explore the protocol
+
+Now use curl to walk through each ANIP endpoint. These commands work the same regardless of which runtime you chose above.
 
 ### Discovery
 
@@ -175,9 +435,12 @@ curl -X POST http://localhost:9100/anip/audit \
 
 Every invocation is automatically logged with the capability name, caller identity, event classification, and timestamp.
 
-## 5. Open Studio
+## 4. Open Studio
 
 For a visual experience, add the Studio adapter:
+
+<Tabs groupId="language" queryString>
+<TabItem value="python" label="Python" default>
 
 ```bash
 pip install anip-studio
@@ -190,12 +453,59 @@ from anip_studio import mount_anip_studio
 mount_anip_studio(app, service)
 ```
 
-Open [http://localhost:9100/studio/](http://localhost:9100/studio/) to browse discovery, manifest, JWKS, audit, checkpoints, and invoke capabilities through a UI.
+</TabItem>
+<TabItem value="typescript" label="TypeScript">
+
+Studio is currently available as a Python adapter. You can run it standalone via Docker against any ANIP service:
+
+```bash
+docker build -t anip-studio studio/
+docker run -p 3000:80 anip-studio
+# Open http://localhost:3000 and connect to http://localhost:9100
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+Studio is currently available as a Python adapter. You can run it standalone via Docker against any ANIP service:
+
+```bash
+docker build -t anip-studio studio/
+docker run -p 3000:80 anip-studio
+# Open http://localhost:3000 and connect to http://localhost:9100
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+Studio is currently available as a Python adapter. You can run it standalone via Docker against any ANIP service:
+
+```bash
+docker build -t anip-studio studio/
+docker run -p 3000:80 anip-studio
+# Open http://localhost:3000 and connect to http://localhost:9100
+```
+
+</TabItem>
+<TabItem value="csharp" label="C#">
+
+Studio is currently available as a Python adapter. You can run it standalone via Docker against any ANIP service:
+
+```bash
+docker build -t anip-studio studio/
+docker run -p 3000:80 anip-studio
+# Open http://localhost:3000 and connect to http://localhost:9100
+```
+
+</TabItem>
+</Tabs>
+
+Open Studio to browse discovery, manifest, JWKS, audit, checkpoints, and invoke capabilities through a UI.
 
 ## What to notice
 
 - **Discovery** tells the agent what the service offers before any authentication
-- **The manifest** is signed — the agent can cryptographically verify the service's claims haven't been tampered with
+- **The manifest** is signed — the agent can cryptographically verify the service's claims
 - **Tokens** are scoped — the agent gets exactly the authority it needs, nothing more
 - **Permissions** are checkable before invoke — no more "try and see what happens"
 - **Failures** include structured recovery guidance, not just error codes
@@ -203,6 +513,6 @@ Open [http://localhost:9100/studio/](http://localhost:9100/studio/) to browse di
 
 ## Next steps
 
-- **[Install](/docs/getting-started/install)** — Package install commands for TypeScript, Java, Go, C#
+- **[Install](/docs/getting-started/install)** — Full package lists for all runtimes
 - **[Capability Declaration](/docs/protocol/capabilities)** — Deep dive into how capabilities work
 - **[Studio & Showcases](/docs/getting-started/studio-showcases)** — Run the full showcase apps
