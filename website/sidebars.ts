@@ -21,6 +21,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Protocol',
       items: [
+        'protocol/reference',
         'protocol/capabilities',
         'protocol/authentication',
         'protocol/delegation-permissions',
