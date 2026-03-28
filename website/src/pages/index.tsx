@@ -20,9 +20,14 @@ function HomepageHeader() {
           </Heading>
           <p className="hero__subtitle">{siteConfig.tagline}</p>
           <p className={styles.heroLead}>
-            ANIP gives agents the context REST and MCP leave implicit:
-            authority, permissions, side effects, rollback posture, cost,
-            failure recovery, auditability, and transport-neutral execution.
+            ANIP is a protocol for agent execution where permissions, side
+            effects, rollback posture, cost, failure recovery, and auditability
+            are explicit before an action runs.
+          </p>
+          <p className={styles.heroDetail}>
+            REST and MCP can expose tools and interfaces, but they still leave
+            critical execution context implicit. ANIP makes that context part of
+            the contract.
           </p>
           <div className={styles.ctaRow}>
             <Link className="button button--secondary button--lg" to="/docs/intro">
@@ -57,11 +62,10 @@ function HomepageHeader() {
 }
 
 export default function Home(): ReactNode {
-  const {siteConfig} = useDocusaurusContext();
   return (
     <Layout
-      title="Protocol, runtimes, tooling, and examples for agent-native interfaces"
-      description="ANIP explains what an agent is allowed to do before it invokes, not after it fails. Learn the protocol, transports, examples, Studio, and release surface.">
+      title="A protocol for explicit, governable agent execution"
+      description="ANIP makes permissions, side effects, rollback posture, cost, failure recovery, and auditability explicit before an agent invokes.">
       <HomepageHeader />
       <main>
         <HomepageFeatures />
@@ -69,26 +73,24 @@ export default function Home(): ReactNode {
           <div className="container">
             <div className={styles.sectionGrid}>
               <div className={styles.sectionCard}>
-                <Heading as="h2">Why teams adopt ANIP</Heading>
+                <Heading as="h2">What ANIP enables</Heading>
                 <ul className={styles.sectionList}>
-                  <li>Agents can inspect permissions before invoke.</li>
-                  <li>Side effects and rollback posture are declared instead of guessed.</li>
-                  <li>Failures describe what blocked the action and how to recover.</li>
-                  <li>Audit logs and checkpoints make execution reviewable.</li>
-                  <li>One service can expose native ANIP plus REST, GraphQL, and MCP surfaces.</li>
+                  <li>Agents can inspect permissions before trying a sensitive action.</li>
+                  <li>Service authors can declare whether an action is read-only, transactional, or irreversible.</li>
+                  <li>Infra and internal platform services can expose recoverable failure guidance instead of opaque errors.</li>
+                  <li>Teams can review what happened through audit logs, checkpoints, Studio, and testing tools.</li>
+                  <li>One execution model can be exposed over HTTP, stdio, and gRPC.</li>
                 </ul>
               </div>
               <div className={styles.sectionCard}>
-                <Heading as="h2">What ships today</Heading>
-                <pre>
-                  <code>{`TypeScript  npm packages
-Python      PyPI packages
-Java        Maven Central
-Go          module tags
-C#          in-repo runtime
-Studio      embedded + standalone
-Testing     conformance + contract tests`}</code>
-                </pre>
+                <Heading as="h2">Start here</Heading>
+                <div className={styles.linkList}>
+                  <Link to="/docs/getting-started/install">Install ANIP runtimes and packages</Link>
+                  <Link to="/docs/getting-started/quickstart">Follow the quickstart</Link>
+                  <Link to="/docs/tooling/studio">Inspect services with Studio</Link>
+                  <Link to="/docs/tooling/showcases">Explore the showcase apps</Link>
+                  <Link to="/docs/releases/what-ships-today">See what ships today</Link>
+                </div>
               </div>
             </div>
           </div>
