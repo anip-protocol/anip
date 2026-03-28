@@ -517,6 +517,70 @@ var service = new AnipService(new ServiceConfig {
 
 When `trust` is `"signed"` or higher, the runtime generates an Ed25519 key pair on first run (stored in `key_path`) and uses it to sign manifests, delegation tokens, and checkpoints.
 
+## Key management
+
+### How ANIP keys work (and how they differ from OIDC)
+
+If you've worked with Keycloak, Auth0, or any OAuth2/OIDC identity provider, you're used to JWKS as part of an identity trust chain — the IdP's JWKS proves that tokens were issued by a trusted authority, and relying parties use it to verify identity claims.
+
+ANIP JWKS is different. It's a **verification surface**, not a trust anchor.
+
+| | OIDC / OAuth2 JWKS | ANIP JWKS |
+|---|---|---|
+| **Scope** | Organization-wide identity provider | Per-service |
+| **What it verifies** | "This token was issued by our IdP" | "This manifest/token/checkpoint was signed by this service" |
+| **Trust source** | The IdP is the trust anchor | Trust comes from deployment context, not the key itself |
+| **Key management** | Centralized (IdP manages rotation) | Per-service (each service has its own key pair) |
+| **Who rotates** | IdP admin or platform automation | Service operator or platform automation |
+
+ANIP JWKS answers: *which public keys verify artifacts from this service?*
+
+It does **not** answer: *should I trust this service at all?*
+
+Trust comes from the wider deployment context — transport security, platform policy, service identity, and optionally anchored checkpoints that provide external verification.
+
+### Zero-config for development
+
+In development and local use, key management is invisible:
+
+1. Service starts with `trust: "signed"` and a `key_path`
+2. If no key exists at that path, the runtime generates an Ed25519 key pair automatically
+3. The public key is published at `/.well-known/jwks.json`
+4. The private key signs manifests, tokens, and checkpoints
+5. Keys persist across restarts (same `key_path` = same keys = consistent verification)
+
+You don't need to generate PEM files, configure certificates, or set up any key infrastructure. Just run the service.
+
+### Production key management
+
+In production, all replicas must use the same signing key (see [Horizontal Scaling](/docs/getting-started/scaling)). Options:
+
+| Approach | How it works | Best for |
+|----------|-------------|----------|
+| **Shared file path** | All replicas mount the same key directory | Simple deployments |
+| **Kubernetes Secret** | Mount a Secret at `key_path`, shared across the Deployment | Kubernetes |
+| **KMS-backed** | Custom `KeyManager` delegates signing to AWS KMS, GCP Cloud KMS, or HashiCorp Vault | High-security / regulated |
+
+### Key rotation
+
+When rotating keys:
+
+1. Deploy the new key material to all replicas
+2. During the rollover window, the JWKS publishes **both** old and new public keys
+3. New artifacts are signed with the new key
+4. Old artifacts remain verifiable with the old key (matched by `kid`)
+5. Remove the old key after the rollover/retention window
+
+**Important:** Coordinate key rotation as an atomic configuration change (e.g., update the Kubernetes Secret, then trigger a rolling restart). A rolling deploy that updates one replica at a time creates a window where different replicas sign with different keys.
+
+### Operational checklist
+
+| Environment | Key setup | Rotation | Monitoring |
+|-------------|-----------|----------|------------|
+| **Development** | Automatic (zero config) | Not needed | Not needed |
+| **Staging** | Shared file or Secret | Manual or automated | Verify JWKS endpoint returns expected `kid` |
+| **Production** | Kubernetes Secret or KMS | Automated with rollover window | Alert on JWKS `kid` mismatch across replicas |
+
 ## Checkpoint policy
 
 Control how often Merkle checkpoints are generated over the audit log:
