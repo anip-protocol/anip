@@ -68,6 +68,51 @@ export default function HomepageFeatures(): ReactNode {
             making agent execution legible, governable, and reviewable.
           </p>
         </div>
+        <div className={styles.diagramBlock}>
+          <div className={styles.diagramHeader}>
+            <Heading as="h3">What ANIP makes explicit</Heading>
+            <p>Discover, evaluate, invoke, and verify with the execution context attached.</p>
+          </div>
+          <div className={styles.flowRail}>
+            <span>Discover</span>
+            <span>Evaluate</span>
+            <span>Invoke</span>
+            <span>Verify</span>
+          </div>
+          <div className={styles.diagramGrid}>
+            <div className={styles.diagramCard}>
+              <div className={styles.diagramLabel}>Agent</div>
+              <ul>
+                <li>Discovers capability</li>
+                <li>Checks permissions</li>
+                <li>Sees side effects</li>
+                <li>Sees rollback and cost</li>
+              </ul>
+            </div>
+            <div className={styles.diagramCenter}>
+              <div className={styles.diagramLabel}>ANIP Service</div>
+              <div className={styles.serviceStack}>
+                <span>Manifest</span>
+                <span>Permissions</span>
+                <span>Invoke</span>
+                <span>Audit</span>
+                <span>Checkpoints</span>
+              </div>
+            </div>
+            <div className={styles.diagramCard}>
+              <div className={styles.diagramLabel}>Outcome</div>
+              <ul>
+                <li>Structured result or failure</li>
+                <li>Recovery guidance</li>
+                <li>Audit trail</li>
+                <li>Trust evidence</li>
+              </ul>
+            </div>
+          </div>
+          <p className={styles.diagramCaption}>
+            ANIP turns execution context into protocol surface instead of leaving it implicit in app logic.
+          </p>
+        </div>
         <div className="row">
           {FeatureList.map((props, idx) => (
             <Feature key={idx} {...props} />
