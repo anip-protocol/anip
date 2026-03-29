@@ -38,7 +38,7 @@ class StorageBackend(Protocol):
     async def get_checkpoint_by_id(self, checkpoint_id: str) -> dict[str, Any] | None: ...
 ```
 
-### TypeScript (`@anip/server`)
+### TypeScript (`@anip-dev/server`)
 
 ```typescript
 export interface StorageBackend {
@@ -211,24 +211,24 @@ Any `StorageBackend` implementation must provide these behavioral guarantees:
 
 | Layer | Python | TypeScript |
 |-------|--------|------------|
-| Core | anip-core | @anip/core |
-| Crypto | anip-crypto | @anip/crypto |
-| Server | anip-server | @anip/server |
-| Service | anip-service | @anip/service |
-| Binding | anip-fastapi | @anip/hono, @anip/express, @anip/fastify |
+| Core | anip-core | @anip-dev/core |
+| Crypto | anip-crypto | @anip-dev/crypto |
+| Server | anip-server | @anip-dev/server |
+| Service | anip-service | @anip-dev/service |
+| Binding | anip-fastapi | @anip-dev/hono, @anip-dev/express, @anip-dev/fastify |
 
 ### Change summary by package
 
 | Package | Change |
 |---------|--------|
 | `anip-server` (Python) | `StorageBackend` → async. `AuditLog` → async. `DelegationEngine` → async. `InMemoryStorage` → async. `SQLiteStorage` → async via `to_thread`. Compliance test fixtures added. |
-| `@anip/server` (TypeScript) | Same: `StorageBackend` → Promise-based. `AuditLog.query()` → async. `DelegationEngine` → async. `InMemoryStorage` → async. `SQLiteStorage` → async via worker thread. Compliance fixtures added. |
+| `@anip-dev/server` (TypeScript) | Same: `StorageBackend` → Promise-based. `AuditLog.query()` → async. `DelegationEngine` → async. `InMemoryStorage` → async. `SQLiteStorage` → async via worker thread. Compliance fixtures added. |
 | `anip-service` (Python) | `ANIPService` methods → async where storage-bound. Handler type accepts `Awaitable`. |
-| `@anip/service` (TypeScript) | `queryAudit`, `getCheckpoints`, `getCheckpoint` → async. Full internal audit of engine/storage call sites. |
+| `@anip-dev/service` (TypeScript) | `queryAudit`, `getCheckpoints`, `getCheckpoint` → async. Full internal audit of engine/storage call sites. |
 | `anip-fastapi` | Routes `await` async service methods. `_resolve_token` / `_extract_principal` → async. |
-| `@anip/hono`, `@anip/express`, `@anip/fastify` | `await` newly-async service calls. |
-| `anip-core`, `@anip/core` | No changes. Version bump only. |
-| `anip-crypto`, `@anip/crypto` | No changes. Version bump only. |
+| `@anip-dev/hono`, `@anip-dev/express`, `@anip-dev/fastify` | `await` newly-async service calls. |
+| `anip-core`, `@anip-dev/core` | No changes. Version bump only. |
+| `anip-crypto`, `@anip-dev/crypto` | No changes. Version bump only. |
 
 Inter-package deps updated to `>=0.5.0` / `"0.5.0"`.
 

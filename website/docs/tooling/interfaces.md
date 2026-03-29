@@ -41,10 +41,10 @@ mount_anip_mcp_http(app, service)     # MCP at /mcp
 <TabItem value="typescript" label="TypeScript">
 
 ```typescript
-import { mountAnip } from "@anip/hono";
-import { mountAnipRest } from "@anip/rest";
-import { mountAnipGraphQL } from "@anip/graphql";
-import { mountAnipMcpHono } from "@anip/mcp-hono";
+import { mountAnip } from "@anip-dev/hono";
+import { mountAnipRest } from "@anip-dev/rest";
+import { mountAnipGraphQL } from "@anip-dev/graphql";
+import { mountAnipMcpHono } from "@anip-dev/mcp-hono";
 
 mountAnip(app, service);
 await mountAnipRest(app, service);

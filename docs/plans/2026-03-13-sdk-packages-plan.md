@@ -178,7 +178,7 @@ mkdir -p packages/typescript/server/src packages/typescript/server/tests
 
 ```json
 {
-  "name": "@anip/core",
+  "name": "@anip-dev/core",
   "version": "0.3.0",
   "description": "ANIP protocol types, models, and constants",
   "type": "module",
@@ -202,7 +202,7 @@ mkdir -p packages/typescript/server/src packages/typescript/server/tests
 
 ```json
 {
-  "name": "@anip/crypto",
+  "name": "@anip-dev/crypto",
   "version": "0.3.0",
   "description": "ANIP cryptographic primitives — key management, JWT, JWS, JWKS",
   "type": "module",
@@ -213,7 +213,7 @@ mkdir -p packages/typescript/server/src packages/typescript/server/tests
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip/core": "0.3.0",
+    "@anip-dev/core": "0.3.0",
     "jose": "^6.2.1"
   },
   "devDependencies": {
@@ -227,7 +227,7 @@ mkdir -p packages/typescript/server/src packages/typescript/server/tests
 
 ```json
 {
-  "name": "@anip/server",
+  "name": "@anip-dev/server",
   "version": "0.3.0",
   "description": "ANIP server primitives — delegation, audit, checkpoints, Merkle trees",
   "type": "module",
@@ -238,8 +238,8 @@ mkdir -p packages/typescript/server/src packages/typescript/server/tests
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip/core": "0.3.0",
-    "@anip/crypto": "0.3.0",
+    "@anip-dev/core": "0.3.0",
+    "@anip-dev/crypto": "0.3.0",
     "better-sqlite3": "^12.6.2"
   },
   "devDependencies": {
@@ -282,7 +282,7 @@ export default defineConfig({
 
 Each `src/index.ts`:
 ```typescript
-// @anip/<package> — ANIP SDK
+// @anip-dev/<package> — ANIP SDK
 ```
 
 **Step 10: Install dependencies**
@@ -597,7 +597,7 @@ git commit -m "feat(anip-core): extract Python protocol models and constants"
 
 ---
 
-### Task 4: TypeScript @anip/core — protocol models
+### Task 4: TypeScript @anip-dev/core — protocol models
 
 Extract all Zod schemas from `examples/anip-ts/src/types.ts` into the core package.
 
@@ -753,7 +753,7 @@ Expected: All PASS.
 
 ```bash
 git add packages/typescript/core/
-git commit -m "feat(@anip/core): extract TypeScript protocol schemas and constants"
+git commit -m "feat(@anip-dev/core): extract TypeScript protocol schemas and constants"
 ```
 
 ---
@@ -1071,7 +1071,7 @@ git commit -m "feat(anip-crypto): add JWT, JWS, JWKS, and verification helpers"
 
 ---
 
-### Task 7: TypeScript @anip/crypto — full crypto package
+### Task 7: TypeScript @anip-dev/crypto — full crypto package
 
 Extract `KeyManager` from `examples/anip-ts/src/crypto.ts` and split into modules.
 
@@ -1245,7 +1245,7 @@ cd packages/typescript/crypto && npx vitest run
 
 ```bash
 git add packages/typescript/crypto/
-git commit -m "feat(@anip/crypto): extract TypeScript crypto package"
+git commit -m "feat(@anip-dev/crypto): extract TypeScript crypto package"
 ```
 
 ---
@@ -1874,7 +1874,7 @@ git commit -m "feat(anip-server): add permissions, manifest, audit, checkpoint, 
 
 ---
 
-### Task 12: TypeScript @anip/server — full server package
+### Task 12: TypeScript @anip-dev/server — full server package
 
 Mirror the Python server package structure for TypeScript.
 
@@ -2084,7 +2084,7 @@ Expected: All PASS.
 
 ```bash
 git add packages/typescript/server/
-git commit -m "feat(@anip/server): extract TypeScript server package"
+git commit -m "feat(@anip-dev/server): extract TypeScript server package"
 ```
 
 ---
@@ -2169,16 +2169,16 @@ Since `examples/anip-ts/` is outside the `packages/typescript/` workspace, use l
 ```json
 {
   "dependencies": {
-    "@anip/core": "file:../../packages/typescript/core",
-    "@anip/crypto": "file:../../packages/typescript/crypto",
-    "@anip/server": "file:../../packages/typescript/server",
+    "@anip-dev/core": "file:../../packages/typescript/core",
+    "@anip-dev/crypto": "file:../../packages/typescript/crypto",
+    "@anip-dev/server": "file:../../packages/typescript/server",
     "@hono/node-server": "^1.11.0",
     "hono": "^4.4.0"
   }
 }
 ```
 
-Note: When the packages are published to npm, these will be changed to version-pinned dependencies (`@anip/core: "0.3.0"`). The `file:` protocol creates symlinks during `npm install` so local changes are reflected immediately.
+Note: When the packages are published to npm, these will be changed to version-pinned dependencies (`@anip-dev/core: "0.3.0"`). The `file:` protocol creates symlinks during `npm install` so local changes are reflected immediately.
 
 Remove `better-sqlite3`, `jose`, `zod` from direct dependencies (now transitive through SDK packages).
 
@@ -2188,7 +2188,7 @@ Remove `better-sqlite3`, `jose`, `zod` from direct dependencies (now transitive 
 cd examples/anip-ts && npm install
 ```
 
-Verify that `node_modules/@anip/core`, `@anip/crypto`, `@anip/server` are symlinked to the local packages.
+Verify that `node_modules/@anip-dev/core`, `@anip-dev/crypto`, `@anip-dev/server` are symlinked to the local packages.
 
 **Step 3: Update imports throughout**
 
@@ -2201,9 +2201,9 @@ import { KeyManager } from "../crypto.js";
 import { validateDelegation } from "../primitives/delegation.js";
 
 // After:
-import type { ANIPManifest, DelegationToken } from "@anip/core";
-import { KeyManager } from "@anip/crypto";
-import { DelegationEngine, discoverPermissions, buildManifest } from "@anip/server";
+import type { ANIPManifest, DelegationToken } from "@anip-dev/core";
+import { KeyManager } from "@anip-dev/crypto";
+import { DelegationEngine, discoverPermissions, buildManifest } from "@anip-dev/server";
 ```
 
 **Step 4: Run existing tests**
@@ -2269,7 +2269,7 @@ gh pr create --title "feat: ANIP SDK packages extraction" --body "$(cat <<'EOF'
 - Extracts reusable SDK packages from the v0.3 reference implementations
 - Three packages per language: core (types), crypto (signing/verification), server (delegation, audit, checkpoints)
 - Python: anip-core, anip-crypto, anip-server (standalone PyPI packages)
-- TypeScript: @anip/core, @anip/crypto, @anip/server (npm workspace)
+- TypeScript: @anip-dev/core, @anip-dev/crypto, @anip-dev/server (npm workspace)
 - Examples refactored to consume SDK packages
 - Fresh public-API-focused tests for all packages
 - Existing example tests preserved as integration coverage

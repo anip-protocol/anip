@@ -1018,7 +1018,7 @@ Then regenerate the lockfile so CI's `npm ci` works:
 cd examples/anip-ts && npm install --package-lock-only && cd ../..
 ```
 
-This updates `package-lock.json` to reflect the new `@anip/*` versions from the local `file:` dependencies. Without this, `npm ci` will fail because the lockfile references 0.4.0 versions that no longer match the on-disk packages.
+This updates `package-lock.json` to reflect the new `@anip-dev/*` versions from the local `file:` dependencies. Without this, `npm ci` will fail because the lockfile references 0.4.0 versions that no longer match the on-disk packages.
 
 **Step 4: Verify PROTOCOL_VERSION is unchanged**
 

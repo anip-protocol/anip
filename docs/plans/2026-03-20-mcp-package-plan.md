@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Convert the standalone MCP adapters (`adapters/mcp-ts`, `adapters/mcp-py`) into reusable library packages (`@anip/mcp`, `anip-mcp`) that mount directly on an `ANIPService` instance — no HTTP proxying.
+**Goal:** Convert the standalone MCP adapters (`adapters/mcp-ts`, `adapters/mcp-py`) into reusable library packages (`@anip-dev/mcp`, `anip-mcp`) that mount directly on an `ANIPService` instance — no HTTP proxying.
 
 **Architecture:** Each package reuses the existing translation logic (capability → MCP tool schema, description enrichment) but replaces the HTTP invocation bridge with direct `service.invoke()` calls. Both packages support stdio transport only — mount on an MCP `Server` instance with mount-time credential config. SSE transport is deferred to a follow-up plan.
 
-**Tech Stack:** TypeScript (`@modelcontextprotocol/sdk`, `@anip/service`), Python (`mcp`, `anip-service`)
+**Tech Stack:** TypeScript (`@modelcontextprotocol/sdk`, `@anip-dev/service`), Python (`mcp`, `anip-service`)
 
 ---
 
@@ -37,7 +37,7 @@ packages/python/anip-mcp/
 
 ## Chunk 1: TypeScript MCP Package
 
-### Task 1: Scaffold `@anip/mcp` package
+### Task 1: Scaffold `@anip-dev/mcp` package
 
 **Files:**
 - Create: `packages/typescript/mcp/package.json`
@@ -48,7 +48,7 @@ packages/python/anip-mcp/
 
 ```json
 {
-  "name": "@anip/mcp",
+  "name": "@anip-dev/mcp",
   "version": "0.8.0",
   "description": "ANIP MCP bindings — expose ANIPService capabilities as MCP tools",
   "type": "module",
@@ -60,12 +60,12 @@ packages/python/anip-mcp/
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip/service": "0.8.0",
+    "@anip-dev/service": "0.8.0",
     "@modelcontextprotocol/sdk": "^1.12.0"
   },
   "devDependencies": {
-    "@anip/core": "0.8.0",
-    "@anip/server": "0.8.0",
+    "@anip-dev/core": "0.8.0",
+    "@anip-dev/server": "0.8.0",
     "typescript": "^5.5.0",
     "vitest": "^4.1.0"
   }
@@ -111,7 +111,7 @@ Expected: No errors (index.ts will fail until routes.ts exists — that's fine)
 
 ```bash
 git add packages/typescript/mcp/package.json packages/typescript/mcp/tsconfig.json packages/typescript/mcp/src/index.ts packages/typescript/package.json
-git commit -m "feat(mcp): scaffold @anip/mcp package"
+git commit -m "feat(mcp): scaffold @anip-dev/mcp package"
 ```
 
 ---
@@ -123,7 +123,7 @@ git commit -m "feat(mcp): scaffold @anip/mcp package"
 
 - [ ] **Step 1: Create translation.ts**
 
-Copy and adapt from `adapters/mcp-ts/src/translation.ts`. The logic is identical — no HTTP dependencies. Remove the import of `ANIPCapability` from `discovery.js` and use `@anip/core`'s `CapabilityDeclaration` instead.
+Copy and adapt from `adapters/mcp-ts/src/translation.ts`. The logic is identical — no HTTP dependencies. Remove the import of `ANIPCapability` from `discovery.js` and use `@anip-dev/core`'s `CapabilityDeclaration` instead.
 
 ```typescript
 /**
@@ -133,7 +133,7 @@ Copy and adapt from `adapters/mcp-ts/src/translation.ts`. The logic is identical
  * enriching descriptions with ANIP metadata that MCP cannot
  * natively represent.
  */
-import type { CapabilityDeclaration } from "@anip/core";
+import type { CapabilityDeclaration } from "@anip-dev/core";
 
 const TYPE_MAP: Record<string, string> = {
   string: "string",
@@ -268,8 +268,8 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import type { ANIPService } from "@anip/service";
-import { ANIPError } from "@anip/service";
+import type { ANIPService } from "@anip-dev/service";
+import { ANIPError } from "@anip-dev/service";
 import { capabilityToInputSchema, enrichDescription } from "./translation.js";
 
 export interface McpCredentials {
@@ -482,9 +482,9 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { createANIPService, defineCapability } from "@anip/service";
-import { InMemoryStorage } from "@anip/server";
-import type { CapabilityDeclaration } from "@anip/core";
+import { createANIPService, defineCapability } from "@anip-dev/service";
+import { InMemoryStorage } from "@anip-dev/server";
+import type { CapabilityDeclaration } from "@anip-dev/core";
 import { mountAnipMcp } from "../src/routes.js";
 import { capabilityToInputSchema, enrichDescription } from "../src/translation.js";
 
@@ -662,7 +662,7 @@ Expected: All tests pass
 
 ```bash
 git add packages/typescript/mcp/tests/mcp.test.ts
-git commit -m "feat(mcp): add tests for @anip/mcp package"
+git commit -m "feat(mcp): add tests for @anip-dev/mcp package"
 ```
 
 ---
@@ -1245,7 +1245,7 @@ Expected: All tests pass
 
 ```bash
 git add .github/workflows/ci-typescript.yml .github/workflows/ci-python.yml
-git commit -m "ci: add @anip/mcp and anip-mcp to CI workflows"
+git commit -m "ci: add @anip-dev/mcp and anip-mcp to CI workflows"
 ```
 
 ---

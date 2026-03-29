@@ -11,7 +11,7 @@ ANIP is not a spec waiting for implementations. Here's what's available now.
 
 | Ecosystem | Registry | Packages | Install |
 |-----------|----------|----------|---------|
-| TypeScript | npm | 14 packages (`@anip/core` through `@anip/stdio`) | `npm install @anip/service @anip/hono` |
+| TypeScript | npm | 14 packages (`@anip-dev/core` through `@anip-dev/stdio`) | `npm install @anip-dev/service @anip-dev/hono` |
 | Python | PyPI | 11 packages (`anip-core` through `anip-grpc`) | `pip install anip-service anip-fastapi` |
 | Java | Maven Central | 16 modules under `dev.anip` | See [Install](/docs/getting-started/install) |
 | Go | Module tags | 1 module with 12 packages | `go get github.com/anip-protocol/anip/packages/go` |

@@ -2,9 +2,9 @@
 
 **Goal:** Add HTTP transport support to the MCP packages so ANIP-backed MCP servers are usable over the network, not just stdio.
 
-**Architecture:** The existing `@anip/mcp` package gains a shared invocation core. Three new thin framework packages (`@anip/mcp-hono`, `@anip/mcp-express`, `@anip/mcp-fastify`) mount the MCP SDK's Streamable HTTP transport on their respective framework apps. Python's `anip-mcp` gains an `http.py` module for FastAPI. Auth is per-request from `Authorization: Bearer` headers — same JWT-first, API-key-fallback pattern as REST and GraphQL.
+**Architecture:** The existing `@anip-dev/mcp` package gains a shared invocation core. Three new thin framework packages (`@anip-dev/mcp-hono`, `@anip-dev/mcp-express`, `@anip-dev/mcp-fastify`) mount the MCP SDK's Streamable HTTP transport on their respective framework apps. Python's `anip-mcp` gains an `http.py` module for FastAPI. Auth is per-request from `Authorization: Bearer` headers — same JWT-first, API-key-fallback pattern as REST and GraphQL.
 
-**Tech Stack:** TypeScript (`@modelcontextprotocol/sdk` Streamable HTTP transports, `@anip/service`, Hono/Express/Fastify), Python (`mcp` StreamableHTTPServerTransport, `anip-service`, FastAPI)
+**Tech Stack:** TypeScript (`@modelcontextprotocol/sdk` Streamable HTTP transports, `@anip-dev/service`, Hono/Express/Fastify), Python (`mcp` StreamableHTTPServerTransport, `anip-service`, FastAPI)
 
 ---
 
@@ -18,10 +18,10 @@ MCP Streamable HTTP, not legacy SSE. The MCP SDK deprecated standalone SSE (`SSE
 
 | Package | Purpose | Depends On |
 |---------|---------|------------|
-| `@anip/mcp` | Shared core: translation, invocation/auth bridge, stdio mount | `@anip/service`, `@modelcontextprotocol/sdk` |
-| `@anip/mcp-hono` | Hono Streamable HTTP mount (`WebStandardStreamableHTTPServerTransport`) | `@anip/mcp`, `hono` |
-| `@anip/mcp-express` | Express Streamable HTTP mount (`StreamableHTTPServerTransport`) | `@anip/mcp`, `express` |
-| `@anip/mcp-fastify` | Fastify Streamable HTTP mount (`StreamableHTTPServerTransport`) | `@anip/mcp`, `fastify` |
+| `@anip-dev/mcp` | Shared core: translation, invocation/auth bridge, stdio mount | `@anip-dev/service`, `@modelcontextprotocol/sdk` |
+| `@anip-dev/mcp-hono` | Hono Streamable HTTP mount (`WebStandardStreamableHTTPServerTransport`) | `@anip-dev/mcp`, `hono` |
+| `@anip-dev/mcp-express` | Express Streamable HTTP mount (`StreamableHTTPServerTransport`) | `@anip-dev/mcp`, `express` |
+| `@anip-dev/mcp-fastify` | Fastify Streamable HTTP mount (`StreamableHTTPServerTransport`) | `@anip-dev/mcp`, `fastify` |
 
 ```
 packages/typescript/mcp/src/
@@ -61,8 +61,8 @@ packages/python/anip-mcp/src/anip_mcp/
 
 ```typescript
 // Hono — all interfaces on one server
-import { mountAnip } from "@anip/hono";
-import { mountAnipMcpHono } from "@anip/mcp-hono";
+import { mountAnip } from "@anip-dev/hono";
+import { mountAnipMcpHono } from "@anip-dev/mcp-hono";
 
 const app = new Hono();
 await mountAnip(app, service);              // ANIP protocol (owns lifecycle)
@@ -71,13 +71,13 @@ await mountAnipMcpHono(app, service);       // MCP Streamable HTTP at /mcp
 
 ```typescript
 // Express
-import { mountAnipMcpExpress } from "@anip/mcp-express";
+import { mountAnipMcpExpress } from "@anip-dev/mcp-express";
 await mountAnipMcpExpress(app, service);    // MCP Streamable HTTP at /mcp
 ```
 
 ```typescript
 // Fastify
-import { mountAnipMcpFastify } from "@anip/mcp-fastify";
+import { mountAnipMcpFastify } from "@anip-dev/mcp-fastify";
 await mountAnipMcpFastify(app, service);    // MCP Streamable HTTP at /mcp
 ```
 
@@ -242,14 +242,14 @@ def mount_anip_mcp_http(app: FastAPI, service: ANIPService, *, path: str = "/mcp
     # Mounts GET/POST/DELETE handlers on the FastAPI app at the given path
 ```
 
-## What Changes in `@anip/mcp`
+## What Changes in `@anip-dev/mcp`
 
 ### Refactored (not new logic, just extracted):
 
 - `invocation.ts` — `resolveAuth`, `invokeWithToken`, `translateResponse` extracted from current `routes.ts`
 - `routes.ts` — stdio mount refactored to use `invocation.ts` (keeps `invokeWithMountCredentials`)
 
-### New exports from `@anip/mcp`:
+### New exports from `@anip-dev/mcp`:
 
 - `buildMcpServer(service, opts?)` — creates an MCP `Server` with tools registered from the ANIPService. Used by all framework packages.
 - `resolveAuth`, `invokeWithToken`, `translateResponse` — shared by HTTP framework packages
@@ -275,7 +275,7 @@ Tests are end-to-end at the transport level using the real MCP Client SDK for fa
 TypeScript tests: Hono `app.request()`, supertest for Express, Fastify `inject()`.
 Python tests: FastAPI `TestClient`.
 
-### Shared core (`@anip/mcp`):
+### Shared core (`@anip-dev/mcp`):
 
 - `resolveAuth` — JWT success, API key fallback, invalid bearer re-throws `ANIPError`
 - `invokeWithToken` — success result, failure result with `isError`

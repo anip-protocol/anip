@@ -1,4 +1,4 @@
-# @anip/mcp-fastify
+# @anip-dev/mcp-fastify
 
 ANIP MCP Streamable HTTP transport for Fastify
 
@@ -7,7 +7,7 @@ Part of the [ANIP](https://github.com/anip-protocol/anip) protocol ecosystem.
 ## Install
 
 ```bash
-npm install @anip/mcp-fastify
+npm install @anip-dev/mcp-fastify
 ```
 
 ## Documentation

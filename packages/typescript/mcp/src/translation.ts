@@ -5,7 +5,7 @@
  * enriching descriptions with ANIP metadata that MCP cannot
  * natively represent.
  */
-import type { CapabilityDeclaration } from "@anip/core";
+import type { CapabilityDeclaration } from "@anip-dev/core";
 
 const TYPE_MAP: Record<string, string> = {
   string: "string",

@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Convert the standalone REST adapters (`adapters/rest-ts`, `adapters/rest-py`) into reusable library packages (`@anip/rest`, `anip-rest`) that mount RESTful API endpoints directly on an `ANIPService` instance — no HTTP proxying.
+**Goal:** Convert the standalone REST adapters (`adapters/rest-ts`, `adapters/rest-py`) into reusable library packages (`@anip-dev/rest`, `anip-rest`) that mount RESTful API endpoints directly on an `ANIPService` instance — no HTTP proxying.
 
-**Architecture:** Each package reuses the existing translation logic (capability → OpenAPI spec, route generation) but replaces the HTTP invocation bridge with direct `service.invoke()` calls. Auth is extracted from `Authorization: Bearer` headers — JWT mode resolves tokens directly, API-key mode issues a synthetic token per request. TypeScript starts with Hono (matching `@anip/hono`); Express/Fastify adapters follow the same pattern later. Python uses FastAPI.
+**Architecture:** Each package reuses the existing translation logic (capability → OpenAPI spec, route generation) but replaces the HTTP invocation bridge with direct `service.invoke()` calls. Auth is extracted from `Authorization: Bearer` headers — JWT mode resolves tokens directly, API-key mode issues a synthetic token per request. TypeScript starts with Hono (matching `@anip-dev/hono`); Express/Fastify adapters follow the same pattern later. Python uses FastAPI.
 
-**Tech Stack:** TypeScript (`@anip/service`, `hono`), Python (`anip-service`, `fastapi`)
+**Tech Stack:** TypeScript (`@anip-dev/service`, `hono`), Python (`anip-service`, `fastapi`)
 
 ---
 
@@ -37,7 +37,7 @@ packages/python/anip-rest/
 
 ## Chunk 1: TypeScript REST Package
 
-### Task 1: Scaffold `@anip/rest`
+### Task 1: Scaffold `@anip-dev/rest`
 
 **Files:**
 - Create: `packages/typescript/rest/package.json`
@@ -48,7 +48,7 @@ packages/python/anip-rest/
 
 ```json
 {
-  "name": "@anip/rest",
+  "name": "@anip-dev/rest",
   "version": "0.8.0",
   "description": "ANIP REST bindings — expose ANIPService capabilities as RESTful API endpoints",
   "type": "module",
@@ -60,12 +60,12 @@ packages/python/anip-rest/
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip/service": "0.8.0",
+    "@anip-dev/service": "0.8.0",
     "hono": "^4.0.0"
   },
   "devDependencies": {
-    "@anip/core": "0.8.0",
-    "@anip/server": "0.8.0",
+    "@anip-dev/core": "0.8.0",
+    "@anip-dev/server": "0.8.0",
     "typescript": "^5.5.0",
     "vitest": "^4.1.0"
   }
@@ -106,7 +106,7 @@ Add `"rest"` to the `workspaces` array in `packages/typescript/package.json`.
 
 ```bash
 git add packages/typescript/rest/ packages/typescript/package.json
-git commit -m "feat(rest): scaffold @anip/rest package"
+git commit -m "feat(rest): scaffold @anip-dev/rest package"
 ```
 
 ---
@@ -313,8 +313,8 @@ git commit -m "feat(rest): add OpenAPI translation and route generation"
  * ANIP REST bindings — mount RESTful API endpoints on a Hono app.
  */
 import type { Hono } from "hono";
-import type { ANIPService } from "@anip/service";
-import { ANIPError } from "@anip/service";
+import type { ANIPService } from "@anip-dev/service";
+import { ANIPError } from "@anip-dev/service";
 import {
   generateRoutes,
   generateOpenAPISpec,
@@ -548,10 +548,10 @@ Follow the same pattern as `packages/typescript/hono/tests/routes.test.ts` — c
 ```typescript
 import { describe, it, expect } from "vitest";
 import { Hono } from "hono";
-import { createANIPService, defineCapability } from "@anip/service";
-import { InMemoryStorage } from "@anip/server";
-import type { CapabilityDeclaration } from "@anip/core";
-import { mountAnip } from "@anip/hono";
+import { createANIPService, defineCapability } from "@anip-dev/service";
+import { InMemoryStorage } from "@anip-dev/server";
+import type { CapabilityDeclaration } from "@anip-dev/core";
+import { mountAnip } from "@anip-dev/hono";
 import { mountAnipRest } from "../src/routes.js";
 
 const API_KEY = "test-key-123";
@@ -716,7 +716,7 @@ Expected: All pass
 
 ```bash
 git add packages/typescript/rest/tests/rest.test.ts
-git commit -m "feat(rest): add tests for @anip/rest package"
+git commit -m "feat(rest): add tests for @anip-dev/rest package"
 ```
 
 ---

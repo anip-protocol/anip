@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { Hono } from "hono";
-import { createANIPService, defineCapability } from "@anip/service";
-import { InMemoryStorage } from "@anip/server";
-import type { CapabilityDeclaration } from "@anip/core";
-import { mountAnip } from "@anip/hono";
+import { createANIPService, defineCapability } from "@anip-dev/service";
+import { InMemoryStorage } from "@anip-dev/server";
+import type { CapabilityDeclaration } from "@anip-dev/core";
+import { mountAnip } from "@anip-dev/hono";
 import { mountAnipRest } from "../src/routes.js";
 
 const API_KEY = "test-key-123";

@@ -1,7 +1,7 @@
 /**
  * Core types for the ANIP service runtime.
  */
-import type { CapabilityDeclaration, DelegationToken } from "@anip/core";
+import type { CapabilityDeclaration, DelegationToken } from "@anip-dev/core";
 
 export interface InvocationContext {
   token: DelegationToken;

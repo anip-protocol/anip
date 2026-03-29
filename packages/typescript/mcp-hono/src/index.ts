@@ -7,8 +7,8 @@
  * We use buildMcpServer() per request, which is cheap as it only registers handlers.
  */
 import type { Hono } from "hono";
-import type { ANIPService } from "@anip/service";
-import { buildMcpServer } from "@anip/mcp";
+import type { ANIPService } from "@anip-dev/service";
+import { buildMcpServer } from "@anip-dev/mcp";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 
 export interface McpHonoOptions {

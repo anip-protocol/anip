@@ -1,6 +1,6 @@
 # Framework Bindings Design
 
-**Goal:** Add three framework binding packages (`anip-flask`, `@anip/express`, `@anip/fastify`) following the same thin-routing-layer pattern as `anip-fastapi` and `@anip/hono`.
+**Goal:** Add three framework binding packages (`anip-flask`, `@anip-dev/express`, `@anip-dev/fastify`) following the same thin-routing-layer pattern as `anip-fastapi` and `@anip-dev/hono`.
 
 **Architecture:** Each binding exposes a single `mount_anip`/`mountAnip` function that takes a framework app + `ANIPService`, mounts 9 routes with identical behavior, and returns a lifecycle handle with `stop()`. Python uses a small `ANIPHandle` class; TypeScript returns `{ stop }`.
 
@@ -11,8 +11,8 @@
 | Package | Language | Framework dep | Version |
 |---------|----------|--------------|---------|
 | `anip-flask` | Python | `flask >= 3.0` | 0.3.0 |
-| `@anip/express` | TypeScript | `express ^4.21.0` | 0.3.0 |
-| `@anip/fastify` | TypeScript | `fastify ^5.0.0` | 0.3.0 |
+| `@anip-dev/express` | TypeScript | `express ^4.21.0` | 0.3.0 |
+| `@anip-dev/fastify` | TypeScript | `fastify ^5.0.0` | 0.3.0 |
 
 All follow lockstep versioning with existing packages.
 
@@ -80,6 +80,6 @@ Test clients: Flask `test_client()`, Express `supertest`, Fastify `inject()`.
 
 **anip-flask:** `anip-service >= 0.3.0`, `flask >= 3.0.0`. Dev: `pytest`.
 
-**@anip/express:** `@anip/service: 0.3.0`, `express: ^4.21.0`. Dev: `@types/express`, `supertest`, `@types/supertest`.
+**@anip-dev/express:** `@anip-dev/service: 0.3.0`, `express: ^4.21.0`. Dev: `@types/express`, `supertest`, `@types/supertest`.
 
-**@anip/fastify:** `@anip/service: 0.3.0`, `fastify: ^5.0.0`.
+**@anip-dev/fastify:** `@anip-dev/service: 0.3.0`, `fastify: ^5.0.0`.

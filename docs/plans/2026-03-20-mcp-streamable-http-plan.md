@@ -4,7 +4,7 @@
 
 **Goal:** Add Streamable HTTP transport to the MCP packages so ANIP-backed MCP servers work over the network, not just stdio.
 
-**Architecture:** Extract shared invocation logic from `@anip/mcp` into `invocation.ts`. Add `buildMcpServer` helper. Create three thin framework packages (`@anip/mcp-hono`, `@anip/mcp-express`, `@anip/mcp-fastify`) that mount the SDK's Streamable HTTP transport. Python's `anip-mcp` gains `invocation.py` and `http.py`. Per-request auth from `Authorization: Bearer`, JWT-first, API-key fallback.
+**Architecture:** Extract shared invocation logic from `@anip-dev/mcp` into `invocation.ts`. Add `buildMcpServer` helper. Create three thin framework packages (`@anip-dev/mcp-hono`, `@anip-dev/mcp-express`, `@anip-dev/mcp-fastify`) that mount the SDK's Streamable HTTP transport. Python's `anip-mcp` gains `invocation.py` and `http.py`. Per-request auth from `Authorization: Bearer`, JWT-first, API-key fallback.
 
 **Tech Stack:** TypeScript (`@modelcontextprotocol/sdk` Streamable HTTP, Hono, Express, Fastify), Python (`mcp` StreamableHTTPServerTransport, FastAPI)
 
@@ -12,7 +12,7 @@
 
 ---
 
-## Chunk 1: Shared Core Refactor (`@anip/mcp`)
+## Chunk 1: Shared Core Refactor (`@anip-dev/mcp`)
 
 ### Task 1: Extract invocation.ts
 
@@ -31,8 +31,8 @@ Extract `translateResponse`, add `resolveAuth` and `invokeWithToken` as shared f
  *
  * Used by both stdio (routes.ts) and HTTP framework packages.
  */
-import type { ANIPService } from "@anip/service";
-import { ANIPError } from "@anip/service";
+import type { ANIPService } from "@anip-dev/service";
+import { ANIPError } from "@anip-dev/service";
 
 export interface InvokeResult {
   text: string;
@@ -49,7 +49,7 @@ export async function resolveAuth(
   bearer: string,
   service: ANIPService,
   capabilityName: string,
-): Promise<import("@anip/core").DelegationToken> {
+): Promise<import("@anip-dev/core").DelegationToken> {
   // Try as JWT first — preserves original delegation chain
   let jwtError: ANIPError | null = null;
   try {
@@ -86,7 +86,7 @@ export async function invokeWithToken(
   service: ANIPService,
   capabilityName: string,
   args: Record<string, unknown>,
-  token: import("@anip/core").DelegationToken,
+  token: import("@anip-dev/core").DelegationToken,
 ): Promise<InvokeResult> {
   try {
     const result = await service.invoke(capabilityName, token, args);
@@ -271,9 +271,9 @@ git commit -m "refactor(mcp): extract shared invocation core and buildMcpServer"
 
 ---
 
-## Chunk 2: @anip/mcp-hono
+## Chunk 2: @anip-dev/mcp-hono
 
-### Task 2: Scaffold and implement @anip/mcp-hono
+### Task 2: Scaffold and implement @anip-dev/mcp-hono
 
 **Files:**
 - Create: `packages/typescript/mcp-hono/package.json`
@@ -285,7 +285,7 @@ git commit -m "refactor(mcp): extract shared invocation core and buildMcpServer"
 
 ```json
 {
-  "name": "@anip/mcp-hono",
+  "name": "@anip-dev/mcp-hono",
   "version": "0.8.0",
   "description": "ANIP MCP Streamable HTTP transport for Hono",
   "type": "module",
@@ -294,15 +294,15 @@ git commit -m "refactor(mcp): extract shared invocation core and buildMcpServer"
   "types": "dist/index.d.ts",
   "scripts": { "build": "tsc", "test": "vitest run" },
   "dependencies": {
-    "@anip/mcp": "0.8.0",
-    "@anip/service": "0.8.0",
+    "@anip-dev/mcp": "0.8.0",
+    "@anip-dev/service": "0.8.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "hono": "^4.0.0"
   },
   "devDependencies": {
-    "@anip/core": "0.8.0",
-    "@anip/server": "0.8.0",
-    "@anip/hono": "0.8.0",
+    "@anip-dev/core": "0.8.0",
+    "@anip-dev/server": "0.8.0",
+    "@anip-dev/hono": "0.8.0",
     "typescript": "^5.5.0",
     "vitest": "^4.1.0"
   }
@@ -322,8 +322,8 @@ Same as other packages — ES2022, NodeNext, strict.
  * Uses WebStandardStreamableHTTPServerTransport (Web Standard APIs).
  */
 import type { Hono } from "hono";
-import type { ANIPService } from "@anip/service";
-import { buildMcpServer } from "@anip/mcp";
+import type { ANIPService } from "@anip-dev/service";
+import { buildMcpServer } from "@anip-dev/mcp";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 
 export interface McpHonoOptions {
@@ -430,9 +430,9 @@ git commit -m "feat(mcp-hono): add MCP Streamable HTTP transport for Hono"
 
 ---
 
-## Chunk 3: @anip/mcp-express and @anip/mcp-fastify
+## Chunk 3: @anip-dev/mcp-express and @anip-dev/mcp-fastify
 
-### Task 3: Implement @anip/mcp-express
+### Task 3: Implement @anip-dev/mcp-express
 
 **Files:**
 - Create: `packages/typescript/mcp-express/package.json`
@@ -446,7 +446,7 @@ Same pattern as mcp-hono but using `StreamableHTTPServerTransport` (Node wrapper
 
 ```json
 {
-  "name": "@anip/mcp-express",
+  "name": "@anip-dev/mcp-express",
   "version": "0.8.0",
   "description": "ANIP MCP Streamable HTTP transport for Express",
   "type": "module",
@@ -455,14 +455,14 @@ Same pattern as mcp-hono but using `StreamableHTTPServerTransport` (Node wrapper
   "types": "dist/index.d.ts",
   "scripts": { "build": "tsc", "test": "vitest run" },
   "dependencies": {
-    "@anip/mcp": "0.8.0",
-    "@anip/service": "0.8.0",
+    "@anip-dev/mcp": "0.8.0",
+    "@anip-dev/service": "0.8.0",
     "@modelcontextprotocol/sdk": "^1.12.0"
   },
   "devDependencies": {
-    "@anip/core": "0.8.0",
-    "@anip/server": "0.8.0",
-    "@anip/express": "0.8.0",
+    "@anip-dev/core": "0.8.0",
+    "@anip-dev/server": "0.8.0",
+    "@anip-dev/express": "0.8.0",
     "express": "^4.18.0",
     "@types/express": "^4.17.0",
     "typescript": "^5.5.0",
@@ -477,8 +477,8 @@ Same pattern as mcp-hono but using `StreamableHTTPServerTransport` (Node wrapper
 
 ```typescript
 import type { Express } from "express";
-import type { ANIPService } from "@anip/service";
-import { buildMcpServer } from "@anip/mcp";
+import type { ANIPService } from "@anip-dev/service";
+import { buildMcpServer } from "@anip-dev/mcp";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 export interface McpExpressOptions {
@@ -534,7 +534,7 @@ git commit -m "feat(mcp-express): add MCP Streamable HTTP transport for Express"
 
 ---
 
-### Task 4: Implement @anip/mcp-fastify
+### Task 4: Implement @anip-dev/mcp-fastify
 
 **Files:**
 - Create: `packages/typescript/mcp-fastify/package.json`
@@ -550,8 +550,8 @@ Same as Express but with `fastify` instead of `express`.
 
 ```typescript
 import type { FastifyInstance } from "fastify";
-import type { ANIPService } from "@anip/service";
-import { buildMcpServer } from "@anip/mcp";
+import type { ANIPService } from "@anip-dev/service";
+import { buildMcpServer } from "@anip-dev/mcp";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 export interface McpFastifyOptions {
@@ -1030,7 +1030,7 @@ git commit -m "feat(mcp): add Python MCP Streamable HTTP transport for FastAPI"
 
 - [ ] **Step 1: Add mcp-hono, mcp-express, mcp-fastify to TypeScript CI**
 
-Add build steps (`npx tsc -p mcp-hono/tsconfig.json`, etc.) and test steps (`npm test --workspace=@anip/mcp-hono`, etc.).
+Add build steps (`npx tsc -p mcp-hono/tsconfig.json`, etc.) and test steps (`npm test --workspace=@anip-dev/mcp-hono`, etc.).
 
 - [ ] **Step 2: Python CI already covers anip-mcp — verify http.py tests are picked up**
 

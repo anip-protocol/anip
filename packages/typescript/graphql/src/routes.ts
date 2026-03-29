@@ -3,8 +3,8 @@
  */
 import { buildSchema, graphql } from "graphql";
 import type { Hono } from "hono";
-import type { ANIPService } from "@anip/service";
-import { ANIPError } from "@anip/service";
+import type { ANIPService } from "@anip-dev/service";
+import { ANIPError } from "@anip-dev/service";
 import {
   generateSchema,
   buildGraphQLResponse,

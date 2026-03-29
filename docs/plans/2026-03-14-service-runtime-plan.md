@@ -2,11 +2,11 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Add `anip-service` / `@anip/service` and `anip-fastapi` / `@anip/hono` packages that turn ANIP from a primitive toolkit into a configurable service runtime, then restructure examples to prove the approach.
+**Goal:** Add `anip-service` / `@anip-dev/service` and `anip-fastapi` / `@anip-dev/hono` packages that turn ANIP from a primitive toolkit into a configurable service runtime, then restructure examples to prove the approach.
 
 **Architecture:** Two new packages per language layered on top of the existing `core → crypto → server` stack. `service` owns lifecycle, orchestration, and domain-level operations. Framework bindings own transport only. Examples shrink from ~1,000+ lines to ~150 lines of pure business logic + configuration.
 
-**Tech Stack:** Python 3.11+ / FastAPI / pytest. TypeScript / Hono / vitest. Existing ANIP SDK packages (`anip-core`, `anip-crypto`, `anip-server`, `@anip/core`, `@anip/crypto`, `@anip/server`).
+**Tech Stack:** Python 3.11+ / FastAPI / pytest. TypeScript / Hono / vitest. Existing ANIP SDK packages (`anip-core`, `anip-crypto`, `anip-server`, `@anip-dev/core`, `@anip-dev/crypto`, `@anip-dev/server`).
 
 **Design doc:** `docs/plans/2026-03-14-service-runtime-design.md`
 
@@ -1568,7 +1568,7 @@ git commit -m "refactor(example-py): rewrite flight demo using anip-service + an
 
 ---
 
-## Task 5: Scaffold TypeScript `@anip/service` package
+## Task 5: Scaffold TypeScript `@anip-dev/service` package
 
 **Files:**
 - Create: `packages/typescript/service/package.json`
@@ -1581,7 +1581,7 @@ git commit -m "refactor(example-py): rewrite flight demo using anip-service + an
 
 ```json
 {
-  "name": "@anip/service",
+  "name": "@anip-dev/service",
   "version": "0.3.0",
   "description": "ANIP service runtime — configure and run an ANIP service",
   "type": "module",
@@ -1592,9 +1592,9 @@ git commit -m "refactor(example-py): rewrite flight demo using anip-service + an
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip/core": "0.3.0",
-    "@anip/crypto": "0.3.0",
-    "@anip/server": "0.3.0"
+    "@anip-dev/core": "0.3.0",
+    "@anip-dev/crypto": "0.3.0",
+    "@anip-dev/server": "0.3.0"
   },
   "devDependencies": {
     "typescript": "^5.5.0",
@@ -1635,7 +1635,7 @@ export default defineConfig({
 /**
  * Core types for the ANIP service runtime.
  */
-import type { CapabilityDeclaration, DelegationToken } from "@anip/core";
+import type { CapabilityDeclaration, DelegationToken } from "@anip-dev/core";
 
 export interface InvocationContext {
   token: DelegationToken;
@@ -1690,7 +1690,7 @@ Expected: No errors
 
 ```bash
 git add packages/typescript/service/
-git commit -m "feat(@anip/service): scaffold TypeScript package with types"
+git commit -m "feat(@anip-dev/service): scaffold TypeScript package with types"
 ```
 
 ---
@@ -1765,12 +1765,12 @@ Expected: All tests PASS
 
 ```bash
 git add packages/typescript/service/
-git commit -m "feat(@anip/service): add createANIPService builder with invoke, audit, checkpoints"
+git commit -m "feat(@anip-dev/service): add createANIPService builder with invoke, audit, checkpoints"
 ```
 
 ---
 
-## Task 7: Scaffold TypeScript `@anip/hono` package with `mountAnip`
+## Task 7: Scaffold TypeScript `@anip-dev/hono` package with `mountAnip`
 
 **Files:**
 - Create: `packages/typescript/hono/package.json`
@@ -1785,7 +1785,7 @@ git commit -m "feat(@anip/service): add createANIPService builder with invoke, a
 `package.json`:
 ```json
 {
-  "name": "@anip/hono",
+  "name": "@anip-dev/hono",
   "version": "0.3.0",
   "description": "ANIP Hono bindings — mount an ANIPService as HTTP routes",
   "type": "module",
@@ -1796,7 +1796,7 @@ git commit -m "feat(@anip/service): add createANIPService builder with invoke, a
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip/service": "0.3.0",
+    "@anip-dev/service": "0.3.0",
     "hono": "^4.0.0"
   },
   "devDependencies": {
@@ -1871,12 +1871,12 @@ Expected: All tests PASS
 
 ```bash
 git add packages/typescript/hono/
-git commit -m "feat(@anip/hono): add mountAnip() Hono bindings"
+git commit -m "feat(@anip-dev/hono): add mountAnip() Hono bindings"
 ```
 
 ---
 
-## Task 8: Rewrite TypeScript example to use `@anip/service` + `@anip/hono`
+## Task 8: Rewrite TypeScript example to use `@anip-dev/service` + `@anip-dev/hono`
 
 **Files:**
 - Create: `examples/anip-ts/src/app.ts`
@@ -1894,14 +1894,14 @@ This mirrors Task 4 for TypeScript. The implementation engineer should:
 
 **Step 1: Update `package.json`**
 
-Add `@anip/service` and `@anip/hono` dependencies (via `file:` protocol). Remove direct `@anip/core`, `@anip/crypto`, `@anip/server` dependencies.
+Add `@anip-dev/service` and `@anip-dev/hono` dependencies (via `file:` protocol). Remove direct `@anip-dev/core`, `@anip-dev/crypto`, `@anip-dev/server` dependencies.
 
 **Step 2: Create `app.ts`**
 
 ```typescript
 import { Hono } from "hono";
-import { createANIPService } from "@anip/service";
-import { mountAnip } from "@anip/hono";
+import { createANIPService } from "@anip-dev/service";
+import { mountAnip } from "@anip-dev/hono";
 import { searchFlights } from "./capabilities/search-flights.js";
 import { bookFlight } from "./capabilities/book-flight.js";
 
@@ -1963,7 +1963,7 @@ npx vitest run
 
 ```bash
 git add examples/anip-ts/
-git commit -m "refactor(example-ts): rewrite flight demo using @anip/service + @anip/hono"
+git commit -m "refactor(example-ts): rewrite flight demo using @anip-dev/service + @anip-dev/hono"
 ```
 
 ---
@@ -2046,5 +2046,5 @@ cd packages/typescript/hono && npm install && npx tsc
 
 This is a large change. Consider splitting into multiple PRs:
 1. PR: `anip-service` + `anip-fastapi` (Python packages)
-2. PR: `@anip/service` + `@anip/hono` (TypeScript packages)
+2. PR: `@anip-dev/service` + `@anip-dev/hono` (TypeScript packages)
 3. PR: Example rewrites + docs

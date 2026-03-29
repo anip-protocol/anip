@@ -63,8 +63,8 @@ service = ANIPService(
 <TabItem value="typescript" label="TypeScript">
 
 ```typescript
-import { createANIPService } from "@anip/service";
-import type { ANIPHooks } from "@anip/service";
+import { createANIPService } from "@anip-dev/service";
+import type { ANIPHooks } from "@anip-dev/service";
 
 const hooks: ANIPHooks = {
   logging: {

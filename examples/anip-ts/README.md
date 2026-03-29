@@ -1,6 +1,6 @@
 # ANIP Reference Implementation — Flight Booking Service (TypeScript)
 
-A working demonstration of the Agent-Native Interface Protocol using the `@anip/service` runtime.
+A working demonstration of the Agent-Native Interface Protocol using the `@anip-dev/service` runtime.
 
 See also: [Python reference implementation](../anip/) | [Go reference implementation](../../packages/go/examples/flights/)
 
@@ -43,9 +43,9 @@ npx vitest run
 The ANIP service can expose REST, GraphQL, and MCP interfaces alongside the native ANIP protocol — all auto-generated from the same capabilities, mounted on the same app.
 
 ```typescript
-import { mountAnipRest } from "@anip/rest";
-import { mountAnipGraphQL } from "@anip/graphql";
-import { mountAnipMcpHono } from "@anip/mcp-hono";
+import { mountAnipRest } from "@anip-dev/rest";
+import { mountAnipGraphQL } from "@anip-dev/graphql";
+import { mountAnipMcpHono } from "@anip-dev/mcp-hono";
 
 await mountAnipRest(app, service);          // REST at /api/*
 await mountAnipGraphQL(app, service);       // GraphQL at /graphql

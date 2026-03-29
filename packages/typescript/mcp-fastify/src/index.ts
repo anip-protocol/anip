@@ -10,8 +10,8 @@
  * to handleRequest rather than letting the transport try to re-read the stream.
  */
 import type { FastifyInstance } from "fastify";
-import type { ANIPService } from "@anip/service";
-import { buildMcpServer } from "@anip/mcp";
+import type { ANIPService } from "@anip-dev/service";
+import { buildMcpServer } from "@anip-dev/mcp";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 export interface McpFastifyOptions {

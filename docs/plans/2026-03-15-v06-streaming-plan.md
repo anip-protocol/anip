@@ -1824,15 +1824,15 @@ git commit -m "feat(schema): add ResponseMode, StreamSummary, stream field to al
 - `packages/typescript/fastify/package.json` line 3: `"version": "0.5.0"` → `"0.6.0"`
 
 **TypeScript packages — cross-package dependencies:**
-- `packages/typescript/crypto/package.json` line 16: `"@anip/core": "0.5.0"` → `"0.6.0"`
-- `packages/typescript/server/package.json` line 16: `"@anip/core": "0.5.0"` → `"0.6.0"`
-- `packages/typescript/server/package.json` line 17: `"@anip/crypto": "0.5.0"` → `"0.6.0"`
-- `packages/typescript/service/package.json` line 16: `"@anip/core": "0.5.0"` → `"0.6.0"`
-- `packages/typescript/service/package.json` line 17: `"@anip/crypto": "0.5.0"` → `"0.6.0"`
-- `packages/typescript/service/package.json` line 18: `"@anip/server": "0.5.0"` → `"0.6.0"`
-- `packages/typescript/express/package.json` line 16: `"@anip/service": "0.5.0"` → `"0.6.0"`
-- `packages/typescript/fastify/package.json` line 16: `"@anip/service": "0.5.0"` → `"0.6.0"`
-- `packages/typescript/hono/package.json` line 16: `"@anip/service": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/crypto/package.json` line 16: `"@anip-dev/core": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/server/package.json` line 16: `"@anip-dev/core": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/server/package.json` line 17: `"@anip-dev/crypto": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/service/package.json` line 16: `"@anip-dev/core": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/service/package.json` line 17: `"@anip-dev/crypto": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/service/package.json` line 18: `"@anip-dev/server": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/express/package.json` line 16: `"@anip-dev/service": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/fastify/package.json` line 16: `"@anip-dev/service": "0.5.0"` → `"0.6.0"`
+- `packages/typescript/hono/package.json` line 16: `"@anip-dev/service": "0.5.0"` → `"0.6.0"`
 
 **Example app:**
 - `examples/anip-ts/package.json` line 3: `"version": "0.5.0"` → `"0.6.0"`

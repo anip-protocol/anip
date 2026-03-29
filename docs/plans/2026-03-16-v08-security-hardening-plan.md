@@ -134,7 +134,7 @@ describe("v0.8 hardening enums", () => {
 Add the new imports at the top of the test file alongside existing imports:
 
 ```typescript
-import { EventClass, RetentionTier, DisclosureLevel } from "@anip/core";
+import { EventClass, RetentionTier, DisclosureLevel } from "@anip-dev/core";
 ```
 
 **Step 4: Run tests to verify they fail**

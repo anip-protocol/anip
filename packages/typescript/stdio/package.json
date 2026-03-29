@@ -1,5 +1,5 @@
 {
-  "name": "@anip/stdio",
+  "name": "@anip-dev/stdio",
   "version": "0.11.0",
   "description": "ANIP stdio transport — JSON-RPC 2.0 over stdin/stdout",
   "type": "module",
@@ -13,7 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip/service": "0.11.0"
+    "@anip-dev/service": "0.11.0"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

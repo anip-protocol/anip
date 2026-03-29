@@ -1,4 +1,4 @@
-# @anip/fastify
+# @anip-dev/fastify
 
 ANIP Fastify bindings — mount an ANIPService as HTTP routes
 
@@ -7,7 +7,7 @@ Part of the [ANIP](https://github.com/anip-protocol/anip) protocol ecosystem.
 ## Install
 
 ```bash
-npm install @anip/fastify
+npm install @anip-dev/fastify
 ```
 
 ## Documentation

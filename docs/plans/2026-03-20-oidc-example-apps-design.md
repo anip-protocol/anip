@@ -18,7 +18,7 @@
 - Keycloak documented as the reference walkthrough
 
 **Not in scope:**
-- SDK auth helper packages (`@anip/auth-oidc` or similar)
+- SDK auth helper packages (`@anip-dev/auth-oidc` or similar)
 - ANIP core or service changes
 - Provider-specific integrations (Okta, Auth0, Cognito)
 - Docker Compose for Keycloak

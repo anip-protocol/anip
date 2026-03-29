@@ -8,8 +8,8 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import type { ANIPService } from "@anip/service";
-import { ANIPError } from "@anip/service";
+import type { ANIPService } from "@anip-dev/service";
+import { ANIPError } from "@anip-dev/service";
 import { invokeWithToken } from "./invocation.js";
 import type { InvokeResult } from "./invocation.js";
 import { capabilityToInputSchema, enrichDescription } from "./translation.js";

@@ -13,9 +13,9 @@ import type {
   ANIPManifest,
   CapabilityDeclaration,
   DelegationToken,
-} from "@anip/core";
-import { PROTOCOL_VERSION, DEFAULT_PROFILE } from "@anip/core";
-import { KeyManager } from "@anip/crypto";
+} from "@anip-dev/core";
+import { PROTOCOL_VERSION, DEFAULT_PROFILE } from "@anip-dev/core";
+import { KeyManager } from "@anip-dev/crypto";
 import {
   AuditLog,
   buildManifest,
@@ -30,7 +30,7 @@ import {
   SQLiteStorage,
   type CheckpointSink,
   type StorageBackend,
-} from "@anip/server";
+} from "@anip-dev/server";
 
 import { ANIPError } from "./types.js";
 import type { CapabilityDef, Handler, InvocationContext } from "./types.js";
@@ -1548,7 +1548,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       // Create Postgres backend if a DSN was provided (deferred from constructor
       // because dynamic import() is async).
       if (postgresDsn) {
-        const mod = await import("@anip/server");
+        const mod = await import("@anip-dev/server");
         const PgStorage = mod.PostgresStorage as unknown as new (dsn: string) => StorageBackend & { initialize(): Promise<void>; close(): Promise<void> };
         storage = new PgStorage(postgresDsn);
         postgresDsn = null; // Only create once

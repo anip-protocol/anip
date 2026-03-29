@@ -1,9 +1,9 @@
 import { describe, it, expect, afterEach } from "vitest";
 import Fastify from "fastify";
-import { createANIPService, defineCapability } from "@anip/service";
+import { createANIPService, defineCapability } from "@anip-dev/service";
 import { mountAnip } from "../src/routes.js";
-import { InMemoryStorage } from "@anip/server";
-import type { CapabilityDeclaration } from "@anip/core";
+import { InMemoryStorage } from "@anip-dev/server";
+import type { CapabilityDeclaration } from "@anip-dev/core";
 
 function greetCap() {
   return defineCapability({

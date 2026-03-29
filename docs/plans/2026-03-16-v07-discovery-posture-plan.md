@@ -53,12 +53,12 @@ Package configs (inter-package dependency versions):
 - Modify: `packages/python/anip-crypto/pyproject.toml:7` (`anip-core>=0.6.0` → `>=0.7.0`)
 - Modify: `packages/python/anip-server/pyproject.toml:7-8` (`anip-core`, `anip-crypto` deps)
 - Modify: `packages/python/anip-service/pyproject.toml:7-8` (`anip-core`, `anip-crypto` deps)
-- Modify: `packages/typescript/crypto/package.json:16` (`@anip/core`)
-- Modify: `packages/typescript/server/package.json:16-17` (`@anip/core`, `@anip/crypto`)
-- Modify: `packages/typescript/service/package.json:16-18` (`@anip/core`, `@anip/crypto`, `@anip/server`)
-- Modify: `packages/typescript/express/package.json:16` (`@anip/service`)
-- Modify: `packages/typescript/fastify/package.json:16` (`@anip/service`)
-- Modify: `packages/typescript/hono/package.json:16` (`@anip/service`)
+- Modify: `packages/typescript/crypto/package.json:16` (`@anip-dev/core`)
+- Modify: `packages/typescript/server/package.json:16-17` (`@anip-dev/core`, `@anip-dev/crypto`)
+- Modify: `packages/typescript/service/package.json:16-18` (`@anip-dev/core`, `@anip-dev/crypto`, `@anip-dev/server`)
+- Modify: `packages/typescript/express/package.json:16` (`@anip-dev/service`)
+- Modify: `packages/typescript/fastify/package.json:16` (`@anip-dev/service`)
+- Modify: `packages/typescript/hono/package.json:16` (`@anip-dev/service`)
 
 JSON Schema `$id`:
 - Modify: `schema/anip.schema.json` (v0.6 → v0.7 in `$id`)
@@ -97,7 +97,7 @@ export const MANIFEST_VERSION = "0.7.0";
 
 **Step 3: Fix TypeScript manifest builder to use constant instead of hardcoded string**
 
-`packages/typescript/server/src/manifest.ts` — add `MANIFEST_VERSION` to the import from `@anip/core` (line 9), then change line 45 from:
+`packages/typescript/server/src/manifest.ts` — add `MANIFEST_VERSION` to the import from `@anip-dev/core` (line 9), then change line 45 from:
 ```typescript
 version: "0.3.0",
 ```
@@ -109,7 +109,7 @@ version: MANIFEST_VERSION,
 **Step 4: Update all package versions**
 
 Use find-and-replace across all pyproject.toml files: `version = "0.6.0"` → `version = "0.7.0"`.
-Use find-and-replace across all package.json files: `"0.6.0"` → `"0.7.0"` (for `@anip/*` entries).
+Use find-and-replace across all package.json files: `"0.6.0"` → `"0.7.0"` (for `@anip-dev/*` entries).
 Update all Python inter-package deps: `>=0.6.0` → `>=0.7.0`.
 
 **Step 5: Regenerate package-lock.json**
@@ -375,7 +375,7 @@ getDiscovery(opts?: { baseUrl?: string }): Record<string, unknown> {
 },
 ```
 
-Add `PROTOCOL_VERSION` and `DEFAULT_PROFILE` to the import from `@anip/core` if not already imported.
+Add `PROTOCOL_VERSION` and `DEFAULT_PROFILE` to the import from `@anip-dev/core` if not already imported.
 
 **Step 8: Update HTTP bindings to pass `baseUrl` from request**
 

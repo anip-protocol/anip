@@ -1429,10 +1429,10 @@ Mirror Task 13 for TypeScript. Same changes:
 1. Remove `entriesSinceCheckpoint` counter
 2. Replace `createAndPublishCheckpoint` with leader-coordinated tick using `reconstructAndCreateCheckpoint`
 3. Wire storage-backed exclusivity through `DelegationEngine`
-4. Add Postgres storage detection. `PostgresStorage` is in `@anip/server` (Task 8 exports it), not in the service package:
+4. Add Postgres storage detection. `PostgresStorage` is in `@anip-dev/server` (Task 8 exports it), not in the service package:
 ```typescript
 if (typeof storageOpt === "string" && storageOpt.startsWith("postgres")) {
-  const { PostgresStorage } = await import("@anip/server");
+  const { PostgresStorage } = await import("@anip-dev/server");
   const pgStorage = new PostgresStorage(storageOpt);
   await pgStorage.initialize();
   // use pgStorage as the storage backend

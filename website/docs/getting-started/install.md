@@ -43,27 +43,27 @@ pip install anip-service anip-fastapi
 Published to **npm** under the `@anip` scope. Install the service runtime and a framework adapter:
 
 ```bash
-npm install @anip/service @anip/hono
+npm install @anip-dev/service @anip-dev/hono
 ```
 
 **All published packages:**
 
 | Package | Purpose |
 |---------|---------|
-| `@anip/core` | Models, types, constants |
-| `@anip/crypto` | Key management, JWT, signing |
-| `@anip/server` | Protocol engine |
-| `@anip/service` | Service runtime |
-| `@anip/hono` | Hono framework adapter |
-| `@anip/express` | Express framework adapter |
-| `@anip/fastify` | Fastify framework adapter |
-| `@anip/rest` | REST / OpenAPI interface adapter |
-| `@anip/graphql` | GraphQL interface adapter |
-| `@anip/mcp` | MCP shared core |
-| `@anip/mcp-hono` | MCP adapter for Hono |
-| `@anip/mcp-express` | MCP adapter for Express |
-| `@anip/mcp-fastify` | MCP adapter for Fastify |
-| `@anip/stdio` | stdio transport (JSON-RPC 2.0) |
+| `@anip-dev/core` | Models, types, constants |
+| `@anip-dev/crypto` | Key management, JWT, signing |
+| `@anip-dev/server` | Protocol engine |
+| `@anip-dev/service` | Service runtime |
+| `@anip-dev/hono` | Hono framework adapter |
+| `@anip-dev/express` | Express framework adapter |
+| `@anip-dev/fastify` | Fastify framework adapter |
+| `@anip-dev/rest` | REST / OpenAPI interface adapter |
+| `@anip-dev/graphql` | GraphQL interface adapter |
+| `@anip-dev/mcp` | MCP shared core |
+| `@anip-dev/mcp-hono` | MCP adapter for Hono |
+| `@anip-dev/mcp-express` | MCP adapter for Express |
+| `@anip-dev/mcp-fastify` | MCP adapter for Fastify |
+| `@anip-dev/stdio` | stdio transport (JSON-RPC 2.0) |
 
 </TabItem>
 <TabItem value="go" label="Go">

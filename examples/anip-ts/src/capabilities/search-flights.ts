@@ -1,5 +1,5 @@
-import { defineCapability, ANIPError } from "@anip/service";
-import type { CapabilityDeclaration } from "@anip/core";
+import { defineCapability, ANIPError } from "@anip-dev/service";
+import type { CapabilityDeclaration } from "@anip-dev/core";
 import { searchFlights as doSearch } from "../domain/flights.js";
 
 const DECLARATION: CapabilityDeclaration = {

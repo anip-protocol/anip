@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Add three framework binding packages (`anip-flask`, `@anip/express`, `@anip/fastify`) that mount an ANIPService as HTTP routes, following the same pattern as `anip-fastapi` and `@anip/hono`.
+**Goal:** Add three framework binding packages (`anip-flask`, `@anip-dev/express`, `@anip-dev/fastify`) that mount an ANIPService as HTTP routes, following the same pattern as `anip-fastapi` and `@anip-dev/hono`.
 
 **Architecture:** Each binding is a thin routing layer: a single `mount_anip`/`mountAnip` function that takes a framework app + ANIPService, mounts 9 identical routes, handles bearer extraction/error mapping/manifest signing, and returns a lifecycle handle with `stop()`. All three bindings reuse the exact same route structure, status code mapping, and error response format as the existing bindings.
 
@@ -371,7 +371,7 @@ git commit -m "feat: add anip-flask binding package"
 
 ---
 
-### Task 2: Create `@anip/express` package
+### Task 2: Create `@anip-dev/express` package
 
 **Files:**
 - Create: `packages/typescript/express/package.json`
@@ -396,7 +396,7 @@ to:
 
 ```json
 {
-  "name": "@anip/express",
+  "name": "@anip-dev/express",
   "version": "0.3.0",
   "description": "ANIP Express bindings — mount an ANIPService as HTTP routes",
   "type": "module",
@@ -410,7 +410,7 @@ to:
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip/service": "0.3.0",
+    "@anip-dev/service": "0.3.0",
     "express": "^4.21.0"
   },
   "devDependencies": {
@@ -447,8 +447,8 @@ export { mountAnip } from "./routes.js";
 ```typescript
 import express, { Router } from "express";
 import type { Express, Request, Response } from "express";
-import type { ANIPService } from "@anip/service";
-import { ANIPError } from "@anip/service";
+import type { ANIPService } from "@anip-dev/service";
+import { ANIPError } from "@anip-dev/service";
 
 export function mountAnip(
   app: Express,
@@ -609,10 +609,10 @@ function errorResponse(res: Response, error: ANIPError) {
 import { describe, it, expect, afterEach } from "vitest";
 import express from "express";
 import request from "supertest";
-import { createANIPService, defineCapability } from "@anip/service";
+import { createANIPService, defineCapability } from "@anip-dev/service";
 import { mountAnip } from "../src/routes.js";
-import { InMemoryStorage } from "@anip/server";
-import type { CapabilityDeclaration } from "@anip/core";
+import { InMemoryStorage } from "@anip-dev/server";
+import type { CapabilityDeclaration } from "@anip-dev/core";
 
 function greetCap() {
   return defineCapability({
@@ -738,7 +738,7 @@ npx tsc -p crypto/tsconfig.json
 npx tsc -p server/tsconfig.json
 npx tsc -p service/tsconfig.json
 npx tsc -p express/tsconfig.json
-npm test --workspace=@anip/express
+npm test --workspace=@anip-dev/express
 ```
 
 Expected: 8 tests pass.
@@ -747,12 +747,12 @@ Expected: 8 tests pass.
 
 ```bash
 git add packages/typescript/express/ packages/typescript/package.json
-git commit -m "feat: add @anip/express binding package"
+git commit -m "feat: add @anip-dev/express binding package"
 ```
 
 ---
 
-### Task 3: Create `@anip/fastify` package
+### Task 3: Create `@anip-dev/fastify` package
 
 **Files:**
 - Create: `packages/typescript/fastify/package.json`
@@ -765,7 +765,7 @@ git commit -m "feat: add @anip/express binding package"
 
 ```json
 {
-  "name": "@anip/fastify",
+  "name": "@anip-dev/fastify",
   "version": "0.3.0",
   "description": "ANIP Fastify bindings — mount an ANIPService as HTTP routes",
   "type": "module",
@@ -779,7 +779,7 @@ git commit -m "feat: add @anip/express binding package"
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip/service": "0.3.0",
+    "@anip-dev/service": "0.3.0",
     "fastify": "^5.0.0"
   },
   "devDependencies": {
@@ -813,8 +813,8 @@ export { mountAnip } from "./routes.js";
 ```typescript
 import Fastify from "fastify";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import type { ANIPService } from "@anip/service";
-import { ANIPError } from "@anip/service";
+import type { ANIPService } from "@anip-dev/service";
+import { ANIPError } from "@anip-dev/service";
 
 export function mountAnip(
   app: FastifyInstance,
@@ -961,10 +961,10 @@ function errorResponse(reply: FastifyReply, error: ANIPError) {
 ```typescript
 import { describe, it, expect, afterEach } from "vitest";
 import Fastify from "fastify";
-import { createANIPService, defineCapability } from "@anip/service";
+import { createANIPService, defineCapability } from "@anip-dev/service";
 import { mountAnip } from "../src/routes.js";
-import { InMemoryStorage } from "@anip/server";
-import type { CapabilityDeclaration } from "@anip/core";
+import { InMemoryStorage } from "@anip-dev/server";
+import type { CapabilityDeclaration } from "@anip-dev/core";
 
 function greetCap() {
   return defineCapability({
@@ -1094,7 +1094,7 @@ describe("Fastify routes", () => {
 ```bash
 cd packages/typescript && npm ci
 npx tsc -p fastify/tsconfig.json
-npm test --workspace=@anip/fastify
+npm test --workspace=@anip-dev/fastify
 ```
 
 Expected: 8 tests pass.
@@ -1103,7 +1103,7 @@ Expected: 8 tests pass.
 
 ```bash
 git add packages/typescript/fastify/
-git commit -m "feat: add @anip/fastify binding package"
+git commit -m "feat: add @anip-dev/fastify binding package"
 ```
 
 ---
@@ -1139,16 +1139,16 @@ Add express and fastify to the build step in `.github/workflows/ci-typescript.ym
           npx tsc -p fastify/tsconfig.json
 ```
 
-Add test steps after "Test @anip/hono":
+Add test steps after "Test @anip-dev/hono":
 
 ```yaml
-      - name: Test @anip/express
+      - name: Test @anip-dev/express
         working-directory: packages/typescript
-        run: npm test --workspace=@anip/express
+        run: npm test --workspace=@anip-dev/express
 
-      - name: Test @anip/fastify
+      - name: Test @anip-dev/fastify
         working-directory: packages/typescript
-        run: npm test --workspace=@anip/fastify
+        run: npm test --workspace=@anip-dev/fastify
 ```
 
 **Step 3: Update release workflow**

@@ -4,9 +4,9 @@ import {
   defineCapability,
 } from "../src/index.js";
 import type { CapabilityDef, InvocationContext } from "../src/index.js";
-import type { CapabilityDeclaration, DelegationToken } from "@anip/core";
-import { InMemoryStorage, DelegationEngine } from "@anip/server";
-import type { StorageBackend } from "@anip/server";
+import type { CapabilityDeclaration, DelegationToken } from "@anip-dev/core";
+import { InMemoryStorage, DelegationEngine } from "@anip-dev/server";
+import type { StorageBackend } from "@anip-dev/server";
 
 // ---------------------------------------------------------------------------
 // Test helpers

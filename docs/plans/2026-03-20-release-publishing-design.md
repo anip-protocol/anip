@@ -31,21 +31,21 @@ Update `version` in each `package.json` and all internal workspace dependency re
 
 | Package | Location |
 |---------|----------|
-| `@anip/core` | `packages/typescript/core/` |
-| `@anip/crypto` | `packages/typescript/crypto/` |
-| `@anip/server` | `packages/typescript/server/` |
-| `@anip/service` | `packages/typescript/service/` |
-| `@anip/hono` | `packages/typescript/hono/` |
-| `@anip/express` | `packages/typescript/express/` |
-| `@anip/fastify` | `packages/typescript/fastify/` |
-| `@anip/mcp` | `packages/typescript/mcp/` |
-| `@anip/mcp-hono` | `packages/typescript/mcp-hono/` |
-| `@anip/mcp-express` | `packages/typescript/mcp-express/` |
-| `@anip/mcp-fastify` | `packages/typescript/mcp-fastify/` |
-| `@anip/rest` | `packages/typescript/rest/` |
-| `@anip/graphql` | `packages/typescript/graphql/` |
+| `@anip-dev/core` | `packages/typescript/core/` |
+| `@anip-dev/crypto` | `packages/typescript/crypto/` |
+| `@anip-dev/server` | `packages/typescript/server/` |
+| `@anip-dev/service` | `packages/typescript/service/` |
+| `@anip-dev/hono` | `packages/typescript/hono/` |
+| `@anip-dev/express` | `packages/typescript/express/` |
+| `@anip-dev/fastify` | `packages/typescript/fastify/` |
+| `@anip-dev/mcp` | `packages/typescript/mcp/` |
+| `@anip-dev/mcp-hono` | `packages/typescript/mcp-hono/` |
+| `@anip-dev/mcp-express` | `packages/typescript/mcp-express/` |
+| `@anip-dev/mcp-fastify` | `packages/typescript/mcp-fastify/` |
+| `@anip-dev/rest` | `packages/typescript/rest/` |
+| `@anip-dev/graphql` | `packages/typescript/graphql/` |
 
-Example: `"@anip/service": "0.8.0"` → `"@anip/service": "0.11.0"` in both `dependencies` and `devDependencies`.
+Example: `"@anip-dev/service": "0.8.0"` → `"@anip-dev/service": "0.11.0"` in both `dependencies` and `devDependencies`.
 
 ### Python (8 packages)
 
@@ -62,7 +62,7 @@ Update `version` in each `pyproject.toml` and internal dependency floor versions
 | `anip-rest` | `packages/python/anip-rest/` |
 | `anip-graphql` | `packages/python/anip-graphql/` |
 
-Internal ANIP dependencies use exact version pins for lockstep: `anip-service>=0.8.0` → `anip-service==0.11.0`. This matches the TypeScript model where workspace dependencies use exact versions (`"@anip/service": "0.11.0"`). Floor bounds (`>=`) would allow mixed-version installs once future versions exist, breaking the lockstep guarantee.
+Internal ANIP dependencies use exact version pins for lockstep: `anip-service>=0.8.0` → `anip-service==0.11.0`. This matches the TypeScript model where workspace dependencies use exact versions (`"@anip-dev/service": "0.11.0"`). Floor bounds (`>=`) would allow mixed-version installs once future versions exist, breaking the lockstep guarantee.
 
 External dependencies (e.g., `fastapi>=0.115.0`, `mcp>=1.0.0`) keep floor bounds — those are not lockstep-versioned.
 
@@ -154,14 +154,14 @@ Manual `workflow_dispatch` with version input (e.g., `0.11.0`). Same as today.
 
 3. Publish (topological order, stop on failure)
    TypeScript (explicit order):
-   1. @anip/core
-   2. @anip/crypto
-   3. @anip/server
-   4. @anip/service
-   5. @anip/hono, @anip/express, @anip/fastify
-   6. @anip/mcp
-   7. @anip/mcp-hono, @anip/mcp-express, @anip/mcp-fastify
-   8. @anip/rest, @anip/graphql
+   1. @anip-dev/core
+   2. @anip-dev/crypto
+   3. @anip-dev/server
+   4. @anip-dev/service
+   5. @anip-dev/hono, @anip-dev/express, @anip-dev/fastify
+   6. @anip-dev/mcp
+   7. @anip-dev/mcp-hono, @anip-dev/mcp-express, @anip-dev/mcp-fastify
+   8. @anip-dev/rest, @anip-dev/graphql
 
    Python (explicit order):
    1. anip-core
