@@ -371,8 +371,71 @@ jobs:
             exit 1
           done
 
+  publish-csharp:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Pack all NuGet packages
+        working-directory: packages/csharp
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -e
+          PACKAGES=(Anip.Core Anip.Crypto Anip.Server Anip.Service Anip.AspNetCore Anip.Rest Anip.Rest.AspNetCore Anip.GraphQL Anip.GraphQL.AspNetCore Anip.Mcp Anip.Mcp.AspNetCore Anip.Stdio)
+          for pkg in "${PACKAGES[@]}"; do
+            echo "=== Packing $pkg ==="
+            dotnet pack "src/$pkg/$pkg.csproj" -c Release -o nupkgs /p:Version="$VERSION"
+          done
+          echo "Packed $(ls nupkgs/*.nupkg | wc -l) packages"
+
+      - name: Publish to NuGet
+        working-directory: packages/csharp
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          set -e
+          for nupkg in nupkgs/*.nupkg; do
+            echo "=== Publishing $(basename $nupkg) ==="
+            OUTPUT=$(dotnet nuget push "$nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate 2>&1) && {
+              echo "OK: $(basename $nupkg) published"
+              continue
+            }
+            if echo "$OUTPUT" | grep -qi "already exists"; then
+              echo "SKIP: $(basename $nupkg) already published"
+              continue
+            fi
+            echo "FAIL: $(basename $nupkg) publish failed:"
+            echo "$OUTPUT"
+            exit 1
+          done
+
+  publish-studio-docker:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Studio image
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          docker build -t anipprotocol/studio:$VERSION -t anipprotocol/studio:latest studio/
+          docker push anipprotocol/studio:$VERSION
+          docker push anipprotocol/studio:latest
+
   release:
-    needs: [publish-typescript, publish-python, publish-java]
+    needs: [publish-typescript, publish-python, publish-java, publish-csharp, publish-studio-docker]
     runs-on: ubuntu-latest
     permissions:
       contents: write
