@@ -101,6 +101,7 @@ jobs:
           echo "OK: Example app deps bumped"
 
       - name: Commit version bump
+        id: bump
         env:
           VERSION: ${{ inputs.version }}
         run: |
@@ -109,10 +110,12 @@ jobs:
           git add -A
           if git diff --cached --quiet; then
             echo "Versions already at $VERSION — no bump needed"
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
           else
             git commit -m "chore: bump all package versions to $VERSION"
             git push
             echo "Version bump committed and pushed"
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Validate required CI checks passed
@@ -120,8 +123,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          # Check against the commit BEFORE the bump (the one CI ran on)
-          SHA=$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)
+          # If we bumped, check the commit before the bump. Otherwise check HEAD.
+          if [ "${{ steps.bump.outputs.bumped }}" = "true" ]; then
+            SHA=$(git rev-parse HEAD~1)
+          else
+            SHA=$(git rev-parse HEAD)
+          fi
           REQUIRED_CHECKS=("python-ci" "typescript-ci" "go-ci" "java-ci" "csharp-ci")
           ERRORS=0
           for CHECK in "${REQUIRED_CHECKS[@]}"; do
