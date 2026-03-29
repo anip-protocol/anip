@@ -1,100 +1,131 @@
 ---
 sidebar_position: 2
 title: Why ANIP
-description: Why agent-facing interfaces need a protocol designed for agents, not just APIs for human developers.
+description: Why autonomous systems need a control layer between reasoning and execution.
 ---
 
 # Why ANIP
 
-Every major interface paradigm emerged when the dominant consumer changed:
+Software interfaces were never designed for autonomous systems.
 
-| Interface | Consumer | Era |
+| Interface | Built for | Era |
 |-----------|----------|-----|
 | CLI | Humans at terminals | 1970s-80s |
 | GUI | Humans with screens and mice | 1980s-2000s |
 | API | Programs written by humans | 2000s-2020s |
-| **ANIP** | **AI agents** | **Now** |
+| **ANIP** | **Systems that act autonomously** | **Now** |
 
-Each shift wasn't a new format — it was a new set of assumptions about who is on the other end. That shift is happening again. The primary consumer of digital services is becoming an AI agent.
+Each shift wasn't a new format — it was a new set of assumptions about who is on the other end. GUIs assumed someone could see a screen. APIs assumed a developer read the docs and wrote deterministic code.
 
-## What's wrong with today's stack
+Agents assume neither. They reason at runtime, under delegated authority, with incomplete information, around actions that have real consequences.
 
-When agents use REST APIs directly, they operate blind:
+## The problem
 
-**Authentication**: The agent doesn't know auth is required until it gets a `401`. It doesn't know what kind of auth (API key? OAuth? OIDC?) until it parses error messages or reads docs — which it may not have access to.
+Agents do not fail safely.
 
-**Permissions**: The agent doesn't know what it's allowed to do until it tries and gets a `403`. It can't ask "what can I do?" without attempting each action and cataloging failures.
+Today, agents operate in a model that looks like this:
 
-**Cost**: The agent doesn't know what an action will cost until after it's been charged. There's no standard way for a service to say "this will cost approximately $420."
+```
+input → reasoning → tool call → execution
+```
 
-**Side effects**: The agent can't distinguish a read from an irreversible write. HTTP methods (GET/POST/PUT/DELETE) are conventions, not enforced contracts. A POST might be read-only; a DELETE might be reversible.
+At the point of execution:
 
-**Recovery**: When something fails, the agent gets an HTTP status code and maybe a message. There's no structured guidance — who can fix the problem, what's needed, how long it will take.
+- **Cost is unknown** — the agent doesn't know what the action will consume until after it's charged
+- **Permissions are implicit** — the agent discovers access limits by getting a 401 or 403
+- **Side effects are hidden** — nothing in the interface distinguishes a read from an irreversible write
+- **Failure is opaque** — when something goes wrong, the agent gets an error code with no guidance on how to recover
 
-## Where MCP fits — and where it stops
+The system assumes the agent made the right decision. That assumption is wrong.
 
-MCP (Model Context Protocol) is a significant improvement for tool discovery and transport standardization. It solves the problem of "how does an agent find and call tools?" with a clean, well-designed protocol.
+This is not a UX problem. This is a **control problem**.
 
-But MCP does not address the execution context layer:
+## The gap
 
-- No side-effect declaration — an agent can't distinguish read from write tools
-- No permission discovery — agents learn access by failing
-- No cost signaling — no way to declare or return cost information
-- No delegation model — no scoped authority beyond basic auth
-- No structured failure recovery — error codes without resolution guidance
-- No audit — no protocol-level logging of what happened
+APIs describe *how* to call systems. They do not describe:
 
-ANIP is not a competitor to MCP. ANIP services can mount an MCP adapter alongside native ANIP, exposing the same capabilities through both protocols. MCP handles tool interoperability; ANIP handles execution governance.
+- What an action **means**
+- What it **costs**
+- Whether it is **reversible**
+- Who is **allowed** to perform it
+- How to **recover** if it fails
 
-## The missing middle
+For humans, this context lives in documentation, intuition, and experience.
 
-There's a gap between "just trust the service" and heavyweight trust infrastructure (blockchains, zero-knowledge proofs).
+Agents have none of these.
 
-ANIP explores the practical middle ground:
+MCP (Model Context Protocol) significantly improves tool discovery and transport standardization. It solves "how does an agent find and call tools?" with a clean protocol. But MCP does not address the execution context layer — no side-effect declaration, no permission discovery, no cost signaling, no delegation model, no structured failure recovery, no protocol-level audit.
 
-- **Signed manifests**: Service claims are cryptographically signed, so agents can verify authenticity
-- **Delegation chains**: Authority flows through verifiable JWT chains, not opaque tokens
-- **Audit checkpoints**: Merkle trees provide tamper-evident execution history
-- **Trust posture**: Services declare their trust level (declarative → signed → anchored), so agents can adjust their reliance
+The gap is between knowing *what tools exist* and knowing *what will happen when you use them*.
 
-The goal is not absolute trust. The goal is making agent execution progressively more verifiable without making adoption unrealistic.
+## What ANIP changes
 
-## Where ANIP is strongest
+ANIP defines a contract before execution happens.
 
-ANIP adds the most value where execution has real consequences:
+Instead of:
 
-- **Financial operations**: Budget-bound delegation, cost signaling, irreversibility declarations
-- **Infrastructure changes**: Side-effect typing, rollback posture, transactional semantics
-- **Approval workflows**: Permission discovery, delegation chains, audit trails
-- **Multi-agent orchestration**: Scoped authority, lineage tracking, verifiable execution history
+```
+call → fail → retry blindly
+```
 
-In these environments, the important question is not "can the model call the tool?" It is:
+Agents can:
 
-- What is it allowed to do?
-- What will happen if it acts?
-- How much will it cost?
-- Who can fix a block?
-- How do we verify what happened later?
+```
+understand → evaluate → decide → act (or not)
+```
+
+Each action is described with:
+
+| Before execution | What ANIP provides |
+|-----------------|-------------------|
+| **Cost** | What will this consume? Declared range before, actual cost after |
+| **Authority** | Who is allowed to do this? Scoped delegation chains, not flat tokens |
+| **Side effects** | What changes in the world? Read / write / transactional / irreversible |
+| **Reversibility** | Can this be undone? Rollback window and compensation paths |
+| **Resolution** | What to do if blocked? Who can grant authority, what's needed, how long |
+
+This allows agents to:
+
+- Reason before acting
+- Avoid unsafe execution
+- Recover from failure with structured guidance
+- Escalate to a human when authority is insufficient
 
 ## More than tool interoperability
 
-The real difference between MCP and ANIP is not just transport or discovery. It is role.
+The real difference between MCP and ANIP is not transport or discovery. It is role.
 
-**MCP is a tool-interoperability layer.** It helps a model discover and call tools. That's valuable and important.
+**MCP is a tool-interoperability layer.** It helps a model discover and call tools.
 
-**ANIP can also function as an agent control-plane protocol.** It governs how execution boundaries move through an agent system — across planners, policy services, approval layers, execution workers, and audit infrastructure.
+**ANIP is a control layer between reasoning and execution.** It governs how execution boundaries move through an agent system — across planners, policy services, approval layers, execution workers, and audit infrastructure.
 
-In simple systems, the model calls a tool directly and recovers from errors. In more serious systems, there are delegation chains, narrowed authority, approval steps, policy mediation, and checkpointed evidence. In those environments, ANIP isn't just a tool surface — it becomes part of the internal system that governs how agent actions are authorized, constrained, executed, and recorded.
+In simple systems, the model calls a tool and recovers from errors. In serious systems, there are delegation chains, narrowed authority, approval steps, policy mediation, and checkpointed evidence. ANIP isn't just a tool surface in those environments — it becomes part of the system that governs how agent actions are authorized, constrained, executed, and recorded.
+
+## Where it matters most
+
+ANIP adds the most value where execution has real consequences:
+
+- **Financial operations** — budget-bound delegation, cost signaling, irreversibility
+- **Infrastructure changes** — side-effect typing, rollback posture, transactional semantics
+- **Approval workflows** — permission discovery, delegation chains, audit trails
+- **CI/CD and security** — purpose-bound authority, confused deputy prevention
+- **Multi-agent orchestration** — scoped authority, lineage tracking, verifiable execution
+
+As agents move from answering questions to taking actions, the interface between reasoning and execution becomes critical. Without it, systems remain unsafe, failures remain opaque, and autonomy remains unreliable.
 
 ## Adoption is incremental
 
-ANIP does not require every service to implement the full trust stack. It has a lightweight core and optional trust layers:
+ANIP does not require the full trust stack on day one:
 
-1. **Start with capabilities**: Declare what the service does, side effects, costs, structured failures. This alone is more useful than raw API access.
-2. **Add delegation**: Scoped JWT tokens, permission discovery. This enables purpose-bound agent access.
-3. **Add trust**: Signed manifests, JWKS, audit logging. This makes the service verifiable.
-4. **Add anchoring**: Merkle checkpoints, external anchoring. This provides tamper-evident evidence for compliance.
+1. **Start with capabilities** — declare what the service does, side effects, costs, structured failures. This alone is more useful than raw API access.
+2. **Add delegation** — scoped JWT tokens, permission discovery. Purpose-bound agent access.
+3. **Add trust** — signed manifests, JWKS, audit logging. Verifiable service claims.
+4. **Add anchoring** — Merkle checkpoints, external anchoring. Tamper-evident evidence for compliance.
 
 A lightweight ANIP service is still a valid ANIP service. Stronger trust is layered on top as deployment requirements grow.
 
-That is the space ANIP is designed to occupy.
+## ANIP is that interface
+
+The world is not going to stop deploying agents. The question is whether we give them interfaces that can express and enforce execution boundaries — or keep handing them tokens and hoping for the best.
+
+ANIP is the control layer between reasoning and execution.

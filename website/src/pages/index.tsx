@@ -14,14 +14,15 @@ function HomepageHeader() {
     <header className={styles.hero}>
       <div className="container">
         <div className={styles.heroInner}>
-          <p className={styles.eyebrow}>Agent-Native Interface Protocol</p>
+          <p className={styles.eyebrow}>The missing layer between reasoning and execution</p>
           <Heading as="h1" className={styles.heroTitle}>
-            Agents should know what will happen<br />before they act
+            Interfaces were never designed<br />for systems that act
           </Heading>
           <p className={styles.heroLead}>
-            ANIP is an open protocol that makes permissions, side effects, costs,
-            and recovery explicit — so AI agents can reason before invoking,
-            not discover constraints by failing.
+            GUIs are built for humans to see and click. APIs are built for developers
+            to call and compose. Agents, however, <strong>act</strong> — and acting has consequences.
+            ANIP is the control layer that makes cost, authority, side effects,
+            and recovery explicit before execution happens.
           </p>
           <div className={styles.ctaRow}>
             <Link className="button button--primary button--lg" to="/docs/getting-started/quickstart">
@@ -37,42 +38,91 @@ function HomepageHeader() {
   );
 }
 
-function BeforeAfter() {
+function TheProblem() {
   return (
     <section className={styles.section}>
       <div className="container">
         <div className={styles.sectionHeader}>
-          <Heading as="h2">The problem ANIP solves</Heading>
-          <p>Today's APIs were designed for human developers who read docs and write deterministic code. When agents use them directly, they learn by failing.</p>
+          <Heading as="h2">Agents do not fail safely</Heading>
+          <p>
+            Today, agents operate in a fundamentally unsafe model: <strong>input → reasoning → tool call → execution</strong>.
+            At the point of execution, cost is unknown, permissions are implicit, side effects are hidden, and failure is opaque.
+            The system assumes the agent made the right decision. That assumption is wrong.
+          </p>
         </div>
         <div className={styles.compareGrid}>
           <div className={clsx(styles.compareCard, styles.compareBefore)}>
-            <div className={styles.compareLabel}>Without ANIP</div>
+            <div className={styles.compareLabel}>Today's model</div>
             <div className={styles.compareContent}>
-              <CodeBlock language="text">{`Agent wants to book a flight
-→ Guesses POST /bookings is the right endpoint
-→ Discovers auth requirements by getting a 401
-→ Discovers missing scope by getting a 403
-→ Books the flight
-→ Discovers cost was $800 not $420 (undeclared fees)
-→ Cannot undo — no rollback info was available
-→ No audit trail accessible to the agent`}</CodeBlock>
+              <CodeBlock language="text">{`call → fail → retry blindly
+
+Agent triggers irreversible action without
+understanding consequences
+
+Agent misuses authority it doesn't reason about
+
+Agent cannot recover from permission failures
+
+Agent cannot explain or justify decisions
+before execution`}</CodeBlock>
             </div>
           </div>
           <div className={clsx(styles.compareCard, styles.compareAfter)}>
             <div className={styles.compareLabel}>With ANIP</div>
             <div className={styles.compareContent}>
-              <CodeBlock language="text">{`Agent queries manifest
-→ Sees book_flight: irreversible, financial
-→ Sees cost: ~$420 ±10%, currency: USD
-→ Checks delegation chain has travel.book scope
-→ Checks budget authority: $500 limit
-→ Confirms rollback_window: none (permanent)
-→ Decides to proceed with full context
-→ Invocation result includes audit trail + lineage`}</CodeBlock>
+              <CodeBlock language="text">{`understand → evaluate → decide → act (or not)
+
+Agent sees cost, authority, side effects,
+and reversibility before acting
+
+Agent checks permissions and budget before
+attempting execution
+
+Agent receives structured recovery guidance
+when blocked
+
+Agent can escalate to a human when authority
+is insufficient`}</CodeBlock>
             </div>
           </div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+function TheGap() {
+  return (
+    <section className={clsx(styles.section, styles.sectionAlt)}>
+      <div className="container">
+        <div className={styles.sectionHeader}>
+          <Heading as="h2">The gap</Heading>
+          <p>APIs describe <em>how</em> to call systems. They do not describe what an action <em>means</em>.</p>
+        </div>
+        <div className={styles.gapGrid}>
+          <div className={styles.gapCard}>
+            <Heading as="h3">What APIs tell agents</Heading>
+            <ul>
+              <li>Endpoint URL and HTTP method</li>
+              <li>Input/output schema</li>
+              <li>Authentication mechanism</li>
+            </ul>
+          </div>
+          <div className={styles.gapCard}>
+            <Heading as="h3">What agents actually need</Heading>
+            <ul>
+              <li>What does this action <strong>cost</strong>?</li>
+              <li>Is it <strong>reversible</strong>?</li>
+              <li>Am I <strong>authorized</strong> to do this?</li>
+              <li>What are the <strong>side effects</strong>?</li>
+              <li>What do I do if I'm <strong>blocked</strong>?</li>
+            </ul>
+          </div>
+        </div>
+        <p className={styles.gapCaption}>
+          For humans, this context lives in documentation, intuition, and experience. Agents have none of these.
+          ANIP makes it part of the interface.
+        </p>
       </div>
     </section>
   );
@@ -406,11 +456,12 @@ function Comparison() {
 export default function Home(): ReactNode {
   return (
     <Layout
-      title="Agents should know what will happen before they act"
-      description="ANIP is an open protocol that makes permissions, side effects, costs, and recovery explicit — so AI agents can reason before invoking.">
+      title="The missing layer between reasoning and execution"
+      description="ANIP is the control layer that makes cost, authority, side effects, and recovery explicit before an agent executes.">
       <HomepageHeader />
       <main>
-        <BeforeAfter />
+        <TheProblem />
+        <TheGap />
         <HowItWorks />
         <QuickStart />
         <WhatShips />
