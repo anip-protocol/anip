@@ -59,7 +59,7 @@ jobs:
       - name: Start Java example
         working-directory: packages/java
         run: |
-          java -jar anip-example-flights/target/anip-example-flights-0.11.0.jar &
+          java -jar anip-example-flights/target/anip-example-flights-*.jar &
           sleep 10
 
       - name: Smoke test REST/GraphQL/MCP endpoints
