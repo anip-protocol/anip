@@ -1,6 +1,6 @@
 {
   "name": "@anip-dev/mcp-hono",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "ANIP MCP Streamable HTTP transport for Hono",
   "type": "module",
   "engines": { "node": ">=20" },
@@ -8,15 +8,15 @@
   "types": "dist/index.d.ts",
   "scripts": { "build": "tsc", "test": "vitest run" },
   "dependencies": {
-    "@anip-dev/mcp": "0.11.0",
-    "@anip-dev/service": "0.11.0",
+    "@anip-dev/mcp": "0.11.1",
+    "@anip-dev/service": "0.11.1",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "hono": "^4.0.0"
   },
   "devDependencies": {
-    "@anip-dev/core": "0.11.0",
-    "@anip-dev/server": "0.11.0",
-    "@anip-dev/hono": "0.11.0",
+    "@anip-dev/core": "0.11.1",
+    "@anip-dev/server": "0.11.1",
+    "@anip-dev/hono": "0.11.1",
     "@hono/node-server": "^1.0.0",
     "typescript": "^5.5.0",
     "vitest": "^4.1.0"
