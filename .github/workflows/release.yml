@@ -73,15 +73,12 @@ jobs:
           done
           echo "OK: Python versions bumped"
 
-          # Java — update pom.xml versions
-          # Parent POM version
-          sed -i "s|<version>[0-9]\+\.[0-9]\+\.[0-9]\+</version>|<version>$VERSION</version>|g" packages/java/pom.xml
-          # Child POMs inherit from parent, but also update anip.version property
-          sed -i "s|<anip.version>[0-9]\+\.[0-9]\+\.[0-9]\+</anip.version>|<anip.version>$VERSION</anip.version>|" packages/java/pom.xml
-          # Child parent version references
-          for pom in packages/java/*/pom.xml; do
-            sed -i "s|<version>[0-9]\+\.[0-9]\+\.[0-9]\+</version>|<version>$VERSION</version>|g" "$pom"
-          done
+          # Java — update pom.xml versions using mvn
+          cd packages/java
+          mvn versions:set -DnewVersion="$VERSION" -DgenerateBackupPoms=false -q
+          # Also update anip.version property (drives dependency management)
+          sed -i "s|<anip.version>[0-9][0-9.]*</anip.version>|<anip.version>$VERSION</anip.version>|" pom.xml
+          cd ../..
           echo "OK: Java versions bumped"
 
           # TypeScript example app
@@ -390,7 +387,7 @@ jobs:
               return 0
             }
             # twine upload failed — check if it's "already exists"
-            if echo "$OUTPUT" | grep -qi "File already exists"; then
+            if echo "$OUTPUT" | grep -qiE "File already exists|400 Bad Request"; then
               echo "SKIP: $pkg already published on PyPI"
               cd ../../..
               return 0
