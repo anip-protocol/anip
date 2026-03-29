@@ -559,8 +559,83 @@ jobs:
           git push origin "$CSHARP_TAG"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: "v${{ inputs.version }}"
-          generate_release_notes: true
-          prerelease: ${{ inputs.prerelease }}
+        env:
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BODY=$(cat <<RELEASE_EOF
+          ## Packages
+
+          ### TypeScript (npm)
+          | Package | Install |
+          |---------|---------|
+          | \`@anip-dev/core\` | \`npm i @anip-dev/core@$VERSION\` |
+          | \`@anip-dev/crypto\` | \`npm i @anip-dev/crypto@$VERSION\` |
+          | \`@anip-dev/server\` | \`npm i @anip-dev/server@$VERSION\` |
+          | \`@anip-dev/service\` | \`npm i @anip-dev/service@$VERSION\` |
+          | \`@anip-dev/hono\` | \`npm i @anip-dev/hono@$VERSION\` |
+          | \`@anip-dev/express\` | \`npm i @anip-dev/express@$VERSION\` |
+          | \`@anip-dev/fastify\` | \`npm i @anip-dev/fastify@$VERSION\` |
+          | \`@anip-dev/mcp\` | \`npm i @anip-dev/mcp@$VERSION\` |
+          | \`@anip-dev/mcp-hono\` | \`npm i @anip-dev/mcp-hono@$VERSION\` |
+          | \`@anip-dev/mcp-express\` | \`npm i @anip-dev/mcp-express@$VERSION\` |
+          | \`@anip-dev/mcp-fastify\` | \`npm i @anip-dev/mcp-fastify@$VERSION\` |
+          | \`@anip-dev/rest\` | \`npm i @anip-dev/rest@$VERSION\` |
+          | \`@anip-dev/graphql\` | \`npm i @anip-dev/graphql@$VERSION\` |
+          | \`@anip-dev/stdio\` | \`npm i @anip-dev/stdio@$VERSION\` |
+
+          ### Python (PyPI)
+          | Package | Install |
+          |---------|---------|
+          | \`anip-core\` | \`pip install anip-core==$VERSION\` |
+          | \`anip-crypto\` | \`pip install anip-crypto==$VERSION\` |
+          | \`anip-server\` | \`pip install anip-server==$VERSION\` |
+          | \`anip-service\` | \`pip install anip-service==$VERSION\` |
+          | \`anip-fastapi\` | \`pip install anip-fastapi==$VERSION\` |
+          | \`anip-rest\` | \`pip install anip-rest==$VERSION\` |
+          | \`anip-graphql\` | \`pip install anip-graphql==$VERSION\` |
+          | \`anip-mcp\` | \`pip install anip-mcp==$VERSION\` |
+          | \`anip-studio\` | \`pip install anip-studio==$VERSION\` |
+          | \`anip-stdio\` | \`pip install anip-stdio==$VERSION\` |
+          | \`anip-grpc\` | \`pip install anip-grpc==$VERSION\` |
+
+          ### Java (Maven Central)
+          Group: \`dev.anip\`
+
+          \`anip-core\`, \`anip-crypto\`, \`anip-server\`, \`anip-service\`, \`anip-spring-boot\`, \`anip-quarkus\`, \`anip-rest\`, \`anip-rest-spring\`, \`anip-rest-quarkus\`, \`anip-graphql\`, \`anip-graphql-spring\`, \`anip-graphql-quarkus\`, \`anip-mcp\`, \`anip-mcp-spring\`, \`anip-mcp-quarkus\`, \`anip-stdio\`
+
+          \`\`\`xml
+          <dependency>
+            <groupId>dev.anip</groupId>
+            <artifactId>anip-service</artifactId>
+            <version>$VERSION</version>
+          </dependency>
+          \`\`\`
+
+          ### C# (NuGet)
+          \`Anip.Core\`, \`Anip.Crypto\`, \`Anip.Server\`, \`Anip.Service\`, \`Anip.AspNetCore\`, \`Anip.Rest\`, \`Anip.Rest.AspNetCore\`, \`Anip.GraphQL\`, \`Anip.GraphQL.AspNetCore\`, \`Anip.Mcp\`, \`Anip.Mcp.AspNetCore\`, \`Anip.Stdio\`
+
+          \`\`\`bash
+          dotnet add package Anip.Service --version $VERSION
+          \`\`\`
+
+          ### Go
+          \`\`\`bash
+          go get github.com/anip-protocol/anip/packages/go@v$VERSION
+          \`\`\`
+
+          ### Docker
+          \`\`\`bash
+          docker pull anipprotocol/studio:$VERSION
+          docker run -p 3000:8080 anipprotocol/studio:$VERSION
+          \`\`\`
+
+          ---
+          [Docs](https://anip.dev/docs/intro) | [Install](https://anip.dev/docs/getting-started/install) | [Quickstart](https://anip.dev/docs/getting-started/quickstart)
+          RELEASE_EOF
+          )
+
+          gh release create "v$VERSION" \
+            --title "ANIP v$VERSION" \
+            --notes "$BODY" \
+            ${{ inputs.prerelease == true && '--prerelease' || '' }}
