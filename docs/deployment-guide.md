@@ -443,7 +443,7 @@ This is useful for:
 - Desktop or CLI agents
 - Sandboxed single-host deployments
 
-All 5 runtimes include stdio packages: `anip-stdio` (Python), `stdioapi` (Go), `anip-stdio` (Java), `Anip.Stdio` (C#), `@anip/stdio` (TypeScript).
+All 5 runtimes include stdio packages: `anip-stdio` (Python), `stdioapi` (Go), `anip-stdio` (Java), `Anip.Stdio` (C#), `@anip-dev/stdio` (TypeScript).
 
 See the [stdio transport spec](specs/2026-03-22-anip-stdio-transport-design.md) for the full protocol definition.
 

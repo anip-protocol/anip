@@ -301,21 +301,21 @@ All replicas need the same signing key for manifest signing and checkpoint signi
 | Package | Changes |
 |---------|---------|
 | `anip-server` (Python) | `StorageBackend` contract refactor, `PostgresStorage` implementation, `AuditLog` changes (remove process-local Merkle), checkpoint reconstruction, exclusivity moved to storage |
-| `@anip/server` (TypeScript) | Same as Python: contract refactor, `PostgresStorage`, `AuditLog` changes, checkpoint reconstruction, exclusivity added |
+| `@anip-dev/server` (TypeScript) | Same as Python: contract refactor, `PostgresStorage`, `AuditLog` changes, checkpoint reconstruction, exclusivity added |
 | `anip-service` (Python) | Service layer integration: remove `_entries_since_checkpoint`, wire new checkpoint flow, lease renewal for exclusivity, per-tick leader acquisition |
-| `@anip/service` (TypeScript) | Same as Python service layer |
+| `@anip-dev/service` (TypeScript) | Same as Python service layer |
 
 ### Likely-update packages
 
 | Package | Changes |
 |---------|---------|
-| `anip-core` / `@anip/core` | Minimal — only if discovery/manifest exposes deployment posture |
+| `anip-core` / `@anip-dev/core` | Minimal — only if discovery/manifest exposes deployment posture |
 | `anip-fastapi` | Lifecycle wiring if service startup changes |
-| `@anip/hono`, `@anip/express`, `@anip/fastify` | Same lifecycle wiring |
+| `@anip-dev/hono`, `@anip-dev/express`, `@anip-dev/fastify` | Same lifecycle wiring |
 
 ### No major changes expected
 
-- `anip-crypto` / `@anip/crypto` — unless signing moves behind a shared signer abstraction (out of scope for v0.10)
+- `anip-crypto` / `@anip-dev/crypto` — unless signing moves behind a shared signer abstraction (out of scope for v0.10)
 
 ---
 

@@ -192,25 +192,25 @@ jobs:
           npx tsc -p service/tsconfig.json
           npx tsc -p hono/tsconfig.json
 
-      - name: Test @anip/core
+      - name: Test @anip-dev/core
         working-directory: packages/typescript
-        run: npm test --workspace=@anip/core
+        run: npm test --workspace=@anip-dev/core
 
-      - name: Test @anip/crypto
+      - name: Test @anip-dev/crypto
         working-directory: packages/typescript
-        run: npm test --workspace=@anip/crypto
+        run: npm test --workspace=@anip-dev/crypto
 
-      - name: Test @anip/server
+      - name: Test @anip-dev/server
         working-directory: packages/typescript
-        run: npm test --workspace=@anip/server
+        run: npm test --workspace=@anip-dev/server
 
-      - name: Test @anip/service
+      - name: Test @anip-dev/service
         working-directory: packages/typescript
-        run: npm test --workspace=@anip/service
+        run: npm test --workspace=@anip-dev/service
 
-      - name: Test @anip/hono
+      - name: Test @anip-dev/hono
         working-directory: packages/typescript
-        run: npm test --workspace=@anip/hono
+        run: npm test --workspace=@anip-dev/hono
 
       - name: Install and test TypeScript example
         working-directory: examples/anip-ts

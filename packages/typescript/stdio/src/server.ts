@@ -3,8 +3,8 @@
  */
 
 import { createInterface } from "readline";
-import type { ANIPService } from "@anip/service";
-import { ANIPError } from "@anip/service";
+import type { ANIPService } from "@anip-dev/service";
+import { ANIPError } from "@anip-dev/service";
 
 // ---------------------------------------------------------------------------
 // JSON-RPC 2.0 constants

@@ -3,9 +3,9 @@ import { AnipStdioServer } from "../src/server.js";
 import {
   createANIPService,
   defineCapability,
-} from "@anip/service";
-import type { ANIPService, CapabilityDef } from "@anip/service";
-import type { CapabilityDeclaration } from "@anip/core";
+} from "@anip-dev/service";
+import type { ANIPService, CapabilityDef } from "@anip-dev/service";
+import type { CapabilityDeclaration } from "@anip-dev/core";
 
 // ---------------------------------------------------------------------------
 // Helpers

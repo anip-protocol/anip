@@ -2,9 +2,9 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import Fastify from "fastify";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { createANIPService, defineCapability } from "@anip/service";
-import { InMemoryStorage } from "@anip/server";
-import type { CapabilityDeclaration } from "@anip/core";
+import { createANIPService, defineCapability } from "@anip-dev/service";
+import { InMemoryStorage } from "@anip-dev/server";
+import type { CapabilityDeclaration } from "@anip-dev/core";
 import { mountAnipMcpFastify } from "../src/index.js";
 import type { AddressInfo } from "node:net";
 

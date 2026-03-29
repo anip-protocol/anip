@@ -1,6 +1,6 @@
-import { defineCapability, ANIPError } from "@anip/service";
-import type { InvocationContext } from "@anip/service";
-import type { CapabilityDeclaration } from "@anip/core";
+import { defineCapability, ANIPError } from "@anip-dev/service";
+import type { InvocationContext } from "@anip-dev/service";
+import type { CapabilityDeclaration } from "@anip-dev/core";
 import { createBooking, getFlight } from "../domain/flights.js";
 
 const DECLARATION: CapabilityDeclaration = {

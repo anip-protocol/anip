@@ -2,8 +2,8 @@
  * ANIP REST bindings — mount RESTful API endpoints on a Hono app.
  */
 import type { Hono } from "hono";
-import type { ANIPService } from "@anip/service";
-import { ANIPError } from "@anip/service";
+import type { ANIPService } from "@anip-dev/service";
+import { ANIPError } from "@anip-dev/service";
 import {
   generateRoutes,
   generateOpenAPISpec,

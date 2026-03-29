@@ -270,11 +270,11 @@ app = FastAPI()
 mount_anip(app, service)
 ```
 
-**TypeScript** (`@anip/service` + `@anip/hono`):
+**TypeScript** (`@anip-dev/service` + `@anip-dev/hono`):
 
 ```typescript
-import { createANIPService } from "@anip/service";
-import { mountAnip } from "@anip/hono";
+import { createANIPService } from "@anip-dev/service";
+import { mountAnip } from "@anip-dev/hono";
 import { Hono } from "hono";
 
 const service = createANIPService({
@@ -311,13 +311,13 @@ search_flights = Capability(
 
 The runtime handles discovery, JWT tokens, signed manifests, delegation validation, audit logging, and Merkle checkpoints. See the [Python example](examples/anip/), [TypeScript example](examples/anip-ts/), [Go example](packages/go/examples/flights/), [Java example](packages/java/anip-example-flights/), and [C# example](packages/csharp/src/Anip.Example.Flights/) for complete working services.
 
-For advanced use cases that need direct access to the SDK primitives (KeyManager, DelegationEngine, AuditLog, MerkleTree), the underlying packages (`anip-core`/`anip-crypto`/`anip-server` and `@anip/core`/`@anip/crypto`/`@anip/server`) remain available.
+For advanced use cases that need direct access to the SDK primitives (KeyManager, DelegationEngine, AuditLog, MerkleTree), the underlying packages (`anip-core`/`anip-crypto`/`anip-server` and `@anip-dev/core`/`@anip-dev/crypto`/`@anip-dev/server`) remain available.
 
 ## Install
 
 | Ecosystem | Registry | Install |
 |-----------|----------|---------|
-| TypeScript | npm | `npm install @anip/service @anip/hono` |
+| TypeScript | npm | `npm install @anip-dev/service @anip-dev/hono` |
 | Python | PyPI | `pip install anip-service anip-fastapi` |
 | Java | Maven Central | `dev.anip:anip-service` |
 | Go | Module | `go get github.com/anip-protocol/anip/packages/go` |
@@ -338,13 +338,13 @@ This is a community effort. We'd rather define this standard thoughtfully and in
 - [Spec](SPEC.md) — the technical design (v0.11)
 - [Guide](GUIDE.md) — walkthrough of the reference implementation with design rationale
 - [Reference implementation — Python](examples/anip/) — `anip-service` + FastAPI, ~150 lines of business logic
-- [Reference implementation — TypeScript](examples/anip-ts/) — `@anip/service` + Hono, same capabilities and endpoints
+- [Reference implementation — TypeScript](examples/anip-ts/) — `@anip-dev/service` + Hono, same capabilities and endpoints
 - [Reference implementation — Go](packages/go/examples/flights/) — `anip-service` + net/http, same capabilities and endpoints
 - [Reference implementation — Java (Spring Boot)](packages/java/anip-example-flights/) — `anip-service` + Spring Boot, same capabilities and endpoints
 - [Reference implementation — Java (Quarkus)](packages/java/anip-example-flights-quarkus/) — `anip-service` + Quarkus, same capabilities and endpoints
 - [Reference implementation — C#](packages/csharp/src/Anip.Example.Flights/) — `Anip.Service` + ASP.NET Core, same capabilities and endpoints
 - Python SDK packages: `anip-core`, `anip-crypto`, `anip-server`, `anip-service`, `anip-fastapi`, `anip-rest`, `anip-graphql`, `anip-mcp`, `anip-stdio`, `anip-grpc`, `anip-studio`
-- TypeScript SDK packages: `@anip/core`, `@anip/crypto`, `@anip/server`, `@anip/service`, `@anip/hono`, `@anip/express`, `@anip/fastify`, `@anip/mcp`, `@anip/mcp-hono`, `@anip/mcp-express`, `@anip/mcp-fastify`, `@anip/rest`, `@anip/graphql`, `@anip/stdio`
+- TypeScript SDK packages: `@anip-dev/core`, `@anip-dev/crypto`, `@anip-dev/server`, `@anip-dev/service`, `@anip-dev/hono`, `@anip-dev/express`, `@anip-dev/fastify`, `@anip-dev/mcp`, `@anip-dev/mcp-hono`, `@anip-dev/mcp-express`, `@anip-dev/mcp-fastify`, `@anip-dev/rest`, `@anip-dev/graphql`, `@anip-dev/stdio`
 - Go SDK packages: `core`, `crypto`, `server`, `service`, `httpapi`, `ginapi`, `restapi`, `graphqlapi`, `mcpapi`, `stdioapi`, `grpcapi`
 - Java SDK packages: `anip-core`, `anip-crypto`, `anip-server`, `anip-service`, `anip-spring-boot`, `anip-quarkus`, `anip-rest` (shared), `anip-rest-spring`, `anip-rest-quarkus`, `anip-graphql` (shared), `anip-graphql-spring`, `anip-graphql-quarkus`, `anip-mcp` (shared), `anip-mcp-spring`, `anip-mcp-quarkus`, `anip-stdio`
 - C# projects (in-repo, NuGet publishing not yet configured): `Anip.Core`, `Anip.Crypto`, `Anip.Server`, `Anip.Service`, `Anip.AspNetCore`, `Anip.Rest`, `Anip.Rest.AspNetCore`, `Anip.GraphQL`, `Anip.GraphQL.AspNetCore`, `Anip.Mcp`, `Anip.Mcp.AspNetCore`, `Anip.Stdio`
@@ -353,9 +353,9 @@ This is a community effort. We'd rather define this standard thoughtfully and in
   - stdio: native ANIP-over-stdio via JSON-RPC 2.0 on stdin/stdout — all 5 runtimes
   - gRPC: native ANIP-over-gRPC via shared [proto/anip/v1/anip.proto](proto/anip/v1/anip.proto) — Python + Go (Java, C#, TypeScript later)
 - Interface packages — mount alongside ANIP on the same service:
-  - MCP: `@anip/mcp` / `anip-mcp` (shared), framework adapters for Streamable HTTP
-  - REST: `@anip/rest` / `anip-rest` (shared, auto-generated OpenAPI + Swagger UI)
-  - GraphQL: `@anip/graphql` / `anip-graphql` (shared, auto-generated SDL + directives)
+  - MCP: `@anip-dev/mcp` / `anip-mcp` (shared), framework adapters for Streamable HTTP
+  - REST: `@anip-dev/rest` / `anip-rest` (shared, auto-generated OpenAPI + Swagger UI)
+  - GraphQL: `@anip-dev/graphql` / `anip-graphql` (shared, auto-generated SDL + directives)
 - [ANIP Studio](studio/) — inspection and invocation UI for ANIP services, embedded at `/studio` or standalone via Docker (`docker run -p 3000:80 anip-studio`)
 - [Conformance suite](conformance/) — language-agnostic HTTP-based protocol compliance tests
 - [Contract testing](contract-tests/) — side-effect contract verification (read purity, event classification, cost presence, compensation workflows)

@@ -31,7 +31,7 @@ v0.4 removes the legacy `InvokeRequest` / `InvokeRequestV2` split. ANIP is pre-1
 
 **No runtime code imports these models directly** — the service layer and bindings work with dicts/parsed bodies, not typed `InvokeRequest` objects. The collapse is a model-definition and export cleanup.
 
-## Core Models (anip-core / @anip/core)
+## Core Models (anip-core / @anip-dev/core)
 
 **InvokeRequest** (single canonical shape):
 
@@ -58,7 +58,7 @@ v0.4 removes the legacy `InvokeRequest` / `InvokeRequestV2` split. ANIP is pre-1
 - `client_reference_id`: Pydantic `Field(max_length=256)`, Zod `.max(256)`
 - `invocation_id`: light regex `^inv-[0-9a-f]{12}$`
 
-## Service Runtime (anip-service / @anip/service)
+## Service Runtime (anip-service / @anip-dev/service)
 
 **`invoke()` signature change:**
 
@@ -75,7 +75,7 @@ invoke(capability, token, params, client_reference_id=None)
 5. Both passed to audit logging
 6. Lineage covers all paths inside `invoke()`: unknown capability, delegation validation failure, handler errors, and success. Bearer auth failures (401) happen in bindings before `invoke()` is called — they are transport-level rejections, not invocations, and do not receive lineage.
 
-## Server Layer (anip-server / @anip/server)
+## Server Layer (anip-server / @anip-dev/server)
 
 **Audit `log_entry()`:** Accepts `invocation_id` and `client_reference_id` as optional fields in `entry_data`. No logic changes — just records what it's given.
 
@@ -106,7 +106,7 @@ Small wiring change only:
 - Pass as 4th argument to `service.invoke()`
 - No other logic changes
 
-Applies to: anip-fastapi, anip-flask, @anip/hono, @anip/express, @anip/fastify.
+Applies to: anip-fastapi, anip-flask, @anip-dev/hono, @anip-dev/express, @anip-dev/fastify.
 
 ## Version Bump
 
@@ -114,11 +114,11 @@ Applies to: anip-fastapi, anip-flask, @anip/hono, @anip/express, @anip/fastify.
 
 | Layer | Python | TypeScript |
 |-------|--------|------------|
-| Core | anip-core | @anip/core |
-| Crypto | anip-crypto | @anip/crypto |
-| Server | anip-server | @anip/server |
-| Service | anip-service | @anip/service |
-| Bindings | anip-fastapi, anip-flask | @anip/hono, @anip/express, @anip/fastify |
+| Core | anip-core | @anip-dev/core |
+| Crypto | anip-crypto | @anip-dev/crypto |
+| Server | anip-server | @anip-dev/server |
+| Service | anip-service | @anip-dev/service |
+| Bindings | anip-fastapi, anip-flask | @anip-dev/hono, @anip-dev/express, @anip-dev/fastify |
 
 Inter-package dependencies updated to `>=0.4.0` / `"0.4.0"`.
 

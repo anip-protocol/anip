@@ -8,8 +8,8 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import type { ANIPService } from "@anip/service";
-import { ANIPError } from "@anip/service";
+import type { ANIPService } from "@anip-dev/service";
+import { ANIPError } from "@anip-dev/service";
 import { capabilityToInputSchema, enrichDescription } from "./translation.js";
 
 export interface InvokeResult {
@@ -31,7 +31,7 @@ export async function resolveAuth(
   bearer: string,
   service: ANIPService,
   capabilityName: string,
-): Promise<import("@anip/core").DelegationToken> {
+): Promise<import("@anip-dev/core").DelegationToken> {
   // Try as JWT first — preserves original delegation chain
   let jwtError: ANIPError | null = null;
   try {
@@ -68,7 +68,7 @@ export async function invokeWithToken(
   service: ANIPService,
   capabilityName: string,
   args: Record<string, unknown>,
-  token: import("@anip/core").DelegationToken,
+  token: import("@anip-dev/core").DelegationToken,
 ): Promise<InvokeResult> {
   try {
     const result = await service.invoke(capabilityName, token, args);

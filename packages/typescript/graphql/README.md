@@ -1,4 +1,4 @@
-# @anip/graphql
+# @anip-dev/graphql
 
 ANIP GraphQL bindings — expose ANIPService capabilities via GraphQL
 
@@ -7,7 +7,7 @@ Part of the [ANIP](https://github.com/anip-protocol/anip) protocol ecosystem.
 ## Install
 
 ```bash
-npm install @anip/graphql
+npm install @anip-dev/graphql
 ```
 
 ## Documentation

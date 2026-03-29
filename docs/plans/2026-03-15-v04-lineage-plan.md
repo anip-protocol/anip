@@ -4,7 +4,7 @@
 
 **Goal:** Add protocol-level lineage (`invocation_id` + `client_reference_id`) to ANIP invoke operations, collapse the legacy InvokeRequest/InvokeRequestV2 split, and bump all 13 packages to 0.4.0.
 
-**Architecture:** Lineage fields are added to core models (anip-core / @anip/core), threaded through the service runtime's invoke() → InvocationContext → audit → response pipeline, persisted in server storage with query support, and wired through all 5 framework bindings. The old embedded-token `InvokeRequest` is deleted; `InvokeRequestV2` is renamed to `InvokeRequest`.
+**Architecture:** Lineage fields are added to core models (anip-core / @anip-dev/core), threaded through the service runtime's invoke() → InvocationContext → audit → response pipeline, persisted in server storage with query support, and wired through all 5 framework bindings. The old embedded-token `InvokeRequest` is deleted; `InvokeRequestV2` is renamed to `InvokeRequest`.
 
 **Tech Stack:** Python (Pydantic, SQLite, Flask, FastAPI), TypeScript (Zod, better-sqlite3, Hono, Express, Fastify), pytest, vitest.
 
@@ -334,7 +334,7 @@ cd packages/typescript && npx vitest run core/tests/models.test.ts
 **Step 5: Run existing core tests**
 
 ```bash
-cd packages/typescript && npm test --workspace=@anip/core
+cd packages/typescript && npm test --workspace=@anip-dev/core
 ```
 
 **Step 6: Commit**
@@ -735,7 +735,7 @@ cd packages/typescript && npx vitest run server/tests/audit.test.ts
 **Step 6: Run all server tests**
 
 ```bash
-cd packages/typescript && npm test --workspace=@anip/server
+cd packages/typescript && npm test --workspace=@anip-dev/server
 ```
 
 **Step 7: Commit**
@@ -1122,7 +1122,7 @@ cd packages/typescript && npx vitest run service/tests/service.test.ts
 **Step 5: Run all service tests**
 
 ```bash
-cd packages/typescript && npm test --workspace=@anip/service
+cd packages/typescript && npm test --workspace=@anip-dev/service
 ```
 
 **Step 6: Commit**
@@ -1416,10 +1416,10 @@ For each of these files, change `"version": "0.3.0"` to `"version": "0.4.0"`:
 - `packages/typescript/fastify/package.json`
 
 Also update inter-package dependency versions:
-- `"@anip/core": "0.3.0"` → `"@anip/core": "0.4.0"`
-- `"@anip/crypto": "0.3.0"` → `"@anip/crypto": "0.4.0"`
-- `"@anip/server": "0.3.0"` → `"@anip/server": "0.4.0"`
-- `"@anip/service": "0.3.0"` → `"@anip/service": "0.4.0"`
+- `"@anip-dev/core": "0.3.0"` → `"@anip-dev/core": "0.4.0"`
+- `"@anip-dev/crypto": "0.3.0"` → `"@anip-dev/crypto": "0.4.0"`
+- `"@anip-dev/server": "0.3.0"` → `"@anip-dev/server": "0.4.0"`
+- `"@anip-dev/service": "0.3.0"` → `"@anip-dev/service": "0.4.0"`
 
 **Step 3: Update schema/generate.py**
 
@@ -1460,13 +1460,13 @@ pytest packages/python/anip-flask/tests/ -v
 
 # TypeScript
 cd packages/typescript && npm ci && npx tsc -p core/tsconfig.json && npx tsc -p crypto/tsconfig.json && npx tsc -p server/tsconfig.json && npx tsc -p service/tsconfig.json && npx tsc -p hono/tsconfig.json && npx tsc -p express/tsconfig.json && npx tsc -p fastify/tsconfig.json
-npm test --workspace=@anip/core
-npm test --workspace=@anip/crypto
-npm test --workspace=@anip/server
-npm test --workspace=@anip/service
-npm test --workspace=@anip/hono
-npm test --workspace=@anip/express
-npm test --workspace=@anip/fastify
+npm test --workspace=@anip-dev/core
+npm test --workspace=@anip-dev/crypto
+npm test --workspace=@anip-dev/server
+npm test --workspace=@anip-dev/service
+npm test --workspace=@anip-dev/hono
+npm test --workspace=@anip-dev/express
+npm test --workspace=@anip-dev/fastify
 ```
 
 **Step 5: Commit**

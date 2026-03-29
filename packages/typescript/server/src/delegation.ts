@@ -18,10 +18,10 @@ import { hostname } from "os";
 import type {
   DelegationToken as DelegationTokenType,
   ANIPFailure as ANIPFailureType,
-} from "@anip/core";
+} from "@anip-dev/core";
 import type { StorageBackend } from "./storage.js";
 
-// Use plain objects matching the Zod-inferred type shapes from @anip/core.
+// Use plain objects matching the Zod-inferred type shapes from @anip-dev/core.
 // We avoid Zod runtime parsing here; construction uses object literals.
 
 export interface IssueRootTokenOpts {

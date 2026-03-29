@@ -4,8 +4,8 @@ import {
   defineCapability,
 } from "../src/index.js";
 import type { CapabilityDef } from "../src/index.js";
-import type { CapabilityDeclaration } from "@anip/core";
-import { InMemoryStorage, CheckpointPolicy } from "@anip/server";
+import type { CapabilityDeclaration } from "@anip-dev/core";
+import { InMemoryStorage, CheckpointPolicy } from "@anip-dev/server";
 
 // ---------------------------------------------------------------------------
 // Test helpers

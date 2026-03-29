@@ -5,7 +5,7 @@
 import type {
   DelegationToken as DelegationTokenType,
   CapabilityDeclaration as CapabilityDeclarationType,
-} from "@anip/core";
+} from "@anip-dev/core";
 
 export interface PermissionResult {
   available: Array<{

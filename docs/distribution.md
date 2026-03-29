@@ -18,10 +18,10 @@ What ANIP artifacts are currently distributed, where they are published, and wha
 Published to npm. Install:
 
 ```bash
-npm install @anip/service @anip/hono
+npm install @anip-dev/service @anip-dev/hono
 ```
 
-Full package family: `@anip/core`, `@anip/crypto`, `@anip/server`, `@anip/service`, `@anip/hono`, `@anip/express`, `@anip/fastify`, `@anip/rest`, `@anip/graphql`, `@anip/mcp`, `@anip/mcp-hono`, `@anip/mcp-express`, `@anip/mcp-fastify`, `@anip/stdio`.
+Full package family: `@anip-dev/core`, `@anip-dev/crypto`, `@anip-dev/server`, `@anip-dev/service`, `@anip-dev/hono`, `@anip-dev/express`, `@anip-dev/fastify`, `@anip-dev/rest`, `@anip-dev/graphql`, `@anip-dev/mcp`, `@anip-dev/mcp-hono`, `@anip-dev/mcp-express`, `@anip-dev/mcp-fastify`, `@anip-dev/stdio`.
 
 ## Python
 

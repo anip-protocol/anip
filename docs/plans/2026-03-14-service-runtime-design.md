@@ -20,8 +20,8 @@ core → crypto → server → service → fastapi/hono
 
 | Package | Python | TypeScript |
 |---------|--------|------------|
-| Service runtime | `anip-service` | `@anip/service` |
-| Framework bindings | `anip-fastapi` | `@anip/hono` |
+| Service runtime | `anip-service` | `@anip-dev/service` |
+| Framework bindings | `anip-fastapi` | `@anip-dev/hono` |
 
 ### Filesystem layout
 
@@ -74,7 +74,7 @@ service = ANIPService(
 
 **TypeScript:**
 ```typescript
-import { createANIPService } from "@anip/service";
+import { createANIPService } from "@anip-dev/service";
 
 const service = createANIPService({
   serviceId: "anip-flight-service",
@@ -185,7 +185,7 @@ def handle_search(ctx: InvocationContext, params: dict) -> dict:
 
 **TypeScript:**
 ```typescript
-import { defineCapability } from "@anip/service";
+import { defineCapability } from "@anip-dev/service";
 
 export const searchFlights = defineCapability({
   declaration: { name: "search_flights", ... },
@@ -255,11 +255,11 @@ app = FastAPI()
 mount_anip(app, service)
 ```
 
-### TypeScript (`@anip/hono`)
+### TypeScript (`@anip-dev/hono`)
 
 ```typescript
 import { Hono } from "hono";
-import { mountAnip } from "@anip/hono";
+import { mountAnip } from "@anip-dev/hono";
 
 const app = new Hono();
 mountAnip(app, service);

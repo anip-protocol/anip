@@ -1,4 +1,4 @@
-# @anip/crypto
+# @anip-dev/crypto
 
 ANIP cryptographic primitives — key management, JWT, JWS, JWKS
 
@@ -7,7 +7,7 @@ Part of the [ANIP](https://github.com/anip-protocol/anip) protocol ecosystem.
 ## Install
 
 ```bash
-npm install @anip/crypto
+npm install @anip-dev/crypto
 ```
 
 ## Documentation

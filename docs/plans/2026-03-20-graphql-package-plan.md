@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Convert the standalone GraphQL adapters (`adapters/graphql-ts`, `adapters/graphql-py`) into reusable library packages (`@anip/graphql`, `anip-graphql`) that mount a GraphQL endpoint directly on an `ANIPService` instance — no HTTP proxying.
+**Goal:** Convert the standalone GraphQL adapters (`adapters/graphql-ts`, `adapters/graphql-py`) into reusable library packages (`@anip-dev/graphql`, `anip-graphql`) that mount a GraphQL endpoint directly on an `ANIPService` instance — no HTTP proxying.
 
 **Architecture:** Each package reuses the existing translation logic (capability → SDL schema with custom directives, camelCase conventions, query/mutation separation) but replaces the HTTP invocation bridge with direct `service.invoke()` calls. Auth is extracted from `Authorization: Bearer` headers — same JWT/API-key dual mode as REST. TypeScript uses `graphql-js` for schema building and execution on Hono. Python uses Ariadne on FastAPI.
 
-**Tech Stack:** TypeScript (`@anip/service`, `hono`, `graphql`), Python (`anip-service`, `fastapi`, `ariadne`)
+**Tech Stack:** TypeScript (`@anip-dev/service`, `hono`, `graphql`), Python (`anip-service`, `fastapi`, `ariadne`)
 
 ---
 
@@ -37,7 +37,7 @@ packages/python/anip-graphql/
 
 ## Chunk 1: TypeScript GraphQL Package
 
-### Task 1: Scaffold `@anip/graphql`
+### Task 1: Scaffold `@anip-dev/graphql`
 
 **Files:**
 - Create: `packages/typescript/graphql/package.json`
@@ -48,7 +48,7 @@ packages/python/anip-graphql/
 
 ```json
 {
-  "name": "@anip/graphql",
+  "name": "@anip-dev/graphql",
   "version": "0.8.0",
   "description": "ANIP GraphQL bindings — expose ANIPService capabilities via GraphQL",
   "type": "module",
@@ -60,13 +60,13 @@ packages/python/anip-graphql/
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip/service": "0.8.0",
+    "@anip-dev/service": "0.8.0",
     "hono": "^4.0.0",
     "graphql": "^16.9.0"
   },
   "devDependencies": {
-    "@anip/core": "0.8.0",
-    "@anip/server": "0.8.0",
+    "@anip-dev/core": "0.8.0",
+    "@anip-dev/server": "0.8.0",
     "typescript": "^5.5.0",
     "vitest": "^4.1.0"
   }
@@ -88,7 +88,7 @@ export type { GraphQLMountOptions } from "./routes.js";
 
 ```bash
 git add packages/typescript/graphql/ packages/typescript/package.json
-git commit -m "feat(graphql): scaffold @anip/graphql package"
+git commit -m "feat(graphql): scaffold @anip-dev/graphql package"
 ```
 
 ---
@@ -314,8 +314,8 @@ git commit -m "feat(graphql): add SDL translation with directives and camelCase"
  */
 import { buildSchema, graphql } from "graphql";
 import type { Hono } from "hono";
-import type { ANIPService } from "@anip/service";
-import { ANIPError } from "@anip/service";
+import type { ANIPService } from "@anip-dev/service";
+import { ANIPError } from "@anip-dev/service";
 import {
   generateSchema,
   buildGraphQLResponse,
@@ -526,10 +526,10 @@ git commit -m "feat(graphql): add mountAnipGraphQL with resolvers and SDL"
 ```typescript
 import { describe, it, expect } from "vitest";
 import { Hono } from "hono";
-import { createANIPService, defineCapability } from "@anip/service";
-import { InMemoryStorage } from "@anip/server";
-import type { CapabilityDeclaration } from "@anip/core";
-import { mountAnip } from "@anip/hono";
+import { createANIPService, defineCapability } from "@anip-dev/service";
+import { InMemoryStorage } from "@anip-dev/server";
+import type { CapabilityDeclaration } from "@anip-dev/core";
+import { mountAnip } from "@anip-dev/hono";
 import { mountAnipGraphQL } from "../src/routes.js";
 import { generateSchema, toCamelCase, toSnakeCase } from "../src/translation.js";
 
@@ -706,7 +706,7 @@ Run: `cd packages/typescript/graphql && npx vitest run`
 
 ```bash
 git add packages/typescript/graphql/tests/graphql.test.ts
-git commit -m "feat(graphql): add tests for @anip/graphql package"
+git commit -m "feat(graphql): add tests for @anip-dev/graphql package"
 ```
 
 ---

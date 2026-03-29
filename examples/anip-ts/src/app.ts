@@ -1,8 +1,8 @@
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
-import { createANIPService } from "@anip/service";
-import { mountAnip } from "@anip/hono";
+import { createANIPService } from "@anip-dev/service";
+import { mountAnip } from "@anip-dev/hono";
 import { searchFlights } from "./capabilities/search-flights.js";
 import { bookFlight } from "./capabilities/book-flight.js";
 import { createOidcValidator } from "./oidc.js";

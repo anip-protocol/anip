@@ -27,7 +27,7 @@ pip install anip-service anip-fastapi uvicorn
 **Prerequisites:** Node.js 20+
 
 ```bash
-npm install @anip/service @anip/hono
+npm install @anip-dev/service @anip-dev/hono
 ```
 
 </TabItem>
@@ -139,8 +139,8 @@ Create `app.ts`:
 
 ```typescript
 import { Hono } from "hono";
-import { createANIPService, defineCapability } from "@anip/service";
-import { mountAnip } from "@anip/hono";
+import { createANIPService, defineCapability } from "@anip-dev/service";
+import { mountAnip } from "@anip-dev/hono";
 
 // Business logic — ANIP-free
 function doSearch(origin: string, destination: string) {

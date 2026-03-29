@@ -97,12 +97,12 @@ jobs:
               echo "FAIL: $pkg version is $PKG_VERSION, expected $VERSION"
               FAILED=1
             fi
-            # Check all @anip/* deps match the release version
+            # Check all @anip-dev/* deps match the release version
             for dep_field in dependencies devDependencies; do
               STALE=$(node -p "
                 const deps = require('./$pkg/package.json')['$dep_field'] || {};
                 Object.entries(deps)
-                  .filter(([k,v]) => k.startsWith('@anip/') && v !== process.env.VERSION)
+                  .filter(([k,v]) => k.startsWith('@anip-dev/') && v !== process.env.VERSION)
                   .map(([k,v]) => k + '=' + v)
                   .join(',')
               ")

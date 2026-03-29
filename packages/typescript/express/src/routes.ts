@@ -1,7 +1,7 @@
 import express, { Router } from "express";
 import type { Express, Request, Response } from "express";
-import type { ANIPService } from "@anip/service";
-import { ANIPError } from "@anip/service";
+import type { ANIPService } from "@anip-dev/service";
+import { ANIPError } from "@anip-dev/service";
 
 export async function mountAnip(
   app: Express,

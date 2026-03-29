@@ -4,9 +4,9 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { createANIPService, defineCapability } from "@anip/service";
-import { InMemoryStorage } from "@anip/server";
-import type { CapabilityDeclaration } from "@anip/core";
+import { createANIPService, defineCapability } from "@anip-dev/service";
+import { InMemoryStorage } from "@anip-dev/server";
+import type { CapabilityDeclaration } from "@anip-dev/core";
 import { mountAnipMcp } from "../src/routes.js";
 import { capabilityToInputSchema, enrichDescription } from "../src/translation.js";
 

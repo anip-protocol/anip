@@ -59,4 +59,4 @@ Since there's no HTTP header in stdio, auth is passed in the request params:
 
 ## Runtime support
 
-Available in all five runtimes: TypeScript (`@anip/stdio`), Python (`anip-stdio`), Java (`anip-stdio`), Go (`stdioapi`), C# (`Anip.Stdio`).
+Available in all five runtimes: TypeScript (`@anip-dev/stdio`), Python (`anip-stdio`), Java (`anip-stdio`), Go (`stdioapi`), C# (`Anip.Stdio`).

@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { Hono } from "hono";
-import { createANIPService, defineCapability } from "@anip/service";
+import { createANIPService, defineCapability } from "@anip-dev/service";
 import { mountAnip } from "../src/routes.js";
-import { InMemoryStorage } from "@anip/server";
-import type { CapabilityDeclaration } from "@anip/core";
-import type { InvocationContext } from "@anip/service";
+import { InMemoryStorage } from "@anip-dev/server";
+import type { CapabilityDeclaration } from "@anip-dev/core";
+import type { InvocationContext } from "@anip-dev/service";
 
 function greetCap() {
   return defineCapability({

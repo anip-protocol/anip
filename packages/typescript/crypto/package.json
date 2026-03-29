@@ -1,5 +1,5 @@
 {
-  "name": "@anip/crypto",
+  "name": "@anip-dev/crypto",
   "version": "0.11.0",
   "description": "ANIP cryptographic primitives — key management, JWT, JWS, JWKS",
   "type": "module",
@@ -13,7 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip/core": "0.11.0",
+    "@anip-dev/core": "0.11.0",
     "jose": "^6.2.1"
   },
   "devDependencies": {

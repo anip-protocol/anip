@@ -9,13 +9,13 @@ import {
   PROTOCOL_VERSION,
   MANIFEST_VERSION,
   DEFAULT_PROFILE,
-} from "@anip/core";
+} from "@anip-dev/core";
 import type {
   ANIPManifest as ANIPManifestType,
   CapabilityDeclaration as CapabilityDeclarationType,
   TrustPosture as TrustPostureType,
   ServiceIdentity as ServiceIdentityType,
-} from "@anip/core";
+} from "@anip-dev/core";
 
 export interface BuildManifestOpts {
   capabilities: Record<string, CapabilityDeclarationType>;

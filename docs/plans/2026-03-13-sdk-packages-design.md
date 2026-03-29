@@ -23,7 +23,7 @@ Each layer is independently installable. Adopters stop at the layer they need:
 ### 1. anip-core
 
 **Python:** `anip-core` on PyPI (`anip_core`)
-**TypeScript:** `@anip/core` on npm
+**TypeScript:** `@anip-dev/core` on npm
 
 **Contents:**
 
@@ -51,7 +51,7 @@ Each layer is independently installable. Adopters stop at the layer they need:
 ### 2. anip-crypto
 
 **Python:** `anip-crypto` on PyPI (`anip_crypto`)
-**TypeScript:** `@anip/crypto` on npm
+**TypeScript:** `@anip-dev/crypto` on npm
 
 **Contents:**
 
@@ -74,12 +74,12 @@ Each layer is independently installable. Adopters stop at the layer they need:
 **Dependencies:**
 
 - Python: `anip-core`, `cryptography`, `PyJWT`
-- TypeScript: `@anip/core`, `jose`
+- TypeScript: `@anip-dev/core`, `jose`
 
 ### 3. anip-server
 
 **Python:** `anip-server` on PyPI (`anip_server`)
-**TypeScript:** `@anip/server` on npm
+**TypeScript:** `@anip-dev/server` on npm
 
 **Contents:**
 
@@ -102,7 +102,7 @@ Each layer is independently installable. Adopters stop at the layer they need:
 **Dependencies:**
 
 - Python: `anip-core`, `anip-crypto`
-- TypeScript: `@anip/core`, `@anip/crypto`
+- TypeScript: `@anip-dev/core`, `@anip-dev/crypto`
 - SQLite drivers are optional/default (not required with custom storage backend)
 
 ## Repository Layout
@@ -145,7 +145,7 @@ packages/
     package.json             # workspace root
     tsconfig.base.json
     core/
-      package.json           # @anip/core
+      package.json           # @anip-dev/core
       src/
         index.ts
         models.ts
@@ -153,7 +153,7 @@ packages/
         constants.ts
       tests/
     crypto/
-      package.json           # @anip/crypto
+      package.json           # @anip-dev/crypto
       src/
         index.ts
         keys.ts
@@ -163,7 +163,7 @@ packages/
         verify.ts
       tests/
     server/
-      package.json           # @anip/server
+      package.json           # @anip-dev/server
       src/
         index.ts
         delegation.ts

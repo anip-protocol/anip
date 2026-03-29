@@ -205,8 +205,8 @@ app = FastAPI()
 mount_anip(app, service)`;
 
   const typescriptExample = `import { Hono } from "hono";
-import { createANIPService, defineCapability } from "@anip/service";
-import { mountAnip } from "@anip/hono";
+import { createANIPService, defineCapability } from "@anip-dev/service";
+import { mountAnip } from "@anip-dev/hono";
 
 const searchFlights = defineCapability({
   name: "search_flights",

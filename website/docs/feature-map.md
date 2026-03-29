@@ -34,7 +34,7 @@ A complete inventory of what ANIP includes today, organized by layer.
 
 | Runtime | Service package | Framework adapters |
 |---------|----------------|-------------------|
-| TypeScript | `@anip/service` | Hono, Express, Fastify |
+| TypeScript | `@anip-dev/service` | Hono, Express, Fastify |
 | Python | `anip-service` | FastAPI |
 | Java | `anip-service` | Spring Boot, Quarkus |
 | Go | `service` | net/http, Gin |

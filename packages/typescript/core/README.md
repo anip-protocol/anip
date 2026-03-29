@@ -1,4 +1,4 @@
-# @anip/core
+# @anip-dev/core
 
 ANIP protocol types, models, and constants
 
@@ -7,7 +7,7 @@ Part of the [ANIP](https://github.com/anip-protocol/anip) protocol ecosystem.
 ## Install
 
 ```bash
-npm install @anip/core
+npm install @anip-dev/core
 ```
 
 ## Documentation

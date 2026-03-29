@@ -63,11 +63,11 @@ Steps:
    - `npx tsc -p service/tsconfig.json`
    - `npx tsc -p hono/tsconfig.json`
 5. Run tests per package:
-   - `npm test --workspace=@anip/core`
-   - `npm test --workspace=@anip/crypto`
-   - `npm test --workspace=@anip/server`
-   - `npm test --workspace=@anip/service`
-   - `npm test --workspace=@anip/hono`
+   - `npm test --workspace=@anip-dev/core`
+   - `npm test --workspace=@anip-dev/crypto`
+   - `npm test --workspace=@anip-dev/server`
+   - `npm test --workspace=@anip-dev/service`
+   - `npm test --workspace=@anip-dev/hono`
 6. Example smoke test:
    - `cd examples/anip-ts && npm ci && npm test`
 

@@ -1,5 +1,5 @@
 {
-  "name": "@anip/hono",
+  "name": "@anip-dev/hono",
   "version": "0.11.0",
   "description": "ANIP Hono bindings — mount an ANIPService as HTTP routes",
   "type": "module",
@@ -13,7 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip/service": "0.11.0",
+    "@anip-dev/service": "0.11.0",
     "hono": "^4.0.0"
   },
   "devDependencies": {

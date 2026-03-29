@@ -48,9 +48,9 @@ Example app:
 
 In every TypeScript package.json, change `"version": "0.8.0"` to `"version": "0.11.0"`.
 
-Also update every `@anip/*` dependency reference from `"0.8.0"` to `"0.11.0"` in both `dependencies` and `devDependencies`. The exact references to change:
+Also update every `@anip-dev/*` dependency reference from `"0.8.0"` to `"0.11.0"` in both `dependencies` and `devDependencies`. The exact references to change:
 
-| Package | dependencies @anip/* | devDependencies @anip/* |
+| Package | dependencies @anip-dev/* | devDependencies @anip-dev/* |
 |---------|---------------------|------------------------|
 | core | — | — |
 | crypto | core | — |
@@ -299,12 +299,12 @@ jobs:
               echo "FAIL: $pkg version is $PKG_VERSION, expected $VERSION"
               FAILED=1
             fi
-            # Check all @anip/* deps match the release version
+            # Check all @anip-dev/* deps match the release version
             for dep_field in dependencies devDependencies; do
               STALE=$(node -p "
                 const deps = require('./$pkg/package.json')['$dep_field'] || {};
                 Object.entries(deps)
-                  .filter(([k,v]) => k.startsWith('@anip/') && v !== '$VERSION')
+                  .filter(([k,v]) => k.startsWith('@anip-dev/') && v !== '$VERSION')
                   .map(([k,v]) => k + '=' + v)
                   .join(',')
               ")

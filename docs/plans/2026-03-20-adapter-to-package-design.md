@@ -12,18 +12,18 @@
 
 | Package | Language | Location | Depends On |
 |---------|----------|----------|------------|
-| `@anip/mcp` | TypeScript | `packages/typescript/mcp/` | `@anip/service`, `@modelcontextprotocol/sdk` |
+| `@anip-dev/mcp` | TypeScript | `packages/typescript/mcp/` | `@anip-dev/service`, `@modelcontextprotocol/sdk` |
 | `anip-mcp` | Python | `packages/python/anip-mcp/` | `anip-service`, `mcp` |
-| `@anip/rest` | TypeScript | `packages/typescript/rest/` | `@anip/service` (framework-agnostic translation core, framework adapters mirror `@anip/hono`/`@anip/express`/`@anip/fastify` split) |
+| `@anip-dev/rest` | TypeScript | `packages/typescript/rest/` | `@anip-dev/service` (framework-agnostic translation core, framework adapters mirror `@anip-dev/hono`/`@anip-dev/express`/`@anip-dev/fastify` split) |
 | `anip-rest` | Python | `packages/python/anip-rest/` | `anip-service`, `fastapi` |
-| `@anip/graphql` | TypeScript | `packages/typescript/graphql/` | `@anip/service` (same framework split as REST) |
+| `@anip-dev/graphql` | TypeScript | `packages/typescript/graphql/` | `@anip-dev/service` (same framework split as REST) |
 | `anip-graphql` | Python | `packages/python/anip-graphql/` | `anip-service`, `fastapi`, `ariadne` |
 
 ## Public API
 
 All packages follow the existing binding pattern: you bring the framework instance, the package registers on it.
 
-**Framework split (TypeScript):** The existing ANIP protocol bindings support Hono, Express, and Fastify (`@anip/hono`, `@anip/express`, `@anip/fastify`). The new REST and GraphQL packages follow the same split — each has a framework-agnostic translation core plus thin framework adapters. Examples below use Hono; Express and Fastify equivalents (`mountAnipRest`, `mountAnipGraphQL`) follow the same signature pattern as `@anip/express`/`@anip/fastify`.
+**Framework split (TypeScript):** The existing ANIP protocol bindings support Hono, Express, and Fastify (`@anip-dev/hono`, `@anip-dev/express`, `@anip-dev/fastify`). The new REST and GraphQL packages follow the same split — each has a framework-agnostic translation core plus thin framework adapters. Examples below use Hono; Express and Fastify equivalents (`mountAnipRest`, `mountAnipGraphQL`) follow the same signature pattern as `@anip-dev/express`/`@anip-dev/fastify`.
 
 **Python** has a single framework (FastAPI) so no split is needed.
 
@@ -34,9 +34,9 @@ All packages follow the existing binding pattern: you bring the framework instan
 const app = new Hono();
 const service = createANIPService({ ... });
 
-await mountAnip(app, service);              // @anip/hono — ANIP protocol routes
-await mountAnipRest(app, service);          // @anip/rest — /api/* REST endpoints
-await mountAnipGraphQL(app, service);       // @anip/graphql — /graphql endpoint
+await mountAnip(app, service);              // @anip-dev/hono — ANIP protocol routes
+await mountAnipRest(app, service);          // @anip-dev/rest — /api/* REST endpoints
+await mountAnipGraphQL(app, service);       // @anip-dev/graphql — /graphql endpoint
 
 serve(app, { port: 4100 });
 ```
@@ -58,7 +58,7 @@ uvicorn.run(app, port=8090)
 **SSE (remote) — mounts on HTTP app alongside other interfaces:**
 
 ```typescript
-await mountAnipMcp(app, service);           // @anip/mcp — /mcp SSE endpoint
+await mountAnipMcp(app, service);           // @anip-dev/mcp — /mcp SSE endpoint
 ```
 
 **stdio (local) — mounts on MCP Server for CLI/IDE use:**
@@ -187,10 +187,10 @@ Both example apps demonstrate one service exposed through all four interfaces:
 
 ```typescript
 // examples/anip-ts/src/app.ts
-import { mountAnip } from "@anip/hono";
-import { mountAnipRest } from "@anip/rest";
-import { mountAnipGraphQL } from "@anip/graphql";
-import { mountAnipMcp } from "@anip/mcp";
+import { mountAnip } from "@anip-dev/hono";
+import { mountAnipRest } from "@anip-dev/rest";
+import { mountAnipGraphQL } from "@anip-dev/graphql";
+import { mountAnipMcp } from "@anip-dev/mcp";
 
 const app = new Hono();
 await mountAnip(app, service);
