@@ -69,7 +69,7 @@ jobs:
             # Bump the package version
             sed -i "s/^version = \".*\"/version = \"$VERSION\"/" "$pkg"
             # Bump internal anip-* dependency pins (==OLD → ==NEW)
-            sed -i "s/anip-\([a-z]*\)==[0-9.]\+/anip-\1==$VERSION/g" "$pkg"
+            sed -i "s/anip-\([a-z\-]*\)==[0-9][0-9.]*/anip-\1==$VERSION/g" "$pkg"
           done
           echo "OK: Python versions bumped"
 

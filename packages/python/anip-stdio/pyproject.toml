@@ -8,7 +8,7 @@ version = "0.11.1"
 description = "ANIP stdio transport binding — JSON-RPC 2.0 over stdin/stdout"
 requires-python = ">=3.11"
 dependencies = [
-    "anip-service==0.11.0",
+    "anip-service==0.11.1",
 ]
 
 [tool.hatch.build.targets.wheel]
