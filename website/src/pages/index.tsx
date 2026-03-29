@@ -401,49 +401,49 @@ function Comparison() {
                 <td>Tool / endpoint discovery</td>
                 <td>OpenAPI spec</td>
                 <td>Yes</td>
-                <td>Yes</td>
+                <td><Link to="/docs/protocol/reference#discovery">Yes</Link></td>
               </tr>
               <tr>
                 <td>Side-effect declaration</td>
                 <td>No</td>
                 <td>No</td>
-                <td>read / write / transactional / irreversible</td>
+                <td><Link to="/docs/protocol/capabilities#side-effect-types">read / write / transactional / irreversible</Link></td>
               </tr>
               <tr>
                 <td>Permission discovery before invoke</td>
                 <td>No</td>
                 <td>No</td>
-                <td>available / restricted / denied</td>
+                <td><Link to="/docs/protocol/delegation-permissions#permission-discovery">available / restricted / denied</Link></td>
               </tr>
               <tr>
                 <td>Scoped delegation (not just auth)</td>
                 <td>No</td>
                 <td>No</td>
-                <td>JWT delegation chains with scope + budget</td>
+                <td><Link to="/docs/protocol/authentication">JWT delegation chains with scope + budget</Link></td>
               </tr>
               <tr>
                 <td>Cost declaration + actual cost</td>
                 <td>No</td>
                 <td>No</td>
-                <td>Declared range + actual returned</td>
+                <td><Link to="/docs/protocol/capabilities#cost-declaration">Declared range + actual returned</Link></td>
               </tr>
               <tr>
                 <td>Structured failure + recovery</td>
                 <td>HTTP status codes</td>
                 <td>Error codes</td>
-                <td>Type, detail, resolution, grantable_by, retry</td>
+                <td><Link to="/docs/protocol/failures-cost-audit#structured-failures">Type, detail, resolution, grantable_by, retry</Link></td>
               </tr>
               <tr>
                 <td>Audit logging</td>
                 <td>App-specific</td>
                 <td>No</td>
-                <td>Protocol-level with retention + classification</td>
+                <td><Link to="/docs/protocol/failures-cost-audit#audit-logging">Protocol-level with retention + classification</Link></td>
               </tr>
               <tr>
                 <td>Signed manifests + checkpoints</td>
                 <td>No</td>
                 <td>No</td>
-                <td>JWKS + Merkle checkpoints</td>
+                <td><Link to="/docs/protocol/checkpoints-trust">JWKS + Merkle checkpoints</Link></td>
               </tr>
             </tbody>
           </table>
