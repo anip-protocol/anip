@@ -126,13 +126,38 @@ function disconnect() {
           </li>
         </ul>
         <div class="sidebar-footer">
-          <span class="version">v0.1.0</span>
+          <span class="version">v0.11.1</span>
         </div>
       </nav>
 
       <!-- Main Content -->
       <main class="content">
-        <router-view />
+        <div v-if="!store.connected" class="welcome">
+          <div class="welcome-icon">&#x25C6;</div>
+          <h2 class="welcome-title">Connect to an ANIP service</h2>
+          <p class="welcome-text">Enter a service URL to inspect its discovery document, manifest, capabilities, audit log, and more.</p>
+          <div class="welcome-connect">
+            <input
+              v-model="urlInput"
+              type="text"
+              class="welcome-input"
+              placeholder="https://your-service.example.com"
+              @keyup.enter="connect"
+              :disabled="connecting"
+            />
+            <button class="connect-btn welcome-btn" @click="connect" :disabled="connecting || !urlInput">
+              {{ connecting ? 'Connecting...' : 'Connect' }}
+            </button>
+          </div>
+          <p v-if="store.error" class="welcome-error">{{ store.error }}</p>
+          <div class="welcome-examples">
+            <span class="welcome-examples-label">Try a playground service:</span>
+            <button class="example-link" @click="urlInput = 'https://travel.playground.anip.dev'; connect()">Travel</button>
+            <button class="example-link" @click="urlInput = 'https://finance.playground.anip.dev'; connect()">Finance</button>
+            <button class="example-link" @click="urlInput = 'https://devops.playground.anip.dev'; connect()">DevOps</button>
+          </div>
+        </div>
+        <router-view v-else />
       </main>
     </div>
   </div>
@@ -145,10 +170,10 @@ function disconnect() {
   --bg-header: #151525;
   --bg-sidebar: #12121f;
   --bg-content: #1a1a2e;
-  --bg-input: #1e1e35;
+  --bg-input: #1e1e38;
   --bg-hover: #252545;
   --bg-active: #2a2a50;
-  --border: #2a2a45;
+  --border: #3a3a5c;
   --border-focus: #5c5cff;
   --text-primary: #e8e8f0;
   --text-secondary: #a0a0c0;
@@ -258,7 +283,7 @@ function disconnect() {
   height: 36px;
   padding: 0 14px;
   background: var(--bg-input);
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: 13px;
@@ -268,7 +293,8 @@ function disconnect() {
 }
 
 .url-input::placeholder {
-  color: var(--text-muted);
+  color: var(--text-secondary);
+  opacity: 0.7;
 }
 
 .url-input:focus {
@@ -511,5 +537,111 @@ function disconnect() {
   .sidebar-footer .version {
     display: none;
   }
+}
+
+/* ── Welcome (not connected) ── */
+.welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 2rem;
+  text-align: center;
+}
+
+.welcome-icon {
+  font-size: 48px;
+  color: var(--accent);
+  margin-bottom: 1rem;
+  opacity: 0.6;
+}
+
+.welcome-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem;
+}
+
+.welcome-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+  max-width: 420px;
+  line-height: 1.6;
+  margin: 0 0 1.5rem;
+}
+
+.welcome-connect {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  max-width: 480px;
+  margin-bottom: 1rem;
+}
+
+.welcome-input {
+  flex: 1;
+  height: 42px;
+  padding: 0 16px;
+  background: var(--bg-input);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.welcome-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.welcome-input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.welcome-btn {
+  height: 42px;
+  padding: 0 24px;
+  font-size: 14px;
+  border-radius: var(--radius);
+}
+
+.welcome-error {
+  color: var(--error);
+  font-size: 13px;
+  margin: 0 0 1rem;
+}
+
+.welcome-examples {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 0.5rem;
+}
+
+.welcome-examples-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.example-link {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-size: 12px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.example-link:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent);
 }
 </style>

@@ -18,20 +18,27 @@ export async function initFromConfig() {
         store.baseUrl = window.location.origin
       }
       store.serviceId = config.service_id || ''
-
-      // Auto-connect in embedded mode
-      if (store.baseUrl) {
-        try {
-          const disco = await fetch(`${store.baseUrl}/.well-known/anip`)
-          if (disco.ok) {
-            store.connected = true
-          }
-        } catch {
-          // Service not reachable — user can connect manually
-        }
-      }
     }
   } catch {
     // Standalone mode
+  }
+
+  // Check for ?connect=URL query parameter (overrides config)
+  const params = new URLSearchParams(window.location.search)
+  const connectUrl = params.get('connect')
+  if (connectUrl) {
+    store.baseUrl = connectUrl.replace(/\/+$/, '')
+  }
+
+  // Auto-connect if we have a baseUrl (from embedded config or ?connect=)
+  if (store.baseUrl) {
+    try {
+      const disco = await fetch(`${store.baseUrl}/.well-known/anip`)
+      if (disco.ok) {
+        store.connected = true
+      }
+    } catch {
+      // Service not reachable — user can connect manually
+    }
   }
 }
