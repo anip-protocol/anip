@@ -3,10 +3,15 @@
   "version": "0.11.1",
   "description": "ANIP MCP Streamable HTTP transport for Express",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "scripts": { "build": "tsc", "test": "vitest run" },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
   "dependencies": {
     "@anip-dev/mcp": "0.11.1",
     "@anip-dev/service": "0.11.1",
@@ -32,5 +37,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": ["dist", "README.md"]
+  "files": [
+    "dist",
+    "README.md"
+  ]
 }

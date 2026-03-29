@@ -32,5 +32,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": ["dist", "README.md"]
+  "files": [
+    "dist",
+    "README.md"
+  ]
 }
