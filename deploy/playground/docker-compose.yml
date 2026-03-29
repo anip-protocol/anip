@@ -9,8 +9,7 @@ services:
     ports:
       - "127.0.0.1:9100:9100"
     tmpfs:
-      - /tmp/anip-keys
-    read_only: true
+      - /tmp
 
   finance:
     build:
@@ -22,8 +21,7 @@ services:
     ports:
       - "127.0.0.1:9101:9100"
     tmpfs:
-      - /tmp/anip-keys
-    read_only: true
+      - /tmp
 
   devops:
     build:
@@ -35,5 +33,4 @@ services:
     ports:
       - "127.0.0.1:9102:9100"
     tmpfs:
-      - /tmp/anip-keys
-    read_only: true
+      - /tmp
