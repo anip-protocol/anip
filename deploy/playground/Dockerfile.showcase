@@ -1,0 +1,29 @@
+FROM python:3.12-slim
+
+ARG SHOWCASE_APP=travel
+
+WORKDIR /app
+
+# Install ANIP packages from PyPI
+RUN pip install --no-cache-dir \
+    anip-service==0.11.1 \
+    anip-fastapi==0.11.1 \
+    anip-rest==0.11.1 \
+    anip-graphql==0.11.1 \
+    anip-mcp==0.11.1 \
+    anip-studio==0.11.1 \
+    anip-stdio==0.11.1 \
+    uvicorn httpx
+
+# Copy the showcase app
+COPY examples/showcase/${SHOWCASE_APP}/ /app/
+
+# Generate fresh keys on every container start (ephemeral)
+ENV ANIP_STORAGE=":memory:"
+ENV ANIP_TRUST_LEVEL="signed"
+ENV ANIP_KEY_PATH="/tmp/anip-keys"
+ENV PORT=9100
+
+EXPOSE 9100
+
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "9100"]

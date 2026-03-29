@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ANIP Playground</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+      background: #0f0f1a;
+      color: #e8e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .header {
+      text-align: center;
+      padding: 3rem 2rem 1rem;
+      max-width: 640px;
+    }
+    .header h1 {
+      font-size: 2rem;
+      margin-bottom: 0.75rem;
+    }
+    .header h1 span { color: #6c63ff; }
+    .header p {
+      color: #a0a0c0;
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+    .banner {
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      background: rgba(108, 99, 255, 0.1);
+      border: 1px solid rgba(108, 99, 255, 0.25);
+      border-radius: 6px;
+      font-size: 0.82rem;
+      color: #a0a0c0;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      padding: 2rem;
+      max-width: 960px;
+      width: 100%;
+    }
+    .card {
+      background: #1a1a2e;
+      border: 1px solid #3a3a5c;
+      border-radius: 12px;
+      padding: 1.5rem;
+      transition: border-color 200ms ease;
+    }
+    .card:hover { border-color: #6c63ff; }
+    .card h2 {
+      font-size: 1.2rem;
+      margin-bottom: 0.25rem;
+    }
+    .card .domain {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.78rem;
+      color: #6c63ff;
+      margin-bottom: 0.75rem;
+    }
+    .card p {
+      font-size: 0.88rem;
+      color: #a0a0c0;
+      line-height: 1.5;
+      margin-bottom: 1rem;
+    }
+    .card .features {
+      list-style: none;
+      padding: 0;
+      margin-bottom: 1.25rem;
+    }
+    .card .features li {
+      font-size: 0.82rem;
+      color: #a0a0c0;
+      padding: 0.2rem 0;
+    }
+    .card .features li::before {
+      content: "→ ";
+      color: #6c63ff;
+    }
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .links a {
+      display: inline-block;
+      padding: 0.35rem 0.75rem;
+      border: 1px solid #3a3a5c;
+      border-radius: 6px;
+      color: #e8e8f0;
+      text-decoration: none;
+      font-size: 0.8rem;
+      transition: all 200ms ease;
+    }
+    .links a:hover {
+      border-color: #6c63ff;
+      background: rgba(108, 99, 255, 0.1);
+    }
+    .links a.primary {
+      background: #6c63ff;
+      border-color: #6c63ff;
+      color: #fff;
+    }
+    .links a.primary:hover { background: #7b73ff; }
+    .footer {
+      padding: 2rem;
+      text-align: center;
+      color: #606080;
+      font-size: 0.82rem;
+    }
+    .footer a { color: #6c63ff; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+    @media (max-width: 768px) {
+      .cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>ANIP <span>Playground</span></h1>
+    <p>Live ANIP showcase services you can inspect, invoke, and explore. Connect with Studio or use curl directly.</p>
+    <div class="banner">Demo environment resets every 6 hours</div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <h2>Travel</h2>
+      <div class="domain">travel.playground.anip.dev</div>
+      <p>Flight search and booking with cost signaling, irreversible actions, and compensation workflows.</p>
+      <ul class="features">
+        <li>Read vs irreversible side effects</li>
+        <li>Financial cost declaration</li>
+        <li>Compensation (book → cancel)</li>
+        <li>Budget-bound delegation</li>
+      </ul>
+      <div class="links">
+        <a class="primary" href="https://studio.anip.dev/?connect=https://travel.playground.anip.dev">Open in Studio</a>
+        <a href="https://travel.playground.anip.dev/.well-known/anip">Discovery</a>
+        <a href="https://travel.playground.anip.dev/api/docs">REST</a>
+        <a href="https://travel.playground.anip.dev/graphql">GraphQL</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Finance</h2>
+      <div class="domain">finance.playground.anip.dev</div>
+      <p>Portfolio management with financial operations, market data, and trade execution.</p>
+      <ul class="features">
+        <li>Financial cost signaling</li>
+        <li>High-risk audit classification</li>
+        <li>Budget delegation enforcement</li>
+        <li>Portfolio and market queries</li>
+      </ul>
+      <div class="links">
+        <a class="primary" href="https://studio.anip.dev/?connect=https://finance.playground.anip.dev">Open in Studio</a>
+        <a href="https://finance.playground.anip.dev/.well-known/anip">Discovery</a>
+        <a href="https://finance.playground.anip.dev/api/docs">REST</a>
+        <a href="https://finance.playground.anip.dev/graphql">GraphQL</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>DevOps</h2>
+      <div class="domain">devops.playground.anip.dev</div>
+      <p>Infrastructure management with transactional rollback, scaling, and config updates.</p>
+      <ul class="features">
+        <li>Transactional with rollback</li>
+        <li>Irreversible deletion</li>
+        <li>Infrastructure side effects</li>
+        <li>Observability hooks</li>
+      </ul>
+      <div class="links">
+        <a class="primary" href="https://studio.anip.dev/?connect=https://devops.playground.anip.dev">Open in Studio</a>
+        <a href="https://devops.playground.anip.dev/.well-known/anip">Discovery</a>
+        <a href="https://devops.playground.anip.dev/api/docs">REST</a>
+        <a href="https://devops.playground.anip.dev/graphql">GraphQL</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <a href="https://anip.dev">anip.dev</a> · <a href="https://anip.dev/docs/getting-started/quickstart">Quickstart</a> · <a href="https://github.com/anip-protocol/anip">GitHub</a>
+  </div>
+</body>
+</html>

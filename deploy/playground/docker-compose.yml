@@ -1,0 +1,39 @@
+services:
+  travel:
+    build:
+      context: ../..
+      dockerfile: deploy/playground/Dockerfile.showcase
+      args:
+        SHOWCASE_APP: travel
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9100:9100"
+    tmpfs:
+      - /tmp/anip-keys
+    read_only: true
+
+  finance:
+    build:
+      context: ../..
+      dockerfile: deploy/playground/Dockerfile.showcase
+      args:
+        SHOWCASE_APP: finance
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9101:9100"
+    tmpfs:
+      - /tmp/anip-keys
+    read_only: true
+
+  devops:
+    build:
+      context: ../..
+      dockerfile: deploy/playground/Dockerfile.showcase
+      args:
+        SHOWCASE_APP: devops
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9102:9100"
+    tmpfs:
+      - /tmp/anip-keys
+    read_only: true
