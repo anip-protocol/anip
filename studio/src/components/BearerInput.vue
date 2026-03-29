@@ -38,10 +38,11 @@ function truncated(token: string): string {
         v-model="tokenInput"
         type="text"
         class="token-input"
-        placeholder="Bearer token or API key"
+        placeholder="API key or ANIP delegation token"
         @keyup.enter="apply"
       />
       <button class="apply-btn" @click="apply" :disabled="!tokenInput.trim()">Apply</button>
+      <a class="token-help" href="https://anip.dev/docs/protocol/authentication" target="_blank" rel="noopener" title="How authentication and delegation work">?</a>
     </div>
   </div>
 </template>
@@ -140,5 +141,27 @@ function truncated(token: string): string {
 
 .clear-btn:hover {
   color: var(--error);
+}
+
+.token-help {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: all 150ms ease;
+}
+
+.token-help:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-glow);
 }
 </style>
