@@ -12,12 +12,15 @@ on:
         default: false
 
 jobs:
-  validate:
+  bump-and-validate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # full history + tags for tag-exists check
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Validate running from main
         run: |
@@ -26,12 +29,99 @@ jobs:
             exit 1
           fi
 
+      - name: Validate version format
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "Invalid version format"
+            exit 1
+          fi
+
+      - name: Bump all package versions
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -e
+          echo "Bumping all packages to $VERSION..."
+
+          # TypeScript — update version and @anip-dev/* deps in package.json
+          for pkg in packages/typescript/*/package.json; do
+            if [[ "$pkg" == *node_modules* ]]; then continue; fi
+            node -e "
+              const fs = require('fs');
+              const p = JSON.parse(fs.readFileSync('$pkg', 'utf8'));
+              p.version = process.env.VERSION;
+              for (const field of ['dependencies', 'devDependencies']) {
+                if (!p[field]) continue;
+                for (const [k, v] of Object.entries(p[field])) {
+                  if (k.startsWith('@anip-dev/')) p[field][k] = process.env.VERSION;
+                }
+              }
+              fs.writeFileSync('$pkg', JSON.stringify(p, null, 2) + '\n');
+            "
+          done
+          echo "OK: TypeScript versions bumped"
+
+          # Python — update version in pyproject.toml
+          for pkg in packages/python/*/pyproject.toml contract-tests/pyproject.toml conformance/pyproject.toml; do
+            [ -f "$pkg" ] || continue
+            # Bump the package version
+            sed -i "s/^version = \".*\"/version = \"$VERSION\"/" "$pkg"
+            # Bump internal anip-* dependency pins (==OLD → ==NEW)
+            sed -i "s/anip-\([a-z\-]*\)==[0-9][0-9.]*/anip-\1==$VERSION/g" "$pkg"
+          done
+          echo "OK: Python versions bumped"
+
+          # Java — update pom.xml versions
+          # Parent POM version
+          sed -i "s|<version>[0-9]\+\.[0-9]\+\.[0-9]\+</version>|<version>$VERSION</version>|g" packages/java/pom.xml
+          # Child POMs inherit from parent, but also update anip.version property
+          sed -i "s|<anip.version>[0-9]\+\.[0-9]\+\.[0-9]\+</anip.version>|<anip.version>$VERSION</anip.version>|" packages/java/pom.xml
+          # Child parent version references
+          for pom in packages/java/*/pom.xml; do
+            sed -i "s|<version>[0-9]\+\.[0-9]\+\.[0-9]\+</version>|<version>$VERSION</version>|g" "$pom"
+          done
+          echo "OK: Java versions bumped"
+
+          # TypeScript example app
+          for pkg in examples/anip-ts/package.json; do
+            node -e "
+              const fs = require('fs');
+              const p = JSON.parse(fs.readFileSync('$pkg', 'utf8'));
+              for (const field of ['dependencies', 'devDependencies']) {
+                if (!p[field]) continue;
+                for (const [k, v] of Object.entries(p[field])) {
+                  if (k.startsWith('@anip-dev/')) p[field][k] = process.env.VERSION;
+                }
+              }
+              fs.writeFileSync('$pkg', JSON.stringify(p, null, 2) + '\n');
+            "
+          done
+          echo "OK: Example app deps bumped"
+
+      - name: Commit version bump
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Versions already at $VERSION — no bump needed"
+          else
+            git commit -m "chore: bump all package versions to $VERSION"
+            git push
+            echo "Version bump committed and pushed"
+          fi
+
       - name: Validate required CI checks passed
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          SHA=$(git rev-parse HEAD)
+          # Check against the commit BEFORE the bump (the one CI ran on)
+          SHA=$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)
           REQUIRED_CHECKS=("python-ci" "typescript-ci" "go-ci" "java-ci" "csharp-ci")
           ERRORS=0
           for CHECK in "${REQUIRED_CHECKS[@]}"; do
@@ -75,15 +165,6 @@ jobs:
             exit 1
           fi
           echo "OK: C# tag '$CSHARP_TAG' is available"
-
-      - name: Validate version format
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
-            echo "Invalid version format"
-            exit 1
-          fi
 
       - name: Validate TypeScript package versions and internal deps
         working-directory: packages/typescript
@@ -185,7 +266,7 @@ jobs:
           echo "All 17 Java modules and anip.version property at version $VERSION"
 
   publish-typescript:
-    needs: validate
+    needs: bump-and-validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -265,7 +346,7 @@ jobs:
           publish_or_skip stdio
 
   publish-python:
-    needs: validate
+    needs: bump-and-validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -326,7 +407,7 @@ jobs:
           publish_or_skip anip-grpc
 
   publish-java:
-    needs: validate
+    needs: bump-and-validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -372,7 +453,7 @@ jobs:
           done
 
   publish-csharp:
-    needs: validate
+    needs: bump-and-validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -415,7 +496,7 @@ jobs:
           done
 
   publish-studio-docker:
-    needs: validate
+    needs: bump-and-validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -1,10 +1,10 @@
 [project]
 name = "anip-mcp"
-version = "0.11.0"
+version = "0.11.1"
 description = "ANIP MCP bindings — expose ANIPService capabilities as MCP tools"
 requires-python = ">=3.11"
 dependencies = [
-    "anip-service==0.11.0",
+    "anip-service==0.11.1",
     "mcp>=1.0.0",
 ]
 authors = [{ name = "ANIP Protocol", email = "team@anip.dev" }]
