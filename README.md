@@ -356,7 +356,7 @@ This is a community effort. We'd rather define this standard thoughtfully and in
   - MCP: `@anip-dev/mcp` / `anip-mcp` (shared), framework adapters for Streamable HTTP
   - REST: `@anip-dev/rest` / `anip-rest` (shared, auto-generated OpenAPI + Swagger UI)
   - GraphQL: `@anip-dev/graphql` / `anip-graphql` (shared, auto-generated SDL + directives)
-- [ANIP Studio](studio/) — inspection and invocation UI for ANIP services, embedded at `/studio` or standalone via Docker (`docker run -p 3000:80 anip-studio`)
+- [ANIP Studio](studio/) — inspection and invocation UI for ANIP services, embedded at `/studio` or standalone via Docker (`docker run -p 3000:8080 anip-studio`)
 - [Conformance suite](conformance/) — language-agnostic HTTP-based protocol compliance tests
 - [Contract testing](contract-tests/) — side-effect contract verification (read purity, event classification, cost presence, compensation workflows)
 - [Showcase apps](examples/showcase/) — travel booking, financial operations, DevOps infrastructure

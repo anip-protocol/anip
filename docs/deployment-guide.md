@@ -489,7 +489,7 @@ Run Studio as an independent container that connects to any ANIP service:
 
 ```bash
 docker build -t anip-studio studio/
-docker run -p 3000:80 anip-studio
+docker run -p 3000:8080 anip-studio
 # → Open http://localhost:3000, enter service URL in connect bar
 ```
 
