@@ -252,7 +252,7 @@
       <div class="link-group">
         <div class="link-label">Interfaces</div>
         <div class="links">
-          <a href="https://travel.playground.anip.dev/api/docs">REST / Swagger</a>
+          <a href="https://travel.playground.anip.dev/rest/docs">REST / Swagger</a>
           <a href="https://travel.playground.anip.dev/graphql">GraphQL</a>
           <a href="https://travel.playground.anip.dev/mcp">MCP</a>
         </div>
@@ -280,7 +280,7 @@
       <div class="link-group">
         <div class="link-label">Interfaces</div>
         <div class="links">
-          <a href="https://finance.playground.anip.dev/api/docs">REST / Swagger</a>
+          <a href="https://finance.playground.anip.dev/rest/docs">REST / Swagger</a>
           <a href="https://finance.playground.anip.dev/graphql">GraphQL</a>
           <a href="https://finance.playground.anip.dev/mcp">MCP</a>
         </div>
@@ -308,7 +308,7 @@
       <div class="link-group">
         <div class="link-label">Interfaces</div>
         <div class="links">
-          <a href="https://devops.playground.anip.dev/api/docs">REST / Swagger</a>
+          <a href="https://devops.playground.anip.dev/rest/docs">REST / Swagger</a>
           <a href="https://devops.playground.anip.dev/graphql">GraphQL</a>
           <a href="https://devops.playground.anip.dev/mcp">MCP</a>
         </div>
@@ -345,7 +345,7 @@
           <pre>curl -X POST https://travel.playground.anip.dev/anip/tokens \
   -H "Authorization: Bearer demo-human-key" \
   -H "Content-Type: application/json" \
-  -d '{"scope": ["travel.book"], "capability": "book_flight"}'</pre>
+  -d '{"scope": ["travel.book"], "capability": "book_flight", "subject": "agent:demo"}'</pre>
         </div>
         <div class="scenario-step">
           <strong>Step 3:</strong> Check permissions before invoking
@@ -387,7 +387,7 @@
           <pre>curl -X POST https://travel.playground.anip.dev/anip/tokens \
   -H "Authorization: Bearer demo-human-key" \
   -H "Content-Type: application/json" \
-  -d '{"scope": ["travel.search"], "capability": "search_flights"}'</pre>
+  -d '{"scope": ["travel.search"], "capability": "search_flights", "subject": "agent:demo"}'</pre>
         </div>
         <div class="scenario-step">
           <strong>Step 2:</strong> Check permissions — see what's available vs restricted
