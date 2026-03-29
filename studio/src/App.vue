@@ -164,30 +164,6 @@ function disconnect() {
 </template>
 
 <style scoped>
-/* ── Theme tokens ── */
-:root {
-  --bg-app: #0f0f1a;
-  --bg-header: #151525;
-  --bg-sidebar: #12121f;
-  --bg-content: #1a1a2e;
-  --bg-input: #1e1e38;
-  --bg-hover: #252545;
-  --bg-active: #2a2a50;
-  --border: #3a3a5c;
-  --border-focus: #5c5cff;
-  --text-primary: #e8e8f0;
-  --text-secondary: #a0a0c0;
-  --text-muted: #606080;
-  --accent: #6c63ff;
-  --accent-hover: #7b73ff;
-  --accent-glow: rgba(108, 99, 255, 0.15);
-  --success: #34d399;
-  --error: #f87171;
-  --radius: 8px;
-  --radius-sm: 6px;
-  --transition: 180ms ease;
-}
-
 /* ── Layout ── */
 .studio-app {
   display: flex;
