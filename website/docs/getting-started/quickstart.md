@@ -460,7 +460,7 @@ Studio is currently available as a Python adapter. You can run it standalone via
 
 ```bash
 docker build -t anip-studio studio/
-docker run -p 3000:80 anip-studio
+docker run -p 3000:8080 anip-studio
 # Open http://localhost:3000 and connect to http://localhost:9100
 ```
 
@@ -471,7 +471,7 @@ Studio is currently available as a Python adapter. You can run it standalone via
 
 ```bash
 docker build -t anip-studio studio/
-docker run -p 3000:80 anip-studio
+docker run -p 3000:8080 anip-studio
 # Open http://localhost:3000 and connect to http://localhost:9100
 ```
 
@@ -482,7 +482,7 @@ Studio is currently available as a Python adapter. You can run it standalone via
 
 ```bash
 docker build -t anip-studio studio/
-docker run -p 3000:80 anip-studio
+docker run -p 3000:8080 anip-studio
 # Open http://localhost:3000 and connect to http://localhost:9100
 ```
 
@@ -493,7 +493,7 @@ Studio is currently available as a Python adapter. You can run it standalone via
 
 ```bash
 docker build -t anip-studio studio/
-docker run -p 3000:80 anip-studio
+docker run -p 3000:8080 anip-studio
 # Open http://localhost:3000 and connect to http://localhost:9100
 ```
 

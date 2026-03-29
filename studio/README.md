@@ -22,7 +22,7 @@ mount_anip_studio(app, service)
 docker build -t anip-studio studio/
 
 # Run locally
-docker run -p 3000:80 anip-studio
+docker run -p 3000:8080 anip-studio
 
 # Open http://localhost:3000
 # Enter your ANIP service URL in the connect bar

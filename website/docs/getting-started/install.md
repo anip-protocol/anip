@@ -129,7 +129,7 @@ Studio runs in two modes — no language dependency for standalone:
 ```bash
 # Standalone via Docker (connects to any ANIP service)
 docker build -t anip-studio studio/
-docker run -p 3000:80 anip-studio
+docker run -p 3000:8080 anip-studio
 ```
 
 Or embedded inside a Python service:

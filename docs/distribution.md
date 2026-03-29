@@ -70,7 +70,7 @@ Two deployment modes:
 
 ```bash
 docker build -t anip-studio studio/
-docker run -p 3000:80 anip-studio
+docker run -p 3000:8080 anip-studio
 ```
 
 Docker image publishing (GHCR or similar) is not yet configured. CI smoke-builds the image to catch drift.

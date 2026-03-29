@@ -160,7 +160,7 @@ Keeps the build context small — only source files needed for the Vite build ar
 docker build -t anip-studio studio/
 
 # Run locally
-docker run -p 3000:80 anip-studio
+docker run -p 3000:8080 anip-studio
 
 # Open http://localhost:3000
 # Enter your ANIP service URL in the connect bar

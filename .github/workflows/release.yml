@@ -430,8 +430,8 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: |
-          docker build -t anipprotocol/studio:$VERSION -t anipprotocol/studio:latest studio/
-          docker push anipprotocol/studio:$VERSION
+          docker build -t anipprotocol/studio:"$VERSION" -t anipprotocol/studio:latest studio/
+          docker push anipprotocol/studio:"$VERSION"
           docker push anipprotocol/studio:latest
 
   release:
