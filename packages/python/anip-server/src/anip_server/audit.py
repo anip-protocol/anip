@@ -49,6 +49,8 @@ class AuditLog:
             "delegation_chain": entry_data.get("delegation_chain"),
             "invocation_id": entry_data.get("invocation_id"),
             "client_reference_id": entry_data.get("client_reference_id"),
+            "task_id": entry_data.get("task_id"),
+            "parent_invocation_id": entry_data.get("parent_invocation_id"),
             "stream_summary": entry_data.get("stream_summary"),
             "event_class": entry_data.get("event_class"),
             "retention_tier": entry_data.get("retention_tier"),
