@@ -380,6 +380,8 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
     "destination": "SFO"
   },
   "client_reference_id": "task:abc/step-3",
+  "task_id": "trip-planning-2026",
+  "parent_invocation_id": "inv-a1b2c3d4e5f6",
   "stream": false
 }
 ```
@@ -388,6 +390,8 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 |-------|------|----------|-------------|
 | `parameters` | object | Yes | Capability input parameters |
 | `client_reference_id` | string | No | Caller-supplied correlation ID (max 256 chars), echoed in response |
+| `task_id` | string | No | Task/workflow identity for grouping related invocations (max 256 chars). If the delegation token has `purpose.task_id`, must match or be omitted. |
+| `parent_invocation_id` | string | No | Reference to the invocation that triggered this one (format: `inv-{hex12}`). Syntactically validated, not referentially. |
 | `stream` | boolean | No | Request streaming response (SSE). Default: `false` |
 
 ### Success response (HTTP 200)
@@ -395,8 +399,10 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 ```json
 {
   "success": true,
-  "invocation_id": "inv_7f3a2b4c5d6e",
+  "invocation_id": "inv-7f3a2b4c5d6e",
   "client_reference_id": "task:abc/step-3",
+  "task_id": "trip-planning-2026",
+  "parent_invocation_id": "inv-a1b2c3d4e5f6",
   "result": {
     "flights": [
       { "flight_number": "AA100", "price": 420 },
@@ -415,7 +421,9 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 ```json
 {
   "success": false,
-  "invocation_id": "inv_8b2f4a7c9d0e",
+  "invocation_id": "inv-8b2f4a7c9d0e",
+  "task_id": "trip-planning-2026",
+  "parent_invocation_id": "inv-a1b2c3d4e5f6",
   "client_reference_id": "task:abc/step-3",
   "failure": {
     "type": "budget_exceeded",
@@ -438,6 +446,8 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 | `success` | boolean | Yes | Whether the invocation succeeded |
 | `invocation_id` | string | Yes | Server-generated unique ID (`inv_{hex12}`) |
 | `client_reference_id` | string | If provided in request | Echoed caller correlation ID |
+| `task_id` | string | If provided or from token purpose | Task/workflow identity |
+| `parent_invocation_id` | string | If provided in request | Echoed parent invocation reference |
 | `result` | object | On success | Capability-specific result data |
 | `cost_actual` | object | If capability has financial cost | `currency` and `amount` |
 | `failure` | object | On failure | Structured failure (see below) |
@@ -476,6 +486,8 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 | `since` | string | ISO 8601 timestamp — entries after this time |
 | `invocation_id` | string | Filter by specific invocation |
 | `client_reference_id` | string | Filter by caller correlation ID |
+| `task_id` | string | Filter by task identity |
+| `parent_invocation_id` | string | Filter by parent invocation |
 | `limit` | integer | Maximum entries to return |
 
 ### Response
@@ -491,6 +503,8 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
       "event_class": "low_risk_success",
       "success": true,
       "client_reference_id": "task:abc/step-3",
+      "task_id": "trip-planning-2026",
+      "parent_invocation_id": "inv-a1b2c3d4e5f6",
       "timestamp": "2026-03-28T10:30:00Z"
     }
   ]
