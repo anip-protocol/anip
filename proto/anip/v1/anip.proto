@@ -114,6 +114,8 @@ message InvokeRequest {
   string capability = 1;
   string parameters_json = 2;       // JSON string
   string client_reference_id = 3;
+  string task_id = 4;
+  string parent_invocation_id = 5;
 }
 
 message InvokeResponse {
@@ -123,6 +125,8 @@ message InvokeResponse {
   string result_json = 4;           // JSON string (when success)
   string cost_actual_json = 5;      // Optional, JSON string
   AnipFailure failure = 6;          // When !success
+  string task_id = 7;
+  string parent_invocation_id = 8;
 }
 
 // ============================================================
@@ -147,12 +151,16 @@ message CompletedEvent {
   string client_reference_id = 2;
   string result_json = 3;
   string cost_actual_json = 4;
+  string task_id = 5;
+  string parent_invocation_id = 6;
 }
 
 message FailedEvent {
   string invocation_id = 1;
   string client_reference_id = 2;
   AnipFailure failure = 3;
+  string task_id = 4;
+  string parent_invocation_id = 5;
 }
 
 // ============================================================
@@ -166,6 +174,8 @@ message QueryAuditRequest {
   string client_reference_id = 4;
   string event_class = 5;
   int32 limit = 6;
+  string task_id = 7;
+  string parent_invocation_id = 8;
 }
 
 message QueryAuditResponse {

@@ -804,6 +804,24 @@
           ],
           "default": null,
           "title": "Client Reference Id"
+        },
+        "task_id": {
+          "anyOf": [
+            { "type": "string", "maxLength": 256 },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Task Id",
+          "description": "Caller-supplied task/workflow identity for grouping related invocations"
+        },
+        "parent_invocation_id": {
+          "anyOf": [
+            { "type": "string", "pattern": "^inv-[0-9a-f]{12}$" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Parent Invocation Id",
+          "description": "Reference to the invocation that triggered this one"
         }
       },
       "required": [
@@ -885,6 +903,24 @@
           ],
           "default": null,
           "title": "Client Reference Id"
+        },
+        "task_id": {
+          "anyOf": [
+            { "type": "string", "maxLength": 256 },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Task Id",
+          "description": "Caller-supplied task/workflow identity for grouping related invocations"
+        },
+        "parent_invocation_id": {
+          "anyOf": [
+            { "type": "string", "pattern": "^inv-[0-9a-f]{12}$" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Parent Invocation Id",
+          "description": "Reference to the invocation that triggered this one"
         }
       },
       "required": [
@@ -963,6 +999,16 @@
         "client_reference_id": {
           "title": "Client Reference ID",
           "type": ["string", "null"]
+        },
+        "task_id": {
+          "title": "Task ID",
+          "type": ["string", "null"],
+          "description": "Task/workflow identity for grouping related invocations"
+        },
+        "parent_invocation_id": {
+          "title": "Parent Invocation ID",
+          "type": ["string", "null"],
+          "description": "Reference to the invocation that triggered this one"
         },
         "success": {
           "title": "Success",
