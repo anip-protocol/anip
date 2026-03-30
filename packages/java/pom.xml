@@ -5,7 +5,7 @@
 
     <groupId>dev.anip</groupId>
     <artifactId>anip-parent</artifactId>
-    <version>0.11.1</version>
+    <version>0.11.2</version>
     <packaging>pom</packaging>
     <name>ANIP Parent</name>
     <description>Agent Negotiation and Invocation Protocol - Java Runtime</description>
@@ -37,7 +37,7 @@
         <maven.compiler.target>17</maven.compiler.target>
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <anip.version>0.11.1</anip.version>
+        <anip.version>0.11.2</anip.version>
         <junit.version>5.11.4</junit.version>
         <spring-boot.version>3.4.3</spring-boot.version>
         <graphql-java.version>22.3</graphql-java.version>

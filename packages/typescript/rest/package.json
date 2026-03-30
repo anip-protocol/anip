@@ -1,6 +1,6 @@
 {
   "name": "@anip-dev/rest",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "description": "ANIP REST bindings — expose ANIPService capabilities as RESTful API endpoints",
   "type": "module",
   "engines": {
@@ -13,13 +13,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip-dev/service": "0.11.1",
+    "@anip-dev/service": "0.11.2",
     "hono": "^4.0.0"
   },
   "devDependencies": {
-    "@anip-dev/core": "0.11.1",
-    "@anip-dev/server": "0.11.1",
-    "@anip-dev/hono": "0.11.1",
+    "@anip-dev/core": "0.11.2",
+    "@anip-dev/server": "0.11.2",
+    "@anip-dev/hono": "0.11.2",
     "typescript": "^5.5.0",
     "vitest": "^4.1.0"
   },
