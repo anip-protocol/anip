@@ -3,6 +3,7 @@
 Spec references: §6.3 (invocation request/response), §5.4 (audit),
 v0.12 additions for task identity and invocation lineage.
 """
+import time
 import uuid
 
 from conftest import issue_token
@@ -76,6 +77,9 @@ class TestLineageInAudit:
         invoke_data = invoke_resp.json()
         invocation_id = invoke_data["invocation_id"]
 
+        # Allow async audit write to complete
+        time.sleep(1)
+
         # Query audit log
         audit_resp = client.post(
             "/anip/audit",
@@ -117,6 +121,9 @@ class TestLineageInAudit:
             json={"parameters": params, "task_id": task_id_b},
         )
 
+        # Allow async audit writes to complete
+        time.sleep(1)
+
         # Filter audit by task_id_a
         audit_resp = client.post(
             f"/anip/audit?task_id={task_id_a}",
@@ -153,6 +160,9 @@ class TestLineageInAudit:
             headers={"Authorization": f"Bearer {token}"},
             json={"parameters": params, "parent_invocation_id": parent_id_b},
         )
+
+        # Allow async audit writes to complete
+        time.sleep(1)
 
         # Filter audit by parent_invocation_id_a
         audit_resp = client.post(
