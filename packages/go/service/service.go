@@ -58,15 +58,17 @@ type CapabilityDef struct {
 
 // InvocationContext provides the handler with delegation context.
 type InvocationContext struct {
-	Token             *core.DelegationToken
-	RootPrincipal     string
-	Subject           string
-	Scopes            []string
-	DelegationChain   []string
-	InvocationID      string
-	ClientReferenceID string
-	costActual        *core.CostActual
-	EmitProgress      func(payload map[string]any) error
+	Token              *core.DelegationToken
+	RootPrincipal      string
+	Subject            string
+	Scopes             []string
+	DelegationChain    []string
+	InvocationID       string
+	ClientReferenceID  string
+	TaskID             string
+	ParentInvocationID string
+	costActual         *core.CostActual
+	EmitProgress       func(payload map[string]any) error
 }
 
 // SetCostActual sets the actual cost incurred by the invocation.
@@ -76,8 +78,10 @@ func (ctx *InvocationContext) SetCostActual(cost *core.CostActual) {
 
 // InvokeOpts holds optional parameters for invocation.
 type InvokeOpts struct {
-	ClientReferenceID string
-	Stream            bool
+	ClientReferenceID  string
+	TaskID             string
+	ParentInvocationID string
+	Stream             bool
 }
 
 // CheckpointPolicy configures automatic checkpoint creation.
@@ -705,20 +709,22 @@ func (s *Service) flushAggregator() {
 
 func (s *Service) persistAuditMap(entryData map[string]any) {
 	entry := &core.AuditEntry{
-		Capability:        strVal(entryData, "capability"),
-		Success:           false,
-		FailureType:       strVal(entryData, "failure_type"),
-		EventClass:        strVal(entryData, "event_class"),
-		RetentionTier:     strVal(entryData, "retention_tier"),
-		ExpiresAt:         strVal(entryData, "expires_at"),
-		EntryType:         strVal(entryData, "entry_type"),
-		RootPrincipal:     strVal(entryData, "actor_key"),
-		Timestamp:         strVal(entryData, "timestamp"),
-		InvocationID:      strVal(entryData, "invocation_id"),
-		ClientReferenceID: strVal(entryData, "client_reference_id"),
-		TokenID:           strVal(entryData, "token_id"),
-		Issuer:            strVal(entryData, "issuer"),
-		Subject:           strVal(entryData, "subject"),
+		Capability:         strVal(entryData, "capability"),
+		Success:            false,
+		FailureType:        strVal(entryData, "failure_type"),
+		EventClass:         strVal(entryData, "event_class"),
+		RetentionTier:      strVal(entryData, "retention_tier"),
+		ExpiresAt:          strVal(entryData, "expires_at"),
+		EntryType:          strVal(entryData, "entry_type"),
+		RootPrincipal:      strVal(entryData, "actor_key"),
+		Timestamp:          strVal(entryData, "timestamp"),
+		InvocationID:       strVal(entryData, "invocation_id"),
+		ClientReferenceID:  strVal(entryData, "client_reference_id"),
+		TaskID:             strVal(entryData, "task_id"),
+		ParentInvocationID: strVal(entryData, "parent_invocation_id"),
+		TokenID:            strVal(entryData, "token_id"),
+		Issuer:             strVal(entryData, "issuer"),
+		Subject:            strVal(entryData, "subject"),
 	}
 	if entry.EntryType == "" {
 		entry.EntryType = "normal"

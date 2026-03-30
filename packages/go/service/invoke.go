@@ -120,6 +120,31 @@ func (s *Service) Invoke(
 		}
 	}()
 
+	// task_id precedence: token purpose.task_id is authoritative
+	tokenTaskID := ""
+	if token.Purpose.TaskID != "" {
+		tokenTaskID = token.Purpose.TaskID
+	}
+	if tokenTaskID != "" && opts.TaskID != "" && opts.TaskID != tokenTaskID {
+		failure := map[string]any{
+			"type":   core.FailurePurposeMismatch,
+			"detail": "Request task_id '" + opts.TaskID + "' does not match token purpose task_id '" + tokenTaskID + "'",
+		}
+		resp := map[string]any{
+			"success":               false,
+			"failure":               failure,
+			"invocation_id":         invocationID,
+			"client_reference_id":   opts.ClientReferenceID,
+			"task_id":               opts.TaskID,
+			"parent_invocation_id":  opts.ParentInvocationID,
+		}
+		return resp, nil
+	}
+	effectiveTaskID := opts.TaskID
+	if effectiveTaskID == "" {
+		effectiveTaskID = tokenTaskID
+	}
+
 	// 1. Look up capability.
 	capDef, ok := s.capabilities[capName]
 	if !ok {
@@ -133,10 +158,12 @@ func (s *Service) Invoke(
 		failure = RedactFailure(failure, effectiveLevel)
 
 		resp := map[string]any{
-			"success":             false,
-			"failure":             failure,
-			"invocation_id":       invocationID,
-			"client_reference_id": opts.ClientReferenceID,
+			"success":               false,
+			"failure":               failure,
+			"invocation_id":         invocationID,
+			"client_reference_id":   opts.ClientReferenceID,
+			"task_id":               effectiveTaskID,
+			"parent_invocation_id":  opts.ParentInvocationID,
 		}
 		return resp, nil
 	}
@@ -159,10 +186,12 @@ func (s *Service) Invoke(
 			failure = RedactFailure(failure, effectiveLevel)
 
 			resp := map[string]any{
-				"success":             false,
-				"failure":             failure,
-				"invocation_id":       invocationID,
-				"client_reference_id": opts.ClientReferenceID,
+				"success":               false,
+				"failure":               failure,
+				"invocation_id":         invocationID,
+				"client_reference_id":   opts.ClientReferenceID,
+				"task_id":               effectiveTaskID,
+				"parent_invocation_id":  opts.ParentInvocationID,
 			}
 			return resp, nil
 		}
@@ -178,10 +207,12 @@ func (s *Service) Invoke(
 		failure = RedactFailure(failure, effectiveLevel)
 
 		resp := map[string]any{
-			"success":             false,
-			"failure":             failure,
-			"invocation_id":       invocationID,
-			"client_reference_id": opts.ClientReferenceID,
+			"success":               false,
+			"failure":               failure,
+			"invocation_id":         invocationID,
+			"client_reference_id":   opts.ClientReferenceID,
+			"task_id":               effectiveTaskID,
+			"parent_invocation_id":  opts.ParentInvocationID,
 		}
 		return resp, nil
 	}
@@ -210,17 +241,19 @@ func (s *Service) Invoke(
 			}
 
 			// Log audit for scope failure.
-			s.appendAuditEntry(capName, token, false, anipErr.ErrorType, nil, nil, invocationID, opts.ClientReferenceID, capDef.Declaration.SideEffect.Type)
+			s.appendAuditEntry(capName, token, false, anipErr.ErrorType, nil, nil, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, capDef.Declaration.SideEffect.Type)
 
 			// Apply failure redaction.
 			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 			failure = RedactFailure(failure, effectiveLevel)
 
 			resp := map[string]any{
-				"success":             false,
-				"failure":             failure,
-				"invocation_id":       invocationID,
-				"client_reference_id": opts.ClientReferenceID,
+				"success":               false,
+				"failure":               failure,
+				"invocation_id":         invocationID,
+				"client_reference_id":   opts.ClientReferenceID,
+				"task_id":               effectiveTaskID,
+				"parent_invocation_id":  opts.ParentInvocationID,
 			}
 			return resp, nil
 		}
@@ -239,13 +272,15 @@ func (s *Service) Invoke(
 	}
 
 	ctx := InvocationContext{
-		Token:             token,
-		RootPrincipal:     rootPrincipal,
-		Subject:           token.Subject,
-		Scopes:            token.Scope,
-		DelegationChain:   []string{token.TokenID},
-		InvocationID:      invocationID,
-		ClientReferenceID: opts.ClientReferenceID,
+		Token:              token,
+		RootPrincipal:      rootPrincipal,
+		Subject:            token.Subject,
+		Scopes:             token.Scope,
+		DelegationChain:    []string{token.TokenID},
+		InvocationID:       invocationID,
+		ClientReferenceID:  opts.ClientReferenceID,
+		TaskID:             effectiveTaskID,
+		ParentInvocationID: opts.ParentInvocationID,
 		EmitProgress: func(payload map[string]any) error {
 			// No-op for unary invocations.
 			return nil
@@ -257,7 +292,7 @@ func (s *Service) Invoke(
 	if err != nil {
 		// Handler returned an error.
 		if anipErr, ok := err.(*core.ANIPError); ok {
-			s.appendAuditEntry(capName, token, false, anipErr.ErrorType, map[string]any{"detail": anipErr.Detail}, nil, invocationID, opts.ClientReferenceID, capDef.Declaration.SideEffect.Type)
+			s.appendAuditEntry(capName, token, false, anipErr.ErrorType, map[string]any{"detail": anipErr.Detail}, nil, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, capDef.Declaration.SideEffect.Type)
 
 			failure := map[string]any{
 				"type":   anipErr.ErrorType,
@@ -269,16 +304,18 @@ func (s *Service) Invoke(
 			failure = RedactFailure(failure, effectiveLevel)
 
 			resp := map[string]any{
-				"success":              false,
-				"failure":             failure,
-				"invocation_id":       invocationID,
-				"client_reference_id": opts.ClientReferenceID,
+				"success":               false,
+				"failure":               failure,
+				"invocation_id":         invocationID,
+				"client_reference_id":   opts.ClientReferenceID,
+				"task_id":               effectiveTaskID,
+				"parent_invocation_id":  opts.ParentInvocationID,
 			}
 			return resp, nil
 		}
 
 		// Generic error -> internal_error.
-		s.appendAuditEntry(capName, token, false, core.FailureInternalError, nil, nil, invocationID, opts.ClientReferenceID, capDef.Declaration.SideEffect.Type)
+		s.appendAuditEntry(capName, token, false, core.FailureInternalError, nil, nil, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, capDef.Declaration.SideEffect.Type)
 
 		failure := map[string]any{
 			"type":   core.FailureInternalError,
@@ -290,10 +327,12 @@ func (s *Service) Invoke(
 		failure = RedactFailure(failure, effectiveLevel)
 
 		resp := map[string]any{
-			"success":              false,
-			"failure":             failure,
-			"invocation_id":       invocationID,
-			"client_reference_id": opts.ClientReferenceID,
+			"success":               false,
+			"failure":               failure,
+			"invocation_id":         invocationID,
+			"client_reference_id":   opts.ClientReferenceID,
+			"task_id":               effectiveTaskID,
+			"parent_invocation_id":  opts.ParentInvocationID,
 		}
 		return resp, nil
 	}
@@ -302,14 +341,16 @@ func (s *Service) Invoke(
 	costActual := ctx.costActual
 
 	// 7. Log audit (success).
-	s.appendAuditEntry(capName, token, true, "", result, costActual, invocationID, opts.ClientReferenceID, capDef.Declaration.SideEffect.Type)
+	s.appendAuditEntry(capName, token, true, "", result, costActual, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, capDef.Declaration.SideEffect.Type)
 
 	// 8. Build response.
 	resp := map[string]any{
-		"success":              true,
-		"result":               result,
-		"invocation_id":        invocationID,
-		"client_reference_id":  opts.ClientReferenceID,
+		"success":               true,
+		"result":                result,
+		"invocation_id":         invocationID,
+		"client_reference_id":   opts.ClientReferenceID,
+		"task_id":               effectiveTaskID,
+		"parent_invocation_id":  opts.ParentInvocationID,
 	}
 	if costActual != nil {
 		resp["cost_actual"] = costActual
@@ -329,6 +370,20 @@ func (s *Service) InvokeStream(
 	opts InvokeOpts,
 ) (*StreamResult, error) {
 	invocationID := core.GenerateInvocationID()
+
+	// task_id precedence: token purpose.task_id is authoritative
+	tokenTaskID := ""
+	if token.Purpose.TaskID != "" {
+		tokenTaskID = token.Purpose.TaskID
+	}
+	if tokenTaskID != "" && opts.TaskID != "" && opts.TaskID != tokenTaskID {
+		return nil, core.NewANIPError(core.FailurePurposeMismatch,
+			"Request task_id '"+opts.TaskID+"' does not match token purpose task_id '"+tokenTaskID+"'")
+	}
+	effectiveTaskID := opts.TaskID
+	if effectiveTaskID == "" {
+		effectiveTaskID = tokenTaskID
+	}
 
 	// 1. Look up capability.
 	capDef, ok := s.capabilities[capName]
@@ -358,6 +413,7 @@ func (s *Service) InvokeStream(
 	closed := false
 
 	clientRefID := opts.ClientReferenceID
+	parentInvID := opts.ParentInvocationID
 
 	emitProgress := func(payload map[string]any) error {
 		mu.Lock()
@@ -368,10 +424,12 @@ func (s *Service) InvokeStream(
 		event := StreamEvent{
 			Type: "progress",
 			Payload: map[string]any{
-				"invocation_id":       invocationID,
-				"client_reference_id": nilIfEmpty(clientRefID),
-				"timestamp":           time.Now().UTC().Format(time.RFC3339),
-				"payload":             payload,
+				"invocation_id":        invocationID,
+				"client_reference_id":  nilIfEmpty(clientRefID),
+				"task_id":              nilIfEmpty(effectiveTaskID),
+				"parent_invocation_id": nilIfEmpty(parentInvID),
+				"timestamp":            time.Now().UTC().Format(time.RFC3339),
+				"payload":              payload,
 			},
 		}
 		ch <- event
@@ -379,14 +437,16 @@ func (s *Service) InvokeStream(
 	}
 
 	ctx := InvocationContext{
-		Token:             token,
-		RootPrincipal:     rootPrincipal,
-		Subject:           token.Subject,
-		Scopes:            token.Scope,
-		DelegationChain:   []string{token.TokenID},
-		InvocationID:      invocationID,
-		ClientReferenceID: clientRefID,
-		EmitProgress:      emitProgress,
+		Token:              token,
+		RootPrincipal:      rootPrincipal,
+		Subject:            token.Subject,
+		Scopes:             token.Scope,
+		DelegationChain:    []string{token.TokenID},
+		InvocationID:       invocationID,
+		ClientReferenceID:  clientRefID,
+		TaskID:             effectiveTaskID,
+		ParentInvocationID: parentInvID,
+		EmitProgress:       emitProgress,
 	}
 
 	// 5. Run handler in goroutine.
@@ -426,7 +486,7 @@ func (s *Service) InvokeStream(
 				}
 			}
 
-			s.appendAuditEntry(capName, token, false, failType, map[string]any{"detail": detail}, nil, invocationID, clientRefID, capDef.Declaration.SideEffect.Type)
+			s.appendAuditEntry(capName, token, false, failType, map[string]any{"detail": detail}, nil, invocationID, clientRefID, effectiveTaskID, parentInvID, capDef.Declaration.SideEffect.Type)
 
 			// Apply failure redaction to streaming failure.
 			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
@@ -435,11 +495,13 @@ func (s *Service) InvokeStream(
 			ch <- StreamEvent{
 				Type: "failed",
 				Payload: map[string]any{
-					"invocation_id":       invocationID,
-					"client_reference_id": nilIfEmpty(clientRefID),
-					"timestamp":           time.Now().UTC().Format(time.RFC3339),
-					"success":             false,
-					"failure":             failureObj,
+					"invocation_id":        invocationID,
+					"client_reference_id":  nilIfEmpty(clientRefID),
+					"task_id":              nilIfEmpty(effectiveTaskID),
+					"parent_invocation_id": nilIfEmpty(parentInvID),
+					"timestamp":            time.Now().UTC().Format(time.RFC3339),
+					"success":              false,
+					"failure":              failureObj,
 				},
 			}
 			return
@@ -447,15 +509,17 @@ func (s *Service) InvokeStream(
 
 		// Success — send completed event.
 		costActual := ctx.costActual
-		s.appendAuditEntry(capName, token, true, "", result, costActual, invocationID, clientRefID, capDef.Declaration.SideEffect.Type)
+		s.appendAuditEntry(capName, token, true, "", result, costActual, invocationID, clientRefID, effectiveTaskID, parentInvID, capDef.Declaration.SideEffect.Type)
 
 		payload := map[string]any{
-			"invocation_id":       invocationID,
-			"client_reference_id": nilIfEmpty(clientRefID),
-			"timestamp":           time.Now().UTC().Format(time.RFC3339),
-			"success":             true,
-			"result":              result,
-			"cost_actual":         nil,
+			"invocation_id":        invocationID,
+			"client_reference_id":  nilIfEmpty(clientRefID),
+			"task_id":              nilIfEmpty(effectiveTaskID),
+			"parent_invocation_id": nilIfEmpty(parentInvID),
+			"timestamp":            time.Now().UTC().Format(time.RFC3339),
+			"success":              true,
+			"result":               result,
+			"cost_actual":          nil,
 		}
 		if costActual != nil {
 			payload["cost_actual"] = costActual
@@ -496,6 +560,8 @@ func (s *Service) appendAuditEntry(
 	costActual *core.CostActual,
 	invocationID string,
 	clientReferenceID string,
+	taskID string,
+	parentInvocationID string,
 	sideEffectType string,
 ) {
 	rootPrincipal := token.RootPrincipal
@@ -508,21 +574,23 @@ func (s *Service) appendAuditEntry(
 	expiresAt := s.retentionPolicy.ComputeExpiresAt(tier, time.Now().UTC())
 
 	entry := &core.AuditEntry{
-		Capability:        capability,
-		TokenID:           token.TokenID,
-		Issuer:            token.Issuer,
-		Subject:           token.Subject,
-		RootPrincipal:     rootPrincipal,
-		Success:           success,
-		FailureType:       failureType,
-		ResultSummary:     resultSummary,
-		CostActual:        costActual,
-		DelegationChain:   []string{token.TokenID},
-		InvocationID:      invocationID,
-		ClientReferenceID: clientReferenceID,
-		EventClass:        eventClass,
-		RetentionTier:     tier,
-		ExpiresAt:         expiresAt,
+		Capability:         capability,
+		TokenID:            token.TokenID,
+		Issuer:             token.Issuer,
+		Subject:            token.Subject,
+		RootPrincipal:      rootPrincipal,
+		Success:            success,
+		FailureType:        failureType,
+		ResultSummary:      resultSummary,
+		CostActual:         costActual,
+		DelegationChain:    []string{token.TokenID},
+		InvocationID:       invocationID,
+		ClientReferenceID:  clientReferenceID,
+		TaskID:             taskID,
+		ParentInvocationID: parentInvocationID,
+		EventClass:         eventClass,
+		RetentionTier:      tier,
+		ExpiresAt:          expiresAt,
 	}
 
 	// Apply storage-side redaction.
@@ -551,18 +619,20 @@ func (s *Service) appendAuditEntry(
 
 func (s *Service) entryToMap(entry *core.AuditEntry) map[string]any {
 	m := map[string]any{
-		"timestamp":            entry.Timestamp,
-		"capability":           entry.Capability,
-		"actor_key":            entry.RootPrincipal,
-		"failure_type":         entry.FailureType,
-		"event_class":          entry.EventClass,
-		"retention_tier":       entry.RetentionTier,
-		"expires_at":           entry.ExpiresAt,
-		"invocation_id":        entry.InvocationID,
-		"client_reference_id":  entry.ClientReferenceID,
-		"token_id":             entry.TokenID,
-		"issuer":               entry.Issuer,
-		"subject":              entry.Subject,
+		"timestamp":              entry.Timestamp,
+		"capability":             entry.Capability,
+		"actor_key":              entry.RootPrincipal,
+		"failure_type":           entry.FailureType,
+		"event_class":            entry.EventClass,
+		"retention_tier":         entry.RetentionTier,
+		"expires_at":             entry.ExpiresAt,
+		"invocation_id":          entry.InvocationID,
+		"client_reference_id":    entry.ClientReferenceID,
+		"task_id":                entry.TaskID,
+		"parent_invocation_id":   entry.ParentInvocationID,
+		"token_id":               entry.TokenID,
+		"issuer":                 entry.Issuer,
+		"subject":                entry.Subject,
 	}
 	if entry.ResultSummary != nil {
 		if detail, ok := entry.ResultSummary["detail"]; ok {

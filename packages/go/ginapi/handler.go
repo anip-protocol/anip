@@ -199,16 +199,20 @@ func handleInvoke(svc *service.Service) gin.HandlerFunc {
 			params = body
 		}
 		clientRefID, _ := body["client_reference_id"].(string)
+		taskID, _ := body["task_id"].(string)
+		parentInvID, _ := body["parent_invocation_id"].(string)
 		stream, _ := body["stream"].(bool)
 
 		if stream {
-			handleStreamInvoke(c, svc, capName, token, params, clientRefID)
+			handleStreamInvoke(c, svc, capName, token, params, clientRefID, taskID, parentInvID)
 			return
 		}
 
 		result, err := svc.Invoke(capName, token, params, service.InvokeOpts{
-			ClientReferenceID: clientRefID,
-			Stream:            false,
+			ClientReferenceID:  clientRefID,
+			TaskID:             taskID,
+			ParentInvocationID: parentInvID,
+			Stream:             false,
 		})
 		if err != nil {
 			status, respBody := httputil.SimpleFailureResponse(core.FailureInternalError, "Invocation failed", nil)
@@ -229,10 +233,12 @@ func handleInvoke(svc *service.Service) gin.HandlerFunc {
 	}
 }
 
-func handleStreamInvoke(c *gin.Context, svc *service.Service, capName string, token *core.DelegationToken, params map[string]any, clientRefID string) {
+func handleStreamInvoke(c *gin.Context, svc *service.Service, capName string, token *core.DelegationToken, params map[string]any, clientRefID, taskID, parentInvID string) {
 	sr, err := svc.InvokeStream(capName, token, params, service.InvokeOpts{
-		ClientReferenceID: clientRefID,
-		Stream:            true,
+		ClientReferenceID:  clientRefID,
+		TaskID:             taskID,
+		ParentInvocationID: parentInvID,
+		Stream:             true,
 	})
 	if err != nil {
 		if anipErr, ok := err.(*core.ANIPError); ok {
@@ -271,10 +277,12 @@ func handleAudit(svc *service.Service) gin.HandlerFunc {
 		}
 
 		filters := server.AuditFilters{
-			Capability:        c.Query("capability"),
-			Since:             c.Query("since"),
-			InvocationID:      c.Query("invocation_id"),
-			ClientReferenceID: c.Query("client_reference_id"),
+			Capability:         c.Query("capability"),
+			Since:              c.Query("since"),
+			InvocationID:       c.Query("invocation_id"),
+			ClientReferenceID:  c.Query("client_reference_id"),
+			TaskID:             c.Query("task_id"),
+			ParentInvocationID: c.Query("parent_invocation_id"),
 		}
 		if l := c.Query("limit"); l != "" {
 			if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {

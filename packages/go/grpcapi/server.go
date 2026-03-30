@@ -226,7 +226,9 @@ func (s *AnipGrpcServer) Invoke(ctx context.Context, req *pb.InvokeRequest) (*pb
 	}
 
 	result, err := s.service.Invoke(capability, token, params, service.InvokeOpts{
-		ClientReferenceID: req.ClientReferenceId,
+		ClientReferenceID:  req.ClientReferenceId,
+		TaskID:             req.TaskId,
+		ParentInvocationID: req.ParentInvocationId,
 	})
 	if err != nil {
 		var anipErr *core.ANIPError
@@ -253,6 +255,12 @@ func (s *AnipGrpcServer) Invoke(ctx context.Context, req *pb.InvokeRequest) (*pb
 	}
 	if cri, ok := result["client_reference_id"].(string); ok {
 		resp.ClientReferenceId = cri
+	}
+	if tid, ok := result["task_id"].(string); ok {
+		resp.TaskId = tid
+	}
+	if pid, ok := result["parent_invocation_id"].(string); ok {
+		resp.ParentInvocationId = pid
 	}
 
 	if resp.Success {
@@ -297,8 +305,10 @@ func (s *AnipGrpcServer) InvokeStream(req *pb.InvokeRequest, stream grpc.ServerS
 	}
 
 	sr, err := s.service.InvokeStream(capability, token, params, service.InvokeOpts{
-		ClientReferenceID: req.ClientReferenceId,
-		Stream:            true,
+		ClientReferenceID:  req.ClientReferenceId,
+		TaskID:             req.TaskId,
+		ParentInvocationID: req.ParentInvocationId,
+		Stream:             true,
 	})
 	if err != nil {
 		var anipErr *core.ANIPError
@@ -346,6 +356,8 @@ func (s *AnipGrpcServer) InvokeStream(req *pb.InvokeRequest, stream grpc.ServerS
 		case "completed":
 			invID, _ := event.Payload["invocation_id"].(string)
 			criVal, _ := event.Payload["client_reference_id"].(string)
+			tidVal, _ := event.Payload["task_id"].(string)
+			pidVal, _ := event.Payload["parent_invocation_id"].(string)
 			var resultJSON string
 			if r, ok := event.Payload["result"]; ok && r != nil {
 				rBytes, _ := json.Marshal(r)
@@ -359,10 +371,12 @@ func (s *AnipGrpcServer) InvokeStream(req *pb.InvokeRequest, stream grpc.ServerS
 			grpcEvent := &pb.InvokeEvent{
 				Event: &pb.InvokeEvent_Completed{
 					Completed: &pb.CompletedEvent{
-						InvocationId:      invID,
-						ClientReferenceId: criVal,
-						ResultJson:        resultJSON,
-						CostActualJson:    costJSON,
+						InvocationId:       invID,
+						ClientReferenceId:  criVal,
+						TaskId:             tidVal,
+						ParentInvocationId: pidVal,
+						ResultJson:         resultJSON,
+						CostActualJson:     costJSON,
 					},
 				},
 			}
@@ -374,6 +388,8 @@ func (s *AnipGrpcServer) InvokeStream(req *pb.InvokeRequest, stream grpc.ServerS
 		case "failed":
 			invID, _ := event.Payload["invocation_id"].(string)
 			criVal, _ := event.Payload["client_reference_id"].(string)
+			tidVal, _ := event.Payload["task_id"].(string)
+			pidVal, _ := event.Payload["parent_invocation_id"].(string)
 			var failure *pb.AnipFailure
 			if f, ok := event.Payload["failure"].(map[string]any); ok {
 				failure = mapToAnipFailure(f)
@@ -381,9 +397,11 @@ func (s *AnipGrpcServer) InvokeStream(req *pb.InvokeRequest, stream grpc.ServerS
 			grpcEvent := &pb.InvokeEvent{
 				Event: &pb.InvokeEvent_Failed{
 					Failed: &pb.FailedEvent{
-						InvocationId:      invID,
-						ClientReferenceId: criVal,
-						Failure:           failure,
+						InvocationId:       invID,
+						ClientReferenceId:  criVal,
+						TaskId:             tidVal,
+						ParentInvocationId: pidVal,
+						Failure:            failure,
 					},
 				},
 			}
@@ -405,12 +423,14 @@ func (s *AnipGrpcServer) QueryAudit(ctx context.Context, req *pb.QueryAuditReque
 	}
 
 	filters := server.AuditFilters{
-		Capability:        req.Capability,
-		Since:             req.Since,
-		InvocationID:      req.InvocationId,
-		ClientReferenceID: req.ClientReferenceId,
-		EventClass:        req.EventClass,
-		Limit:             int(req.Limit),
+		Capability:         req.Capability,
+		Since:              req.Since,
+		InvocationID:       req.InvocationId,
+		ClientReferenceID:  req.ClientReferenceId,
+		TaskID:             req.TaskId,
+		ParentInvocationID: req.ParentInvocationId,
+		EventClass:         req.EventClass,
+		Limit:              int(req.Limit),
 	}
 
 	resp, err := s.service.QueryAudit(token, filters)
