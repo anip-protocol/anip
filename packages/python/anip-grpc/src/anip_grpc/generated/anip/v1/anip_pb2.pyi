@@ -97,30 +97,38 @@ class PermissionsResponse(_message.Message):
     def __init__(self, success: bool = ..., json: _Optional[str] = ..., failure: _Optional[_Union[AnipFailure, _Mapping]] = ...) -> None: ...
 
 class InvokeRequest(_message.Message):
-    __slots__ = ("capability", "parameters_json", "client_reference_id")
+    __slots__ = ("capability", "parameters_json", "client_reference_id", "task_id", "parent_invocation_id")
     CAPABILITY_FIELD_NUMBER: _ClassVar[int]
     PARAMETERS_JSON_FIELD_NUMBER: _ClassVar[int]
     CLIENT_REFERENCE_ID_FIELD_NUMBER: _ClassVar[int]
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_INVOCATION_ID_FIELD_NUMBER: _ClassVar[int]
     capability: str
     parameters_json: str
     client_reference_id: str
-    def __init__(self, capability: _Optional[str] = ..., parameters_json: _Optional[str] = ..., client_reference_id: _Optional[str] = ...) -> None: ...
+    task_id: str
+    parent_invocation_id: str
+    def __init__(self, capability: _Optional[str] = ..., parameters_json: _Optional[str] = ..., client_reference_id: _Optional[str] = ..., task_id: _Optional[str] = ..., parent_invocation_id: _Optional[str] = ...) -> None: ...
 
 class InvokeResponse(_message.Message):
-    __slots__ = ("success", "invocation_id", "client_reference_id", "result_json", "cost_actual_json", "failure")
+    __slots__ = ("success", "invocation_id", "client_reference_id", "result_json", "cost_actual_json", "failure", "task_id", "parent_invocation_id")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     INVOCATION_ID_FIELD_NUMBER: _ClassVar[int]
     CLIENT_REFERENCE_ID_FIELD_NUMBER: _ClassVar[int]
     RESULT_JSON_FIELD_NUMBER: _ClassVar[int]
     COST_ACTUAL_JSON_FIELD_NUMBER: _ClassVar[int]
     FAILURE_FIELD_NUMBER: _ClassVar[int]
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_INVOCATION_ID_FIELD_NUMBER: _ClassVar[int]
     success: bool
     invocation_id: str
     client_reference_id: str
     result_json: str
     cost_actual_json: str
     failure: AnipFailure
-    def __init__(self, success: bool = ..., invocation_id: _Optional[str] = ..., client_reference_id: _Optional[str] = ..., result_json: _Optional[str] = ..., cost_actual_json: _Optional[str] = ..., failure: _Optional[_Union[AnipFailure, _Mapping]] = ...) -> None: ...
+    task_id: str
+    parent_invocation_id: str
+    def __init__(self, success: bool = ..., invocation_id: _Optional[str] = ..., client_reference_id: _Optional[str] = ..., result_json: _Optional[str] = ..., cost_actual_json: _Optional[str] = ..., failure: _Optional[_Union[AnipFailure, _Mapping]] = ..., task_id: _Optional[str] = ..., parent_invocation_id: _Optional[str] = ...) -> None: ...
 
 class InvokeEvent(_message.Message):
     __slots__ = ("progress", "completed", "failed")
@@ -141,42 +149,54 @@ class ProgressEvent(_message.Message):
     def __init__(self, invocation_id: _Optional[str] = ..., payload_json: _Optional[str] = ...) -> None: ...
 
 class CompletedEvent(_message.Message):
-    __slots__ = ("invocation_id", "client_reference_id", "result_json", "cost_actual_json")
+    __slots__ = ("invocation_id", "client_reference_id", "result_json", "cost_actual_json", "task_id", "parent_invocation_id")
     INVOCATION_ID_FIELD_NUMBER: _ClassVar[int]
     CLIENT_REFERENCE_ID_FIELD_NUMBER: _ClassVar[int]
     RESULT_JSON_FIELD_NUMBER: _ClassVar[int]
     COST_ACTUAL_JSON_FIELD_NUMBER: _ClassVar[int]
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_INVOCATION_ID_FIELD_NUMBER: _ClassVar[int]
     invocation_id: str
     client_reference_id: str
     result_json: str
     cost_actual_json: str
-    def __init__(self, invocation_id: _Optional[str] = ..., client_reference_id: _Optional[str] = ..., result_json: _Optional[str] = ..., cost_actual_json: _Optional[str] = ...) -> None: ...
+    task_id: str
+    parent_invocation_id: str
+    def __init__(self, invocation_id: _Optional[str] = ..., client_reference_id: _Optional[str] = ..., result_json: _Optional[str] = ..., cost_actual_json: _Optional[str] = ..., task_id: _Optional[str] = ..., parent_invocation_id: _Optional[str] = ...) -> None: ...
 
 class FailedEvent(_message.Message):
-    __slots__ = ("invocation_id", "client_reference_id", "failure")
+    __slots__ = ("invocation_id", "client_reference_id", "failure", "task_id", "parent_invocation_id")
     INVOCATION_ID_FIELD_NUMBER: _ClassVar[int]
     CLIENT_REFERENCE_ID_FIELD_NUMBER: _ClassVar[int]
     FAILURE_FIELD_NUMBER: _ClassVar[int]
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_INVOCATION_ID_FIELD_NUMBER: _ClassVar[int]
     invocation_id: str
     client_reference_id: str
     failure: AnipFailure
-    def __init__(self, invocation_id: _Optional[str] = ..., client_reference_id: _Optional[str] = ..., failure: _Optional[_Union[AnipFailure, _Mapping]] = ...) -> None: ...
+    task_id: str
+    parent_invocation_id: str
+    def __init__(self, invocation_id: _Optional[str] = ..., client_reference_id: _Optional[str] = ..., failure: _Optional[_Union[AnipFailure, _Mapping]] = ..., task_id: _Optional[str] = ..., parent_invocation_id: _Optional[str] = ...) -> None: ...
 
 class QueryAuditRequest(_message.Message):
-    __slots__ = ("capability", "since", "invocation_id", "client_reference_id", "event_class", "limit")
+    __slots__ = ("capability", "since", "invocation_id", "client_reference_id", "event_class", "limit", "task_id", "parent_invocation_id")
     CAPABILITY_FIELD_NUMBER: _ClassVar[int]
     SINCE_FIELD_NUMBER: _ClassVar[int]
     INVOCATION_ID_FIELD_NUMBER: _ClassVar[int]
     CLIENT_REFERENCE_ID_FIELD_NUMBER: _ClassVar[int]
     EVENT_CLASS_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_INVOCATION_ID_FIELD_NUMBER: _ClassVar[int]
     capability: str
     since: str
     invocation_id: str
     client_reference_id: str
     event_class: str
     limit: int
-    def __init__(self, capability: _Optional[str] = ..., since: _Optional[str] = ..., invocation_id: _Optional[str] = ..., client_reference_id: _Optional[str] = ..., event_class: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+    task_id: str
+    parent_invocation_id: str
+    def __init__(self, capability: _Optional[str] = ..., since: _Optional[str] = ..., invocation_id: _Optional[str] = ..., client_reference_id: _Optional[str] = ..., event_class: _Optional[str] = ..., limit: _Optional[int] = ..., task_id: _Optional[str] = ..., parent_invocation_id: _Optional[str] = ...) -> None: ...
 
 class QueryAuditResponse(_message.Message):
     __slots__ = ("success", "json", "failure")

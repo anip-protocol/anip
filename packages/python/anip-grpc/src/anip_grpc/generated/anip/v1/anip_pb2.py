@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x12\x61nip/v1/anip.proto\x12\x07\x61nip.v1\"S\n\x0b\x41nipFailure\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x0e\n\x06\x64\x65tail\x18\x02 \x01(\t\x12\x17\n\x0fresolution_json\x18\x03 \x01(\t\x12\r\n\x05retry\x18\x04 \x01(\x08\"\x12\n\x10\x44iscoveryRequest\"!\n\x11\x44iscoveryResponse\x12\x0c\n\x04json\x18\x01 \x01(\t\"\x11\n\x0fManifestRequest\"<\n\x10ManifestResponse\x12\x15\n\rmanifest_json\x18\x01 \x01(\t\x12\x11\n\tsignature\x18\x02 \x01(\t\"\r\n\x0bJwksRequest\"\x1c\n\x0cJwksResponse\x12\x0c\n\x04json\x18\x01 \x01(\t\"\xa7\x01\n\x11IssueTokenRequest\x12\x0f\n\x07subject\x18\x01 \x01(\t\x12\r\n\x05scope\x18\x02 \x03(\t\x12\x12\n\ncapability\x18\x03 \x01(\t\x12\x1f\n\x17purpose_parameters_json\x18\x04 \x01(\t\x12\x14\n\x0cparent_token\x18\x05 \x01(\t\x12\x11\n\tttl_hours\x18\x06 \x01(\x05\x12\x14\n\x0c\x63\x61ller_class\x18\x07 \x01(\t\"}\n\x12IssueTokenResponse\x12\x0e\n\x06issued\x18\x01 \x01(\x08\x12\x10\n\x08token_id\x18\x02 \x01(\t\x12\r\n\x05token\x18\x03 \x01(\t\x12\x0f\n\x07\x65xpires\x18\x04 \x01(\t\x12%\n\x07\x66\x61ilure\x18\x05 \x01(\x0b\x32\x14.anip.v1.AnipFailure\"\x14\n\x12PermissionsRequest\"[\n\x13PermissionsResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0c\n\x04json\x18\x02 \x01(\t\x12%\n\x07\x66\x61ilure\x18\x03 \x01(\x0b\x32\x14.anip.v1.AnipFailure\"Y\n\rInvokeRequest\x12\x12\n\ncapability\x18\x01 \x01(\t\x12\x17\n\x0fparameters_json\x18\x02 \x01(\t\x12\x1b\n\x13\x63lient_reference_id\x18\x03 \x01(\t\"\xab\x01\n\x0eInvokeResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x15\n\rinvocation_id\x18\x02 \x01(\t\x12\x1b\n\x13\x63lient_reference_id\x18\x03 \x01(\t\x12\x13\n\x0bresult_json\x18\x04 \x01(\t\x12\x18\n\x10\x63ost_actual_json\x18\x05 \x01(\t\x12%\n\x07\x66\x61ilure\x18\x06 \x01(\x0b\x32\x14.anip.v1.AnipFailure\"\x98\x01\n\x0bInvokeEvent\x12*\n\x08progress\x18\x01 \x01(\x0b\x32\x16.anip.v1.ProgressEventH\x00\x12,\n\tcompleted\x18\x02 \x01(\x0b\x32\x17.anip.v1.CompletedEventH\x00\x12&\n\x06\x66\x61iled\x18\x03 \x01(\x0b\x32\x14.anip.v1.FailedEventH\x00\x42\x07\n\x05\x65vent\"<\n\rProgressEvent\x12\x15\n\rinvocation_id\x18\x01 \x01(\t\x12\x14\n\x0cpayload_json\x18\x02 \x01(\t\"s\n\x0e\x43ompletedEvent\x12\x15\n\rinvocation_id\x18\x01 \x01(\t\x12\x1b\n\x13\x63lient_reference_id\x18\x02 \x01(\t\x12\x13\n\x0bresult_json\x18\x03 \x01(\t\x12\x18\n\x10\x63ost_actual_json\x18\x04 \x01(\t\"h\n\x0b\x46\x61iledEvent\x12\x15\n\rinvocation_id\x18\x01 \x01(\t\x12\x1b\n\x13\x63lient_reference_id\x18\x02 \x01(\t\x12%\n\x07\x66\x61ilure\x18\x03 \x01(\x0b\x32\x14.anip.v1.AnipFailure\"\x8e\x01\n\x11QueryAuditRequest\x12\x12\n\ncapability\x18\x01 \x01(\t\x12\r\n\x05since\x18\x02 \x01(\t\x12\x15\n\rinvocation_id\x18\x03 \x01(\t\x12\x1b\n\x13\x63lient_reference_id\x18\x04 \x01(\t\x12\x13\n\x0b\x65vent_class\x18\x05 \x01(\t\x12\r\n\x05limit\x18\x06 \x01(\x05\"Z\n\x12QueryAuditResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0c\n\x04json\x18\x02 \x01(\t\x12%\n\x07\x66\x61ilure\x18\x03 \x01(\x0b\x32\x14.anip.v1.AnipFailure\"\'\n\x16ListCheckpointsRequest\x12\r\n\x05limit\x18\x01 \x01(\x05\"\'\n\x17ListCheckpointsResponse\x12\x0c\n\x04json\x18\x01 \x01(\t\"g\n\x14GetCheckpointRequest\x12\n\n\x02id\x18\x01 \x01(\t\x12\x15\n\rinclude_proof\x18\x02 \x01(\x08\x12\x12\n\nleaf_index\x18\x03 \x01(\x05\x12\x18\n\x10\x63onsistency_from\x18\x04 \x01(\t\"%\n\x15GetCheckpointResponse\x12\x0c\n\x04json\x18\x01 \x01(\t2\xc0\x05\n\x0b\x41nipService\x12\x42\n\tDiscovery\x12\x19.anip.v1.DiscoveryRequest\x1a\x1a.anip.v1.DiscoveryResponse\x12?\n\x08Manifest\x12\x18.anip.v1.ManifestRequest\x1a\x19.anip.v1.ManifestResponse\x12\x33\n\x04Jwks\x12\x14.anip.v1.JwksRequest\x1a\x15.anip.v1.JwksResponse\x12T\n\x0fListCheckpoints\x12\x1f.anip.v1.ListCheckpointsRequest\x1a .anip.v1.ListCheckpointsResponse\x12N\n\rGetCheckpoint\x12\x1d.anip.v1.GetCheckpointRequest\x1a\x1e.anip.v1.GetCheckpointResponse\x12\x45\n\nIssueToken\x12\x1a.anip.v1.IssueTokenRequest\x1a\x1b.anip.v1.IssueTokenResponse\x12H\n\x0bPermissions\x12\x1b.anip.v1.PermissionsRequest\x1a\x1c.anip.v1.PermissionsResponse\x12\x39\n\x06Invoke\x12\x16.anip.v1.InvokeRequest\x1a\x17.anip.v1.InvokeResponse\x12>\n\x0cInvokeStream\x12\x16.anip.v1.InvokeRequest\x1a\x14.anip.v1.InvokeEvent0\x01\x12\x45\n\nQueryAudit\x12\x1a.anip.v1.QueryAuditRequest\x1a\x1b.anip.v1.QueryAuditResponseBAZ?github.com/anip-protocol/anip/packages/go/grpcapi/proto/anip/v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x12\x61nip/v1/anip.proto\x12\x07\x61nip.v1\"S\n\x0b\x41nipFailure\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x0e\n\x06\x64\x65tail\x18\x02 \x01(\t\x12\x17\n\x0fresolution_json\x18\x03 \x01(\t\x12\r\n\x05retry\x18\x04 \x01(\x08\"\x12\n\x10\x44iscoveryRequest\"!\n\x11\x44iscoveryResponse\x12\x0c\n\x04json\x18\x01 \x01(\t\"\x11\n\x0fManifestRequest\"<\n\x10ManifestResponse\x12\x15\n\rmanifest_json\x18\x01 \x01(\t\x12\x11\n\tsignature\x18\x02 \x01(\t\"\r\n\x0bJwksRequest\"\x1c\n\x0cJwksResponse\x12\x0c\n\x04json\x18\x01 \x01(\t\"\xa7\x01\n\x11IssueTokenRequest\x12\x0f\n\x07subject\x18\x01 \x01(\t\x12\r\n\x05scope\x18\x02 \x03(\t\x12\x12\n\ncapability\x18\x03 \x01(\t\x12\x1f\n\x17purpose_parameters_json\x18\x04 \x01(\t\x12\x14\n\x0cparent_token\x18\x05 \x01(\t\x12\x11\n\tttl_hours\x18\x06 \x01(\x05\x12\x14\n\x0c\x63\x61ller_class\x18\x07 \x01(\t\"}\n\x12IssueTokenResponse\x12\x0e\n\x06issued\x18\x01 \x01(\x08\x12\x10\n\x08token_id\x18\x02 \x01(\t\x12\r\n\x05token\x18\x03 \x01(\t\x12\x0f\n\x07\x65xpires\x18\x04 \x01(\t\x12%\n\x07\x66\x61ilure\x18\x05 \x01(\x0b\x32\x14.anip.v1.AnipFailure\"\x14\n\x12PermissionsRequest\"[\n\x13PermissionsResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0c\n\x04json\x18\x02 \x01(\t\x12%\n\x07\x66\x61ilure\x18\x03 \x01(\x0b\x32\x14.anip.v1.AnipFailure\"\x88\x01\n\rInvokeRequest\x12\x12\n\ncapability\x18\x01 \x01(\t\x12\x17\n\x0fparameters_json\x18\x02 \x01(\t\x12\x1b\n\x13\x63lient_reference_id\x18\x03 \x01(\t\x12\x0f\n\x07task_id\x18\x04 \x01(\t\x12\x1c\n\x14parent_invocation_id\x18\x05 \x01(\t\"\xda\x01\n\x0eInvokeResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x15\n\rinvocation_id\x18\x02 \x01(\t\x12\x1b\n\x13\x63lient_reference_id\x18\x03 \x01(\t\x12\x13\n\x0bresult_json\x18\x04 \x01(\t\x12\x18\n\x10\x63ost_actual_json\x18\x05 \x01(\t\x12%\n\x07\x66\x61ilure\x18\x06 \x01(\x0b\x32\x14.anip.v1.AnipFailure\x12\x0f\n\x07task_id\x18\x07 \x01(\t\x12\x1c\n\x14parent_invocation_id\x18\x08 \x01(\t\"\x98\x01\n\x0bInvokeEvent\x12*\n\x08progress\x18\x01 \x01(\x0b\x32\x16.anip.v1.ProgressEventH\x00\x12,\n\tcompleted\x18\x02 \x01(\x0b\x32\x17.anip.v1.CompletedEventH\x00\x12&\n\x06\x66\x61iled\x18\x03 \x01(\x0b\x32\x14.anip.v1.FailedEventH\x00\x42\x07\n\x05\x65vent\"<\n\rProgressEvent\x12\x15\n\rinvocation_id\x18\x01 \x01(\t\x12\x14\n\x0cpayload_json\x18\x02 \x01(\t\"\xa2\x01\n\x0e\x43ompletedEvent\x12\x15\n\rinvocation_id\x18\x01 \x01(\t\x12\x1b\n\x13\x63lient_reference_id\x18\x02 \x01(\t\x12\x13\n\x0bresult_json\x18\x03 \x01(\t\x12\x18\n\x10\x63ost_actual_json\x18\x04 \x01(\t\x12\x0f\n\x07task_id\x18\x05 \x01(\t\x12\x1c\n\x14parent_invocation_id\x18\x06 \x01(\t\"\x97\x01\n\x0b\x46\x61iledEvent\x12\x15\n\rinvocation_id\x18\x01 \x01(\t\x12\x1b\n\x13\x63lient_reference_id\x18\x02 \x01(\t\x12%\n\x07\x66\x61ilure\x18\x03 \x01(\x0b\x32\x14.anip.v1.AnipFailure\x12\x0f\n\x07task_id\x18\x04 \x01(\t\x12\x1c\n\x14parent_invocation_id\x18\x05 \x01(\t\"\xbd\x01\n\x11QueryAuditRequest\x12\x12\n\ncapability\x18\x01 \x01(\t\x12\r\n\x05since\x18\x02 \x01(\t\x12\x15\n\rinvocation_id\x18\x03 \x01(\t\x12\x1b\n\x13\x63lient_reference_id\x18\x04 \x01(\t\x12\x13\n\x0b\x65vent_class\x18\x05 \x01(\t\x12\r\n\x05limit\x18\x06 \x01(\x05\x12\x0f\n\x07task_id\x18\x07 \x01(\t\x12\x1c\n\x14parent_invocation_id\x18\x08 \x01(\t\"Z\n\x12QueryAuditResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0c\n\x04json\x18\x02 \x01(\t\x12%\n\x07\x66\x61ilure\x18\x03 \x01(\x0b\x32\x14.anip.v1.AnipFailure\"\'\n\x16ListCheckpointsRequest\x12\r\n\x05limit\x18\x01 \x01(\x05\"\'\n\x17ListCheckpointsResponse\x12\x0c\n\x04json\x18\x01 \x01(\t\"g\n\x14GetCheckpointRequest\x12\n\n\x02id\x18\x01 \x01(\t\x12\x15\n\rinclude_proof\x18\x02 \x01(\x08\x12\x12\n\nleaf_index\x18\x03 \x01(\x05\x12\x18\n\x10\x63onsistency_from\x18\x04 \x01(\t\"%\n\x15GetCheckpointResponse\x12\x0c\n\x04json\x18\x01 \x01(\t2\xc0\x05\n\x0b\x41nipService\x12\x42\n\tDiscovery\x12\x19.anip.v1.DiscoveryRequest\x1a\x1a.anip.v1.DiscoveryResponse\x12?\n\x08Manifest\x12\x18.anip.v1.ManifestRequest\x1a\x19.anip.v1.ManifestResponse\x12\x33\n\x04Jwks\x12\x14.anip.v1.JwksRequest\x1a\x15.anip.v1.JwksResponse\x12T\n\x0fListCheckpoints\x12\x1f.anip.v1.ListCheckpointsRequest\x1a .anip.v1.ListCheckpointsResponse\x12N\n\rGetCheckpoint\x12\x1d.anip.v1.GetCheckpointRequest\x1a\x1e.anip.v1.GetCheckpointResponse\x12\x45\n\nIssueToken\x12\x1a.anip.v1.IssueTokenRequest\x1a\x1b.anip.v1.IssueTokenResponse\x12H\n\x0bPermissions\x12\x1b.anip.v1.PermissionsRequest\x1a\x1c.anip.v1.PermissionsResponse\x12\x39\n\x06Invoke\x12\x16.anip.v1.InvokeRequest\x1a\x17.anip.v1.InvokeResponse\x12>\n\x0cInvokeStream\x12\x16.anip.v1.InvokeRequest\x1a\x14.anip.v1.InvokeEvent0\x01\x12\x45\n\nQueryAudit\x12\x1a.anip.v1.QueryAuditRequest\x1a\x1b.anip.v1.QueryAuditResponseBAZ?github.com/anip-protocol/anip/packages/go/grpcapi/proto/anip/v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -54,30 +54,30 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_PERMISSIONSREQUEST']._serialized_end=614
   _globals['_PERMISSIONSRESPONSE']._serialized_start=616
   _globals['_PERMISSIONSRESPONSE']._serialized_end=707
-  _globals['_INVOKEREQUEST']._serialized_start=709
-  _globals['_INVOKEREQUEST']._serialized_end=798
-  _globals['_INVOKERESPONSE']._serialized_start=801
-  _globals['_INVOKERESPONSE']._serialized_end=972
-  _globals['_INVOKEEVENT']._serialized_start=975
-  _globals['_INVOKEEVENT']._serialized_end=1127
-  _globals['_PROGRESSEVENT']._serialized_start=1129
-  _globals['_PROGRESSEVENT']._serialized_end=1189
-  _globals['_COMPLETEDEVENT']._serialized_start=1191
-  _globals['_COMPLETEDEVENT']._serialized_end=1306
-  _globals['_FAILEDEVENT']._serialized_start=1308
-  _globals['_FAILEDEVENT']._serialized_end=1412
-  _globals['_QUERYAUDITREQUEST']._serialized_start=1415
-  _globals['_QUERYAUDITREQUEST']._serialized_end=1557
-  _globals['_QUERYAUDITRESPONSE']._serialized_start=1559
-  _globals['_QUERYAUDITRESPONSE']._serialized_end=1649
-  _globals['_LISTCHECKPOINTSREQUEST']._serialized_start=1651
-  _globals['_LISTCHECKPOINTSREQUEST']._serialized_end=1690
-  _globals['_LISTCHECKPOINTSRESPONSE']._serialized_start=1692
-  _globals['_LISTCHECKPOINTSRESPONSE']._serialized_end=1731
-  _globals['_GETCHECKPOINTREQUEST']._serialized_start=1733
-  _globals['_GETCHECKPOINTREQUEST']._serialized_end=1836
-  _globals['_GETCHECKPOINTRESPONSE']._serialized_start=1838
-  _globals['_GETCHECKPOINTRESPONSE']._serialized_end=1875
-  _globals['_ANIPSERVICE']._serialized_start=1878
-  _globals['_ANIPSERVICE']._serialized_end=2582
+  _globals['_INVOKEREQUEST']._serialized_start=710
+  _globals['_INVOKEREQUEST']._serialized_end=846
+  _globals['_INVOKERESPONSE']._serialized_start=849
+  _globals['_INVOKERESPONSE']._serialized_end=1067
+  _globals['_INVOKEEVENT']._serialized_start=1070
+  _globals['_INVOKEEVENT']._serialized_end=1222
+  _globals['_PROGRESSEVENT']._serialized_start=1224
+  _globals['_PROGRESSEVENT']._serialized_end=1284
+  _globals['_COMPLETEDEVENT']._serialized_start=1287
+  _globals['_COMPLETEDEVENT']._serialized_end=1449
+  _globals['_FAILEDEVENT']._serialized_start=1452
+  _globals['_FAILEDEVENT']._serialized_end=1603
+  _globals['_QUERYAUDITREQUEST']._serialized_start=1606
+  _globals['_QUERYAUDITREQUEST']._serialized_end=1795
+  _globals['_QUERYAUDITRESPONSE']._serialized_start=1797
+  _globals['_QUERYAUDITRESPONSE']._serialized_end=1887
+  _globals['_LISTCHECKPOINTSREQUEST']._serialized_start=1889
+  _globals['_LISTCHECKPOINTSREQUEST']._serialized_end=1928
+  _globals['_LISTCHECKPOINTSRESPONSE']._serialized_start=1930
+  _globals['_LISTCHECKPOINTSRESPONSE']._serialized_end=1969
+  _globals['_GETCHECKPOINTREQUEST']._serialized_start=1971
+  _globals['_GETCHECKPOINTREQUEST']._serialized_end=2074
+  _globals['_GETCHECKPOINTRESPONSE']._serialized_start=2076
+  _globals['_GETCHECKPOINTRESPONSE']._serialized_end=2113
+  _globals['_ANIPSERVICE']._serialized_start=2116
+  _globals['_ANIPSERVICE']._serialized_end=2820
 # @@protoc_insertion_point(module_scope)
