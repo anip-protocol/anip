@@ -1,0 +1,20 @@
+{
+  "name": "@anip-dev/studio",
+  "version": "0.11.2",
+  "description": "ANIP Studio — embedded inspection and invocation UI",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anip-protocol/anip"
+  },
+  "files": [
+    "dist",
+    "static"
+  ],
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}

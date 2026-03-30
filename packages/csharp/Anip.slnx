@@ -13,6 +13,7 @@
     <Project Path="src/Anip.Mcp/Anip.Mcp.csproj" />
     <Project Path="src/Anip.Mcp.AspNetCore/Anip.Mcp.AspNetCore.csproj" />
     <Project Path="src/Anip.Stdio/Anip.Stdio.csproj" />
+    <Project Path="src/Anip.Studio/Anip.Studio.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/Anip.Core.Tests/Anip.Core.Tests.csproj" />
