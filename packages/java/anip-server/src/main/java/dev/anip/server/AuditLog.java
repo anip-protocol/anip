@@ -67,6 +67,8 @@ public final class AuditLog {
                 filters.getSince(),
                 filters.getInvocationId(),
                 filters.getClientReferenceId(),
+                filters.getTaskId(),
+                filters.getParentInvocationId(),
                 filters.getLimit()
         );
 

@@ -298,9 +298,11 @@ public class AnipStdioServer {
         Map<String, Object> parameters = params.get("parameters") instanceof Map
                 ? (Map<String, Object>) params.get("parameters") : Map.of();
         String clientReferenceId = (String) params.get("client_reference_id");
+        String taskId = (String) params.get("task_id");
+        String parentInvocationId = (String) params.get("parent_invocation_id");
         boolean stream = Boolean.TRUE.equals(params.get("stream"));
 
-        InvokeOpts opts = new InvokeOpts(clientReferenceId, stream);
+        InvokeOpts opts = new InvokeOpts(clientReferenceId, stream, taskId, parentInvocationId);
 
         if (stream) {
             // Streaming invocation: collect progress notifications then return final result.
@@ -355,11 +357,13 @@ public class AnipStdioServer {
         String since = (String) params.get("since");
         String invocationId = (String) params.get("invocation_id");
         String clientReferenceId = (String) params.get("client_reference_id");
+        String taskId = (String) params.get("task_id");
+        String parentInvocationId = (String) params.get("parent_invocation_id");
         int limit = params.get("limit") instanceof Number
                 ? ((Number) params.get("limit")).intValue() : 0;
 
-        AuditFilters filters = new AuditFilters(capability, since, invocationId,
-                clientReferenceId, limit);
+        AuditFilters filters = new AuditFilters(capability, null, since, invocationId,
+                clientReferenceId, taskId, parentInvocationId, limit);
 
         AuditResponse resp = service.queryAudit(token, filters);
         @SuppressWarnings("unchecked")
