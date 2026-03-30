@@ -13,6 +13,12 @@ public class InvokeResponse
     [JsonPropertyName("client_reference_id")]
     public string? ClientReferenceId { get; set; }
 
+    [JsonPropertyName("task_id")]
+    public string? TaskId { get; set; }
+
+    [JsonPropertyName("parent_invocation_id")]
+    public string? ParentInvocationId { get; set; }
+
     [JsonPropertyName("result")]
     public object? Result { get; set; }
 

@@ -140,6 +140,8 @@ public class AnipController : ControllerBase
             parameters = new Dictionary<string, object?>(body);
             parameters.Remove("stream");
             parameters.Remove("client_reference_id");
+            parameters.Remove("task_id");
+            parameters.Remove("parent_invocation_id");
         }
 
         // Check for streaming.
@@ -171,14 +173,44 @@ public class AnipController : ControllerBase
         }
         clientRefId ??= Request.Headers["X-Client-Reference-Id"].FirstOrDefault();
 
+        // Extract task_id.
+        string? taskId = null;
+        if (body.TryGetValue("task_id", out var taskIdObj))
+        {
+            if (taskIdObj is JsonElement taskIdEl && taskIdEl.ValueKind == JsonValueKind.String)
+            {
+                taskId = taskIdEl.GetString();
+            }
+            else if (taskIdObj is string taskIdStr)
+            {
+                taskId = taskIdStr;
+            }
+        }
+
+        // Extract parent_invocation_id.
+        string? parentInvocationId = null;
+        if (body.TryGetValue("parent_invocation_id", out var pidObj))
+        {
+            if (pidObj is JsonElement pidEl && pidEl.ValueKind == JsonValueKind.String)
+            {
+                parentInvocationId = pidEl.GetString();
+            }
+            else if (pidObj is string pidStr)
+            {
+                parentInvocationId = pidStr;
+            }
+        }
+
         if (stream)
         {
-            return await HandleStreamInvoke(capability, token, parameters, clientRefId);
+            return await HandleStreamInvoke(capability, token, parameters, clientRefId, taskId, parentInvocationId);
         }
 
         var opts = new InvokeOpts
         {
             ClientReferenceId = clientRefId,
+            TaskId = taskId,
+            ParentInvocationId = parentInvocationId,
             Stream = false,
         };
 
@@ -237,6 +269,8 @@ public class AnipController : ControllerBase
                 filters.Since = GetStringFromBody(body, "since");
                 filters.InvocationId = GetStringFromBody(body, "invocation_id");
                 filters.ClientReferenceId = GetStringFromBody(body, "client_reference_id");
+                filters.TaskId = GetStringFromBody(body, "task_id");
+                filters.ParentInvocationId = GetStringFromBody(body, "parent_invocation_id");
 
                 if (body.TryGetValue("limit", out var limitObj))
                 {
@@ -266,6 +300,12 @@ public class AnipController : ControllerBase
 
             var qClientReferenceId = Request.Query["client_reference_id"].FirstOrDefault();
             if (!string.IsNullOrEmpty(qClientReferenceId)) filters.ClientReferenceId = qClientReferenceId;
+
+            var qTaskId = Request.Query["task_id"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(qTaskId)) filters.TaskId = qTaskId;
+
+            var qParentInvocationId = Request.Query["parent_invocation_id"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(qParentInvocationId)) filters.ParentInvocationId = qParentInvocationId;
 
             var qLimit = Request.Query["limit"].FirstOrDefault();
             if (!string.IsNullOrEmpty(qLimit) && int.TryParse(qLimit, out var parsedLimit))
@@ -350,7 +390,9 @@ public class AnipController : ControllerBase
         string capability,
         DelegationToken token,
         Dictionary<string, object?> parameters,
-        string? clientRefId)
+        string? clientRefId,
+        string? taskId,
+        string? parentInvocationId)
     {
         StreamResult sr;
         try
@@ -358,6 +400,8 @@ public class AnipController : ControllerBase
             var opts = new InvokeOpts
             {
                 ClientReferenceId = clientRefId,
+                TaskId = taskId,
+                ParentInvocationId = parentInvocationId,
                 Stream = true,
             };
             sr = _service.InvokeStream(capability, token, parameters, opts);
