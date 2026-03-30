@@ -362,7 +362,7 @@ function WhatShips() {
           </div>
           <div className={styles.featureCard}>
             <Heading as="h3">ANIP Studio</Heading>
-            <p>Inspection and invocation UI. Connect to any ANIP service, browse capabilities, check permissions, invoke with structured failure display. Embedded or standalone Docker.</p>
+            <p>Inspection and invocation UI. Connect to any ANIP service, browse capabilities, check permissions, invoke with structured failure display. <a href="https://studio.anip.dev" target="_blank" rel="noopener">Try it live</a>.</p>
           </div>
           <div className={styles.featureCard}>
             <Heading as="h3">Testing tools</Heading>
@@ -370,7 +370,7 @@ function WhatShips() {
           </div>
           <div className={styles.featureCard}>
             <Heading as="h3">Showcase apps</Heading>
-            <p>Travel booking, financial operations, and DevOps infrastructure — three full ANIP services demonstrating real-world patterns with all interfaces mounted.</p>
+            <p>Travel booking, financial operations, and DevOps infrastructure — three full ANIP services with guided comparison scenarios. <a href="https://playground.anip.dev" target="_blank" rel="noopener">Try the playground</a>.</p>
           </div>
         </div>
       </div>

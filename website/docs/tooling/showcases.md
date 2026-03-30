@@ -24,11 +24,20 @@ cd examples/showcase/travel
 pip install -e ".[dev]"
 python app.py
 # → ANIP:    http://localhost:9100/anip/*
-# → REST:    http://localhost:9100/api/*
+# → REST:    http://localhost:9100/rest/*
 # → GraphQL: http://localhost:9100/graphql
 # → MCP:     http://localhost:9100/mcp
 # → Studio:  http://localhost:9100/studio/
 ```
+
+Or run via Docker (no repo clone needed):
+
+```bash
+docker run -p 9100:9100 anipprotocol/showcase-travel
+# Also available: anipprotocol/showcase-finance, anipprotocol/showcase-devops
+```
+
+**Live playground:** All three showcases are running at [playground.anip.dev](https://playground.anip.dev) with guided comparison scenarios.
 
 ## What to explore
 

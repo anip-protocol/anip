@@ -519,8 +519,37 @@ jobs:
           docker push anipprotocol/studio:"$VERSION"
           docker push anipprotocol/studio:latest
 
+  publish-showcase-docker:
+    needs: bump-and-validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push showcase images
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          for app in travel finance devops; do
+            echo "=== Building showcase-$app ==="
+            docker build \
+              --build-arg SHOWCASE_APP=$app \
+              -t anipprotocol/showcase-$app:"$VERSION" \
+              -t anipprotocol/showcase-$app:latest \
+              -f examples/showcase/Dockerfile \
+              examples/showcase/
+            docker push anipprotocol/showcase-$app:"$VERSION"
+            docker push anipprotocol/showcase-$app:latest
+            echo "OK: showcase-$app pushed"
+          done
+
   release:
-    needs: [publish-typescript, publish-python, publish-java, publish-csharp, publish-studio-docker]
+    needs: [publish-typescript, publish-python, publish-java, publish-csharp, publish-studio-docker, publish-showcase-docker]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -628,6 +657,18 @@ jobs:
           \`\`\`bash
           docker pull anipprotocol/studio:$VERSION
           docker run -p 3000:8080 anipprotocol/studio:$VERSION
+          \`\`\`
+
+          ### Showcase Apps (Docker Hub)
+          \`\`\`bash
+          # Travel — flight search and booking
+          docker run -p 9100:9100 anipprotocol/showcase-travel:$VERSION
+
+          # Finance — portfolio and trade operations
+          docker run -p 9100:9100 anipprotocol/showcase-finance:$VERSION
+
+          # DevOps — infrastructure management
+          docker run -p 9100:9100 anipprotocol/showcase-devops:$VERSION
           \`\`\`
 
           ---
