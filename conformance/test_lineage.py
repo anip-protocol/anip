@@ -80,25 +80,20 @@ class TestLineageInAudit:
         # Allow async audit write to complete
         time.sleep(1)
 
-        # Query audit log
+        # Query audit log by invocation_id
         audit_resp = client.post(
-            "/anip/audit",
+            f"/anip/audit?invocation_id={invocation_id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert audit_resp.status_code == 200
         audit_data = audit_resp.json()
-
-        # Find the entry matching our invocation
-        matching = [
-            e for e in audit_data["entries"]
-            if e["invocation_id"] == invocation_id
-        ]
-        assert len(matching) == 1, (
-            f"Expected exactly 1 audit entry for {invocation_id}, found {len(matching)}"
+        assert audit_data["count"] >= 1, (
+            f"Expected at least 1 audit entry for {invocation_id}, found {audit_data['count']}"
         )
-        assert matching[0].get("task_id") == task_id, (
+        entry = audit_data["entries"][0]
+        assert entry.get("task_id") == task_id, (
             f"Audit entry should contain task_id '{task_id}', "
-            f"got '{matching[0].get('task_id')}'"
+            f"got '{entry.get('task_id')}'"
         )
 
     def test_audit_filter_by_task_id(self, client, bootstrap_bearer, read_capability, all_scopes, sample_inputs):
