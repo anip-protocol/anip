@@ -9,17 +9,18 @@ from conftest import issue_token
 
 
 class TestTaskIdEcho:
-    def test_invoke_echoes_task_id(self, client, bootstrap_bearer, read_capability, all_scopes):
+    def test_invoke_echoes_task_id(self, client, bootstrap_bearer, read_capability, all_scopes, sample_inputs):
         """Invoking with task_id in the body should echo it back in the response."""
         cap_name, _ = read_capability
         token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
         task_id = f"task-{uuid.uuid4().hex[:12]}"
+        params = sample_inputs.get(cap_name, {})
 
         resp = client.post(
             f"/anip/invoke/{cap_name}",
             headers={"Authorization": f"Bearer {token}"},
             json={
-                "parameters": {},
+                "parameters": params,
                 "task_id": task_id,
             },
         )
@@ -32,17 +33,18 @@ class TestTaskIdEcho:
 
 
 class TestParentInvocationIdEcho:
-    def test_invoke_echoes_parent_invocation_id(self, client, bootstrap_bearer, read_capability, all_scopes):
+    def test_invoke_echoes_parent_invocation_id(self, client, bootstrap_bearer, read_capability, all_scopes, sample_inputs):
         """Invoking with parent_invocation_id should echo it back in the response."""
         cap_name, _ = read_capability
         token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
         parent_id = "inv-000000000001"
+        params = sample_inputs.get(cap_name, {})
 
         resp = client.post(
             f"/anip/invoke/{cap_name}",
             headers={"Authorization": f"Bearer {token}"},
             json={
-                "parameters": {},
+                "parameters": params,
                 "parent_invocation_id": parent_id,
             },
         )
@@ -55,18 +57,19 @@ class TestParentInvocationIdEcho:
 
 
 class TestLineageInAudit:
-    def test_task_id_recorded_in_audit(self, client, bootstrap_bearer, read_capability, all_scopes):
+    def test_task_id_recorded_in_audit(self, client, bootstrap_bearer, read_capability, all_scopes, sample_inputs):
         """Invoking with task_id should record it in the audit log entry."""
         cap_name, _ = read_capability
         token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
         task_id = f"task-{uuid.uuid4().hex[:12]}"
+        params = sample_inputs.get(cap_name, {})
 
         # Invoke with task_id
         invoke_resp = client.post(
             f"/anip/invoke/{cap_name}",
             headers={"Authorization": f"Bearer {token}"},
             json={
-                "parameters": {},
+                "parameters": params,
                 "task_id": task_id,
             },
         )
@@ -94,23 +97,24 @@ class TestLineageInAudit:
             f"got '{matching[0].get('task_id')}'"
         )
 
-    def test_audit_filter_by_task_id(self, client, bootstrap_bearer, read_capability, all_scopes):
+    def test_audit_filter_by_task_id(self, client, bootstrap_bearer, read_capability, all_scopes, sample_inputs):
         """Audit query with ?task_id=X should return only entries with that task_id."""
         cap_name, _ = read_capability
         token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
         task_id_a = f"task-a-{uuid.uuid4().hex[:8]}"
         task_id_b = f"task-b-{uuid.uuid4().hex[:8]}"
+        params = sample_inputs.get(cap_name, {})
 
         # Invoke twice with different task_ids
         client.post(
             f"/anip/invoke/{cap_name}",
             headers={"Authorization": f"Bearer {token}"},
-            json={"parameters": {}, "task_id": task_id_a},
+            json={"parameters": params, "task_id": task_id_a},
         )
         client.post(
             f"/anip/invoke/{cap_name}",
             headers={"Authorization": f"Bearer {token}"},
-            json={"parameters": {}, "task_id": task_id_b},
+            json={"parameters": params, "task_id": task_id_b},
         )
 
         # Filter audit by task_id_a
@@ -130,23 +134,24 @@ class TestLineageInAudit:
                 f"expected '{task_id_a}', got '{entry.get('task_id')}'"
             )
 
-    def test_audit_filter_by_parent_invocation_id(self, client, bootstrap_bearer, read_capability, all_scopes):
+    def test_audit_filter_by_parent_invocation_id(self, client, bootstrap_bearer, read_capability, all_scopes, sample_inputs):
         """Audit query with ?parent_invocation_id=X should return only matching entries."""
         cap_name, _ = read_capability
         token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
         parent_id_a = "inv-00000000aa01"
         parent_id_b = "inv-00000000bb02"
+        params = sample_inputs.get(cap_name, {})
 
         # Invoke twice with different parent_invocation_ids
         client.post(
             f"/anip/invoke/{cap_name}",
             headers={"Authorization": f"Bearer {token}"},
-            json={"parameters": {}, "parent_invocation_id": parent_id_a},
+            json={"parameters": params, "parent_invocation_id": parent_id_a},
         )
         client.post(
             f"/anip/invoke/{cap_name}",
             headers={"Authorization": f"Bearer {token}"},
-            json={"parameters": {}, "parent_invocation_id": parent_id_b},
+            json={"parameters": params, "parent_invocation_id": parent_id_b},
         )
 
         # Filter audit by parent_invocation_id_a
