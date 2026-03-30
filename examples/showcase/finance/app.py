@@ -5,7 +5,7 @@ from starlette.middleware.cors import CORSMiddleware
 from anip_service import ANIPService
 from anip_service.retention import RetentionPolicy
 from anip_fastapi import mount_anip
-from anip_rest import mount_anip_rest
+from anip_rest import mount_anip_rest, RouteOverride
 from anip_graphql import mount_anip_graphql
 from anip_mcp import mount_anip_mcp_http
 from anip_studio import mount_anip_studio
@@ -54,7 +54,14 @@ app.add_middleware(
     expose_headers=["X-ANIP-Signature"],
 )
 mount_anip(app, service, health_endpoint=True)
-mount_anip_rest(app, service)
+# RESTful route overrides — resource-oriented URLs
+mount_anip_rest(app, service, routes={
+    "query_portfolio": RouteOverride(path="/portfolio", method="GET"),
+    "get_market_data": RouteOverride(path="/market", method="GET"),
+    "execute_trade": RouteOverride(path="/trades", method="POST"),
+    "transfer_funds": RouteOverride(path="/transfers", method="POST"),
+    "generate_report": RouteOverride(path="/reports", method="POST"),
+})
 mount_anip_graphql(app, service)
 mount_anip_mcp_http(app, service)
 mount_anip_studio(app, service)

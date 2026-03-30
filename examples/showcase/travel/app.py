@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from anip_service import ANIPService
 from anip_fastapi import mount_anip
-from anip_rest import mount_anip_rest
+from anip_rest import mount_anip_rest, RouteOverride
 from anip_graphql import mount_anip_graphql
 from anip_mcp import mount_anip_mcp_http
 from anip_studio import mount_anip_studio
@@ -34,7 +34,13 @@ app.add_middleware(
     expose_headers=["X-ANIP-Signature"],
 )
 mount_anip(app, service, health_endpoint=True)
-mount_anip_rest(app, service)
+# RESTful route overrides — proper resource-oriented URLs instead of /api/{capability}
+mount_anip_rest(app, service, routes={
+    "search_flights": RouteOverride(path="/flights", method="GET"),
+    "check_availability": RouteOverride(path="/flights/availability", method="GET"),
+    "book_flight": RouteOverride(path="/bookings", method="POST"),
+    "cancel_booking": RouteOverride(path="/bookings/cancel", method="POST"),
+})
 mount_anip_graphql(app, service)
 mount_anip_mcp_http(app, service)
 mount_anip_studio(app, service)
