@@ -13,9 +13,7 @@
     "dist",
     "static"
   ],
-  "dependencies": {
-    "@anip-dev/service": "0.11.2"
-  },
+  "dependencies": {},
   "devDependencies": {
     "typescript": "~5.9.3"
   }

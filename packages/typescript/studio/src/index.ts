@@ -6,20 +6,24 @@
  */
 import { readFileSync, existsSync, statSync } from "fs";
 import { join, resolve } from "path";
-import type { ANIPService } from "@anip-dev/service";
 
 const STATIC_DIR = resolve(__dirname, "..", "static");
+
+/** Minimal interface for the service — avoids cross-module import issues. */
+export interface StudioService {
+  serviceId: string;
+}
 
 /**
  * Mount ANIP Studio on a Hono app.
  *
  * @param app - Hono app instance
- * @param service - ANIPService to inspect
+ * @param service - ANIPService (or any object with serviceId)
  * @param prefix - URL prefix (default: "/studio")
  */
 export function mountAnipStudio(
   app: { get: Function; use?: Function },
-  service: { serviceId: string },
+  service: StudioService,
   prefix: string = "/studio",
 ): void {
   if (!existsSync(STATIC_DIR)) {
