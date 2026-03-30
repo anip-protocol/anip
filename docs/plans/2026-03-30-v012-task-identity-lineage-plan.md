@@ -426,9 +426,9 @@ Display both fields in the success and failure result panels (alongside `invocat
 
 Display `task_id` and `parent_invocation_id` in audit entry cards when present.
 
-- [ ] **Step 3: Add task_id filter to AuditView**
+- [ ] **Step 3: Add task_id and parent_invocation_id filters to AuditView**
 
-Add a `task_id` filter input to the audit view, passed as a query parameter to the audit API call.
+Add `task_id` and `parent_invocation_id` filter inputs to the audit view, passed as query parameters to the audit API call. The existing `fetchAudit` in `api.ts` already accepts arbitrary filters via `Record<string, string>`, so this is just UI inputs wired to the existing filter mechanism.
 
 - [ ] **Step 4: Build, test, sync**
 
