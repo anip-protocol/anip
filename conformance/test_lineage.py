@@ -69,38 +69,39 @@ class TestLineageInAudit:
         invoke_resp = client.post(
             f"/anip/invoke/{cap_name}",
             headers={"Authorization": f"Bearer {token}"},
-            json={
-                "parameters": params,
-                "task_id": task_id,
-            },
+            json={"parameters": params, "task_id": task_id},
         )
-        invoke_data = invoke_resp.json()
-        invocation_id = invoke_data["invocation_id"]
+        assert invoke_resp.status_code == 200
+        invocation_id = invoke_resp.json()["invocation_id"]
 
-        # Allow async audit write to complete
+        # Allow async audit write
         time.sleep(1)
 
-        # Query audit log — use bootstrap bearer (not delegation token)
-        # to avoid scoping issues, and search for our entry by invocation_id
+        # Query audit with delegation token (same as existing audit tests)
         audit_resp = client.post(
             "/anip/audit",
-            headers={"Authorization": f"Bearer {bootstrap_bearer}"},
+            headers={"Authorization": f"Bearer {token}"},
         )
         assert audit_resp.status_code == 200
-        audit_data = audit_resp.json()
+        entries = audit_resp.json()["entries"]
 
-        matching = [
-            e for e in audit_data["entries"]
-            if e.get("invocation_id") == invocation_id
-        ]
+        # Find our entry
+        matching = [e for e in entries if e.get("invocation_id") == invocation_id]
+        if len(matching) == 0:
+            # Try with invocation_id filter
+            audit_resp2 = client.post(
+                f"/anip/audit?invocation_id={invocation_id}",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            if audit_resp2.status_code == 200:
+                entries2 = audit_resp2.json()["entries"]
+                matching = [e for e in entries2 if e.get("invocation_id") == invocation_id]
+
         assert len(matching) >= 1, (
-            f"Expected at least 1 audit entry for {invocation_id}, found 0. "
-            f"Total entries: {audit_data.get('count', 'unknown')}"
+            f"Expected audit entry for {invocation_id}, found 0 "
+            f"(total entries: {len(entries)})"
         )
-        assert matching[0].get("task_id") == task_id, (
-            f"Audit entry should contain task_id '{task_id}', "
-            f"got '{matching[0].get('task_id')}'"
-        )
+        assert matching[0].get("task_id") == task_id
 
     def test_audit_filter_by_task_id(self, client, bootstrap_bearer, read_capability, all_scopes, sample_inputs):
         """Audit query with ?task_id=X should return only entries with that task_id."""
@@ -122,13 +123,12 @@ class TestLineageInAudit:
             json={"parameters": params, "task_id": task_id_b},
         )
 
-        # Allow async audit writes to complete
         time.sleep(1)
 
-        # Filter audit by task_id_a — use bootstrap bearer
+        # Filter audit by task_id_a
         audit_resp = client.post(
             f"/anip/audit?task_id={task_id_a}",
-            headers={"Authorization": f"Bearer {bootstrap_bearer}"},
+            headers={"Authorization": f"Bearer {token}"},
         )
         assert audit_resp.status_code == 200
         audit_data = audit_resp.json()
@@ -137,10 +137,7 @@ class TestLineageInAudit:
             f"Expected at least 1 audit entry for task_id '{task_id_a}'"
         )
         for entry in audit_data["entries"]:
-            assert entry.get("task_id") == task_id_a, (
-                f"Audit filter by task_id returned entry with wrong task_id: "
-                f"expected '{task_id_a}', got '{entry.get('task_id')}'"
-            )
+            assert entry.get("task_id") == task_id_a
 
     def test_audit_filter_by_parent_invocation_id(self, client, bootstrap_bearer, read_capability, all_scopes, sample_inputs):
         """Audit query with ?parent_invocation_id=X should return only matching entries."""
@@ -162,13 +159,12 @@ class TestLineageInAudit:
             json={"parameters": params, "parent_invocation_id": parent_id_b},
         )
 
-        # Allow async audit writes to complete
         time.sleep(1)
 
-        # Filter audit by parent_invocation_id_a — use bootstrap bearer
+        # Filter audit by parent_invocation_id_a
         audit_resp = client.post(
             f"/anip/audit?parent_invocation_id={parent_id_a}",
-            headers={"Authorization": f"Bearer {bootstrap_bearer}"},
+            headers={"Authorization": f"Bearer {token}"},
         )
         assert audit_resp.status_code == 200
         audit_data = audit_resp.json()
@@ -177,7 +173,4 @@ class TestLineageInAudit:
             f"Expected at least 1 audit entry for parent_invocation_id '{parent_id_a}'"
         )
         for entry in audit_data["entries"]:
-            assert entry.get("parent_invocation_id") == parent_id_a, (
-                f"Audit filter by parent_invocation_id returned entry with wrong value: "
-                f"expected '{parent_id_a}', got '{entry.get('parent_invocation_id')}'"
-            )
+            assert entry.get("parent_invocation_id") == parent_id_a
