@@ -17,9 +17,10 @@
 ```
 SPEC.md                                         # MODIFY: §6.3 invocation + audit query params
 schema/anip.schema.json                         # MODIFY: add fields to InvokeRequest + audit
-proto/anip/v1/anip.proto                        # MODIFY: add fields to InvokeRequest + QueryAuditRequest
+proto/anip/v1/anip.proto                        # MODIFY: InvokeRequest, InvokeResponse, CompletedEvent, FailedEvent, QueryAuditRequest
 
 # Python
+packages/python/anip-core/src/anip_core/models.py          # MODIFY: add fields to InvokeRequest + InvokeResponse
 packages/python/anip-service/src/anip_service/service.py   # MODIFY: accept + propagate fields
 packages/python/anip-server/src/anip_server/storage.py     # MODIFY: persist + query fields
 packages/python/anip-server/src/anip_server/postgres.py    # MODIFY: persist + query fields
@@ -120,6 +121,42 @@ message InvokeRequest {
 }
 ```
 
+Add to `InvokeResponse` (unary):
+
+```protobuf
+message InvokeResponse {
+  bool success = 1;
+  string invocation_id = 2;
+  string client_reference_id = 3;
+  string result_json = 4;
+  AnipFailure failure = 5;
+  string cost_actual_json = 6;
+  string task_id = 7;                  // NEW
+  string parent_invocation_id = 8;     // NEW
+}
+```
+
+Add to `CompletedEvent` and `FailedEvent` (streaming — transport parity):
+
+```protobuf
+message CompletedEvent {
+  string invocation_id = 1;
+  string client_reference_id = 2;
+  string result_json = 3;
+  string cost_actual_json = 4;
+  string task_id = 5;                  // NEW
+  string parent_invocation_id = 6;     // NEW
+}
+
+message FailedEvent {
+  string invocation_id = 1;
+  string client_reference_id = 2;
+  AnipFailure failure = 3;
+  string task_id = 4;                  // NEW
+  string parent_invocation_id = 5;     // NEW
+}
+```
+
 Add to `QueryAuditRequest`:
 
 ```protobuf
@@ -147,44 +184,65 @@ git commit -m "spec: add task_id and parent_invocation_id to invocation and audi
 ## Task 2: Python Runtime Implementation
 
 **Files:**
+- Modify: `packages/python/anip-core/src/anip_core/models.py`
 - Modify: `packages/python/anip-service/src/anip_service/service.py`
 - Modify: `packages/python/anip-server/src/anip_server/storage.py`
 - Modify: `packages/python/anip-server/src/anip_server/postgres.py`
 - Modify: `packages/python/anip-fastapi/src/anip_fastapi/routes.py`
 
-- [ ] **Step 1: Update `service.py` invoke method signature**
+- [ ] **Step 1: Update shared models in `anip_core/models.py`**
 
-Add `task_id` and `parent_invocation_id` parameters to the `invoke()` method. Implement the `task_id` precedence rule:
+Add fields to `InvokeRequest`:
 
 ```python
-async def invoke(
-    self,
-    capability_name: str,
-    token: DelegationToken,
-    params: dict[str, Any],
-    *,
-    client_reference_id: str | None = None,
-    task_id: str | None = None,
-    parent_invocation_id: str | None = None,
-    stream: bool = False,
-    _progress_sink = None,
-) -> dict[str, Any]:
+class InvokeRequest(BaseModel):
+    token: str
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    budget: dict[str, Any] | None = None
+    client_reference_id: str | None = Field(default=None, max_length=256)
+    task_id: str | None = Field(default=None, max_length=256)
+    parent_invocation_id: str | None = Field(default=None, pattern=r"^inv-[0-9a-f]{12}$")
+    stream: bool = False
 ```
 
-Add precedence logic after token validation:
+Add fields to `InvokeResponse`:
+
+```python
+class InvokeResponse(BaseModel):
+    success: bool
+    invocation_id: str = Field(pattern=r"^inv-[0-9a-f]{12}$")
+    client_reference_id: str | None = None
+    task_id: str | None = None
+    parent_invocation_id: str | None = None
+    result: dict[str, Any] | None = None
+    cost_actual: CostActual | None = None
+    failure: ANIPFailure | None = None
+    session: dict[str, Any] | None = None
+    stream_summary: StreamSummary | None = None
+```
+
+- [ ] **Step 2: Update `service.py` invoke method**
+
+Add `task_id` and `parent_invocation_id` parameters to both `invoke()` and `_invoke_body()`. Implement the precedence rule inside `_invoke_body()` using the existing inline failure pattern (NOT a helper — match the current style at service.py:587):
 
 ```python
 # task_id precedence: token purpose > request > none
 token_task_id = getattr(token.purpose, 'task_id', None) if token.purpose else None
 if token_task_id and task_id and task_id != token_task_id:
-    # Mismatch — reject
-    return _failure_response("purpose_mismatch",
-        f"Request task_id '{task_id}' does not match token purpose task_id '{token_task_id}'",
-        invocation_id=invocation_id)
+    _duration_ms = int((time.monotonic() - invoke_start) * 1000)
+    return {
+        "success": False,
+        "failure": {"type": "purpose_mismatch",
+                    "detail": f"Request task_id '{task_id}' does not match token purpose task_id '{token_task_id}'"},
+        "invocation_id": invocation_id,
+        "client_reference_id": client_reference_id,
+        "task_id": task_id,
+        "parent_invocation_id": parent_invocation_id,
+    }
 effective_task_id = task_id or token_task_id
 ```
 
-Include `effective_task_id` and `parent_invocation_id` in audit entries and response.
+Include `effective_task_id` and `parent_invocation_id` in all response dicts and audit entries throughout the method (follow the same pattern used for `client_reference_id`).
 
 - [ ] **Step 2: Update storage `query_audit_entries` signature**
 
