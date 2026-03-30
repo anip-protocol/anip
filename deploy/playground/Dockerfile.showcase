@@ -4,16 +4,22 @@ ARG SHOWCASE_APP=travel
 
 WORKDIR /app
 
-# Install ANIP packages from PyPI
+# Copy ANIP Python packages and install from source
+COPY packages/python/ /anip-packages/
+
 RUN pip install --no-cache-dir \
-    anip-service==0.11.1 \
-    anip-fastapi==0.11.1 \
-    anip-rest==0.11.1 \
-    anip-graphql==0.11.1 \
-    anip-mcp==0.11.1 \
-    anip-studio==0.11.1 \
-    anip-stdio==0.11.1 \
-    uvicorn httpx
+    /anip-packages/anip-core \
+    /anip-packages/anip-crypto \
+    /anip-packages/anip-server \
+    /anip-packages/anip-service \
+    /anip-packages/anip-fastapi \
+    /anip-packages/anip-rest \
+    /anip-packages/anip-graphql \
+    /anip-packages/anip-mcp \
+    /anip-packages/anip-studio \
+    /anip-packages/anip-stdio \
+    uvicorn httpx \
+    && rm -rf /anip-packages
 
 # Copy the showcase app
 COPY examples/showcase/${SHOWCASE_APP}/ /app/
