@@ -59,6 +59,7 @@ jobs:
           npx tsc -p mcp-express/tsconfig.json
           npx tsc -p mcp-fastify/tsconfig.json
           npx tsc -p stdio/tsconfig.json
+          npx tsc -p studio/tsconfig.json
 
       - name: Test @anip-dev/core
         working-directory: packages/typescript

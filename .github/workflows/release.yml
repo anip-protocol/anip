@@ -241,7 +241,7 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           FAILED=0
-          for pom in anip-core anip-crypto anip-server anip-service anip-spring-boot anip-quarkus anip-rest anip-rest-spring anip-rest-quarkus anip-graphql anip-graphql-spring anip-graphql-quarkus anip-mcp anip-mcp-spring anip-mcp-quarkus anip-stdio anip-example-flights anip-example-flights-quarkus; do
+          for pom in anip-core anip-crypto anip-server anip-service anip-spring-boot anip-quarkus anip-rest anip-rest-spring anip-rest-quarkus anip-graphql anip-graphql-spring anip-graphql-quarkus anip-mcp anip-mcp-spring anip-mcp-quarkus anip-stdio anip-studio anip-example-flights anip-example-flights-quarkus; do
             if [ ! -f "$pom/pom.xml" ]; then
               echo "FAIL: $pom/pom.xml not found"
               FAILED=1
@@ -348,6 +348,7 @@ jobs:
           publish_or_skip rest
           publish_or_skip graphql
           publish_or_skip stdio
+          publish_or_skip studio
 
   publish-python:
     needs: bump-and-validate
@@ -441,7 +442,7 @@ jobs:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
         run: |
           set -e
-          for mod in anip-core anip-crypto anip-server anip-service anip-spring-boot anip-quarkus anip-rest anip-rest-spring anip-rest-quarkus anip-graphql anip-graphql-spring anip-graphql-quarkus anip-mcp anip-mcp-spring anip-mcp-quarkus anip-stdio; do
+          for mod in anip-core anip-crypto anip-server anip-service anip-spring-boot anip-quarkus anip-rest anip-rest-spring anip-rest-quarkus anip-graphql anip-graphql-spring anip-graphql-quarkus anip-mcp anip-mcp-spring anip-mcp-quarkus anip-stdio anip-studio; do
             echo "=== Deploying $mod ==="
             OUTPUT=$(mvn deploy -pl $mod -am -DskipTests -Prelease 2>&1) && {
               echo "OK: $mod deployed"
@@ -471,7 +472,7 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           set -e
-          PACKAGES=(Anip.Core Anip.Crypto Anip.Server Anip.Service Anip.AspNetCore Anip.Rest Anip.Rest.AspNetCore Anip.GraphQL Anip.GraphQL.AspNetCore Anip.Mcp Anip.Mcp.AspNetCore Anip.Stdio)
+          PACKAGES=(Anip.Core Anip.Crypto Anip.Server Anip.Service Anip.AspNetCore Anip.Rest Anip.Rest.AspNetCore Anip.GraphQL Anip.GraphQL.AspNetCore Anip.Mcp Anip.Mcp.AspNetCore Anip.Stdio Anip.Studio)
           for pkg in "${PACKAGES[@]}"; do
             echo "=== Packing $pkg ==="
             dotnet pack "src/$pkg/$pkg.csproj" -c Release -o nupkgs /p:Version="$VERSION"
