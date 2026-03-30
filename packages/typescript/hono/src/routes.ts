@@ -64,11 +64,15 @@ export async function mountAnip(
     const body = await c.req.json();
     const params = body.parameters ?? body;
     const clientReferenceId = body.client_reference_id ?? null;
+    const taskId = body.task_id ?? null;
+    const parentInvocationId = body.parent_invocation_id ?? null;
 
     if (!body.stream) {
       // Unary mode — existing behavior
       const result = await service.invoke(capability, token, params, {
         clientReferenceId,
+        taskId,
+        parentInvocationId,
       });
       if (!result.success) {
         const failure = result.failure as Record<string, unknown>;
@@ -83,6 +87,8 @@ export async function mountAnip(
     if (!modes.includes("streaming")) {
       const result = await service.invoke(capability, token, params, {
         clientReferenceId,
+        taskId,
+        parentInvocationId,
         stream: true,
       });
       const failure = result.failure as Record<string, unknown>;
@@ -98,6 +104,8 @@ export async function mountAnip(
       try {
         const result = await service.invoke(capability, token, params, {
           clientReferenceId,
+          taskId,
+          parentInvocationId,
           stream: true,
           progressSink: async (event) => {
             const eventData = { ...event, timestamp: new Date().toISOString() };
@@ -157,6 +165,8 @@ export async function mountAnip(
       since: url.searchParams.get("since") ?? undefined,
       invocation_id: url.searchParams.get("invocation_id") ?? undefined,
       client_reference_id: url.searchParams.get("client_reference_id") ?? undefined,
+      task_id: url.searchParams.get("task_id") ?? undefined,
+      parent_invocation_id: url.searchParams.get("parent_invocation_id") ?? undefined,
       event_class: url.searchParams.get("event_class") ?? undefined,
       limit: parseInt(url.searchParams.get("limit") ?? "50", 10),
     };

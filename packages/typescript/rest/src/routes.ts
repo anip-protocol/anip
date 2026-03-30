@@ -182,10 +182,14 @@ export async function mountAnipRest(
       }
 
       const clientReferenceId = c.req.header("x-client-reference-id") ?? undefined;
+      const taskId = c.req.header("x-task-id") ?? undefined;
+      const parentInvocationId = c.req.header("x-parent-invocation-id") ?? undefined;
 
       try {
         const result = await service.invoke(route.capabilityName, token, params, {
           clientReferenceId,
+          taskId,
+          parentInvocationId,
         });
         return c.json(result);
       } catch (e) {

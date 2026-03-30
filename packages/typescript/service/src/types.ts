@@ -11,6 +11,8 @@ export interface InvocationContext {
   delegationChain: string[];
   invocationId: string;
   clientReferenceId: string | null;
+  taskId: string | null;
+  parentInvocationId: string | null;
   /** Set actual cost for variance tracking. */
   setCostActual(cost: Record<string, unknown>): void;
   /** Emit a progress event. No-op in unary mode. */

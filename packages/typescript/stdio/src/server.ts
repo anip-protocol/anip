@@ -284,6 +284,9 @@ export class AnipStdioServer {
     const parameters = (params.parameters as Record<string, unknown>) ?? {};
     const clientReferenceId =
       (params.client_reference_id as string | undefined) ?? null;
+    const taskId = (params.task_id as string | undefined) ?? null;
+    const parentInvocationId =
+      (params.parent_invocation_id as string | undefined) ?? null;
     const stream = params.stream === true;
 
     if (stream) {
@@ -299,6 +302,8 @@ export class AnipStdioServer {
 
       const result = await this.service.invoke(capability, token, parameters, {
         clientReferenceId,
+        taskId,
+        parentInvocationId,
         stream: true,
         progressSink,
       });
@@ -307,6 +312,8 @@ export class AnipStdioServer {
 
     return await this.service.invoke(capability, token, parameters, {
       clientReferenceId,
+      taskId,
+      parentInvocationId,
     });
   }
 
@@ -321,6 +328,8 @@ export class AnipStdioServer {
       "since",
       "invocation_id",
       "client_reference_id",
+      "task_id",
+      "parent_invocation_id",
       "event_class",
       "limit",
     ]) {

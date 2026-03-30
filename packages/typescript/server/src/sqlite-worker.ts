@@ -60,6 +60,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
     delegation_chain TEXT,
     invocation_id TEXT,
     client_reference_id TEXT,
+    task_id TEXT,
+    parent_invocation_id TEXT,
     stream_summary TEXT,
     previous_hash TEXT NOT NULL,
     signature TEXT,
@@ -81,6 +83,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
 CREATE INDEX IF NOT EXISTS idx_audit_root_principal ON audit_log(root_principal);
 CREATE INDEX IF NOT EXISTS idx_audit_invocation_id ON audit_log(invocation_id);
 CREATE INDEX IF NOT EXISTS idx_audit_client_reference_id ON audit_log(client_reference_id);
+CREATE INDEX IF NOT EXISTS idx_audit_task_id ON audit_log(task_id);
+CREATE INDEX IF NOT EXISTS idx_audit_parent_invocation_id ON audit_log(parent_invocation_id);
 CREATE INDEX IF NOT EXISTS idx_audit_event_class ON audit_log(event_class);
 CREATE INDEX IF NOT EXISTS idx_audit_expires_at ON audit_log(expires_at);
 
@@ -114,6 +118,16 @@ try {
 }
 try {
   db.exec("ALTER TABLE audit_log ADD COLUMN client_reference_id TEXT");
+} catch {
+  // Column may already exist
+}
+try {
+  db.exec("ALTER TABLE audit_log ADD COLUMN task_id TEXT");
+} catch {
+  // Column may already exist
+}
+try {
+  db.exec("ALTER TABLE audit_log ADD COLUMN parent_invocation_id TEXT");
 } catch {
   // Column may already exist
 }
@@ -235,12 +249,13 @@ function storeAuditEntry(entry: Record<string, unknown>): void {
      (sequence_number, timestamp, capability, token_id, issuer,
       subject, root_principal, parameters, success, result_summary,
       failure_type, cost_actual, delegation_chain, invocation_id,
-      client_reference_id, stream_summary, previous_hash, signature,
+      client_reference_id, task_id, parent_invocation_id,
+      stream_summary, previous_hash, signature,
       event_class, retention_tier, expires_at,
       storage_redacted, entry_type, grouping_key,
       aggregation_window, aggregation_count, first_seen,
       last_seen, representative_detail)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     entry.sequence_number as number,
     entry.timestamp as string,
@@ -261,6 +276,8 @@ function storeAuditEntry(entry: Record<string, unknown>): void {
       : null,
     (entry.invocation_id as string) ?? null,
     (entry.client_reference_id as string) ?? null,
+    (entry.task_id as string) ?? null,
+    (entry.parent_invocation_id as string) ?? null,
     entry.stream_summary != null
       ? JSON.stringify(entry.stream_summary)
       : null,
@@ -300,6 +317,8 @@ function queryAuditEntries(opts?: {
   since?: string;
   invocationId?: string;
   clientReferenceId?: string;
+  taskId?: string;
+  parentInvocationId?: string;
   eventClass?: string;
   limit?: number;
 }): Record<string, unknown>[] {
@@ -325,6 +344,14 @@ function queryAuditEntries(opts?: {
   if (opts?.clientReferenceId) {
     conditions.push("client_reference_id = ?");
     params.push(opts.clientReferenceId);
+  }
+  if (opts?.taskId) {
+    conditions.push("task_id = ?");
+    params.push(opts.taskId);
+  }
+  if (opts?.parentInvocationId) {
+    conditions.push("parent_invocation_id = ?");
+    params.push(opts.parentInvocationId);
   }
   if (opts?.eventClass) {
     conditions.push("event_class = ?");

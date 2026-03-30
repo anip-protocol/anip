@@ -24,6 +24,8 @@ export interface StorageBackend {
     since?: string;
     invocationId?: string;
     clientReferenceId?: string;
+    taskId?: string;
+    parentInvocationId?: string;
     eventClass?: string;
     limit?: number;
   }): Promise<Record<string, unknown>[]>;
@@ -75,6 +77,8 @@ export class InMemoryStorage implements StorageBackend {
     since?: string;
     invocationId?: string;
     clientReferenceId?: string;
+    taskId?: string;
+    parentInvocationId?: string;
     eventClass?: string;
     limit?: number;
   }): Promise<Record<string, unknown>[]> {
@@ -93,6 +97,12 @@ export class InMemoryStorage implements StorageBackend {
     }
     if (opts?.clientReferenceId) {
       results = results.filter((e) => e.client_reference_id === opts.clientReferenceId);
+    }
+    if (opts?.taskId) {
+      results = results.filter((e) => e.task_id === opts.taskId);
+    }
+    if (opts?.parentInvocationId) {
+      results = results.filter((e) => e.parent_invocation_id === opts.parentInvocationId);
     }
     if (opts?.eventClass) {
       results = results.filter((e) => e.event_class === opts.eventClass);
@@ -326,6 +336,8 @@ export class SQLiteStorage implements StorageBackend {
     since?: string;
     invocationId?: string;
     clientReferenceId?: string;
+    taskId?: string;
+    parentInvocationId?: string;
     eventClass?: string;
     limit?: number;
   }): Promise<Record<string, unknown>[]> {
