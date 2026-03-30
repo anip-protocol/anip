@@ -57,11 +57,15 @@ export async function invokeCapability(
   bearer: string,
   capability: string,
   inputs: Record<string, any>,
+  opts?: { task_id?: string; parent_invocation_id?: string },
 ): Promise<any> {
+  const body: Record<string, any> = { parameters: inputs }
+  if (opts?.task_id) body.task_id = opts.task_id
+  if (opts?.parent_invocation_id) body.parent_invocation_id = opts.parent_invocation_id
   const res = await fetch(`${baseUrl}/anip/invoke/${capability}`, {
     method: 'POST',
     headers: headers(bearer),
-    body: JSON.stringify({ parameters: inputs }),
+    body: JSON.stringify(body),
   })
   // ANIP returns invocation failures as non-2xx JSON bodies.
   // Parse the body regardless of status — InvokeResult needs the full

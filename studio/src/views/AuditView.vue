@@ -15,6 +15,8 @@ const expandedEntry = ref<number | null>(null)
 const capabilityFilter = ref('')
 const sinceFilter = ref('')
 const limitFilter = ref(50)
+const taskIdFilter = ref('')
+const parentInvocationIdFilter = ref('')
 
 // Capability list from discovery (for the dropdown)
 const capabilityNames = ref<string[]>([])
@@ -51,6 +53,8 @@ async function fetchEntries() {
     if (capabilityFilter.value) filters.capability = capabilityFilter.value
     if (sinceFilter.value) filters.since = sinceFilter.value
     if (limitFilter.value) filters.limit = String(limitFilter.value)
+    if (taskIdFilter.value) filters.task_id = taskIdFilter.value
+    if (parentInvocationIdFilter.value) filters.parent_invocation_id = parentInvocationIdFilter.value
     data.value = await fetchAudit(store.baseUrl, store.bearer, filters)
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : 'Failed to fetch audit entries'
@@ -142,6 +146,14 @@ function formatTimestamp(ts: string): string {
             <label class="filter-label">Limit</label>
             <input v-model.number="limitFilter" type="number" class="filter-input num-input" min="1" max="1000" />
           </div>
+          <div class="filter-group">
+            <label class="filter-label">Task ID</label>
+            <input v-model="taskIdFilter" type="text" class="filter-input" placeholder="Filter by task_id" />
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Parent Invocation ID</label>
+            <input v-model="parentInvocationIdFilter" type="text" class="filter-input" placeholder="Filter by parent_invocation_id" />
+          </div>
           <button class="fetch-btn" @click="fetchEntries" :disabled="loading">
             {{ loading ? 'Loading...' : 'Fetch' }}
           </button>
@@ -182,6 +194,8 @@ function formatTimestamp(ts: string): string {
                 <th>Capability</th>
                 <th>Status</th>
                 <th>Event Class</th>
+                <th>Task ID</th>
+                <th>Parent Inv.</th>
                 <th>Retention</th>
               </tr>
             </thead>
@@ -209,12 +223,20 @@ function formatTimestamp(ts: string): string {
                     <span v-else class="dash">&mdash;</span>
                   </td>
                   <td>
+                    <span v-if="entry.task_id" class="mono-cell">{{ entry.task_id }}</span>
+                    <span v-else class="dash">&mdash;</span>
+                  </td>
+                  <td>
+                    <span v-if="entry.parent_invocation_id" class="mono-cell">{{ entry.parent_invocation_id }}</span>
+                    <span v-else class="dash">&mdash;</span>
+                  </td>
+                  <td>
                     <span v-if="entry.retention_tier" class="retention-chip">{{ entry.retention_tier }}</span>
                     <span v-else class="dash">&mdash;</span>
                   </td>
                 </tr>
                 <tr v-if="expandedEntry === idx" class="detail-row">
-                  <td :colspan="7">
+                  <td :colspan="9">
                     <div class="entry-detail">
                       <JsonPanel :data="entry" title="Entry Detail" :collapsed="false" />
                     </div>
