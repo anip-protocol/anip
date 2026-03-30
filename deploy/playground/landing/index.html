@@ -142,7 +142,22 @@
       text-align: center;
       color: #a0a0c0;
       font-size: 0.92rem;
+      margin-bottom: 1rem;
+    }
+    .scenario-note {
+      background: rgba(108, 99, 255, 0.08);
+      border: 1px solid rgba(108, 99, 255, 0.2);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-size: 0.82rem;
+      color: #a0a0c0;
       margin-bottom: 2rem;
+      text-align: center;
+    }
+    .scenario-note code {
+      background: rgba(108, 99, 255, 0.15);
+      padding: 1px 5px;
+      border-radius: 3px;
     }
     .scenario {
       background: #1a1a2e;
@@ -318,124 +333,156 @@
 
   <div class="scenarios">
     <h2>Try these scenarios</h2>
-    <p class="scenarios-intro">These guided scenarios show what ANIP makes possible that REST, GraphQL, and MCP cannot. Run the commands below against the live playground services.</p>
+    <p class="scenarios-intro">Fully specified, copy-paste scenarios against the live travel showcase. Each shows what ANIP makes possible that REST, GraphQL, and MCP cannot.</p>
+    <div class="scenario-note">
+      <strong>Demo data:</strong> Available routes: SEA→SFO (3 flights: AA100 $420, UA205 $380, DL310 $280), SEA→LAX (2 flights), LAX→SEA, SEA→JFK.
+      API key: <code>demo-human-key</code>
+    </div>
 
     <div class="scenario">
-      <h3>1. Book a flight within budget</h3>
+      <h3>1. Search, evaluate, then book a flight</h3>
       <div class="scenario-goal">
-        <strong>Goal:</strong> Book a flight, but only if the cost is within your delegated budget.
+        <strong>Goal:</strong> Find a flight from SEA to SFO, inspect its cost and side effects before booking, then book it with full context.
       </div>
       <div class="scenario-compare">
         <div class="scenario-side">
           <div class="scenario-label bad">REST / GraphQL / MCP</div>
-          <p>Call the booking endpoint. Discover the cost <em>after</em> being charged. No way to check budget constraints before execution. No side-effect declaration — you can't tell this is irreversible until it's done.</p>
+          <p>Call the booking endpoint with a flight number. Discover the cost <em>after</em> being charged. No way to know this is irreversible until it's done. No budget check exists in the interface.</p>
         </div>
         <div class="scenario-side">
           <div class="scenario-label good">ANIP</div>
-          <p>Agent inspects the manifest, sees <code>book_flight</code> is <strong>irreversible</strong> with cost range <strong>$200–$800</strong>. Checks delegation budget. Checks permissions. Decides whether to proceed with full context.</p>
+          <p>Agent reads the manifest: <code>book_flight</code> is <strong>irreversible</strong>, costs <strong>$200–$800</strong>. Searches first, picks a flight, checks permissions, then books with full context. Every step is informed.</p>
         </div>
       </div>
       <div class="scenario-commands">
         <div class="scenario-step">
-          <strong>Step 1:</strong> Check the manifest to see cost and side-effect declarations
-          <pre>curl https://travel.playground.anip.dev/anip/manifest | jq '.capabilities.book_flight.side_effect, .capabilities.book_flight.cost'</pre>
+          <strong>Step 1:</strong> Inspect the manifest — see that <code>search_flights</code> is <code>read</code> (safe) and <code>book_flight</code> is <code>irreversible</code> (permanent)
+          <pre>curl -s https://travel.playground.anip.dev/anip/manifest | jq '.capabilities | to_entries[] | {name: .key, side_effect: .value.side_effect.type}'</pre>
         </div>
         <div class="scenario-step">
-          <strong>Step 2:</strong> Get a delegation token with travel.book scope
-          <pre>curl -X POST https://travel.playground.anip.dev/anip/tokens \
+          <strong>Step 2:</strong> Get a delegation token with both search and booking scope
+          <pre>curl -s -X POST https://travel.playground.anip.dev/anip/tokens \
   -H "Authorization: Bearer demo-human-key" \
   -H "Content-Type: application/json" \
-  -d '{"scope": ["travel.book"], "capability": "book_flight", "subject": "agent:demo"}'</pre>
+  -d '{"scope": ["travel.search", "travel.book"], "subject": "agent:demo"}'</pre>
+          Save the <code>token</code> value from the response for the next steps.
         </div>
         <div class="scenario-step">
-          <strong>Step 3:</strong> Check permissions before invoking
-          <pre>curl -X POST https://travel.playground.anip.dev/anip/permissions \
-  -H "Authorization: Bearer &lt;token&gt;" \
-  -H "Content-Type: application/json" -d '{}'</pre>
-        </div>
-        <div class="scenario-step">
-          <strong>Step 4:</strong> Invoke with full context — the response includes cost_actual and invocation_id
-          <pre>curl -X POST https://travel.playground.anip.dev/anip/invoke/book_flight \
+          <strong>Step 3:</strong> Search flights from SEA to SFO — this is a <code>read</code> operation, safe to call freely
+          <pre>curl -s -X POST https://travel.playground.anip.dev/anip/invoke/search_flights \
   -H "Authorization: Bearer &lt;token&gt;" \
   -H "Content-Type: application/json" \
-  -d '{"parameters": {"flight_number": "AA100"}}'</pre>
+  -d '{"parameters": {"origin": "SEA", "destination": "SFO"}}'</pre>
+          You'll see 3 flights: AA100 ($420), UA205 ($380), DL310 ($280).
+        </div>
+        <div class="scenario-step">
+          <strong>Step 4:</strong> Check permissions before attempting the irreversible booking
+          <pre>curl -s -X POST https://travel.playground.anip.dev/anip/permissions \
+  -H "Authorization: Bearer &lt;token&gt;" \
+  -H "Content-Type: application/json" -d '{}'</pre>
+          Confirm <code>book_flight</code> is in the <code>available</code> bucket.
+        </div>
+        <div class="scenario-step">
+          <strong>Step 5:</strong> Book the cheapest flight (DL310, $280) — the response includes <code>cost_actual</code> and <code>invocation_id</code>
+          <pre>curl -s -X POST https://travel.playground.anip.dev/anip/invoke/book_flight \
+  -H "Authorization: Bearer &lt;token&gt;" \
+  -H "Content-Type: application/json" \
+  -d '{"parameters": {"flight_number": "DL310"}}'</pre>
         </div>
       </div>
       <div class="scenario-insight">
-        <strong>What ANIP adds:</strong> The agent knows cost, irreversibility, and authority <em>before</em> acting. REST/GraphQL/MCP give none of this — the agent discovers constraints by failing.
+        <strong>What ANIP adds:</strong> The agent knew the cost range, side-effect type, and its authority <em>before</em> acting. It searched first (safe read), evaluated options, checked permissions, then booked with full context. REST/GraphQL/MCP give none of this — the agent discovers constraints by failing.
       </div>
     </div>
 
     <div class="scenario">
-      <h3>2. Handle a permission block</h3>
+      <h3>2. Handle a permission block with recovery guidance</h3>
       <div class="scenario-goal">
-        <strong>Goal:</strong> Try an operation you don't have permission for. See how each interface handles it.
+        <strong>Goal:</strong> Get a token that can search but not book. Try to understand what's blocked and how to fix it — without attempting the operation.
       </div>
       <div class="scenario-compare">
         <div class="scenario-side">
           <div class="scenario-label bad">REST / GraphQL / MCP</div>
-          <p>Agent calls the endpoint, gets <code>403 Forbidden</code>. No information about <em>why</em>, <em>who</em> can fix it, or <em>what's</em> needed. Agent retries or gives up.</p>
+          <p>Agent calls the booking endpoint, gets <code>403 Forbidden</code>. No information about <em>why</em>, <em>who</em> can fix it, or <em>what's needed</em>. Agent retries or gives up.</p>
         </div>
         <div class="scenario-side">
           <div class="scenario-label good">ANIP</div>
-          <p>Agent checks permissions first, sees <code>restricted: missing scope, grantable_by: human:admin@example.com</code>. Reports to user: "I need booking access — shall I request it from admin?"</p>
+          <p>Agent checks permissions <em>before</em> acting. The response tells it exactly what's restricted and who can grant the missing scope. The agent reports to its user instead of failing blindly.</p>
         </div>
       </div>
       <div class="scenario-commands">
         <div class="scenario-step">
-          <strong>Step 1:</strong> Get a token with only search scope (no booking)
-          <pre>curl -X POST https://travel.playground.anip.dev/anip/tokens \
+          <strong>Step 1:</strong> Get a token with <strong>only search scope</strong> (no booking permission)
+          <pre>curl -s -X POST https://travel.playground.anip.dev/anip/tokens \
   -H "Authorization: Bearer demo-human-key" \
   -H "Content-Type: application/json" \
-  -d '{"scope": ["travel.search"], "capability": "search_flights", "subject": "agent:demo"}'</pre>
+  -d '{"scope": ["travel.search"], "subject": "agent:demo"}'</pre>
         </div>
         <div class="scenario-step">
-          <strong>Step 2:</strong> Check permissions — see what's available vs restricted
-          <pre>curl -X POST https://travel.playground.anip.dev/anip/permissions \
+          <strong>Step 2:</strong> Check permissions — see what's available vs restricted vs denied
+          <pre>curl -s -X POST https://travel.playground.anip.dev/anip/permissions \
   -H "Authorization: Bearer &lt;token&gt;" \
   -H "Content-Type: application/json" -d '{}'</pre>
+          <strong>Expected response shape:</strong>
+          <pre>{
+  "available": [
+    { "capability": "search_flights", "scope_match": "travel.search" }
+  ],
+  "restricted": [
+    { "capability": "book_flight", "reason": "missing scope: travel.book",
+      "grantable_by": "human:samir@example.com" }
+  ],
+  "denied": []
+}</pre>
         </div>
         <div class="scenario-step">
-          <strong>Step 3:</strong> The response tells the agent exactly what's missing and who can grant it
+          <strong>Step 3:</strong> The agent now knows: "I can search flights, but booking requires <code>travel.book</code> scope. I should ask <code>human:samir@example.com</code> for that scope."
         </div>
       </div>
       <div class="scenario-insight">
-        <strong>What ANIP adds:</strong> Structured recovery guidance. The agent doesn't just know it's blocked — it knows <em>what's needed</em>, <em>who can grant it</em>, and <em>what to tell the user</em>.
+        <strong>What ANIP adds:</strong> Structured recovery guidance. The agent doesn't just know it's blocked — it knows <em>what scope is missing</em>, <em>who can grant it</em>, and can tell the user exactly what to do. No 403-and-guess loop.
       </div>
     </div>
 
     <div class="scenario">
-      <h3>3. Audit what happened</h3>
+      <h3>3. Audit the full action trail</h3>
       <div class="scenario-goal">
-        <strong>Goal:</strong> After a series of actions, review what happened, who authorized it, and what it cost.
+        <strong>Goal:</strong> After running Scenario 1 (search + book), review what happened — who acted, what was invoked, whether it succeeded, and verify the evidence is tamper-proof.
       </div>
       <div class="scenario-compare">
         <div class="scenario-side">
           <div class="scenario-label bad">REST / GraphQL / MCP</div>
-          <p>No standard audit API. Check application logs manually (if they exist). No event classification, no lineage, no protocol-level retention.</p>
+          <p>No standard audit API. Check application logs manually (if they exist). No event classification, no lineage, no protocol-level retention policy.</p>
         </div>
         <div class="scenario-side">
           <div class="scenario-label good">ANIP</div>
-          <p>Agent queries <code>/anip/audit</code> to see every invocation: capability, caller, event classification, success/failure, timestamp. Checkpoints provide tamper-evident verification.</p>
+          <p>Agent queries <code>/anip/audit</code> to see every invocation with capability name, caller identity, event classification (<code>low_risk_success</code> for reads, <code>high_risk_success</code> for bookings), and timestamps. Merkle checkpoints prove the log hasn't been tampered with.</p>
         </div>
       </div>
       <div class="scenario-commands">
         <div class="scenario-step">
-          <strong>Step 1:</strong> Run a few invocations first (search flights, attempt a booking)
+          <strong>Prerequisite:</strong> Run Scenario 1 first (search flights, then book DL310) so there are audit entries to review.
         </div>
         <div class="scenario-step">
-          <strong>Step 2:</strong> Query the audit log
-          <pre>curl -X POST https://travel.playground.anip.dev/anip/audit \
+          <strong>Step 1:</strong> Query the audit log — you'll see your search (low_risk_success) and booking (high_risk_success) entries
+          <pre>curl -s -X POST https://travel.playground.anip.dev/anip/audit \
   -H "Authorization: Bearer demo-human-key" \
   -H "Content-Type: application/json" -d '{}'</pre>
         </div>
         <div class="scenario-step">
-          <strong>Step 3:</strong> Check Merkle checkpoints for tamper-evident verification
-          <pre>curl https://travel.playground.anip.dev/anip/checkpoints</pre>
+          <strong>Step 2:</strong> Filter by capability to find just the booking
+          <pre>curl -s -X POST "https://travel.playground.anip.dev/anip/audit?capability=book_flight" \
+  -H "Authorization: Bearer demo-human-key" \
+  -H "Content-Type: application/json" -d '{}'</pre>
+        </div>
+        <div class="scenario-step">
+          <strong>Step 3:</strong> Check Merkle checkpoints — cryptographic proof that the audit log hasn't been modified
+          <pre>curl -s https://travel.playground.anip.dev/anip/checkpoints</pre>
+          Each checkpoint includes a <code>merkle_root</code> and <code>signature</code>. If any audit entry were changed, the root would no longer match.
         </div>
       </div>
       <div class="scenario-insight">
-        <strong>What ANIP adds:</strong> Protocol-level audit with event classification, lineage tracking, and cryptographic verification. Not an afterthought — built into the interface.
+        <strong>What ANIP adds:</strong> Protocol-level audit with event classification, delegation chain identity, and tamper-evident Merkle checkpoints. Every action is recorded, classified, and verifiable — not as an afterthought, but as part of the interface contract.
       </div>
     </div>
   </div>
