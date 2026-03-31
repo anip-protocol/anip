@@ -12,7 +12,7 @@ class JwsTest {
     void signAndVerify() throws Exception {
         KeyManager km = KeyManager.create(null);
 
-        byte[] payload = "{\"protocol\":\"anip/0.11\",\"capabilities\":{}}".getBytes(StandardCharsets.UTF_8);
+        byte[] payload = "{\"protocol\":\"anip/0.13\",\"capabilities\":{}}".getBytes(StandardCharsets.UTF_8);
 
         String sig = JwsSigner.signDetachedJws(km, payload);
         assertNotNull(sig);
@@ -25,7 +25,7 @@ class JwsTest {
     void verifyFailsWithWrongPayload() throws Exception {
         KeyManager km = KeyManager.create(null);
 
-        byte[] payload = "{\"protocol\":\"anip/0.11\",\"capabilities\":{}}".getBytes(StandardCharsets.UTF_8);
+        byte[] payload = "{\"protocol\":\"anip/0.13\",\"capabilities\":{}}".getBytes(StandardCharsets.UTF_8);
 
         String sig = JwsSigner.signDetachedJws(km, payload);
 

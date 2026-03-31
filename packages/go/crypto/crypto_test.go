@@ -229,7 +229,7 @@ func TestJWSSignVerify(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	payload := []byte(`{"protocol":"anip/0.11","capabilities":{}}`)
+	payload := []byte(`{"protocol":"anip/0.13","capabilities":{}}`)
 
 	sig, err := SignDetachedJWS(km, payload)
 	if err != nil {

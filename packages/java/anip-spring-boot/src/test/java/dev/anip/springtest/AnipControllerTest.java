@@ -115,7 +115,7 @@ class AnipControllerTest {
     void testDiscovery() throws Exception {
         mockMvc.perform(get("/.well-known/anip"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.anip_discovery.protocol").value("anip/0.11"))
+                .andExpect(jsonPath("$.anip_discovery.protocol").value("anip/0.13"))
                 .andExpect(jsonPath("$.anip_discovery.compliance").value("anip-compliant"))
                 .andExpect(jsonPath("$.anip_discovery.base_url").exists())
                 .andExpect(jsonPath("$.anip_discovery.capabilities").exists());
@@ -138,7 +138,7 @@ class AnipControllerTest {
         mockMvc.perform(get("/anip/manifest"))
                 .andExpect(status().isOk())
                 .andExpect(header().exists("X-ANIP-Signature"))
-                .andExpect(jsonPath("$.protocol").value("anip/0.11"))
+                .andExpect(jsonPath("$.protocol").value("anip/0.13"))
                 .andExpect(jsonPath("$.capabilities").exists());
     }
 

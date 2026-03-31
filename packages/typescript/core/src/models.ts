@@ -383,7 +383,7 @@ export const ServiceIdentity = z.object({
 export type ServiceIdentity = z.infer<typeof ServiceIdentity>;
 
 export const ANIPManifest = z.object({
-  protocol: z.string().default("anip/0.11"),
+  protocol: z.string().default("anip/0.13"),
   profile: ProfileVersions,
   capabilities: z.record(CapabilityDeclaration),
   manifest_metadata: ManifestMetadata.nullable().default(null),

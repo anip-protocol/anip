@@ -14,7 +14,7 @@ async def test_discovery():
     async with AnipStdioClient(sys.executable, SERVE_SCRIPT) as client:
         result = await client.discovery()
         assert "anip_discovery" in result
-        assert result["anip_discovery"]["protocol"] == "anip/0.11"
+        assert result["anip_discovery"]["protocol"] == "anip/0.13"
 
 
 @pytest.mark.asyncio

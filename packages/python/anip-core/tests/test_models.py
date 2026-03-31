@@ -114,8 +114,8 @@ def test_anip_failure():
 
 
 def test_manifest_structure():
-    manifest = ANIPManifest(protocol="anip/0.11", profile=ProfileVersions(core="1.0"), capabilities={})
-    assert manifest.protocol == "anip/0.11"
+    manifest = ANIPManifest(protocol="anip/0.13", profile=ProfileVersions(core="1.0"), capabilities={})
+    assert manifest.protocol == "anip/0.13"
 
 
 def test_permission_response():

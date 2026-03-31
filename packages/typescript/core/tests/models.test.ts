@@ -93,7 +93,7 @@ describe("ANIPFailure", () => {
 describe("ANIPManifest", () => {
   it("parses minimal manifest", () => {
     const result = ANIPManifest.safeParse({
-      protocol: "anip/0.11",
+      protocol: "anip/0.13",
       profile: { core: "1.0" },
       capabilities: {},
     });
