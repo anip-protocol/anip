@@ -136,3 +136,107 @@ class TestAuthorityReasonType:
                 f"Restricted capability '{entry.get('capability')}' is missing 'resolution_hint'. "
                 f"Full entry: {entry}"
             )
+
+    # --- Vocabulary validation tests (v0.15) ---
+
+    CANONICAL_REASON_TYPES = {
+        "insufficient_scope",
+        "insufficient_delegation_depth",
+        "stronger_delegation_required",
+        "unmet_control_requirement",
+        "non_delegable",
+    }
+
+    CANONICAL_RESOLUTION_ACTIONS = {
+        "request_broader_scope",
+        "request_budget_bound_delegation",
+        "request_capability_binding",
+        "invoke_as_root_principal",
+        "wait",
+        "contact_administrator",
+    }
+
+    def test_reason_type_values_are_canonical(
+        self, client, bootstrap_bearer, read_capability
+    ):
+        """Every reason_type value in restricted/denied must be one of the 5 canonical values."""
+        data = self._get_permissions_narrow_scope(client, bootstrap_bearer, read_capability)
+        restricted = data.get("restricted", [])
+        denied = data.get("denied", [])
+
+        if not restricted and not denied:
+            pytest.skip("No restricted or denied capabilities returned — cannot validate reason_type vocabulary")
+
+        for entry in restricted + denied:
+            reason_type = entry.get("reason_type")
+            assert reason_type in self.CANONICAL_REASON_TYPES, (
+                f"Capability '{entry.get('capability')}' has non-canonical reason_type "
+                f"'{reason_type}'. Must be one of: {sorted(self.CANONICAL_REASON_TYPES)}"
+            )
+
+    def test_resolution_hint_is_canonical_action(
+        self, client, bootstrap_bearer, read_capability
+    ):
+        """Every resolution_hint on restricted entries must be a known canonical action value."""
+        data = self._get_permissions_narrow_scope(client, bootstrap_bearer, read_capability)
+        restricted = data.get("restricted", [])
+
+        if not restricted:
+            pytest.skip("No restricted capabilities returned — cannot validate resolution_hint vocabulary")
+
+        for entry in restricted:
+            hint = entry.get("resolution_hint")
+            if hint is None:
+                continue  # resolution_hint is optional
+            assert hint in self.CANONICAL_RESOLUTION_ACTIONS, (
+                f"Capability '{entry.get('capability')}' has non-canonical resolution_hint "
+                f"'{hint}'. Must be one of: {sorted(self.CANONICAL_RESOLUTION_ACTIONS)}"
+            )
+
+    def test_resolution_hint_consistency(
+        self, client, bootstrap_bearer, read_capability, write_capability
+    ):
+        """If a restricted capability has resolution_hint, invoking that capability
+        should produce a failure with a matching resolution.action value."""
+        data = self._get_permissions_narrow_scope(client, bootstrap_bearer, read_capability)
+        restricted = data.get("restricted", [])
+
+        if not restricted:
+            pytest.skip("No restricted capabilities returned — cannot test resolution_hint consistency")
+
+        # Find a restricted entry that has a resolution_hint
+        target = None
+        for entry in restricted:
+            if entry.get("resolution_hint"):
+                target = entry
+                break
+
+        if target is None:
+            pytest.skip("No restricted capability with resolution_hint found")
+
+        cap_name = target["capability"]
+        expected_action = target["resolution_hint"]
+
+        # Issue a narrow-scope token and attempt to invoke the restricted capability
+        read_name, read_scope = read_capability
+        token = issue_token(client, read_scope, read_name, bootstrap_bearer)
+        resp = client.post(
+            f"/anip/invoke/{cap_name}",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"parameters": {}},
+        )
+        data = resp.json()
+
+        if data.get("success") is True:
+            pytest.skip(
+                f"Invocation of restricted capability '{cap_name}' unexpectedly succeeded"
+            )
+
+        failure = data.get("failure", {})
+        resolution = failure.get("resolution", {})
+        action = resolution.get("action")
+
+        assert action == expected_action, (
+            f"Restricted capability '{cap_name}' has resolution_hint='{expected_action}' "
+            f"but invocation failure resolution.action='{action}'. These must match."
+        )

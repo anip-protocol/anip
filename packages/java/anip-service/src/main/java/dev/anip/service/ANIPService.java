@@ -998,22 +998,22 @@ public class ANIPService {
                 available.add(new PermissionResponse.AvailableCapability(
                         name, String.join(", ", matchedScopeStrs), constraints
                 ));
+            } else if (missing.size() == requiredScopes.size()) {
+                // No scope overlap at all — completely inaccessible
+                denied.add(new PermissionResponse.DeniedCapability(
+                        name,
+                        "delegation chain lacks all required scope(s): " + String.join(", ", missing),
+                        "insufficient_scope"
+                ));
             } else {
-                boolean hasAdmin = missing.stream().anyMatch(s -> s.startsWith("admin."));
-                if (hasAdmin) {
-                    denied.add(new PermissionResponse.DeniedCapability(
-                            name, "requires admin principal", "non_delegable"
-                    ));
-                } else {
-                    restricted.add(new PermissionResponse.RestrictedCapability(
-                            name,
-                            "delegation chain lacks scope(s): " + String.join(", ", missing),
-                            "insufficient_scope",
-                            rootPrincipal,
-                            null,
-                            "request_broader_scope"
-                    ));
-                }
+                restricted.add(new PermissionResponse.RestrictedCapability(
+                        name,
+                        "delegation chain lacks scope(s): " + String.join(", ", missing),
+                        "insufficient_scope",
+                        rootPrincipal,
+                        null,
+                        "request_broader_scope"
+                ));
             }
         }
 

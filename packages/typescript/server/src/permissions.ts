@@ -130,11 +130,12 @@ export function discoverPermissions(
         scope_match: matchedScopeStrs.join(", "),
         constraints,
       });
-    } else if (missing.some((s) => s.startsWith("admin."))) {
+    } else if (missing.length === requiredScopes.length) {
+      // No scope overlap at all — completely inaccessible
       denied.push({
         capability: name,
-        reason: "requires admin principal",
-        reason_type: "non_delegable",
+        reason: `delegation chain lacks all required scope(s): ${missing.join(", ")}`,
+        reason_type: "insufficient_scope",
       });
     } else {
       restricted.push({

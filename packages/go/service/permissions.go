@@ -127,31 +127,21 @@ func (s *Service) DiscoverPermissions(token *core.DelegationToken) core.Permissi
 				ScopeMatch:  strings.Join(matchedScopeStrs, ", "),
 				Constraints: constraints,
 			})
+		} else if len(missing) == len(requiredScopes) {
+			// No scope overlap at all — completely inaccessible.
+			denied = append(denied, core.DeniedCapability{
+				Capability: name,
+				Reason:     fmt.Sprintf("delegation chain lacks all required scope(s): %s", strings.Join(missing, ", ")),
+				ReasonType: "insufficient_scope",
+			})
 		} else {
-			// Check if any missing scopes require admin.
-			hasAdmin := false
-			for _, s := range missing {
-				if strings.HasPrefix(s, "admin.") {
-					hasAdmin = true
-					break
-				}
-			}
-
-			if hasAdmin {
-				denied = append(denied, core.DeniedCapability{
-					Capability: name,
-					Reason:     "requires admin principal",
-					ReasonType: "non_delegable",
-				})
-			} else {
-				restricted = append(restricted, core.RestrictedCapability{
-					Capability:     name,
-					Reason:         fmt.Sprintf("delegation chain lacks scope(s): %s", strings.Join(missing, ", ")),
-					ReasonType:     "insufficient_scope",
-					GrantableBy:    rootPrincipal,
-					ResolutionHint: "request_broader_scope",
-				})
-			}
+			restricted = append(restricted, core.RestrictedCapability{
+				Capability:     name,
+				Reason:         fmt.Sprintf("delegation chain lacks scope(s): %s", strings.Join(missing, ", ")),
+				ReasonType:     "insufficient_scope",
+				GrantableBy:    rootPrincipal,
+				ResolutionHint: "request_broader_scope",
+			})
 		}
 	}
 

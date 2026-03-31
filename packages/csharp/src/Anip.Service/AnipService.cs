@@ -1256,29 +1256,26 @@ public class AnipService : IDisposable
                     Constraints = constraints.Count > 0 ? constraints : null,
                 });
             }
+            else if (missing.Count == requiredScopes.Count)
+            {
+                // No scope overlap at all — completely inaccessible
+                denied.Add(new DeniedCapability
+                {
+                    Capability = name,
+                    Reason = $"delegation chain lacks all required scope(s): {string.Join(", ", missing)}",
+                    ReasonType = "insufficient_scope",
+                });
+            }
             else
             {
-                var hasAdmin = missing.Any(s => s.StartsWith("admin."));
-                if (hasAdmin)
+                restricted.Add(new RestrictedCapability
                 {
-                    denied.Add(new DeniedCapability
-                    {
-                        Capability = name,
-                        Reason = "requires admin principal",
-                        ReasonType = "non_delegable",
-                    });
-                }
-                else
-                {
-                    restricted.Add(new RestrictedCapability
-                    {
-                        Capability = name,
-                        Reason = $"delegation chain lacks scope(s): {string.Join(", ", missing)}",
-                        ReasonType = "insufficient_scope",
-                        GrantableBy = rootPrincipal,
-                        ResolutionHint = "request_broader_scope",
-                    });
-                }
+                    Capability = name,
+                    Reason = $"delegation chain lacks scope(s): {string.Join(", ", missing)}",
+                    ReasonType = "insufficient_scope",
+                    GrantableBy = rootPrincipal,
+                    ResolutionHint = "request_broader_scope",
+                });
             }
         }
 

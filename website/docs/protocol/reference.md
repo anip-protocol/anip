@@ -409,11 +409,11 @@ The token issuance request can include a `budget` field, which the service store
 
 | Value | When used |
 |-------|-----------|
-| `scope_insufficient` | Token lacks one or more required scope strings |
-| `non_delegable_action` | Capability requires the direct (root) principal; delegated agents are blocked |
-| `principal_class` | Wrong principal class (e.g., agent attempting an admin-only action) |
-| `token_requirement` | Token does not satisfy a declared control requirement |
-| `policy_blocked` | Server-side runtime policy blocks this caller regardless of token shape |
+| `insufficient_scope` | Token lacks one or more required scope strings |
+| `insufficient_delegation_depth` | Delegation chain is too deep for this capability |
+| `stronger_delegation_required` | Token needs explicit capability binding or tighter purpose constraints |
+| `unmet_control_requirement` | Token does not satisfy a declared control requirement |
+| `non_delegable` | Capability requires the direct (root) principal; delegated agents are blocked |
 
 ### Unmet token requirements (v0.14)
 
@@ -555,7 +555,7 @@ When a budget was evaluated (success or failure), the response includes a `budge
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `type` | string | Yes | Machine-readable failure category (e.g., `scope_insufficient`, `budget_exceeded`, `rate_limited`) |
+| `type` | string | Yes | Machine-readable failure category (e.g., `insufficient_scope`, `budget_exceeded`, `rate_limited`) |
 | `detail` | string | Yes | Human-readable explanation |
 | `retry` | boolean | Yes | Whether retrying the same call might succeed. Default: `true` |
 | `resolution` | object | Yes | Recovery guidance (see below) |

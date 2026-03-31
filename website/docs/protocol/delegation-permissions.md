@@ -121,11 +121,11 @@ Starting in v0.15, every `restricted` and `denied` entry includes a machine-read
 
 | `reason_type` | Determined by | Meaning |
 |---------------|--------------|---------|
-| `scope_insufficient` | Token scope vs. capability `minimum_scope` | The delegation token lacks one or more required scope strings |
-| `non_delegable_action` | Capability handler or service policy | The capability requires the direct (root) principal — delegated agents are blocked |
-| `principal_class` | Caller identity class vs. service policy | Wrong principal class (e.g., agent attempting an admin-only action) |
-| `token_requirement` | `control_requirements` token-evaluable checks | The token does not satisfy a declared control requirement (e.g., `cost_ceiling`) |
-| `policy_blocked` | Service-side runtime policy | A server-side policy blocks the caller regardless of scope or token shape |
+| `insufficient_scope` | Token scope vs. capability `minimum_scope` | The delegation token lacks one or more required scope strings |
+| `insufficient_delegation_depth` | Delegation chain depth vs. service limit | The delegation chain is too deep for this capability |
+| `stronger_delegation_required` | Capability requires explicit binding | The token needs explicit capability binding or tighter purpose constraints |
+| `unmet_control_requirement` | `control_requirements` token-evaluable checks | The token does not satisfy a declared control requirement (e.g., `cost_ceiling`) |
+| `non_delegable` | Capability handler or service policy | The capability requires the direct (root) principal — delegated agents are blocked |
 
 Example `restricted` entry with `reason_type` and `resolution_hint`:
 
@@ -135,9 +135,9 @@ Example `restricted` entry with `reason_type` and `resolution_hint`:
     {
       "capability": "book_flight",
       "reason": "missing scope: travel.book",
-      "reason_type": "scope_insufficient",
+      "reason_type": "insufficient_scope",
       "grantable_by": "human:admin@company.com",
-      "resolution_hint": "Request the 'travel.book' scope from your delegation grantor"
+      "resolution_hint": "request_broader_scope"
     }
   ]
 }
@@ -151,7 +151,7 @@ Example `denied` entry for a non-delegable action:
     {
       "capability": "destroy_environment",
       "reason": "destroy_environment requires direct principal action and cannot be delegated",
-      "reason_type": "non_delegable_action"
+      "reason_type": "non_delegable"
     }
   ]
 }
@@ -159,7 +159,7 @@ Example `denied` entry for a non-delegable action:
 
 ### resolution_hint field (v0.15)
 
-Restricted entries may include a `resolution_hint` string — a short, human-readable suggestion for how to resolve the restriction. Unlike `reason` (which explains *why*), `resolution_hint` explains *what to do next*. Agents can surface this directly to users without custom handling per failure type.
+Restricted entries may include a `resolution_hint` string — a canonical `resolution.action` value that tells the agent what recovery step to take. The value must be one of the canonical resolution action strings (e.g., `request_broader_scope`, `request_budget_bound_delegation`, `request_capability_binding`). When the agent later invokes the capability and gets a failure, the failure's `resolution.action` will match the `resolution_hint` value from permission discovery.
 
 ## Budget constraints in delegation
 

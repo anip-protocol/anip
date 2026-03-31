@@ -40,12 +40,13 @@ def discover_permissions(
                 missing.append(required)
 
         if missing:
-            if any(s.startswith("admin.") for s in missing):
+            if len(missing) == len(required_scopes):
+                # No scope overlap at all — completely inaccessible
                 denied.append(
                     DeniedCapability(
                         capability=name,
-                        reason="requires admin principal",
-                        reason_type="non_delegable",
+                        reason=f"delegation chain lacks all required scope(s): {', '.join(missing)}",
+                        reason_type="insufficient_scope",
                     )
                 )
             else:

@@ -251,11 +251,8 @@ permission_response:
       resolution_hint: request_broader_scope          # v0.15
       grantable_by: "human:samir@example.com"
   denied:
-    - capability: admin_override
-      reason: "requires admin principal, current chain root is standard user"
-      reason_type: insufficient_scope                 # v0.15
-    - capability: transfer_root_funds
-      reason: "capability is non-delegable — must be invoked directly by root principal"
+    - capability: destroy_production_database
+      reason: "destructive action cannot be delegated to agents"
       reason_type: non_delegable                      # v0.15
 ```
 

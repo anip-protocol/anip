@@ -58,25 +58,25 @@ async def _issue_token(service: ANIPService, scope: list[str], capability: str, 
 # ---------------------------------------------------------------------------
 
 
-async def test_insufficient_scope_reason_type():
-    """Missing scope -> reason_type='insufficient_scope'."""
-    cap = _make_cap("book_flight", minimum_scope=["flights.write"])
+async def test_insufficient_scope_partial_overlap_is_restricted():
+    """Partial scope match -> restricted with reason_type='insufficient_scope'."""
+    # Capability requires two scopes; token has one of them
+    cap = _make_cap("book_flight", minimum_scope=["flights.read", "flights.write"])
     service = ANIPService(service_id="test-authority", capabilities=[cap], storage=":memory:")
-    # Token has no relevant scope
-    token = await _issue_token(service, ["other.read"], "book_flight")
+    token = await _issue_token(service, ["flights.read"], "book_flight")
     perms = service.discover_permissions(token)
 
     restricted = [r for r in perms.restricted if r.capability == "book_flight"]
-    assert restricted, "book_flight should be restricted due to missing scope"
+    assert restricted, "book_flight should be restricted due to partial scope overlap"
     r = restricted[0]
     assert r.reason_type == "insufficient_scope"
 
 
-async def test_insufficient_scope_resolution_hint():
-    """Missing scope -> resolution_hint='request_broader_scope'."""
-    cap = _make_cap("book_flight", minimum_scope=["flights.write"])
+async def test_insufficient_scope_partial_overlap_resolution_hint():
+    """Partial scope match -> resolution_hint='request_broader_scope'."""
+    cap = _make_cap("book_flight", minimum_scope=["flights.read", "flights.write"])
     service = ANIPService(service_id="test-authority", capabilities=[cap], storage=":memory:")
-    token = await _issue_token(service, ["other.read"], "book_flight")
+    token = await _issue_token(service, ["flights.read"], "book_flight")
     perms = service.discover_permissions(token)
 
     restricted = [r for r in perms.restricted if r.capability == "book_flight"]
@@ -84,22 +84,37 @@ async def test_insufficient_scope_resolution_hint():
     assert r.resolution_hint == "request_broader_scope"
 
 
+async def test_no_scope_overlap_is_denied():
+    """No scope overlap at all -> denied with reason_type='insufficient_scope'."""
+    cap = _make_cap("book_flight", minimum_scope=["flights.write"])
+    service = ANIPService(service_id="test-authority", capabilities=[cap], storage=":memory:")
+    token = await _issue_token(service, ["other.read"], "book_flight")
+    perms = service.discover_permissions(token)
+
+    denied = [d for d in perms.denied if d.capability == "book_flight"]
+    assert denied, "book_flight should be denied when no scope overlaps"
+    d = denied[0]
+    assert d.reason_type == "insufficient_scope"
+
+
 # ---------------------------------------------------------------------------
-# DeniedCapability: reason_type = "non_delegable"
+# DeniedCapability: admin scopes are NOT special — same insufficient_scope
 # ---------------------------------------------------------------------------
 
 
-async def test_non_delegable_reason_type():
-    """Admin scope requirement -> reason_type='non_delegable'."""
+async def test_admin_scope_is_not_special():
+    """Admin scope requirement -> denied with reason_type='insufficient_scope', NOT non_delegable."""
     cap = _make_cap("admin_action", minimum_scope=["admin.superpower"])
     service = ANIPService(service_id="test-authority", capabilities=[cap], storage=":memory:")
     token = await _issue_token(service, ["other.read"], "admin_action")
     perms = service.discover_permissions(token)
 
     denied = [d for d in perms.denied if d.capability == "admin_action"]
-    assert denied, "admin_action should be denied"
+    assert denied, "admin_action should be denied (no scope overlap)"
     d = denied[0]
-    assert d.reason_type == "non_delegable"
+    assert d.reason_type == "insufficient_scope", (
+        "admin.* scopes should use insufficient_scope, not non_delegable"
+    )
 
 
 # ---------------------------------------------------------------------------
