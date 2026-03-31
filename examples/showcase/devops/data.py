@@ -79,6 +79,18 @@ class DeletionEvent:
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
+@dataclass
+class EnvironmentDestroyEvent:
+    """A complete environment destruction."""
+    destroy_id: str
+    environment_name: str
+    services_removed: int
+    initiated_by: str
+    on_behalf_of: str
+    status: str = "destroyed"
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
 # ---------------------------------------------------------------------------
 # Static infrastructure data
 # ---------------------------------------------------------------------------
@@ -120,6 +132,7 @@ _SCALE_EVENTS: dict[str, ScaleEvent] = {}
 _CONFIG_CHANGES: dict[str, ConfigChange] = {}
 _ROLLBACK_EVENTS: dict[str, RollbackEvent] = {}
 _DELETION_EVENTS: dict[str, DeletionEvent] = {}
+_DESTROY_EVENTS: dict[str, EnvironmentDestroyEvent] = {}
 
 
 # ---------------------------------------------------------------------------
@@ -287,4 +300,40 @@ def delete_resource(
         on_behalf_of=on_behalf_of,
     )
     _DELETION_EVENTS[event.deletion_id] = event
+    return event
+
+
+def destroy_environment(
+    environment_name: str,
+    initiated_by: str = "",
+    on_behalf_of: str = "",
+) -> EnvironmentDestroyEvent:
+    """Irreversibly destroy all services in an environment."""
+    valid_envs = {"staging", "development", "preview"}
+    if environment_name not in valid_envs:
+        raise ValueError(
+            f"Cannot destroy environment '{environment_name}'. "
+            f"Only non-production environments may be destroyed: {sorted(valid_envs)}"
+        )
+
+    # Count and remove all deployments in this environment
+    to_remove = [d for d in DEPLOYMENTS if d.environment == environment_name]
+    services_removed = len(to_remove)
+
+    for deployment in to_remove:
+        _DEPLOYMENT_INDEX.pop(deployment.name, None)
+        SERVICE_HEALTH.pop(deployment.name, None)
+        VERSION_HISTORY.pop(deployment.name, None)
+        CONFIG_STORE.pop(deployment.name, None)
+
+    DEPLOYMENTS[:] = [d for d in DEPLOYMENTS if d.environment != environment_name]
+
+    event = EnvironmentDestroyEvent(
+        destroy_id=f"DE-{uuid.uuid4().hex[:8].upper()}",
+        environment_name=environment_name,
+        services_removed=services_removed,
+        initiated_by=initiated_by,
+        on_behalf_of=on_behalf_of,
+    )
+    _DESTROY_EVENTS[event.destroy_id] = event
     return event

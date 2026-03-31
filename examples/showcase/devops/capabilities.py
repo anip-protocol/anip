@@ -324,3 +324,70 @@ def _handle_delete_resource(ctx: InvocationContext, params: dict) -> dict:
 
 
 delete_resource = Capability(declaration=_DELETE_DECL, handler=_handle_delete_resource)
+
+
+# ---------------------------------------------------------------------------
+# 7. destroy_environment — irreversible, non-delegable, scope: infra.admin
+# ---------------------------------------------------------------------------
+
+_DESTROY_ENV_DECL = CapabilityDeclaration(
+    name="destroy_environment",
+    description=(
+        "Permanently destroy all services and configuration in a non-production environment. "
+        "This action is irreversible. Requires direct principal action — cannot be delegated."
+    ),
+    contract_version="1.0",
+    inputs=[
+        CapabilityInput(
+            name="environment_name",
+            type="string",
+            description="Name of the environment to destroy (staging, development, or preview only)",
+        ),
+    ],
+    output=CapabilityOutput(
+        type="destroy_confirmation",
+        fields=["destroy_id", "environment_name", "services_removed", "status"],
+    ),
+    side_effect=SideEffect(type=SideEffectType.IRREVERSIBLE, rollback_window="none"),
+    minimum_scope=["infra.admin"],
+    cost=Cost(certainty=CostCertainty.FIXED, financial=None, compute={"latency_p50": "5s", "tokens": 400}),
+    session=SessionInfo(),
+    observability=ObservabilityContract(
+        logged=True, retention="P730D",
+        fields_logged=["capability", "delegation_chain", "parameters", "result"],
+        audit_accessible_by=["delegation.root_principal"],
+    ),
+)
+
+
+def _handle_destroy_environment(ctx: InvocationContext, params: dict) -> dict:
+    # Non-delegable: only the root principal (the direct human) may invoke this.
+    # A delegated agent will have ctx.subject != ctx.root_principal.
+    if ctx.subject != ctx.root_principal:
+        raise ANIPError(
+            "non_delegable_action",
+            "destroy_environment requires direct principal action and cannot be delegated",
+        )
+
+    environment_name = params.get("environment_name")
+    if not environment_name:
+        raise ANIPError("invalid_parameters", "environment_name is required")
+
+    try:
+        event = data.destroy_environment(
+            environment_name=environment_name,
+            initiated_by=ctx.subject,
+            on_behalf_of=ctx.root_principal,
+        )
+    except ValueError as exc:
+        raise ANIPError("invalid_parameters", str(exc))
+
+    return {
+        "destroy_id": event.destroy_id,
+        "environment_name": event.environment_name,
+        "services_removed": event.services_removed,
+        "status": event.status,
+    }
+
+
+destroy_environment = Capability(declaration=_DESTROY_ENV_DECL, handler=_handle_destroy_environment)
