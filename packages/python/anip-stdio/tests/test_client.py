@@ -4,6 +4,7 @@ import sys
 
 import pytest
 
+from anip_core import PROTOCOL_VERSION
 from anip_stdio.client import AnipStdioClient
 
 SERVE_SCRIPT = os.path.join(os.path.dirname(__file__), "_serve_fixture.py")
@@ -14,7 +15,7 @@ async def test_discovery():
     async with AnipStdioClient(sys.executable, SERVE_SCRIPT) as client:
         result = await client.discovery()
         assert "anip_discovery" in result
-        assert result["anip_discovery"]["protocol"] == "anip/0.13"
+        assert result["anip_discovery"]["protocol"] == PROTOCOL_VERSION
 
 
 @pytest.mark.asyncio

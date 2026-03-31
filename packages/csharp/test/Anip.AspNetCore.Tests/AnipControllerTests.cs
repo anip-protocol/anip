@@ -94,7 +94,7 @@ public class AnipControllerTests : IAsyncLifetime
 
         var json = await ParseJson(response);
         var discovery = json.GetProperty("anip_discovery");
-        Assert.Equal("anip/0.13", discovery.GetProperty("protocol").GetString());
+        Assert.Equal(Constants.ProtocolVersion, discovery.GetProperty("protocol").GetString());
         Assert.Equal("anip-compliant", discovery.GetProperty("compliance").GetString());
         Assert.True(discovery.TryGetProperty("base_url", out _));
         Assert.True(discovery.TryGetProperty("capabilities", out _));
@@ -127,7 +127,7 @@ public class AnipControllerTests : IAsyncLifetime
         Assert.False(string.IsNullOrEmpty(signature));
 
         var json = await ParseJson(response);
-        Assert.Equal("anip/0.13", json.GetProperty("protocol").GetString());
+        Assert.Equal(Constants.ProtocolVersion, json.GetProperty("protocol").GetString());
         Assert.True(json.TryGetProperty("capabilities", out _));
     }
 

@@ -8,6 +8,8 @@ class ConstantsTest {
 
     @Test
     void protocolVersion() {
+        // Intentionally hardcoded — this is the one place that verifies the constant value.
+        // Update this when bumping the protocol version.
         assertEquals("anip/0.13", Constants.PROTOCOL_VERSION);
     }
 

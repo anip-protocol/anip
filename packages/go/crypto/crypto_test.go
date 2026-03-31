@@ -4,10 +4,13 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/anip-protocol/anip/packages/go/core"
 )
 
 func TestKeyGeneration(t *testing.T) {
@@ -229,7 +232,7 @@ func TestJWSSignVerify(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	payload := []byte(`{"protocol":"anip/0.13","capabilities":{}}`)
+	payload := []byte(fmt.Sprintf(`{"protocol":"%s","capabilities":{}}`, core.ProtocolVersion))
 
 	sig, err := SignDetachedJWS(km, payload)
 	if err != nil {

@@ -22,6 +22,8 @@ from anip_core import (
 
 
 def test_protocol_version():
+    # Intentionally hardcoded — this is the one place that verifies the constant value.
+    # Update this when bumping the protocol version.
     assert PROTOCOL_VERSION == "anip/0.13"
 
 
@@ -114,8 +116,8 @@ def test_anip_failure():
 
 
 def test_manifest_structure():
-    manifest = ANIPManifest(protocol="anip/0.13", profile=ProfileVersions(core="1.0"), capabilities={})
-    assert manifest.protocol == "anip/0.13"
+    manifest = ANIPManifest(protocol=PROTOCOL_VERSION, profile=ProfileVersions(core="1.0"), capabilities={})
+    assert manifest.protocol == PROTOCOL_VERSION
 
 
 def test_permission_response():
