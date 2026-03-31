@@ -32,7 +32,7 @@ curl https://service.example/.well-known/anip
 ```json
 {
   "anip_discovery": {
-    "version": "0.11.0",
+    "version": "0.13.0",
     "service_id": "travel-service",
     "endpoints": {
       "manifest": "/anip/manifest",
