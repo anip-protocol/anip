@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { defineCapability, ANIPError } from "@anip-dev/service";
 import type { CapabilityDeclaration } from "@anip-dev/core";
 import { searchFlights as doSearch } from "../domain/flights.js";
@@ -11,7 +12,7 @@ const DECLARATION: CapabilityDeclaration = {
     { name: "destination", type: "airport_code", required: true, default: null, description: "Arrival airport" },
     { name: "date", type: "date", required: true, default: null, description: "Travel date (YYYY-MM-DD)" },
   ],
-  output: { type: "flight_list", fields: ["flight_number", "departure_time", "arrival_time", "price", "stops"] },
+  output: { type: "flight_list", fields: ["flight_number", "departure_time", "arrival_time", "price", "stops", "quote_id"] },
   side_effect: { type: "read", rollback_window: "not_applicable" },
   minimum_scope: ["travel.search"],
   cost: {
@@ -56,6 +57,11 @@ export const searchFlights = defineCapability({
         price: f.price,
         currency: f.currency,
         stops: f.stops,
+        quote_id: {
+          id: `qt-${randomUUID().slice(0, 8)}-${Math.floor(Date.now() / 1000)}`,
+          price: f.price,
+          issued_at: Math.floor(Date.now() / 1000),
+        },
       })),
       count: flights.length,
     };

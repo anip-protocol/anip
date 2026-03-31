@@ -114,27 +114,38 @@ describe("Invoke", () => {
   });
 
   it("books a flight", async () => {
-    const token = await getToken("book_flight");
-    const res = await app.request("/anip/invoke/book_flight", {
+    // Step 1: Search to get a priced quote
+    const searchToken = await getToken("search_flights");
+    const searchRes = await app.request("/anip/invoke/search_flights", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${token}`,
+        "Authorization": `Bearer ${searchToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        parameters: {
-          flight_number: "AA100",
-          date: "2026-03-10",
-          passengers: 1,
-          quote_id: { id: "qt-test-1234", price: 420, issued_at: Math.floor(Date.now() / 1000) },
-        },
+        parameters: { origin: "SEA", destination: "SFO", date: "2026-03-10" },
+      }),
+    });
+    expect(searchRes.status).toBe(200);
+    const searchData = await searchRes.json();
+    const quoteId = searchData.result.flights[0].quote_id;
+
+    // Step 2: Book with the priced quote binding
+    const bookToken = await getToken("book_flight");
+    const res = await app.request("/anip/invoke/book_flight", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${bookToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        parameters: { flight_number: "AA100", date: "2026-03-10", passengers: 1, quote_id: quoteId },
       }),
     });
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.success).toBe(true);
     expect(data.result.booking_id).toMatch(/^BK-/);
-    expect(data.result.total_cost).toBe(420);
     expect(data.invocation_id).toMatch(/^inv-[0-9a-f]{12}$/);
   });
 

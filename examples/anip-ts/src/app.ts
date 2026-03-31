@@ -30,6 +30,7 @@ const service = createANIPService({
   capabilities: [searchFlights, bookFlight],
   trust: (process.env.ANIP_TRUST_LEVEL as "signed" | "anchored") ?? "signed",
   keyPath: process.env.ANIP_KEY_PATH ?? resolve(__dirname, "../anip-keys"),
+  storage: { type: process.env.ANIP_STORAGE === "sqlite" ? "sqlite" : "memory" },
   authenticate: async (bearer: string) => {
     // 1. API key map
     const principal = API_KEYS[bearer];
