@@ -780,7 +780,7 @@ class ANIPService:
         # Use the resolved/stored token from validation
         resolved_token = validation_result
 
-        # --- Budget, binding, and control requirement enforcement (v0.13) ---
+        # --- Budget, binding, and control requirement enforcement (v0.14) ---
 
         # Parse invocation-level budget hint if present
         request_budget = None
@@ -926,20 +926,15 @@ class ANIPService:
                         "parent_invocation_id": parent_invocation_id,
                     }
 
-        # Control requirement enforcement (reject only — no warn in v0.13)
+        # Control requirement enforcement (reject only — no warn in v0.14).
+        # NOTE: The stronger_delegation_required check below is defence-in-depth.
+        # Purpose validation in the delegation engine (purpose.capability != invoked
+        # capability -> purpose_mismatch) fires before this loop, making the
+        # stronger_delegation_required branch unreachable through normal invoke.
         for req in decl.control_requirements:
             satisfied = True
             if req.type == "cost_ceiling":
                 satisfied = effective_budget is not None
-            elif req.type == "bound_reference":
-                satisfied = req.field is not None and req.field in params and params[req.field] is not None
-            elif req.type == "freshness_window":
-                if req.field and req.field in params:
-                    age = _resolve_binding_age(params[req.field])
-                    max_age = _parse_iso8601_duration(req.max_age) if req.max_age else None
-                    satisfied = age is None or max_age is None or age <= max_age
-                else:
-                    satisfied = False
             elif req.type == "stronger_delegation_required":
                 satisfied = (
                     hasattr(resolved_token, 'purpose')
@@ -1292,7 +1287,7 @@ class ANIPService:
             if stream_summary:
                 response["stream_summary"] = stream_summary
 
-            # Budget context in response (v0.13)
+            # Budget context in response (v0.14)
             if effective_budget:
                 cost_actual_amount = None
                 if cost_actual:

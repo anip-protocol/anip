@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anip.dev/schema/v0.13/anip.schema.json",
+  "$id": "https://anip.dev/schema/v0.14/anip.schema.json",
   "title": "ANIP \u2014 Agent-Native Interface Protocol",
-  "description": "Canonical JSON Schema for all ANIP v0.13 types as defined in SPEC.md. Use these schemas to validate ANIP documents, responses, and delegation tokens.",
+  "description": "Canonical JSON Schema for all ANIP v0.14 types as defined in SPEC.md. Use these schemas to validate ANIP documents, responses, and delegation tokens.",
   "$defs": {
     "ConcurrentBranches": {
       "enum": [
@@ -112,13 +112,11 @@
     "ControlRequirementType": {
       "enum": [
         "cost_ceiling",
-        "stronger_delegation_required",
-        "bound_reference",
-        "freshness_window"
+        "stronger_delegation_required"
       ],
       "title": "ControlRequirementType",
       "type": "string",
-      "description": "Type of control requirement. Token-evaluable: cost_ceiling, stronger_delegation_required. Invoke-evaluable: bound_reference, freshness_window. See SPEC.md §4.1."
+      "description": "Type of control requirement. All types are token-evaluable: cost_ceiling, stronger_delegation_required. See SPEC.md §4.1."
     },
     "ControlRequirementEnforcement": {
       "enum": [
@@ -126,7 +124,7 @@
       ],
       "title": "ControlRequirementEnforcement",
       "type": "string",
-      "description": "Enforcement mode for control requirements. v0.13 supports reject only. See SPEC.md §4.1."
+      "description": "Enforcement mode for control requirements. v0.14 supports reject only. See SPEC.md §4.1."
     },
     "ControlRequirement": {
       "properties": {
@@ -135,30 +133,12 @@
         },
         "enforcement": {
           "$ref": "#/$defs/ControlRequirementEnforcement"
-        },
-        "field": {
-          "anyOf": [
-            { "type": "string" },
-            { "type": "null" }
-          ],
-          "default": null,
-          "title": "Field",
-          "description": "Which parameter field to check (required for bound_reference and freshness_window)"
-        },
-        "max_age": {
-          "anyOf": [
-            { "type": "string" },
-            { "type": "null" }
-          ],
-          "default": null,
-          "title": "Max Age",
-          "description": "ISO 8601 duration — maximum staleness (required for freshness_window)"
         }
       },
       "required": ["type", "enforcement"],
       "title": "ControlRequirement",
       "type": "object",
-      "description": "Explicit control requirement declaration for a capability. See SPEC.md §4.1."
+      "description": "Token-evaluable control requirement declaration for a capability. All control requirements can be checked from the delegation token alone. See SPEC.md §4.1."
     },
     "DelegationConstraints": {
       "properties": {

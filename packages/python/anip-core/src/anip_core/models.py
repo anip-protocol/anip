@@ -158,10 +158,8 @@ class BindingRequirement(BaseModel):
 
 
 class ControlRequirement(BaseModel):
-    type: str  # "cost_ceiling", "bound_reference", "freshness_window", "stronger_delegation_required"
-    field: str | None = None  # for bound_reference and freshness_window (which param to check)
-    max_age: str | None = None  # for freshness_window
-    enforcement: str = "reject"  # v0.13: "reject" only; "warn" deferred to future slice
+    type: str  # "cost_ceiling", "stronger_delegation_required"
+    enforcement: str = "reject"  # "reject" only; "warn" deferred to future slice
 
 
 class CapabilityDeclaration(BaseModel):
@@ -345,7 +343,7 @@ class DiscoveryPosture(BaseModel):
 
 
 class ANIPManifest(BaseModel):
-    protocol: str = "anip/0.13"
+    protocol: str = "anip/0.14"
     profile: ProfileVersions
     capabilities: dict[str, CapabilityDeclaration]
     manifest_metadata: ManifestMetadata | None = None

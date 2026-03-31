@@ -7,7 +7,7 @@ description: Current distribution status across all ANIP ecosystems.
 
 ANIP is not a spec waiting for implementations. Here's what's available now.
 
-## Protocol features through v0.13
+## Protocol features through v0.14
 
 Everything below is implemented in the runtimes and exercised by the conformance suite:
 
@@ -23,7 +23,8 @@ Everything below is implemented in the runtimes and exercised by the conformance
 - **Horizontal scaling (v0.10)**: PostgreSQL storage, leader election, exclusive invocation locks
 - **Observability (v0.11)**: Logging, metrics, tracing, diagnostics hooks, `getHealth()`
 - **Task identity and invocation lineage (v0.12)**: `task_id` groups related invocations under a single task/workflow; `parent_invocation_id` forms invocation trees for causal tracing; token purpose binding (`purpose.task_id` authoritative, request must match); audit queries filterable by `task_id` and `parent_invocation_id`
-- **Budget, binding, and control (v0.13)**: Enforceable budget constraints via `token.constraints.budget`; budget narrowing in delegation chains; `requires_binding` on capabilities for execution-time binding; `control_requirements` vocabulary; 6 new failure types; `budget_context` in invoke responses; `unmet_token_requirements` in permission discovery; `FinancialCost` structured type; protocol version `anip/0.13`
+- **Budget, binding, and control (v0.13)**: Enforceable budget constraints via `token.constraints.budget`; budget narrowing in delegation chains; `requires_binding` on capabilities for execution-time binding; `control_requirements` vocabulary; 6 new failure types; `budget_context` in invoke responses; `unmet_token_requirements` in permission discovery; `FinancialCost` structured type
+- **Binding/control simplification (v0.14)**: Removed `bound_reference`/`freshness_window` overlap from `control_requirements`; protocol version `anip/0.14`
 
 ## Published to package registries
 

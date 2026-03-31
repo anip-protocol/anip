@@ -1,4 +1,4 @@
-"""Tests for binding requirement enforcement in the invoke path (v0.13)."""
+"""Tests for binding requirement enforcement in the invoke path (v0.14)."""
 import time
 
 from anip_service import ANIPService, Capability

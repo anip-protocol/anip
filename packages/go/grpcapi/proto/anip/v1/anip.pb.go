@@ -492,7 +492,7 @@ type IssueTokenRequest struct {
 	ParentToken           string                 `protobuf:"bytes,5,opt,name=parent_token,json=parentToken,proto3" json:"parent_token,omitempty"`                                 // Optional, JWT string for sub-delegation
 	TtlHours              int32                  `protobuf:"varint,6,opt,name=ttl_hours,json=ttlHours,proto3" json:"ttl_hours,omitempty"`
 	CallerClass           string                 `protobuf:"bytes,7,opt,name=caller_class,json=callerClass,proto3" json:"caller_class,omitempty"`
-	Budget                *Budget                `protobuf:"bytes,8,opt,name=budget,proto3" json:"budget,omitempty"` // Optional, v0.13: budget constraint to store in token
+	Budget                *Budget                `protobuf:"bytes,8,opt,name=budget,proto3" json:"budget,omitempty"` // Optional, v0.14: budget constraint to store in token
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -590,7 +590,7 @@ type IssueTokenResponse struct {
 	Token         string                 `protobuf:"bytes,3,opt,name=token,proto3" json:"token,omitempty"`     // JWT string (when issued)
 	Expires       string                 `protobuf:"bytes,4,opt,name=expires,proto3" json:"expires,omitempty"` // ISO 8601 (when issued)
 	Failure       *AnipFailure           `protobuf:"bytes,5,opt,name=failure,proto3" json:"failure,omitempty"` // When !issued
-	Budget        *Budget                `protobuf:"bytes,6,opt,name=budget,proto3" json:"budget,omitempty"`   // v0.13: echoed when budget was requested
+	Budget        *Budget                `protobuf:"bytes,6,opt,name=budget,proto3" json:"budget,omitempty"`   // v0.14: echoed when budget was requested
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -849,7 +849,7 @@ type InvokeResponse struct {
 	Failure            *AnipFailure           `protobuf:"bytes,6,opt,name=failure,proto3" json:"failure,omitempty"`                                       // When !success
 	TaskId             string                 `protobuf:"bytes,7,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	ParentInvocationId string                 `protobuf:"bytes,8,opt,name=parent_invocation_id,json=parentInvocationId,proto3" json:"parent_invocation_id,omitempty"`
-	BudgetContext      *BudgetContext         `protobuf:"bytes,9,opt,name=budget_context,json=budgetContext,proto3" json:"budget_context,omitempty"` // v0.13: present when budget was evaluated
+	BudgetContext      *BudgetContext         `protobuf:"bytes,9,opt,name=budget_context,json=budgetContext,proto3" json:"budget_context,omitempty"` // v0.14: present when budget was evaluated
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -1105,7 +1105,7 @@ type CompletedEvent struct {
 	CostActualJson     string                 `protobuf:"bytes,4,opt,name=cost_actual_json,json=costActualJson,proto3" json:"cost_actual_json,omitempty"`
 	TaskId             string                 `protobuf:"bytes,5,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	ParentInvocationId string                 `protobuf:"bytes,6,opt,name=parent_invocation_id,json=parentInvocationId,proto3" json:"parent_invocation_id,omitempty"`
-	BudgetContext      *BudgetContext         `protobuf:"bytes,7,opt,name=budget_context,json=budgetContext,proto3" json:"budget_context,omitempty"` // v0.13: present when budget was evaluated
+	BudgetContext      *BudgetContext         `protobuf:"bytes,7,opt,name=budget_context,json=budgetContext,proto3" json:"budget_context,omitempty"` // v0.14: present when budget was evaluated
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -1196,7 +1196,7 @@ type FailedEvent struct {
 	Failure            *AnipFailure           `protobuf:"bytes,3,opt,name=failure,proto3" json:"failure,omitempty"`
 	TaskId             string                 `protobuf:"bytes,4,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	ParentInvocationId string                 `protobuf:"bytes,5,opt,name=parent_invocation_id,json=parentInvocationId,proto3" json:"parent_invocation_id,omitempty"`
-	BudgetContext      *BudgetContext         `protobuf:"bytes,6,opt,name=budget_context,json=budgetContext,proto3" json:"budget_context,omitempty"` // v0.13: present when budget was evaluated
+	BudgetContext      *BudgetContext         `protobuf:"bytes,6,opt,name=budget_context,json=budgetContext,proto3" json:"budget_context,omitempty"` // v0.14: present when budget was evaluated
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }

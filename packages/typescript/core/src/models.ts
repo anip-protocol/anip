@@ -157,10 +157,8 @@ export const BindingRequirement = z.object({
 export type BindingRequirement = z.infer<typeof BindingRequirement>;
 
 export const ControlRequirement = z.object({
-  type: z.string(),        // "cost_ceiling", "bound_reference", "freshness_window", "stronger_delegation_required"
-  enforcement: z.string().default("reject"),  // v0.13: "reject" only
-  field: z.string().nullable().default(null),
-  max_age: z.string().nullable().default(null),
+  type: z.string(),        // "cost_ceiling", "stronger_delegation_required"
+  enforcement: z.string().default("reject"),  // v0.14: "reject" only
 });
 export type ControlRequirement = z.infer<typeof ControlRequirement>;
 
@@ -383,7 +381,7 @@ export const ServiceIdentity = z.object({
 export type ServiceIdentity = z.infer<typeof ServiceIdentity>;
 
 export const ANIPManifest = z.object({
-  protocol: z.string().default("anip/0.13"),
+  protocol: z.string().default("anip/0.14"),
   profile: ProfileVersions,
   capabilities: z.record(CapabilityDeclaration),
   manifest_metadata: ManifestMetadata.nullable().default(null),

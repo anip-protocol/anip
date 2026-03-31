@@ -37,7 +37,7 @@ No authentication required. This is the entry point for any agent discovering th
 ```json
 {
   "anip_discovery": {
-    "version": "0.13.0",
+    "version": "0.14.0",
     "service_id": "travel-service",
     "endpoints": {
       "manifest": "/anip/manifest",
@@ -77,7 +77,7 @@ No authentication required. This is the entry point for any agent discovering th
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `version` | string | Yes | Protocol version (e.g., `"0.13.0"`) |
+| `version` | string | Yes | Protocol version (e.g., `"0.14.0"`) |
 | `service_id` | string | Yes | Unique service identifier |
 | `endpoints` | object | Yes | Map of operation names to URL paths |
 | `capabilities` | object | Yes | Lightweight capability summaries (name → metadata) |
@@ -131,7 +131,7 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 ```json
 {
   "manifest_metadata": {
-    "version": "0.13.0",
+    "version": "0.14.0",
     "sha256": "a1b2c3d4...",
     "issued_at": "2026-03-28T10:00:00Z",
     "expires_at": "2026-03-29T10:00:00Z"
@@ -386,7 +386,7 @@ The token issuance request can include a `budget` field, which the service store
 | `restricted` | Missing a grantable scope. Fields: `capability`, `reason`, `grantable_by`, `unmet_token_requirements` |
 | `denied` | Structurally impossible (wrong principal class). Fields: `capability`, `reason` |
 
-### Unmet token requirements (v0.13)
+### Unmet token requirements (v0.14)
 
 When a capability declares `control_requirements` with token-evaluable types (`cost_ceiling`, `stronger_delegation_required`), and the caller's token does not satisfy them, the capability appears in `restricted` with an `unmet_token_requirements` array listing the unsatisfied requirement types:
 
@@ -403,7 +403,7 @@ When a capability declares `control_requirements` with token-evaluable types (`c
 }
 ```
 
-Only token-evaluable requirements appear here. Invoke-evaluable requirements (`bound_reference`, `freshness_window`) cannot be checked without actual invocation parameters and are never surfaced in permission discovery.
+All control requirements are token-evaluable and surfaced in permission discovery.
 
 ---
 
@@ -494,7 +494,7 @@ Only token-evaluable requirements appear here. Invoke-evaluable requirements (`b
 | `cost_actual` | object | If capability has financial cost | `currency` and `amount` |
 | `failure` | object | On failure | Structured failure (see below) |
 
-### Budget enforcement (v0.13)
+### Budget enforcement (v0.14)
 
 The service enforces budget constraints from the delegation token's `constraints.budget` **before** executing the handler. Budget enforcement is pre-execution and deterministic — there is no post-execution "blessed overspend."
 
@@ -540,7 +540,7 @@ When a budget was evaluated (success or failure), the response includes a `budge
 | `grantable_by` | string | No | Who can grant what's needed (principal identifier) |
 | `estimated_availability` | string | No | How soon resolution is possible (e.g., `immediate`, `24h`) |
 
-### Failure types — budget, binding, and control (v0.13)
+### Failure types — budget, binding, and control (v0.14)
 
 | Type | When | Retry | Typical resolution |
 |------|------|-------|--------------------|

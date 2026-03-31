@@ -370,7 +370,7 @@ public class ANIPService {
             // Fire scope validation hook (granted).
             fireScopeValidation(capName, true);
 
-            // --- Budget, binding, and control requirement enforcement (v0.13) ---
+            // --- Budget, binding, and control requirement enforcement (v0.14) ---
 
             // Parse invocation-level budget hint.
             Budget requestBudget = opts != null ? opts.getBudget() : null;
@@ -544,36 +544,12 @@ public class ANIPService {
                 }
             }
 
-            // Control requirement enforcement (reject only — no warn in v0.13).
+            // Control requirement enforcement (reject only — no warn in v0.14).
             if (capDef.getDeclaration().getControlRequirements() != null) {
                 for (ControlRequirement req : capDef.getDeclaration().getControlRequirements()) {
                     boolean satisfied = true;
                     switch (req.getType()) {
                         case "cost_ceiling" -> satisfied = effectiveBudget != null;
-                        case "bound_reference" -> {
-                            if (req.getField() != null && !req.getField().isEmpty()) {
-                                Object val = params.get(req.getField());
-                                satisfied = val != null;
-                            } else {
-                                satisfied = false;
-                            }
-                        }
-                        case "freshness_window" -> {
-                            if (req.getField() != null && !req.getField().isEmpty()) {
-                                Object val = params.get(req.getField());
-                                if (val != null) {
-                                    long ageSeconds = resolveBindingAge(val);
-                                    if (ageSeconds >= 0 && req.getMaxAge() != null && !req.getMaxAge().isEmpty()) {
-                                        long maxAgeSeconds = parseISO8601DurationSeconds(req.getMaxAge());
-                                        satisfied = maxAgeSeconds == 0 || ageSeconds <= maxAgeSeconds;
-                                    }
-                                } else {
-                                    satisfied = false;
-                                }
-                            } else {
-                                satisfied = false;
-                            }
-                        }
                         case "stronger_delegation_required" -> {
                             satisfied = token.getPurpose() != null
                                     && capName.equals(token.getPurpose().getCapability());
@@ -681,7 +657,7 @@ public class ANIPService {
                 resp.put("cost_actual", costActual);
             }
 
-            // Budget context in response (v0.13).
+            // Budget context in response (v0.14).
             if (effectiveBudget != null) {
                 Double costActualAmount = null;
                 if (costActual != null && costActual.getFinancial() != null

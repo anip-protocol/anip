@@ -49,9 +49,9 @@ Compare these two failure experiences:
 
 **ANIP**: Agent gets a structured failure that says "you need a higher budget, your manager can grant it, and it's available immediately." The agent can report this to the user and take specific action to resolve the block.
 
-### v0.13 failure types
+### v0.14 failure types
 
-v0.13 adds six failure types for budget, binding, and control scenarios:
+v0.14 adds six failure types for budget, binding, and control scenarios:
 
 | Failure type | Description |
 |-------------|-------------|
@@ -59,12 +59,12 @@ v0.13 adds six failure types for budget, binding, and control scenarios:
 | `budget_currency_mismatch` | The token's budget currency does not match the capability's cost currency. |
 | `budget_not_enforceable` | The capability declares cost but the token lacks a budget constraint required by the service's control requirements. |
 | `binding_missing` | The capability has `requires_binding: true` but no binding reference was provided in the invocation request. |
-| `binding_stale` | A binding reference was provided but has expired or is no longer valid (outside the `freshness_window`). |
-| `control_requirement_unsatisfied` | A `control_requirements` entry (e.g. `cost_ceiling`, `bound_reference`, `freshness_window`, `stronger_delegation_required`) was not met. |
+| `binding_stale` | A binding reference was provided but has expired or is no longer valid. |
+| `control_requirement_unsatisfied` | A `control_requirements` entry (e.g. `cost_ceiling`, `stronger_delegation_required`) was not met. |
 
 ### Budget context
 
-v0.13 invoke responses include a `budget_context` object on both success and failure, giving agents visibility into budget consumption:
+v0.14 invoke responses include a `budget_context` object on both success and failure, giving agents visibility into budget consumption:
 
 ```json
 {

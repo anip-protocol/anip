@@ -1,4 +1,4 @@
-"""Conformance tests for ANIP control requirement enforcement (v0.13).
+"""Conformance tests for ANIP control requirement enforcement (v0.14).
 
 Spec references: control_requirements declarations, control_requirement_unsatisfied
 failure type, unmet_token_requirements in permission discovery.

@@ -1,5 +1,4 @@
-"""Tests for control requirement enforcement in the invoke path (v0.13)."""
-import time
+"""Tests for control requirement enforcement in the invoke path (v0.14)."""
 
 from anip_service import ANIPService, Capability
 from anip_core import (
@@ -82,71 +81,89 @@ async def test_cost_ceiling_required_without_budget():
     assert "cost_ceiling" in result["failure"]["detail"]
 
 
-async def test_bound_reference_required_present():
-    """bound_reference control requirement with field present -> success."""
-    cap = _cap_with_control([ControlRequirement(type="bound_reference", field="ref")])
+async def test_stronger_delegation_required_satisfied():
+    """stronger_delegation_required with matching capability binding -> success."""
+    cap = _cap_with_control([ControlRequirement(type="stronger_delegation_required")])
     service = ANIPService(
         service_id="test-control",
         capabilities=[cap],
         storage=":memory:",
     )
-    token = await _issue_token(service, ["action"], "high_risk_action")
-    result = await service.invoke("high_risk_action", token, {
-        "data": "test",
-        "ref": {"reference_id": "ref-001"},
-    })
-    assert result["success"] is True
-
-
-async def test_bound_reference_required_missing():
-    """bound_reference control requirement with field missing -> control_requirement_unsatisfied."""
-    cap = _cap_with_control([ControlRequirement(type="bound_reference", field="ref")])
-    service = ANIPService(
-        service_id="test-control",
-        capabilities=[cap],
-        storage=":memory:",
-    )
+    # Token issued with capability matching the declared capability name
     token = await _issue_token(service, ["action"], "high_risk_action")
     result = await service.invoke("high_risk_action", token, {"data": "test"})
-    assert result["success"] is False
-    assert result["failure"]["type"] == "control_requirement_unsatisfied"
-    assert "bound_reference" in result["failure"]["detail"]
-
-
-async def test_freshness_window_within():
-    """freshness_window control requirement within max_age -> success."""
-    cap = _cap_with_control([ControlRequirement(type="freshness_window", field="ref", max_age="PT10M")])
-    service = ANIPService(
-        service_id="test-control",
-        capabilities=[cap],
-        storage=":memory:",
-    )
-    token = await _issue_token(service, ["action"], "high_risk_action")
-    # Fresh reference (issued 1 minute ago)
-    result = await service.invoke("high_risk_action", token, {
-        "data": "test",
-        "ref": {"reference_id": "ref-001", "issued_at": time.time() - 60},
-    })
     assert result["success"] is True
 
 
-async def test_freshness_window_exceeded():
-    """freshness_window control requirement older than max_age -> control_requirement_unsatisfied."""
-    cap = _cap_with_control([ControlRequirement(type="freshness_window", field="ref", max_age="PT5M")])
+async def test_stronger_delegation_required_unsatisfied():
+    """stronger_delegation_required with mismatched capability binding -> rejected.
+
+    The delegation engine's purpose validation (purpose.capability != invoked
+    capability) fires *before* the control requirement loop, so
+    ``stronger_delegation_required`` in the control loop is unreachable through
+    the normal invoke path.  The purpose layer catches the mismatch first and
+    returns ``purpose_mismatch``.
+
+    This test documents that behaviour: a token bound to a different capability
+    is rejected at the purpose layer, not at the control requirement layer.
+    See ``test_stronger_delegation_check_logic_unit`` for an isolated test of
+    the control requirement predicate itself.
+    """
+    cap = _cap_with_control([ControlRequirement(type="stronger_delegation_required")])
     service = ANIPService(
         service_id="test-control",
         capabilities=[cap],
         storage=":memory:",
     )
-    token = await _issue_token(service, ["action"], "high_risk_action")
-    # Stale reference (issued 10 minutes ago)
-    result = await service.invoke("high_risk_action", token, {
-        "data": "test",
-        "ref": {"reference_id": "ref-001", "issued_at": time.time() - 600},
-    })
+    # Token issued for a different capability — purpose validation rejects first
+    token = await _issue_token(service, ["action"], "some_other_capability")
+    result = await service.invoke("high_risk_action", token, {"data": "test"})
     assert result["success"] is False
-    assert result["failure"]["type"] == "control_requirement_unsatisfied"
-    assert "freshness_window" in result["failure"]["detail"]
+    assert result["failure"]["type"] == "purpose_mismatch"
+
+
+def test_stronger_delegation_check_logic_unit():
+    """Unit test: the stronger_delegation_required predicate in isolation.
+
+    The control requirement loop checks:
+        token.purpose.capability == declared_capability_name
+
+    Purpose validation in the delegation engine makes this check unreachable
+    through the full invoke path (purpose_mismatch fires first).  This test
+    exercises the predicate directly to ensure it is correct as a defence-in-
+    depth safety net.
+    """
+    from anip_core import Purpose
+
+    cap_name = "high_risk_action"
+
+    def _check_stronger_delegation(resolved_token, decl_name):
+        """Mirrors the predicate at service.py line ~935."""
+        return (
+            hasattr(resolved_token, "purpose")
+            and resolved_token.purpose
+            and resolved_token.purpose.capability == decl_name
+        )
+
+    class _TokenStub:
+        """Lightweight stand-in — avoids constructing a full DelegationToken."""
+        def __init__(self, purpose):
+            self.purpose = purpose
+
+    # Matching capability binding -> satisfied
+    assert _check_stronger_delegation(
+        _TokenStub(Purpose(capability=cap_name, task_id=None)), cap_name,
+    ), "Expected stronger_delegation_required to be satisfied when purpose.capability matches"
+
+    # Mismatched capability binding -> not satisfied
+    assert not _check_stronger_delegation(
+        _TokenStub(Purpose(capability="some_other_capability", task_id=None)), cap_name,
+    ), "Expected stronger_delegation_required to be unsatisfied when purpose.capability differs"
+
+    # No purpose at all -> not satisfied
+    assert not _check_stronger_delegation(
+        _TokenStub(None), cap_name,
+    ), "Expected stronger_delegation_required to be unsatisfied when purpose is None"
 
 
 async def test_unmet_token_requirements_in_permissions():

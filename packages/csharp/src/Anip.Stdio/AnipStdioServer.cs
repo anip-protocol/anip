@@ -289,7 +289,7 @@ public class AnipStdioServer
         var parentInvocationId = GetString(parameters, "parent_invocation_id");
         var stream = GetBool(parameters, "stream");
 
-        // Extract budget from params (v0.13).
+        // Extract budget from params (v0.14).
         var budget = ExtractBudget(parameters);
 
         if (stream)

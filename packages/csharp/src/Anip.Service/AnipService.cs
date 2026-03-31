@@ -522,7 +522,7 @@ public class AnipService : IDisposable
                 ObservabilityHooks.CallHook(() => _hooks.OnScopeValidation(capName, true));
             }
 
-            // --- Budget, binding, and control requirement enforcement (v0.13) ---
+            // --- Budget, binding, and control requirement enforcement (v0.14) ---
 
             // Parse invocation-level budget hint.
             Budget? requestBudget = opts.Budget;
@@ -733,7 +733,7 @@ public class AnipService : IDisposable
                 }
             }
 
-            // Control requirement enforcement (reject only — no warn in v0.13).
+            // Control requirement enforcement (reject only — no warn in v0.14).
             if (capDef.Declaration.ControlRequirements != null)
             {
                 foreach (var req in capDef.Declaration.ControlRequirements)
@@ -743,38 +743,6 @@ public class AnipService : IDisposable
                     {
                         case "cost_ceiling":
                             satisfied = effectiveBudget != null;
-                            break;
-                        case "bound_reference":
-                            if (!string.IsNullOrEmpty(req.Field))
-                            {
-                                satisfied = parameters.TryGetValue(req.Field, out var brVal) && brVal != null;
-                            }
-                            else
-                            {
-                                satisfied = false;
-                            }
-                            break;
-                        case "freshness_window":
-                            if (!string.IsNullOrEmpty(req.Field))
-                            {
-                                if (parameters.TryGetValue(req.Field, out var fwVal) && fwVal != null)
-                                {
-                                    var age = ResolveBindingAge(fwVal);
-                                    if (age >= TimeSpan.Zero && !string.IsNullOrEmpty(req.MaxAge))
-                                    {
-                                        var maxAge = ParseISO8601Duration(req.MaxAge);
-                                        satisfied = maxAge == TimeSpan.Zero || age <= maxAge;
-                                    }
-                                }
-                                else
-                                {
-                                    satisfied = false;
-                                }
-                            }
-                            else
-                            {
-                                satisfied = false;
-                            }
                             break;
                         case "stronger_delegation_required":
                             satisfied = token.Purpose?.Capability == capName;
@@ -901,7 +869,7 @@ public class AnipService : IDisposable
                 resp["cost_actual"] = costActual;
             }
 
-            // Budget context in response (v0.13).
+            // Budget context in response (v0.14).
             if (effectiveBudget != null)
             {
                 double? costActualAmount = costActual?.Financial?.Amount;
@@ -1519,7 +1487,7 @@ public class AnipService : IDisposable
         return m;
     }
 
-    // --- Budget/Binding helpers (v0.13) ---
+    // --- Budget/Binding helpers (v0.14) ---
 
     /// <summary>
     /// Parses a simple ISO 8601 duration string like PT15M, PT1H30M, PT30S.

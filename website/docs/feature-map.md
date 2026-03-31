@@ -25,7 +25,7 @@ A complete inventory of what ANIP includes today, organized by layer.
 | Budget constraints | Enforceable `token.constraints.budget` with currency and max amount | [Delegation](/docs/protocol/delegation-permissions#budget-constraints-in-delegation) |
 | Budget narrowing | Child delegation budget must be ≤ parent budget | [Delegation](/docs/protocol/delegation-permissions#budget-constraints-in-delegation) |
 | Requires binding | `requires_binding` on capabilities for execution-time binding (quote, offer, price lock) | [Capabilities](/docs/protocol/capabilities) |
-| Control requirements | Vocabulary: `cost_ceiling`, `bound_reference`, `freshness_window`, `stronger_delegation_required` | [Failures](/docs/protocol/failures-cost-audit) |
+| Control requirements | Vocabulary: `cost_ceiling`, `stronger_delegation_required` | [Failures](/docs/protocol/failures-cost-audit) |
 | Budget context | `budget_context` in invoke responses (success and failure) | [Failures](/docs/protocol/failures-cost-audit#budget-context) |
 | `FinancialCost` type | Structured type replacing untyped cost dictionaries | [Cost](/docs/protocol/failures-cost-audit#cost-signaling) |
 

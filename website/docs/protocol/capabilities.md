@@ -29,7 +29,7 @@ The manifest is served at `GET /anip/manifest` with a cryptographic signature in
 ```json
 {
   "manifest_metadata": {
-    "version": "0.13.0",
+    "version": "0.14.0",
     "sha256": "a1b2c3...",
     "issued_at": "2026-03-27T10:00:00Z"
   },
@@ -142,7 +142,7 @@ Capabilities can declare prerequisites and compensation paths:
 
 This helps agents navigate multi-step workflows without hand-authored instructions — the service itself declares the dependency graph.
 
-## Binding requirements (v0.13)
+## Binding requirements (v0.14)
 
 Binding requirements declare that a capability needs a **bound reference** from a prior invocation before it can execute. This is the protocol mechanism for multi-step workflows like search, quote, then book — where the booking price should be locked to what the agent was quoted.
 
@@ -193,27 +193,16 @@ Binding and budget work together. For a capability with `estimated` cost:
 - **Without binding:** The service cannot reliably check the budget (the actual price is unknown). The service rejects with `budget_not_enforceable`.
 - **With binding:** The quoted/bound price becomes the check amount. If the bound price exceeds the budget, the service rejects with `budget_exceeded`. This makes estimated-cost capabilities budget-enforceable.
 
-## Control requirements (v0.13)
+## Control requirements (v0.14)
 
 Control requirements are explicit pre-execution conditions that a capability declares. They tell both agents and services what must be true before invocation can proceed.
 
-### Token-evaluable vs invoke-evaluable
-
-Control requirements are split into two categories based on **when** they can be checked:
-
-**Token-evaluable** — checkable from the delegation token alone, surfaced in `/anip/permissions`:
+All control requirements are token-evaluable — they can be checked from the delegation token alone and are surfaced in `/anip/permissions`:
 
 | Type | Condition |
 |------|-----------|
 | `cost_ceiling` | The delegation token must carry `constraints.budget` |
 | `stronger_delegation_required` | The token must have explicit capability binding |
-
-**Invoke-evaluable** — checkable only at invocation time with actual parameters:
-
-| Type | Condition | Extra fields |
-|------|-----------|-------------|
-| `bound_reference` | A binding field must be present in parameters | `field` |
-| `freshness_window` | The binding must be recent enough | `field`, `max_age` |
 
 ### Declaration
 
@@ -223,8 +212,7 @@ Control requirements are split into two categories based on **when** they can be
     "description": "Execute a securities trade",
     "control_requirements": [
       { "type": "cost_ceiling", "enforcement": "reject" },
-      { "type": "bound_reference", "enforcement": "reject", "field": "quote_id" },
-      { "type": "freshness_window", "enforcement": "reject", "field": "quote_id", "max_age": "PT5M" }
+      { "type": "stronger_delegation_required", "enforcement": "reject" }
     ]
   }
 }
@@ -233,9 +221,7 @@ Control requirements are split into two categories based on **when** they can be
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `type` | string | Yes | Requirement type |
-| `enforcement` | string | Yes | `"reject"` in v0.13 (reject invocation if not satisfied) |
-| `field` | string | For `bound_reference`, `freshness_window` | Parameter field to check |
-| `max_age` | string (ISO 8601 duration) | For `freshness_window` | Maximum age of the binding |
+| `enforcement` | string | Yes | `"reject"` in v0.14 (reject invocation if not satisfied) |
 
 When `enforcement` is `"reject"`, the service rejects invocations that do not satisfy the requirement, returning a `control_requirement_unsatisfied` failure.
 

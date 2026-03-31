@@ -186,8 +186,6 @@ const controlRequirements = computed(() => props.capability.control_requirements
         <div class="section-label">Control Requirements</div>
         <div v-for="req in controlRequirements" :key="req.type" class="control-item">
           <span class="badge-reject">{{ req.type }}</span>
-          <span v-if="req.field" class="cost-label">field: <code class="mono-value">{{ req.field }}</code></span>
-          <span v-if="req.max_age" class="cost-label">max age: <span class="mono-value">{{ req.max_age }}</span></span>
         </div>
       </div>
     </div>

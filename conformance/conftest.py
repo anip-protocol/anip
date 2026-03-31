@@ -195,7 +195,7 @@ def issue_token_full(
     return resp.status_code, resp.json()
 
 
-# --- Manifest fixture (v0.13: full capability details) ---
+# --- Manifest fixture (v0.14: full capability details) ---
 # The discovery document (/.well-known/anip) only includes a summary per
 # capability (description, side_effect, minimum_scope, financial, contract).
 # Budget, binding, and control requirement tests need the full capability
@@ -215,7 +215,7 @@ def manifest_capabilities(client):
     return data.get("capabilities", {})
 
 
-# --- Capability lookup fixtures (v0.13: budget, binding, control) ---
+# --- Capability lookup fixtures (v0.14: budget, binding, control) ---
 
 
 @pytest.fixture(scope="session")
