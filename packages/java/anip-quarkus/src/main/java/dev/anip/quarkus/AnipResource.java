@@ -269,7 +269,7 @@ public class AnipResource {
                 try { limit = Integer.parseInt(qLimit); } catch (NumberFormatException ignored) {}
             }
 
-            AuditFilters filters = new AuditFilters(capability, since, invocationId,
+            AuditFilters filters = new AuditFilters(capability, null, since, invocationId,
                     clientReferenceId, taskId, parentInvId, limit);
             AuditResponse resp = service.queryAudit(token, filters);
             return Response.ok(toMap(resp)).build();
