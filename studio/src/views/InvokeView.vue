@@ -174,7 +174,7 @@ async function onInvoke(inputs: Record<string, string>) {
             >
               <span class="picker-name">{{ name }}</span>
               <StatusBadge
-                :label="{ read: 'Read', write: 'Write', transactional: 'Transactional', irreversible: 'Irreversible' }[capabilities[name]?.side_effect?.type || 'read'] || capabilities[name]?.side_effect?.type || 'Read'"
+                :label="({ read: 'Read', write: 'Write', transactional: 'Transactional', irreversible: 'Irreversible' } as Record<string, string>)[capabilities[name]?.side_effect?.type || 'read'] || capabilities[name]?.side_effect?.type || 'Read'"
                 :type="(capabilities[name]?.side_effect?.type || 'read') === 'read' ? 'success' : (capabilities[name]?.side_effect?.type === 'irreversible' ? 'danger' : 'warning')"
               />
             </div>

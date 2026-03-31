@@ -48,7 +48,7 @@ vi.mock('../api', () => ({
   fetchPermissions: (...args: any[]) => mockFetchPermissions(...args),
 }))
 
-function makeRouter(initialRoute = '/invoke') {
+function makeRouter(_initialRoute = '/invoke') {
   return createRouter({
     history: createMemoryHistory('/studio'),
     routes: [
