@@ -235,8 +235,9 @@ permission_response:
     - capability: book_flight
       scope_match: "travel.book"
       constraints:
-        budget_remaining: 500
-        currency: "USD"
+        budget:
+          max_amount: 500
+          currency: "USD"
   restricted:
     - capability: execute_trade
       reason: "missing cost_ceiling in delegation"
