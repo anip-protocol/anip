@@ -1,10 +1,10 @@
 [project]
 name = "anip-graphql"
-version = "0.11.3"
+version = "0.12.0"
 description = "ANIP GraphQL bindings — expose ANIPService capabilities via GraphQL"
 requires-python = ">=3.11"
 dependencies = [
-    "anip-service==0.11.3",
+    "anip-service==0.12.0",
     "fastapi>=0.115.0",
     "ariadne>=0.24.0",
 ]
