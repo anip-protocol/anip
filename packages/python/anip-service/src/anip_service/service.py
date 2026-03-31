@@ -5,6 +5,7 @@ import asyncio
 import inspect
 import json
 import os
+import re
 import socket
 import time
 import uuid
@@ -19,6 +20,7 @@ from anip_core import (
     Budget,
     CapabilityDeclaration,
     ConcurrentBranches,
+    CostCertainty,
     DEFAULT_PROFILE,
     DelegationToken,
     DiscoveryPosture,
@@ -30,6 +32,52 @@ from anip_core import (
     TrustPosture,
     AnchoringPolicy,
 )
+
+
+# ---------------------------------------------------------------------------
+# Budget / binding / control helpers
+# ---------------------------------------------------------------------------
+
+def _parse_iso8601_duration(duration_str: str) -> timedelta:
+    """Parse an ISO 8601 duration string like PT15M, PT5M, PT1H30M, PT30S."""
+    pattern = r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?'
+    match = re.match(pattern, duration_str)
+    if not match:
+        return timedelta()
+    hours = int(match.group(1) or 0)
+    minutes = int(match.group(2) or 0)
+    seconds = int(match.group(3) or 0)
+    return timedelta(hours=hours, minutes=minutes, seconds=seconds)
+
+
+def _resolve_bound_price(decl: CapabilityDeclaration, params: dict) -> float | None:
+    """Extract bound price from params using capability's binding declarations."""
+    for binding in decl.requires_binding:
+        if binding.field in params and params[binding.field] is not None:
+            bound_value = params[binding.field]
+            if isinstance(bound_value, dict) and "price" in bound_value:
+                return float(bound_value["price"])
+    return None
+
+
+def _resolve_binding_age(binding_value: Any, now: float | None = None) -> timedelta | None:
+    """Determine age of a binding value. Returns None if age cannot be determined."""
+    if now is None:
+        now = time.time()
+    # Try to extract timestamp from binding value
+    if isinstance(binding_value, dict) and "issued_at" in binding_value:
+        return timedelta(seconds=now - binding_value["issued_at"])
+    if isinstance(binding_value, str):
+        # Try to extract unix timestamp from format like "qt-hexhex-1234567890"
+        parts = binding_value.rsplit("-", 1)
+        if len(parts) == 2:
+            try:
+                ts = int(parts[-1])
+                if ts > 1000000000:  # sanity check for unix timestamp
+                    return timedelta(seconds=now - ts)
+            except (ValueError, OverflowError):
+                pass
+    return None
 from anip_crypto import KeyManager
 from anip_server import (
     AuditLog,
@@ -513,6 +561,7 @@ class ANIPService:
         task_id: str | None = None,
         parent_invocation_id: str | None = None,
         stream: bool = False,
+        budget: dict[str, Any] | None = None,
         _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
     ) -> dict[str, Any]:
         """Invoke a capability with full validation, audit, and error handling.
@@ -546,6 +595,7 @@ class ANIPService:
                 task_id=task_id,
                 parent_invocation_id=parent_invocation_id,
                 stream=stream,
+                budget=budget,
                 _progress_sink=_progress_sink,
                 invocation_id=invocation_id,
                 invoke_start=invoke_start,
@@ -581,6 +631,7 @@ class ANIPService:
         task_id: str | None,
         parent_invocation_id: str | None,
         stream: bool,
+        budget: dict[str, Any] | None,
         _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None,
         invocation_id: str,
         invoke_start: float,
@@ -728,6 +779,167 @@ class ANIPService:
 
         # Use the resolved/stored token from validation
         resolved_token = validation_result
+
+        # --- Budget, binding, and control requirement enforcement (v0.13) ---
+
+        # Parse invocation-level budget hint if present
+        request_budget = None
+        if budget:
+            request_budget = Budget(currency=budget["currency"], max_amount=budget["max_amount"])
+
+        # Determine effective budget (token is ceiling, invocation hint can only narrow)
+        effective_budget: Budget | None = None
+        if resolved_token.constraints and resolved_token.constraints.budget:
+            effective_budget = resolved_token.constraints.budget
+            if request_budget is not None:
+                if request_budget.currency != effective_budget.currency:
+                    return {
+                        "success": False,
+                        "failure": redact_failure({
+                            "type": "budget_currency_mismatch",
+                            "detail": f"Invocation budget is in {request_budget.currency} but token budget is in {effective_budget.currency}",
+                        }, effective_level),
+                        "invocation_id": invocation_id,
+                        "client_reference_id": client_reference_id,
+                        "task_id": effective_task_id,
+                        "parent_invocation_id": parent_invocation_id,
+                    }
+                effective_budget = Budget(
+                    currency=effective_budget.currency,
+                    max_amount=min(effective_budget.max_amount, request_budget.max_amount),
+                )
+        elif request_budget is not None:
+            effective_budget = request_budget
+
+        # Budget enforcement against declared cost
+        check_amount: float | None = None
+        if effective_budget:
+            if decl.cost and decl.cost.financial:
+                if decl.cost.financial.currency != effective_budget.currency:
+                    return {
+                        "success": False,
+                        "failure": redact_failure({
+                            "type": "budget_currency_mismatch",
+                            "detail": f"Token budget is in {effective_budget.currency} but capability cost is in {decl.cost.financial.currency}",
+                        }, effective_level),
+                        "invocation_id": invocation_id,
+                        "client_reference_id": client_reference_id,
+                        "task_id": effective_task_id,
+                        "parent_invocation_id": parent_invocation_id,
+                    }
+
+                if decl.cost.certainty == CostCertainty.FIXED:
+                    check_amount = decl.cost.financial.amount
+                elif decl.cost.certainty == CostCertainty.ESTIMATED:
+                    if decl.requires_binding:
+                        bound_price = _resolve_bound_price(decl, params)
+                        if bound_price is not None:
+                            check_amount = bound_price
+                    else:
+                        return {
+                            "success": False,
+                            "failure": redact_failure({
+                                "type": "budget_not_enforceable",
+                                "detail": f"Capability {decl.name} has estimated cost but no requires_binding — budget cannot be enforced",
+                            }, effective_level),
+                            "invocation_id": invocation_id,
+                            "client_reference_id": client_reference_id,
+                            "task_id": effective_task_id,
+                            "parent_invocation_id": parent_invocation_id,
+                        }
+                elif decl.cost.certainty == CostCertainty.DYNAMIC:
+                    check_amount = decl.cost.financial.upper_bound
+
+                if check_amount is not None and check_amount > effective_budget.max_amount:
+                    return {
+                        "success": False,
+                        "failure": redact_failure({
+                            "type": "budget_exceeded",
+                            "detail": f"Cost ${check_amount} exceeds budget ${effective_budget.max_amount}",
+                        }, effective_level),
+                        "budget_context": {
+                            "budget_max": effective_budget.max_amount,
+                            "budget_currency": effective_budget.currency,
+                            "cost_check_amount": check_amount,
+                            "cost_certainty": decl.cost.certainty.value,
+                        },
+                        "invocation_id": invocation_id,
+                        "client_reference_id": client_reference_id,
+                        "task_id": effective_task_id,
+                        "parent_invocation_id": parent_invocation_id,
+                    }
+
+        # Binding enforcement
+        for binding in decl.requires_binding:
+            if binding.field not in params or params[binding.field] is None:
+                return {
+                    "success": False,
+                    "failure": redact_failure({
+                        "type": "binding_missing",
+                        "detail": f"Capability {decl.name} requires '{binding.field}' (type: {binding.type})",
+                        "resolution": {
+                            "action": "obtain_binding",
+                            "requires": f"invoke {binding.source_capability or 'source capability'} to obtain a {binding.field}",
+                        },
+                    }, effective_level),
+                    "invocation_id": invocation_id,
+                    "client_reference_id": client_reference_id,
+                    "task_id": effective_task_id,
+                    "parent_invocation_id": parent_invocation_id,
+                }
+            if binding.max_age:
+                age = _resolve_binding_age(params[binding.field])
+                if age is not None and age > _parse_iso8601_duration(binding.max_age):
+                    return {
+                        "success": False,
+                        "failure": redact_failure({
+                            "type": "binding_stale",
+                            "detail": f"Binding '{binding.field}' has exceeded max_age of {binding.max_age}",
+                            "resolution": {
+                                "action": "refresh_binding",
+                                "requires": f"invoke {binding.source_capability or 'source capability'} again for a fresh {binding.field}",
+                            },
+                        }, effective_level),
+                        "invocation_id": invocation_id,
+                        "client_reference_id": client_reference_id,
+                        "task_id": effective_task_id,
+                        "parent_invocation_id": parent_invocation_id,
+                    }
+
+        # Control requirement enforcement (reject only — no warn in v0.13)
+        for req in decl.control_requirements:
+            satisfied = True
+            if req.type == "cost_ceiling":
+                satisfied = effective_budget is not None
+            elif req.type == "bound_reference":
+                satisfied = req.field is not None and req.field in params and params[req.field] is not None
+            elif req.type == "freshness_window":
+                if req.field and req.field in params:
+                    age = _resolve_binding_age(params[req.field])
+                    max_age = _parse_iso8601_duration(req.max_age) if req.max_age else None
+                    satisfied = age is None or max_age is None or age <= max_age
+                else:
+                    satisfied = False
+            elif req.type == "stronger_delegation_required":
+                satisfied = (
+                    hasattr(resolved_token, 'purpose')
+                    and resolved_token.purpose
+                    and resolved_token.purpose.capability == decl.name
+                )
+
+            if not satisfied:
+                return {
+                    "success": False,
+                    "failure": redact_failure({
+                        "type": "control_requirement_unsatisfied",
+                        "detail": f"Capability {decl.name} requires {req.type}",
+                        "unsatisfied_requirements": [req.type],
+                    }, effective_level),
+                    "invocation_id": invocation_id,
+                    "client_reference_id": client_reference_id,
+                    "task_id": effective_task_id,
+                    "parent_invocation_id": parent_invocation_id,
+                }
 
         # Set up progress tracking for streaming
         events_emitted = 0
@@ -1022,6 +1234,21 @@ class ANIPService:
 
             if stream_summary:
                 response["stream_summary"] = stream_summary
+
+            # Budget context in response (v0.13)
+            if effective_budget:
+                cost_actual_amount = None
+                if cost_actual:
+                    cost_actual_financial = cost_actual.get("financial", {})
+                    cost_actual_amount = cost_actual_financial.get("amount") if isinstance(cost_actual_financial, dict) else None
+                response["budget_context"] = {
+                    "budget_max": effective_budget.max_amount,
+                    "budget_currency": effective_budget.currency,
+                    "cost_check_amount": check_amount,
+                    "cost_certainty": decl.cost.certainty.value if decl.cost else None,
+                    "cost_actual": cost_actual_amount,
+                    "within_budget": True,
+                }
 
             return response
 
