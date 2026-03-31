@@ -34,13 +34,15 @@ graph TD
 
 ### Invocation identifiers
 
-Every ANIP invocation returns two identifiers:
+Every ANIP invocation returns identifiers for correlation and lineage:
 
 ```json
 {
   "success": true,
-  "invocation_id": "inv_7f3a2b",
+  "invocation_id": "inv-7f3a2b4c5d6e",
   "client_reference_id": "trip-planning-2026-booking-1",
+  "task_id": "trip-2026",
+  "parent_invocation_id": "inv-a1b2c3d4e5f6",
   "result": { "booking_id": "BK-7291" }
 }
 ```
@@ -48,20 +50,64 @@ Every ANIP invocation returns two identifiers:
 | Field | Purpose |
 |-------|---------|
 | `invocation_id` | Service-assigned, globally unique identifier for this invocation |
-| `client_reference_id` | Client-provided identifier linking this invocation to a broader workflow |
+| `client_reference_id` | Client-provided identifier for caller-side correlation |
+| `task_id` | Groups related invocations under a single task or workflow (v0.12) |
+| `parent_invocation_id` | Reference to the invocation that triggered this one (v0.12) |
 
-### Client reference IDs
+### Task identity (`task_id`)
 
-The caller provides a `client_reference_id` in the invocation request:
+`task_id` groups multiple invocations under a single task, workflow, or agent objective. It can be set two ways:
+
+1. **In the delegation token** — when issuing a token, include `task_id` in `purpose_parameters`. The token's `purpose.task_id` is then authoritative for all invocations using that token.
+2. **In the invocation request** — if the token has no `purpose.task_id`, the caller can provide `task_id` per invocation.
+
+If both are present, they must match — a mismatch returns a `purpose_mismatch` failure. This prevents a token issued for one task from being used to attribute actions to a different task.
 
 ```json
 {
-  "parameters": { "flight_number": "AA100" },
-  "client_reference_id": "trip-planning-2026-booking-1"
+  "parameters": { "origin": "SEA", "destination": "SFO" },
+  "task_id": "trip-2026",
+  "parent_invocation_id": "inv-a1b2c3d4e5f6"
 }
 ```
 
-This lets the calling agent connect the invocation to its own workflow context. When auditing later, you can query by `client_reference_id` to find all invocations belonging to a specific task.
+### Parent invocation (`parent_invocation_id`)
+
+`parent_invocation_id` references the invocation that caused this one. It forms an invocation tree:
+
+```
+1. search_flights → inv-a1b2c3d4e5f6 (no parent)
+2. check_availability → inv-d4e5f6a7b8c9 (parent: inv-a1b2c3d4e5f6)
+3. book_flight → inv-c7d8e9f0a1b2 (parent: inv-d4e5f6a7b8c9)
+```
+
+The field is syntactically validated (must match `inv-{hex12}` format) but not referentially validated — the service records it without checking that the parent actually exists.
+
+### Querying by lineage
+
+Both fields are queryable in the audit API:
+
+```bash
+# Find all invocations for a task
+curl -X POST "https://service.example/anip/audit?task_id=trip-2026" \
+  -H "Authorization: Bearer <token>" -d '{}'
+
+# Find all invocations triggered by a specific parent
+curl -X POST "https://service.example/anip/audit?parent_invocation_id=inv-a1b2c3d4e5f6" \
+  -H "Authorization: Bearer <token>" -d '{}'
+```
+
+This replaces the custom trace-stitching code teams previously built in orchestration layers.
+
+### Client reference IDs
+
+`client_reference_id` is separate from `task_id` — it's the caller's own correlation identifier for a single invocation, not a grouping mechanism:
+
+| Field | Scope | Purpose |
+|-------|-------|---------|
+| `task_id` | Groups multiple invocations | "All of these belong to the same task" |
+| `client_reference_id` | Single invocation | "This specific call is step 3 of the search phase" |
+| `parent_invocation_id` | Single invocation | "This call was triggered by that call" |
 
 ### Delegation chain in audit
 
@@ -69,17 +115,19 @@ Every audit entry records the full delegation context:
 
 ```json
 {
-  "invocation_id": "inv_7f3a2b",
+  "invocation_id": "inv-c7d8e9f0a1b2",
   "capability": "book_flight",
   "actor_key": "agent:booking-agent",
   "root_principal": "human:alice@company.com",
   "event_class": "high_risk_failure",
+  "task_id": "trip-2026",
   "client_reference_id": "trip-planning-2026-booking-1",
+  "parent_invocation_id": "inv-d4e5f6a7b8c9",
   "timestamp": "2026-03-28T10:30:00Z"
 }
 ```
 
-The `actor_key` shows who directly invoked. The `root_principal` shows who originally delegated authority. The `client_reference_id` ties the invocation back to the broader workflow.
+The `actor_key` shows who directly invoked. The `root_principal` shows who originally delegated authority. The `task_id` groups this invocation with all other invocations for the same task. The `parent_invocation_id` shows which prior invocation triggered this one.
 
 ## Lineage across services
 
