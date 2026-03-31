@@ -143,14 +143,16 @@ class RestrictedCapability(BaseModel):
     reason: str
     grantable_by: str
     unmet_token_requirements: list[str] = Field(default_factory=list)
-    reason_type: str = "insufficient_scope"
+    reason_type: str  # REQUIRED — one of: insufficient_scope, insufficient_delegation_depth, stronger_delegation_required, unmet_control_requirement
     resolution_hint: str | None = None
 
 class DeniedCapability(BaseModel):
     capability: str
     reason: str
-    reason_type: str = "non_delegable"
+    reason_type: str  # REQUIRED — currently: non_delegable
 ```
+
+**No defaults for `reason_type`.** Every creation site MUST explicitly set the correct value. This prevents silent fallback to a plausible-but-wrong classifier.
 
 - [ ] **Step 2: Populate reason_type in permissions.py**
 
@@ -312,7 +314,7 @@ git commit -m "feat(csharp): add reason_type, resolution_hint, canonical actions
 
 - `test_restricted_has_reason_type` — restricted capabilities include `reason_type`
 - `test_denied_has_reason_type` — denied capabilities include `reason_type`
-- `test_scope_failure_uses_canonical_action` — scope failure's `resolution.action` is `request_broader_scope` (or deprecated `request_scope_grant`)
+- `test_scope_failure_uses_canonical_action` — scope failure's `resolution.action` MUST be `request_broader_scope` (conformance requires the canonical value; deprecated `request_scope_grant` is only tolerated in non-conformance contexts)
 - `test_resolution_hint_present_on_restricted` — restricted capabilities with `reason_type` also have `resolution_hint`
 - `test_non_delegable_failure_type` — if a non-delegable capability exists, invoking it returns `non_delegable_action` with `resolution.action: "stop"`
 
