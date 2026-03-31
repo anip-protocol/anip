@@ -63,7 +63,7 @@ Agent wants to book a flight
 ```
 Agent queries manifest → profile handshake
 → Sees book_flight: irreversible, financial, cost: ~$420±10%
-→ Checks delegation chain has travel.book scope + $500 budget authority
+→ Checks delegation chain has travel.book scope + constraints.budget {USD, $500}
 → Confirms rollback_window: none (knows upfront it's permanent)
 → Confirms observability: logged, 90-day retention
 → Decides to proceed, executes with full context
@@ -94,7 +94,7 @@ Every assumption that was implicit becomes explicit, typed, and queryable.
 1. **This action is irreversible** — `side_effect: irreversible`, `rollback_window: none`
 2. **This costs $280–500** — `cost.financial: { range_min: 280, range_max: 500 }`
 3. **Search before booking** — `requires: [{ capability: "search_flights" }]`
-4. **Budget will be enforced** — `scope: ["travel.book:max_$500"]` in the delegation chain
+4. **Budget will be enforced** — `scope: ["travel.book"]` with `constraints.budget: { currency: "USD", max_amount: 500 }` in the delegation chain
 5. **Who can fix a permission problem** — `resolution: { grantable_by: "human:samir@anip.dev" }`
 
 That last one is the killer feature. When a budget-exceeded failure comes back, it doesn't just say "denied" — it tells the agent exactly who can increase the budget. The agent can autonomously escalate to the right person. That's a capability that doesn't exist in REST, MCP, or OpenAPI.
@@ -111,7 +111,7 @@ sequenceDiagram
     Agent->>Human: request_budget_increase ($380, UA205)
     Human-->>Agent: approved
 
-    Human->>ANIP: POST /anip/tokens (higher budget)
+    Human->>ANIP: POST /anip/tokens (higher constraints.budget)
     ANIP-->>Human: new signed JWT
 
     Human-->>Agent: new token
@@ -130,7 +130,7 @@ Generated 5 tools from manifest: search_flights, book_flight,
   check_permissions, request_budget_increase, query_audit
 Issued tokens:
   demo-b0995ff9: search_flights (travel.search)
-  demo-f72e58e6: book_flight (travel.book:max_$300, budget: max $300)
+  demo-f72e58e6: book_flight (travel.book, budget: {USD, $300})
 
 AGENT LOOP
 

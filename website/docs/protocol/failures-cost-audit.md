@@ -49,6 +49,57 @@ Compare these two failure experiences:
 
 **ANIP**: Agent gets a structured failure that says "you need a higher budget, your manager can grant it, and it's available immediately." The agent can report this to the user and take specific action to resolve the block.
 
+### v0.13 failure types
+
+v0.13 adds six failure types for budget, binding, and control scenarios:
+
+| Failure type | Description |
+|-------------|-------------|
+| `budget_exceeded` | The invocation cost exceeds the token's budget constraint. When cost certainty is `exact`, the check compares the exact amount; when `estimated`, the check uses `range_max`. |
+| `budget_currency_mismatch` | The token's budget currency does not match the capability's cost currency. |
+| `budget_not_enforceable` | The capability declares cost but the token lacks a budget constraint required by the service's control requirements. |
+| `binding_missing` | The capability has `requires_binding: true` but no binding reference was provided in the invocation request. |
+| `binding_stale` | A binding reference was provided but has expired or is no longer valid (outside the `freshness_window`). |
+| `control_requirement_unsatisfied` | A `control_requirements` entry (e.g. `cost_ceiling`, `bound_reference`, `freshness_window`, `stronger_delegation_required`) was not met. |
+
+### Budget context
+
+v0.13 invoke responses include a `budget_context` object on both success and failure, giving agents visibility into budget consumption:
+
+```json
+{
+  "success": true,
+  "result": { "booking_id": "BK-7291" },
+  "cost_actual": { "currency": "USD", "amount": 487.00 },
+  "budget_context": {
+    "budget_currency": "USD",
+    "budget_max": 500.00,
+    "budget_consumed": 487.00,
+    "budget_remaining": 13.00
+  }
+}
+```
+
+On failure, `budget_context` shows why the budget check failed:
+
+```json
+{
+  "success": false,
+  "failure": {
+    "type": "budget_exceeded",
+    "detail": "Estimated max cost $800.00 exceeds budget of $500.00"
+  },
+  "budget_context": {
+    "budget_currency": "USD",
+    "budget_max": 500.00,
+    "check_amount": 800.00,
+    "check_basis": "range_max"
+  }
+}
+```
+
+The `check_basis` field indicates how the enforcement amount was determined: `exact` when cost certainty is exact, or `range_max` when cost certainty is estimated (the service uses the worst-case amount to protect the budget).
+
 ## Cost signaling
 
 ANIP lets services declare cost expectations before invocation and return actual costs after:
