@@ -496,6 +496,18 @@
       "type": "string",
       "description": "How much failure detail is surfaced to callers. See SPEC.md §6.8."
     },
+    "ReasonType": {
+      "enum": [
+        "insufficient_scope",
+        "insufficient_delegation_depth",
+        "stronger_delegation_required",
+        "unmet_control_requirement",
+        "non_delegable"
+      ],
+      "title": "ReasonType",
+      "type": "string",
+      "description": "Machine-readable classification of why a capability is restricted or denied in the permission response. See SPEC.md §4.4."
+    },
     "AvailableCapability": {
       "properties": {
         "capability": {
@@ -528,11 +540,16 @@
         "reason": {
           "title": "Reason",
           "type": "string"
+        },
+        "reason_type": {
+          "$ref": "#/$defs/ReasonType",
+          "description": "Machine-readable classification of the denial. See SPEC.md §4.4."
         }
       },
       "required": [
         "capability",
-        "reason"
+        "reason",
+        "reason_type"
       ],
       "title": "DeniedCapability",
       "type": "object"
@@ -546,6 +563,19 @@
         "reason": {
           "title": "Reason",
           "type": "string"
+        },
+        "reason_type": {
+          "$ref": "#/$defs/ReasonType",
+          "description": "Machine-readable classification of the restriction. See SPEC.md §4.4."
+        },
+        "resolution_hint": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Resolution Hint",
+          "description": "A canonical resolution.action value advising how this restriction can be resolved. MUST be consistent with the resolution.action that would appear in a failure if invocation were attempted. See SPEC.md §4.4 and §4.5."
         },
         "grantable_by": {
           "title": "Grantable By",
@@ -567,6 +597,7 @@
       "required": [
         "capability",
         "reason",
+        "reason_type",
         "grantable_by"
       ],
       "title": "RestrictedCapability",
