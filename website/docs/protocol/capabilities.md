@@ -142,6 +142,125 @@ Capabilities can declare prerequisites and compensation paths:
 
 This helps agents navigate multi-step workflows without hand-authored instructions — the service itself declares the dependency graph.
 
+## Binding requirements (v0.13)
+
+Binding requirements declare that a capability needs a **bound reference** from a prior invocation before it can execute. This is the protocol mechanism for multi-step workflows like search, quote, then book — where the booking price should be locked to what the agent was quoted.
+
+### When to use binding
+
+Binding is useful when a capability's cost depends on a prior step's output. Without binding, a capability with `estimated` cost and a budget constraint cannot be enforced — the service has no deterministic price to check against the budget. With binding, the quoted price becomes the check amount.
+
+### Declaration
+
+A capability declares `requires_binding` in the manifest:
+
+```json
+{
+  "book_flight": {
+    "description": "Book a flight reservation",
+    "requires_binding": [
+      {
+        "type": "quote",
+        "field": "quote_id",
+        "source_capability": "search_flights",
+        "max_age": "PT15M"
+      }
+    ]
+  }
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Binding type (e.g., `"quote"`, `"reservation"`) |
+| `field` | string | Yes | Parameter name that must be present at invocation |
+| `source_capability` | string | No | Informational — which capability produces this binding |
+| `max_age` | string (ISO 8601 duration) | No | Maximum age before the binding is stale |
+
+`source_capability` is informational only — the service does not validate it. It helps agents understand the expected workflow sequence.
+
+### Enforcement
+
+When a capability declares `requires_binding`, the service enforces at invocation time:
+
+1. **Missing binding:** If the required `field` is absent from parameters, the service rejects with `binding_missing`.
+2. **Stale binding:** If `max_age` is declared and the binding has expired, the service rejects with `binding_stale`.
+
+### How binding reinforces budget enforcement
+
+Binding and budget work together. For a capability with `estimated` cost:
+
+- **Without binding:** The service cannot reliably check the budget (the actual price is unknown). The service rejects with `budget_not_enforceable`.
+- **With binding:** The quoted/bound price becomes the check amount. If the bound price exceeds the budget, the service rejects with `budget_exceeded`. This makes estimated-cost capabilities budget-enforceable.
+
+## Control requirements (v0.13)
+
+Control requirements are explicit pre-execution conditions that a capability declares. They tell both agents and services what must be true before invocation can proceed.
+
+### Token-evaluable vs invoke-evaluable
+
+Control requirements are split into two categories based on **when** they can be checked:
+
+**Token-evaluable** — checkable from the delegation token alone, surfaced in `/anip/permissions`:
+
+| Type | Condition |
+|------|-----------|
+| `cost_ceiling` | The delegation token must carry `constraints.budget` |
+| `stronger_delegation_required` | The token must have explicit capability binding |
+
+**Invoke-evaluable** — checkable only at invocation time with actual parameters:
+
+| Type | Condition | Extra fields |
+|------|-----------|-------------|
+| `bound_reference` | A binding field must be present in parameters | `field` |
+| `freshness_window` | The binding must be recent enough | `field`, `max_age` |
+
+### Declaration
+
+```json
+{
+  "execute_trade": {
+    "description": "Execute a securities trade",
+    "control_requirements": [
+      { "type": "cost_ceiling", "enforcement": "reject" },
+      { "type": "bound_reference", "enforcement": "reject", "field": "quote_id" },
+      { "type": "freshness_window", "enforcement": "reject", "field": "quote_id", "max_age": "PT5M" }
+    ]
+  }
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Requirement type |
+| `enforcement` | string | Yes | `"reject"` in v0.13 (reject invocation if not satisfied) |
+| `field` | string | For `bound_reference`, `freshness_window` | Parameter field to check |
+| `max_age` | string (ISO 8601 duration) | For `freshness_window` | Maximum age of the binding |
+
+When `enforcement` is `"reject"`, the service rejects invocations that do not satisfy the requirement, returning a `control_requirement_unsatisfied` failure.
+
+### Complete flow example
+
+A travel service with budget-enforced booking through binding:
+
+```
+1. Agent obtains delegation token with budget: { currency: "USD", max_amount: 500 }
+
+2. Agent invokes search_flights (read, no budget impact)
+   -> Returns flights with prices, including quote_id: "q-abc123"
+
+3. Agent invokes book_flight with parameters: { quote_id: "q-abc123" }
+   -> Service checks: binding present? Yes (quote_id)
+   -> Service checks: binding fresh? Yes (within PT15M)
+   -> Service checks: bound price ($280) <= budget ($500)? Yes
+   -> Booking succeeds, cost_actual: { currency: "USD", amount: 280 }
+
+4. Response includes budget_context:
+   { budget_max: 500, budget_currency: "USD", cost_check_amount: 280, cost_certainty: "estimated" }
+```
+
+If the bound price had been $600, the service would reject with `budget_exceeded` before executing the booking. If the quote had expired, the service would reject with `binding_stale`.
+
 ## Next steps
 
 - **[Delegation & Permissions](/docs/protocol/delegation-permissions)** — How authority and scope work

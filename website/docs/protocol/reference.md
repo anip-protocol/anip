@@ -308,10 +308,33 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 }
 ```
 
+### Budget constraints
+
+The token issuance request can include a `budget` field, which the service stores as `constraints.budget` in the JWT claims:
+
+```json
+{
+  "scope": ["travel.search", "travel.book"],
+  "subject": "agent-007",
+  "budget": {
+    "currency": "USD",
+    "max_amount": 500
+  },
+  "ttl_hours": 2
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `budget.currency` | string | Yes | ISO 4217 currency code |
+| `budget.max_amount` | number | Yes | Maximum spend ceiling |
+
+**Budget narrowing rule:** When delegating from a parent token, the child budget MUST NOT exceed the parent's budget. If the parent has `max_amount: 500`, the child cannot request `max_amount: 600`. Currency must match. If the parent has no budget, the child MAY introduce one.
+
 ### Delegation rules
 
 - Scope can only **narrow**, never widen. A delegated token cannot have scope the parent doesn't have.
-- Budget constraints in scope strings (e.g., `travel.book:max_$500`) are enforced at invocation time.
+- Budget can only **narrow**, never widen. The token's `constraints.budget` is the enforceable ceiling.
 - The service signs tokens with its Ed25519 key pair. Any replica with the same key material can verify them.
 
 ---
@@ -360,8 +383,27 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 | Bucket | Meaning |
 |--------|---------|
 | `available` | Token has sufficient scope. Fields: `capability`, `scope_match`, `constraints` |
-| `restricted` | Missing a grantable scope. Fields: `capability`, `reason`, `grantable_by` |
+| `restricted` | Missing a grantable scope. Fields: `capability`, `reason`, `grantable_by`, `unmet_token_requirements` |
 | `denied` | Structurally impossible (wrong principal class). Fields: `capability`, `reason` |
+
+### Unmet token requirements (v0.13)
+
+When a capability declares `control_requirements` with token-evaluable types (`cost_ceiling`, `stronger_delegation_required`), and the caller's token does not satisfy them, the capability appears in `restricted` with an `unmet_token_requirements` array listing the unsatisfied requirement types:
+
+```json
+{
+  "restricted": [
+    {
+      "capability": "execute_trade",
+      "reason": "missing control requirements: cost_ceiling",
+      "grantable_by": "human:admin@company.com",
+      "unmet_token_requirements": ["cost_ceiling"]
+    }
+  ]
+}
+```
+
+Only token-evaluable requirements appear here. Invoke-evaluable requirements (`bound_reference`, `freshness_window`) cannot be checked without actual invocation parameters and are never surfaced in permission discovery.
 
 ---
 
@@ -452,6 +494,34 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 | `cost_actual` | object | If capability has financial cost | `currency` and `amount` |
 | `failure` | object | On failure | Structured failure (see below) |
 
+### Budget enforcement (v0.13)
+
+The service enforces budget constraints from the delegation token's `constraints.budget` **before** executing the handler. Budget enforcement is pre-execution and deterministic — there is no post-execution "blessed overspend."
+
+The check amount depends on cost certainty and whether a binding is present:
+
+| Cost certainty | Binding present? | Check amount | Failure on exceed |
+|----------------|-----------------|--------------|-------------------|
+| `fixed` | N/A | `cost.financial.amount` | `budget_exceeded` |
+| `estimated` | Yes (via `requires_binding`) | Bound price | `budget_exceeded` |
+| `estimated` | No | N/A — reject immediately | `budget_not_enforceable` |
+| `dynamic` | N/A | `cost.financial.upper_bound` | `budget_exceeded` |
+
+If the token budget's currency does not match the capability's `cost.financial.currency`, the service rejects with `budget_currency_mismatch`.
+
+When a budget was evaluated (success or failure), the response includes a `budget_context` object:
+
+```json
+{
+  "budget_context": {
+    "budget_max": 500,
+    "budget_currency": "USD",
+    "cost_check_amount": 280,
+    "cost_certainty": "estimated"
+  }
+}
+```
+
 ### ANIPFailure schema
 
 | Field | Type | Required | Description |
@@ -469,6 +539,17 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 | `requires` | string | No | What's needed to resolve |
 | `grantable_by` | string | No | Who can grant what's needed (principal identifier) |
 | `estimated_availability` | string | No | How soon resolution is possible (e.g., `immediate`, `24h`) |
+
+### Failure types — budget, binding, and control (v0.13)
+
+| Type | When | Retry | Typical resolution |
+|------|------|-------|--------------------|
+| `budget_exceeded` | Cost exceeds the delegated budget | No | `request_budget_increase` — obtain a higher budget delegation |
+| `budget_currency_mismatch` | Budget and cost currencies differ | No | `obtain_matching_currency` — re-delegate with matching currency |
+| `budget_not_enforceable` | Estimated cost with no binding to pin a price | No | `obtain_quote_first` — invoke the source capability to get a bound price |
+| `binding_missing` | Required binding field absent from parameters | No | `obtain_binding` — invoke the source capability first |
+| `binding_stale` | Binding exceeded `max_age` | Yes | `refresh_binding` — re-invoke the source capability for a fresh quote |
+| `control_requirement_unsatisfied` | A declared control requirement is not met | No | Depends on requirement type (e.g., obtain budget delegation for `cost_ceiling`) |
 
 ---
 
