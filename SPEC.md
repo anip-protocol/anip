@@ -80,13 +80,6 @@ capability:
   control_requirements:                # v0.13: explicit control requirement declarations
     - type: cost_ceiling
       enforcement: reject
-    - type: bound_reference
-      field: quote_id
-      enforcement: reject
-    - type: freshness_window
-      field: quote_id
-      max_age: "PT15M"
-      enforcement: reject
 ```
 
 A service MUST declare all capabilities in its manifest. Each capability MUST include a name, description, inputs with types, output shape, and side-effect type. Capabilities MAY declare `response_modes` (default: `["unary"]`) to indicate support for streaming invocations (see §6.6).
@@ -113,24 +106,17 @@ When a capability declares `requires_binding`, the service MUST enforce at invoc
 
 #### Control Requirements (v0.13)
 
-A capability MAY declare `control_requirements` — explicit pre-conditions that must be satisfied for invocation. Control requirements are split into two categories based on when they can be evaluated:
+A capability MAY declare `control_requirements` — explicit pre-conditions that must be satisfied for invocation. All control requirements are token-evaluable — checkable from the delegation token alone and surfaced in `/anip/permissions`:
 
-**Token-evaluable** — checkable from the delegation token alone, surfaced in `/anip/permissions`:
 - `cost_ceiling` — the delegation token must carry a `constraints.budget`
 - `stronger_delegation_required` — the token must have explicit capability binding
-
-**Invoke-evaluable** — checkable only at invocation time with actual parameters:
-- `bound_reference` — a binding field must be present in parameters (carries a `field` attribute)
-- `freshness_window` — the binding must be recent enough (carries a `field` attribute and `max_age`)
 
 Each control requirement entry includes:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `type` | string | Yes | One of: `cost_ceiling`, `stronger_delegation_required`, `bound_reference`, `freshness_window` |
+| `type` | string | Yes | One of: `cost_ceiling`, `stronger_delegation_required` |
 | `enforcement` | string | Yes | Enforcement mode: `"reject"` (v0.13 supports `reject` only) |
-| `field` | string | For `bound_reference`, `freshness_window` | Which parameter field to check |
-| `max_age` | string (ISO 8601 duration) | For `freshness_window` | Maximum age before the binding is considered stale |
 
 When `enforcement` is `"reject"`, the service MUST reject invocations that do not satisfy the requirement, returning a `control_requirement_unsatisfied` failure.
 
@@ -251,7 +237,7 @@ permission_response:
       reason: "requires admin principal, current chain root is standard user"
 ```
 
-The `unmet_token_requirements` field (v0.13) lists token-evaluable control requirements that are not satisfied by the current delegation token. Only requirements checkable from the token alone are included: `cost_ceiling` (token must carry `constraints.budget`) and `stronger_delegation_required` (token must have explicit capability binding). Invoke-evaluable requirements (`bound_reference`, `freshness_window`) are NOT included — they can only be checked at invocation time with actual parameters.
+The `unmet_token_requirements` field (v0.13) lists control requirements that are not satisfied by the current delegation token: `cost_ceiling` (token must carry `constraints.budget`) and `stronger_delegation_required` (token must have explicit capability binding). All control requirements are token-evaluable and surfaced here.
 
 The permission response MUST include three categories:
 
@@ -1908,7 +1894,7 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Horizontal scaling (§6.11)** | MAY — v0.10 | Implemented: storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, leader-elected background job coordination | Cross-region replication, consensus-based coordination |
 | **Observability hooks (§6.12)** | MAY — v0.11 | Implemented: callback-based logging (8 hooks), metrics (10 hooks), tracing (2 hooks, 8 stable span names), diagnostics (1 hook), `getHealth()` snapshot, optional `GET /-/health` endpoint in all framework bindings. Hook isolation guarantees correctness under throwing callbacks. | Standardized telemetry export format, OTEL bridge package |
 | **Binding requirements (§4.1)** | MAY — v0.13 | Implemented: `requires_binding` on capability declarations, `binding_missing` and `binding_stale` enforcement at invoke time | — |
-| **Control requirements (§4.1)** | MAY — v0.13 | Implemented: `control_requirements` on capability declarations, token-evaluable requirements surfaced in `/anip/permissions`, invoke-evaluable requirements checked at invoke time | — |
+| **Control requirements (§4.1)** | MAY — v0.13 | Implemented: `control_requirements` on capability declarations, all requirements are token-evaluable and surfaced in `/anip/permissions` | — |
 | **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation across services, federated trust |
 
 The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. v0.9 completes the audit story — aggregation collapses noise, storage-side redaction strips low-value parameters at write time, caller-class-aware redaction resolves disclosure per-caller, and proof expiration guidance closes the client-side gap. v0.10 adds horizontal scaling — storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, and leader-elected background job coordination enable multi-replica deployments without protocol invariant violations. v0.11 adds observability hooks — callback-based logging, metrics, tracing, and diagnostics injection points let adopters plug in their observability stack without hard dependencies, plus a `getHealth()` runtime snapshot and optional health endpoint. v0.13 adds pre-execution control surfaces — structured budget constraints in delegation tokens with pre-execution enforcement, execution-time binding requirements (`requires_binding`) for quote-based workflows, and explicit control requirement declarations (`control_requirements`) that let capabilities declare what must be true before invocation. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
