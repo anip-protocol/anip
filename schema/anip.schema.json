@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anip.dev/schema/v0.10/anip.schema.json",
+  "$id": "https://anip.dev/schema/v0.13/anip.schema.json",
   "title": "ANIP \u2014 Agent-Native Interface Protocol",
-  "description": "Canonical JSON Schema for all ANIP v0.10 types as defined in SPEC.md. Use these schemas to validate ANIP documents, responses, and delegation tokens.",
+  "description": "Canonical JSON Schema for all ANIP v0.13 types as defined in SPEC.md. Use these schemas to validate ANIP documents, responses, and delegation tokens.",
   "$defs": {
     "ConcurrentBranches": {
       "enum": [
@@ -12,6 +12,139 @@
       "title": "ConcurrentBranches",
       "type": "string",
       "description": "Whether concurrent delegation branches are allowed or exclusive. See SPEC.md §4.3."
+    },
+    "Budget": {
+      "properties": {
+        "currency": {
+          "title": "Currency",
+          "type": "string",
+          "description": "ISO 4217 currency code (e.g., USD, EUR)"
+        },
+        "max_amount": {
+          "title": "Max Amount",
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum amount the delegation authorizes"
+        }
+      },
+      "required": ["currency", "max_amount"],
+      "title": "Budget",
+      "type": "object",
+      "description": "Enforceable financial budget constraint in delegation tokens. See SPEC.md §4.3."
+    },
+    "BudgetContext": {
+      "properties": {
+        "budget_max": {
+          "title": "Budget Max",
+          "type": "number",
+          "description": "The max_amount from the delegation token's budget constraint"
+        },
+        "budget_currency": {
+          "title": "Budget Currency",
+          "type": "string",
+          "description": "The currency from the delegation token's budget constraint"
+        },
+        "cost_check_amount": {
+          "title": "Cost Check Amount",
+          "type": "number",
+          "description": "The amount used for the pre-execution budget check"
+        },
+        "cost_certainty": {
+          "$ref": "#/$defs/CostCertainty",
+          "description": "The certainty level used in the budget check"
+        }
+      },
+      "required": ["budget_max", "budget_currency", "cost_check_amount", "cost_certainty"],
+      "title": "BudgetContext",
+      "type": "object",
+      "description": "Budget enforcement context included in invoke responses when a budget was evaluated. Present on both success and failure. See SPEC.md §6.3."
+    },
+    "BindingRequirement": {
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "description": "Binding type identifier (e.g., quote, offer, price_lock)"
+        },
+        "field": {
+          "title": "Field",
+          "type": "string",
+          "description": "Which field in invocation parameters must carry the reference"
+        },
+        "source_capability": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Source Capability",
+          "description": "Advisory — which capability produces this binding"
+        },
+        "max_age": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Max Age",
+          "description": "ISO 8601 duration — maximum age before binding is considered stale"
+        }
+      },
+      "required": ["type", "field"],
+      "title": "BindingRequirement",
+      "type": "object",
+      "description": "Execution-time binding requirement for a capability. See SPEC.md §4.1."
+    },
+    "ControlRequirementType": {
+      "enum": [
+        "cost_ceiling",
+        "stronger_delegation_required",
+        "bound_reference",
+        "freshness_window"
+      ],
+      "title": "ControlRequirementType",
+      "type": "string",
+      "description": "Type of control requirement. Token-evaluable: cost_ceiling, stronger_delegation_required. Invoke-evaluable: bound_reference, freshness_window. See SPEC.md §4.1."
+    },
+    "ControlRequirementEnforcement": {
+      "enum": [
+        "reject"
+      ],
+      "title": "ControlRequirementEnforcement",
+      "type": "string",
+      "description": "Enforcement mode for control requirements. v0.13 supports reject only. See SPEC.md §4.1."
+    },
+    "ControlRequirement": {
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/ControlRequirementType"
+        },
+        "enforcement": {
+          "$ref": "#/$defs/ControlRequirementEnforcement"
+        },
+        "field": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Field",
+          "description": "Which parameter field to check (required for bound_reference and freshness_window)"
+        },
+        "max_age": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Max Age",
+          "description": "ISO 8601 duration — maximum staleness (required for freshness_window)"
+        }
+      },
+      "required": ["type", "enforcement"],
+      "title": "ControlRequirement",
+      "type": "object",
+      "description": "Explicit control requirement declaration for a capability. See SPEC.md §4.1."
     },
     "DelegationConstraints": {
       "properties": {
@@ -23,6 +156,14 @@
         "concurrent_branches": {
           "$ref": "#/$defs/ConcurrentBranches",
           "default": "allowed"
+        },
+        "budget": {
+          "anyOf": [
+            { "$ref": "#/$defs/Budget" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "description": "Enforceable financial budget constraint. Child budgets MUST NOT exceed parent. See SPEC.md §4.3."
         }
       },
       "title": "DelegationConstraints",
@@ -415,6 +556,18 @@
         "grantable_by": {
           "title": "Grantable By",
           "type": "string"
+        },
+        "unmet_token_requirements": {
+          "anyOf": [
+            {
+              "items": { "type": "string" },
+              "type": "array"
+            },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Unmet Token Requirements",
+          "description": "Token-evaluable control requirements not satisfied (e.g., cost_ceiling, stronger_delegation_required). See SPEC.md §4.4."
         }
       },
       "required": [
@@ -667,6 +820,34 @@
           "default": ["unary"],
           "title": "Response Modes",
           "type": "array"
+        },
+        "requires_binding": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/BindingRequirement"
+              },
+              "type": "array"
+            },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Requires Binding",
+          "description": "Execution-time binding requirements. See SPEC.md §4.1."
+        },
+        "control_requirements": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ControlRequirement"
+              },
+              "type": "array"
+            },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Control Requirements",
+          "description": "Explicit control requirement declarations. See SPEC.md §4.1."
         }
       },
       "required": [
@@ -781,16 +962,12 @@
         },
         "budget": {
           "anyOf": [
-            {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            {
-              "type": "null"
-            }
+            { "$ref": "#/$defs/Budget" },
+            { "type": "null" }
           ],
           "default": null,
-          "title": "Budget"
+          "title": "Budget",
+          "description": "Negotiation hint — MUST NOT widen the token's constraints.budget. See SPEC.md §6.3."
         },
         "stream": {
           "default": false,
@@ -921,6 +1098,14 @@
           "default": null,
           "title": "Parent Invocation Id",
           "description": "Reference to the invocation that triggered this one"
+        },
+        "budget_context": {
+          "anyOf": [
+            { "$ref": "#/$defs/BudgetContext" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "description": "Budget enforcement context, present on both success and failure when a budget was evaluated. See SPEC.md §6.3."
         }
       },
       "required": [
