@@ -157,10 +157,8 @@ export const BindingRequirement = z.object({
 export type BindingRequirement = z.infer<typeof BindingRequirement>;
 
 export const ControlRequirement = z.object({
-  type: z.string(),        // "cost_ceiling", "bound_reference", "freshness_window", "stronger_delegation_required"
+  type: z.string(),        // "cost_ceiling", "stronger_delegation_required"
   enforcement: z.string().default("reject"),  // v0.13: "reject" only
-  field: z.string().nullable().default(null),
-  max_age: z.string().nullable().default(null),
 });
 export type ControlRequirement = z.infer<typeof ControlRequirement>;
 

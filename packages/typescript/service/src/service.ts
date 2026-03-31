@@ -1321,18 +1321,6 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         const reqType = req.type as string;
         if (reqType === "cost_ceiling") {
           satisfied = effectiveBudget !== null;
-        } else if (reqType === "bound_reference") {
-          const reqField = req.field as string | null;
-          satisfied = reqField !== null && reqField in params && params[reqField] !== null && params[reqField] !== undefined;
-        } else if (reqType === "freshness_window") {
-          const reqField = req.field as string | null;
-          if (reqField && reqField in params) {
-            const age = _resolveBindingAge(params[reqField]);
-            const maxAge = req.max_age ? _parseISO8601Duration(req.max_age as string) : null;
-            satisfied = age === null || maxAge === null || age <= maxAge;
-          } else {
-            satisfied = false;
-          }
         } else if (reqType === "stronger_delegation_required") {
           satisfied = (
             resolvedToken.purpose !== null &&
