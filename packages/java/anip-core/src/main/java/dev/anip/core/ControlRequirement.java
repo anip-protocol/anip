@@ -5,10 +5,13 @@ package dev.anip.core;
  */
 public class ControlRequirement {
 
-    private final String type;
-    private final String enforcement;
-    private final String field;
-    private final String maxAge;
+    private String type;
+    private String enforcement;
+    private String field;
+    private String maxAge;
+
+    /** No-arg constructor for Jackson deserialization. */
+    public ControlRequirement() {}
 
     public ControlRequirement(String type, String enforcement, String field, String maxAge) {
         this.type = type;
@@ -32,5 +35,21 @@ public class ControlRequirement {
 
     public String getMaxAge() {
         return maxAge;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public void setEnforcement(String enforcement) {
+        this.enforcement = enforcement;
+    }
+
+    public void setField(String field) {
+        this.field = field;
+    }
+
+    public void setMaxAge(String maxAge) {
+        this.maxAge = maxAge;
     }
 }

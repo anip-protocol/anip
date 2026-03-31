@@ -5,12 +5,15 @@ package dev.anip.core;
  */
 public class FinancialCost {
 
-    private final String currency;
-    private final Double amount;
-    private final Double rangeMin;
-    private final Double rangeMax;
-    private final Double typical;
-    private final Double upperBound;
+    private String currency;
+    private Double amount;
+    private Double rangeMin;
+    private Double rangeMax;
+    private Double typical;
+    private Double upperBound;
+
+    /** No-arg constructor for Jackson deserialization. */
+    public FinancialCost() {}
 
     public FinancialCost(String currency, Double amount, Double rangeMin,
                          Double rangeMax, Double typical, Double upperBound) {
@@ -49,5 +52,29 @@ public class FinancialCost {
 
     public Double getUpperBound() {
         return upperBound;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
+
+    public void setAmount(Double amount) {
+        this.amount = amount;
+    }
+
+    public void setRangeMin(Double rangeMin) {
+        this.rangeMin = rangeMin;
+    }
+
+    public void setRangeMax(Double rangeMax) {
+        this.rangeMax = rangeMax;
+    }
+
+    public void setTypical(Double typical) {
+        this.typical = typical;
+    }
+
+    public void setUpperBound(Double upperBound) {
+        this.upperBound = upperBound;
     }
 }

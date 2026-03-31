@@ -5,10 +5,13 @@ package dev.anip.core;
  */
 public class BindingRequirement {
 
-    private final String type;
-    private final String field;
-    private final String sourceCapability;
-    private final String maxAge;
+    private String type;
+    private String field;
+    private String sourceCapability;
+    private String maxAge;
+
+    /** No-arg constructor for Jackson deserialization. */
+    public BindingRequirement() {}
 
     public BindingRequirement(String type, String field, String sourceCapability, String maxAge) {
         this.type = type;
@@ -31,5 +34,21 @@ public class BindingRequirement {
 
     public String getMaxAge() {
         return maxAge;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public void setField(String field) {
+        this.field = field;
+    }
+
+    public void setSourceCapability(String sourceCapability) {
+        this.sourceCapability = sourceCapability;
+    }
+
+    public void setMaxAge(String maxAge) {
+        this.maxAge = maxAge;
     }
 }

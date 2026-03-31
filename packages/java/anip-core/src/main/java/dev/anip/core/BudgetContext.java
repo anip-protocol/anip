@@ -5,12 +5,15 @@ package dev.anip.core;
  */
 public class BudgetContext {
 
-    private final double budgetMax;
-    private final String budgetCurrency;
-    private final Double costCheckAmount;
-    private final String costCertainty;
-    private final Double costActual;
-    private final boolean withinBudget;
+    private double budgetMax;
+    private String budgetCurrency;
+    private Double costCheckAmount;
+    private String costCertainty;
+    private Double costActual;
+    private boolean withinBudget;
+
+    /** No-arg constructor for Jackson deserialization. */
+    public BudgetContext() {}
 
     public BudgetContext(double budgetMax, String budgetCurrency,
                          Double costCheckAmount, String costCertainty,
@@ -45,5 +48,29 @@ public class BudgetContext {
 
     public boolean isWithinBudget() {
         return withinBudget;
+    }
+
+    public void setBudgetMax(double budgetMax) {
+        this.budgetMax = budgetMax;
+    }
+
+    public void setBudgetCurrency(String budgetCurrency) {
+        this.budgetCurrency = budgetCurrency;
+    }
+
+    public void setCostCheckAmount(Double costCheckAmount) {
+        this.costCheckAmount = costCheckAmount;
+    }
+
+    public void setCostCertainty(String costCertainty) {
+        this.costCertainty = costCertainty;
+    }
+
+    public void setCostActual(Double costActual) {
+        this.costActual = costActual;
+    }
+
+    public void setWithinBudget(boolean withinBudget) {
+        this.withinBudget = withinBudget;
     }
 }

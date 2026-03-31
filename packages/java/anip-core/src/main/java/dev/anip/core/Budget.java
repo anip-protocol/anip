@@ -5,8 +5,11 @@ package dev.anip.core;
  */
 public class Budget {
 
-    private final String currency;
-    private final double maxAmount;
+    private String currency;
+    private double maxAmount;
+
+    /** No-arg constructor for Jackson deserialization. */
+    public Budget() {}
 
     public Budget(String currency, double maxAmount) {
         this.currency = currency;
@@ -19,5 +22,13 @@ public class Budget {
 
     public double getMaxAmount() {
         return maxAmount;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
+
+    public void setMaxAmount(double maxAmount) {
+        this.maxAmount = maxAmount;
     }
 }

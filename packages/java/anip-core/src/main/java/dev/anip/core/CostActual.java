@@ -5,8 +5,11 @@ package dev.anip.core;
  */
 public class CostActual {
 
-    private final FinancialCost financial;
-    private final String varianceFromEstimate;
+    private FinancialCost financial;
+    private String varianceFromEstimate;
+
+    /** No-arg constructor for Jackson deserialization. */
+    public CostActual() {}
 
     public CostActual(FinancialCost financial, String varianceFromEstimate) {
         this.financial = financial;
@@ -19,5 +22,13 @@ public class CostActual {
 
     public String getVarianceFromEstimate() {
         return varianceFromEstimate;
+    }
+
+    public void setFinancial(FinancialCost financial) {
+        this.financial = financial;
+    }
+
+    public void setVarianceFromEstimate(String varianceFromEstimate) {
+        this.varianceFromEstimate = varianceFromEstimate;
     }
 }
