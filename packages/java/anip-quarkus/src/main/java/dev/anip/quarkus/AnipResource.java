@@ -138,8 +138,9 @@ public class AnipResource {
                     ? ((Number) body.get("ttl_hours")).intValue() : 0;
             String callerClass = (String) body.get("caller_class");
 
+            dev.anip.core.Budget tokenBudget = extractBudget(body);
             TokenRequest req = new TokenRequest(subject, scope, capability,
-                    purposeParams, parentToken, ttlHours, callerClass);
+                    purposeParams, parentToken, ttlHours, callerClass, tokenBudget);
 
             TokenResponse resp = service.issueToken(principal.get(), req);
 
@@ -204,12 +205,17 @@ public class AnipResource {
         String taskId = body != null ? (String) body.get("task_id") : null;
         String parentInvId = body != null ? (String) body.get("parent_invocation_id") : null;
 
+        // Extract budget from request body.
+        dev.anip.core.Budget budget = extractBudget(body);
+
         if (stream) {
             InvokeOpts streamOpts = new InvokeOpts(clientRefId, true, taskId, parentInvId);
+            if (budget != null) streamOpts.setBudget(budget);
             return handleStreamInvoke(capability, token, params, streamOpts);
         }
 
         InvokeOpts opts = new InvokeOpts(clientRefId, false, taskId, parentInvId);
+        if (budget != null) opts.setBudget(budget);
         Map<String, Object> result = service.invoke(capability, token, params, opts);
 
         boolean success = Boolean.TRUE.equals(result.get("success"));
@@ -381,6 +387,22 @@ public class AnipResource {
         };
 
         return Response.ok(streamingOutput).type(MediaType.SERVER_SENT_EVENTS_TYPE).build();
+    }
+
+    // --- Budget helper ---
+
+    @SuppressWarnings("unchecked")
+    private dev.anip.core.Budget extractBudget(Map<String, Object> body) {
+        if (body == null) return null;
+        Object budgetRaw = body.get("budget");
+        if (!(budgetRaw instanceof Map)) return null;
+        Map<String, Object> budgetMap = (Map<String, Object>) budgetRaw;
+        String currency = budgetMap.get("currency") instanceof String s ? s : null;
+        double maxAmount = budgetMap.get("max_amount") instanceof Number n ? n.doubleValue() : 0;
+        if (currency != null && !currency.isEmpty() && maxAmount > 0) {
+            return new dev.anip.core.Budget(currency, maxAmount);
+        }
+        return null;
     }
 
     // --- Auth helpers ---

@@ -15,10 +15,17 @@ public class TokenRequest {
     private final String parentToken;
     private final int ttlHours;
     private final String callerClass;
+    private final Budget budget;
 
     public TokenRequest(String subject, List<String> scope, String capability,
                         Map<String, Object> purposeParameters, String parentToken,
                         int ttlHours, String callerClass) {
+        this(subject, scope, capability, purposeParameters, parentToken, ttlHours, callerClass, null);
+    }
+
+    public TokenRequest(String subject, List<String> scope, String capability,
+                        Map<String, Object> purposeParameters, String parentToken,
+                        int ttlHours, String callerClass, Budget budget) {
         this.subject = subject;
         this.scope = scope;
         this.capability = capability;
@@ -26,6 +33,7 @@ public class TokenRequest {
         this.parentToken = parentToken;
         this.ttlHours = ttlHours;
         this.callerClass = callerClass;
+        this.budget = budget;
     }
 
     public String getSubject() {
@@ -55,5 +63,9 @@ public class TokenRequest {
 
     public String getCallerClass() {
         return callerClass;
+    }
+
+    public Budget getBudget() {
+        return budget;
     }
 }

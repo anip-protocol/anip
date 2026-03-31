@@ -17,12 +17,25 @@ public class CapabilityDeclaration {
     private final Cost cost;
     private final List<CapabilityRequirement> requires;
     private final List<String> responseModes;
+    private final List<BindingRequirement> requiresBinding;
+    private final List<ControlRequirement> controlRequirements;
 
     public CapabilityDeclaration(String name, String description, String contractVersion,
                                   List<CapabilityInput> inputs, CapabilityOutput output,
                                   SideEffect sideEffect, List<String> minimumScope,
                                   Cost cost, List<CapabilityRequirement> requires,
                                   List<String> responseModes) {
+        this(name, description, contractVersion, inputs, output, sideEffect,
+             minimumScope, cost, requires, responseModes, null, null);
+    }
+
+    public CapabilityDeclaration(String name, String description, String contractVersion,
+                                  List<CapabilityInput> inputs, CapabilityOutput output,
+                                  SideEffect sideEffect, List<String> minimumScope,
+                                  Cost cost, List<CapabilityRequirement> requires,
+                                  List<String> responseModes,
+                                  List<BindingRequirement> requiresBinding,
+                                  List<ControlRequirement> controlRequirements) {
         this.name = name;
         this.description = description;
         this.contractVersion = contractVersion;
@@ -33,6 +46,8 @@ public class CapabilityDeclaration {
         this.cost = cost;
         this.requires = requires;
         this.responseModes = responseModes;
+        this.requiresBinding = requiresBinding;
+        this.controlRequirements = controlRequirements;
     }
 
     public String getName() {
@@ -73,5 +88,13 @@ public class CapabilityDeclaration {
 
     public List<String> getResponseModes() {
         return responseModes;
+    }
+
+    public List<BindingRequirement> getRequiresBinding() {
+        return requiresBinding;
+    }
+
+    public List<ControlRequirement> getControlRequirements() {
+        return controlRequirements;
     }
 }

@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import dev.anip.core.ANIPError;
 import dev.anip.core.AuditFilters;
 import dev.anip.core.AuditResponse;
+import dev.anip.core.Budget;
 import dev.anip.core.CheckpointDetailResponse;
 import dev.anip.core.CheckpointListResponse;
 import dev.anip.core.DelegationToken;
@@ -64,7 +65,13 @@ public class AnipStdioServer {
             Map.entry("token_expired", AUTH_ERROR),
             Map.entry("scope_insufficient", SCOPE_ERROR),
             Map.entry("budget_exceeded", SCOPE_ERROR),
+            Map.entry("budget_currency_mismatch", SCOPE_ERROR),
+            Map.entry("budget_not_enforceable", SCOPE_ERROR),
+            Map.entry("binding_missing", SCOPE_ERROR),
+            Map.entry("binding_stale", SCOPE_ERROR),
+            Map.entry("control_requirement_unsatisfied", SCOPE_ERROR),
             Map.entry("purpose_mismatch", SCOPE_ERROR),
+            Map.entry("scope_escalation", SCOPE_ERROR),
             Map.entry("unknown_capability", NOT_FOUND_ERROR),
             Map.entry("not_found", NOT_FOUND_ERROR),
             Map.entry("internal_error", INTERNAL_ERROR),
@@ -269,9 +276,11 @@ public class AnipStdioServer {
                 ? ((Number) params.get("ttl_hours")).intValue() : 0;
         String callerClass = (String) params.get("caller_class");
 
+        Budget budget = extractBudgetFromParams(params);
+
         TokenRequest req = new TokenRequest(
                 subject, scope, capability, purposeParameters,
-                parentToken, ttlHours, callerClass
+                parentToken, ttlHours, callerClass, budget
         );
 
         TokenResponse resp = service.issueToken(principal.get(), req);
@@ -302,7 +311,13 @@ public class AnipStdioServer {
         String parentInvocationId = (String) params.get("parent_invocation_id");
         boolean stream = Boolean.TRUE.equals(params.get("stream"));
 
+        // Extract budget from params.
+        Budget budget = extractBudgetFromParams(params);
+
         InvokeOpts opts = new InvokeOpts(clientReferenceId, stream, taskId, parentInvocationId);
+        if (budget != null) {
+            opts.setBudget(budget);
+        }
 
         if (stream) {
             // Streaming invocation: collect progress notifications then return final result.
@@ -405,6 +420,20 @@ public class AnipStdioServer {
             throw new ANIPError("authentication_required", "This method requires auth.bearer");
         }
         return service.resolveBearerToken(bearer);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Budget extractBudgetFromParams(Map<String, Object> params) {
+        if (params == null) return null;
+        Object budgetRaw = params.get("budget");
+        if (!(budgetRaw instanceof Map)) return null;
+        Map<String, Object> budgetMap = (Map<String, Object>) budgetRaw;
+        String currency = budgetMap.get("currency") instanceof String s ? s : null;
+        double maxAmount = budgetMap.get("max_amount") instanceof Number n ? n.doubleValue() : 0;
+        if (currency != null && !currency.isEmpty() && maxAmount > 0) {
+            return new Budget(currency, maxAmount);
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")

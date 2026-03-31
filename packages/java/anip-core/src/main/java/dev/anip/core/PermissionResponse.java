@@ -54,16 +54,24 @@ public class PermissionResponse {
         private final String capability;
         private final String reason;
         private final String grantableBy;
+        private final List<String> unmetTokenRequirements;
 
         public RestrictedCapability(String capability, String reason, String grantableBy) {
+            this(capability, reason, grantableBy, null);
+        }
+
+        public RestrictedCapability(String capability, String reason, String grantableBy,
+                                     List<String> unmetTokenRequirements) {
             this.capability = capability;
             this.reason = reason;
             this.grantableBy = grantableBy;
+            this.unmetTokenRequirements = unmetTokenRequirements;
         }
 
         public String getCapability() { return capability; }
         public String getReason() { return reason; }
         public String getGrantableBy() { return grantableBy; }
+        public List<String> getUnmetTokenRequirements() { return unmetTokenRequirements; }
     }
 
     /** A capability that cannot be granted. */

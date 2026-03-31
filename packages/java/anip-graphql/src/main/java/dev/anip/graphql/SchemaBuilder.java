@@ -356,19 +356,17 @@ public class SchemaBuilder {
             if (certainty == null || certainty.isEmpty()) certainty = "estimate";
             StringBuilder costDir = new StringBuilder("@anipCost(certainty: \"" + certainty + "\"");
             if (decl.getCost().getFinancial() != null) {
-                Object currency = decl.getCost().getFinancial().get("currency");
+                String currency = decl.getCost().getFinancial().getCurrency();
                 if (currency != null) {
                     costDir.append(", currency: \"").append(currency).append("\"");
                 }
-                Object estRange = decl.getCost().getFinancial().get("estimated_range");
-                if (estRange instanceof Map) {
-                    Map<String, Object> range = (Map<String, Object>) estRange;
-                    if (range.get("min") != null) {
-                        costDir.append(", rangeMin: ").append(range.get("min"));
-                    }
-                    if (range.get("max") != null) {
-                        costDir.append(", rangeMax: ").append(range.get("max"));
-                    }
+                Double rangeMin = decl.getCost().getFinancial().getRangeMin();
+                Double rangeMax = decl.getCost().getFinancial().getRangeMax();
+                if (rangeMin != null) {
+                    costDir.append(", rangeMin: ").append(rangeMin);
+                }
+                if (rangeMax != null) {
+                    costDir.append(", rangeMax: ").append(rangeMax);
                 }
             }
             costDir.append(")");

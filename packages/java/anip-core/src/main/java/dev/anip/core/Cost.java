@@ -9,13 +9,13 @@ import java.util.Map;
 public class Cost {
 
     private final String certainty;
-    private final Map<String, Object> financial;
+    private final FinancialCost financial;
     private final String determinedBy;
     private final List<String> factors;
     private final Map<String, Object> compute;
     private final Map<String, Object> rateLimit;
 
-    public Cost(String certainty, Map<String, Object> financial, String determinedBy,
+    public Cost(String certainty, FinancialCost financial, String determinedBy,
                 List<String> factors, Map<String, Object> compute, Map<String, Object> rateLimit) {
         this.certainty = certainty;
         this.financial = financial;
@@ -30,7 +30,7 @@ public class Cost {
         return certainty;
     }
 
-    public Map<String, Object> getFinancial() {
+    public FinancialCost getFinancial() {
         return financial;
     }
 

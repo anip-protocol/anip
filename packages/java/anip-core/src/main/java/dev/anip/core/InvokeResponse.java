@@ -11,15 +11,23 @@ public class InvokeResponse {
     private final Object result;
     private final CostActual costActual;
     private final ANIPError failure;
+    private final BudgetContext budgetContext;
 
     public InvokeResponse(boolean success, String invocationId, String clientReferenceId,
                           Object result, CostActual costActual, ANIPError failure) {
+        this(success, invocationId, clientReferenceId, result, costActual, failure, null);
+    }
+
+    public InvokeResponse(boolean success, String invocationId, String clientReferenceId,
+                          Object result, CostActual costActual, ANIPError failure,
+                          BudgetContext budgetContext) {
         this.success = success;
         this.invocationId = invocationId;
         this.clientReferenceId = clientReferenceId;
         this.result = result;
         this.costActual = costActual;
         this.failure = failure;
+        this.budgetContext = budgetContext;
     }
 
     public boolean isSuccess() {
@@ -44,5 +52,9 @@ public class InvokeResponse {
 
     public ANIPError getFailure() {
         return failure;
+    }
+
+    public BudgetContext getBudgetContext() {
+        return budgetContext;
     }
 }

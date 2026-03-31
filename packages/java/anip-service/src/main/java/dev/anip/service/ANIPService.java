@@ -12,7 +12,10 @@ import dev.anip.core.ANIPError;
 import dev.anip.core.AuditEntry;
 import dev.anip.core.AuditFilters;
 import dev.anip.core.AuditResponse;
+import dev.anip.core.BindingRequirement;
+import dev.anip.core.Budget;
 import dev.anip.core.CapabilityDeclaration;
+import dev.anip.core.ControlRequirement;
 import dev.anip.core.Checkpoint;
 import dev.anip.core.CheckpointDetailResponse;
 import dev.anip.core.CheckpointListResponse;
@@ -367,6 +370,236 @@ public class ANIPService {
             // Fire scope validation hook (granted).
             fireScopeValidation(capName, true);
 
+            // --- Budget, binding, and control requirement enforcement (v0.13) ---
+
+            // Parse invocation-level budget hint.
+            Budget requestBudget = opts != null ? opts.getBudget() : null;
+
+            // Determine effective budget (token is ceiling, invocation hint can only narrow).
+            Budget effectiveBudget = null;
+            if (token.getConstraints() != null && token.getConstraints().getBudget() != null) {
+                effectiveBudget = token.getConstraints().getBudget();
+                if (requestBudget != null) {
+                    if (!requestBudget.getCurrency().equals(effectiveBudget.getCurrency())) {
+                        Map<String, Object> failure = new LinkedHashMap<>();
+                        failure.put("type", Constants.FAILURE_BUDGET_CURRENCY_MISMATCH);
+                        failure.put("detail", "Invocation budget is in " + requestBudget.getCurrency()
+                                + " but token budget is in " + effectiveBudget.getCurrency());
+                        Map<String, Object> tokenClaims = tokenClaimsMap(token);
+                        String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+                        failure = FailureRedaction.redact(failure, effectiveLevel);
+                        Map<String, Object> resp = new LinkedHashMap<>();
+                        resp.put("success", false);
+                        resp.put("failure", failure);
+                        resp.put("invocation_id", invocationId);
+                        resp.put("client_reference_id", clientRefId);
+                        resp.put("task_id", effectiveTaskId);
+                        resp.put("parent_invocation_id", parentInvocationId);
+                        return resp;
+                    }
+                    double narrowedAmount = Math.min(effectiveBudget.getMaxAmount(), requestBudget.getMaxAmount());
+                    effectiveBudget = new Budget(effectiveBudget.getCurrency(), narrowedAmount);
+                }
+            } else if (requestBudget != null) {
+                effectiveBudget = requestBudget;
+            }
+
+            // Budget enforcement against declared cost.
+            Double checkAmount = null;
+            if (effectiveBudget != null) {
+                CapabilityDeclaration decl = capDef.getDeclaration();
+                if (decl.getCost() != null && decl.getCost().getFinancial() != null) {
+                    if (!decl.getCost().getFinancial().getCurrency().equals(effectiveBudget.getCurrency())) {
+                        Map<String, Object> failure = new LinkedHashMap<>();
+                        failure.put("type", Constants.FAILURE_BUDGET_CURRENCY_MISMATCH);
+                        failure.put("detail", "Token budget is in " + effectiveBudget.getCurrency()
+                                + " but capability cost is in " + decl.getCost().getFinancial().getCurrency());
+                        Map<String, Object> tokenClaims = tokenClaimsMap(token);
+                        String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+                        failure = FailureRedaction.redact(failure, effectiveLevel);
+                        Map<String, Object> resp = new LinkedHashMap<>();
+                        resp.put("success", false);
+                        resp.put("failure", failure);
+                        resp.put("invocation_id", invocationId);
+                        resp.put("client_reference_id", clientRefId);
+                        resp.put("task_id", effectiveTaskId);
+                        resp.put("parent_invocation_id", parentInvocationId);
+                        return resp;
+                    }
+
+                    String certainty = decl.getCost().getCertainty();
+                    if (certainty != null) {
+                        switch (certainty) {
+                            case "fixed" -> checkAmount = decl.getCost().getFinancial().getAmount();
+                            case "estimated" -> {
+                                if (decl.getRequiresBinding() != null && !decl.getRequiresBinding().isEmpty()) {
+                                    checkAmount = resolveBoundPrice(decl.getRequiresBinding(), params);
+                                } else {
+                                    Map<String, Object> failure = new LinkedHashMap<>();
+                                    failure.put("type", Constants.FAILURE_BUDGET_NOT_ENFORCEABLE);
+                                    failure.put("detail", "Capability " + capName
+                                            + " has estimated cost but no requires_binding — budget cannot be enforced");
+                                    Map<String, Object> tokenClaims = tokenClaimsMap(token);
+                                    String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+                                    failure = FailureRedaction.redact(failure, effectiveLevel);
+                                    Map<String, Object> resp = new LinkedHashMap<>();
+                                    resp.put("success", false);
+                                    resp.put("failure", failure);
+                                    resp.put("invocation_id", invocationId);
+                                    resp.put("client_reference_id", clientRefId);
+                                    resp.put("task_id", effectiveTaskId);
+                                    resp.put("parent_invocation_id", parentInvocationId);
+                                    return resp;
+                                }
+                            }
+                            case "dynamic" -> checkAmount = decl.getCost().getFinancial().getUpperBound();
+                        }
+                    }
+
+                    if (checkAmount != null && checkAmount > effectiveBudget.getMaxAmount()) {
+                        Map<String, Object> failure = new LinkedHashMap<>();
+                        failure.put("type", Constants.FAILURE_BUDGET_EXCEEDED);
+                        failure.put("detail", "Cost $" + checkAmount + " exceeds budget $" + effectiveBudget.getMaxAmount());
+                        Map<String, Object> tokenClaims = tokenClaimsMap(token);
+                        String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+                        failure = FailureRedaction.redact(failure, effectiveLevel);
+                        Map<String, Object> resp = new LinkedHashMap<>();
+                        resp.put("success", false);
+                        resp.put("failure", failure);
+                        resp.put("invocation_id", invocationId);
+                        resp.put("client_reference_id", clientRefId);
+                        resp.put("task_id", effectiveTaskId);
+                        resp.put("parent_invocation_id", parentInvocationId);
+                        Map<String, Object> budgetCtx = new LinkedHashMap<>();
+                        budgetCtx.put("budget_max", effectiveBudget.getMaxAmount());
+                        budgetCtx.put("budget_currency", effectiveBudget.getCurrency());
+                        budgetCtx.put("cost_check_amount", checkAmount);
+                        budgetCtx.put("cost_certainty", certainty);
+                        resp.put("budget_context", budgetCtx);
+                        return resp;
+                    }
+                }
+            }
+
+            // Binding enforcement.
+            if (capDef.getDeclaration().getRequiresBinding() != null) {
+                for (BindingRequirement binding : capDef.getDeclaration().getRequiresBinding()) {
+                    Object val = params.get(binding.getField());
+                    if (val == null) {
+                        String sourceDesc = binding.getSourceCapability();
+                        if (sourceDesc == null || sourceDesc.isEmpty()) {
+                            sourceDesc = "source capability";
+                        }
+                        Map<String, Object> failure = new LinkedHashMap<>();
+                        failure.put("type", Constants.FAILURE_BINDING_MISSING);
+                        failure.put("detail", "Capability " + capName + " requires '" + binding.getField()
+                                + "' (type: " + binding.getType() + ")");
+                        failure.put("resolution", Map.of(
+                                "action", "obtain_binding",
+                                "requires", "invoke " + sourceDesc + " to obtain a " + binding.getField()
+                        ));
+                        Map<String, Object> tokenClaims = tokenClaimsMap(token);
+                        String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+                        failure = FailureRedaction.redact(failure, effectiveLevel);
+                        Map<String, Object> resp = new LinkedHashMap<>();
+                        resp.put("success", false);
+                        resp.put("failure", failure);
+                        resp.put("invocation_id", invocationId);
+                        resp.put("client_reference_id", clientRefId);
+                        resp.put("task_id", effectiveTaskId);
+                        resp.put("parent_invocation_id", parentInvocationId);
+                        return resp;
+                    }
+                    if (binding.getMaxAge() != null && !binding.getMaxAge().isEmpty()) {
+                        long ageSeconds = resolveBindingAge(val);
+                        if (ageSeconds >= 0) {
+                            long maxAgeSeconds = parseISO8601DurationSeconds(binding.getMaxAge());
+                            if (maxAgeSeconds > 0 && ageSeconds > maxAgeSeconds) {
+                                String sourceDesc = binding.getSourceCapability();
+                                if (sourceDesc == null || sourceDesc.isEmpty()) {
+                                    sourceDesc = "source capability";
+                                }
+                                Map<String, Object> failure = new LinkedHashMap<>();
+                                failure.put("type", Constants.FAILURE_BINDING_STALE);
+                                failure.put("detail", "Binding '" + binding.getField()
+                                        + "' has exceeded max_age of " + binding.getMaxAge());
+                                failure.put("resolution", Map.of(
+                                        "action", "refresh_binding",
+                                        "requires", "invoke " + sourceDesc + " again for a fresh " + binding.getField()
+                                ));
+                                Map<String, Object> tokenClaims = tokenClaimsMap(token);
+                                String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+                                failure = FailureRedaction.redact(failure, effectiveLevel);
+                                Map<String, Object> resp = new LinkedHashMap<>();
+                                resp.put("success", false);
+                                resp.put("failure", failure);
+                                resp.put("invocation_id", invocationId);
+                                resp.put("client_reference_id", clientRefId);
+                                resp.put("task_id", effectiveTaskId);
+                                resp.put("parent_invocation_id", parentInvocationId);
+                                return resp;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Control requirement enforcement (reject only — no warn in v0.13).
+            if (capDef.getDeclaration().getControlRequirements() != null) {
+                for (ControlRequirement req : capDef.getDeclaration().getControlRequirements()) {
+                    boolean satisfied = true;
+                    switch (req.getType()) {
+                        case "cost_ceiling" -> satisfied = effectiveBudget != null;
+                        case "bound_reference" -> {
+                            if (req.getField() != null && !req.getField().isEmpty()) {
+                                Object val = params.get(req.getField());
+                                satisfied = val != null;
+                            } else {
+                                satisfied = false;
+                            }
+                        }
+                        case "freshness_window" -> {
+                            if (req.getField() != null && !req.getField().isEmpty()) {
+                                Object val = params.get(req.getField());
+                                if (val != null) {
+                                    long ageSeconds = resolveBindingAge(val);
+                                    if (ageSeconds >= 0 && req.getMaxAge() != null && !req.getMaxAge().isEmpty()) {
+                                        long maxAgeSeconds = parseISO8601DurationSeconds(req.getMaxAge());
+                                        satisfied = maxAgeSeconds == 0 || ageSeconds <= maxAgeSeconds;
+                                    }
+                                } else {
+                                    satisfied = false;
+                                }
+                            } else {
+                                satisfied = false;
+                            }
+                        }
+                        case "stronger_delegation_required" -> {
+                            satisfied = token.getPurpose() != null
+                                    && capName.equals(token.getPurpose().getCapability());
+                        }
+                    }
+
+                    if (!satisfied) {
+                        Map<String, Object> failure = new LinkedHashMap<>();
+                        failure.put("type", Constants.FAILURE_CONTROL_REQUIREMENT_UNSATISFIED);
+                        failure.put("detail", "Capability " + capName + " requires " + req.getType());
+                        failure.put("unsatisfied_requirements", List.of(req.getType()));
+                        Map<String, Object> tokenClaims = tokenClaimsMap(token);
+                        String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+                        failure = FailureRedaction.redact(failure, effectiveLevel);
+                        Map<String, Object> resp = new LinkedHashMap<>();
+                        resp.put("success", false);
+                        resp.put("failure", failure);
+                        resp.put("invocation_id", invocationId);
+                        resp.put("client_reference_id", clientRefId);
+                        resp.put("task_id", effectiveTaskId);
+                        resp.put("parent_invocation_id", parentInvocationId);
+                        return resp;
+                    }
+                }
+            }
+
             // 4. Build invocation context.
             String rootPrincipal = token.getRootPrincipal();
             if (rootPrincipal == null || rootPrincipal.isEmpty()) {
@@ -446,6 +679,31 @@ public class ANIPService {
             resp.put("parent_invocation_id", parentInvocationId);
             if (costActual != null) {
                 resp.put("cost_actual", costActual);
+            }
+
+            // Budget context in response (v0.13).
+            if (effectiveBudget != null) {
+                Double costActualAmount = null;
+                if (costActual != null && costActual.getFinancial() != null
+                        && costActual.getFinancial().getAmount() != null) {
+                    costActualAmount = costActual.getFinancial().getAmount();
+                }
+                String costCertainty = null;
+                if (capDef.getDeclaration().getCost() != null) {
+                    costCertainty = capDef.getDeclaration().getCost().getCertainty();
+                }
+                Map<String, Object> budgetCtx = new LinkedHashMap<>();
+                budgetCtx.put("budget_max", effectiveBudget.getMaxAmount());
+                budgetCtx.put("budget_currency", effectiveBudget.getCurrency());
+                budgetCtx.put("cost_certainty", costCertainty);
+                budgetCtx.put("within_budget", true);
+                if (checkAmount != null) {
+                    budgetCtx.put("cost_check_amount", checkAmount);
+                }
+                if (costActualAmount != null) {
+                    budgetCtx.put("cost_actual", costActualAmount);
+                }
+                resp.put("budget_context", budgetCtx);
             }
 
             invokeSuccess = true;
@@ -694,6 +952,49 @@ public class ANIPService {
             }
 
             if (missing.isEmpty()) {
+                // Scope matched — check token-evaluable control requirements.
+                List<String> unmet = new ArrayList<>();
+                List<ControlRequirement> controlReqs = cap.getDeclaration().getControlRequirements();
+                if (controlReqs != null) {
+                    for (ControlRequirement cr : controlReqs) {
+                        switch (cr.getType()) {
+                            case "cost_ceiling" -> {
+                                if (token.getConstraints() == null || token.getConstraints().getBudget() == null) {
+                                    unmet.add("cost_ceiling");
+                                }
+                            }
+                            case "stronger_delegation_required" -> {
+                                boolean tokenHasExplicitBinding = token.getPurpose() != null
+                                        && name.equals(token.getPurpose().getCapability());
+                                if (!tokenHasExplicitBinding) {
+                                    unmet.add("stronger_delegation_required");
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!unmet.isEmpty()) {
+                    boolean hasRejectEnforcement = false;
+                    if (controlReqs != null) {
+                        for (ControlRequirement cr : controlReqs) {
+                            if ("reject".equals(cr.getEnforcement()) && unmet.contains(cr.getType())) {
+                                hasRejectEnforcement = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (hasRejectEnforcement) {
+                        restricted.add(new PermissionResponse.RestrictedCapability(
+                                name,
+                                "missing control requirements: " + String.join(", ", unmet),
+                                rootPrincipal,
+                                unmet
+                        ));
+                        continue;
+                    }
+                }
+
                 Map<String, Object> constraints = new HashMap<>();
                 for (String scopeStr : matchedScopeStrs) {
                     if (scopeStr.contains(":max_$")) {
@@ -707,6 +1008,11 @@ public class ANIPService {
                             }
                         }
                     }
+                }
+                // Include constraints-level budget info if present.
+                if (token.getConstraints() != null && token.getConstraints().getBudget() != null) {
+                    constraints.put("budget_remaining", token.getConstraints().getBudget().getMaxAmount());
+                    constraints.put("currency", token.getConstraints().getBudget().getCurrency());
                 }
                 available.add(new PermissionResponse.AvailableCapability(
                         name, String.join(", ", matchedScopeStrs), constraints
@@ -1212,6 +1518,78 @@ public class ANIPService {
             }
         } catch (Exception ignored) {
         }
+    }
+
+    // --- Budget / binding helper methods ---
+
+    /**
+     * Extracts a bound price from params using capability's binding declarations.
+     */
+    @SuppressWarnings("unchecked")
+    private static Double resolveBoundPrice(List<BindingRequirement> bindings, Map<String, Object> params) {
+        for (BindingRequirement binding : bindings) {
+            Object v = params.get(binding.getField());
+            if (v instanceof Map) {
+                Map<String, Object> m = (Map<String, Object>) v;
+                Object price = m.get("price");
+                if (price instanceof Number n) {
+                    return n.doubleValue();
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Determines the age of a binding value in seconds.
+     * Returns -1 if age cannot be determined.
+     */
+    @SuppressWarnings("unchecked")
+    private static long resolveBindingAge(Object bindingValue) {
+        long now = System.currentTimeMillis() / 1000;
+        if (bindingValue instanceof Map) {
+            Map<String, Object> m = (Map<String, Object>) bindingValue;
+            Object issuedAt = m.get("issued_at");
+            if (issuedAt instanceof Number n) {
+                return now - n.longValue();
+            }
+        }
+        if (bindingValue instanceof String s) {
+            // Try to extract unix timestamp from format like "qt-hexhex-1234567890"
+            java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("-(\\d{10,})$").matcher(s);
+            if (matcher.find()) {
+                try {
+                    long ts = Long.parseLong(matcher.group(1));
+                    if (ts > 1000000000) {
+                        return now - ts;
+                    }
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Parses a simple ISO 8601 duration string like PT15M, PT1H30M, PT30S.
+     * Returns the duration in seconds.
+     */
+    private static long parseISO8601DurationSeconds(String d) {
+        if (d == null || d.isEmpty()) return 0;
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(
+                "PT(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?").matcher(d);
+        if (!matcher.matches()) return 0;
+        long total = 0;
+        if (matcher.group(1) != null) {
+            total += Long.parseLong(matcher.group(1)) * 3600;
+        }
+        if (matcher.group(2) != null) {
+            total += Long.parseLong(matcher.group(2)) * 60;
+        }
+        if (matcher.group(3) != null) {
+            total += Long.parseLong(matcher.group(3));
+        }
+        return total;
     }
 
     private static String formatDuration(Duration d) {
