@@ -2,7 +2,7 @@
 from anip_service import Capability, InvocationContext, ANIPError
 from anip_core import (
     CapabilityDeclaration, CapabilityInput, CapabilityOutput, CapabilityRequirement,
-    Cost, CostCertainty, ObservabilityContract, ResponseMode, SessionInfo,
+    Cost, CostCertainty, FinancialCost, ObservabilityContract, ResponseMode, SessionInfo,
     SideEffect, SideEffectType,
 )
 import data
@@ -128,12 +128,12 @@ _BOOK_DECL = CapabilityDeclaration(
     minimum_scope=["travel.book"],
     cost=Cost(
         certainty=CostCertainty.ESTIMATED,
-        financial={
-            "range_min": 180,
-            "range_max": 550,
-            "typical": 300,
-            "currency": "USD",
-        },
+        financial=FinancialCost(
+            currency="USD",
+            range_min=180,
+            range_max=550,
+            typical=300,
+        ),
         determined_by="search_flights",
         compute={"latency_p50": "1s", "tokens": 1000},
     ),

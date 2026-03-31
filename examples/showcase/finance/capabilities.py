@@ -2,7 +2,7 @@
 from anip_service import Capability, InvocationContext, ANIPError
 from anip_core import (
     CapabilityDeclaration, CapabilityInput, CapabilityOutput, CapabilityRequirement,
-    Cost, CostCertainty, ObservabilityContract, ResponseMode, SessionInfo,
+    Cost, CostCertainty, FinancialCost, ObservabilityContract, ResponseMode, SessionInfo,
     SideEffect, SideEffectType,
 )
 import data
@@ -109,12 +109,12 @@ _TRADE_DECL = CapabilityDeclaration(
     minimum_scope=["finance.trade"],
     cost=Cost(
         certainty=CostCertainty.ESTIMATED,
-        financial={
-            "range_min": 10,
-            "range_max": 50000,
-            "typical": 1800,
-            "currency": "USD",
-        },
+        financial=FinancialCost(
+            currency="USD",
+            range_min=10,
+            range_max=50000,
+            typical=1800,
+        ),
         determined_by="get_market_data",
         compute={"latency_p50": "500ms", "tokens": 800},
     ),
@@ -192,12 +192,12 @@ _TRANSFER_DECL = CapabilityDeclaration(
     minimum_scope=["finance.transfer"],
     cost=Cost(
         certainty=CostCertainty.FIXED,
-        financial={
-            "range_min": 25,
-            "range_max": 25,
-            "typical": 25,
-            "currency": "USD",
-        },
+        financial=FinancialCost(
+            currency="USD",
+            range_min=25,
+            range_max=25,
+            typical=25,
+        ),
         compute={"latency_p50": "800ms", "tokens": 500},
     ),
     session=SessionInfo(),
