@@ -205,14 +205,17 @@ export type AvailableCapability = z.infer<typeof AvailableCapability>;
 export const RestrictedCapability = z.object({
   capability: z.string(),
   reason: z.string(),
+  reason_type: z.string(),
   grantable_by: z.string(),
   unmet_token_requirements: z.array(z.string()).default([]),
+  resolution_hint: z.string().nullable().default(null),
 });
 export type RestrictedCapability = z.infer<typeof RestrictedCapability>;
 
 export const DeniedCapability = z.object({
   capability: z.string(),
   reason: z.string(),
+  reason_type: z.string(),
 });
 export type DeniedCapability = z.infer<typeof DeniedCapability>;
 
