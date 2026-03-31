@@ -35,7 +35,7 @@ public static class DelegationEngine
             resolvedTaskId = callerTaskId.ToString();
             pp.Remove("task_id");
         }
-        else if (request.PurposeParameters == null || request.PurposeParameters.Count == 0)
+        else if (request.PurposeParameters == null)
         {
             resolvedTaskId = $"task-{tokenId}";
         }

@@ -57,7 +57,7 @@ public final class DelegationEngine {
         String resolvedTaskId;
         if (purposeParams.containsKey("task_id") && purposeParams.get("task_id") != null) {
             resolvedTaskId = purposeParams.remove("task_id").toString();
-        } else if (req.getPurposeParameters() == null || req.getPurposeParameters().isEmpty()) {
+        } else if (req.getPurposeParameters() == null) {
             resolvedTaskId = "task-" + tokenId;
         } else {
             resolvedTaskId = null;

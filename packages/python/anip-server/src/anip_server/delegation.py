@@ -601,7 +601,7 @@ class DelegationEngine:
         caller_task_id = pp.pop("task_id", None)
         if caller_task_id is not None:
             resolved_task_id = caller_task_id  # Caller explicitly set it
-        elif not purpose_parameters:
+        elif purpose_parameters is None:
             resolved_task_id = f"task-{token_id}"  # No purpose_parameters at all — auto-generate
         else:
             resolved_task_id = None  # Caller sent purpose_parameters but without task_id — unbound

@@ -451,14 +451,14 @@ export class DelegationEngine {
       concurrent = opts.parentToken.constraints.concurrent_branches;
     }
 
-    // task_id: use caller-supplied value, auto-generate only if no purposeParameters
-    const pp = opts.purposeParameters ?? {};
-    const callerTaskId = pp.task_id;
+    // task_id: use caller-supplied value, auto-generate only if purposeParameters is absent
+    const pp: Record<string, any> = opts.purposeParameters ? { ...opts.purposeParameters } : {};
+    const callerTaskId = pp.task_id as string | undefined;
     let resolvedTaskId: string | null;
     if (callerTaskId !== undefined && callerTaskId !== null) {
       resolvedTaskId = callerTaskId;
       delete pp.task_id;
-    } else if (!opts.purposeParameters || Object.keys(opts.purposeParameters).length === 0) {
+    } else if (opts.purposeParameters === undefined || opts.purposeParameters === null) {
       resolvedTaskId = `task-${tokenId}`;
     } else {
       resolvedTaskId = null;

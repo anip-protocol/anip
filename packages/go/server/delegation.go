@@ -36,7 +36,7 @@ func IssueDelegationToken(
 	if callerTaskID, ok := pp["task_id"]; ok && callerTaskID != nil {
 		resolvedTaskID = fmt.Sprintf("%v", callerTaskID)
 		delete(pp, "task_id")
-	} else if len(req.PurposeParameters) == 0 {
+	} else if req.PurposeParameters == nil {
 		resolvedTaskID = fmt.Sprintf("task-%s", tokenID)
 	}
 	purpose := core.Purpose{
