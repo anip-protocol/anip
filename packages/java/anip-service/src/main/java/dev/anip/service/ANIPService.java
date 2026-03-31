@@ -550,30 +550,6 @@ public class ANIPService {
                     boolean satisfied = true;
                     switch (req.getType()) {
                         case "cost_ceiling" -> satisfied = effectiveBudget != null;
-                        case "bound_reference" -> {
-                            if (req.getField() != null && !req.getField().isEmpty()) {
-                                Object val = params.get(req.getField());
-                                satisfied = val != null;
-                            } else {
-                                satisfied = false;
-                            }
-                        }
-                        case "freshness_window" -> {
-                            if (req.getField() != null && !req.getField().isEmpty()) {
-                                Object val = params.get(req.getField());
-                                if (val != null) {
-                                    long ageSeconds = resolveBindingAge(val);
-                                    if (ageSeconds >= 0 && req.getMaxAge() != null && !req.getMaxAge().isEmpty()) {
-                                        long maxAgeSeconds = parseISO8601DurationSeconds(req.getMaxAge());
-                                        satisfied = maxAgeSeconds == 0 || ageSeconds <= maxAgeSeconds;
-                                    }
-                                } else {
-                                    satisfied = false;
-                                }
-                            } else {
-                                satisfied = false;
-                            }
-                        }
                         case "stronger_delegation_required" -> {
                             satisfied = token.getPurpose() != null
                                     && capName.equals(token.getPurpose().getCapability());
