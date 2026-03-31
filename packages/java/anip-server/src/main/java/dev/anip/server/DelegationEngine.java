@@ -51,15 +51,21 @@ public final class DelegationEngine {
         }
         Instant expires = now.plusSeconds((long) ttlHours * 3600);
 
-        // Build purpose.
-        Map<String, Object> purposeParams = req.getPurposeParameters();
-        if (purposeParams == null) {
-            purposeParams = Map.of();
+        // Build purpose — use caller-supplied task_id if present
+        Map<String, Object> purposeParams = req.getPurposeParameters() != null
+                ? new java.util.HashMap<>(req.getPurposeParameters()) : new java.util.HashMap<>();
+        String resolvedTaskId;
+        if (purposeParams.containsKey("task_id") && purposeParams.get("task_id") != null) {
+            resolvedTaskId = purposeParams.remove("task_id").toString();
+        } else if (req.getPurposeParameters() == null || req.getPurposeParameters().isEmpty()) {
+            resolvedTaskId = "task-" + tokenId;
+        } else {
+            resolvedTaskId = null;
         }
         Purpose purpose = new Purpose(
                 req.getCapability(),
                 purposeParams,
-                "task-" + tokenId
+                resolvedTaskId
         );
 
         // Build constraints.

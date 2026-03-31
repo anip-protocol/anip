@@ -451,6 +451,19 @@ export class DelegationEngine {
       concurrent = opts.parentToken.constraints.concurrent_branches;
     }
 
+    // task_id: use caller-supplied value, auto-generate only if no purposeParameters
+    const pp = opts.purposeParameters ?? {};
+    const callerTaskId = pp.task_id;
+    let resolvedTaskId: string | null;
+    if (callerTaskId !== undefined && callerTaskId !== null) {
+      resolvedTaskId = callerTaskId;
+      delete pp.task_id;
+    } else if (!opts.purposeParameters || Object.keys(opts.purposeParameters).length === 0) {
+      resolvedTaskId = `task-${tokenId}`;
+    } else {
+      resolvedTaskId = null;
+    }
+
     const token: DelegationTokenType = {
       token_id: tokenId,
       issuer: opts.issuer,
@@ -458,8 +471,8 @@ export class DelegationEngine {
       scope: opts.scope,
       purpose: {
         capability: opts.capability,
-        parameters: opts.purposeParameters,
-        task_id: `task-${tokenId}`,
+        parameters: pp,
+        task_id: resolvedTaskId,
       },
       parent: opts.parentToken ? opts.parentToken.token_id : null,
       expires: expires.toISOString(),

@@ -35,7 +35,7 @@ class SideEffect(BaseModel):
 class Purpose(BaseModel):
     capability: str
     parameters: dict[str, Any] = Field(default_factory=dict)
-    task_id: str
+    task_id: str | None = None
 
 
 class ConcurrentBranches(str, Enum):
