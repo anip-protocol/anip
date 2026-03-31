@@ -254,7 +254,7 @@ class DelegationEngine:
                 type="scope_insufficient",
                 detail=f"delegation chain lacks scope(s): {', '.join(missing_scopes)}",
                 resolution=Resolution(
-                    action="request_scope_grant",
+                    action="request_broader_scope",
                     requires=f"delegation.scope += {', '.join(missing_scopes)}",
                     grantable_by=root_principal,
                 ),

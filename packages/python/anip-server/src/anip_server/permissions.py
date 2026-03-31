@@ -42,14 +42,20 @@ def discover_permissions(
         if missing:
             if any(s.startswith("admin.") for s in missing):
                 denied.append(
-                    DeniedCapability(capability=name, reason="requires admin principal")
+                    DeniedCapability(
+                        capability=name,
+                        reason="requires admin principal",
+                        reason_type="non_delegable",
+                    )
                 )
             else:
                 restricted.append(
                     RestrictedCapability(
                         capability=name,
                         reason=f"delegation chain lacks scope(s): {', '.join(missing)}",
+                        reason_type="insufficient_scope",
                         grantable_by=root_principal,
+                        resolution_hint="request_broader_scope",
                     )
                 )
             continue
@@ -73,12 +79,19 @@ def discover_permissions(
             for r in cap.control_requirements
             if r.type in unmet
         ):
+            # Determine the most specific resolution hint based on unmet requirements
+            if "cost_ceiling" in unmet:
+                ctrl_resolution_hint = "request_budget_bound_delegation"
+            else:
+                ctrl_resolution_hint = "request_capability_binding"
             restricted.append(
                 RestrictedCapability(
                     capability=name,
                     reason=f"missing control requirements: {', '.join(unmet)}",
+                    reason_type="unmet_control_requirement",
                     grantable_by=root_principal,
                     unmet_token_requirements=unmet,
+                    resolution_hint=ctrl_resolution_hint,
                 )
             )
             continue
