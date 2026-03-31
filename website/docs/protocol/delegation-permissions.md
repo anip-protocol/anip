@@ -115,6 +115,52 @@ The response separates capabilities into three buckets:
 
 This is fundamentally different from REST APIs, where the agent discovers permissions only by attempting actions and interpreting error codes. With ANIP, the agent can plan before acting and explain blockers to its user.
 
+### reason_type vocabulary (v0.15)
+
+Starting in v0.15, every `restricted` and `denied` entry includes a machine-readable `reason_type` field. Agents use this to distinguish between restriction categories without parsing the human-readable `reason` string.
+
+| `reason_type` | Determined by | Meaning |
+|---------------|--------------|---------|
+| `scope_insufficient` | Token scope vs. capability `minimum_scope` | The delegation token lacks one or more required scope strings |
+| `non_delegable_action` | Capability handler or service policy | The capability requires the direct (root) principal — delegated agents are blocked |
+| `principal_class` | Caller identity class vs. service policy | Wrong principal class (e.g., agent attempting an admin-only action) |
+| `token_requirement` | `control_requirements` token-evaluable checks | The token does not satisfy a declared control requirement (e.g., `cost_ceiling`) |
+| `policy_blocked` | Service-side runtime policy | A server-side policy blocks the caller regardless of scope or token shape |
+
+Example `restricted` entry with `reason_type` and `resolution_hint`:
+
+```json
+{
+  "restricted": [
+    {
+      "capability": "book_flight",
+      "reason": "missing scope: travel.book",
+      "reason_type": "scope_insufficient",
+      "grantable_by": "human:admin@company.com",
+      "resolution_hint": "Request the 'travel.book' scope from your delegation grantor"
+    }
+  ]
+}
+```
+
+Example `denied` entry for a non-delegable action:
+
+```json
+{
+  "denied": [
+    {
+      "capability": "destroy_environment",
+      "reason": "destroy_environment requires direct principal action and cannot be delegated",
+      "reason_type": "non_delegable_action"
+    }
+  ]
+}
+```
+
+### resolution_hint field (v0.15)
+
+Restricted entries may include a `resolution_hint` string — a short, human-readable suggestion for how to resolve the restriction. Unlike `reason` (which explains *why*), `resolution_hint` explains *what to do next*. Agents can surface this directly to users without custom handling per failure type.
+
 ## Budget constraints in delegation
 
 Starting in v0.14, delegation tokens can carry enforceable budget constraints via `constraints.budget`:

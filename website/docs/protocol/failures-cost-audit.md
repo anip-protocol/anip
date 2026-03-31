@@ -49,6 +49,48 @@ Compare these two failure experiences:
 
 **ANIP**: Agent gets a structured failure that says "you need a higher budget, your manager can grant it, and it's available immediately." The agent can report this to the user and take specific action to resolve the block.
 
+### v0.15 failure types
+
+v0.15 adds `non_delegable_action` for capabilities that require the direct (root) principal:
+
+| Failure type | Description |
+|-------------|-------------|
+| `non_delegable_action` | The capability requires the direct principal (root of the delegation chain) and cannot be invoked by a delegated agent. The human must invoke this capability directly. |
+
+Example:
+
+```json
+{
+  "success": false,
+  "invocation_id": "inv-9c1e2f3a4b5d",
+  "failure": {
+    "type": "non_delegable_action",
+    "detail": "destroy_environment requires direct principal action and cannot be delegated",
+    "retry": false,
+    "resolution": {
+      "action": "invoke_as_root_principal",
+      "requires": "direct_principal_invocation"
+    }
+  }
+}
+```
+
+### Canonical authority resolution actions (v0.15)
+
+The `resolution.action` field uses canonical string values. The table below lists all authority-related resolution actions:
+
+| `resolution.action` | Meaning | Replaces (deprecated) |
+|--------------------|---------|----------------------|
+| `request_broader_scope` | Obtain a delegation token with wider scope | `request_scope_grant` (removed in v0.15) |
+| `request_budget_increase` | Obtain a higher-budget delegation | — |
+| `invoke_as_root_principal` | The human must invoke directly (non-delegable) | — |
+| `obtain_binding` | Invoke the source capability first to get a binding | — |
+| `refresh_binding` | Re-invoke the source capability for a fresh quote | — |
+| `obtain_quote_first` | Get a bound price before invoking an estimated-cost capability | — |
+| `obtain_matching_currency` | Re-delegate with matching budget currency | — |
+
+> **Deprecation:** The `request_scope_grant` value for `resolution.action` was removed in v0.15. All conformant implementations must use `request_broader_scope` instead. Clients that check for `request_scope_grant` should be updated.
+
 ### v0.14 failure types
 
 v0.14 adds six failure types for budget, binding, and control scenarios:

@@ -383,8 +383,37 @@ The token issuance request can include a `budget` field, which the service store
 | Bucket | Meaning |
 |--------|---------|
 | `available` | Token has sufficient scope. Fields: `capability`, `scope_match`, `constraints` |
-| `restricted` | Missing a grantable scope. Fields: `capability`, `reason`, `grantable_by`, `unmet_token_requirements` |
-| `denied` | Structurally impossible (wrong principal class). Fields: `capability`, `reason` |
+| `restricted` | Missing a grantable scope. Fields: `capability`, `reason`, `reason_type`, `grantable_by`, `unmet_token_requirements`, `resolution_hint` |
+| `denied` | Structurally impossible (wrong principal class). Fields: `capability`, `reason`, `reason_type` |
+
+### Permission response fields — restricted entry (v0.15)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `capability` | string | Yes | Capability name |
+| `reason` | string | Yes | Human-readable explanation of the restriction |
+| `reason_type` | string | Yes | Machine-readable restriction category (see below) |
+| `grantable_by` | string | No | Principal who can grant the missing authority |
+| `unmet_token_requirements` | string[] | No | Unsatisfied `control_requirements` types |
+| `resolution_hint` | string | No | Short actionable suggestion for resolving the restriction |
+
+### Permission response fields — denied entry (v0.15)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `capability` | string | Yes | Capability name |
+| `reason` | string | Yes | Human-readable explanation of the denial |
+| `reason_type` | string | Yes | Machine-readable denial category (see below) |
+
+### reason_type values
+
+| Value | When used |
+|-------|-----------|
+| `scope_insufficient` | Token lacks one or more required scope strings |
+| `non_delegable_action` | Capability requires the direct (root) principal; delegated agents are blocked |
+| `principal_class` | Wrong principal class (e.g., agent attempting an admin-only action) |
+| `token_requirement` | Token does not satisfy a declared control requirement |
+| `policy_blocked` | Server-side runtime policy blocks this caller regardless of token shape |
 
 ### Unmet token requirements (v0.14)
 
@@ -539,6 +568,12 @@ When a budget was evaluated (success or failure), the response includes a `budge
 | `requires` | string | No | What's needed to resolve |
 | `grantable_by` | string | No | Who can grant what's needed (principal identifier) |
 | `estimated_availability` | string | No | How soon resolution is possible (e.g., `immediate`, `24h`) |
+
+### Failure types — authority (v0.15)
+
+| Type | When | Retry | Typical resolution |
+|------|------|-------|--------------------|
+| `non_delegable_action` | Capability requires the root principal; a delegated agent attempted it | No | `invoke_as_root_principal` — the human must invoke directly |
 
 ### Failure types — budget, binding, and control (v0.14)
 
