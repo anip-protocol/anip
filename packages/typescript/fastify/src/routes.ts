@@ -60,11 +60,15 @@ export async function mountAnip(
       const body = req.body as Record<string, unknown>;
       const params = (body.parameters as Record<string, unknown>) ?? body;
       const clientReferenceId = (body.client_reference_id as string) ?? null;
+      const taskId = (body.task_id as string) ?? null;
+      const parentInvocationId = (body.parent_invocation_id as string) ?? null;
 
       if (!body.stream) {
         // Unary mode — existing behavior
         const result = await service.invoke(req.params.capability, token, params, {
           clientReferenceId,
+          taskId,
+          parentInvocationId,
         });
         if (!result.success) {
           const failure = result.failure as Record<string, unknown>;
@@ -78,7 +82,7 @@ export async function mountAnip(
       const modes = (decl?.response_modes as string[]) ?? ["unary"];
       if (!modes.includes("streaming")) {
         const result = await service.invoke(req.params.capability, token, params, {
-          clientReferenceId, stream: true,
+          clientReferenceId, taskId, parentInvocationId, stream: true,
         });
         const failure = result.failure as Record<string, unknown>;
         return reply.status(failureStatus(failure?.type as string)).send(result);
@@ -95,6 +99,8 @@ export async function mountAnip(
 
       const result = await service.invoke(req.params.capability, token, params, {
         clientReferenceId,
+        taskId,
+        parentInvocationId,
         stream: true,
         progressSink: async (event) => {
           const eventData = { ...event, timestamp: new Date().toISOString() };
@@ -131,6 +137,8 @@ export async function mountAnip(
       since: query.since ?? undefined,
       invocation_id: query.invocation_id ?? undefined,
       client_reference_id: query.client_reference_id ?? undefined,
+      task_id: query.task_id ?? undefined,
+      parent_invocation_id: query.parent_invocation_id ?? undefined,
       event_class: query.event_class ?? undefined,
       limit: parseInt(query.limit ?? "50", 10),
     };

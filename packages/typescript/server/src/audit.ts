@@ -47,6 +47,8 @@ export class AuditLog {
       delegation_chain: entryData.delegation_chain ?? null,
       invocation_id: entryData.invocation_id ?? null,
       client_reference_id: entryData.client_reference_id ?? null,
+      task_id: entryData.task_id ?? null,
+      parent_invocation_id: entryData.parent_invocation_id ?? null,
       stream_summary: entryData.streamSummary ?? entryData.stream_summary ?? null,
       event_class: entryData.event_class ?? null,
       retention_tier: entryData.retention_tier ?? null,
@@ -78,6 +80,8 @@ export class AuditLog {
     since?: string;
     invocationId?: string;
     clientReferenceId?: string;
+    taskId?: string;
+    parentInvocationId?: string;
     eventClass?: string;
     limit?: number;
   }): Promise<Record<string, unknown>[]> {

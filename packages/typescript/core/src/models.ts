@@ -32,7 +32,7 @@ export type SideEffect = z.infer<typeof SideEffect>;
 export const Purpose = z.object({
   capability: z.string(),
   parameters: z.record(z.any()).default({}),
-  task_id: z.string(),
+  task_id: z.string().nullable().default(null),
 });
 export type Purpose = z.infer<typeof Purpose>;
 

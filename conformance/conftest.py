@@ -101,15 +101,27 @@ def issue_token(
     scope: list[str],
     capability: str,
     bootstrap_bearer: str,
+    *,
+    task_id: str | None = "conformance-test",
 ) -> str:
-    """Issue a delegation token via API key. Returns the JWT string."""
+    """Issue a delegation token via API key. Returns the JWT string.
+
+    Args:
+        task_id: If provided, binds the token to this task_id via
+            purpose_parameters. Pass None to issue a token without
+            task binding (needed for tests that set task_id per invocation).
+    """
+    purpose_parameters: dict = {}
+    if task_id is not None:
+        purpose_parameters["task_id"] = task_id
+
     resp = client.post(
         "/anip/tokens",
         headers={"Authorization": f"Bearer {bootstrap_bearer}"},
         json={
             "scope": scope,
             "capability": capability,
-            "purpose_parameters": {"task_id": "conformance-test"},
+            "purpose_parameters": purpose_parameters,
         },
     )
     assert resp.status_code == 200, f"Token issuance failed: {resp.status_code} {resp.text}"

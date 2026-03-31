@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
 	root_principal TEXT NOT NULL,
 	invocation_id TEXT NOT NULL,
 	client_reference_id TEXT,
+	task_id TEXT,
+	parent_invocation_id TEXT,
 	data TEXT NOT NULL,
 	previous_hash TEXT NOT NULL,
 	signature TEXT NOT NULL DEFAULT ''
@@ -35,6 +37,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_capability ON audit_log(capability);
 CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
 CREATE INDEX IF NOT EXISTS idx_audit_root_principal ON audit_log(root_principal);
 CREATE INDEX IF NOT EXISTS idx_audit_invocation_id ON audit_log(invocation_id);
+CREATE INDEX IF NOT EXISTS idx_audit_task_id ON audit_log(task_id);
+CREATE INDEX IF NOT EXISTS idx_audit_parent_invocation_id ON audit_log(parent_invocation_id);
 
 CREATE TABLE IF NOT EXISTS audit_append_head (
 	id INTEGER PRIMARY KEY DEFAULT 1,
@@ -188,8 +192,9 @@ func (s *PostgresStorage) AppendAuditEntry(entry *core.AuditEntry) (*core.AuditE
 	// Insert the audit entry with an explicit sequence_number.
 	_, err = tx.Exec(context.Background(),
 		`INSERT INTO audit_log (sequence_number, timestamp, capability, token_id, root_principal,
-		 invocation_id, client_reference_id, data, previous_hash, signature)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		 invocation_id, client_reference_id, task_id, parent_invocation_id,
+		 data, previous_hash, signature)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
 		newSeqNum,
 		entry.Timestamp,
 		entry.Capability,
@@ -197,6 +202,8 @@ func (s *PostgresStorage) AppendAuditEntry(entry *core.AuditEntry) (*core.AuditE
 		entry.RootPrincipal,
 		entry.InvocationID,
 		entry.ClientReferenceID,
+		entry.TaskID,
+		entry.ParentInvocationID,
 		string(data),
 		prevHash,
 		entry.Signature,
@@ -253,6 +260,16 @@ func (s *PostgresStorage) QueryAuditEntries(filters AuditFilters) ([]core.AuditE
 	if filters.ClientReferenceID != "" {
 		query += " AND client_reference_id = $" + strconv.Itoa(argIdx)
 		args = append(args, filters.ClientReferenceID)
+		argIdx++
+	}
+	if filters.TaskID != "" {
+		query += " AND task_id = $" + strconv.Itoa(argIdx)
+		args = append(args, filters.TaskID)
+		argIdx++
+	}
+	if filters.ParentInvocationID != "" {
+		query += " AND parent_invocation_id = $" + strconv.Itoa(argIdx)
+		args = append(args, filters.ParentInvocationID)
 		argIdx++
 	}
 

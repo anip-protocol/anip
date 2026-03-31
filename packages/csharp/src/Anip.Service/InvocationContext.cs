@@ -14,6 +14,8 @@ public class InvocationContext
     public List<string> DelegationChain { get; }
     public string InvocationId { get; }
     public string? ClientReferenceId { get; }
+    public string? TaskId { get; }
+    public string? ParentInvocationId { get; }
     public CostActual? CostActual { get; set; }
     public Func<Dictionary<string, object?>, bool> EmitProgress { get; }
 
@@ -25,6 +27,8 @@ public class InvocationContext
         List<string> delegationChain,
         string invocationId,
         string? clientReferenceId,
+        string? taskId,
+        string? parentInvocationId,
         Func<Dictionary<string, object?>, bool> emitProgress)
     {
         Token = token;
@@ -34,6 +38,8 @@ public class InvocationContext
         DelegationChain = delegationChain;
         InvocationId = invocationId;
         ClientReferenceId = clientReferenceId;
+        TaskId = taskId;
+        ParentInvocationId = parentInvocationId;
         EmitProgress = emitProgress;
     }
 }

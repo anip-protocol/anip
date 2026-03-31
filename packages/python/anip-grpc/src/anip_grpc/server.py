@@ -188,11 +188,15 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
         capability = request.capability
         parameters = json.loads(request.parameters_json) if request.parameters_json else {}
         client_reference_id = request.client_reference_id or None
+        task_id = request.task_id or None
+        parent_invocation_id = request.parent_invocation_id or None
 
         try:
             result = _run_async(self._service.invoke(
                 capability, token, parameters,
                 client_reference_id=client_reference_id,
+                task_id=task_id,
+                parent_invocation_id=parent_invocation_id,
             ))
         except ANIPError as exc:
             return anip_pb2.InvokeResponse(
@@ -233,6 +237,8 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
         capability = request.capability
         parameters = json.loads(request.parameters_json) if request.parameters_json else {}
         client_reference_id = request.client_reference_id or None
+        task_id = request.task_id or None
+        parent_invocation_id = request.parent_invocation_id or None
 
         # Collect progress events, then yield them followed by the final event
         progress_events: list[dict[str, Any]] = []
@@ -244,6 +250,8 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
             return await self._service.invoke(
                 capability, token, parameters,
                 client_reference_id=client_reference_id,
+                task_id=task_id,
+                parent_invocation_id=parent_invocation_id,
                 stream=True,
                 _progress_sink=_progress_sink,
             )
@@ -310,6 +318,10 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
             filters["invocation_id"] = request.invocation_id
         if request.client_reference_id:
             filters["client_reference_id"] = request.client_reference_id
+        if request.task_id:
+            filters["task_id"] = request.task_id
+        if request.parent_invocation_id:
+            filters["parent_invocation_id"] = request.parent_invocation_id
         if request.event_class:
             filters["event_class"] = request.event_class
         if request.limit:

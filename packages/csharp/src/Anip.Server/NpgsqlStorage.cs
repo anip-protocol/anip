@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
     root_principal TEXT,
     invocation_id TEXT,
     client_reference_id TEXT,
+    task_id TEXT,
+    parent_invocation_id TEXT,
     data TEXT NOT NULL,
     previous_hash TEXT NOT NULL,
     signature TEXT
@@ -33,6 +35,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_capability ON audit_log(capability);
 CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
 CREATE INDEX IF NOT EXISTS idx_audit_root_principal ON audit_log(root_principal);
 CREATE INDEX IF NOT EXISTS idx_audit_invocation_id ON audit_log(invocation_id);
+CREATE INDEX IF NOT EXISTS idx_audit_task_id ON audit_log(task_id);
+CREATE INDEX IF NOT EXISTS idx_audit_parent_invocation_id ON audit_log(parent_invocation_id);
 
 CREATE TABLE IF NOT EXISTS audit_append_head (
     id INTEGER PRIMARY KEY DEFAULT 1,
@@ -175,9 +179,11 @@ CREATE TABLE IF NOT EXISTS leader_leases (
                 insertCmd.Transaction = transaction;
                 insertCmd.CommandText = @"
                     INSERT INTO audit_log (timestamp, capability, token_id, root_principal,
-                        invocation_id, client_reference_id, data, previous_hash, signature)
+                        invocation_id, client_reference_id, task_id, parent_invocation_id,
+                        data, previous_hash, signature)
                     VALUES (@timestamp, @capability, @tokenId, @rootPrincipal,
-                        @invocationId, @clientReferenceId, @data, @previousHash, @signature)
+                        @invocationId, @clientReferenceId, @taskId, @parentInvocationId,
+                        @data, @previousHash, @signature)
                     RETURNING sequence_number";
                 insertCmd.Parameters.AddWithValue("timestamp", (object?)entry.Timestamp ?? DBNull.Value);
                 insertCmd.Parameters.AddWithValue("capability", (object?)entry.Capability ?? DBNull.Value);
@@ -185,6 +191,8 @@ CREATE TABLE IF NOT EXISTS leader_leases (
                 insertCmd.Parameters.AddWithValue("rootPrincipal", (object?)entry.RootPrincipal ?? DBNull.Value);
                 insertCmd.Parameters.AddWithValue("invocationId", (object?)entry.InvocationId ?? DBNull.Value);
                 insertCmd.Parameters.AddWithValue("clientReferenceId", (object?)entry.ClientReferenceId ?? DBNull.Value);
+                insertCmd.Parameters.AddWithValue("taskId", (object?)entry.TaskId ?? DBNull.Value);
+                insertCmd.Parameters.AddWithValue("parentInvocationId", (object?)entry.ParentInvocationId ?? DBNull.Value);
                 insertCmd.Parameters.AddWithValue("data", data);
                 insertCmd.Parameters.AddWithValue("previousHash", prevHash);
                 insertCmd.Parameters.AddWithValue("signature", (object?)entry.Signature ?? DBNull.Value);
@@ -264,6 +272,18 @@ CREATE TABLE IF NOT EXISTS leader_leases (
         {
             query += $" AND client_reference_id = @p{argIdx}";
             parameters.Add(new NpgsqlParameter($"p{argIdx}", filters.ClientReferenceId));
+            argIdx++;
+        }
+        if (!string.IsNullOrEmpty(filters.TaskId))
+        {
+            query += $" AND task_id = @p{argIdx}";
+            parameters.Add(new NpgsqlParameter($"p{argIdx}", filters.TaskId));
+            argIdx++;
+        }
+        if (!string.IsNullOrEmpty(filters.ParentInvocationId))
+        {
+            query += $" AND parent_invocation_id = @p{argIdx}";
+            parameters.Add(new NpgsqlParameter($"p{argIdx}", filters.ParentInvocationId));
             argIdx++;
         }
 

@@ -269,7 +269,33 @@ public class ANIPService {
         long invokeStart = System.currentTimeMillis();
         boolean invokeSuccess = false;
 
+        String requestTaskId = opts != null ? opts.getTaskId() : null;
+        String parentInvocationId = opts != null ? opts.getParentInvocationId() : null;
+
         try {
+            // task_id precedence: token purpose.task_id is authoritative
+            String tokenTaskId = (token.getPurpose() != null) ? token.getPurpose().getTaskId() : null;
+            if (tokenTaskId != null && !tokenTaskId.isEmpty()
+                    && requestTaskId != null && !requestTaskId.isEmpty()
+                    && !requestTaskId.equals(tokenTaskId)) {
+                Map<String, Object> resp = new LinkedHashMap<>();
+                resp.put("success", false);
+                resp.put("failure", Map.of(
+                        "type", Constants.FAILURE_PURPOSE_MISMATCH,
+                        "detail", "Request task_id '" + requestTaskId
+                                + "' does not match token purpose task_id '" + tokenTaskId + "'",
+                        "resolution", Map.of("action", "use_token_task_id", "requires", "matching task_id or omit from request"),
+                        "retry", false
+                ));
+                resp.put("invocation_id", invocationId);
+                resp.put("client_reference_id", opts != null ? opts.getClientReferenceId() : null);
+                resp.put("task_id", requestTaskId);
+                resp.put("parent_invocation_id", parentInvocationId);
+                return resp;
+            }
+            String effectiveTaskId = (requestTaskId != null && !requestTaskId.isEmpty())
+                    ? requestTaskId : tokenTaskId;
+
             // 1. Look up capability.
             CapabilityDef capDef = capabilities.get(capName);
             if (capDef == null) {
@@ -281,6 +307,8 @@ public class ANIPService {
                 ));
                 resp.put("invocation_id", invocationId);
                 resp.put("client_reference_id", opts != null ? opts.getClientReferenceId() : null);
+                resp.put("task_id", effectiveTaskId);
+                resp.put("parent_invocation_id", parentInvocationId);
                 return resp;
             }
 
@@ -299,6 +327,8 @@ public class ANIPService {
                 ));
                 resp.put("invocation_id", invocationId);
                 resp.put("client_reference_id", clientRefId);
+                resp.put("task_id", effectiveTaskId);
+                resp.put("parent_invocation_id", parentInvocationId);
                 return resp;
             }
 
@@ -317,7 +347,8 @@ public class ANIPService {
                 String sideEffectType = capDef.getDeclaration().getSideEffect() != null
                     ? capDef.getDeclaration().getSideEffect().getType() : null;
                 appendAuditEntry(capName, token, false, e.getErrorType(), null, null,
-                        invocationId, clientRefId, sideEffectType);
+                        invocationId, clientRefId, effectiveTaskId, parentInvocationId,
+                        sideEffectType);
 
                 Map<String, Object> tokenClaims = tokenClaimsMap(token);
                 String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
@@ -328,6 +359,8 @@ public class ANIPService {
                 resp.put("failure", failure);
                 resp.put("invocation_id", invocationId);
                 resp.put("client_reference_id", clientRefId);
+                resp.put("task_id", effectiveTaskId);
+                resp.put("parent_invocation_id", parentInvocationId);
                 return resp;
             }
 
@@ -343,6 +376,7 @@ public class ANIPService {
             InvocationContext ctx = new InvocationContext(
                     token, rootPrincipal, token.getSubject(),
                     invocationId, clientRefId,
+                    effectiveTaskId, parentInvocationId,
                     token.getScope(), List.of(token.getTokenId()),
                     payload -> true // no-op for unary
             );
@@ -356,7 +390,7 @@ public class ANIPService {
                     ? capDef.getDeclaration().getSideEffect().getType() : null;
                 appendAuditEntry(capName, token, false, e.getErrorType(),
                         Map.of("detail", e.getDetail()), null, invocationId, clientRefId,
-                        sideEffectType2);
+                        effectiveTaskId, parentInvocationId, sideEffectType2);
                 Map<String, Object> failure = new LinkedHashMap<>();
                 failure.put("type", e.getErrorType());
                 failure.put("detail", e.getDetail());
@@ -368,12 +402,15 @@ public class ANIPService {
                 resp.put("failure", failure);
                 resp.put("invocation_id", invocationId);
                 resp.put("client_reference_id", clientRefId);
+                resp.put("task_id", effectiveTaskId);
+                resp.put("parent_invocation_id", parentInvocationId);
                 return resp;
             } catch (Exception e) {
                 String sideEffectType3 = capDef.getDeclaration().getSideEffect() != null
                     ? capDef.getDeclaration().getSideEffect().getType() : null;
                 appendAuditEntry(capName, token, false, Constants.FAILURE_INTERNAL_ERROR,
-                        null, null, invocationId, clientRefId, sideEffectType3);
+                        null, null, invocationId, clientRefId,
+                        effectiveTaskId, parentInvocationId, sideEffectType3);
                 Map<String, Object> failure = new LinkedHashMap<>();
                 failure.put("type", Constants.FAILURE_INTERNAL_ERROR);
                 failure.put("detail", "Internal error");
@@ -385,6 +422,8 @@ public class ANIPService {
                 resp.put("failure", failure);
                 resp.put("invocation_id", invocationId);
                 resp.put("client_reference_id", clientRefId);
+                resp.put("task_id", effectiveTaskId);
+                resp.put("parent_invocation_id", parentInvocationId);
                 return resp;
             }
 
@@ -395,7 +434,7 @@ public class ANIPService {
             String sideEffectType4 = capDef.getDeclaration().getSideEffect() != null
                 ? capDef.getDeclaration().getSideEffect().getType() : null;
             appendAuditEntry(capName, token, true, "", result, costActual, invocationId, clientRefId,
-                    sideEffectType4);
+                    effectiveTaskId, parentInvocationId, sideEffectType4);
 
             // 8. Build response.
             Map<String, Object> resp = new LinkedHashMap<>();
@@ -403,6 +442,8 @@ public class ANIPService {
             resp.put("result", result);
             resp.put("invocation_id", invocationId);
             resp.put("client_reference_id", clientRefId);
+            resp.put("task_id", effectiveTaskId);
+            resp.put("parent_invocation_id", parentInvocationId);
             if (costActual != null) {
                 resp.put("cost_actual", costActual);
             }
@@ -424,6 +465,21 @@ public class ANIPService {
     public StreamResult invokeStream(String capName, DelegationToken token,
                                       Map<String, Object> params, InvokeOpts opts) throws ANIPError {
         String invocationId = Constants.generateInvocationId();
+
+        String requestTaskId = opts != null ? opts.getTaskId() : null;
+        String parentInvocationId = opts != null ? opts.getParentInvocationId() : null;
+
+        // task_id precedence: token purpose.task_id is authoritative
+        String tokenTaskId = (token.getPurpose() != null) ? token.getPurpose().getTaskId() : null;
+        if (tokenTaskId != null && !tokenTaskId.isEmpty()
+                && requestTaskId != null && !requestTaskId.isEmpty()
+                && !requestTaskId.equals(tokenTaskId)) {
+            throw new ANIPError(Constants.FAILURE_PURPOSE_MISMATCH,
+                    "Request task_id '" + requestTaskId
+                            + "' does not match token purpose task_id '" + tokenTaskId + "'");
+        }
+        String effectiveTaskId = (requestTaskId != null && !requestTaskId.isEmpty())
+                ? requestTaskId : tokenTaskId;
 
         // 1. Look up capability.
         CapabilityDef capDef = capabilities.get(capName);
@@ -459,6 +515,8 @@ public class ANIPService {
             Map<String, Object> eventPayload = new LinkedHashMap<>();
             eventPayload.put("invocation_id", invocationId);
             eventPayload.put("client_reference_id", clientRefId);
+            eventPayload.put("task_id", effectiveTaskId);
+            eventPayload.put("parent_invocation_id", parentInvocationId);
             eventPayload.put("timestamp", DateTimeFormatter.ISO_INSTANT.format(Instant.now()));
             eventPayload.put("payload", payload);
             try {
@@ -473,6 +531,7 @@ public class ANIPService {
         InvocationContext ctx = new InvocationContext(
                 token, rootPrincipal, token.getSubject(),
                 invocationId, clientRefId,
+                effectiveTaskId, parentInvocationId,
                 token.getScope(), List.of(token.getTokenId()),
                 emitProgress
         );
@@ -489,11 +548,14 @@ public class ANIPService {
                 String streamSideEffect = capDef.getDeclaration().getSideEffect() != null
                     ? capDef.getDeclaration().getSideEffect().getType() : null;
                 appendAuditEntry(capName, token, true, "", result, costActual,
-                        invocationId, clientRefId, streamSideEffect);
+                        invocationId, clientRefId, effectiveTaskId, parentInvocationId,
+                        streamSideEffect);
 
                 Map<String, Object> payload = new LinkedHashMap<>();
                 payload.put("invocation_id", invocationId);
                 payload.put("client_reference_id", clientRefId);
+                payload.put("task_id", effectiveTaskId);
+                payload.put("parent_invocation_id", parentInvocationId);
                 payload.put("timestamp", DateTimeFormatter.ISO_INSTANT.format(Instant.now()));
                 payload.put("success", true);
                 payload.put("result", result);
@@ -506,7 +568,7 @@ public class ANIPService {
                     ? capDef.getDeclaration().getSideEffect().getType() : null;
                 appendAuditEntry(capName, token, false, e.getErrorType(),
                         Map.of("detail", e.getDetail()), null, invocationId, clientRefId,
-                        streamSideEffect2);
+                        effectiveTaskId, parentInvocationId, streamSideEffect2);
 
                 Map<String, Object> failureObj = new LinkedHashMap<>();
                 failureObj.put("type", e.getErrorType());
@@ -522,6 +584,8 @@ public class ANIPService {
                 Map<String, Object> payload = new LinkedHashMap<>();
                 payload.put("invocation_id", invocationId);
                 payload.put("client_reference_id", clientRefId);
+                payload.put("task_id", effectiveTaskId);
+                payload.put("parent_invocation_id", parentInvocationId);
                 payload.put("timestamp", DateTimeFormatter.ISO_INSTANT.format(Instant.now()));
                 payload.put("success", false);
                 payload.put("failure", failureObj);
@@ -535,7 +599,8 @@ public class ANIPService {
                 String streamSideEffect3 = capDef.getDeclaration().getSideEffect() != null
                     ? capDef.getDeclaration().getSideEffect().getType() : null;
                 appendAuditEntry(capName, token, false, Constants.FAILURE_INTERNAL_ERROR,
-                        null, null, invocationId, clientRefId, streamSideEffect3);
+                        null, null, invocationId, clientRefId,
+                        effectiveTaskId, parentInvocationId, streamSideEffect3);
 
                 Map<String, Object> failureObj = new LinkedHashMap<>();
                 failureObj.put("type", Constants.FAILURE_INTERNAL_ERROR);
@@ -550,6 +615,8 @@ public class ANIPService {
                 Map<String, Object> payload = new LinkedHashMap<>();
                 payload.put("invocation_id", invocationId);
                 payload.put("client_reference_id", clientRefId);
+                payload.put("task_id", effectiveTaskId);
+                payload.put("parent_invocation_id", parentInvocationId);
                 payload.put("timestamp", DateTimeFormatter.ISO_INSTANT.format(Instant.now()));
                 payload.put("success", false);
                 payload.put("failure", failureObj);
@@ -907,6 +974,7 @@ public class ANIPService {
                                    boolean success, String failureType,
                                    Map<String, Object> resultSummary, CostActual costActual,
                                    String invocationId, String clientReferenceId,
+                                   String taskId, String parentInvocationId,
                                    String sideEffectType) {
         String rootPrincipal = token.getRootPrincipal();
         if (rootPrincipal == null || rootPrincipal.isEmpty()) {
@@ -926,6 +994,8 @@ public class ANIPService {
         entry.setDelegationChain(List.of(token.getTokenId()));
         entry.setInvocationId(invocationId);
         entry.setClientReferenceId(clientReferenceId);
+        entry.setTaskId(taskId);
+        entry.setParentInvocationId(parentInvocationId);
 
         // Classification + retention
         String eventClass = EventClassification.classify(sideEffectType, success, failureType);
@@ -975,6 +1045,8 @@ public class ANIPService {
         m.put("expires_at", entry.getExpiresAt());
         m.put("invocation_id", entry.getInvocationId());
         m.put("client_reference_id", entry.getClientReferenceId());
+        m.put("task_id", entry.getTaskId());
+        m.put("parent_invocation_id", entry.getParentInvocationId());
         m.put("token_id", entry.getTokenId());
         m.put("issuer", entry.getIssuer());
         m.put("subject", entry.getSubject());

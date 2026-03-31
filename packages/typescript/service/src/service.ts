@@ -89,6 +89,8 @@ export interface ANIPService {
     params: Record<string, unknown>,
     opts?: {
       clientReferenceId?: string | null;
+      taskId?: string | null;
+      parentInvocationId?: string | null;
       stream?: boolean;
       progressSink?: (event: Record<string, unknown>) => Promise<void>;
     },
@@ -430,6 +432,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       costActual?: Record<string, unknown> | null;
       invocationId?: string | null;
       clientReferenceId?: string | null;
+      taskId?: string | null;
+      parentInvocationId?: string | null;
       streamSummary?: Record<string, unknown> | null;
       eventClass?: string | null;
       retentionTier?: string | null;
@@ -449,6 +453,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       delegation_chain: chain.map((t) => t.token_id),
       invocation_id: auditOpts.invocationId ?? null,
       client_reference_id: auditOpts.clientReferenceId ?? null,
+      task_id: auditOpts.taskId ?? null,
+      parent_invocation_id: auditOpts.parentInvocationId ?? null,
       streamSummary: auditOpts.streamSummary ?? null,
       event_class: auditOpts.eventClass ?? null,
       retention_tier: auditOpts.retentionTier ?? null,
@@ -918,6 +924,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       params: Record<string, unknown>,
       opts?: {
         clientReferenceId?: string | null;
+        taskId?: string | null;
+        parentInvocationId?: string | null;
         stream?: boolean;
         progressSink?: (event: Record<string, unknown>) => Promise<void>;
       },
@@ -925,6 +933,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       const invokeStartTime = performance.now();
       const invocationId = `inv-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
       const clientReferenceId = opts?.clientReferenceId ?? null;
+      const requestTaskId = opts?.taskId ?? null;
+      const parentInvocationId = opts?.parentInvocationId ?? null;
 
       // Resolve effective disclosure level for this caller
       const effectiveLevel = resolveDisclosureLevel(
@@ -935,6 +945,25 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
       // Wrap entire invoke body in a root tracing span
       return withSpan("anip.invoke", { capability: capabilityName }, undefined, async (rootSpan) => {
+
+      // task_id precedence: token purpose.task_id is authoritative
+      const tokenTaskId = token?.purpose?.task_id ?? null;
+      if (tokenTaskId && requestTaskId && requestTaskId !== tokenTaskId) {
+        return {
+          success: false,
+          failure: {
+            type: "purpose_mismatch",
+            detail: `Request task_id '${requestTaskId}' does not match token purpose task_id '${tokenTaskId}'`,
+            resolution: { action: "use_token_task_id", requires: "matching task_id or omit from request" },
+            retry: false,
+          },
+          invocation_id: invocationId,
+          client_reference_id: clientReferenceId,
+          task_id: requestTaskId,
+          parent_invocation_id: parentInvocationId,
+        };
+      }
+      const effectiveTaskId = requestTaskId || tokenTaskId || null;
 
       // 1. Check capability exists
       if (!capabilities.has(capabilityName)) {
@@ -956,6 +985,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           }, effectiveLevel),
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,
+          task_id: effectiveTaskId,
+          parent_invocation_id: parentInvocationId,
         };
       }
 
@@ -986,6 +1017,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             }, effectiveLevel),
             invocation_id: invocationId,
             client_reference_id: clientReferenceId,
+            task_id: effectiveTaskId,
+            parent_invocation_id: parentInvocationId,
           };
         }
       }
@@ -1022,6 +1055,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           failureType: failure.type,
           invocationId,
           clientReferenceId,
+          taskId: effectiveTaskId,
+          parentInvocationId,
           eventClass,
           retentionTier: retTier,
           expiresAt,
@@ -1042,6 +1077,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           failure: redactFailure(failure, effectiveLevel),
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,
+          task_id: effectiveTaskId,
+          parent_invocation_id: parentInvocationId,
         };
       }
 
@@ -1065,6 +1102,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         delegationChain: chain.map((t) => t.token_id),
         invocationId,
         clientReferenceId,
+        taskId: effectiveTaskId,
+        parentInvocationId,
         setCostActual(cost: Record<string, unknown>): void {
           costActual = cost;
         },
@@ -1111,6 +1150,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           failureType: "concurrent_lock",
           invocationId,
           clientReferenceId,
+          taskId: effectiveTaskId,
+          parentInvocationId,
           eventClass: eventClassL,
           retentionTier: retTierL,
           expiresAt: expiresAtL,
@@ -1131,6 +1172,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           failure: redactFailure({ type: lockResult.type, detail: lockResult.detail }, effectiveLevel),
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,
+          task_id: effectiveTaskId,
+          parent_invocation_id: parentInvocationId,
         };
       }
       locked = true;
@@ -1170,6 +1213,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           costActual,
           invocationId,
           clientReferenceId,
+          taskId: effectiveTaskId,
+          parentInvocationId,
           streamSummary,
           eventClass: eventClassS,
           retentionTier: retTierS,
@@ -1207,6 +1252,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           result,
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,
+          task_id: effectiveTaskId,
+          parent_invocation_id: parentInvocationId,
         };
         if (costActual) {
           response.cost_actual = costActual;
@@ -1238,6 +1285,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             resultSummary: { detail: err.detail },
             invocationId,
             clientReferenceId,
+            taskId: effectiveTaskId,
+            parentInvocationId,
             streamSummary: failStreamSummary,
             eventClass: eventClassE,
             retentionTier: retTierE,
@@ -1270,6 +1319,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             failure: redactFailure({ type: err.errorType, detail: err.detail }, effectiveLevel),
             invocation_id: invocationId,
             client_reference_id: clientReferenceId,
+            task_id: effectiveTaskId,
+            parent_invocation_id: parentInvocationId,
           };
           if (failStreamSummary) {
             response.stream_summary = failStreamSummary;
@@ -1287,6 +1338,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           failureType: "internal_error",
           invocationId,
           clientReferenceId,
+          taskId: effectiveTaskId,
+          parentInvocationId,
           streamSummary: failStreamSummary,
           eventClass: eventClassU,
           retentionTier: retTierU,
@@ -1319,6 +1372,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           failure: redactFailure({ type: "internal_error", detail: "Internal error" }, effectiveLevel),
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,
+          task_id: effectiveTaskId,
+          parent_invocation_id: parentInvocationId,
         };
         if (failStreamSummary) {
           response.stream_summary = failStreamSummary;
@@ -1346,6 +1401,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         since: f.since as string | undefined,
         invocationId: f.invocation_id as string | undefined,
         clientReferenceId: f.client_reference_id as string | undefined,
+        taskId: f.task_id as string | undefined,
+        parentInvocationId: f.parent_invocation_id as string | undefined,
         eventClass: f.event_class as string | undefined,
         limit: Math.min((f.limit as number) ?? 50, 1000),
       });

@@ -183,6 +183,8 @@ public class AnipController {
                 params = new LinkedHashMap<>(body);
                 params.remove("stream");
                 params.remove("client_reference_id");
+                params.remove("task_id");
+                params.remove("parent_invocation_id");
             }
         }
 
@@ -191,12 +193,14 @@ public class AnipController {
         if (clientRefId == null) {
             clientRefId = request.getHeader("X-Client-Reference-Id");
         }
+        String taskId = body != null ? (String) body.get("task_id") : null;
+        String parentInvocationId = body != null ? (String) body.get("parent_invocation_id") : null;
 
         if (stream) {
-            return handleStreamInvoke(capability, token, params, clientRefId);
+            return handleStreamInvoke(capability, token, params, clientRefId, taskId, parentInvocationId);
         }
 
-        InvokeOpts opts = new InvokeOpts(clientRefId, false);
+        InvokeOpts opts = new InvokeOpts(clientRefId, false, taskId, parentInvocationId);
         Map<String, Object> result = service.invoke(capability, token, params, opts);
 
         boolean success = Boolean.TRUE.equals(result.get("success"));
@@ -229,6 +233,8 @@ public class AnipController {
             String since = body != null ? (String) body.get("since") : null;
             String invocationId = body != null ? (String) body.get("invocation_id") : null;
             String clientReferenceId = body != null ? (String) body.get("client_reference_id") : null;
+            String taskId = body != null ? (String) body.get("task_id") : null;
+            String parentInvocationId = body != null ? (String) body.get("parent_invocation_id") : null;
             int limit = body != null && body.get("limit") != null
                     ? ((Number) body.get("limit")).intValue() : 50;
 
@@ -241,13 +247,17 @@ public class AnipController {
             if (qInvocationId != null && !qInvocationId.isEmpty()) invocationId = qInvocationId;
             String qClientReferenceId = request.getParameter("client_reference_id");
             if (qClientReferenceId != null && !qClientReferenceId.isEmpty()) clientReferenceId = qClientReferenceId;
+            String qTaskId = request.getParameter("task_id");
+            if (qTaskId != null && !qTaskId.isEmpty()) taskId = qTaskId;
+            String qParentInvocationId = request.getParameter("parent_invocation_id");
+            if (qParentInvocationId != null && !qParentInvocationId.isEmpty()) parentInvocationId = qParentInvocationId;
             String qLimit = request.getParameter("limit");
             if (qLimit != null && !qLimit.isEmpty()) {
                 try { limit = Integer.parseInt(qLimit); } catch (NumberFormatException ignored) {}
             }
 
-            AuditFilters filters = new AuditFilters(capability, since, invocationId,
-                    clientReferenceId, limit);
+            AuditFilters filters = new AuditFilters(capability, null, since, invocationId,
+                    clientReferenceId, taskId, parentInvocationId, limit);
             AuditResponse resp = service.queryAudit(token, filters);
             return ResponseEntity.ok(toMap(resp));
         } catch (ANIPError e) {
@@ -304,12 +314,13 @@ public class AnipController {
     // --- SSE streaming ---
 
     private SseEmitter handleStreamInvoke(String capability, DelegationToken token,
-                                           Map<String, Object> params, String clientRefId) {
+                                           Map<String, Object> params, String clientRefId,
+                                           String taskId, String parentInvocationId) {
         SseEmitter emitter = new SseEmitter(0L); // no timeout
 
         StreamResult sr;
         try {
-            InvokeOpts opts = new InvokeOpts(clientRefId, true);
+            InvokeOpts opts = new InvokeOpts(clientRefId, true, taskId, parentInvocationId);
             sr = service.invokeStream(capability, token, params, opts);
         } catch (ANIPError e) {
             try {

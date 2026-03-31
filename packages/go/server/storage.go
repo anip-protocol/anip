@@ -4,13 +4,15 @@ import "github.com/anip-protocol/anip/packages/go/core"
 
 // AuditFilters specifies optional filters for querying audit entries.
 type AuditFilters struct {
-	Capability        string `json:"capability,omitempty"`
-	RootPrincipal     string `json:"root_principal,omitempty"`
-	Since             string `json:"since,omitempty"`
-	InvocationID      string `json:"invocation_id,omitempty"`
-	ClientReferenceID string `json:"client_reference_id,omitempty"`
-	EventClass        string `json:"event_class,omitempty"`
-	Limit             int    `json:"limit,omitempty"`
+	Capability         string `json:"capability,omitempty"`
+	RootPrincipal      string `json:"root_principal,omitempty"`
+	Since              string `json:"since,omitempty"`
+	InvocationID       string `json:"invocation_id,omitempty"`
+	ClientReferenceID  string `json:"client_reference_id,omitempty"`
+	TaskID             string `json:"task_id,omitempty"`
+	ParentInvocationID string `json:"parent_invocation_id,omitempty"`
+	EventClass         string `json:"event_class,omitempty"`
+	Limit              int    `json:"limit,omitempty"`
 }
 
 // Storage is the abstract storage interface for ANIP server components.

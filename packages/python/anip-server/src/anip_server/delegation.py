@@ -595,6 +595,17 @@ class DelegationEngine:
             )
             concurrent = parent_token.constraints.concurrent_branches
 
+        # task_id: use caller-supplied value if present in purpose_parameters,
+        # auto-generate only if purpose_parameters is absent or empty
+        pp = dict(purpose_parameters) if purpose_parameters else {}
+        caller_task_id = pp.pop("task_id", None)
+        if caller_task_id is not None:
+            resolved_task_id = caller_task_id  # Caller explicitly set it
+        elif purpose_parameters is None:
+            resolved_task_id = f"task-{token_id}"  # No purpose_parameters at all — auto-generate
+        else:
+            resolved_task_id = None  # Caller sent purpose_parameters but without task_id — unbound
+
         token = DelegationToken(
             token_id=token_id,
             issuer=issuer,
@@ -602,8 +613,8 @@ class DelegationEngine:
             scope=scope,
             purpose=Purpose(
                 capability=capability,
-                parameters=purpose_parameters or {},
-                task_id=f"task-{token_id}",
+                parameters=pp,
+                task_id=resolved_task_id,
             ),
             parent=parent_token.token_id if parent_token else None,
             expires=expires,

@@ -383,13 +383,17 @@ func handleInvoke(s *Server, params map[string]any) (any, error) {
 	}
 
 	clientRefID, _ := params["client_reference_id"].(string)
+	taskID, _ := params["task_id"].(string)
+	parentInvID, _ := params["parent_invocation_id"].(string)
 	stream, _ := params["stream"].(bool)
 
 	if stream {
 		// Streaming invocation — collect progress notifications then return final result.
 		sr, err := s.svc.InvokeStream(capability, token, parameters, service.InvokeOpts{
-			ClientReferenceID: clientRefID,
-			Stream:            true,
+			ClientReferenceID:  clientRefID,
+			TaskID:             taskID,
+			ParentInvocationID: parentInvID,
+			Stream:             true,
 		})
 		if err != nil {
 			return nil, err
@@ -415,7 +419,9 @@ func handleInvoke(s *Server, params map[string]any) (any, error) {
 
 	// Unary invocation.
 	result, err := s.svc.Invoke(capability, token, parameters, service.InvokeOpts{
-		ClientReferenceID: clientRefID,
+		ClientReferenceID:  clientRefID,
+		TaskID:             taskID,
+		ParentInvocationID: parentInvID,
 	})
 	if err != nil {
 		return nil, err
@@ -441,6 +447,12 @@ func handleAuditQuery(s *Server, params map[string]any) (any, error) {
 	}
 	if v, ok := params["client_reference_id"].(string); ok {
 		filters.ClientReferenceID = v
+	}
+	if v, ok := params["task_id"].(string); ok {
+		filters.TaskID = v
+	}
+	if v, ok := params["parent_invocation_id"].(string); ok {
+		filters.ParentInvocationID = v
 	}
 	if v, ok := params["limit"].(float64); ok {
 		filters.Limit = int(v)

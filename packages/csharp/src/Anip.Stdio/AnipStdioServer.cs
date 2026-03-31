@@ -279,6 +279,8 @@ public class AnipStdioServer
 
         var invokeParams = GetDict(parameters, "parameters");
         var clientReferenceId = GetString(parameters, "client_reference_id");
+        var taskId = GetString(parameters, "task_id");
+        var parentInvocationId = GetString(parameters, "parent_invocation_id");
         var stream = GetBool(parameters, "stream");
 
         if (stream)
@@ -287,6 +289,8 @@ public class AnipStdioServer
             var streamResult = _service.InvokeStream(capability, token, invokeParams, new InvokeOpts
             {
                 ClientReferenceId = clientReferenceId,
+                TaskId = taskId,
+                ParentInvocationId = parentInvocationId,
                 Stream = true,
             });
 
@@ -317,6 +321,8 @@ public class AnipStdioServer
         var opts = new InvokeOpts
         {
             ClientReferenceId = clientReferenceId,
+            TaskId = taskId,
+            ParentInvocationId = parentInvocationId,
         };
 
         return _service.Invoke(capability, token, invokeParams, opts);
@@ -332,6 +338,8 @@ public class AnipStdioServer
             Since = GetString(parameters, "since"),
             InvocationId = GetString(parameters, "invocation_id"),
             ClientReferenceId = GetString(parameters, "client_reference_id"),
+            TaskId = GetString(parameters, "task_id"),
+            ParentInvocationId = GetString(parameters, "parent_invocation_id"),
             Limit = GetInt(parameters, "limit"),
         };
 

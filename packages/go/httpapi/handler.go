@@ -200,16 +200,20 @@ func handleInvoke(svc *service.Service) http.HandlerFunc {
 			params = body
 		}
 		clientRefID, _ := body["client_reference_id"].(string)
+		taskID, _ := body["task_id"].(string)
+		parentInvID, _ := body["parent_invocation_id"].(string)
 		stream, _ := body["stream"].(bool)
 
 		if stream {
-			handleStreamInvoke(w, svc, capName, token, params, clientRefID)
+			handleStreamInvoke(w, svc, capName, token, params, clientRefID, taskID, parentInvID)
 			return
 		}
 
 		result, err := svc.Invoke(capName, token, params, service.InvokeOpts{
-			ClientReferenceID: clientRefID,
-			Stream:            false,
+			ClientReferenceID:  clientRefID,
+			TaskID:             taskID,
+			ParentInvocationID: parentInvID,
+			Stream:             false,
 		})
 		if err != nil {
 			status, respBody := httputil.SimpleFailureResponse(core.FailureInternalError, "Invocation failed", nil)
@@ -230,10 +234,12 @@ func handleInvoke(svc *service.Service) http.HandlerFunc {
 	}
 }
 
-func handleStreamInvoke(w http.ResponseWriter, svc *service.Service, capName string, token *core.DelegationToken, params map[string]any, clientRefID string) {
+func handleStreamInvoke(w http.ResponseWriter, svc *service.Service, capName string, token *core.DelegationToken, params map[string]any, clientRefID, taskID, parentInvID string) {
 	sr, err := svc.InvokeStream(capName, token, params, service.InvokeOpts{
-		ClientReferenceID: clientRefID,
-		Stream:            true,
+		ClientReferenceID:  clientRefID,
+		TaskID:             taskID,
+		ParentInvocationID: parentInvID,
+		Stream:             true,
 	})
 	if err != nil {
 		if anipErr, ok := err.(*core.ANIPError); ok {
@@ -276,10 +282,12 @@ func handleAudit(svc *service.Service) http.HandlerFunc {
 		}
 
 		filters := server.AuditFilters{
-			Capability:        r.URL.Query().Get("capability"),
-			Since:             r.URL.Query().Get("since"),
-			InvocationID:      r.URL.Query().Get("invocation_id"),
-			ClientReferenceID: r.URL.Query().Get("client_reference_id"),
+			Capability:         r.URL.Query().Get("capability"),
+			Since:              r.URL.Query().Get("since"),
+			InvocationID:       r.URL.Query().Get("invocation_id"),
+			ClientReferenceID:  r.URL.Query().Get("client_reference_id"),
+			TaskID:             r.URL.Query().Get("task_id"),
+			ParentInvocationID: r.URL.Query().Get("parent_invocation_id"),
 		}
 		if l := r.URL.Query().Get("limit"); l != "" {
 			if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {

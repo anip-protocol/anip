@@ -124,6 +124,8 @@ class AnipStdioServer:
 
         parameters = params.get("parameters", {})
         client_reference_id = params.get("client_reference_id")
+        task_id = params.get("task_id")
+        parent_invocation_id = params.get("parent_invocation_id")
         stream = params.get("stream", False)
 
         if stream:
@@ -137,6 +139,8 @@ class AnipStdioServer:
             result = await self._service.invoke(
                 capability, token, parameters,
                 client_reference_id=client_reference_id,
+                task_id=task_id,
+                parent_invocation_id=parent_invocation_id,
                 stream=True,
                 _progress_sink=_progress_sink,
             )
@@ -145,6 +149,8 @@ class AnipStdioServer:
         result = await self._service.invoke(
             capability, token, parameters,
             client_reference_id=client_reference_id,
+            task_id=task_id,
+            parent_invocation_id=parent_invocation_id,
         )
         return result
 
@@ -153,7 +159,8 @@ class AnipStdioServer:
 
         filters: dict[str, Any] = {}
         for key in ("capability", "since", "invocation_id",
-                     "client_reference_id", "event_class", "limit"):
+                     "client_reference_id", "task_id",
+                     "parent_invocation_id", "event_class", "limit"):
             if key in params:
                 filters[key] = params[key]
 

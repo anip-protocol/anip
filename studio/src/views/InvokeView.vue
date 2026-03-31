@@ -19,6 +19,8 @@ const selectedCapability = ref<string | null>(null)
 const userInputs = ref<Record<string, Record<string, string>>>({})
 const invokeResult = ref<any>(null)
 const invoking = ref(false)
+const taskId = ref('')
+const parentInvocationId = ref('')
 
 // Load manifest
 async function loadManifest() {
@@ -103,8 +105,11 @@ async function onInvoke(inputs: Record<string, string>) {
   invoking.value = true
   invokeResult.value = null
   try {
+    const opts: Record<string, string> = {}
+    if (taskId.value.trim()) opts.task_id = taskId.value.trim()
+    if (parentInvocationId.value.trim()) opts.parent_invocation_id = parentInvocationId.value.trim()
     invokeResult.value = await invokeCapability(
-      store.baseUrl, store.bearer, selectedCapability.value, inputs
+      store.baseUrl, store.bearer, selectedCapability.value, inputs, opts
     )
   } catch (e: unknown) {
     // Transport error — wrap as a failure-like object for InvokeResult
@@ -221,6 +226,31 @@ async function onInvoke(inputs: Record<string, string>) {
           </div>
         </section>
 
+        <!-- Optional: task_id and parent_invocation_id -->
+        <section class="section">
+          <div class="section-label">Lineage (optional)</div>
+          <div class="lineage-fields">
+            <div class="lineage-field">
+              <label class="lineage-label">task_id</label>
+              <input
+                v-model="taskId"
+                type="text"
+                class="lineage-input"
+                placeholder="Group related invocations"
+              />
+            </div>
+            <div class="lineage-field">
+              <label class="lineage-label">parent_invocation_id</label>
+              <input
+                v-model="parentInvocationId"
+                type="text"
+                class="lineage-input"
+                placeholder="Invocation that triggered this one"
+              />
+            </div>
+          </div>
+        </section>
+
         <!-- 6. Result panel -->
         <section class="section">
           <InvokeResult :result="invokeResult" />
@@ -314,5 +344,29 @@ async function onInvoke(inputs: Record<string, string>) {
 .mini-spinner {
   width: 14px; height: 14px; border: 2px solid var(--border);
   border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+
+/* Lineage fields */
+.lineage-fields {
+  display: flex; gap: 16px; flex-wrap: wrap;
+}
+.lineage-field {
+  display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 200px;
+}
+.lineage-label {
+  font-size: 12px; font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--text-muted); font-weight: 500;
+}
+.lineage-input {
+  height: 34px; padding: 0 12px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text-primary);
+  font-size: 13px; font-family: 'SF Mono', 'Fira Code', monospace;
+  outline: none; transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.lineage-input::placeholder { color: var(--text-muted); }
+.lineage-input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--accent-glow);
 }
 </style>

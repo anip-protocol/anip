@@ -25,12 +25,29 @@ public static class DelegationEngine
         var ttlHours = request.TtlHours > 0 ? request.TtlHours : 2;
         var expires = now.AddHours(ttlHours);
 
-        // Build purpose.
+        // Build purpose — use caller-supplied task_id if present
+        var pp = request.PurposeParameters != null
+            ? new Dictionary<string, object>(request.PurposeParameters)
+            : new Dictionary<string, object>();
+        string? resolvedTaskId;
+        if (pp.TryGetValue("task_id", out var callerTaskId) && callerTaskId != null)
+        {
+            resolvedTaskId = callerTaskId.ToString();
+            pp.Remove("task_id");
+        }
+        else if (request.PurposeParameters == null)
+        {
+            resolvedTaskId = $"task-{tokenId}";
+        }
+        else
+        {
+            resolvedTaskId = null;
+        }
         var purpose = new Purpose
         {
             Capability = request.Capability,
-            Parameters = request.PurposeParameters ?? new Dictionary<string, object>(),
-            TaskId = $"task-{tokenId}"
+            Parameters = pp,
+            TaskId = resolvedTaskId
         };
 
         // Build constraints.

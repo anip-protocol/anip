@@ -37,6 +37,8 @@ public class AuditEntry {
     private String lastSeen;
     private String representativeDetail;
     private Map<String, Object> streamSummary;
+    private String taskId;
+    private String parentInvocationId;
 
     public AuditEntry() {}
 
@@ -126,4 +128,10 @@ public class AuditEntry {
 
     public Map<String, Object> getStreamSummary() { return streamSummary; }
     public void setStreamSummary(Map<String, Object> streamSummary) { this.streamSummary = streamSummary; }
+
+    public String getTaskId() { return taskId; }
+    public void setTaskId(String taskId) { this.taskId = taskId; }
+
+    public String getParentInvocationId() { return parentInvocationId; }
+    public void setParentInvocationId(String parentInvocationId) { this.parentInvocationId = parentInvocationId; }
 }

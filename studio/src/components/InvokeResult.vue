@@ -28,6 +28,15 @@ const resolution = computed(() => failure.value?.resolution || null)
         <span class="meta-value">{{ result.client_reference_id }}</span>
       </div>
 
+      <div v-if="result.task_id" class="result-meta">
+        <span class="meta-label">task_id</span>
+        <span class="meta-value">{{ result.task_id }}</span>
+      </div>
+      <div v-if="result.parent_invocation_id" class="result-meta">
+        <span class="meta-label">parent_invocation_id</span>
+        <span class="meta-value">{{ result.parent_invocation_id }}</span>
+      </div>
+
       <div v-if="result.cost_actual" class="result-meta">
         <span class="meta-label">cost_actual</span>
         <span class="meta-value">
@@ -49,6 +58,15 @@ const resolution = computed(() => failure.value?.resolution || null)
       <div v-if="result.client_reference_id" class="result-meta">
         <span class="meta-label">client_reference_id</span>
         <span class="meta-value">{{ result.client_reference_id }}</span>
+      </div>
+
+      <div v-if="result.task_id" class="result-meta">
+        <span class="meta-label">task_id</span>
+        <span class="meta-value">{{ result.task_id }}</span>
+      </div>
+      <div v-if="result.parent_invocation_id" class="result-meta">
+        <span class="meta-label">parent_invocation_id</span>
+        <span class="meta-value">{{ result.parent_invocation_id }}</span>
       </div>
 
       <!-- Failure detail -->

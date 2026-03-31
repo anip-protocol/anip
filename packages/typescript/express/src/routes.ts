@@ -67,11 +67,15 @@ export async function mountAnip(
       const body = req.body;
       const params = body.parameters ?? body;
       const clientReferenceId = body.client_reference_id ?? null;
+      const taskId = body.task_id ?? null;
+      const parentInvocationId = body.parent_invocation_id ?? null;
 
       if (!body.stream) {
         // Unary mode — existing behavior
         const result = await service.invoke(req.params.capability, token, params, {
           clientReferenceId,
+          taskId,
+          parentInvocationId,
         });
         if (!result.success) {
           const failure = result.failure as Record<string, unknown>;
@@ -87,7 +91,7 @@ export async function mountAnip(
       const modes = (decl?.response_modes as string[]) ?? ["unary"];
       if (!modes.includes("streaming")) {
         const result = await service.invoke(req.params.capability, token, params, {
-          clientReferenceId, stream: true,
+          clientReferenceId, taskId, parentInvocationId, stream: true,
         });
         const failure = result.failure as Record<string, unknown>;
         res.status(failureStatus(failure?.type as string)).json(result);
@@ -103,6 +107,8 @@ export async function mountAnip(
 
       const result = await service.invoke(req.params.capability, token, params, {
         clientReferenceId,
+        taskId,
+        parentInvocationId,
         stream: true,
         progressSink: async (event) => {
           const eventData = { ...event, timestamp: new Date().toISOString() };
@@ -139,6 +145,8 @@ export async function mountAnip(
         since: (req.query.since as string) ?? undefined,
         invocation_id: (req.query.invocation_id as string) ?? undefined,
         client_reference_id: (req.query.client_reference_id as string) ?? undefined,
+        task_id: (req.query.task_id as string) ?? undefined,
+        parent_invocation_id: (req.query.parent_invocation_id as string) ?? undefined,
         event_class: (req.query.event_class as string) ?? undefined,
         limit: parseInt((req.query.limit as string) ?? "50", 10),
       };

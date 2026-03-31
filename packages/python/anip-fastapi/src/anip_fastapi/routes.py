@@ -98,6 +98,8 @@ def mount_anip(
         body = await request.json()
         params = body.get("parameters", body)
         client_reference_id = body.get("client_reference_id")
+        task_id = body.get("task_id")
+        parent_invocation_id = body.get("parent_invocation_id")
         stream = body.get("stream", False)
 
         if not stream:
@@ -105,6 +107,8 @@ def mount_anip(
             result = await service.invoke(
                 capability, token, params,
                 client_reference_id=client_reference_id,
+                task_id=task_id,
+                parent_invocation_id=parent_invocation_id,
             )
             if not result.get("success"):
                 status = _failure_status(result.get("failure", {}).get("type"))
@@ -119,6 +123,8 @@ def mount_anip(
                 result = await service.invoke(
                     capability, token, params,
                     client_reference_id=client_reference_id,
+                    task_id=task_id,
+                    parent_invocation_id=parent_invocation_id,
                     stream=True,
                 )
                 status = _failure_status(result.get("failure", {}).get("type"))
@@ -135,6 +141,8 @@ def mount_anip(
                 result = await service.invoke(
                     capability, token, params,
                     client_reference_id=client_reference_id,
+                    task_id=task_id,
+                    parent_invocation_id=parent_invocation_id,
                     stream=True,
                     _progress_sink=progress_sink,
                 )
@@ -218,6 +226,8 @@ def mount_anip(
             "since": request.query_params.get("since"),
             "invocation_id": request.query_params.get("invocation_id"),
             "client_reference_id": request.query_params.get("client_reference_id"),
+            "task_id": request.query_params.get("task_id"),
+            "parent_invocation_id": request.query_params.get("parent_invocation_id"),
             "event_class": request.query_params.get("event_class"),
             "limit": int(request.query_params.get("limit", "50")),
         }

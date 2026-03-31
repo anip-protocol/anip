@@ -35,6 +35,8 @@ class StorageBackend(Protocol):
         since: str | None = None,
         invocation_id: str | None = None,
         client_reference_id: str | None = None,
+        task_id: str | None = None,
+        parent_invocation_id: str | None = None,
         event_class: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]: ...
@@ -137,6 +139,8 @@ class InMemoryStorage:
         since: str | None = None,
         invocation_id: str | None = None,
         client_reference_id: str | None = None,
+        task_id: str | None = None,
+        parent_invocation_id: str | None = None,
         event_class: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
@@ -155,6 +159,13 @@ class InMemoryStorage:
             results = [
                 e for e in results
                 if e.get("client_reference_id") == client_reference_id
+            ]
+        if task_id is not None:
+            results = [e for e in results if e.get("task_id") == task_id]
+        if parent_invocation_id is not None:
+            results = [
+                e for e in results
+                if e.get("parent_invocation_id") == parent_invocation_id
             ]
         if event_class is not None:
             results = [e for e in results if e.get("event_class") == event_class]
@@ -316,6 +327,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
     delegation_chain TEXT,         -- JSON array of token_ids
     invocation_id TEXT,
     client_reference_id TEXT,
+    task_id TEXT,
+    parent_invocation_id TEXT,
     stream_summary TEXT,
     previous_hash TEXT NOT NULL,
     signature TEXT,
@@ -342,6 +355,10 @@ CREATE INDEX IF NOT EXISTS idx_audit_invocation_id
     ON audit_log(invocation_id);
 CREATE INDEX IF NOT EXISTS idx_audit_client_reference_id
     ON audit_log(client_reference_id);
+CREATE INDEX IF NOT EXISTS idx_audit_task_id
+    ON audit_log(task_id);
+CREATE INDEX IF NOT EXISTS idx_audit_parent_invocation_id
+    ON audit_log(parent_invocation_id);
 CREATE INDEX IF NOT EXISTS idx_audit_event_class
     ON audit_log(event_class);
 CREATE INDEX IF NOT EXISTS idx_audit_expires_at
@@ -394,6 +411,14 @@ class SQLiteStorage:
             pass  # column already exists
         try:
             self._conn.execute("ALTER TABLE audit_log ADD COLUMN client_reference_id TEXT")
+        except Exception:
+            pass  # column already exists
+        try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN task_id TEXT")
+        except Exception:
+            pass  # column already exists
+        try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN parent_invocation_id TEXT")
         except Exception:
             pass  # column already exists
         try:
@@ -505,12 +530,13 @@ class SQLiteStorage:
                    (sequence_number, timestamp, capability, token_id, issuer,
                     subject, root_principal, parameters, success, result_summary,
                     failure_type, cost_actual, delegation_chain, invocation_id,
-                    client_reference_id, stream_summary, previous_hash, signature,
+                    client_reference_id, task_id, parent_invocation_id,
+                    stream_summary, previous_hash, signature,
                     event_class, retention_tier, expires_at,
                     storage_redacted, entry_type, grouping_key,
                     aggregation_window, aggregation_count, first_seen,
                     last_seen, representative_detail)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     entry["sequence_number"],
                     entry["timestamp"],
@@ -527,6 +553,8 @@ class SQLiteStorage:
                     json.dumps(entry["delegation_chain"]) if entry.get("delegation_chain") is not None else None,
                     entry.get("invocation_id"),
                     entry.get("client_reference_id"),
+                    entry.get("task_id"),
+                    entry.get("parent_invocation_id"),
                     json.dumps(entry["stream_summary"]) if entry.get("stream_summary") is not None else None,
                     entry["previous_hash"],
                     entry.get("signature"),
@@ -563,6 +591,8 @@ class SQLiteStorage:
         since: str | None = None,
         invocation_id: str | None = None,
         client_reference_id: str | None = None,
+        task_id: str | None = None,
+        parent_invocation_id: str | None = None,
         event_class: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
@@ -584,6 +614,12 @@ class SQLiteStorage:
         if client_reference_id is not None:
             conditions.append("client_reference_id = ?")
             params.append(client_reference_id)
+        if task_id is not None:
+            conditions.append("task_id = ?")
+            params.append(task_id)
+        if parent_invocation_id is not None:
+            conditions.append("parent_invocation_id = ?")
+            params.append(parent_invocation_id)
         if event_class is not None:
             conditions.append("event_class = ?")
             params.append(event_class)
@@ -729,6 +765,8 @@ class SQLiteStorage:
         since: str | None = None,
         invocation_id: str | None = None,
         client_reference_id: str | None = None,
+        task_id: str | None = None,
+        parent_invocation_id: str | None = None,
         event_class: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
@@ -740,6 +778,8 @@ class SQLiteStorage:
             since=since,
             invocation_id=invocation_id,
             client_reference_id=client_reference_id,
+            task_id=task_id,
+            parent_invocation_id=parent_invocation_id,
             event_class=event_class,
             limit=limit,
         )
@@ -802,12 +842,13 @@ class SQLiteStorage:
                    (sequence_number, timestamp, capability, token_id, issuer,
                     subject, root_principal, parameters, success, result_summary,
                     failure_type, cost_actual, delegation_chain, invocation_id,
-                    client_reference_id, stream_summary, previous_hash, signature,
+                    client_reference_id, task_id, parent_invocation_id,
+                    stream_summary, previous_hash, signature,
                     event_class, retention_tier, expires_at,
                     storage_redacted, entry_type, grouping_key,
                     aggregation_window, aggregation_count, first_seen,
                     last_seen, representative_detail)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     entry["sequence_number"],
                     entry.get("timestamp"),
@@ -824,6 +865,8 @@ class SQLiteStorage:
                     json.dumps(entry["delegation_chain"]) if entry.get("delegation_chain") is not None else None,
                     entry.get("invocation_id"),
                     entry.get("client_reference_id"),
+                    entry.get("task_id"),
+                    entry.get("parent_invocation_id"),
                     json.dumps(entry["stream_summary"]) if entry.get("stream_summary") is not None else None,
                     entry["previous_hash"],
                     entry.get("signature"),

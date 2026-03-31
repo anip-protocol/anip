@@ -191,6 +191,8 @@ public class AnipResource {
                 params = new LinkedHashMap<>(body);
                 params.remove("stream");
                 params.remove("client_reference_id");
+                params.remove("task_id");
+                params.remove("parent_invocation_id");
             }
         }
 
@@ -199,12 +201,15 @@ public class AnipResource {
         if (clientRefId == null) {
             clientRefId = clientRefHeader;
         }
+        String taskId = body != null ? (String) body.get("task_id") : null;
+        String parentInvId = body != null ? (String) body.get("parent_invocation_id") : null;
 
         if (stream) {
-            return handleStreamInvoke(capability, token, params, clientRefId);
+            InvokeOpts streamOpts = new InvokeOpts(clientRefId, true, taskId, parentInvId);
+            return handleStreamInvoke(capability, token, params, streamOpts);
         }
 
-        InvokeOpts opts = new InvokeOpts(clientRefId, false);
+        InvokeOpts opts = new InvokeOpts(clientRefId, false, taskId, parentInvId);
         Map<String, Object> result = service.invoke(capability, token, params, opts);
 
         boolean success = Boolean.TRUE.equals(result.get("success"));
@@ -231,6 +236,8 @@ public class AnipResource {
                           @QueryParam("since") String qSince,
                           @QueryParam("invocation_id") String qInvocationId,
                           @QueryParam("client_reference_id") String qClientReferenceId,
+                          @QueryParam("task_id") String qTaskId,
+                          @QueryParam("parent_invocation_id") String qParentInvId,
                           @QueryParam("limit") String qLimit) {
         DelegationToken token = resolveJwt(authHeader);
 
@@ -248,17 +255,22 @@ public class AnipResource {
             int limit = body != null && body.get("limit") != null
                     ? ((Number) body.get("limit")).intValue() : 50;
 
+            String taskId = body != null ? (String) body.get("task_id") : null;
+            String parentInvId = body != null ? (String) body.get("parent_invocation_id") : null;
+
             // Query params override body.
             if (qCapability != null && !qCapability.isEmpty()) capability = qCapability;
             if (qSince != null && !qSince.isEmpty()) since = qSince;
             if (qInvocationId != null && !qInvocationId.isEmpty()) invocationId = qInvocationId;
             if (qClientReferenceId != null && !qClientReferenceId.isEmpty()) clientReferenceId = qClientReferenceId;
+            if (qTaskId != null && !qTaskId.isEmpty()) taskId = qTaskId;
+            if (qParentInvId != null && !qParentInvId.isEmpty()) parentInvId = qParentInvId;
             if (qLimit != null && !qLimit.isEmpty()) {
                 try { limit = Integer.parseInt(qLimit); } catch (NumberFormatException ignored) {}
             }
 
-            AuditFilters filters = new AuditFilters(capability, since, invocationId,
-                    clientReferenceId, limit);
+            AuditFilters filters = new AuditFilters(capability, null, since, invocationId,
+                    clientReferenceId, taskId, parentInvId, limit);
             AuditResponse resp = service.queryAudit(token, filters);
             return Response.ok(toMap(resp)).build();
         } catch (ANIPError e) {
@@ -323,10 +335,9 @@ public class AnipResource {
     // --- SSE streaming ---
 
     private Response handleStreamInvoke(String capability, DelegationToken token,
-                                         Map<String, Object> params, String clientRefId) {
+                                         Map<String, Object> params, InvokeOpts opts) {
         StreamResult sr;
         try {
-            InvokeOpts opts = new InvokeOpts(clientRefId, true);
             sr = service.invokeStream(capability, token, params, opts);
         } catch (ANIPError e) {
             // Return a single SSE error event then close.

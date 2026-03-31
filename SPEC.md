@@ -731,6 +731,8 @@ The service issues ES256-signed JWT tokens. Every protected endpoint resolves th
 parameters: { ... }
 budget: { ... }                     # optional, for cost negotiation
 client_reference_id: "task:abc/3"   # optional, opaque, max 256 chars
+task_id: "trip-planning-2026"       # optional, max 256 chars
+parent_invocation_id: "inv-a1b2c3..."  # optional, inv-{hex12} format
 stream: false                       # optional, default false — request streaming response (§6.6)
 ```
 
@@ -742,6 +744,8 @@ The delegation token is resolved from the bearer credential, not carried in the 
 success: true
 invocation_id: "inv-a1b2c3d4e5f6"  # always present, format inv-{hex12}
 client_reference_id: "task:abc/3"   # echoed if provided in request
+task_id: "trip-planning-2026"       # echoed if provided or from token purpose
+parent_invocation_id: "inv-a1b2c3..."  # echoed if provided
 result: { ... }
 cost_actual: { ... }                # optional
 stream_summary: { ... }            # present when stream: true was requested (§6.6)
@@ -753,6 +757,8 @@ Or on failure:
 success: false
 invocation_id: "inv-a1b2c3d4e5f6"  # present even on failure
 client_reference_id: "task:abc/3"   # echoed if provided
+task_id: "trip-planning-2026"       # echoed if provided or from token purpose
+parent_invocation_id: "inv-a1b2c3..."  # echoed if provided
 failure:
   type: "scope_insufficient"
   detail: "Missing required scope"
@@ -760,6 +766,10 @@ stream_summary: { ... }            # present when stream: true was requested (§
 ```
 
 The `invocation_id` is a server-generated canonical identifier for the invoke action, created before any validation. It is present in both success and failure responses, enabling end-to-end traceability. The `client_reference_id` is an optional caller-supplied opaque string (max 256 characters) echoed back in the response for caller-side correlation.
+
+The `task_id` is an optional caller-supplied string (max 256 characters) that groups related invocations under a shared workflow or task identity. The `parent_invocation_id` is an optional reference to the invocation that triggered this one, enabling invocation lineage trees.
+
+**Task ID precedence:** If the delegation token carries a `purpose.task_id`, the invocation `task_id` MUST match it or be omitted. A mismatch MUST result in a `purpose_mismatch` failure. If the token has no `purpose.task_id`, the invocation MAY provide a `task_id`. If neither the token nor the invocation provides a `task_id`, no `task_id` appears in the audit entry.
 
 When `stream: true` is requested and the capability declares `streaming` in its `response_modes`, the response switches to SSE transport (see §6.6). When `stream: true` is requested but the capability only supports `unary`, the service MUST return a JSON failure with type `streaming_not_supported`.
 
@@ -779,11 +789,11 @@ The service MUST enforce budget constraints carried in the delegation token's sc
 
 **Authentication:** Bearer JWT token in `Authorization` header. The service resolves the delegation token from the bearer credential and scopes results to its root principal.
 
-**Optional query parameters:** `capability`, `since` (ISO 8601), `invocation_id`, `client_reference_id`, `limit`.
+**Optional query parameters:** `capability`, `since` (ISO 8601), `invocation_id`, `client_reference_id`, `task_id`, `parent_invocation_id`, `limit`.
 
 **Response:** Audit log entries filtered to the root principal of the caller's delegation token. A service MUST NOT return audit entries belonging to other principals. This enforces the observability contract: each principal can only see their own audit trail.
 
-The `invocation_id` filter returns the single entry for that invocation. The `client_reference_id` filter returns all entries matching that caller-supplied correlation value.
+The `invocation_id` filter returns the single entry for that invocation. The `client_reference_id` filter returns all entries matching that caller-supplied correlation value. The `task_id` filter returns all entries belonging to that task. The `parent_invocation_id` filter returns all entries whose parent invocation matches the given ID.
 
 ### 6.4 Agent Interaction Flow
 

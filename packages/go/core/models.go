@@ -89,7 +89,7 @@ type CapabilityDeclaration struct {
 type Purpose struct {
 	Capability string         `json:"capability"`
 	Parameters map[string]any `json:"parameters"`
-	TaskID     string         `json:"task_id"`
+	TaskID     string         `json:"task_id,omitempty"`
 }
 
 // DelegationConstraints constrains how delegation tokens can be sub-delegated.
@@ -164,21 +164,25 @@ type PermissionResponse struct {
 
 // InvokeRequest is the client's invocation request body.
 type InvokeRequest struct {
-	Token             string         `json:"token"` // JWT string
-	Parameters        map[string]any `json:"parameters"`
-	Budget            map[string]any `json:"budget,omitempty"`
-	ClientReferenceID string         `json:"client_reference_id,omitempty"`
-	Stream            bool           `json:"stream,omitempty"`
+	Token              string         `json:"token"` // JWT string
+	Parameters         map[string]any `json:"parameters"`
+	Budget             map[string]any `json:"budget,omitempty"`
+	ClientReferenceID  string         `json:"client_reference_id,omitempty"`
+	TaskID             string         `json:"task_id,omitempty"`
+	ParentInvocationID string         `json:"parent_invocation_id,omitempty"`
+	Stream             bool           `json:"stream,omitempty"`
 }
 
 // InvokeResponse is the server's invocation response.
 type InvokeResponse struct {
-	Success           bool        `json:"success"`
-	InvocationID      string      `json:"invocation_id"`
-	ClientReferenceID string      `json:"client_reference_id,omitempty"`
-	Result            any         `json:"result,omitempty"`
-	CostActual        *CostActual `json:"cost_actual,omitempty"`
-	Failure           *ANIPError  `json:"failure,omitempty"`
+	Success            bool        `json:"success"`
+	InvocationID       string      `json:"invocation_id"`
+	ClientReferenceID  string      `json:"client_reference_id,omitempty"`
+	TaskID             string      `json:"task_id,omitempty"`
+	ParentInvocationID string      `json:"parent_invocation_id,omitempty"`
+	Result             any         `json:"result,omitempty"`
+	CostActual         *CostActual `json:"cost_actual,omitempty"`
+	Failure            *ANIPError  `json:"failure,omitempty"`
 }
 
 // --- Audit ---
@@ -200,6 +204,8 @@ type AuditEntry struct {
 	DelegationChain     []string       `json:"delegation_chain,omitempty"`
 	InvocationID        string         `json:"invocation_id,omitempty"`
 	ClientReferenceID   string         `json:"client_reference_id,omitempty"`
+	TaskID              string         `json:"task_id,omitempty"`
+	ParentInvocationID  string         `json:"parent_invocation_id,omitempty"`
 	PreviousHash        string         `json:"previous_hash,omitempty"`
 	Signature           string         `json:"signature,omitempty"`
 	EventClass          string         `json:"event_class,omitempty"`

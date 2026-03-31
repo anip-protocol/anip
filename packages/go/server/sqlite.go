@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
 	root_principal TEXT,
 	invocation_id TEXT,
 	client_reference_id TEXT,
+	task_id TEXT,
+	parent_invocation_id TEXT,
 	data TEXT NOT NULL,
 	previous_hash TEXT NOT NULL,
 	signature TEXT
@@ -36,6 +38,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_capability ON audit_log(capability);
 CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
 CREATE INDEX IF NOT EXISTS idx_audit_root_principal ON audit_log(root_principal);
 CREATE INDEX IF NOT EXISTS idx_audit_invocation_id ON audit_log(invocation_id);
+CREATE INDEX IF NOT EXISTS idx_audit_task_id ON audit_log(task_id);
+CREATE INDEX IF NOT EXISTS idx_audit_parent_invocation_id ON audit_log(parent_invocation_id);
 
 CREATE TABLE IF NOT EXISTS checkpoints (
 	checkpoint_id TEXT PRIMARY KEY,
@@ -203,14 +207,17 @@ func (s *SQLiteStorage) AppendAuditEntry(entry *core.AuditEntry) (*core.AuditEnt
 
 	result, err := tx.Exec(
 		`INSERT INTO audit_log (timestamp, capability, token_id, root_principal,
-		 invocation_id, client_reference_id, data, previous_hash, signature)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 invocation_id, client_reference_id, task_id, parent_invocation_id,
+		 data, previous_hash, signature)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		entry.Timestamp,
 		entry.Capability,
 		entry.TokenID,
 		entry.RootPrincipal,
 		entry.InvocationID,
 		entry.ClientReferenceID,
+		entry.TaskID,
+		entry.ParentInvocationID,
 		string(data),
 		prevHash,
 		entry.Signature,
@@ -264,6 +271,14 @@ func (s *SQLiteStorage) QueryAuditEntries(filters AuditFilters) ([]core.AuditEnt
 	if filters.ClientReferenceID != "" {
 		query += " AND client_reference_id = ?"
 		args = append(args, filters.ClientReferenceID)
+	}
+	if filters.TaskID != "" {
+		query += " AND task_id = ?"
+		args = append(args, filters.TaskID)
+	}
+	if filters.ParentInvocationID != "" {
+		query += " AND parent_invocation_id = ?"
+		args = append(args, filters.ParentInvocationID)
 	}
 
 	query += " ORDER BY sequence_number DESC"

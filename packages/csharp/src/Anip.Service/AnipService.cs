@@ -385,6 +385,28 @@ public class AnipService : IDisposable
 
         try
         {
+            // task_id precedence: token purpose.task_id is authoritative
+            var tokenTaskId = !string.IsNullOrEmpty(token.Purpose?.TaskId) ? token.Purpose.TaskId : null;
+            if (tokenTaskId != null && opts.TaskId != null && opts.TaskId != tokenTaskId)
+            {
+                return new Dictionary<string, object?>
+                {
+                    ["success"] = false,
+                    ["failure"] = new Dictionary<string, object?>
+                    {
+                        ["type"] = Constants.FailurePurposeMismatch,
+                        ["detail"] = $"Request task_id '{opts.TaskId}' does not match token purpose task_id '{tokenTaskId}'",
+                        ["resolution"] = new Dictionary<string, object?> { ["action"] = "use_token_task_id", ["requires"] = "matching task_id or omit from request" },
+                        ["retry"] = false,
+                    },
+                    ["invocation_id"] = invocationId,
+                    ["client_reference_id"] = opts.ClientReferenceId,
+                    ["task_id"] = opts.TaskId,
+                    ["parent_invocation_id"] = opts.ParentInvocationId,
+                };
+            }
+            var effectiveTaskId = opts.TaskId ?? tokenTaskId;
+
             // 1. Look up capability.
             if (!_capabilities.TryGetValue(capName, out var capDef))
             {
@@ -403,6 +425,8 @@ public class AnipService : IDisposable
                     ["failure"] = failure,
                     ["invocation_id"] = invocationId,
                     ["client_reference_id"] = opts.ClientReferenceId,
+                    ["task_id"] = effectiveTaskId,
+                    ["parent_invocation_id"] = opts.ParentInvocationId,
                 };
             }
 
@@ -432,8 +456,8 @@ public class AnipService : IDisposable
                     ["detail"] = streamFailDetail,
                 };
 
-                var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, null, _disclosurePolicy);
-                streamFailure = FailureRedaction.Redact(streamFailure, effectiveLevel);
+                var effectiveLevelStream = DisclosureControl.Resolve(_disclosureLevel, null, _disclosurePolicy);
+                streamFailure = FailureRedaction.Redact(streamFailure, effectiveLevelStream);
 
                 return new Dictionary<string, object?>
                 {
@@ -441,6 +465,8 @@ public class AnipService : IDisposable
                     ["failure"] = streamFailure,
                     ["invocation_id"] = invocationId,
                     ["client_reference_id"] = opts.ClientReferenceId,
+                    ["task_id"] = effectiveTaskId,
+                    ["parent_invocation_id"] = opts.ParentInvocationId,
                 };
             }
 
@@ -472,7 +498,8 @@ public class AnipService : IDisposable
 
                 // Log audit for scope failure.
                 AppendAuditEntry(capName, token, false, anipErr.ErrorType, null, null,
-                    invocationId, opts.ClientReferenceId, capDef.Declaration.SideEffect?.Type);
+                    invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
+                    capDef.Declaration.SideEffect?.Type);
 
                 // Apply failure redaction.
                 var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
@@ -484,6 +511,8 @@ public class AnipService : IDisposable
                     ["failure"] = failure,
                     ["invocation_id"] = invocationId,
                     ["client_reference_id"] = opts.ClientReferenceId,
+                    ["task_id"] = effectiveTaskId,
+                    ["parent_invocation_id"] = opts.ParentInvocationId,
                 };
             }
 
@@ -504,6 +533,8 @@ public class AnipService : IDisposable
                 delegationChain: new List<string> { token.TokenId },
                 invocationId: invocationId,
                 clientReferenceId: opts.ClientReferenceId,
+                taskId: effectiveTaskId,
+                parentInvocationId: opts.ParentInvocationId,
                 emitProgress: _ => false // No-op for unary invocations.
             );
 
@@ -517,7 +548,8 @@ public class AnipService : IDisposable
             {
                 AppendAuditEntry(capName, token, false, anipErr.ErrorType,
                     new Dictionary<string, object?> { ["detail"] = anipErr.Detail }, null,
-                    invocationId, opts.ClientReferenceId, capDef.Declaration.SideEffect?.Type);
+                    invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
+                    capDef.Declaration.SideEffect?.Type);
 
                 var failure = new Dictionary<string, object?>
                 {
@@ -525,8 +557,8 @@ public class AnipService : IDisposable
                     ["detail"] = anipErr.Detail,
                 };
 
-                var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
-                failure = FailureRedaction.Redact(failure, effectiveLevel);
+                var effectiveLevelErr = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                failure = FailureRedaction.Redact(failure, effectiveLevelErr);
 
                 return new Dictionary<string, object?>
                 {
@@ -534,12 +566,15 @@ public class AnipService : IDisposable
                     ["failure"] = failure,
                     ["invocation_id"] = invocationId,
                     ["client_reference_id"] = opts.ClientReferenceId,
+                    ["task_id"] = effectiveTaskId,
+                    ["parent_invocation_id"] = opts.ParentInvocationId,
                 };
             }
             catch (Exception)
             {
                 AppendAuditEntry(capName, token, false, Constants.FailureInternalError, null, null,
-                    invocationId, opts.ClientReferenceId, capDef.Declaration.SideEffect?.Type);
+                    invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
+                    capDef.Declaration.SideEffect?.Type);
 
                 var failure = new Dictionary<string, object?>
                 {
@@ -547,8 +582,8 @@ public class AnipService : IDisposable
                     ["detail"] = "Internal error",
                 };
 
-                var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
-                failure = FailureRedaction.Redact(failure, effectiveLevel);
+                var effectiveLevelExc = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                failure = FailureRedaction.Redact(failure, effectiveLevelExc);
 
                 return new Dictionary<string, object?>
                 {
@@ -556,6 +591,8 @@ public class AnipService : IDisposable
                     ["failure"] = failure,
                     ["invocation_id"] = invocationId,
                     ["client_reference_id"] = opts.ClientReferenceId,
+                    ["task_id"] = effectiveTaskId,
+                    ["parent_invocation_id"] = opts.ParentInvocationId,
                 };
             }
 
@@ -564,7 +601,8 @@ public class AnipService : IDisposable
 
             // 7. Log audit (success).
             AppendAuditEntry(capName, token, true, null, result, costActual,
-                invocationId, opts.ClientReferenceId, capDef.Declaration.SideEffect?.Type);
+                invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
+                capDef.Declaration.SideEffect?.Type);
 
             // 8. Build response.
             var resp = new Dictionary<string, object?>
@@ -573,6 +611,8 @@ public class AnipService : IDisposable
                 ["result"] = result,
                 ["invocation_id"] = invocationId,
                 ["client_reference_id"] = opts.ClientReferenceId,
+                ["task_id"] = effectiveTaskId,
+                ["parent_invocation_id"] = opts.ParentInvocationId,
             };
             if (costActual != null)
             {
@@ -615,6 +655,15 @@ public class AnipService : IDisposable
     {
         var invocationId = Constants.GenerateInvocationId();
 
+        // task_id precedence: token purpose.task_id is authoritative
+        var tokenTaskId = !string.IsNullOrEmpty(token.Purpose?.TaskId) ? token.Purpose.TaskId : null;
+        if (tokenTaskId != null && opts.TaskId != null && opts.TaskId != tokenTaskId)
+        {
+            throw new AnipError(Constants.FailurePurposeMismatch,
+                $"Request task_id '{opts.TaskId}' does not match token purpose task_id '{tokenTaskId}'");
+        }
+        var effectiveTaskId = opts.TaskId ?? tokenTaskId;
+
         // 1. Look up capability.
         if (!_capabilities.TryGetValue(capName, out var capDef))
         {
@@ -638,6 +687,7 @@ public class AnipService : IDisposable
         var lockObj = new object();
         var closed = false;
         var clientRefId = opts.ClientReferenceId;
+        var parentInvId = opts.ParentInvocationId;
 
         Func<Dictionary<string, object?>, bool> emitProgress = payload =>
         {
@@ -653,6 +703,8 @@ public class AnipService : IDisposable
                 {
                     ["invocation_id"] = invocationId,
                     ["client_reference_id"] = string.IsNullOrEmpty(clientRefId) ? null : clientRefId,
+                    ["task_id"] = effectiveTaskId,
+                    ["parent_invocation_id"] = parentInvId,
                     ["timestamp"] = DateTime.UtcNow.ToString("o"),
                     ["payload"] = payload,
                 },
@@ -669,6 +721,8 @@ public class AnipService : IDisposable
             delegationChain: new List<string> { token.TokenId },
             invocationId: invocationId,
             clientReferenceId: clientRefId,
+            taskId: effectiveTaskId,
+            parentInvocationId: parentInvId,
             emitProgress: emitProgress
         );
 
@@ -686,7 +740,8 @@ public class AnipService : IDisposable
                 {
                     AppendAuditEntry(capName, token, false, anipErr.ErrorType,
                         new Dictionary<string, object?> { ["detail"] = anipErr.Detail }, null,
-                        invocationId, clientRefId, capDef.Declaration.SideEffect?.Type);
+                        invocationId, clientRefId, effectiveTaskId, parentInvId,
+                        capDef.Declaration.SideEffect?.Type);
 
                     var failureObj = new Dictionary<string, object?>
                     {
@@ -708,6 +763,8 @@ public class AnipService : IDisposable
                         {
                             ["invocation_id"] = invocationId,
                             ["client_reference_id"] = string.IsNullOrEmpty(clientRefId) ? null : clientRefId,
+                            ["task_id"] = effectiveTaskId,
+                            ["parent_invocation_id"] = parentInvId,
                             ["timestamp"] = DateTime.UtcNow.ToString("o"),
                             ["success"] = false,
                             ["failure"] = failureObj,
@@ -718,7 +775,8 @@ public class AnipService : IDisposable
                 catch (Exception)
                 {
                     AppendAuditEntry(capName, token, false, Constants.FailureInternalError, null, null,
-                        invocationId, clientRefId, capDef.Declaration.SideEffect?.Type);
+                        invocationId, clientRefId, effectiveTaskId, parentInvId,
+                        capDef.Declaration.SideEffect?.Type);
 
                     var failureObj = new Dictionary<string, object?>
                     {
@@ -738,6 +796,8 @@ public class AnipService : IDisposable
                         {
                             ["invocation_id"] = invocationId,
                             ["client_reference_id"] = string.IsNullOrEmpty(clientRefId) ? null : clientRefId,
+                            ["task_id"] = effectiveTaskId,
+                            ["parent_invocation_id"] = parentInvId,
                             ["timestamp"] = DateTime.UtcNow.ToString("o"),
                             ["success"] = false,
                             ["failure"] = failureObj,
@@ -749,12 +809,15 @@ public class AnipService : IDisposable
                 // Success
                 var costActual = ctx.CostActual;
                 AppendAuditEntry(capName, token, true, null, result, costActual,
-                    invocationId, clientRefId, capDef.Declaration.SideEffect?.Type);
+                    invocationId, clientRefId, effectiveTaskId, parentInvId,
+                    capDef.Declaration.SideEffect?.Type);
 
                 var payload = new Dictionary<string, object?>
                 {
                     ["invocation_id"] = invocationId,
                     ["client_reference_id"] = string.IsNullOrEmpty(clientRefId) ? null : clientRefId,
+                    ["task_id"] = effectiveTaskId,
+                    ["parent_invocation_id"] = parentInvId,
                     ["timestamp"] = DateTime.UtcNow.ToString("o"),
                     ["success"] = true,
                     ["result"] = result,
@@ -998,6 +1061,8 @@ public class AnipService : IDisposable
         CostActual? costActual,
         string invocationId,
         string? clientReferenceId,
+        string? taskId,
+        string? parentInvocationId,
         string? sideEffectType)
     {
         var rootPrincipal = token.RootPrincipal ?? token.Issuer;
@@ -1019,6 +1084,8 @@ public class AnipService : IDisposable
             DelegationChain = new List<string> { token.TokenId },
             InvocationId = invocationId,
             ClientReferenceId = clientReferenceId,
+            TaskId = taskId,
+            ParentInvocationId = parentInvocationId,
             EventClass = eventClass,
             RetentionTier = tier,
             ExpiresAt = expiresAt,
@@ -1072,6 +1139,8 @@ public class AnipService : IDisposable
             ["expires_at"] = entry.ExpiresAt,
             ["invocation_id"] = entry.InvocationId,
             ["client_reference_id"] = entry.ClientReferenceId,
+            ["task_id"] = entry.TaskId,
+            ["parent_invocation_id"] = entry.ParentInvocationId,
             ["token_id"] = entry.TokenId,
             ["issuer"] = entry.Issuer,
             ["subject"] = entry.Subject,

@@ -39,6 +39,8 @@ public class SqliteStorage implements Storage {
                 root_principal TEXT,
                 invocation_id TEXT,
                 client_reference_id TEXT,
+                task_id TEXT,
+                parent_invocation_id TEXT,
                 data TEXT NOT NULL,
                 previous_hash TEXT NOT NULL,
                 signature TEXT
@@ -48,6 +50,8 @@ public class SqliteStorage implements Storage {
             CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
             CREATE INDEX IF NOT EXISTS idx_audit_root_principal ON audit_log(root_principal);
             CREATE INDEX IF NOT EXISTS idx_audit_invocation_id ON audit_log(invocation_id);
+            CREATE INDEX IF NOT EXISTS idx_audit_task_id ON audit_log(task_id);
+            CREATE INDEX IF NOT EXISTS idx_audit_parent_invocation_id ON audit_log(parent_invocation_id);
 
             CREATE TABLE IF NOT EXISTS checkpoints (
                 checkpoint_id TEXT PRIMARY KEY,
@@ -155,8 +159,9 @@ public class SqliteStorage implements Storage {
                 try (PreparedStatement ps = connection.prepareStatement(
                         """
                         INSERT INTO audit_log (timestamp, capability, token_id, root_principal,
-                            invocation_id, client_reference_id, data, previous_hash, signature)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            invocation_id, client_reference_id, task_id, parent_invocation_id,
+                            data, previous_hash, signature)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, Statement.RETURN_GENERATED_KEYS)) {
                     ps.setString(1, entry.getTimestamp());
                     ps.setString(2, entry.getCapability());
@@ -164,9 +169,11 @@ public class SqliteStorage implements Storage {
                     ps.setString(4, entry.getRootPrincipal());
                     ps.setString(5, entry.getInvocationId());
                     ps.setString(6, entry.getClientReferenceId());
-                    ps.setString(7, data);
-                    ps.setString(8, prevHash);
-                    ps.setString(9, entry.getSignature());
+                    ps.setString(7, entry.getTaskId());
+                    ps.setString(8, entry.getParentInvocationId());
+                    ps.setString(9, data);
+                    ps.setString(10, prevHash);
+                    ps.setString(11, entry.getSignature());
                     ps.executeUpdate();
 
                     try (ResultSet keys = ps.getGeneratedKeys()) {
@@ -222,6 +229,14 @@ public class SqliteStorage implements Storage {
             if (filters.getClientReferenceId() != null && !filters.getClientReferenceId().isEmpty()) {
                 query.append(" AND client_reference_id = ?");
                 args.add(filters.getClientReferenceId());
+            }
+            if (filters.getTaskId() != null && !filters.getTaskId().isEmpty()) {
+                query.append(" AND task_id = ?");
+                args.add(filters.getTaskId());
+            }
+            if (filters.getParentInvocationId() != null && !filters.getParentInvocationId().isEmpty()) {
+                query.append(" AND parent_invocation_id = ?");
+                args.add(filters.getParentInvocationId());
             }
 
             query.append(" ORDER BY sequence_number DESC");

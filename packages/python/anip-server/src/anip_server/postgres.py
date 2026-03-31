@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
     delegation_chain TEXT,
     invocation_id TEXT,
     client_reference_id TEXT,
+    task_id TEXT,
+    parent_invocation_id TEXT,
     stream_summary TEXT,
     previous_hash TEXT NOT NULL,
     signature TEXT,
@@ -78,6 +80,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
 CREATE INDEX IF NOT EXISTS idx_audit_root_principal ON audit_log(root_principal);
 CREATE INDEX IF NOT EXISTS idx_audit_invocation_id ON audit_log(invocation_id);
 CREATE INDEX IF NOT EXISTS idx_audit_client_reference_id ON audit_log(client_reference_id);
+CREATE INDEX IF NOT EXISTS idx_audit_task_id ON audit_log(task_id);
+CREATE INDEX IF NOT EXISTS idx_audit_parent_invocation_id ON audit_log(parent_invocation_id);
 CREATE INDEX IF NOT EXISTS idx_audit_event_class ON audit_log(event_class);
 CREATE INDEX IF NOT EXISTS idx_audit_expires_at ON audit_log(expires_at);
 
@@ -232,14 +236,15 @@ class PostgresStorage:
                (sequence_number, timestamp, capability, token_id, issuer,
                 subject, root_principal, parameters, success, result_summary,
                 failure_type, cost_actual, delegation_chain, invocation_id,
-                client_reference_id, stream_summary, previous_hash, signature,
+                client_reference_id, task_id, parent_invocation_id,
+                stream_summary, previous_hash, signature,
                 event_class, retention_tier, expires_at,
                 storage_redacted, entry_type, grouping_key,
                 aggregation_window, aggregation_count, first_seen,
                 last_seen, representative_detail)
                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                        $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-                       $21, $22, $23, $24, $25, $26, $27, $28, $29)""",
+                       $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)""",
             entry["sequence_number"],
             entry["timestamp"],
             entry["capability"],
@@ -255,6 +260,8 @@ class PostgresStorage:
             _json_or_none(entry.get("delegation_chain")),
             entry.get("invocation_id"),
             entry.get("client_reference_id"),
+            entry.get("task_id"),
+            entry.get("parent_invocation_id"),
             _json_or_none(entry.get("stream_summary")),
             entry["previous_hash"],
             entry.get("signature"),
@@ -279,6 +286,8 @@ class PostgresStorage:
         since: str | None = None,
         invocation_id: str | None = None,
         client_reference_id: str | None = None,
+        task_id: str | None = None,
+        parent_invocation_id: str | None = None,
         event_class: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
@@ -307,6 +316,14 @@ class PostgresStorage:
         if client_reference_id is not None:
             conditions.append(f"client_reference_id = ${idx}")
             params.append(client_reference_id)
+            idx += 1
+        if task_id is not None:
+            conditions.append(f"task_id = ${idx}")
+            params.append(task_id)
+            idx += 1
+        if parent_invocation_id is not None:
+            conditions.append(f"parent_invocation_id = ${idx}")
+            params.append(parent_invocation_id)
             idx += 1
         if event_class is not None:
             conditions.append(f"event_class = ${idx}")
@@ -398,14 +415,15 @@ class PostgresStorage:
                        (sequence_number, timestamp, capability, token_id, issuer,
                         subject, root_principal, parameters, success, result_summary,
                         failure_type, cost_actual, delegation_chain, invocation_id,
-                        client_reference_id, stream_summary, previous_hash, signature,
+                        client_reference_id, task_id, parent_invocation_id,
+                        stream_summary, previous_hash, signature,
                         event_class, retention_tier, expires_at,
                         storage_redacted, entry_type, grouping_key,
                         aggregation_window, aggregation_count, first_seen,
                         last_seen, representative_detail)
                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-                               $21, $22, $23, $24, $25, $26, $27, $28, $29)""",
+                               $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)""",
                     entry["sequence_number"],
                     entry.get("timestamp"),
                     entry.get("capability"),
@@ -421,6 +439,8 @@ class PostgresStorage:
                     _json_or_none(entry.get("delegation_chain")),
                     entry.get("invocation_id"),
                     entry.get("client_reference_id"),
+                    entry.get("task_id"),
+                    entry.get("parent_invocation_id"),
                     _json_or_none(entry.get("stream_summary")),
                     entry["previous_hash"],
                     entry.get("signature"),

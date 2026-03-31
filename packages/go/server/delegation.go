@@ -27,14 +27,22 @@ func IssueDelegationToken(
 	}
 	expires := now.Add(time.Duration(ttlHours) * time.Hour)
 
-	// Build purpose.
+	// Build purpose — use caller-supplied task_id if present
+	pp := req.PurposeParameters
+	if pp == nil {
+		pp = map[string]any{}
+	}
+	var resolvedTaskID string
+	if callerTaskID, ok := pp["task_id"]; ok && callerTaskID != nil {
+		resolvedTaskID = fmt.Sprintf("%v", callerTaskID)
+		delete(pp, "task_id")
+	} else if req.PurposeParameters == nil {
+		resolvedTaskID = fmt.Sprintf("task-%s", tokenID)
+	}
 	purpose := core.Purpose{
 		Capability: req.Capability,
-		Parameters: req.PurposeParameters,
-		TaskID:     fmt.Sprintf("task-%s", tokenID),
-	}
-	if purpose.Parameters == nil {
-		purpose.Parameters = map[string]any{}
+		Parameters: pp,
+		TaskID:     resolvedTaskID,
 	}
 
 	// Build constraints.

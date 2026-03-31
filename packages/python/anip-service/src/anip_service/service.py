@@ -492,6 +492,8 @@ class ANIPService:
         params: dict[str, Any],
         *,
         client_reference_id: str | None = None,
+        task_id: str | None = None,
+        parent_invocation_id: str | None = None,
         stream: bool = False,
         _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
     ) -> dict[str, Any]:
@@ -523,6 +525,8 @@ class ANIPService:
             return await self._invoke_body(
                 capability_name, token, params,
                 client_reference_id=client_reference_id,
+                task_id=task_id,
+                parent_invocation_id=parent_invocation_id,
                 stream=stream,
                 _progress_sink=_progress_sink,
                 invocation_id=invocation_id,
@@ -556,6 +560,8 @@ class ANIPService:
         params: dict[str, Any],
         *,
         client_reference_id: str | None,
+        task_id: str | None,
+        parent_invocation_id: str | None,
         stream: bool,
         _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None,
         invocation_id: str,
@@ -569,6 +575,25 @@ class ANIPService:
             token_claims={"anip:caller_class": token.caller_class, "scope": token.scope} if token else None,
             disclosure_policy=self._disclosure_policy,
         )
+
+        # task_id precedence: token purpose.task_id is authoritative
+        token_task_id = getattr(token.purpose, 'task_id', None) if token.purpose else None
+        if token_task_id and task_id and task_id != token_task_id:
+            _duration_ms = int((time.monotonic() - invoke_start) * 1000)
+            return {
+                "success": False,
+                "failure": {
+                    "type": "purpose_mismatch",
+                    "detail": f"Request task_id '{task_id}' does not match token purpose task_id '{token_task_id}'",
+                    "resolution": {"action": "use_token_task_id", "requires": "matching task_id or omit from request"},
+                    "retry": False,
+                },
+                "invocation_id": invocation_id,
+                "client_reference_id": client_reference_id,
+                "task_id": task_id,
+                "parent_invocation_id": parent_invocation_id,
+            }
+        effective_task_id = task_id or token_task_id
 
         # 1. Check capability exists
         if capability_name not in self._capabilities:
@@ -592,6 +617,8 @@ class ANIPService:
                 }, effective_level),
                 "invocation_id": invocation_id,
                 "client_reference_id": client_reference_id,
+                "task_id": effective_task_id,
+                "parent_invocation_id": parent_invocation_id,
             }
 
         cap = self._capabilities[capability_name]
@@ -621,6 +648,8 @@ class ANIPService:
                     }, effective_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
+                    "task_id": effective_task_id,
+                    "parent_invocation_id": parent_invocation_id,
                 }
 
         # 2. Validate delegation
@@ -654,6 +683,7 @@ class ANIPService:
                 failure_type=failure["type"], result_summary=None,
                 cost_actual=None, cost_variance=None,
                 invocation_id=invocation_id, client_reference_id=client_reference_id,
+                task_id=effective_task_id, parent_invocation_id=parent_invocation_id,
                 event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                 parent_span=root_span,
             )
@@ -674,6 +704,8 @@ class ANIPService:
                 "failure": redact_failure(failure, effective_level),
                 "invocation_id": invocation_id,
                 "client_reference_id": client_reference_id,
+                "task_id": effective_task_id,
+                "parent_invocation_id": parent_invocation_id,
             }
 
         # Use the resolved/stored token from validation
@@ -739,6 +771,7 @@ class ANIPService:
                     failure_type="concurrent_lock",
                     result_summary=None, cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
+                    task_id=effective_task_id, parent_invocation_id=parent_invocation_id,
                     event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                     parent_span=root_span,
                 )
@@ -759,6 +792,8 @@ class ANIPService:
                     "failure": redact_failure({"type": lock_result.type, "detail": lock_result.detail}, effective_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
+                    "task_id": effective_task_id,
+                    "parent_invocation_id": parent_invocation_id,
                 }
             locked = True
 
@@ -800,6 +835,7 @@ class ANIPService:
                     result_summary={"detail": e.detail},
                     cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
+                    task_id=effective_task_id, parent_invocation_id=parent_invocation_id,
                     stream_summary=fail_stream_summary,
                     event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                     parent_span=root_span,
@@ -831,6 +867,8 @@ class ANIPService:
                     "failure": redact_failure({"type": e.error_type, "detail": e.detail}, effective_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
+                    "task_id": effective_task_id,
+                    "parent_invocation_id": parent_invocation_id,
                 }
                 if fail_stream_summary:
                     fail_response["stream_summary"] = fail_stream_summary
@@ -854,6 +892,7 @@ class ANIPService:
                     failure_type="internal_error",
                     result_summary=None, cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
+                    task_id=effective_task_id, parent_invocation_id=parent_invocation_id,
                     stream_summary=fail_stream_summary_exc,
                     event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                     parent_span=root_span,
@@ -885,6 +924,8 @@ class ANIPService:
                     "failure": redact_failure({"type": "internal_error", "detail": "Internal error"}, effective_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
+                    "task_id": effective_task_id,
+                    "parent_invocation_id": parent_invocation_id,
                 }
                 if fail_stream_summary_exc:
                     fail_response_exc["stream_summary"] = fail_stream_summary_exc
@@ -917,6 +958,7 @@ class ANIPService:
                 cost_actual=cost_actual,
                 cost_variance=cost_variance,
                 invocation_id=invocation_id, client_reference_id=client_reference_id,
+                task_id=effective_task_id, parent_invocation_id=parent_invocation_id,
                 stream_summary=stream_summary,
                 event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                 parent_span=root_span,
@@ -954,6 +996,8 @@ class ANIPService:
                 "result": result,
                 "invocation_id": invocation_id,
                 "client_reference_id": client_reference_id,
+                "task_id": effective_task_id,
+                "parent_invocation_id": parent_invocation_id,
             }
             if cost_actual:
                 response["cost_actual"] = cost_actual
@@ -982,6 +1026,8 @@ class ANIPService:
             since=filters.get("since"),
             invocation_id=filters.get("invocation_id"),
             client_reference_id=filters.get("client_reference_id"),
+            task_id=filters.get("task_id"),
+            parent_invocation_id=filters.get("parent_invocation_id"),
             event_class=filters.get("event_class"),
             limit=min(filters.get("limit", 50), 1000),
         )
@@ -1327,6 +1373,8 @@ class ANIPService:
         cost_variance: dict[str, Any] | None,
         invocation_id: str | None = None,
         client_reference_id: str | None = None,
+        task_id: str | None = None,
+        parent_invocation_id: str | None = None,
         stream_summary: dict[str, Any] | None = None,
         event_class: str | None = None,
         retention_tier: str | None = None,
@@ -1351,6 +1399,8 @@ class ANIPService:
             "delegation_chain": [t.token_id for t in chain],
             "invocation_id": invocation_id,
             "client_reference_id": client_reference_id,
+            "task_id": task_id,
+            "parent_invocation_id": parent_invocation_id,
             "stream_summary": stream_summary,
             "event_class": event_class,
             "retention_tier": retention_tier,

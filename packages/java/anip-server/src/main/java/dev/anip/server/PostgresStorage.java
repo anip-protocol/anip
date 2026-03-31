@@ -39,6 +39,8 @@ public class PostgresStorage implements Storage {
                 root_principal TEXT NOT NULL,
                 invocation_id TEXT NOT NULL,
                 client_reference_id TEXT,
+                task_id TEXT,
+                parent_invocation_id TEXT,
                 data TEXT NOT NULL,
                 previous_hash TEXT NOT NULL,
                 signature TEXT NOT NULL DEFAULT ''
@@ -74,6 +76,8 @@ public class PostgresStorage implements Storage {
             CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
             CREATE INDEX IF NOT EXISTS idx_audit_root_principal ON audit_log(root_principal);
             CREATE INDEX IF NOT EXISTS idx_audit_invocation_id ON audit_log(invocation_id);
+            CREATE INDEX IF NOT EXISTS idx_audit_task_id ON audit_log(task_id);
+            CREATE INDEX IF NOT EXISTS idx_audit_parent_invocation_id ON audit_log(parent_invocation_id);
             """;
 
     private static final String INIT_APPEND_HEAD =
@@ -219,8 +223,9 @@ public class PostgresStorage implements Storage {
                 try (PreparedStatement ps = conn.prepareStatement(
                         """
                         INSERT INTO audit_log (sequence_number, timestamp, capability, token_id, root_principal,
-                            invocation_id, client_reference_id, data, previous_hash, signature)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            invocation_id, client_reference_id, task_id, parent_invocation_id,
+                            data, previous_hash, signature)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """)) {
                     ps.setLong(1, newSeqNum);
                     ps.setString(2, entry.getTimestamp());
@@ -229,9 +234,11 @@ public class PostgresStorage implements Storage {
                     ps.setString(5, entry.getRootPrincipal());
                     ps.setString(6, entry.getInvocationId());
                     ps.setString(7, entry.getClientReferenceId());
-                    ps.setString(8, data);
-                    ps.setString(9, prevHash);
-                    ps.setString(10, entry.getSignature() != null ? entry.getSignature() : "");
+                    ps.setString(8, entry.getTaskId());
+                    ps.setString(9, entry.getParentInvocationId());
+                    ps.setString(10, data);
+                    ps.setString(11, prevHash);
+                    ps.setString(12, entry.getSignature() != null ? entry.getSignature() : "");
                     ps.executeUpdate();
                 }
 
@@ -279,6 +286,14 @@ public class PostgresStorage implements Storage {
         if (filters.getClientReferenceId() != null && !filters.getClientReferenceId().isEmpty()) {
             query.append(" AND client_reference_id = ?");
             args.add(filters.getClientReferenceId());
+        }
+        if (filters.getTaskId() != null && !filters.getTaskId().isEmpty()) {
+            query.append(" AND task_id = ?");
+            args.add(filters.getTaskId());
+        }
+        if (filters.getParentInvocationId() != null && !filters.getParentInvocationId().isEmpty()) {
+            query.append(" AND parent_invocation_id = ?");
+            args.add(filters.getParentInvocationId());
         }
 
         query.append(" ORDER BY sequence_number DESC");

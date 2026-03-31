@@ -35,7 +35,7 @@ class SideEffect(BaseModel):
 class Purpose(BaseModel):
     capability: str
     parameters: dict[str, Any] = Field(default_factory=dict)
-    task_id: str
+    task_id: str | None = None
 
 
 class ConcurrentBranches(str, Enum):
@@ -335,6 +335,8 @@ class InvokeRequest(BaseModel):
     parameters: dict[str, Any] = Field(default_factory=dict)
     budget: dict[str, Any] | None = None
     client_reference_id: str | None = Field(default=None, max_length=256)
+    task_id: str | None = Field(default=None, max_length=256)
+    parent_invocation_id: str | None = Field(default=None, pattern=r"^inv-[0-9a-f]{12}$")
     stream: bool = False
 
 
@@ -351,6 +353,8 @@ class InvokeResponse(BaseModel):
     success: bool
     invocation_id: str = Field(pattern=r"^inv-[0-9a-f]{12}$")
     client_reference_id: str | None = None
+    task_id: str | None = None
+    parent_invocation_id: str | None = None
     result: dict[str, Any] | None = None
     cost_actual: CostActual | None = None
     failure: ANIPFailure | None = None

@@ -240,7 +240,7 @@ describe('InvokeView', () => {
 
       expect(mockInvokeCapability).toHaveBeenCalledWith(
         'http://localhost:9100', 'demo-human-key', 'search_flights',
-        { origin: 'SEA', destination: 'SFO' },
+        { origin: 'SEA', destination: 'SFO' }, {},
       )
 
       const result = wrapper.findComponent({ name: 'InvokeResult' })
