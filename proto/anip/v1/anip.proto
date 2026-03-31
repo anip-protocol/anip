@@ -55,6 +55,8 @@ message BudgetContext {
   string budget_currency = 2;   // The currency from the token's budget constraint
   double cost_check_amount = 3; // The amount used for the pre-execution budget check
   string cost_certainty = 4;    // The certainty level used (fixed, estimated, dynamic)
+  double cost_actual = 5;       // Actual cost after execution (0 when not yet known)
+  bool within_budget = 6;       // Whether the actual cost was within budget
 }
 
 // ============================================================

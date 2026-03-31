@@ -52,9 +52,23 @@
         "cost_certainty": {
           "$ref": "#/$defs/CostCertainty",
           "description": "The certainty level used in the budget check"
+        },
+        "cost_actual": {
+          "anyOf": [
+            { "type": "number" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Cost Actual",
+          "description": "Actual cost after execution, null when not yet known or on pre-execution failure"
+        },
+        "within_budget": {
+          "title": "Within Budget",
+          "type": "boolean",
+          "description": "Whether the actual cost was within the budget constraint"
         }
       },
-      "required": ["budget_max", "budget_currency", "cost_check_amount", "cost_certainty"],
+      "required": ["budget_max", "budget_currency", "cost_check_amount", "cost_certainty", "within_budget"],
       "title": "BudgetContext",
       "type": "object",
       "description": "Budget enforcement context included in invoke responses when a budget was evaluated. Present on both success and failure. See SPEC.md §6.3."

@@ -364,7 +364,7 @@ class TestServeGrpcLifecycle:
         stub = anip_pb2_grpc.AnipServiceStub(channel)
         resp = stub.Discovery(anip_pb2.DiscoveryRequest())
         data = json.loads(resp.json)
-        assert data["anip_discovery"]["protocol"] == "anip/0.11"
+        assert data["anip_discovery"]["protocol"] == "anip/0.13"
 
         # Verify token issuance works (proves async service is alive)
         tok = stub.IssueToken(

@@ -27,16 +27,20 @@ class Budget(_message.Message):
     def __init__(self, currency: _Optional[str] = ..., max_amount: _Optional[float] = ...) -> None: ...
 
 class BudgetContext(_message.Message):
-    __slots__ = ("budget_max", "budget_currency", "cost_check_amount", "cost_certainty")
+    __slots__ = ("budget_max", "budget_currency", "cost_check_amount", "cost_certainty", "cost_actual", "within_budget")
     BUDGET_MAX_FIELD_NUMBER: _ClassVar[int]
     BUDGET_CURRENCY_FIELD_NUMBER: _ClassVar[int]
     COST_CHECK_AMOUNT_FIELD_NUMBER: _ClassVar[int]
     COST_CERTAINTY_FIELD_NUMBER: _ClassVar[int]
+    COST_ACTUAL_FIELD_NUMBER: _ClassVar[int]
+    WITHIN_BUDGET_FIELD_NUMBER: _ClassVar[int]
     budget_max: float
     budget_currency: str
     cost_check_amount: float
     cost_certainty: str
-    def __init__(self, budget_max: _Optional[float] = ..., budget_currency: _Optional[str] = ..., cost_check_amount: _Optional[float] = ..., cost_certainty: _Optional[str] = ...) -> None: ...
+    cost_actual: float
+    within_budget: bool
+    def __init__(self, budget_max: _Optional[float] = ..., budget_currency: _Optional[str] = ..., cost_check_amount: _Optional[float] = ..., cost_certainty: _Optional[str] = ..., cost_actual: _Optional[float] = ..., within_budget: bool = ...) -> None: ...
 
 class DiscoveryRequest(_message.Message):
     __slots__ = ()

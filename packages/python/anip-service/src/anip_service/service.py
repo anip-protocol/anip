@@ -880,6 +880,8 @@ class ANIPService:
                             "budget_currency": effective_budget.currency,
                             "cost_check_amount": check_amount,
                             "cost_certainty": decl.cost.certainty.value,
+                            "cost_actual": None,
+                            "within_budget": False,
                         },
                         "invocation_id": invocation_id,
                         "client_reference_id": client_reference_id,
@@ -981,6 +983,25 @@ class ANIPService:
                     if self._metrics_hooks and self._metrics_hooks.on_streaming_delivery_failure:
                         self._safe_hook(self._metrics_hooks.on_streaming_delivery_failure, {"capability": capability_name})
 
+        # Pre-compute audit context for budget and binding (available to all audit calls below)
+        _audit_budget_base: dict[str, Any] | None = None
+        if effective_budget:
+            _audit_budget_base = {
+                "budget_max": effective_budget.max_amount,
+                "budget_currency": effective_budget.currency,
+                "cost_check_amount": check_amount,
+                "cost_certainty": decl.cost.certainty.value if decl.cost else None,
+                "cost_actual": None,
+                "within_budget": False,
+            }
+
+        _audit_binding_base: dict[str, Any] | None = None
+        if decl.requires_binding:
+            _audit_binding_base = {
+                "bindings_required": [b.field for b in decl.requires_binding],
+                "bindings_provided": [b.field for b in decl.requires_binding if b.field in params],
+            }
+
         # 3. Build invocation context
         chain = await self._engine.get_chain(resolved_token)
         root_principal = await self._engine.get_root_principal(resolved_token)
@@ -1022,6 +1043,8 @@ class ANIPService:
                     task_id=effective_task_id, parent_invocation_id=parent_invocation_id,
                     event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                     parent_span=root_span,
+                    budget_context=_audit_budget_base,
+                    binding_context=_audit_binding_base,
                 )
                 _lock_duration_ms = int((time.monotonic() - invoke_start) * 1000)
                 if self._log_hooks and self._log_hooks.on_invocation_end:
@@ -1087,6 +1110,8 @@ class ANIPService:
                     stream_summary=fail_stream_summary,
                     event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                     parent_span=root_span,
+                    budget_context=_audit_budget_base,
+                    binding_context=_audit_binding_base,
                 )
                 if stream and fail_stream_summary and self._log_hooks and self._log_hooks.on_streaming_summary:
                     self._safe_hook(self._log_hooks.on_streaming_summary, {
@@ -1144,6 +1169,8 @@ class ANIPService:
                     stream_summary=fail_stream_summary_exc,
                     event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                     parent_span=root_span,
+                    budget_context=_audit_budget_base,
+                    binding_context=_audit_binding_base,
                 )
                 if stream and fail_stream_summary_exc and self._log_hooks and self._log_hooks.on_streaming_summary:
                     self._safe_hook(self._log_hooks.on_streaming_summary, {
@@ -1199,6 +1226,16 @@ class ANIPService:
             _event_class = classify_event(_side_effect_type, True, None)
             _retention_tier = self._retention_policy.resolve_tier(_event_class)
             _expires_at = self._retention_policy.compute_expires_at(_retention_tier)
+
+            # Build success budget_context (add cost_actual and within_budget)
+            _success_budget_ctx: dict[str, Any] | None = None
+            if _audit_budget_base:
+                _cost_actual_amount = None
+                if cost_actual:
+                    _ca_fin = cost_actual.get("financial", {})
+                    _cost_actual_amount = _ca_fin.get("amount") if isinstance(_ca_fin, dict) else None
+                _success_budget_ctx = {**_audit_budget_base, "cost_actual": _cost_actual_amount, "within_budget": True}
+
             await self._log_audit(
                 capability_name, resolved_token, success=True,
                 failure_type=None,
@@ -1210,6 +1247,8 @@ class ANIPService:
                 stream_summary=stream_summary,
                 event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                 parent_span=root_span,
+                budget_context=_success_budget_ctx,
+                binding_context=_audit_binding_base,
             )
 
             # 9. Fire streaming summary hook
@@ -1643,6 +1682,8 @@ class ANIPService:
         retention_tier: str | None = None,
         expires_at: str | None = None,
         parent_span: Any = None,
+        budget_context: dict[str, Any] | None = None,
+        binding_context: dict[str, Any] | None = None,
     ) -> None:
         """Log an audit entry through the SDK's AuditLog.
 
@@ -1668,6 +1709,8 @@ class ANIPService:
             "event_class": event_class,
             "retention_tier": retention_tier,
             "expires_at": expires_at,
+            "budget_context": budget_context,
+            "binding_context": binding_context,
         }
 
         # Apply storage-side redaction (after classification, before persistence)

@@ -6,7 +6,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v7.34.1
-// source: proto/anip/v1/anip.proto
+// source: anip/v1/anip.proto
 
 package v1
 
@@ -479,5 +479,5 @@ var AnipService_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "proto/anip/v1/anip.proto",
+	Metadata: "anip/v1/anip.proto",
 }

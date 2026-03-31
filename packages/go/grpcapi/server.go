@@ -101,6 +101,34 @@ func mapToAnipFailure(m map[string]any) *pb.AnipFailure {
 	return f
 }
 
+// mapToBudgetContext converts a map[string]any budget_context to protobuf BudgetContext.
+// Returns nil if the map is nil or empty.
+func mapToBudgetContext(m map[string]any) *pb.BudgetContext {
+	if m == nil {
+		return nil
+	}
+	bc := &pb.BudgetContext{}
+	if v, ok := m["budget_max"].(float64); ok {
+		bc.BudgetMax = v
+	}
+	if v, ok := m["budget_currency"].(string); ok {
+		bc.BudgetCurrency = v
+	}
+	if v, ok := m["cost_check_amount"].(float64); ok {
+		bc.CostCheckAmount = v
+	}
+	if v, ok := m["cost_certainty"].(string); ok {
+		bc.CostCertainty = v
+	}
+	if v, ok := m["cost_actual"].(float64); ok {
+		bc.CostActual = v
+	}
+	if v, ok := m["within_budget"].(bool); ok {
+		bc.WithinBudget = v
+	}
+	return bc
+}
+
 // --- RPC implementations ---
 
 // Discovery returns the full discovery document as a JSON string.
@@ -152,10 +180,10 @@ func (s *AnipGrpcServer) IssueToken(ctx context.Context, req *pb.IssueTokenReque
 
 	// Build token request.
 	tokenReq := core.TokenRequest{
-		Subject:    req.Subject,
-		Scope:      req.Scope,
-		Capability: req.Capability,
-		TTLHours:   int(req.TtlHours),
+		Subject:     req.Subject,
+		Scope:       req.Scope,
+		Capability:  req.Capability,
+		TTLHours:    int(req.TtlHours),
 		CallerClass: req.CallerClass,
 	}
 	if req.ParentToken != "" {
@@ -164,16 +192,14 @@ func (s *AnipGrpcServer) IssueToken(ctx context.Context, req *pb.IssueTokenReque
 	if req.PurposeParametersJson != "" {
 		var pp map[string]any
 		if err := json.Unmarshal([]byte(req.PurposeParametersJson), &pp); err == nil {
-			// Extract budget if embedded in purpose_parameters.
-			if budgetRaw, ok := pp["budget"].(map[string]any); ok {
-				currency, _ := budgetRaw["currency"].(string)
-				maxAmount, _ := budgetRaw["max_amount"].(float64)
-				if currency != "" && maxAmount > 0 {
-					tokenReq.Budget = &core.Budget{Currency: currency, MaxAmount: maxAmount}
-				}
-				delete(pp, "budget")
-			}
 			tokenReq.PurposeParameters = pp
+		}
+	}
+	// Read budget from the protobuf Budget field.
+	if req.Budget != nil && req.Budget.Currency != "" && req.Budget.MaxAmount > 0 {
+		tokenReq.Budget = &core.Budget{
+			Currency:  req.Budget.Currency,
+			MaxAmount: req.Budget.MaxAmount,
 		}
 	}
 
@@ -189,12 +215,19 @@ func (s *AnipGrpcServer) IssueToken(ctx context.Context, req *pb.IssueTokenReque
 		return nil, status.Errorf(codes.Internal, "issue token: %v", err)
 	}
 
-	return &pb.IssueTokenResponse{
+	pbResp := &pb.IssueTokenResponse{
 		Issued:  resp.Issued,
 		TokenId: resp.TokenID,
 		Token:   resp.Token,
 		Expires: resp.Expires,
-	}, nil
+	}
+	if resp.Budget != nil {
+		pbResp.Budget = &pb.Budget{
+			Currency:  resp.Budget.Currency,
+			MaxAmount: resp.Budget.MaxAmount,
+		}
+	}
+	return pbResp, nil
 }
 
 // Permissions returns the permissions for the authenticated token.
@@ -303,6 +336,11 @@ func (s *AnipGrpcServer) Invoke(ctx context.Context, req *pb.InvokeRequest) (*pb
 		}
 	}
 
+	// Populate budget_context if present (both success and failure).
+	if bc, ok := result["budget_context"].(map[string]any); ok {
+		resp.BudgetContext = mapToBudgetContext(bc)
+	}
+
 	return resp, nil
 }
 
@@ -389,16 +427,20 @@ func (s *AnipGrpcServer) InvokeStream(req *pb.InvokeRequest, stream grpc.ServerS
 				caBytes, _ := json.Marshal(ca)
 				costJSON = string(caBytes)
 			}
+			completed := &pb.CompletedEvent{
+				InvocationId:       invID,
+				ClientReferenceId:  criVal,
+				TaskId:             tidVal,
+				ParentInvocationId: pidVal,
+				ResultJson:         resultJSON,
+				CostActualJson:     costJSON,
+			}
+			if bc, ok := event.Payload["budget_context"].(map[string]any); ok {
+				completed.BudgetContext = mapToBudgetContext(bc)
+			}
 			grpcEvent := &pb.InvokeEvent{
 				Event: &pb.InvokeEvent_Completed{
-					Completed: &pb.CompletedEvent{
-						InvocationId:       invID,
-						ClientReferenceId:  criVal,
-						TaskId:             tidVal,
-						ParentInvocationId: pidVal,
-						ResultJson:         resultJSON,
-						CostActualJson:     costJSON,
-					},
+					Completed: completed,
 				},
 			}
 			if err := stream.Send(grpcEvent); err != nil {
@@ -415,15 +457,19 @@ func (s *AnipGrpcServer) InvokeStream(req *pb.InvokeRequest, stream grpc.ServerS
 			if f, ok := event.Payload["failure"].(map[string]any); ok {
 				failure = mapToAnipFailure(f)
 			}
+			failed := &pb.FailedEvent{
+				InvocationId:       invID,
+				ClientReferenceId:  criVal,
+				TaskId:             tidVal,
+				ParentInvocationId: pidVal,
+				Failure:            failure,
+			}
+			if bc, ok := event.Payload["budget_context"].(map[string]any); ok {
+				failed.BudgetContext = mapToBudgetContext(bc)
+			}
 			grpcEvent := &pb.InvokeEvent{
 				Event: &pb.InvokeEvent_Failed{
-					Failed: &pb.FailedEvent{
-						InvocationId:       invID,
-						ClientReferenceId:  criVal,
-						TaskId:             tidVal,
-						ParentInvocationId: pidVal,
-						Failure:            failure,
-					},
+					Failed: failed,
 				},
 			}
 			if err := stream.Send(grpcEvent); err != nil {

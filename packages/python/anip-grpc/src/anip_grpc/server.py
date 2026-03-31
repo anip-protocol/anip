@@ -244,6 +244,16 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
             if failure:
                 resp.failure.CopyFrom(_make_anip_failure(failure))
 
+        # Populate budget_context if present (both success and failure).
+        budget_ctx = result.get("budget_context")
+        if budget_ctx:
+            resp.budget_context.CopyFrom(anip_pb2.BudgetContext(
+                budget_max=budget_ctx.get("budget_max", 0.0),
+                budget_currency=budget_ctx.get("budget_currency", ""),
+                cost_check_amount=budget_ctx.get("cost_check_amount", 0.0),
+                cost_certainty=budget_ctx.get("cost_certainty", ""),
+            ))
+
         return resp
 
     def InvokeStream(self, request, context):
@@ -298,28 +308,41 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                 ),
             )
 
+        # Build budget_context if present.
+        budget_ctx = result.get("budget_context")
+        pb_budget_ctx = None
+        if budget_ctx:
+            pb_budget_ctx = anip_pb2.BudgetContext(
+                budget_max=budget_ctx.get("budget_max", 0.0),
+                budget_currency=budget_ctx.get("budget_currency", ""),
+                cost_check_amount=budget_ctx.get("cost_check_amount", 0.0),
+                cost_certainty=budget_ctx.get("cost_certainty", ""),
+            )
+
         # Yield final completed or failed event
         success = result.get("success", True)
         if success:
             result_data = result.get("result")
             cost_actual = result.get("cost_actual")
-            yield anip_pb2.InvokeEvent(
-                completed=anip_pb2.CompletedEvent(
-                    invocation_id=invocation_id,
-                    client_reference_id=result.get("client_reference_id", "") or "",
-                    result_json=json.dumps(result_data) if result_data is not None else "",
-                    cost_actual_json=json.dumps(cost_actual) if cost_actual is not None else "",
-                ),
+            completed = anip_pb2.CompletedEvent(
+                invocation_id=invocation_id,
+                client_reference_id=result.get("client_reference_id", "") or "",
+                result_json=json.dumps(result_data) if result_data is not None else "",
+                cost_actual_json=json.dumps(cost_actual) if cost_actual is not None else "",
             )
+            if pb_budget_ctx:
+                completed.budget_context.CopyFrom(pb_budget_ctx)
+            yield anip_pb2.InvokeEvent(completed=completed)
         else:
             failure = result.get("failure", {})
-            yield anip_pb2.InvokeEvent(
-                failed=anip_pb2.FailedEvent(
-                    invocation_id=invocation_id,
-                    client_reference_id=result.get("client_reference_id", "") or "",
-                    failure=_make_anip_failure(failure),
-                ),
+            failed = anip_pb2.FailedEvent(
+                invocation_id=invocation_id,
+                client_reference_id=result.get("client_reference_id", "") or "",
+                failure=_make_anip_failure(failure),
             )
+            if pb_budget_ctx:
+                failed.budget_context.CopyFrom(pb_budget_ctx)
+            yield anip_pb2.InvokeEvent(failed=failed)
 
     def QueryAudit(self, request, context):
         token = self._resolve_jwt(context)
