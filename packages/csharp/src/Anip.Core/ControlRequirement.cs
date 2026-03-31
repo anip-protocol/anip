@@ -10,9 +10,4 @@ public class ControlRequirement
     [JsonPropertyName("enforcement")]
     public string Enforcement { get; set; } = "reject";
 
-    [JsonPropertyName("field")]
-    public string? Field { get; set; }
-
-    [JsonPropertyName("max_age")]
-    public string? MaxAge { get; set; }
 }

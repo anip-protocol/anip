@@ -744,38 +744,6 @@ public class AnipService : IDisposable
                         case "cost_ceiling":
                             satisfied = effectiveBudget != null;
                             break;
-                        case "bound_reference":
-                            if (!string.IsNullOrEmpty(req.Field))
-                            {
-                                satisfied = parameters.TryGetValue(req.Field, out var brVal) && brVal != null;
-                            }
-                            else
-                            {
-                                satisfied = false;
-                            }
-                            break;
-                        case "freshness_window":
-                            if (!string.IsNullOrEmpty(req.Field))
-                            {
-                                if (parameters.TryGetValue(req.Field, out var fwVal) && fwVal != null)
-                                {
-                                    var age = ResolveBindingAge(fwVal);
-                                    if (age >= TimeSpan.Zero && !string.IsNullOrEmpty(req.MaxAge))
-                                    {
-                                        var maxAge = ParseISO8601Duration(req.MaxAge);
-                                        satisfied = maxAge == TimeSpan.Zero || age <= maxAge;
-                                    }
-                                }
-                                else
-                                {
-                                    satisfied = false;
-                                }
-                            }
-                            else
-                            {
-                                satisfied = false;
-                            }
-                            break;
                         case "stronger_delegation_required":
                             satisfied = token.Purpose?.Capability == capName;
                             break;
