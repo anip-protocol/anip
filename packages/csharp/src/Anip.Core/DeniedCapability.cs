@@ -9,4 +9,7 @@ public class DeniedCapability
 
     [JsonPropertyName("reason")]
     public string Reason { get; set; } = "";
+
+    [JsonPropertyName("reason_type")]
+    public string ReasonType { get; set; } = "";
 }

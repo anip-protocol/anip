@@ -1213,12 +1213,17 @@ public class AnipService : IDisposable
                     }
                     if (hasRejectEnforcement)
                     {
+                        var ctrlResolutionHint = unmet.Contains("cost_ceiling")
+                            ? "request_budget_bound_delegation"
+                            : "request_capability_binding";
                         restricted.Add(new RestrictedCapability
                         {
                             Capability = name,
                             Reason = $"missing control requirements: {string.Join(", ", unmet)}",
+                            ReasonType = "unmet_control_requirement",
                             GrantableBy = rootPrincipal,
                             UnmetTokenRequirements = unmet,
+                            ResolutionHint = ctrlResolutionHint,
                         });
                         continue;
                     }
@@ -1260,6 +1265,7 @@ public class AnipService : IDisposable
                     {
                         Capability = name,
                         Reason = "requires admin principal",
+                        ReasonType = "non_delegable",
                     });
                 }
                 else
@@ -1268,7 +1274,9 @@ public class AnipService : IDisposable
                     {
                         Capability = name,
                         Reason = $"delegation chain lacks scope(s): {string.Join(", ", missing)}",
+                        ReasonType = "insufficient_scope",
                         GrantableBy = rootPrincipal,
+                        ResolutionHint = "request_broader_scope",
                     });
                 }
             }

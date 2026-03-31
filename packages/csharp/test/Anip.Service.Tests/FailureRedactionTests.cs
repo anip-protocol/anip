@@ -74,14 +74,14 @@ public class FailureRedactionTests
             ["detail"] = "details",
             ["resolution"] = new Dictionary<string, object?>
             {
-                ["action"] = "request_scope_grant",
+                ["action"] = "request_broader_scope",
                 ["grantable_by"] = "admin@example.com",
             },
         };
 
         var result = FailureRedaction.Redact(failure, "reduced");
         var resolution = (Dictionary<string, object?>)result["resolution"]!;
-        Assert.Equal("request_scope_grant", resolution["action"]);
+        Assert.Equal("request_broader_scope", resolution["action"]);
         Assert.Null(resolution["grantable_by"]);
     }
 
@@ -147,7 +147,7 @@ public class FailureRedactionTests
             ["detail"] = "details",
             ["resolution"] = new Dictionary<string, object?>
             {
-                ["action"] = "request_scope_grant",
+                ["action"] = "request_broader_scope",
                 ["requires"] = "data.write",
                 ["grantable_by"] = "admin@example.com",
                 ["estimated_availability"] = "immediate",
@@ -156,7 +156,7 @@ public class FailureRedactionTests
 
         var result = FailureRedaction.Redact(failure, "redacted");
         var resolution = (Dictionary<string, object?>)result["resolution"]!;
-        Assert.Equal("request_scope_grant", resolution["action"]);
+        Assert.Equal("request_broader_scope", resolution["action"]);
         Assert.Null(resolution["requires"]);
         Assert.Null(resolution["grantable_by"]);
         Assert.Null(resolution["estimated_availability"]);
