@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make authority failures machine-readable and actionable — structured `reason_type` on permission responses, canonical `resolution.action` vocabulary, and `block_class` on failures distinguishing terminal/resolvable/externally-resolvable blocks.
+**Goal:** Make authority failures machine-readable and actionable — structured `reason_type` on permission responses, canonical authority-specific `resolution.action` values, `resolution_hint` on restricted capabilities, and a new `non_delegable_action` failure type.
 
-**Architecture:** Three additive changes: (1) `reason_type` vocabulary on RestrictedCapability and DeniedCapability classifies WHY authority is blocked, (2) `block_class` on failure responses classifies the block's recoverability, (3) canonical `resolution.action` vocabulary gives agents a deterministic switch target for next steps. No breaking changes — all new fields are additive.
+**Architecture:** Additive changes only: (1) `reason_type` enum on RestrictedCapability/DeniedCapability classifies WHY authority is blocked (4 token-verifiable + 1 service-declared), (2) `resolution_hint` on RestrictedCapability tells agents what to do before invoking, (3) 3 new + 1 reused canonical `resolution.action` values for authority recovery, (4) `non_delegable_action` failure type for terminal blocks, (5) deprecate `request_scope_grant` in favor of `request_broader_scope`.
 
-**Tech Stack:** Python, TypeScript, Go, Java, C# runtimes + Protobuf + JSON Schema + SPEC.md + Vue (Studio)
+**Tech Stack:** Python, TypeScript, Go, Java, C# runtimes + JSON Schema + SPEC.md + Vue (Studio)
 
 **Spec:** `docs/proposals/v0.15-slice2-authority-blocked-action-spec-draft.md`
 
@@ -15,65 +15,55 @@
 ## File Structure
 
 ```
-# Spec, Schema, and Proto
-SPEC.md                                                        # MODIFY: §4.4 reason_type + resolution_hint + terminal + escalation_target; §4.5 block_class + canonical resolution.action vocabulary
-schema/anip.schema.json                                        # MODIFY: add ReasonType, BlockClass enums; add fields to RestrictedCapability, DeniedCapability, ANIPFailure
-proto/anip/v1/anip.proto                                       # MODIFY: add block_class to AnipFailure message
+# Spec and Schema
+SPEC.md                                                        # MODIFY: §4.4 reason_type + resolution_hint; §4.5 non_delegable_action + canonical actions + deprecate request_scope_grant
+schema/anip.schema.json                                        # MODIFY: add ReasonType enum; add fields to RestrictedCapability, DeniedCapability
 
 # Python (reference implementation)
-packages/python/anip-core/src/anip_core/models.py              # MODIFY: add new fields to RestrictedCapability, DeniedCapability, ANIPFailure
+packages/python/anip-core/src/anip_core/models.py              # MODIFY: add reason_type, resolution_hint to RestrictedCapability; reason_type to DeniedCapability
 packages/python/anip-server/src/anip_server/permissions.py     # MODIFY: populate reason_type + resolution_hint
-packages/python/anip-service/src/anip_service/service.py       # MODIFY: populate block_class, canonical resolution.action
-packages/python/anip-graphql/src/anip_graphql/translation.py   # MODIFY: add block_class to GraphQL SDL
-packages/python/anip-grpc/src/anip_grpc/server.py              # MODIFY: populate block_class in gRPC responses
-packages/python/anip-service/tests/test_authority.py           # CREATE: authority posture + block_class tests
+packages/python/anip-service/src/anip_service/service.py       # MODIFY: add non_delegable_action failure; use canonical resolution.action; deprecate request_scope_grant
+packages/python/anip-graphql/src/anip_graphql/translation.py   # MODIFY: add reasonType, resolutionHint to GraphQL SDL
+packages/python/anip-service/tests/test_authority.py           # CREATE: reason_type + resolution_hint + non_delegable tests
 
 # TypeScript
 packages/typescript/core/src/models.ts                         # MODIFY: add fields to Zod schemas
 packages/typescript/server/src/permissions.ts                   # MODIFY: populate reason_type (update PermissionResult interface too)
-packages/typescript/service/src/service.ts                     # MODIFY: populate block_class
-packages/typescript/graphql/src/translation.ts                 # MODIFY: add block_class to GraphQL SDL
-packages/typescript/rest/src/translation.ts                    # MODIFY: add block_class to OpenAPI schema
+packages/typescript/service/src/service.ts                     # MODIFY: canonical actions + non_delegable_action
+packages/typescript/graphql/src/translation.ts                 # MODIFY: add reasonType to GraphQL SDL
 
 # Go
 packages/go/core/models.go                                    # MODIFY: add fields to RestrictedCapability, DeniedCapability
-packages/go/core/failure.go                                    # MODIFY: add BlockClass to ANIPError (NOT models.go)
+packages/go/core/constants.go                                  # MODIFY: add FailureNonDelegableAction constant
 packages/go/service/permissions.go                             # MODIFY: populate reason_type
-packages/go/service/invoke.go                                  # MODIFY: populate block_class
-packages/go/service/redaction.go                               # MODIFY: whitelist block_class in redaction
-packages/go/graphqlapi/translation.go                          # MODIFY: add block_class to GraphQL SDL
-packages/go/restapi/openapi.go                                 # MODIFY: add block_class to OpenAPI schema
-packages/go/grpcapi/server.go                                  # MODIFY: populate block_class in gRPC responses
+packages/go/service/invoke.go                                  # MODIFY: canonical actions
+packages/go/graphqlapi/translation.go                          # MODIFY: add reasonType to GraphQL SDL
 
 # Java
 packages/java/anip-core/src/main/java/dev/anip/core/PermissionResponse.java  # MODIFY: add fields to nested RestrictedCapability + DeniedCapability
-packages/java/anip-service/src/main/java/dev/anip/service/ANIPService.java   # MODIFY: permissions + failures
-packages/java/anip-graphql/src/main/java/dev/anip/graphql/SchemaBuilder.java # MODIFY: add block_class to GraphQL SDL
-packages/java/anip-rest/src/main/java/dev/anip/rest/OpenApiGenerator.java    # MODIFY: add block_class to OpenAPI schema
+packages/java/anip-core/src/main/java/dev/anip/core/Constants.java           # MODIFY: add FAILURE_NON_DELEGABLE_ACTION constant
+packages/java/anip-service/src/main/java/dev/anip/service/ANIPService.java   # MODIFY: permissions + canonical actions
+packages/java/anip-graphql/src/main/java/dev/anip/graphql/SchemaBuilder.java # MODIFY: add reasonType to GraphQL SDL
 
 # C#
-packages/csharp/src/Anip.Core/RestrictedCapability.cs          # MODIFY: add new fields
-packages/csharp/src/Anip.Core/DeniedCapability.cs              # MODIFY: add new fields (check if exists, create if not)
-packages/csharp/src/Anip.Service/AnipService.cs                # MODIFY: permissions + failures
-packages/csharp/src/Anip.Service/FailureRedaction.cs           # MODIFY: whitelist block_class
-packages/csharp/src/Anip.GraphQL/SchemaBuilder.cs              # MODIFY: add block_class to GraphQL SDL
-packages/csharp/src/Anip.Rest/OpenApiGenerator.cs              # MODIFY: add block_class to OpenAPI schema
+packages/csharp/src/Anip.Core/RestrictedCapability.cs          # MODIFY: add reason_type, resolution_hint
+packages/csharp/src/Anip.Core/DeniedCapability.cs              # MODIFY: add reason_type (check if standalone or nested)
+packages/csharp/src/Anip.Core/Constants.cs                     # MODIFY: add FailureNonDelegableAction constant
+packages/csharp/src/Anip.Service/AnipService.cs                # MODIFY: permissions + canonical actions
+packages/csharp/src/Anip.GraphQL/SchemaBuilder.cs              # MODIFY: add reasonType to GraphQL SDL
 
 # Conformance
-conformance/test_authority.py                                  # CREATE: reason_type + block_class conformance tests
+conformance/test_authority.py                                  # CREATE: reason_type + non_delegable conformance tests
 
 # Showcase
-examples/showcase/travel/capabilities.py                       # MODIFY: demonstrate scope restriction → reason_type
 examples/showcase/devops/capabilities.py                       # MODIFY: add non-delegable action scenario
-examples/showcase/finance/capabilities.py                      # MODIFY: add external-approval scenario
 
 # Studio
-studio/src/components/CapabilityCard.vue                       # MODIFY: show reason_type on restricted/denied
-studio/src/components/InvokeResult.vue                         # MODIFY: show block_class on failures
+studio/src/components/CapabilityCard.vue                       # MODIFY: show reason_type badge on restricted/denied
 
 # Website
 website/docs/protocol/delegation-permissions.md                # MODIFY: add reason_type docs
-website/docs/protocol/failures-cost-audit.md                   # MODIFY: add block_class + canonical resolution.action
+website/docs/protocol/failures-cost-audit.md                   # MODIFY: add non_delegable_action + canonical actions
 website/docs/protocol/reference.md                             # MODIFY: add new fields to response tables
 website/docs/feature-map.md                                    # MODIFY: add v0.15 entries
 website/docs/releases/version-history.md                       # MODIFY: add v0.15 entry
@@ -81,127 +71,136 @@ website/docs/releases/version-history.md                       # MODIFY: add v0.
 
 ---
 
-## Task 1: Spec, Schema, and Proto
+## Task 1: Spec and Schema
 
 **Files:**
 - Modify: `SPEC.md`
 - Modify: `schema/anip.schema.json`
-- Modify: `proto/anip/v1/anip.proto`
 
 - [ ] **Step 1: Update SPEC.md §4.4 (Permission Discovery)**
 
-Add `reason_type` vocabulary table (7 values: `insufficient_scope`, `insufficient_delegation_depth`, `stronger_delegation_required`, `unmet_control_requirement`, `non_delegable`, `requires_external_approval`, `principal_class_insufficient`).
+Add `reason_type` vocabulary table (5 values):
+
+| Value | Meaning | Where | Determined by |
+|-------|---------|-------|--------------|
+| `insufficient_scope` | Chain lacks required scope(s) | `restricted` | Token vs capability `minimum_scope` |
+| `insufficient_delegation_depth` | Token at max depth | `restricted` | Token `constraints.max_delegation_depth` |
+| `stronger_delegation_required` | Needs explicit capability binding | `restricted` | Token-evaluable control requirement |
+| `unmet_control_requirement` | Token-evaluable control req not satisfied | `restricted` | Token vs capability `control_requirements` |
+| `non_delegable` | Cannot be delegated — direct principal required | `denied` | Service-declared |
 
 Add new fields:
 - RestrictedCapability: `reason_type` (required string), `resolution_hint` (optional string)
-- DeniedCapability: `reason_type` (required string), `terminal` (required boolean), `escalation_target` (optional string)
+- DeniedCapability: `reason_type` (required string)
 
-Update examples to show the new fields.
+Update permission discovery examples to include `reason_type` and `resolution_hint`.
 
 - [ ] **Step 2: Update SPEC.md §4.5 (Failure Semantics)**
 
-Add `block_class` field to failure objects. Vocabulary: `transient`, `resolvable`, `externally_resolvable`, `terminal`.
+Add `non_delegable_action` failure type with `retry: false` and `resolution.action: "stop"`.
 
-Add canonical `resolution.action` vocabulary table (12 values): `retry`, `retry_after_change`, `request_broader_delegation`, `request_budget_increase`, `request_budget_bound_delegation`, `request_capability_binding`, `obtain_binding`, `refresh_binding`, `escalate_to_human`, `escalate_to_principal`, `stop`, `replan`.
+Add canonical authority-specific `resolution.action` values (table with Status column):
 
-Add 3 new failure types: `insufficient_authority` (resolvable), `delegation_depth_exceeded` (resolvable), `non_delegable_action` (terminal).
+| Action | Status | When to use |
+|--------|--------|------------|
+| `request_broader_scope` | New | `insufficient_scope` |
+| `request_new_delegation` | Existing (now canonical for depth) | `insufficient_delegation_depth` |
+| `request_capability_binding` | New | `stronger_delegation_required` |
+| `request_budget_bound_delegation` | Existing (from v0.14) | `unmet_control_requirement` (cost_ceiling) |
+| `stop` | New | `non_delegable` |
 
-Add mapping table from existing failure types to default `block_class`.
+Add deprecation note: `request_scope_grant` is DEPRECATED in favor of `request_broader_scope`.
 
-State the consistency rule: `resolution_hint` in permissions SHOULD match `resolution.action` in the invoke failure for the same capability.
+State consistency rule: `resolution_hint` in permissions SHOULD match `resolution.action` in the invoke failure.
 
 - [ ] **Step 3: Update JSON Schema**
 
-Add `ReasonType` and `BlockClass` enums to `$defs`. Add new fields to `RestrictedCapability`, `DeniedCapability`, and `ANIPFailure` schemas.
+Add `ReasonType` enum to `$defs` with the 5 values. Add `reason_type` (required) and `resolution_hint` (optional) to `RestrictedCapability`. Add `reason_type` (required) to `DeniedCapability`.
 
-- [ ] **Step 4: Update Proto**
-
-Add `string block_class = 5;` to the `AnipFailure` message. Regenerate Python gRPC stubs.
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add SPEC.md schema/anip.schema.json proto/anip/v1/anip.proto packages/python/anip-grpc/src/anip_grpc/generated/
-git commit -m "spec: add authority posture, block_class, and canonical resolution.action vocabulary (v0.15)"
+git add SPEC.md schema/anip.schema.json
+git commit -m "spec: add reason_type, resolution_hint, non_delegable_action, canonical authority actions (v0.15)"
 ```
 
 ---
 
-## Task 2: Python Core Models + Permissions + Failures
+## Task 2: Python Reference Implementation
 
 **Files:**
 - Modify: `packages/python/anip-core/src/anip_core/models.py`
 - Modify: `packages/python/anip-server/src/anip_server/permissions.py`
 - Modify: `packages/python/anip-service/src/anip_service/service.py`
 - Modify: `packages/python/anip-graphql/src/anip_graphql/translation.py`
-- Modify: `packages/python/anip-grpc/src/anip_grpc/server.py`
 - Create: `packages/python/anip-service/tests/test_authority.py`
 
 - [ ] **Step 1: Add fields to models**
 
-RestrictedCapability: add `reason_type: str = "insufficient_scope"`, `resolution_hint: str | None = None`
-DeniedCapability: add `reason_type: str = "non_delegable"`, `terminal: bool = True`, `escalation_target: str | None = None`
-ANIPFailure: add `block_class: str | None = None`
-
-- [ ] **Step 2: Create _block_class_for_failure() helper**
-
-In service.py, add a mapping function used by BOTH the failure construction path AND the permissions path (for consistency):
-
 ```python
-_BLOCK_CLASS_MAP = {
-    "capability_unavailable": "transient",
-    "internal_error": "transient",
-    "rate_limited": "transient",
-    "non_delegable_action": "terminal",
-}
+class RestrictedCapability(BaseModel):
+    capability: str
+    reason: str
+    grantable_by: str
+    unmet_token_requirements: list[str] = Field(default_factory=list)
+    reason_type: str = "insufficient_scope"
+    resolution_hint: str | None = None
 
-def _block_class_for_failure(failure_type: str) -> str:
-    return _BLOCK_CLASS_MAP.get(failure_type, "resolvable")
+class DeniedCapability(BaseModel):
+    capability: str
+    reason: str
+    reason_type: str = "non_delegable"
 ```
 
-- [ ] **Step 3: Populate reason_type in permissions.py**
+- [ ] **Step 2: Populate reason_type in permissions.py**
 
-In `discover_permissions()`, when creating RestrictedCapability/DeniedCapability instances, set `reason_type` based on the restriction reason:
-- Missing scope → `reason_type="insufficient_scope"`, `resolution_hint="request_broader_delegation"`
-- Unmet control requirement → `reason_type="unmet_control_requirement"`, `resolution_hint` based on requirement type
-- Denied entirely → `reason_type` based on why (non-delegable, principal class, etc.)
+Read `permissions.py` first. Find where RestrictedCapability and DeniedCapability are created. Set `reason_type` and `resolution_hint`:
 
-- [ ] **Step 4: Populate block_class on ALL failure responses in service.py**
+- Missing scope → `reason_type="insufficient_scope"`, `resolution_hint="request_broader_scope"`
+- Unmet control requirement (cost_ceiling) → `reason_type="unmet_control_requirement"`, `resolution_hint="request_budget_bound_delegation"`
+- Unmet control requirement (stronger_delegation_required) → `reason_type="stronger_delegation_required"`, `resolution_hint="request_capability_binding"`
+- Denied → `reason_type="non_delegable"`
 
-Find every failure dict in service.py. Add `"block_class": _block_class_for_failure(failure_type)`. Use canonical `resolution.action` vocabulary.
+- [ ] **Step 3: Add non_delegable_action failure type + canonical actions in service.py**
 
-- [ ] **Step 5: Update GraphQL SDL**
+Add a constant or inline check. When a service wants to signal non-delegable, it returns:
+```python
+{
+    "type": "non_delegable_action",
+    "detail": "...",
+    "resolution": {"action": "stop", "requires": "direct principal invocation"},
+    "retry": False,
+}
+```
 
-In `translation.py`, add `blockClass: String` to the `ANIPFailure` GraphQL type.
+Update existing `resolution.action` values in scope-related failures from `request_scope_grant` to `request_broader_scope`. Keep both working but prefer the new canonical value.
 
-- [ ] **Step 6: Populate block_class in gRPC responses**
+- [ ] **Step 4: Update GraphQL SDL**
 
-In `server.py`, map `block_class` from the service result to the proto `AnipFailure.block_class` field.
+In `translation.py`, add `reasonType: String` and `resolutionHint: String` to the `RestrictedCapability` GraphQL type, and `reasonType: String` to `DeniedCapability`.
 
-- [ ] **Step 7: Write tests**
+- [ ] **Step 5: Write tests**
 
-Create `test_authority.py` with:
-- `test_restricted_has_reason_type` — permissions returns `reason_type` on restricted
-- `test_denied_has_reason_type_and_terminal` — denied has `reason_type` + `terminal`
-- `test_reason_type_insufficient_scope` — scope gap → `reason_type="insufficient_scope"`
-- `test_resolution_hint_matches_invoke_failure` — permissions `resolution_hint` matches invoke `resolution.action`
-- `test_block_class_resolvable_for_scope` — scope failure → `block_class="resolvable"`
-- `test_block_class_transient_for_unavailable` — transient failure → `block_class="transient"`
-- `test_block_class_present_on_all_failure_types` — every failure includes `block_class`
-- `test_delegation_depth_exceeded` — max depth → `delegation_depth_exceeded` failure
-- `test_canonical_resolution_action` — resolution.action uses canonical vocabulary
+Create `test_authority.py`:
+- `test_restricted_has_reason_type` — permissions returns `reason_type` on restricted capabilities
+- `test_reason_type_insufficient_scope` — missing scope → `reason_type="insufficient_scope"`
+- `test_resolution_hint_on_restricted` — restricted capability has `resolution_hint`
+- `test_denied_has_reason_type` — denied capabilities have `reason_type="non_delegable"`
+- `test_resolution_hint_matches_invoke_action` — `resolution_hint` matches `resolution.action` on invoke failure
+- `test_canonical_action_request_broader_scope` — scope failure uses `request_broader_scope`
+- `test_non_delegable_action_not_used_yet` — verify new failure type exists as a constant (actual non-delegable scenarios depend on service config, tested via showcase)
 
-- [ ] **Step 8: Run tests**
+- [ ] **Step 6: Run tests**
 
 ```bash
 cd /Users/samirski/Development/ANIP && python -m pytest packages/python/ -x -v --timeout=30 2>&1 | tail -30
 ```
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add packages/python/
-git commit -m "feat(python): add authority posture, block_class, canonical resolution.action (v0.15)"
+git commit -m "feat(python): add reason_type, resolution_hint, non_delegable_action, canonical actions (v0.15)"
 ```
 
 ---
@@ -209,16 +208,15 @@ git commit -m "feat(python): add authority posture, block_class, canonical resol
 ## Task 3: TypeScript Runtime
 
 **Files:**
-- Modify: `packages/typescript/core/src/models.ts` — add fields to Zod schemas for RestrictedCapability, DeniedCapability, ANIPFailure
-- Modify: `packages/typescript/server/src/permissions.ts` — populate reason_type (update BOTH PermissionResult interface AND Zod schemas)
-- Modify: `packages/typescript/service/src/service.ts` — populate block_class + canonical resolution.action
-- Modify: `packages/typescript/graphql/src/translation.ts` — add `blockClass` to GraphQL SDL
-- Modify: `packages/typescript/rest/src/translation.ts` — add `block_class` to OpenAPI schema
+- Modify: `packages/typescript/core/src/models.ts` — add `reasonType`, `resolutionHint` to RestrictedCapability Zod schema; `reasonType` to DeniedCapability
+- Modify: `packages/typescript/server/src/permissions.ts` — populate reason_type (update PermissionResult interface AND Zod schemas)
+- Modify: `packages/typescript/service/src/service.ts` — canonical actions + non_delegable_action failure
+- Modify: `packages/typescript/graphql/src/translation.ts` — add reasonType to GraphQL SDL
 
 - [ ] **Step 1: Add fields to models + permissions interface**
 - [ ] **Step 2: Populate reason_type in permissions**
-- [ ] **Step 3: Populate block_class on failures + canonical actions**
-- [ ] **Step 4: Update GraphQL SDL and OpenAPI schema**
+- [ ] **Step 3: Use canonical actions + add non_delegable_action**
+- [ ] **Step 4: Update GraphQL SDL**
 - [ ] **Step 5: Run tests**
 ```bash
 cd /Users/samirski/Development/ANIP/packages/typescript && npx vitest run
@@ -226,7 +224,7 @@ cd /Users/samirski/Development/ANIP/packages/typescript && npx vitest run
 - [ ] **Step 6: Commit**
 ```bash
 git add packages/typescript/
-git commit -m "feat(typescript): add authority posture and block_class (v0.15)"
+git commit -m "feat(typescript): add reason_type, resolution_hint, canonical actions (v0.15)"
 ```
 
 ---
@@ -234,19 +232,16 @@ git commit -m "feat(typescript): add authority posture and block_class (v0.15)"
 ## Task 4: Go Runtime
 
 **Files:**
-- Modify: `packages/go/core/models.go` — add fields to RestrictedCapability, DeniedCapability
-- Modify: `packages/go/core/failure.go` — add BlockClass to ANIPError struct
+- Modify: `packages/go/core/models.go` — add ReasonType, ResolutionHint to RestrictedCapability; ReasonType to DeniedCapability
+- Modify: `packages/go/core/constants.go` — add `FailureNonDelegableAction` constant
 - Modify: `packages/go/service/permissions.go` — populate reason_type
-- Modify: `packages/go/service/invoke.go` — populate block_class
-- Modify: `packages/go/service/redaction.go` — whitelist block_class field
-- Modify: `packages/go/graphqlapi/translation.go` — add blockClass to GraphQL SDL
-- Modify: `packages/go/restapi/openapi.go` — add block_class to OpenAPI schema
-- Modify: `packages/go/grpcapi/server.go` — populate block_class in gRPC responses
+- Modify: `packages/go/service/invoke.go` — canonical actions
+- Modify: `packages/go/graphqlapi/translation.go` — add reasonType to GraphQL SDL
 
-- [ ] **Step 1: Add fields to models + failure struct**
+- [ ] **Step 1: Add fields to models + constant**
 - [ ] **Step 2: Populate reason_type in permissions**
-- [ ] **Step 3: Populate block_class on failures + whitelist in redaction**
-- [ ] **Step 4: Update GraphQL SDL, OpenAPI schema, gRPC responses**
+- [ ] **Step 3: Use canonical actions**
+- [ ] **Step 4: Update GraphQL SDL**
 - [ ] **Step 5: Run tests**
 ```bash
 cd /Users/samirski/Development/ANIP/packages/go && go test ./...
@@ -254,7 +249,7 @@ cd /Users/samirski/Development/ANIP/packages/go && go test ./...
 - [ ] **Step 6: Commit**
 ```bash
 git add packages/go/
-git commit -m "feat(go): add authority posture and block_class (v0.15)"
+git commit -m "feat(go): add reason_type, resolution_hint, canonical actions (v0.15)"
 ```
 
 ---
@@ -262,14 +257,15 @@ git commit -m "feat(go): add authority posture and block_class (v0.15)"
 ## Task 5: Java Runtime
 
 **Files:**
-- Modify: `packages/java/anip-core/src/main/java/dev/anip/core/PermissionResponse.java` — add fields to nested RestrictedCapability + DeniedCapability classes
-- Modify: `packages/java/anip-service/src/main/java/dev/anip/service/ANIPService.java` — permissions reason_type + failure block_class
-- Modify: `packages/java/anip-graphql/src/main/java/dev/anip/graphql/SchemaBuilder.java` — add blockClass to SDL
-- Modify: `packages/java/anip-rest/src/main/java/dev/anip/rest/OpenApiGenerator.java` — add block_class to OpenAPI
+- Modify: `packages/java/anip-core/src/main/java/dev/anip/core/PermissionResponse.java` — add fields to nested RestrictedCapability + DeniedCapability
+- Modify: `packages/java/anip-core/src/main/java/dev/anip/core/Constants.java` — add `FAILURE_NON_DELEGABLE_ACTION`
+- Modify: `packages/java/anip-service/src/main/java/dev/anip/service/ANIPService.java` — permissions reason_type + canonical actions
+- Modify: `packages/java/anip-graphql/src/main/java/dev/anip/graphql/SchemaBuilder.java` — add reasonType to SDL
 
-Note: Java has no standalone ANIPFailure class — failures are `Map<String, Object>`. Add `block_class` to the inline map construction in ANIPService.java.
-
-- [ ] **Step 1-4: Models, permissions, failures, transports**
+- [ ] **Step 1: Add fields to nested permission classes + constant**
+- [ ] **Step 2: Populate reason_type in permissions**
+- [ ] **Step 3: Use canonical actions**
+- [ ] **Step 4: Update GraphQL SDL**
 - [ ] **Step 5: Run tests**
 ```bash
 cd /Users/samirski/Development/ANIP/packages/java && mvn test -q
@@ -277,7 +273,7 @@ cd /Users/samirski/Development/ANIP/packages/java && mvn test -q
 - [ ] **Step 6: Commit**
 ```bash
 git add packages/java/
-git commit -m "feat(java): add authority posture and block_class (v0.15)"
+git commit -m "feat(java): add reason_type, resolution_hint, canonical actions (v0.15)"
 ```
 
 ---
@@ -285,14 +281,16 @@ git commit -m "feat(java): add authority posture and block_class (v0.15)"
 ## Task 6: C# Runtime
 
 **Files:**
-- Modify: `packages/csharp/src/Anip.Core/RestrictedCapability.cs` — add new fields
-- Modify: `packages/csharp/src/Anip.Core/DeniedCapability.cs` — add new fields (create file if it doesn't exist as standalone)
-- Modify: `packages/csharp/src/Anip.Service/AnipService.cs` — permissions reason_type + failure block_class
-- Modify: `packages/csharp/src/Anip.Service/FailureRedaction.cs` — whitelist block_class
-- Modify: `packages/csharp/src/Anip.GraphQL/SchemaBuilder.cs` — add blockClass to SDL
-- Modify: `packages/csharp/src/Anip.Rest/OpenApiGenerator.cs` — add block_class to OpenAPI
+- Modify: `packages/csharp/src/Anip.Core/RestrictedCapability.cs` — add ReasonType, ResolutionHint
+- Modify: `packages/csharp/src/Anip.Core/DeniedCapability.cs` — add ReasonType (check if standalone or create)
+- Modify: `packages/csharp/src/Anip.Core/Constants.cs` — add FailureNonDelegableAction
+- Modify: `packages/csharp/src/Anip.Service/AnipService.cs` — permissions reason_type + canonical actions
+- Modify: `packages/csharp/src/Anip.GraphQL/SchemaBuilder.cs` — add reasonType to SDL
 
-- [ ] **Step 1-4: Models, permissions, failures, transports, redaction**
+- [ ] **Step 1: Add fields to models + constant**
+- [ ] **Step 2: Populate reason_type in permissions**
+- [ ] **Step 3: Use canonical actions**
+- [ ] **Step 4: Update GraphQL SDL**
 - [ ] **Step 5: Run tests**
 ```bash
 cd /Users/samirski/Development/ANIP/packages/csharp && dotnet test --verbosity minimal
@@ -300,7 +298,7 @@ cd /Users/samirski/Development/ANIP/packages/csharp && dotnet test --verbosity m
 - [ ] **Step 6: Commit**
 ```bash
 git add packages/csharp/
-git commit -m "feat(csharp): add authority posture and block_class (v0.15)"
+git commit -m "feat(csharp): add reason_type, resolution_hint, canonical actions (v0.15)"
 ```
 
 ---
@@ -313,41 +311,38 @@ git commit -m "feat(csharp): add authority posture and block_class (v0.15)"
 - [ ] **Step 1: Write conformance tests**
 
 - `test_restricted_has_reason_type` — restricted capabilities include `reason_type`
-- `test_denied_has_reason_type_and_terminal` — denied capabilities include `reason_type` + `terminal`
-- `test_scope_failure_has_block_class` — invoke failure for scope issue includes `block_class`
-- `test_block_class_is_resolvable_for_scope` — `block_class` is `"resolvable"` for scope failures
-- `test_resolution_action_is_canonical` — `resolution.action` uses canonical vocabulary
-- `test_terminal_denied_is_terminal_block_class` — denied with `terminal=true` gives `block_class="terminal"` on invoke
-- `test_externally_resolvable_block_class` — external approval scenario gives `block_class="externally_resolvable"`
+- `test_denied_has_reason_type` — denied capabilities include `reason_type`
+- `test_scope_failure_uses_canonical_action` — scope failure's `resolution.action` is `request_broader_scope` (or deprecated `request_scope_grant`)
+- `test_resolution_hint_present_on_restricted` — restricted capabilities with `reason_type` also have `resolution_hint`
+- `test_non_delegable_failure_type` — if a non-delegable capability exists, invoking it returns `non_delegable_action` with `resolution.action: "stop"`
 
 - [ ] **Step 2: Commit**
 ```bash
 git add conformance/
-git commit -m "test: add authority and block_class conformance tests (v0.15)"
+git commit -m "test: add authority reason_type and non_delegable conformance tests (v0.15)"
 ```
 
 ---
 
-## Task 8: Showcase Apps
+## Task 8: Showcase — DevOps Non-Delegable
 
 **Files:**
 - Modify: `examples/showcase/devops/capabilities.py`
-- Modify: `examples/showcase/finance/capabilities.py`
 
-- [ ] **Step 1: Add non-delegable action to devops showcase**
+- [ ] **Step 1: Add non-delegable action**
 
-Add a capability (e.g., `destroy_cluster`) that is marked as non-delegable. When invoked by any agent, it should return `block_class: "terminal"`, `resolution.action: "stop"`.
+Read `capabilities.py` first. Add a capability (e.g., `destroy_environment`) that is non-delegable: the handler checks if the caller is a delegated agent and returns `non_delegable_action` failure if so.
 
-This can be done by adding a `control_requirements` entry for `stronger_delegation_required` or by checking the principal class in the handler.
+```python
+# In the handler:
+if ctx.subject != ctx.root_principal:
+    raise ANIPError("non_delegable_action", "destroy_environment requires direct principal action and cannot be delegated")
+```
 
-- [ ] **Step 2: Add external-approval scenario to finance showcase**
-
-Add or modify a capability (e.g., `execute_large_trade` above a threshold) that requires external approval. When invoked, it returns `block_class: "externally_resolvable"`, `resolution.action: "escalate_to_principal"`, `escalation_target`.
-
-- [ ] **Step 3: Commit**
+- [ ] **Step 2: Commit**
 ```bash
 git add examples/showcase/
-git commit -m "feat(showcase): add non-delegable and external-approval scenarios (v0.15)"
+git commit -m "feat(showcase): add non-delegable action to devops example (v0.15)"
 ```
 
 ---
@@ -356,24 +351,19 @@ git commit -m "feat(showcase): add non-delegable and external-approval scenarios
 
 **Files:**
 - Modify: `studio/src/components/CapabilityCard.vue`
-- Modify: `studio/src/components/InvokeResult.vue`
 
 - [ ] **Step 1: Show reason_type on restricted/denied capabilities**
 
-Display `reason_type` as a badge. Show `terminal` as a red indicator on denied capabilities. Show `escalation_target` when present.
+In the permissions display section of CapabilityCard (or wherever restricted/denied are rendered), add a `reason_type` badge. Use existing badge styling.
 
-- [ ] **Step 2: Show block_class on failure responses**
-
-Display `block_class` badge with color coding: green=transient, yellow=resolvable, orange=externally_resolvable, red=terminal.
-
-- [ ] **Step 3: Build and sync**
+- [ ] **Step 2: Build and sync**
 ```bash
 cd /Users/samirski/Development/ANIP/studio && npm run build && cd .. && bash studio/sync.sh
 ```
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 ```bash
 git add studio/ packages/*/studio/
-git commit -m "feat(studio): show reason_type, block_class, terminal in UI (v0.15)"
+git commit -m "feat(studio): show reason_type badge on restricted/denied capabilities (v0.15)"
 ```
 
 ---
@@ -388,21 +378,25 @@ git commit -m "feat(studio): show reason_type, block_class, terminal in UI (v0.1
 - Modify: `website/docs/releases/version-history.md`
 
 - [ ] **Step 1: Update delegation-permissions page**
-Add `reason_type` vocabulary table, new fields on restricted/denied, examples.
+
+Add `reason_type` vocabulary table (5 values with "Determined by" column), `resolution_hint` field, examples.
 
 - [ ] **Step 2: Update failures page**
-Add `block_class` vocabulary, canonical `resolution.action` table, 3 new failure types, examples.
+
+Add `non_delegable_action` failure type. Add canonical authority-specific `resolution.action` table (with Status column). Add deprecation note for `request_scope_grant`.
 
 - [ ] **Step 3: Update reference page**
-Add new fields to permission response and failure response tables.
+
+Add `reason_type` and `resolution_hint` to the permission response field table. Add `non_delegable_action` to the failure types list.
 
 - [ ] **Step 4: Update feature map and version history**
-Add v0.15 entries.
+
+Add v0.15 entries: reason_type vocabulary, resolution_hint, non_delegable_action, canonical authority actions, request_scope_grant deprecation.
 
 - [ ] **Step 5: Commit**
 ```bash
 git add website/
-git commit -m "docs(website): add authority posture and block_class documentation (v0.15)"
+git commit -m "docs(website): add reason_type, resolution_hint, non_delegable_action documentation (v0.15)"
 ```
 
 ---
@@ -411,7 +405,7 @@ git commit -m "docs(website): add authority posture and block_class documentatio
 
 - [ ] **Step 1: Bump to anip/0.15**
 
-Update all 5 runtime constants, constant-verification tests, model defaults, SPEC.md title, schema `$id`, website version references. Add v0.15 entry to version history.
+Update all 5 runtime constants, constant-verification tests, model defaults, SPEC.md title, schema `$id`, website version references (`0.14.0` → `0.15.0`). Add v0.15 entry to version history.
 
 - [ ] **Step 2: Commit**
 ```bash
