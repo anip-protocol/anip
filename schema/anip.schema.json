@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anip.dev/schema/v0.13/anip.schema.json",
+  "$id": "https://anip.dev/schema/v0.14/anip.schema.json",
   "title": "ANIP \u2014 Agent-Native Interface Protocol",
-  "description": "Canonical JSON Schema for all ANIP v0.13 types as defined in SPEC.md. Use these schemas to validate ANIP documents, responses, and delegation tokens.",
+  "description": "Canonical JSON Schema for all ANIP v0.14 types as defined in SPEC.md. Use these schemas to validate ANIP documents, responses, and delegation tokens.",
   "$defs": {
     "ConcurrentBranches": {
       "enum": [
@@ -124,7 +124,7 @@
       ],
       "title": "ControlRequirementEnforcement",
       "type": "string",
-      "description": "Enforcement mode for control requirements. v0.13 supports reject only. See SPEC.md §4.1."
+      "description": "Enforcement mode for control requirements. v0.14 supports reject only. See SPEC.md §4.1."
     },
     "ControlRequirement": {
       "properties": {

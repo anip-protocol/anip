@@ -159,7 +159,7 @@ class BindingRequirement(BaseModel):
 
 class ControlRequirement(BaseModel):
     type: str  # "cost_ceiling", "stronger_delegation_required"
-    enforcement: str = "reject"  # v0.14: "reject" only; "warn" deferred to future slice
+    enforcement: str = "reject"  # "reject" only; "warn" deferred to future slice
 
 
 class CapabilityDeclaration(BaseModel):
@@ -343,7 +343,7 @@ class DiscoveryPosture(BaseModel):
 
 
 class ANIPManifest(BaseModel):
-    protocol: str = "anip/0.13"
+    protocol: str = "anip/0.14"
     profile: ProfileVersions
     capabilities: dict[str, CapabilityDeclaration]
     manifest_metadata: ManifestMetadata | None = None

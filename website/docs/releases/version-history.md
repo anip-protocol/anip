@@ -1,16 +1,17 @@
 ---
 title: Version History
-description: ANIP protocol version progression from v0.1 through v0.13.
+description: ANIP protocol version progression from v0.1 through v0.14.
 ---
 
 # Version History
 
-ANIP's version line tracks the progression of protocol capabilities. The current version is **v0.13**.
+ANIP's version line tracks the progression of protocol capabilities. The current version is **v0.14**.
 
 ## Version progression
 
 | Version | What it added | Key concepts |
 |---------|--------------|--------------|
+| **v0.14** | Binding/control simplification | Removed `bound_reference`/`freshness_window` overlap from `control_requirements` |
 | **v0.13** | Budget, binding, and control | Enforceable budget constraints; `requires_binding` on capabilities; `control_requirements` vocabulary; 6 new failure types; `budget_context` in responses; `FinancialCost` structured type |
 | **v0.12** | Task identity and invocation lineage | `task_id` groups related invocations; `parent_invocation_id` forms invocation trees; token purpose binding; audit filterable by task and parent invocation |
 | **v0.11** | Runtime observability | Logging, metrics, tracing, diagnostics hooks; `getHealth()`; health endpoint |
