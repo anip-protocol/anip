@@ -42,6 +42,9 @@ website/docs/protocol/capabilities.md                          # MODIFY: remove 
 website/docs/protocol/reference.md                             # MODIFY: remove invoke-evaluable mention
 website/docs/protocol/failures-cost-audit.md                   # MODIFY: update control_requirement_unsatisfied description
 website/docs/feature-map.md                                    # MODIFY: update control requirements row
+
+# Studio
+studio/src/components/CapabilityCard.vue                       # MODIFY: remove field/max_age rendering from control_requirements
 ```
 
 ---
@@ -153,6 +156,14 @@ Keep the remaining tests:
 - `test_cost_ceiling_required_with_budget`
 - `test_cost_ceiling_required_without_budget`
 - `test_unmet_token_requirements_in_permissions`
+
+- [ ] **Step 4: Add `stronger_delegation_required` test**
+
+Add a test that verifies `stronger_delegation_required` control requirement enforcement:
+- `test_stronger_delegation_required_satisfied` — token has explicit capability binding → success
+- `test_stronger_delegation_required_unsatisfied` — token purpose.capability doesn't match → `control_requirement_unsatisfied`
+
+This is the other surviving control requirement type and needs direct coverage.
 
 - [ ] **Step 4: Run Python tests**
 
@@ -331,7 +342,31 @@ git commit -m "docs(website): remove bound_reference/freshness_window from contr
 
 ---
 
-## Task 8: Version Bump
+## Task 8: Studio UI
+
+**Files:**
+- Modify: `studio/src/components/CapabilityCard.vue`
+
+- [ ] **Step 1: Remove `field` and `max_age` rendering from control requirements**
+
+In `CapabilityCard.vue` (~line 184), the control requirements section renders `req.field` and `req.max_age`. Since these fields no longer exist on ControlRequirement, remove those `v-if` spans. Keep the type badge and enforcement display.
+
+- [ ] **Step 2: Build and sync**
+
+```bash
+cd /Users/samirski/Development/ANIP/studio && npm run build && cd .. && bash studio/sync.sh
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add studio/ packages/*/studio/
+git commit -m "feat(studio): remove field/max_age from control_requirements display (v0.14)"
+```
+
+---
+
+## Task 9: Version Bump
 
 - [ ] **Step 1: Bump protocol version to 0.14**
 
@@ -353,13 +388,17 @@ Update the default in:
 - `packages/python/anip-core/src/anip_core/models.py`: ANIPManifest default `"anip/0.13"` → `"anip/0.14"`
 - `packages/typescript/core/src/models.ts`: Manifest default `"anip/0.13"` → `"anip/0.14"`
 
+Update canonical protocol artifacts:
+- `SPEC.md`: update spec title/header version reference to v0.14
+- `schema/anip.schema.json`: update schema description/title to reference v0.14
+
 Update website version references:
 - All `0.13.0` → `0.14.0` in website docs (install, quickstart, transports, reference, capabilities)
-- `website/docs/releases/version-history.md`: add v0.14 entry
+- `website/docs/releases/version-history.md`: add v0.14 entry (simplification: removed bound_reference/freshness_window overlap from control_requirements)
 
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/ website/
+git add SPEC.md schema/ packages/ website/
 git commit -m "chore: bump protocol version to anip/0.14"
 ```
