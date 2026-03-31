@@ -543,28 +543,6 @@ func (s *Service) Invoke(
 		switch req.Type {
 		case "cost_ceiling":
 			satisfied = effectiveBudget != nil
-		case "bound_reference":
-			if req.Field != "" {
-				val, exists := params[req.Field]
-				satisfied = exists && val != nil
-			} else {
-				satisfied = false
-			}
-		case "freshness_window":
-			if req.Field != "" {
-				val, exists := params[req.Field]
-				if exists && val != nil {
-					age := resolveBindingAge(val)
-					if age >= 0 && req.MaxAge != "" {
-						maxAge := parseISO8601Duration(req.MaxAge)
-						satisfied = maxAge == 0 || age <= maxAge
-					}
-				} else {
-					satisfied = false
-				}
-			} else {
-				satisfied = false
-			}
 		case "stronger_delegation_required":
 			satisfied = token.Purpose.Capability == capName
 		}

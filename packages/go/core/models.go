@@ -44,8 +44,6 @@ type BindingRequirement struct {
 type ControlRequirement struct {
 	Type        string `json:"type"`
 	Enforcement string `json:"enforcement"`
-	Field       string `json:"field,omitempty"`
-	MaxAge      string `json:"max_age,omitempty"`
 }
 
 // --- Side-effect Typing ---
