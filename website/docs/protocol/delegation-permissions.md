@@ -115,6 +115,50 @@ The response separates capabilities into three buckets:
 
 This is fundamentally different from REST APIs, where the agent discovers permissions only by attempting actions and interpreting error codes. With ANIP, the agent can plan before acting and explain blockers to its user.
 
+## Budget constraints in delegation
+
+Starting in v0.13, delegation tokens can carry enforceable budget constraints via `constraints.budget`:
+
+```json
+{
+  "iss": "travel-service",
+  "sub": "human:demo@example.com",
+  "scope": ["travel.search", "travel.book"],
+  "capability": "book_flight",
+  "constraints": {
+    "budget": {
+      "currency": "USD",
+      "max_amount": 500.00
+    }
+  },
+  "iat": 1711526400,
+  "exp": 1711569600
+}
+```
+
+### Budget narrowing rule
+
+When an agent sub-delegates authority, the child token's budget must be less than or equal to the parent token's budget. A delegation request that attempts to set a higher budget than the parent will be rejected. This ensures that authority can only be narrowed, never expanded, as it flows through the delegation chain.
+
+### Budget and permission discovery
+
+Permission discovery surfaces unmet budget requirements through the `unmet_token_requirements` field. When a capability requires a budget constraint that the current token does not satisfy, the response includes:
+
+```json
+{
+  "restricted": [
+    {
+      "capability": "book_flight",
+      "reason": "token lacks required budget constraint",
+      "unmet_token_requirements": ["budget"],
+      "grantable_by": "human:manager@company.com"
+    }
+  ]
+}
+```
+
+This lets agents understand exactly why a capability is restricted and what kind of re-delegation is needed before attempting the invocation.
+
 ## Why this matters for agents
 
 Permission discovery enables agent behaviors that are impossible with traditional APIs:

@@ -19,6 +19,15 @@ A complete inventory of what ANIP includes today, organized by layer.
 | Structured failures | Type, detail, resolution action, grantable_by, retry | [Failures](/docs/protocol/failures-cost-audit) |
 | Cost signaling | Declared range before invoke, actual cost after | [Cost](/docs/protocol/failures-cost-audit#cost-signaling) |
 | Capability graph | Prerequisites and compensation path declarations | [Capabilities](/docs/protocol/capabilities#capability-graph) |
+| Task identity | `task_id` groups related invocations under a single task/workflow | [Delegation](/docs/protocol/delegation-permissions) |
+| Invocation lineage | `parent_invocation_id` forms invocation trees for causal tracing | [Delegation](/docs/protocol/delegation-permissions) |
+| Token purpose binding | `purpose.task_id` is authoritative; request must match | [Delegation](/docs/protocol/delegation-permissions) |
+| Budget constraints | Enforceable `token.constraints.budget` with currency and max amount | [Delegation](/docs/protocol/delegation-permissions#budget-constraints-in-delegation) |
+| Budget narrowing | Child delegation budget must be ≤ parent budget | [Delegation](/docs/protocol/delegation-permissions#budget-constraints-in-delegation) |
+| Requires binding | `requires_binding` on capabilities for execution-time binding (quote, offer, price lock) | [Capabilities](/docs/protocol/capabilities) |
+| Control requirements | Vocabulary: `cost_ceiling`, `bound_reference`, `freshness_window`, `stronger_delegation_required` | [Failures](/docs/protocol/failures-cost-audit) |
+| Budget context | `budget_context` in invoke responses (success and failure) | [Failures](/docs/protocol/failures-cost-audit#budget-context) |
+| `FinancialCost` type | Structured type replacing untyped cost dictionaries | [Cost](/docs/protocol/failures-cost-audit#cost-signaling) |
 
 ## Trust and verification
 
