@@ -59,8 +59,8 @@ v0.13 adds six failure types for budget, binding, and control scenarios:
 | `budget_currency_mismatch` | The token's budget currency does not match the capability's cost currency. |
 | `budget_not_enforceable` | The capability declares cost but the token lacks a budget constraint required by the service's control requirements. |
 | `binding_missing` | The capability has `requires_binding: true` but no binding reference was provided in the invocation request. |
-| `binding_stale` | A binding reference was provided but has expired or is no longer valid (outside the `freshness_window`). |
-| `control_requirement_unsatisfied` | A `control_requirements` entry (e.g. `cost_ceiling`, `bound_reference`, `freshness_window`, `stronger_delegation_required`) was not met. |
+| `binding_stale` | A binding reference was provided but has expired or is no longer valid. |
+| `control_requirement_unsatisfied` | A `control_requirements` entry (e.g. `cost_ceiling`, `stronger_delegation_required`) was not met. |
 
 ### Budget context
 

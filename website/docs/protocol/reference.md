@@ -403,7 +403,7 @@ When a capability declares `control_requirements` with token-evaluable types (`c
 }
 ```
 
-Only token-evaluable requirements appear here. Invoke-evaluable requirements (`bound_reference`, `freshness_window`) cannot be checked without actual invocation parameters and are never surfaced in permission discovery.
+All control requirements are token-evaluable and surfaced in permission discovery.
 
 ---
 
