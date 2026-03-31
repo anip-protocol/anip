@@ -2,6 +2,10 @@
 
 Spec references: §6.3 (invocation request/response), §5.4 (audit),
 v0.12 additions for task identity and invocation lineage.
+
+Important: issue_token() binds a task_id by default ("conformance-test").
+Tests that need custom task_id values must issue tokens with task_id=None
+to avoid purpose_mismatch failures.
 """
 import time
 import uuid
@@ -10,25 +14,45 @@ from conftest import issue_token
 
 
 class TestTaskIdEcho:
-    def test_invoke_echoes_task_id(self, client, bootstrap_bearer, read_capability, all_scopes, sample_inputs):
-        """Invoking with task_id in the body should echo it back in the response."""
+    def test_invoke_echoes_task_id_from_token(self, client, bootstrap_bearer, read_capability, all_scopes, sample_inputs):
+        """When the token has purpose.task_id, it should be echoed in the response."""
         cap_name, _ = read_capability
-        token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
-        task_id = f"task-{uuid.uuid4().hex[:12]}"
+        my_task = f"task-{uuid.uuid4().hex[:12]}"
+        # Issue token bound to our specific task_id
+        token = issue_token(client, all_scopes, cap_name, bootstrap_bearer, task_id=my_task)
         params = sample_inputs.get(cap_name, {})
 
         resp = client.post(
             f"/anip/invoke/{cap_name}",
             headers={"Authorization": f"Bearer {token}"},
-            json={
-                "parameters": params,
-                "task_id": task_id,
-            },
+            json={"parameters": params},
         )
+        assert resp.status_code == 200, f"Invoke failed: {resp.status_code} {resp.text}"
         data = resp.json()
-        assert "invocation_id" in data
-        assert data.get("task_id") == task_id, (
-            f"Expected task_id '{task_id}' to be echoed in response, "
+        assert data.get("success") is True, f"Invoke not successful: {data}"
+        assert data.get("task_id") == my_task, (
+            f"Expected task_id '{my_task}' from token purpose, "
+            f"got '{data.get('task_id')}'"
+        )
+
+    def test_invoke_echoes_request_task_id_when_token_unbound(self, client, bootstrap_bearer, read_capability, all_scopes, sample_inputs):
+        """When token has no purpose.task_id, request task_id should be echoed."""
+        cap_name, _ = read_capability
+        # Issue token WITHOUT task binding
+        token = issue_token(client, all_scopes, cap_name, bootstrap_bearer, task_id=None)
+        request_task = f"task-{uuid.uuid4().hex[:12]}"
+        params = sample_inputs.get(cap_name, {})
+
+        resp = client.post(
+            f"/anip/invoke/{cap_name}",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"parameters": params, "task_id": request_task},
+        )
+        assert resp.status_code == 200, f"Invoke failed: {resp.status_code} {resp.text}"
+        data = resp.json()
+        assert data.get("success") is True, f"Invoke not successful: {data}"
+        assert data.get("task_id") == request_task, (
+            f"Expected task_id '{request_task}' from request, "
             f"got '{data.get('task_id')}'"
         )
 
@@ -44,40 +68,33 @@ class TestParentInvocationIdEcho:
         resp = client.post(
             f"/anip/invoke/{cap_name}",
             headers={"Authorization": f"Bearer {token}"},
-            json={
-                "parameters": params,
-                "parent_invocation_id": parent_id,
-            },
+            json={"parameters": params, "parent_invocation_id": parent_id},
         )
+        assert resp.status_code == 200, f"Invoke failed: {resp.status_code} {resp.text}"
         data = resp.json()
-        assert "invocation_id" in data
-        assert data.get("parent_invocation_id") == parent_id, (
-            f"Expected parent_invocation_id '{parent_id}' to be echoed in response, "
-            f"got '{data.get('parent_invocation_id')}'"
-        )
+        assert data.get("success") is True, f"Invoke not successful: {data}"
+        assert data.get("parent_invocation_id") == parent_id
 
 
 class TestLineageInAudit:
     def test_task_id_recorded_in_audit(self, client, bootstrap_bearer, read_capability, all_scopes, sample_inputs):
         """Invoking with task_id should record it in the audit log entry."""
         cap_name, _ = read_capability
-        token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
-        task_id = f"task-{uuid.uuid4().hex[:12]}"
+        my_task = f"task-{uuid.uuid4().hex[:12]}"
+        # Token bound to our task_id
+        token = issue_token(client, all_scopes, cap_name, bootstrap_bearer, task_id=my_task)
         params = sample_inputs.get(cap_name, {})
 
-        # Invoke with task_id
         invoke_resp = client.post(
             f"/anip/invoke/{cap_name}",
             headers={"Authorization": f"Bearer {token}"},
-            json={"parameters": params, "task_id": task_id},
+            json={"parameters": params},
         )
         assert invoke_resp.status_code == 200
         invocation_id = invoke_resp.json()["invocation_id"]
 
-        # Allow async audit write
         time.sleep(1)
 
-        # Query audit with delegation token (same as existing audit tests)
         audit_resp = client.post(
             "/anip/audit",
             headers={"Authorization": f"Bearer {token}"},
@@ -85,50 +102,41 @@ class TestLineageInAudit:
         assert audit_resp.status_code == 200
         entries = audit_resp.json()["entries"]
 
-        # Find our entry
         matching = [e for e in entries if e.get("invocation_id") == invocation_id]
-        if len(matching) == 0:
-            # Try with invocation_id filter
-            audit_resp2 = client.post(
-                f"/anip/audit?invocation_id={invocation_id}",
-                headers={"Authorization": f"Bearer {token}"},
-            )
-            if audit_resp2.status_code == 200:
-                entries2 = audit_resp2.json()["entries"]
-                matching = [e for e in entries2 if e.get("invocation_id") == invocation_id]
-
         assert len(matching) >= 1, (
             f"Expected audit entry for {invocation_id}, found 0 "
             f"(total entries: {len(entries)})"
         )
-        assert matching[0].get("task_id") == task_id
+        assert matching[0].get("task_id") == my_task
 
     def test_audit_filter_by_task_id(self, client, bootstrap_bearer, read_capability, all_scopes, sample_inputs):
         """Audit query with ?task_id=X should return only entries with that task_id."""
         cap_name, _ = read_capability
-        token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
         task_id_a = f"task-a-{uuid.uuid4().hex[:8]}"
         task_id_b = f"task-b-{uuid.uuid4().hex[:8]}"
         params = sample_inputs.get(cap_name, {})
 
-        # Invoke twice with different task_ids
+        # Issue SEPARATE tokens for each task_id (each bound to its own task)
+        token_a = issue_token(client, all_scopes, cap_name, bootstrap_bearer, task_id=task_id_a)
+        token_b = issue_token(client, all_scopes, cap_name, bootstrap_bearer, task_id=task_id_b)
+
         client.post(
             f"/anip/invoke/{cap_name}",
-            headers={"Authorization": f"Bearer {token}"},
-            json={"parameters": params, "task_id": task_id_a},
+            headers={"Authorization": f"Bearer {token_a}"},
+            json={"parameters": params},
         )
         client.post(
             f"/anip/invoke/{cap_name}",
-            headers={"Authorization": f"Bearer {token}"},
-            json={"parameters": params, "task_id": task_id_b},
+            headers={"Authorization": f"Bearer {token_b}"},
+            json={"parameters": params},
         )
 
         time.sleep(1)
 
-        # Filter audit by task_id_a
+        # Filter audit by task_id_a using token_a
         audit_resp = client.post(
             f"/anip/audit?task_id={task_id_a}",
-            headers={"Authorization": f"Bearer {token}"},
+            headers={"Authorization": f"Bearer {token_a}"},
         )
         assert audit_resp.status_code == 200
         audit_data = audit_resp.json()
@@ -147,7 +155,6 @@ class TestLineageInAudit:
         parent_id_b = "inv-00000000bb02"
         params = sample_inputs.get(cap_name, {})
 
-        # Invoke twice with different parent_invocation_ids
         client.post(
             f"/anip/invoke/{cap_name}",
             headers={"Authorization": f"Bearer {token}"},
@@ -161,7 +168,6 @@ class TestLineageInAudit:
 
         time.sleep(1)
 
-        # Filter audit by parent_invocation_id_a
         audit_resp = client.post(
             f"/anip/audit?parent_invocation_id={parent_id_a}",
             headers={"Authorization": f"Bearer {token}"},
