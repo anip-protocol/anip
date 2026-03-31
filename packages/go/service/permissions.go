@@ -146,9 +146,8 @@ func (s *Service) DiscoverPermissions(token *core.DelegationToken) core.Permissi
 	if restricted == nil {
 		restricted = []core.RestrictedCapability{}
 	}
-	if denied == nil {
-		denied = []core.DeniedCapability{}
-	}
+	// denied is always empty in permission discovery — non_delegable is service-declared at invoke time
+	denied = []core.DeniedCapability{}
 
 	return core.PermissionResponse{
 		Available:  available,
