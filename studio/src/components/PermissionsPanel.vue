@@ -2,6 +2,7 @@
 import { ref, watch, computed } from 'vue'
 import { store } from '../store'
 import { fetchPermissions } from '../api'
+import StatusBadge from './StatusBadge.vue'
 
 const props = defineProps<{
   bearer: string
@@ -56,10 +57,28 @@ const detail = computed(() => {
   const available = (result.value.available || []).find((a: any) => a.capability === cap)
   if (available) return { scope: available.scope_match }
   const restricted = (result.value.restricted || []).find((r: any) => r.capability === cap)
-  if (restricted) return { reason: restricted.reason, grantable_by: restricted.grantable_by }
+  if (restricted) return {
+    reason: restricted.reason,
+    reason_type: restricted.reason_type,
+    resolution_hint: restricted.resolution_hint,
+    grantable_by: restricted.grantable_by,
+  }
   const denied = (result.value.denied || []).find((d: any) => d.capability === cap)
-  if (denied) return { reason: denied.reason }
+  if (denied) return { reason: denied.reason, reason_type: denied.reason_type }
   return null
+})
+
+const reasonTypeBadge = computed<{ label: string; type: 'warning' | 'danger' | 'info' | 'neutral' } | null>(() => {
+  const rt = detail.value?.reason_type
+  if (!rt) return null
+  const map: Record<string, { label: string; type: 'warning' | 'danger' | 'info' | 'neutral' }> = {
+    scope_insufficient:    { label: 'scope_insufficient',    type: 'warning' },
+    non_delegable_action:  { label: 'non_delegable_action',  type: 'danger'  },
+    principal_class:       { label: 'principal_class',       type: 'danger'  },
+    token_requirement:     { label: 'token_requirement',     type: 'warning' },
+    policy_blocked:        { label: 'policy_blocked',        type: 'danger'  },
+  }
+  return map[rt] ?? { label: rt, type: 'neutral' }
 })
 </script>
 
@@ -101,14 +120,27 @@ const detail = computed(() => {
     <div v-else-if="status === 'restricted'" class="perm-status">
       <span class="dot restricted-dot"></span>
       <span class="perm-label">Restricted</span>
+      <StatusBadge
+        v-if="reasonTypeBadge"
+        :label="reasonTypeBadge.label"
+        :type="reasonTypeBadge.type"
+        class="reason-type-badge"
+      />
       <span v-if="detail?.reason" class="perm-detail">{{ detail.reason }}</span>
       <span v-if="detail?.grantable_by" class="perm-detail">Grantable by: {{ detail.grantable_by }}</span>
+      <span v-if="detail?.resolution_hint" class="perm-detail perm-hint">{{ detail.resolution_hint }}</span>
     </div>
 
     <!-- Denied -->
     <div v-else-if="status === 'denied'" class="perm-status">
       <span class="dot denied-dot"></span>
       <span class="perm-label">Denied</span>
+      <StatusBadge
+        v-if="reasonTypeBadge"
+        :label="reasonTypeBadge.label"
+        :type="reasonTypeBadge.type"
+        class="reason-type-badge"
+      />
       <span v-if="detail?.reason" class="perm-detail">{{ detail.reason }}</span>
     </div>
 
@@ -199,6 +231,16 @@ const detail = computed(() => {
 
 .error-text {
   color: var(--error) !important;
+}
+
+.reason-type-badge {
+  flex-shrink: 0;
+}
+
+.perm-hint {
+  font-style: italic;
+  color: var(--text-muted);
+  opacity: 0.85;
 }
 
 .mini-spinner {
