@@ -582,8 +582,12 @@ class ANIPService:
             _duration_ms = int((time.monotonic() - invoke_start) * 1000)
             return {
                 "success": False,
-                "failure": {"type": "purpose_mismatch",
-                            "detail": f"Request task_id '{task_id}' does not match token purpose task_id '{token_task_id}'"},
+                "failure": {
+                    "type": "purpose_mismatch",
+                    "detail": f"Request task_id '{task_id}' does not match token purpose task_id '{token_task_id}'",
+                    "resolution": {"action": "use_token_task_id", "requires": "matching task_id or omit from request"},
+                    "retry": False,
+                },
                 "invocation_id": invocation_id,
                 "client_reference_id": client_reference_id,
                 "task_id": task_id,

@@ -954,6 +954,8 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           failure: {
             type: "purpose_mismatch",
             detail: `Request task_id '${requestTaskId}' does not match token purpose task_id '${tokenTaskId}'`,
+            resolution: { action: "use_token_task_id", requires: "matching task_id or omit from request" },
+            retry: false,
           },
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,

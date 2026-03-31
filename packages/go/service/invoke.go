@@ -127,8 +127,10 @@ func (s *Service) Invoke(
 	}
 	if tokenTaskID != "" && opts.TaskID != "" && opts.TaskID != tokenTaskID {
 		failure := map[string]any{
-			"type":   core.FailurePurposeMismatch,
-			"detail": "Request task_id '" + opts.TaskID + "' does not match token purpose task_id '" + tokenTaskID + "'",
+			"type":       core.FailurePurposeMismatch,
+			"detail":     "Request task_id '" + opts.TaskID + "' does not match token purpose task_id '" + tokenTaskID + "'",
+			"resolution": map[string]any{"action": "use_token_task_id", "requires": "matching task_id or omit from request"},
+			"retry":      false,
 		}
 		resp := map[string]any{
 			"success":               false,

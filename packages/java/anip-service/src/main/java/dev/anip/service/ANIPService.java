@@ -283,7 +283,9 @@ public class ANIPService {
                 resp.put("failure", Map.of(
                         "type", Constants.FAILURE_PURPOSE_MISMATCH,
                         "detail", "Request task_id '" + requestTaskId
-                                + "' does not match token purpose task_id '" + tokenTaskId + "'"
+                                + "' does not match token purpose task_id '" + tokenTaskId + "'",
+                        "resolution", Map.of("action", "use_token_task_id", "requires", "matching task_id or omit from request"),
+                        "retry", false
                 ));
                 resp.put("invocation_id", invocationId);
                 resp.put("client_reference_id", opts != null ? opts.getClientReferenceId() : null);
