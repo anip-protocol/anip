@@ -57,7 +57,11 @@ def _handle_search(ctx: InvocationContext, params: dict) -> dict:
                 "price": f.price,
                 "currency": f.currency,
                 "stops": f.stops,
-                "quote_id": f"qt-{uuid.uuid4().hex[:8]}-{int(time.time())}",
+                "quote_id": {
+                    "id": f"qt-{uuid.uuid4().hex[:8]}-{int(time.time())}",
+                    "price": f.price,
+                    "issued_at": int(time.time()),
+                },
             }
             for f in flights
         ],
@@ -119,7 +123,7 @@ _BOOK_DECL = CapabilityDeclaration(
     contract_version="1.0",
     inputs=[
         CapabilityInput(name="flight_number", type="string", description="Flight to book"),
-        CapabilityInput(name="quote_id", type="string", required=True, description="Quote ID from search_flights"),
+        CapabilityInput(name="quote_id", type="object", required=True, description="Priced quote from search_flights containing id, price, and issued_at"),
         CapabilityInput(
             name="passengers", type="integer", required=False, default=1,
             description="Number of passengers",
@@ -168,6 +172,13 @@ _BOOK_DECL = CapabilityDeclaration(
 def _handle_book(ctx: InvocationContext, params: dict) -> dict:
     flight_number = params.get("flight_number")
     passengers = params.get("passengers", 1)
+    quote_id = params.get("quote_id")
+    if isinstance(quote_id, dict):
+        booking_ref = quote_id.get("id", "")
+        quoted_price = quote_id.get("price")
+    else:
+        booking_ref = quote_id  # backward compat for plain strings
+        quoted_price = None
 
     if not flight_number:
         raise ANIPError("invalid_parameters", "flight_number is required")
