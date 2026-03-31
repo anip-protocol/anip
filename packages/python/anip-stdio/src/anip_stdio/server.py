@@ -102,7 +102,7 @@ class AnipStdioServer:
         # Build the token request body from params
         body: dict[str, Any] = {}
         for key in ("subject", "scope", "capability", "purpose_parameters",
-                     "parent_token", "ttl_hours", "caller_class"):
+                     "parent_token", "ttl_hours", "caller_class", "budget"):
             if key in params:
                 body[key] = params[key]
 

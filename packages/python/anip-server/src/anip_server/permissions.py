@@ -22,6 +22,7 @@ def discover_permissions(
 
     token_scope_bases = [(s.split(":")[0], s) for s in token.scope]
     root_principal = token.root_principal or token.issuer
+    constraints_obj = token.constraints
 
     for name, cap in capabilities.items():
         required_scopes = cap.minimum_scope
@@ -38,32 +39,68 @@ def discover_permissions(
             else:
                 missing.append(required)
 
-        if not missing:
-            constraints: dict = {}
-            for scope_str in matched_scope_strs:
-                if ":max_$" in scope_str:
-                    max_budget = float(scope_str.split(":max_$")[1])
-                    constraints["budget_remaining"] = max_budget
-                    constraints["currency"] = "USD"
-            available.append(
-                AvailableCapability(
-                    capability=name,
-                    scope_match=", ".join(matched_scope_strs),
-                    constraints=constraints,
+        if missing:
+            if any(s.startswith("admin.") for s in missing):
+                denied.append(
+                    DeniedCapability(capability=name, reason="requires admin principal")
                 )
-            )
-        elif any(s.startswith("admin.") for s in missing):
-            denied.append(
-                DeniedCapability(capability=name, reason="requires admin principal")
-            )
-        else:
+            else:
+                restricted.append(
+                    RestrictedCapability(
+                        capability=name,
+                        reason=f"delegation chain lacks scope(s): {', '.join(missing)}",
+                        grantable_by=root_principal,
+                    )
+                )
+            continue
+
+        # Scope matched — check token-evaluable control requirements
+        unmet: list[str] = []
+        for req in cap.control_requirements:
+            if req.type == "cost_ceiling" and (not constraints_obj or not constraints_obj.budget):
+                unmet.append("cost_ceiling")
+            elif req.type == "stronger_delegation_required":
+                # Check if token has explicit capability binding via purpose
+                token_has_explicit_binding = (
+                    token.purpose is not None
+                    and token.purpose.capability == name
+                )
+                if not token_has_explicit_binding:
+                    unmet.append("stronger_delegation_required")
+
+        if unmet and any(
+            r.enforcement == "reject"
+            for r in cap.control_requirements
+            if r.type in unmet
+        ):
             restricted.append(
                 RestrictedCapability(
                     capability=name,
-                    reason=f"delegation chain lacks scope(s): {', '.join(missing)}",
+                    reason=f"missing control requirements: {', '.join(unmet)}",
                     grantable_by=root_principal,
+                    unmet_token_requirements=unmet,
                 )
             )
+            continue
+
+        # All checks passed — capability is available
+        constraints: dict = {}
+        for scope_str in matched_scope_strs:
+            if ":max_$" in scope_str:
+                max_budget = float(scope_str.split(":max_$")[1])
+                constraints["budget_remaining"] = max_budget
+                constraints["currency"] = "USD"
+        # Include constraints-level budget info if present
+        if constraints_obj and constraints_obj.budget:
+            constraints["budget_remaining"] = constraints_obj.budget.max_amount
+            constraints["currency"] = constraints_obj.budget.currency
+        available.append(
+            AvailableCapability(
+                capability=name,
+                scope_match=", ".join(matched_scope_strs),
+                constraints=constraints,
+            )
+        )
 
     return PermissionResponse(
         available=available, restricted=restricted, denied=denied

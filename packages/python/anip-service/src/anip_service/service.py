@@ -16,6 +16,7 @@ from anip_core import (
     ANIPManifest,
     AnchoringPosture,
     AuditPosture,
+    Budget,
     CapabilityDeclaration,
     ConcurrentBranches,
     DEFAULT_PROFILE,
@@ -393,6 +394,15 @@ class ANIPService:
         parent_token_id = request.get("parent_token")
         ttl_hours = request.get("ttl_hours", 2)
 
+        # Parse budget from request if present
+        budget_data = request.get("budget")
+        budget: Budget | None = None
+        if budget_data is not None:
+            if isinstance(budget_data, Budget):
+                budget = budget_data
+            elif isinstance(budget_data, dict):
+                budget = Budget(**budget_data)
+
         if parent_token_id:
             # Delegation from existing token
             parent = await self._engine.get_token(parent_token_id)
@@ -415,6 +425,7 @@ class ANIPService:
                 capability=capability,
                 purpose_parameters=request.get("purpose_parameters"),
                 ttl_hours=ttl_hours,
+                budget=budget,
             )
         else:
             # Root token
@@ -426,6 +437,7 @@ class ANIPService:
                 capability=capability,
                 purpose_parameters=request.get("purpose_parameters"),
                 ttl_hours=ttl_hours,
+                budget=budget,
             )
 
         # Check for delegation failure (ANIPFailure is a Pydantic model)
@@ -468,12 +480,18 @@ class ANIPService:
 
         jwt_str = self._keys.sign_jwt(claims)
 
-        return {
+        response = {
             "issued": True,
             "token_id": token_id,
             "token": jwt_str,
             "expires": expires.isoformat(),
         }
+
+        # Echo budget in issuance response if present
+        if token.constraints and token.constraints.budget:
+            response["budget"] = token.constraints.budget.model_dump()
+
+        return response
 
     def discover_permissions(self, token: DelegationToken) -> PermissionResponse:
         """Return the permissions granted by a token."""

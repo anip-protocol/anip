@@ -141,6 +141,11 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
             body["ttl_hours"] = request.ttl_hours
         if request.caller_class:
             body["caller_class"] = request.caller_class
+        if request.HasField("budget"):
+            body["budget"] = {
+                "currency": request.budget.currency,
+                "max_amount": request.budget.max_amount,
+            }
 
         try:
             result = _run_async(self._service.issue_token(principal, body))
@@ -154,12 +159,22 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                 ),
             )
 
-        return anip_pb2.IssueTokenResponse(
+        resp = anip_pb2.IssueTokenResponse(
             issued=result.get("issued", True),
             token_id=result.get("token_id", ""),
             token=result.get("token", ""),
             expires=result.get("expires", ""),
         )
+
+        # Echo budget in the response if present
+        budget_data = result.get("budget")
+        if budget_data:
+            resp.budget.CopyFrom(anip_pb2.Budget(
+                currency=budget_data.get("currency", ""),
+                max_amount=budget_data.get("max_amount", 0.0),
+            ))
+
+        return resp
 
     # --- JWT auth ---
 
