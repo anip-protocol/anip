@@ -32,7 +32,7 @@ func TestANIPErrorImplementsError(t *testing.T) {
 
 func TestANIPErrorBuilder(t *testing.T) {
 	e := NewANIPError(FailureScopeInsufficient, "missing scope").
-		WithResolution("request_scope_grant").
+		WithResolution("request_broader_scope").
 		WithRetry()
 
 	if e.ErrorType != FailureScopeInsufficient {
@@ -41,8 +41,8 @@ func TestANIPErrorBuilder(t *testing.T) {
 	if e.Resolution == nil {
 		t.Fatal("expected resolution to be non-nil")
 	}
-	if e.Resolution.Action != "request_scope_grant" {
-		t.Errorf("expected action %q, got %q", "request_scope_grant", e.Resolution.Action)
+	if e.Resolution.Action != "request_broader_scope" {
+		t.Errorf("expected action %q, got %q", "request_broader_scope", e.Resolution.Action)
 	}
 	if !e.Retry {
 		t.Error("expected retry to be true")
@@ -245,7 +245,7 @@ func TestInvokeResponseJSON(t *testing.T) {
 func TestANIPErrorJSON(t *testing.T) {
 	e := NewANIPError(FailureScopeInsufficient, "missing travel.book")
 	e.Resolution = &Resolution{
-		Action:      "request_scope_grant",
+		Action:      "request_broader_scope",
 		Requires:    "delegation.scope += travel.book",
 		GrantableBy: "human:samir@example.com",
 	}
@@ -275,8 +275,8 @@ func TestANIPErrorJSON(t *testing.T) {
 	if !ok {
 		t.Fatal("expected resolution to be a map")
 	}
-	if resolution["action"] != "request_scope_grant" {
-		t.Errorf("expected resolution.action %q, got %v", "request_scope_grant", resolution["action"])
+	if resolution["action"] != "request_broader_scope" {
+		t.Errorf("expected resolution.action %q, got %v", "request_broader_scope", resolution["action"])
 	}
 	if resolution["grantable_by"] != "human:samir@example.com" {
 		t.Errorf("expected resolution.grantable_by %q, got %v", "human:samir@example.com", resolution["grantable_by"])

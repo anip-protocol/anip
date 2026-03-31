@@ -32,6 +32,7 @@ const (
 	FailureInternalError               = "internal_error"
 	FailureStreamingNotSupported       = "streaming_not_supported"
 	FailureInvalidParameters           = "invalid_parameters"
+	FailureNonDelegableAction          = "non_delegable_action"
 )
 
 // Supported algorithms for signing.

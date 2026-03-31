@@ -85,11 +85,20 @@ func (s *Service) DiscoverPermissions(token *core.DelegationToken) core.Permissi
 					}
 				}
 				if hasRejectEnforcement {
+					ctrlResolutionHint := "request_capability_binding"
+					for _, u := range unmet {
+						if u == "cost_ceiling" {
+							ctrlResolutionHint = "request_budget_bound_delegation"
+							break
+						}
+					}
 					restricted = append(restricted, core.RestrictedCapability{
 						Capability:             name,
 						Reason:                 fmt.Sprintf("missing control requirements: %s", strings.Join(unmet, ", ")),
+						ReasonType:             "unmet_control_requirement",
 						GrantableBy:            rootPrincipal,
 						UnmetTokenRequirements: unmet,
+						ResolutionHint:         ctrlResolutionHint,
 					})
 					continue
 				}
@@ -132,12 +141,15 @@ func (s *Service) DiscoverPermissions(token *core.DelegationToken) core.Permissi
 				denied = append(denied, core.DeniedCapability{
 					Capability: name,
 					Reason:     "requires admin principal",
+					ReasonType: "non_delegable",
 				})
 			} else {
 				restricted = append(restricted, core.RestrictedCapability{
-					Capability:  name,
-					Reason:      fmt.Sprintf("delegation chain lacks scope(s): %s", strings.Join(missing, ", ")),
-					GrantableBy: rootPrincipal,
+					Capability:     name,
+					Reason:         fmt.Sprintf("delegation chain lacks scope(s): %s", strings.Join(missing, ", ")),
+					ReasonType:     "insufficient_scope",
+					GrantableBy:    rootPrincipal,
+					ResolutionHint: "request_broader_scope",
 				})
 			}
 		}
