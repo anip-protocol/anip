@@ -54,7 +54,8 @@ public static class DelegationEngine
         var constraints = new DelegationConstraints
         {
             MaxDelegationDepth = 3,
-            ConcurrentBranches = "allowed"
+            ConcurrentBranches = "allowed",
+            Budget = request.Budget
         };
 
         // Determine issuer and root_principal.
@@ -76,6 +77,34 @@ public static class DelegationEngine
             rootPrincipal = parentToken.RootPrincipal ?? principal;
             parent = parentToken.TokenId;
             constraints = parentToken.Constraints;
+
+            // Budget narrowing: child budget must not exceed parent budget.
+            if (parentToken.Constraints.Budget != null)
+            {
+                if (request.Budget == null)
+                {
+                    // Child inherits parent budget.
+                    constraints.Budget = parentToken.Constraints.Budget;
+                }
+                else if (request.Budget.Currency != parentToken.Constraints.Budget.Currency)
+                {
+                    throw new AnipError(Constants.FailureBudgetCurrencyMismatch,
+                        $"Child budget currency {request.Budget.Currency} does not match parent {parentToken.Constraints.Budget.Currency}");
+                }
+                else if (request.Budget.MaxAmount > parentToken.Constraints.Budget.MaxAmount)
+                {
+                    throw new AnipError(Constants.FailureBudgetExceeded,
+                        $"Child budget ${request.Budget.MaxAmount} exceeds parent budget ${parentToken.Constraints.Budget.MaxAmount}");
+                }
+                else
+                {
+                    constraints.Budget = request.Budget;
+                }
+            }
+            else if (request.Budget != null)
+            {
+                constraints.Budget = request.Budget;
+            }
         }
 
         // Default subject to the authenticated principal if not provided.

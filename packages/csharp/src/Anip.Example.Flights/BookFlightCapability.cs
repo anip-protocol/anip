@@ -36,14 +36,11 @@ public static class BookFlightCapability
             Cost = new Cost
             {
                 Certainty = "estimated",
-                Financial = new Dictionary<string, object>
+                Financial = new FinancialCost
                 {
-                    ["currency"] = "USD",
-                    ["estimated_range"] = new Dictionary<string, object>
-                    {
-                        ["min"] = 280,
-                        ["max"] = 500,
-                    },
+                    Currency = "USD",
+                    RangeMin = 280,
+                    RangeMax = 500,
                 },
                 DeterminedBy = "search_flights",
             },
@@ -92,10 +89,10 @@ public static class BookFlightCapability
         // Track actual cost.
         ctx.CostActual = new CostActual
         {
-            Financial = new Dictionary<string, object>
+            Financial = new FinancialCost
             {
-                ["amount"] = totalCost,
-                ["currency"] = currency,
+                Amount = totalCost,
+                Currency = currency,
             },
         };
 

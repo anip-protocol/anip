@@ -42,4 +42,10 @@ public class CapabilityDeclaration
 
     [JsonPropertyName("response_modes")]
     public List<string>? ResponseModes { get; set; }
+
+    [JsonPropertyName("requires_binding")]
+    public List<BindingRequirement>? RequiresBinding { get; set; }
+
+    [JsonPropertyName("control_requirements")]
+    public List<ControlRequirement>? ControlRequirements { get; set; }
 }

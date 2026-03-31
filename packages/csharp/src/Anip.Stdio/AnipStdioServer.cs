@@ -58,6 +58,11 @@ public class AnipStdioServer
         ["token_expired"] = AuthError,
         ["scope_insufficient"] = ScopeError,
         ["budget_exceeded"] = ScopeError,
+        ["budget_currency_mismatch"] = ScopeError,
+        ["budget_not_enforceable"] = ScopeError,
+        ["binding_missing"] = ScopeError,
+        ["binding_stale"] = ScopeError,
+        ["control_requirement_unsatisfied"] = ScopeError,
         ["purpose_mismatch"] = ScopeError,
         ["unknown_capability"] = NotFoundError,
         ["not_found"] = NotFoundError,
@@ -254,6 +259,7 @@ public class AnipStdioServer
             TtlHours = GetInt(parameters, "ttl_hours"),
             ParentToken = GetString(parameters, "parent_token"),
             CallerClass = GetString(parameters, "caller_class"),
+            Budget = ExtractBudget(parameters),
         };
 
         var resp = _service.IssueToken(principal, request);
@@ -283,6 +289,9 @@ public class AnipStdioServer
         var parentInvocationId = GetString(parameters, "parent_invocation_id");
         var stream = GetBool(parameters, "stream");
 
+        // Extract budget from params (v0.13).
+        var budget = ExtractBudget(parameters);
+
         if (stream)
         {
             // Streaming invocation — collect progress notifications then return final result.
@@ -292,6 +301,7 @@ public class AnipStdioServer
                 TaskId = taskId,
                 ParentInvocationId = parentInvocationId,
                 Stream = true,
+                Budget = budget,
             });
 
             var notifications = new List<Dictionary<string, object?>>();
@@ -323,6 +333,7 @@ public class AnipStdioServer
             ClientReferenceId = clientReferenceId,
             TaskId = taskId,
             ParentInvocationId = parentInvocationId,
+            Budget = budget,
         };
 
         return _service.Invoke(capability, token, invokeParams, opts);
@@ -604,6 +615,41 @@ public class AnipStdioServer
             return ElementToDict(je);
 
         return new Dictionary<string, object?>();
+    }
+
+    private static Budget? ExtractBudget(Dictionary<string, object?> parameters)
+    {
+        if (!parameters.TryGetValue("budget", out var budgetObj) || budgetObj == null)
+            return null;
+
+        if (budgetObj is Dictionary<string, object?> dict)
+        {
+            var currency = dict.TryGetValue("currency", out var currVal) ? currVal?.ToString() : null;
+            double maxAmount = 0;
+            if (dict.TryGetValue("max_amount", out var amtVal))
+            {
+                if (amtVal is double d) maxAmount = d;
+                else if (amtVal is int i) maxAmount = i;
+                else if (amtVal is long l) maxAmount = l;
+            }
+            if (!string.IsNullOrEmpty(currency) && maxAmount > 0)
+            {
+                return new Budget { Currency = currency, MaxAmount = maxAmount };
+            }
+        }
+        else if (budgetObj is JsonElement je && je.ValueKind == JsonValueKind.Object)
+        {
+            var currency = je.TryGetProperty("currency", out var currProp) && currProp.ValueKind == JsonValueKind.String
+                ? currProp.GetString() : null;
+            var maxAmount = je.TryGetProperty("max_amount", out var amtProp) && amtProp.ValueKind == JsonValueKind.Number
+                ? amtProp.GetDouble() : 0.0;
+            if (!string.IsNullOrEmpty(currency) && maxAmount > 0)
+            {
+                return new Budget { Currency = currency, MaxAmount = maxAmount };
+            }
+        }
+
+        return null;
     }
 
     private static Dictionary<string, object?> GetParams(Dictionary<string, object?> msg)

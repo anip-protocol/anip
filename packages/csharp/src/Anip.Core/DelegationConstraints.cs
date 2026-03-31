@@ -9,4 +9,7 @@ public class DelegationConstraints
 
     [JsonPropertyName("concurrent_branches")]
     public string ConcurrentBranches { get; set; } = "";
+
+    [JsonPropertyName("budget")]
+    public Budget? Budget { get; set; }
 }

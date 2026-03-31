@@ -12,4 +12,7 @@ public class RestrictedCapability
 
     [JsonPropertyName("grantable_by")]
     public string? GrantableBy { get; set; }
+
+    [JsonPropertyName("unmet_token_requirements")]
+    public List<string>? UnmetTokenRequirements { get; set; }
 }

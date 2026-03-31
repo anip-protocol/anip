@@ -280,20 +280,17 @@ public static class SchemaBuilder
             var costDir = new StringBuilder($"@anipCost(certainty: \"{certainty}\"");
             if (decl.Cost.Financial != null)
             {
-                if (decl.Cost.Financial.TryGetValue("currency", out var currency) && currency != null)
+                if (!string.IsNullOrEmpty(decl.Cost.Financial.Currency))
                 {
-                    costDir.Append($", currency: \"{currency}\"");
+                    costDir.Append($", currency: \"{decl.Cost.Financial.Currency}\"");
                 }
-                if (decl.Cost.Financial.TryGetValue("estimated_range", out var estRange) && estRange is JsonElement rangeEl)
+                if (decl.Cost.Financial.RangeMin != null)
                 {
-                    if (rangeEl.TryGetProperty("min", out var minEl))
-                    {
-                        costDir.Append($", rangeMin: {minEl}");
-                    }
-                    if (rangeEl.TryGetProperty("max", out var maxEl))
-                    {
-                        costDir.Append($", rangeMax: {maxEl}");
-                    }
+                    costDir.Append($", rangeMin: {decl.Cost.Financial.RangeMin}");
+                }
+                if (decl.Cost.Financial.RangeMax != null)
+                {
+                    costDir.Append($", rangeMax: {decl.Cost.Financial.RangeMax}");
                 }
             }
             costDir.Append(')');

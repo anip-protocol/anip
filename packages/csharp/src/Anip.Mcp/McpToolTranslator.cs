@@ -149,49 +149,19 @@ public static class McpToolTranslator
 
             if (certainty == "fixed" && financial != null)
             {
-                financial.TryGetValue("amount", out var amount);
-                var currency = financial.TryGetValue("currency", out var curr)
-                    ? curr?.ToString() ?? "USD"
-                    : "USD";
-                if (amount != null)
+                var currency = !string.IsNullOrEmpty(financial.Currency) ? financial.Currency : "USD";
+                if (financial.Amount != null)
                 {
-                    parts.Add($"Cost: {currency} {amount} (fixed).");
+                    parts.Add($"Cost: {currency} {financial.Amount} (fixed).");
                 }
             }
             else if (certainty == "estimated" && financial != null)
             {
-                var currency = financial.TryGetValue("currency", out var curr)
-                    ? curr?.ToString() ?? "USD"
-                    : "USD";
+                var currency = !string.IsNullOrEmpty(financial.Currency) ? financial.Currency : "USD";
 
-                object? rangeMin = financial.GetValueOrDefault("range_min");
-                object? rangeMax = financial.GetValueOrDefault("range_max");
-
-                if (rangeMin == null || rangeMax == null)
+                if (financial.RangeMin != null && financial.RangeMax != null)
                 {
-                    if (financial.TryGetValue("estimated_range", out var estRangeRaw))
-                    {
-                        Dictionary<string, object>? range = null;
-                        if (estRangeRaw is Dictionary<string, object> dictRange)
-                        {
-                            range = dictRange;
-                        }
-                        else if (estRangeRaw is JsonElement je && je.ValueKind == JsonValueKind.Object)
-                        {
-                            range = JsonSerializer.Deserialize<Dictionary<string, object>>(je.GetRawText());
-                        }
-
-                        if (range != null)
-                        {
-                            range.TryGetValue("min", out rangeMin);
-                            range.TryGetValue("max", out rangeMax);
-                        }
-                    }
-                }
-
-                if (rangeMin != null && rangeMax != null)
-                {
-                    parts.Add($"Estimated cost: {currency} {rangeMin}-{rangeMax}.");
+                    parts.Add($"Estimated cost: {currency} {financial.RangeMin}-{financial.RangeMax}.");
                 }
             }
         }
