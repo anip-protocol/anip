@@ -18,6 +18,7 @@ import { hostname } from "os";
 import type {
   DelegationToken as DelegationTokenType,
   ANIPFailure as ANIPFailureType,
+  Budget as BudgetType,
 } from "@anip-dev/core";
 import type { StorageBackend } from "./storage.js";
 
@@ -32,6 +33,7 @@ export interface IssueRootTokenOpts {
   purposeParameters?: Record<string, unknown>;
   ttlHours?: number;
   maxDelegationDepth?: number;
+  budget?: BudgetType | null;
 }
 
 export interface DelegateOpts {
@@ -41,6 +43,7 @@ export interface DelegateOpts {
   capability: string;
   purposeParameters?: Record<string, unknown>;
   ttlHours?: number;
+  budget?: BudgetType | null;
 }
 
 export class DelegationEngine {
@@ -132,6 +135,7 @@ export class DelegationEngine {
       purposeParameters: opts.purposeParameters ?? {},
       ttlHours: opts.ttlHours ?? 2,
       maxDelegationDepth: opts.maxDelegationDepth ?? 3,
+      budget: opts.budget ?? null,
     });
   }
 
@@ -214,6 +218,38 @@ export class DelegationEngine {
       }
     }
 
+    // Enforce budget narrowing on constraints-level budget
+    let effectiveBudget: BudgetType | null = opts.budget ?? null;
+    const parentConstraints = opts.parentToken.constraints;
+    if (parentConstraints?.budget) {
+      if (effectiveBudget === null) {
+        // Child inherits parent budget
+        effectiveBudget = parentConstraints.budget;
+      } else if (effectiveBudget.currency !== parentConstraints.budget.currency) {
+        return {
+          type: "budget_currency_mismatch",
+          detail: `Child budget currency ${effectiveBudget.currency} does not match parent ${parentConstraints.budget.currency}`,
+          resolution: {
+            action: "match_parent_currency",
+            requires: `budget currency must be ${parentConstraints.budget.currency}`,
+            grantable_by: rootPrincipal,
+          },
+          retry: false,
+        } as ANIPFailureType;
+      } else if (effectiveBudget.max_amount > parentConstraints.budget.max_amount) {
+        return {
+          type: "budget_exceeded",
+          detail: `Child budget $${effectiveBudget.max_amount} exceeds parent budget $${parentConstraints.budget.max_amount}`,
+          resolution: {
+            action: "narrow_budget",
+            requires: `budget must be <= $${parentConstraints.budget.max_amount}`,
+            grantable_by: rootPrincipal,
+          },
+          retry: false,
+        } as ANIPFailureType;
+      }
+    }
+
     return this._createToken({
       issuer: opts.parentToken.subject,
       subject: opts.subject,
@@ -227,6 +263,7 @@ export class DelegationEngine {
         opts.parentToken.constraints.max_delegation_depth,
         opts.parentToken.constraints.max_delegation_depth,
       ),
+      budget: effectiveBudget,
     });
   }
 
@@ -396,6 +433,7 @@ export class DelegationEngine {
       expires: token.expires,
       constraints: token.constraints,
       root_principal: token.root_principal,
+      caller_class: token.caller_class ?? null,
     });
   }
 
@@ -434,6 +472,7 @@ export class DelegationEngine {
     purposeParameters: Record<string, unknown>;
     ttlHours: number;
     maxDelegationDepth: number;
+    budget?: BudgetType | null;
   }): Promise<{ token: DelegationTokenType; tokenId: string }> {
     const tokenId = `anip-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
     const now = new Date();
@@ -479,6 +518,7 @@ export class DelegationEngine {
       constraints: {
         max_delegation_depth: maxDepth,
         concurrent_branches: concurrent,
+        budget: opts.budget ?? null,
       },
       root_principal: opts.rootPrincipal,
       caller_class: null,
