@@ -103,6 +103,7 @@ def issue_token(
     bootstrap_bearer: str,
     *,
     task_id: str | None = "conformance-test",
+    budget: dict | None = None,
 ) -> str:
     """Issue a delegation token via API key. Returns the JWT string.
 
@@ -110,21 +111,143 @@ def issue_token(
         task_id: If provided, binds the token to this task_id via
             purpose_parameters. Pass None to issue a token without
             task binding (needed for tests that set task_id per invocation).
+        budget: If provided, attaches budget constraints to the token.
+            Expected shape: {"currency": "USD", "max_amount": 100}.
     """
     purpose_parameters: dict = {}
     if task_id is not None:
         purpose_parameters["task_id"] = task_id
 
+    body: dict = {
+        "scope": scope,
+        "capability": capability,
+        "purpose_parameters": purpose_parameters,
+    }
+    if budget is not None:
+        body["budget"] = budget
+
     resp = client.post(
         "/anip/tokens",
         headers={"Authorization": f"Bearer {bootstrap_bearer}"},
-        json={
-            "scope": scope,
-            "capability": capability,
-            "purpose_parameters": purpose_parameters,
-        },
+        json=body,
     )
     assert resp.status_code == 200, f"Token issuance failed: {resp.status_code} {resp.text}"
     data = resp.json()
     assert data["issued"] is True, f"Token not issued: {data}"
     return data["token"]
+
+
+def issue_token_full(
+    client: httpx.Client,
+    scope: list[str],
+    capability: str,
+    bootstrap_bearer: str,
+    *,
+    task_id: str | None = "conformance-test",
+    budget: dict | None = None,
+    parent_token: str | None = None,
+) -> tuple[int, dict]:
+    """Issue a delegation token and return the full response dict.
+
+    Unlike issue_token() which returns just the JWT string, this returns the
+    entire response including token_id, token, expires, and budget fields.
+    Useful for delegation and budget echo tests.
+
+    Args:
+        parent_token: Token ID of the parent token for delegation (child issuance).
+        budget: Budget constraints for the token.
+    """
+    purpose_parameters: dict = {}
+    if task_id is not None:
+        purpose_parameters["task_id"] = task_id
+
+    body: dict = {
+        "scope": scope,
+        "capability": capability,
+        "purpose_parameters": purpose_parameters,
+    }
+    if budget is not None:
+        body["budget"] = budget
+    if parent_token is not None:
+        body["parent_token"] = parent_token
+
+    resp = client.post(
+        "/anip/tokens",
+        headers={"Authorization": f"Bearer {bootstrap_bearer}"},
+        json=body,
+    )
+    return resp.status_code, resp.json()
+
+
+# --- Manifest fixture (v0.13: full capability details) ---
+# The discovery document (/.well-known/anip) only includes a summary per
+# capability (description, side_effect, minimum_scope, financial, contract).
+# Budget, binding, and control requirement tests need the full capability
+# declarations from the manifest (/anip/manifest).
+
+
+@pytest.fixture(scope="session")
+def manifest_capabilities(client):
+    """Return full capability declarations from the manifest endpoint.
+
+    The manifest contains cost, requires_binding, control_requirements, etc.
+    which are not present in the discovery summary.
+    """
+    resp = client.get("/anip/manifest")
+    assert resp.status_code == 200, f"Manifest fetch failed: {resp.status_code}"
+    data = resp.json()
+    return data.get("capabilities", {})
+
+
+# --- Capability lookup fixtures (v0.13: budget, binding, control) ---
+
+
+@pytest.fixture(scope="session")
+def fixed_cost_capability(manifest_capabilities):
+    """Return (name, scope, financial) for a capability with fixed financial cost.
+
+    Only matches capabilities where cost.certainty == "fixed" AND
+    cost.financial.amount is a positive number (not None or zero).
+    """
+    for name, meta in manifest_capabilities.items():
+        cost = meta.get("cost")
+        if not cost or cost.get("certainty") != "fixed":
+            continue
+        financial = cost.get("financial")
+        if not financial:
+            continue
+        amount = financial.get("amount")
+        if amount is not None and amount > 0:
+            return name, meta.get("minimum_scope", []), financial
+    return None
+
+
+@pytest.fixture(scope="session")
+def binding_capability(manifest_capabilities):
+    """Return (name, scope, requires_binding) for a capability with binding requirements."""
+    for name, meta in manifest_capabilities.items():
+        bindings = meta.get("requires_binding", [])
+        if bindings:
+            return name, meta.get("minimum_scope", []), bindings
+    return None
+
+
+@pytest.fixture(scope="session")
+def control_requirement_capability(manifest_capabilities):
+    """Return (name, scope, control_requirements) for a capability with control requirements."""
+    for name, meta in manifest_capabilities.items():
+        controls = meta.get("control_requirements", [])
+        if controls:
+            return name, meta.get("minimum_scope", []), controls
+    return None
+
+
+@pytest.fixture(scope="session")
+def cost_ceiling_capability(manifest_capabilities):
+    """Return (name, scope) for a capability that requires cost_ceiling control requirement."""
+    for name, meta in manifest_capabilities.items():
+        controls = meta.get("control_requirements", [])
+        for ctrl in controls:
+            if ctrl.get("type") == "cost_ceiling":
+                return name, meta.get("minimum_scope", [])
+    return None
