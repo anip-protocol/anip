@@ -1,4 +1,4 @@
-"""Conformance tests for ANIP binding requirement enforcement (v0.13).
+"""Conformance tests for ANIP binding requirement enforcement (v0.14).
 
 Spec references: requires_binding declarations, binding_missing failure type.
 

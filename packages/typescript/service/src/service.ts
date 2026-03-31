@@ -1148,7 +1148,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       // Use the resolved/stored token from validation
       const resolvedToken = validationResult as DelegationToken;
 
-      // --- Budget, binding, and control requirement enforcement (v0.13) ---
+      // --- Budget, binding, and control requirement enforcement (v0.14) ---
 
       // Parse invocation-level budget hint if present
       const budgetHint = opts?.budget ?? null;
@@ -1522,7 +1522,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           response.stream_summary = streamSummary;
         }
 
-        // Budget context in response (v0.13)
+        // Budget context in response (v0.14)
         if (effectiveBudget) {
           let costActualAmount: number | null = null;
           if (costActual) {

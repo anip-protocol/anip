@@ -340,7 +340,7 @@ func (s *Service) Invoke(
 		callHook(func() { s.hooks.OnScopeValidation(capName, true) })
 	}
 
-	// --- Budget, binding, and control requirement enforcement (v0.13) ---
+	// --- Budget, binding, and control requirement enforcement (v0.14) ---
 
 	// Parse invocation-level budget hint.
 	var requestBudget *core.Budget
@@ -537,7 +537,11 @@ func (s *Service) Invoke(
 		}
 	}
 
-	// Control requirement enforcement (reject only — no warn in v0.13).
+	// Control requirement enforcement (reject only — no warn in v0.14).
+	// NOTE: The stronger_delegation_required check is defence-in-depth.
+	// Purpose validation in the delegation engine fires before this loop,
+	// making the stronger_delegation_required branch unreachable through
+	// normal invoke.
 	for _, req := range capDef.Declaration.ControlRequirements {
 		satisfied := true
 		switch req.Type {
@@ -657,7 +661,7 @@ func (s *Service) Invoke(
 		resp["cost_actual"] = costActual
 	}
 
-	// Budget context in response (v0.13).
+	// Budget context in response (v0.14).
 	if effectiveBudget != nil {
 		var costActualAmount *float64
 		if costActual != nil && costActual.Financial != nil && costActual.Financial.Amount != nil {

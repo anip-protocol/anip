@@ -386,7 +386,7 @@ The token issuance request can include a `budget` field, which the service store
 | `restricted` | Missing a grantable scope. Fields: `capability`, `reason`, `grantable_by`, `unmet_token_requirements` |
 | `denied` | Structurally impossible (wrong principal class). Fields: `capability`, `reason` |
 
-### Unmet token requirements (v0.13)
+### Unmet token requirements (v0.14)
 
 When a capability declares `control_requirements` with token-evaluable types (`cost_ceiling`, `stronger_delegation_required`), and the caller's token does not satisfy them, the capability appears in `restricted` with an `unmet_token_requirements` array listing the unsatisfied requirement types:
 
@@ -494,7 +494,7 @@ All control requirements are token-evaluable and surfaced in permission discover
 | `cost_actual` | object | If capability has financial cost | `currency` and `amount` |
 | `failure` | object | On failure | Structured failure (see below) |
 
-### Budget enforcement (v0.13)
+### Budget enforcement (v0.14)
 
 The service enforces budget constraints from the delegation token's `constraints.budget` **before** executing the handler. Budget enforcement is pre-execution and deterministic — there is no post-execution "blessed overspend."
 
@@ -540,7 +540,7 @@ When a budget was evaluated (success or failure), the response includes a `budge
 | `grantable_by` | string | No | Who can grant what's needed (principal identifier) |
 | `estimated_availability` | string | No | How soon resolution is possible (e.g., `immediate`, `24h`) |
 
-### Failure types — budget, binding, and control (v0.13)
+### Failure types — budget, binding, and control (v0.14)
 
 | Type | When | Retry | Typical resolution |
 |------|------|-------|--------------------|

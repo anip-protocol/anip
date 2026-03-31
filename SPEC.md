@@ -72,19 +72,19 @@ capability:
     type: irreversible
     rollback_window: none
   response_modes: [unary]             # default; streaming-capable: [unary, streaming]
-  requires_binding:                    # v0.13: execution-time binding requirements
+  requires_binding:                    # v0.14: execution-time binding requirements
     - type: quote
       field: quote_id
       source_capability: search_flights
       max_age: "PT15M"
-  control_requirements:                # v0.13: explicit control requirement declarations
+  control_requirements:                # v0.14: explicit control requirement declarations
     - type: cost_ceiling
       enforcement: reject
 ```
 
 A service MUST declare all capabilities in its manifest. Each capability MUST include a name, description, inputs with types, output shape, and side-effect type. Capabilities MAY declare `response_modes` (default: `["unary"]`) to indicate support for streaming invocations (see §6.6).
 
-#### Binding Requirements (v0.13)
+#### Binding Requirements (v0.14)
 
 A capability MAY declare `requires_binding` — a list of execution-time binding requirements that must be satisfied before the capability can be invoked. Binding is lightweight: the service checks that a required field is present in the invocation parameters and optionally checks its age. The service does NOT validate that the binding "resolves" to a prior result — that is internal service logic, not a protocol requirement.
 
@@ -104,7 +104,7 @@ When a capability declares `requires_binding`, the service MUST enforce at invoc
 1. **Missing binding**: If the required `field` is absent from parameters, the service MUST reject with `binding_missing`.
 2. **Stale binding**: If `max_age` is declared and the binding was issued more than `max_age` ago, the service MUST reject with `binding_stale`. How the service determines binding age is an implementation detail.
 
-#### Control Requirements (v0.13)
+#### Control Requirements (v0.14)
 
 A capability MAY declare `control_requirements` — explicit pre-conditions that must be satisfied for invocation. All control requirements are token-evaluable — checkable from the delegation token alone and surfaced in `/anip/permissions`:
 
@@ -116,7 +116,7 @@ Each control requirement entry includes:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `type` | string | Yes | One of: `cost_ceiling`, `stronger_delegation_required` |
-| `enforcement` | string | Yes | Enforcement mode: `"reject"` (v0.13 supports `reject` only) |
+| `enforcement` | string | Yes | Enforcement mode: `"reject"` (v0.14 supports `reject` only) |
 
 When `enforcement` is `"reject"`, the service MUST reject invocations that do not satisfy the requirement, returning a `control_requirement_unsatisfied` failure.
 
@@ -181,7 +181,7 @@ delegation_token:
   constraints:
     max_delegation_depth: 3
     concurrent_branches: allowed
-    budget:                              # v0.13: enforceable budget constraint
+    budget:                              # v0.14: enforceable budget constraint
       currency: "USD"
       max_amount: 500
 ```
@@ -197,7 +197,7 @@ delegation_token:
 - **constraints**:
   - `max_delegation_depth` — how many times this token can be further delegated
   - `concurrent_branches` — whether multiple agents can act under this token simultaneously (`allowed` or `exclusive`). When `exclusive`, a service receiving two concurrent requests from the same root principal MUST reject one.
-  - `budget` (v0.13) — enforceable financial budget constraint with `currency` (ISO 4217) and `max_amount`. Budget constraints MUST narrow, never widen: if a parent token has `budget.max_amount = 500`, a child token MUST NOT have `budget.max_amount > 500`. The service MUST reject token issuance that would widen a budget constraint. If the parent has no budget, the child MAY introduce one. This matches the existing scope-narrowing rule for delegation.
+  - `budget` (v0.14) — enforceable financial budget constraint with `currency` (ISO 4217) and `max_amount`. Budget constraints MUST narrow, never widen: if a parent token has `budget.max_amount = 500`, a child token MUST NOT have `budget.max_amount > 500`. The service MUST reject token issuance that would widen a budget constraint. If the parent has no budget, the child MAY introduce one. This matches the existing scope-narrowing rule for delegation.
 
 **Design decisions:**
 
@@ -228,7 +228,7 @@ permission_response:
     - capability: execute_trade
       reason: "missing cost_ceiling in delegation"
       grantable_by: "human:admin@company.com"
-      unmet_token_requirements: ["cost_ceiling"]   # v0.13: token-evaluable requirements not met
+      unmet_token_requirements: ["cost_ceiling"]   # v0.14: token-evaluable requirements not met
     - capability: cancel_booking
       reason: "delegation chain lacks scope: travel.cancel"
       grantable_by: "human:samir@example.com"
@@ -237,7 +237,7 @@ permission_response:
       reason: "requires admin principal, current chain root is standard user"
 ```
 
-The `unmet_token_requirements` field (v0.13) lists control requirements that are not satisfied by the current delegation token: `cost_ceiling` (token must carry `constraints.budget`) and `stronger_delegation_required` (token must have explicit capability binding). All control requirements are token-evaluable and surfaced here.
+The `unmet_token_requirements` field (v0.14) lists control requirements that are not satisfied by the current delegation token: `cost_ceiling` (token must carry `constraints.budget`) and `stronger_delegation_required` (token must have explicit capability binding). All control requirements are token-evaluable and surfaced here.
 
 The permission response MUST include three categories:
 
@@ -296,7 +296,7 @@ failure:
 ```
 
 ```yaml
-# v0.13: budget currency mismatch
+# v0.14: budget currency mismatch
 failure:
   type: budget_currency_mismatch
   detail: "Token budget is in USD but capability cost is in EUR"
@@ -307,7 +307,7 @@ failure:
 ```
 
 ```yaml
-# v0.13: budget not enforceable (estimated cost without binding)
+# v0.14: budget not enforceable (estimated cost without binding)
 failure:
   type: budget_not_enforceable
   detail: "Capability book_flight has estimated cost ($200-$800) but no requires_binding — budget cannot be reliably enforced"
@@ -318,7 +318,7 @@ failure:
 ```
 
 ```yaml
-# v0.13: missing required binding
+# v0.14: missing required binding
 failure:
   type: binding_missing
   detail: "Capability book_flight requires 'quote_id' (type: quote)"
@@ -329,7 +329,7 @@ failure:
 ```
 
 ```yaml
-# v0.13: stale binding
+# v0.14: stale binding
 failure:
   type: binding_stale
   detail: "Binding 'quote_id' has exceeded max_age of 15 minutes"
@@ -340,7 +340,7 @@ failure:
 ```
 
 ```yaml
-# v0.13: control requirement not satisfied
+# v0.14: control requirement not satisfied
 failure:
   type: control_requirement_unsatisfied
   detail: "Capability execute_trade requires cost_ceiling in delegation token"
@@ -816,7 +816,7 @@ scope:
 subject: "agent-007"                # required for root issuance
 parent_token: "tok_root_001"        # present for delegation, absent for root issuance
 ttl_hours: 2                        # optional, default 2
-budget:                              # v0.13: optional budget constraint
+budget:                              # v0.14: optional budget constraint
   currency: "USD"
   max_amount: 500
 ```
@@ -829,7 +829,7 @@ The `budget` field is a convenience mapping — the caller writes `budget` at th
 token_id: "tok_root_001"
 token: "eyJhbGciOiJFUzI1NiIs..."    # signed JWT
 expires: "2026-03-15T14:00:00Z"
-budget:                              # v0.13: echoed when budget was requested
+budget:                              # v0.14: echoed when budget was requested
   currency: "USD"
   max_amount: 500
 ```
@@ -850,7 +850,7 @@ The service issues ES256-signed JWT tokens. Every protected endpoint resolves th
 
 ```yaml
 parameters: { ... }
-budget:                              # optional, negotiation hint (v0.13: MUST NOT widen token budget)
+budget:                              # optional, negotiation hint (v0.14: MUST NOT widen token budget)
   currency: "USD"
   max_amount: 300
 client_reference_id: "task:abc/3"   # optional, opaque, max 256 chars
@@ -871,7 +871,7 @@ task_id: "trip-planning-2026"       # echoed if provided or from token purpose
 parent_invocation_id: "inv-a1b2c3..."  # echoed if provided
 result: { ... }
 cost_actual: { ... }                # optional
-budget_context:                      # v0.13: present when budget was evaluated
+budget_context:                      # v0.14: present when budget was evaluated
   budget_max: 500
   budget_currency: "USD"
   cost_check_amount: 280
@@ -890,7 +890,7 @@ parent_invocation_id: "inv-a1b2c3..."  # echoed if provided
 failure:
   type: "budget_exceeded"
   detail: "Capability cost $550 exceeds delegated budget of $500"
-budget_context:                      # v0.13: present when budget was evaluated, on both success and failure
+budget_context:                      # v0.14: present when budget was evaluated, on both success and failure
   budget_max: 500
   budget_currency: "USD"
   cost_check_amount: 550
@@ -910,7 +910,7 @@ Lineage begins at the service `invoke()` boundary. Bearer auth failures (HTTP 40
 
 The service MUST validate the delegation token before processing. The service MUST return an ANIP failure object (not an HTTP error) for any authorization, budget, or purpose-binding failure.
 
-#### Budget Enforcement (v0.13)
+#### Budget Enforcement (v0.14)
 
 The service MUST enforce budget constraints carried in the delegation token's `constraints.budget` before executing the handler. Budget is a pre-execution MUST reject — there is no post-execution "blessed overspend."
 
@@ -1868,7 +1868,7 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 
 | Feature | Protocol Requirement Level | Reference Implementation Status | Future Protocol Work |
 |---------|---------------------------|--------------------------------|---------------------|
-| **Budget enforcement** | MUST — v0.1 core, enhanced v0.13 (§4.3, §6.3) | Implemented: structured `constraints.budget` in delegation tokens, pre-execution enforcement, budget narrowing in delegation chains, `budget_context` in responses | — |
+| **Budget enforcement** | MUST — v0.1 core, enhanced v0.14 (§4.3, §6.3) | Implemented: structured `constraints.budget` in delegation tokens, pre-execution enforcement, budget narrowing in delegation chains, `budget_context` in responses | — |
 | **Scope narrowing** | MUST — v0.1+ | Implemented: reference servers reject child tokens that widen parent scope | — |
 | **Concurrent branch exclusivity** | SHOULD — v0.1+ | Implemented: reference servers enforce `concurrent_branches: "exclusive"` per root principal with atomic check-and-acquire (Python uses `threading.Lock`; TypeScript is single-threaded; Go, Java, and C# use `sync.Mutex` / `synchronized` / `lock`) | Distributed enforcement across replicas is a deployment concern |
 | **Cost variance tracking** | MAY — v0.1+ | Implemented: reference servers record declared vs actual costs in audit log | — |
@@ -1893,11 +1893,11 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Proof expiration guidance (§6.5)** | SHOULD — v0.9 | Implemented: `expires_hint` field on checkpoint responses, client-side caching guidance | — |
 | **Horizontal scaling (§6.11)** | MAY — v0.10 | Implemented: storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, leader-elected background job coordination | Cross-region replication, consensus-based coordination |
 | **Observability hooks (§6.12)** | MAY — v0.11 | Implemented: callback-based logging (8 hooks), metrics (10 hooks), tracing (2 hooks, 8 stable span names), diagnostics (1 hook), `getHealth()` snapshot, optional `GET /-/health` endpoint in all framework bindings. Hook isolation guarantees correctness under throwing callbacks. | Standardized telemetry export format, OTEL bridge package |
-| **Binding requirements (§4.1)** | MAY — v0.13 | Implemented: `requires_binding` on capability declarations, `binding_missing` and `binding_stale` enforcement at invoke time | — |
-| **Control requirements (§4.1)** | MAY — v0.13 | Implemented: `control_requirements` on capability declarations, all requirements are token-evaluable and surfaced in `/anip/permissions` | — |
+| **Binding requirements (§4.1)** | MAY — v0.14 | Implemented: `requires_binding` on capability declarations, `binding_missing` and `binding_stale` enforcement at invoke time | — |
+| **Control requirements (§4.1)** | MAY — v0.14 | Implemented: `control_requirements` on capability declarations, all requirements are token-evaluable and surfaced in `/anip/permissions` | — |
 | **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation across services, federated trust |
 
-The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. v0.9 completes the audit story — aggregation collapses noise, storage-side redaction strips low-value parameters at write time, caller-class-aware redaction resolves disclosure per-caller, and proof expiration guidance closes the client-side gap. v0.10 adds horizontal scaling — storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, and leader-elected background job coordination enable multi-replica deployments without protocol invariant violations. v0.11 adds observability hooks — callback-based logging, metrics, tracing, and diagnostics injection points let adopters plug in their observability stack without hard dependencies, plus a `getHealth()` runtime snapshot and optional health endpoint. v0.13 adds pre-execution control surfaces — structured budget constraints in delegation tokens with pre-execution enforcement, execution-time binding requirements (`requires_binding`) for quote-based workflows, and explicit control requirement declarations (`control_requirements`) that let capabilities declare what must be true before invocation. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
+The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. v0.9 completes the audit story — aggregation collapses noise, storage-side redaction strips low-value parameters at write time, caller-class-aware redaction resolves disclosure per-caller, and proof expiration guidance closes the client-side gap. v0.10 adds horizontal scaling — storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, and leader-elected background job coordination enable multi-replica deployments without protocol invariant violations. v0.11 adds observability hooks — callback-based logging, metrics, tracing, and diagnostics injection points let adopters plug in their observability stack without hard dependencies, plus a `getHealth()` runtime snapshot and optional health endpoint. v0.14 adds pre-execution control surfaces — structured budget constraints in delegation tokens with pre-execution enforcement, execution-time binding requirements (`requires_binding`) for quote-based workflows, and explicit control requirement declarations (`control_requirements`) that let capabilities declare what must be true before invocation. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
 
 **What solving these gaps unlocks.** When trust and verification become real — not declarative — agents can evaluate risk before acting. Delegated authority becomes expressible in ways current tool layers can't handle. Failures become operationally useful, not just descriptive. High-stakes actions — travel, procurement, finance ops, approvals, multi-step orchestration — become automatable with real control surfaces. At that point, ANIP solves one of the central coordination problems of agent deployment: how an agent knows what it's allowed to do, what will happen if it does it, and how to recover when something blocks it.
 

@@ -142,7 +142,7 @@ Capabilities can declare prerequisites and compensation paths:
 
 This helps agents navigate multi-step workflows without hand-authored instructions — the service itself declares the dependency graph.
 
-## Binding requirements (v0.13)
+## Binding requirements (v0.14)
 
 Binding requirements declare that a capability needs a **bound reference** from a prior invocation before it can execute. This is the protocol mechanism for multi-step workflows like search, quote, then book — where the booking price should be locked to what the agent was quoted.
 
@@ -193,7 +193,7 @@ Binding and budget work together. For a capability with `estimated` cost:
 - **Without binding:** The service cannot reliably check the budget (the actual price is unknown). The service rejects with `budget_not_enforceable`.
 - **With binding:** The quoted/bound price becomes the check amount. If the bound price exceeds the budget, the service rejects with `budget_exceeded`. This makes estimated-cost capabilities budget-enforceable.
 
-## Control requirements (v0.13)
+## Control requirements (v0.14)
 
 Control requirements are explicit pre-execution conditions that a capability declares. They tell both agents and services what must be true before invocation can proceed.
 
@@ -221,7 +221,7 @@ All control requirements are token-evaluable — they can be checked from the de
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `type` | string | Yes | Requirement type |
-| `enforcement` | string | Yes | `"reject"` in v0.13 (reject invocation if not satisfied) |
+| `enforcement` | string | Yes | `"reject"` in v0.14 (reject invocation if not satisfied) |
 
 When `enforcement` is `"reject"`, the service rejects invocations that do not satisfy the requirement, returning a `control_requirement_unsatisfied` failure.
 

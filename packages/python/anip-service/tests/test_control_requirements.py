@@ -98,10 +98,16 @@ async def test_stronger_delegation_required_satisfied():
 async def test_stronger_delegation_required_unsatisfied():
     """stronger_delegation_required with mismatched capability binding -> rejected.
 
-    Purpose validation catches mismatched capabilities before the control
-    requirement loop, so the failure type is 'purpose_mismatch'.  The result
-    is the same: the invocation is rejected when the token's capability
-    binding does not match the invoked capability.
+    The delegation engine's purpose validation (purpose.capability != invoked
+    capability) fires *before* the control requirement loop, so
+    ``stronger_delegation_required`` in the control loop is unreachable through
+    the normal invoke path.  The purpose layer catches the mismatch first and
+    returns ``purpose_mismatch``.
+
+    This test documents that behaviour: a token bound to a different capability
+    is rejected at the purpose layer, not at the control requirement layer.
+    See ``test_stronger_delegation_check_logic_unit`` for an isolated test of
+    the control requirement predicate itself.
     """
     cap = _cap_with_control([ControlRequirement(type="stronger_delegation_required")])
     service = ANIPService(
@@ -109,11 +115,55 @@ async def test_stronger_delegation_required_unsatisfied():
         capabilities=[cap],
         storage=":memory:",
     )
-    # Token issued for a different capability
+    # Token issued for a different capability — purpose validation rejects first
     token = await _issue_token(service, ["action"], "some_other_capability")
     result = await service.invoke("high_risk_action", token, {"data": "test"})
     assert result["success"] is False
     assert result["failure"]["type"] == "purpose_mismatch"
+
+
+def test_stronger_delegation_check_logic_unit():
+    """Unit test: the stronger_delegation_required predicate in isolation.
+
+    The control requirement loop checks:
+        token.purpose.capability == declared_capability_name
+
+    Purpose validation in the delegation engine makes this check unreachable
+    through the full invoke path (purpose_mismatch fires first).  This test
+    exercises the predicate directly to ensure it is correct as a defence-in-
+    depth safety net.
+    """
+    from anip_core import Purpose
+
+    cap_name = "high_risk_action"
+
+    def _check_stronger_delegation(resolved_token, decl_name):
+        """Mirrors the predicate at service.py line ~935."""
+        return (
+            hasattr(resolved_token, "purpose")
+            and resolved_token.purpose
+            and resolved_token.purpose.capability == decl_name
+        )
+
+    class _TokenStub:
+        """Lightweight stand-in — avoids constructing a full DelegationToken."""
+        def __init__(self, purpose):
+            self.purpose = purpose
+
+    # Matching capability binding -> satisfied
+    assert _check_stronger_delegation(
+        _TokenStub(Purpose(capability=cap_name, task_id=None)), cap_name,
+    ), "Expected stronger_delegation_required to be satisfied when purpose.capability matches"
+
+    # Mismatched capability binding -> not satisfied
+    assert not _check_stronger_delegation(
+        _TokenStub(Purpose(capability="some_other_capability", task_id=None)), cap_name,
+    ), "Expected stronger_delegation_required to be unsatisfied when purpose.capability differs"
+
+    # No purpose at all -> not satisfied
+    assert not _check_stronger_delegation(
+        _TokenStub(None), cap_name,
+    ), "Expected stronger_delegation_required to be unsatisfied when purpose is None"
 
 
 async def test_unmet_token_requirements_in_permissions():

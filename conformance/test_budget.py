@@ -1,4 +1,4 @@
-"""Conformance tests for ANIP budget enforcement (v0.13).
+"""Conformance tests for ANIP budget enforcement (v0.14).
 
 Spec references: budget constraints in delegation tokens, budget enforcement
 during invocation, budget narrowing in delegation chains.

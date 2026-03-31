@@ -49,9 +49,9 @@ Compare these two failure experiences:
 
 **ANIP**: Agent gets a structured failure that says "you need a higher budget, your manager can grant it, and it's available immediately." The agent can report this to the user and take specific action to resolve the block.
 
-### v0.13 failure types
+### v0.14 failure types
 
-v0.13 adds six failure types for budget, binding, and control scenarios:
+v0.14 adds six failure types for budget, binding, and control scenarios:
 
 | Failure type | Description |
 |-------------|-------------|
@@ -64,7 +64,7 @@ v0.13 adds six failure types for budget, binding, and control scenarios:
 
 ### Budget context
 
-v0.13 invoke responses include a `budget_context` object on both success and failure, giving agents visibility into budget consumption:
+v0.14 invoke responses include a `budget_context` object on both success and failure, giving agents visibility into budget consumption:
 
 ```json
 {

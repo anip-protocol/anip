@@ -20,7 +20,7 @@ public class ControlRequirement {
         return type;
     }
 
-    /** "reject" in v0.13. */
+    /** "reject" in v0.14. */
     public String getEnforcement() {
         return enforcement;
     }

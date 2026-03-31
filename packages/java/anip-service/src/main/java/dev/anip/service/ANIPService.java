@@ -370,7 +370,7 @@ public class ANIPService {
             // Fire scope validation hook (granted).
             fireScopeValidation(capName, true);
 
-            // --- Budget, binding, and control requirement enforcement (v0.13) ---
+            // --- Budget, binding, and control requirement enforcement (v0.14) ---
 
             // Parse invocation-level budget hint.
             Budget requestBudget = opts != null ? opts.getBudget() : null;
@@ -544,7 +544,7 @@ public class ANIPService {
                 }
             }
 
-            // Control requirement enforcement (reject only — no warn in v0.13).
+            // Control requirement enforcement (reject only — no warn in v0.14).
             if (capDef.getDeclaration().getControlRequirements() != null) {
                 for (ControlRequirement req : capDef.getDeclaration().getControlRequirements()) {
                     boolean satisfied = true;
@@ -657,7 +657,7 @@ public class ANIPService {
                 resp.put("cost_actual", costActual);
             }
 
-            // Budget context in response (v0.13).
+            // Budget context in response (v0.14).
             if (effectiveBudget != null) {
                 Double costActualAmount = null;
                 if (costActual != null && costActual.getFinancial() != null

@@ -1,4 +1,4 @@
-"""Tests for budget enforcement in the invoke path (v0.13)."""
+"""Tests for budget enforcement in the invoke path (v0.14)."""
 import pytest
 from anip_service import ANIPService, Capability, InvocationContext
 from anip_core import (

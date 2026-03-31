@@ -117,7 +117,7 @@ This is fundamentally different from REST APIs, where the agent discovers permis
 
 ## Budget constraints in delegation
 
-Starting in v0.13, delegation tokens can carry enforceable budget constraints via `constraints.budget`:
+Starting in v0.14, delegation tokens can carry enforceable budget constraints via `constraints.budget`:
 
 ```json
 {
