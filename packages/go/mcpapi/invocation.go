@@ -129,13 +129,12 @@ func TranslateResponse(response map[string]any) InvokeResult {
 		if costActual, ok := response["cost_actual"]; ok && costActual != nil {
 			if costMap, ok := costActual.(*core.CostActual); ok && costMap != nil {
 				if costMap.Financial != nil {
-					amount := costMap.Financial["amount"]
-					currency, _ := costMap.Financial["currency"].(string)
+					currency := costMap.Financial.Currency
 					if currency == "" {
 						currency = "USD"
 					}
-					if amount != nil {
-						text += fmt.Sprintf("\n[Cost: %s %v]", currency, amount)
+					if costMap.Financial.Amount != nil {
+						text += fmt.Sprintf("\n[Cost: %s %v]", currency, *costMap.Financial.Amount)
 					}
 				}
 			} else if costMap, ok := costActual.(map[string]any); ok {

@@ -87,32 +87,22 @@ func EnrichDescription(decl *core.CapabilityDeclaration) string {
 		switch decl.Cost.Certainty {
 		case "fixed":
 			if financial != nil {
-				amount, _ := financial["amount"]
-				currency, _ := financial["currency"].(string)
+				currency := financial.Currency
 				if currency == "" {
 					currency = "USD"
 				}
-				if amount != nil {
-					parts = append(parts, fmt.Sprintf("Cost: %s %v (fixed).", currency, amount))
+				if financial.Amount != nil {
+					parts = append(parts, fmt.Sprintf("Cost: %s %v (fixed).", currency, *financial.Amount))
 				}
 			}
 		case "estimated":
 			if financial != nil {
-				currency, _ := financial["currency"].(string)
+				currency := financial.Currency
 				if currency == "" {
 					currency = "USD"
 				}
-				// Handle both flat range fields and nested estimated_range
-				rangeMin, hasMin := financial["range_min"]
-				rangeMax, hasMax := financial["range_max"]
-				if !hasMin || !hasMax {
-					if estRange, ok := financial["estimated_range"].(map[string]any); ok {
-						rangeMin, hasMin = estRange["min"]
-						rangeMax, hasMax = estRange["max"]
-					}
-				}
-				if hasMin && hasMax {
-					parts = append(parts, fmt.Sprintf("Estimated cost: %s %v-%v.", currency, rangeMin, rangeMax))
+				if financial.RangeMin != nil && financial.RangeMax != nil {
+					parts = append(parts, fmt.Sprintf("Estimated cost: %s %v-%v.", currency, *financial.RangeMin, *financial.RangeMax))
 				}
 			}
 		}

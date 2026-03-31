@@ -43,7 +43,9 @@ func FailureStatusCode(failureType string) int {
 	switch failureType {
 	case FailureAuthRequired, FailureInvalidToken, FailureTokenExpired:
 		return 401
-	case FailureScopeInsufficient, FailureBudgetExceeded, FailurePurposeMismatch:
+	case FailureScopeInsufficient, FailureBudgetExceeded, FailureBudgetCurrencyMismatch,
+		FailureBudgetNotEnforceable, FailureBindingMissing, FailureBindingStale,
+		FailureControlRequirementUnsatisfied, FailurePurposeMismatch, FailureScopeEscalation:
 		return 403
 	case FailureUnknownCapability, FailureNotFound:
 		return 404

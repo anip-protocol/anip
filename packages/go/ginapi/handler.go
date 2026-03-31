@@ -203,8 +203,18 @@ func handleInvoke(svc *service.Service) gin.HandlerFunc {
 		parentInvID, _ := body["parent_invocation_id"].(string)
 		stream, _ := body["stream"].(bool)
 
+		// Extract budget from request body.
+		var budget *core.Budget
+		if budgetRaw, ok := body["budget"].(map[string]any); ok {
+			currency, _ := budgetRaw["currency"].(string)
+			maxAmount, _ := budgetRaw["max_amount"].(float64)
+			if currency != "" && maxAmount > 0 {
+				budget = &core.Budget{Currency: currency, MaxAmount: maxAmount}
+			}
+		}
+
 		if stream {
-			handleStreamInvoke(c, svc, capName, token, params, clientRefID, taskID, parentInvID)
+			handleStreamInvoke(c, svc, capName, token, params, clientRefID, taskID, parentInvID, budget)
 			return
 		}
 
@@ -213,6 +223,7 @@ func handleInvoke(svc *service.Service) gin.HandlerFunc {
 			TaskID:             taskID,
 			ParentInvocationID: parentInvID,
 			Stream:             false,
+			Budget:             budget,
 		})
 		if err != nil {
 			status, respBody := httputil.SimpleFailureResponse(core.FailureInternalError, "Invocation failed", nil)
@@ -233,12 +244,13 @@ func handleInvoke(svc *service.Service) gin.HandlerFunc {
 	}
 }
 
-func handleStreamInvoke(c *gin.Context, svc *service.Service, capName string, token *core.DelegationToken, params map[string]any, clientRefID, taskID, parentInvID string) {
+func handleStreamInvoke(c *gin.Context, svc *service.Service, capName string, token *core.DelegationToken, params map[string]any, clientRefID, taskID, parentInvID string, budget *core.Budget) {
 	sr, err := svc.InvokeStream(capName, token, params, service.InvokeOpts{
 		ClientReferenceID:  clientRefID,
 		TaskID:             taskID,
 		ParentInvocationID: parentInvID,
 		Stream:             true,
+		Budget:             budget,
 	})
 	if err != nil {
 		if anipErr, ok := err.(*core.ANIPError); ok {

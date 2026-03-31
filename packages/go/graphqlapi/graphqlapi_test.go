@@ -15,6 +15,8 @@ import (
 	"github.com/anip-protocol/anip/packages/go/service"
 )
 
+func floatPtr(f float64) *float64 { return &f }
+
 // noopResolverFactory returns a no-op resolver factory for SDL-only tests.
 func noopResolverFactory(capName string) graphql.FieldResolveFn {
 	return func(p graphql.ResolveParams) (any, error) {
@@ -74,12 +76,10 @@ func testCapabilities() []service.CapabilityDef {
 				MinimumScope: []string{"book"},
 				Cost: &core.Cost{
 					Certainty: "estimated",
-					Financial: map[string]any{
-						"currency": "USD",
-						"estimated_range": map[string]any{
-							"min": 280,
-							"max": 500,
-						},
+					Financial: &core.FinancialCost{
+						Currency: "USD",
+						RangeMin: floatPtr(280),
+						RangeMax: floatPtr(500),
 					},
 				},
 				ResponseModes: []string{"unary"},

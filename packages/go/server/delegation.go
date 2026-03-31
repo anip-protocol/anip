@@ -49,6 +49,7 @@ func IssueDelegationToken(
 	constraints := core.DelegationConstraints{
 		MaxDelegationDepth: 3,
 		ConcurrentBranches: "allowed",
+		Budget:             req.Budget,
 	}
 
 	// Determine issuer and root_principal.
@@ -69,6 +70,26 @@ func IssueDelegationToken(
 		rootPrincipal = parentToken.RootPrincipal
 		parent = parentToken.TokenID
 		constraints = parentToken.Constraints
+
+		// Budget narrowing: child budget must not exceed parent budget.
+		if parentToken.Constraints.Budget != nil {
+			if req.Budget == nil {
+				// Child inherits parent budget.
+				constraints.Budget = parentToken.Constraints.Budget
+			} else if req.Budget.Currency != parentToken.Constraints.Budget.Currency {
+				return core.TokenResponse{}, core.NewANIPError(core.FailureBudgetCurrencyMismatch,
+					fmt.Sprintf("Child budget currency %s does not match parent %s",
+						req.Budget.Currency, parentToken.Constraints.Budget.Currency))
+			} else if req.Budget.MaxAmount > parentToken.Constraints.Budget.MaxAmount {
+				return core.TokenResponse{}, core.NewANIPError(core.FailureBudgetExceeded,
+					fmt.Sprintf("Child budget $%v exceeds parent budget $%v",
+						req.Budget.MaxAmount, parentToken.Constraints.Budget.MaxAmount))
+			} else {
+				constraints.Budget = req.Budget
+			}
+		} else if req.Budget != nil {
+			constraints.Budget = req.Budget
+		}
 	}
 
 	// Default subject to the authenticated principal if not provided.
@@ -98,17 +119,17 @@ func IssueDelegationToken(
 
 	// Sign as JWT.
 	claims := map[string]any{
-		"jti":             tokenID,
-		"iss":             serviceID,
-		"sub":             subject,
-		"aud":             serviceID,
-		"iat":             now.Unix(),
-		"exp":             expires.Unix(),
-		"scope":           req.Scope,
-		"root_principal":  rootPrincipal,
-		"capability":      req.Capability,
-		"purpose":         purpose,
-		"constraints":     constraints,
+		"jti":            tokenID,
+		"iss":            serviceID,
+		"sub":            subject,
+		"aud":            serviceID,
+		"iat":            now.Unix(),
+		"exp":            expires.Unix(),
+		"scope":          req.Scope,
+		"root_principal": rootPrincipal,
+		"capability":     req.Capability,
+		"purpose":        purpose,
+		"constraints":    constraints,
 	}
 	if parent != "" {
 		claims["parent_token_id"] = parent

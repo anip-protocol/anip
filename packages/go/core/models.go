@@ -1,5 +1,53 @@
 package core
 
+// --- Financial Cost ---
+
+// FinancialCost describes the financial cost of a capability invocation.
+type FinancialCost struct {
+	Currency   string   `json:"currency"`
+	Amount     *float64 `json:"amount,omitempty"`
+	RangeMin   *float64 `json:"range_min,omitempty"`
+	RangeMax   *float64 `json:"range_max,omitempty"`
+	Typical    *float64 `json:"typical,omitempty"`
+	UpperBound *float64 `json:"upper_bound,omitempty"`
+}
+
+// --- Budget ---
+
+// Budget constrains the maximum spend for a delegation token or invocation.
+type Budget struct {
+	Currency  string  `json:"currency"`
+	MaxAmount float64 `json:"max_amount"`
+}
+
+// BudgetContext provides budget evaluation details in invocation responses.
+type BudgetContext struct {
+	BudgetMax       float64  `json:"budget_max"`
+	BudgetCurrency  string   `json:"budget_currency"`
+	CostCheckAmount *float64 `json:"cost_check_amount,omitempty"`
+	CostCertainty   string   `json:"cost_certainty,omitempty"`
+	CostActual      *float64 `json:"cost_actual,omitempty"`
+	WithinBudget    bool     `json:"within_budget"`
+}
+
+// --- Binding and Control Requirements ---
+
+// BindingRequirement declares that a capability requires a bound value.
+type BindingRequirement struct {
+	Type             string `json:"type"`
+	Field            string `json:"field"`
+	SourceCapability string `json:"source_capability,omitempty"`
+	MaxAge           string `json:"max_age,omitempty"`
+}
+
+// ControlRequirement declares a control that must be satisfied before invocation.
+type ControlRequirement struct {
+	Type        string `json:"type"`
+	Enforcement string `json:"enforcement"`
+	Field       string `json:"field,omitempty"`
+	MaxAge      string `json:"max_age,omitempty"`
+}
+
 // --- Side-effect Typing ---
 
 // SideEffect describes the side-effect characteristics of a capability.
@@ -27,17 +75,17 @@ type CapabilityOutput struct {
 
 // Cost describes the cost characteristics of a capability.
 type Cost struct {
-	Certainty   string         `json:"certainty"`             // "fixed", "estimated", "dynamic"
-	Financial   map[string]any `json:"financial,omitempty"`    // e.g. {"currency":"USD","estimated_range":{"min":280,"max":500}}
-	DeterminedBy string       `json:"determined_by,omitempty"` // capability that resolves actual cost
-	Factors     []string       `json:"factors,omitempty"`      // what drives cost variation (for dynamic)
-	Compute     map[string]any `json:"compute,omitempty"`
-	RateLimit   map[string]any `json:"rate_limit,omitempty"`
+	Certainty    string         `json:"certainty"`              // "fixed", "estimated", "dynamic"
+	Financial    *FinancialCost `json:"financial,omitempty"`
+	DeterminedBy string         `json:"determined_by,omitempty"` // capability that resolves actual cost
+	Factors      []string       `json:"factors,omitempty"`       // what drives cost variation (for dynamic)
+	Compute      map[string]any `json:"compute,omitempty"`
+	RateLimit    map[string]any `json:"rate_limit,omitempty"`
 }
 
 // CostActual is the actual cost incurred by an invocation.
 type CostActual struct {
-	Financial            map[string]any `json:"financial"`
+	Financial            *FinancialCost `json:"financial"`
 	VarianceFromEstimate string         `json:"variance_from_estimate,omitempty"`
 }
 
@@ -68,19 +116,21 @@ type ObservabilityContract struct {
 
 // CapabilityDeclaration is the full declaration of a service capability.
 type CapabilityDeclaration struct {
-	Name            string                  `json:"name"`
-	Description     string                  `json:"description"`
-	ContractVersion string                  `json:"contract_version"`
-	Inputs          []CapabilityInput       `json:"inputs"`
-	Output          CapabilityOutput        `json:"output"`
-	SideEffect      SideEffect              `json:"side_effect"`
-	MinimumScope    []string                `json:"minimum_scope"`
-	Cost            *Cost                   `json:"cost,omitempty"`
-	Requires        []CapabilityRequirement `json:"requires,omitempty"`
-	ComposesWith    []CapabilityComposition `json:"composes_with,omitempty"`
-	Session         *SessionInfo            `json:"session,omitempty"`
-	Observability   *ObservabilityContract  `json:"observability,omitempty"`
-	ResponseModes   []string                `json:"response_modes,omitempty"`
+	Name                string                  `json:"name"`
+	Description         string                  `json:"description"`
+	ContractVersion     string                  `json:"contract_version"`
+	Inputs              []CapabilityInput       `json:"inputs"`
+	Output              CapabilityOutput        `json:"output"`
+	SideEffect          SideEffect              `json:"side_effect"`
+	MinimumScope        []string                `json:"minimum_scope"`
+	Cost                *Cost                   `json:"cost,omitempty"`
+	Requires            []CapabilityRequirement `json:"requires,omitempty"`
+	ComposesWith        []CapabilityComposition `json:"composes_with,omitempty"`
+	Session             *SessionInfo            `json:"session,omitempty"`
+	Observability       *ObservabilityContract  `json:"observability,omitempty"`
+	ResponseModes       []string                `json:"response_modes,omitempty"`
+	RequiresBinding     []BindingRequirement    `json:"requires_binding,omitempty"`
+	ControlRequirements []ControlRequirement    `json:"control_requirements,omitempty"`
 }
 
 // --- Delegation Chain ---
@@ -94,8 +144,9 @@ type Purpose struct {
 
 // DelegationConstraints constrains how delegation tokens can be sub-delegated.
 type DelegationConstraints struct {
-	MaxDelegationDepth int    `json:"max_delegation_depth"`
-	ConcurrentBranches string `json:"concurrent_branches"` // "allowed" or "exclusive"
+	MaxDelegationDepth int     `json:"max_delegation_depth"`
+	ConcurrentBranches string  `json:"concurrent_branches"` // "allowed" or "exclusive"
+	Budget             *Budget `json:"budget,omitempty"`
 }
 
 // DelegationToken is a stored delegation token record.
@@ -121,6 +172,7 @@ type TokenRequest struct {
 	PurposeParameters map[string]any `json:"purpose_parameters,omitempty"`
 	TTLHours          int            `json:"ttl_hours,omitempty"`
 	CallerClass       string         `json:"caller_class,omitempty"`
+	Budget            *Budget        `json:"budget,omitempty"`
 }
 
 // TokenResponse is the server's response to token issuance.
@@ -142,9 +194,10 @@ type AvailableCapability struct {
 
 // RestrictedCapability describes a capability the token lacks scope for.
 type RestrictedCapability struct {
-	Capability  string `json:"capability"`
-	Reason      string `json:"reason"`
-	GrantableBy string `json:"grantable_by"`
+	Capability             string   `json:"capability"`
+	Reason                 string   `json:"reason"`
+	GrantableBy            string   `json:"grantable_by"`
+	UnmetTokenRequirements []string `json:"unmet_token_requirements,omitempty"`
 }
 
 // DeniedCapability describes a capability that cannot be granted.
@@ -175,14 +228,15 @@ type InvokeRequest struct {
 
 // InvokeResponse is the server's invocation response.
 type InvokeResponse struct {
-	Success            bool        `json:"success"`
-	InvocationID       string      `json:"invocation_id"`
-	ClientReferenceID  string      `json:"client_reference_id,omitempty"`
-	TaskID             string      `json:"task_id,omitempty"`
-	ParentInvocationID string      `json:"parent_invocation_id,omitempty"`
-	Result             any         `json:"result,omitempty"`
-	CostActual         *CostActual `json:"cost_actual,omitempty"`
-	Failure            *ANIPError  `json:"failure,omitempty"`
+	Success            bool           `json:"success"`
+	InvocationID       string         `json:"invocation_id"`
+	ClientReferenceID  string         `json:"client_reference_id,omitempty"`
+	TaskID             string         `json:"task_id,omitempty"`
+	ParentInvocationID string         `json:"parent_invocation_id,omitempty"`
+	Result             any            `json:"result,omitempty"`
+	CostActual         *CostActual    `json:"cost_actual,omitempty"`
+	Failure            *ANIPError     `json:"failure,omitempty"`
+	BudgetContext      *BudgetContext `json:"budget_context,omitempty"`
 }
 
 // --- Audit ---

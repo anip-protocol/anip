@@ -164,6 +164,15 @@ func (s *AnipGrpcServer) IssueToken(ctx context.Context, req *pb.IssueTokenReque
 	if req.PurposeParametersJson != "" {
 		var pp map[string]any
 		if err := json.Unmarshal([]byte(req.PurposeParametersJson), &pp); err == nil {
+			// Extract budget if embedded in purpose_parameters.
+			if budgetRaw, ok := pp["budget"].(map[string]any); ok {
+				currency, _ := budgetRaw["currency"].(string)
+				maxAmount, _ := budgetRaw["max_amount"].(float64)
+				if currency != "" && maxAmount > 0 {
+					tokenReq.Budget = &core.Budget{Currency: currency, MaxAmount: maxAmount}
+				}
+				delete(pp, "budget")
+			}
 			tokenReq.PurposeParameters = pp
 		}
 	}
@@ -225,10 +234,22 @@ func (s *AnipGrpcServer) Invoke(ctx context.Context, req *pb.InvokeRequest) (*pb
 		params = map[string]any{}
 	}
 
+	// Extract budget from params (gRPC clients include it in parameters_json).
+	var budget *core.Budget
+	if budgetRaw, ok := params["budget"].(map[string]any); ok {
+		currency, _ := budgetRaw["currency"].(string)
+		maxAmount, _ := budgetRaw["max_amount"].(float64)
+		if currency != "" && maxAmount > 0 {
+			budget = &core.Budget{Currency: currency, MaxAmount: maxAmount}
+		}
+		delete(params, "budget") // Don't pass budget as a parameter.
+	}
+
 	result, err := s.service.Invoke(capability, token, params, service.InvokeOpts{
 		ClientReferenceID:  req.ClientReferenceId,
 		TaskID:             req.TaskId,
 		ParentInvocationID: req.ParentInvocationId,
+		Budget:             budget,
 	})
 	if err != nil {
 		var anipErr *core.ANIPError

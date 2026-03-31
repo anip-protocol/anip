@@ -14,6 +14,8 @@ import (
 	"github.com/anip-protocol/anip/packages/go/service"
 )
 
+func floatPtr(f float64) *float64 { return &f }
+
 // testCapabilities returns two test capabilities: greet (read) and book (write).
 func testCapabilities() []service.CapabilityDef {
 	return []service.CapabilityDef{
@@ -68,12 +70,10 @@ func testCapabilities() []service.CapabilityDef {
 				MinimumScope: []string{"book"},
 				Cost: &core.Cost{
 					Certainty: "estimated",
-					Financial: map[string]any{
-						"currency": "USD",
-						"estimated_range": map[string]any{
-							"min": 10,
-							"max": 100,
-						},
+					Financial: &core.FinancialCost{
+						Currency: "USD",
+						RangeMin: floatPtr(10),
+						RangeMax: floatPtr(100),
 					},
 				},
 				ResponseModes: []string{"unary"},

@@ -18,6 +18,8 @@ func init() {
 	gin.SetMode(gin.TestMode)
 }
 
+func floatPtr(f float64) *float64 { return &f }
+
 // testCapabilities returns two test capabilities for Gin handler tests.
 func testCapabilities() []service.CapabilityDef {
 	return []service.CapabilityDef{
@@ -79,12 +81,10 @@ func testCapabilities() []service.CapabilityDef {
 				MinimumScope: []string{"travel.book"},
 				Cost: &core.Cost{
 					Certainty: "estimated",
-					Financial: map[string]any{
-						"currency": "USD",
-						"estimated_range": map[string]any{
-							"min": 280,
-							"max": 500,
-						},
+					Financial: &core.FinancialCost{
+						Currency: "USD",
+						RangeMin: floatPtr(280),
+						RangeMax: floatPtr(500),
 					},
 				},
 				Requires: []core.CapabilityRequirement{
@@ -94,9 +94,9 @@ func testCapabilities() []service.CapabilityDef {
 			},
 			Handler: func(ctx *service.InvocationContext, params map[string]any) (map[string]any, error) {
 				ctx.SetCostActual(&core.CostActual{
-					Financial: map[string]any{
-						"currency": "USD",
-						"amount":   280.00,
+					Financial: &core.FinancialCost{
+						Currency: "USD",
+						Amount:   floatPtr(280.00),
 					},
 				})
 				return map[string]any{

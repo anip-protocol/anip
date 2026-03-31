@@ -53,6 +53,48 @@ func (s *Service) DiscoverPermissions(token *core.DelegationToken) core.Permissi
 		}
 
 		if len(missing) == 0 {
+			// Scope matched — check token-evaluable control requirements.
+			var unmet []string
+			for _, req := range cap.Declaration.ControlRequirements {
+				switch req.Type {
+				case "cost_ceiling":
+					if token.Constraints.Budget == nil {
+						unmet = append(unmet, "cost_ceiling")
+					}
+				case "stronger_delegation_required":
+					tokenHasExplicitBinding := token.Purpose.Capability == name
+					if !tokenHasExplicitBinding {
+						unmet = append(unmet, "stronger_delegation_required")
+					}
+				}
+			}
+
+			if len(unmet) > 0 {
+				hasRejectEnforcement := false
+				for _, req := range cap.Declaration.ControlRequirements {
+					if req.Enforcement == "reject" {
+						for _, u := range unmet {
+							if req.Type == u {
+								hasRejectEnforcement = true
+								break
+							}
+						}
+					}
+					if hasRejectEnforcement {
+						break
+					}
+				}
+				if hasRejectEnforcement {
+					restricted = append(restricted, core.RestrictedCapability{
+						Capability:             name,
+						Reason:                 fmt.Sprintf("missing control requirements: %s", strings.Join(unmet, ", ")),
+						GrantableBy:            rootPrincipal,
+						UnmetTokenRequirements: unmet,
+					})
+					continue
+				}
+			}
+
 			// Available.
 			constraints := map[string]any{}
 			for _, scopeStr := range matchedScopeStrs {
@@ -65,6 +107,11 @@ func (s *Service) DiscoverPermissions(token *core.DelegationToken) core.Permissi
 						constraints["currency"] = "USD"
 					}
 				}
+			}
+			// Include constraints-level budget info if present.
+			if token.Constraints.Budget != nil {
+				constraints["budget_remaining"] = token.Constraints.Budget.MaxAmount
+				constraints["currency"] = token.Constraints.Budget.Currency
 			}
 			available = append(available, core.AvailableCapability{
 				Capability:  name,

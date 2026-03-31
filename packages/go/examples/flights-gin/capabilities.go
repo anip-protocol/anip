@@ -8,6 +8,8 @@ import (
 	"github.com/anip-protocol/anip/packages/go/service"
 )
 
+func floatPtr(f float64) *float64 { return &f }
+
 // SearchFlights returns the search_flights capability definition.
 func SearchFlights() service.CapabilityDef {
 	return service.CapabilityDef{
@@ -58,12 +60,10 @@ func BookFlight() service.CapabilityDef {
 			MinimumScope: []string{"travel.book"},
 			Cost: &core.Cost{
 				Certainty: "estimated",
-				Financial: map[string]any{
-					"currency": "USD",
-					"estimated_range": map[string]any{
-						"min": 280,
-						"max": 500,
-					},
+				Financial: &core.FinancialCost{
+					Currency: "USD",
+					RangeMin: floatPtr(280),
+					RangeMax: floatPtr(500),
 				},
 				DeterminedBy: "search_flights",
 			},
@@ -177,9 +177,9 @@ func handleBookFlight(ctx *service.InvocationContext, params map[string]any) (ma
 
 	// Track actual cost.
 	ctx.SetCostActual(&core.CostActual{
-		Financial: map[string]any{
-			"amount":   totalCost,
-			"currency": f.Currency,
+		Financial: &core.FinancialCost{
+			Currency: f.Currency,
+			Amount:   &totalCost,
 		},
 	})
 
