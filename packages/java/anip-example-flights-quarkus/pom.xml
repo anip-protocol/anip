@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.anip</groupId>
         <artifactId>anip-parent</artifactId>
-        <version>0.12.0</version>
+        <version>0.14.0</version>
     </parent>
 
     <artifactId>anip-example-flights-quarkus</artifactId>
