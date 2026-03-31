@@ -137,7 +137,12 @@ Add `FinancialCost`, `Budget`, `BindingRequirement`, `ControlRequirement` type d
 
 - [ ] **Step 3: Update gRPC proto**
 
-Add `Budget` and `FinancialCost` messages. Add `budget` field to token issuance request/response. Add `requires_binding` and `control_requirements` to capability-related messages if applicable.
+Add `Budget`, `FinancialCost`, `BudgetContext` messages. Add `budget` field to token issuance request/response. Add `requires_binding` and `control_requirements` to capability-related messages. Add `budget_context` to `InvokeResponse` (and any stream completion messages) so gRPC transport has parity with HTTP responses.
+
+Regenerate Python gRPC stubs from updated proto:
+```bash
+python -m grpc_tools.protoc -I proto --python_out=packages/python/anip-grpc/src/anip_grpc/generated --grpc_python_out=packages/python/anip-grpc/src/anip_grpc/generated proto/anip/v1/anip.proto
+```
 
 - [ ] **Step 4: Commit**
 
