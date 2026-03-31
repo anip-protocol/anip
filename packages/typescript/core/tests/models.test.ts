@@ -27,7 +27,7 @@ import {
 
 describe("Protocol constants", () => {
   it("exports correct protocol version", () => {
-    expect(PROTOCOL_VERSION).toBe("anip/0.11");
+    expect(PROTOCOL_VERSION).toBe("anip/0.13");
   });
 });
 

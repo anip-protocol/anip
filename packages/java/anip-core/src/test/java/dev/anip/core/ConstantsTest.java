@@ -8,7 +8,7 @@ class ConstantsTest {
 
     @Test
     void protocolVersion() {
-        assertEquals("anip/0.11", Constants.PROTOCOL_VERSION);
+        assertEquals("anip/0.13", Constants.PROTOCOL_VERSION);
     }
 
     @Test

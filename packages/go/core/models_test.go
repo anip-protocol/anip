@@ -284,8 +284,8 @@ func TestANIPErrorJSON(t *testing.T) {
 }
 
 func TestProtocolVersion(t *testing.T) {
-	if ProtocolVersion != "anip/0.11" {
-		t.Errorf("expected protocol version %q, got %q", "anip/0.11", ProtocolVersion)
+	if ProtocolVersion != "anip/0.13" {
+		t.Errorf("expected protocol version %q, got %q", "anip/0.13", ProtocolVersion)
 	}
 }
 

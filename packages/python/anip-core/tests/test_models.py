@@ -22,7 +22,7 @@ from anip_core import (
 
 
 def test_protocol_version():
-    assert PROTOCOL_VERSION == "anip/0.11"
+    assert PROTOCOL_VERSION == "anip/0.13"
 
 
 def test_delegation_token_roundtrip():
