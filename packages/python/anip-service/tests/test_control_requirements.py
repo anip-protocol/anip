@@ -1,5 +1,4 @@
-"""Tests for control requirement enforcement in the invoke path (v0.13)."""
-import time
+"""Tests for control requirement enforcement in the invoke path (v0.14)."""
 
 from anip_service import ANIPService, Capability
 from anip_core import (
@@ -82,71 +81,39 @@ async def test_cost_ceiling_required_without_budget():
     assert "cost_ceiling" in result["failure"]["detail"]
 
 
-async def test_bound_reference_required_present():
-    """bound_reference control requirement with field present -> success."""
-    cap = _cap_with_control([ControlRequirement(type="bound_reference", field="ref")])
+async def test_stronger_delegation_required_satisfied():
+    """stronger_delegation_required with matching capability binding -> success."""
+    cap = _cap_with_control([ControlRequirement(type="stronger_delegation_required")])
     service = ANIPService(
         service_id="test-control",
         capabilities=[cap],
         storage=":memory:",
     )
-    token = await _issue_token(service, ["action"], "high_risk_action")
-    result = await service.invoke("high_risk_action", token, {
-        "data": "test",
-        "ref": {"reference_id": "ref-001"},
-    })
-    assert result["success"] is True
-
-
-async def test_bound_reference_required_missing():
-    """bound_reference control requirement with field missing -> control_requirement_unsatisfied."""
-    cap = _cap_with_control([ControlRequirement(type="bound_reference", field="ref")])
-    service = ANIPService(
-        service_id="test-control",
-        capabilities=[cap],
-        storage=":memory:",
-    )
+    # Token issued with capability matching the declared capability name
     token = await _issue_token(service, ["action"], "high_risk_action")
     result = await service.invoke("high_risk_action", token, {"data": "test"})
-    assert result["success"] is False
-    assert result["failure"]["type"] == "control_requirement_unsatisfied"
-    assert "bound_reference" in result["failure"]["detail"]
-
-
-async def test_freshness_window_within():
-    """freshness_window control requirement within max_age -> success."""
-    cap = _cap_with_control([ControlRequirement(type="freshness_window", field="ref", max_age="PT10M")])
-    service = ANIPService(
-        service_id="test-control",
-        capabilities=[cap],
-        storage=":memory:",
-    )
-    token = await _issue_token(service, ["action"], "high_risk_action")
-    # Fresh reference (issued 1 minute ago)
-    result = await service.invoke("high_risk_action", token, {
-        "data": "test",
-        "ref": {"reference_id": "ref-001", "issued_at": time.time() - 60},
-    })
     assert result["success"] is True
 
 
-async def test_freshness_window_exceeded():
-    """freshness_window control requirement older than max_age -> control_requirement_unsatisfied."""
-    cap = _cap_with_control([ControlRequirement(type="freshness_window", field="ref", max_age="PT5M")])
+async def test_stronger_delegation_required_unsatisfied():
+    """stronger_delegation_required with mismatched capability binding -> rejected.
+
+    Purpose validation catches mismatched capabilities before the control
+    requirement loop, so the failure type is 'purpose_mismatch'.  The result
+    is the same: the invocation is rejected when the token's capability
+    binding does not match the invoked capability.
+    """
+    cap = _cap_with_control([ControlRequirement(type="stronger_delegation_required")])
     service = ANIPService(
         service_id="test-control",
         capabilities=[cap],
         storage=":memory:",
     )
-    token = await _issue_token(service, ["action"], "high_risk_action")
-    # Stale reference (issued 10 minutes ago)
-    result = await service.invoke("high_risk_action", token, {
-        "data": "test",
-        "ref": {"reference_id": "ref-001", "issued_at": time.time() - 600},
-    })
+    # Token issued for a different capability
+    token = await _issue_token(service, ["action"], "some_other_capability")
+    result = await service.invoke("high_risk_action", token, {"data": "test"})
     assert result["success"] is False
-    assert result["failure"]["type"] == "control_requirement_unsatisfied"
-    assert "freshness_window" in result["failure"]["detail"]
+    assert result["failure"]["type"] == "purpose_mismatch"
 
 
 async def test_unmet_token_requirements_in_permissions():

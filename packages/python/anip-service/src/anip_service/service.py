@@ -931,15 +931,6 @@ class ANIPService:
             satisfied = True
             if req.type == "cost_ceiling":
                 satisfied = effective_budget is not None
-            elif req.type == "bound_reference":
-                satisfied = req.field is not None and req.field in params and params[req.field] is not None
-            elif req.type == "freshness_window":
-                if req.field and req.field in params:
-                    age = _resolve_binding_age(params[req.field])
-                    max_age = _parse_iso8601_duration(req.max_age) if req.max_age else None
-                    satisfied = age is None or max_age is None or age <= max_age
-                else:
-                    satisfied = False
             elif req.type == "stronger_delegation_required":
                 satisfied = (
                     hasattr(resolved_token, 'purpose')
