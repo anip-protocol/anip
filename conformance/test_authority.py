@@ -137,6 +137,49 @@ class TestAuthorityReasonType:
                 f"Full entry: {entry}"
             )
 
+    # --- Denied bucket semantics (v0.15) ---
+
+    def test_denied_only_contains_non_delegable(
+        self, client, bootstrap_bearer, read_capability, all_scopes
+    ):
+        """If denied capabilities exist, every entry must have reason_type='non_delegable'.
+
+        The spec defines denied as 'inaccessible to the agent's entire delegation chain.'
+        Scope gaps (even total) are restricted, not denied. Only service-declared
+        non_delegable capabilities belong in denied."""
+        # Try with full scope first
+        data = self._get_permissions_full_scope(client, bootstrap_bearer, read_capability, all_scopes)
+        denied = data.get("denied", [])
+
+        if not denied:
+            # Also try narrow scope
+            data = self._get_permissions_narrow_scope(client, bootstrap_bearer, read_capability)
+            denied = data.get("denied", [])
+
+        if not denied:
+            # Empty denied is correct — most services don't have non-delegable capabilities
+            return
+
+        for entry in denied:
+            assert entry.get("reason_type") == "non_delegable", (
+                f"Denied capability '{entry.get('capability')}' has reason_type='{entry.get('reason_type')}' "
+                f"but denied MUST only contain non_delegable entries. "
+                f"Scope-related restrictions belong in 'restricted'. Full entry: {entry}"
+            )
+
+    def test_scope_gaps_never_in_denied(
+        self, client, bootstrap_bearer, read_capability
+    ):
+        """Capabilities blocked by scope gaps must appear in restricted, not denied."""
+        data = self._get_permissions_narrow_scope(client, bootstrap_bearer, read_capability)
+        denied = data.get("denied", [])
+
+        for entry in denied:
+            assert entry.get("reason_type") != "insufficient_scope", (
+                f"Denied capability '{entry.get('capability')}' has reason_type='insufficient_scope' "
+                f"but scope gaps are always restricted (grantable), never denied. Full entry: {entry}"
+            )
+
     # --- Vocabulary validation tests (v0.15) ---
 
     CANONICAL_REASON_TYPES = {

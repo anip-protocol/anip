@@ -185,6 +185,52 @@ async def test_unmet_control_requirement_stronger_delegation_resolution_hint():
 
 
 # ---------------------------------------------------------------------------
+# Denied only for non_delegable — scope gaps always go to restricted
+# ---------------------------------------------------------------------------
+
+
+async def test_no_scope_overlap_goes_to_restricted_not_denied():
+    """A capability where the token has ZERO matching scopes should still be
+    restricted (not denied). denied is reserved for non_delegable only."""
+    cap = _make_cap("admin_action", minimum_scope=["admin.write", "admin.read"])
+    service = ANIPService(service_id="test-authority", capabilities=[cap], storage=":memory:")
+    # Token with completely unrelated scope — zero overlap
+    token = await _issue_token(service, ["user.read"], "admin_action")
+    perms = service.discover_permissions(token)
+
+    # Must be in restricted, NOT denied
+    restricted_names = [r.capability for r in perms.restricted]
+    denied_names = [d.capability for d in perms.denied]
+    assert "admin_action" in restricted_names, (
+        f"admin_action should be restricted (not denied) even with zero scope overlap. "
+        f"restricted={restricted_names}, denied={denied_names}"
+    )
+    assert "admin_action" not in denied_names, (
+        "admin_action must NOT be in denied — zero scope overlap is still a grantable restriction"
+    )
+    r = next(r for r in perms.restricted if r.capability == "admin_action")
+    assert r.reason_type == "insufficient_scope"
+    assert r.resolution_hint == "request_broader_scope"
+    assert r.grantable_by  # must have a grantable_by
+
+
+async def test_denied_list_is_always_empty_in_permission_discovery():
+    """Permission discovery should never populate denied — non_delegable is
+    service-declared at invoke time, not at discovery time."""
+    cap1 = _make_cap("read_data", minimum_scope=["data.read"])
+    cap2 = _make_cap("write_data", minimum_scope=["data.write"])
+    service = ANIPService(service_id="test-authority", capabilities=[cap1, cap2], storage=":memory:")
+
+    # Even with a completely wrong scope, nothing should be denied
+    token = await _issue_token(service, ["unrelated.scope"], "read_data")
+    perms = service.discover_permissions(token)
+    assert len(perms.denied) == 0, (
+        f"denied should always be empty in permission discovery — non_delegable is invoke-time only. "
+        f"Got: {[d.capability for d in perms.denied]}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Canonical action string in delegation failure
 # ---------------------------------------------------------------------------
 
