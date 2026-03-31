@@ -84,17 +84,22 @@ async def test_insufficient_scope_partial_overlap_resolution_hint():
     assert r.resolution_hint == "request_broader_scope"
 
 
-async def test_no_scope_overlap_is_denied():
-    """No scope overlap at all -> denied with reason_type='insufficient_scope'."""
+async def test_no_scope_overlap_is_restricted():
+    """No scope overlap at all -> restricted (not denied) with reason_type='insufficient_scope'.
+
+    denied is reserved for non_delegable capabilities only.
+    """
     cap = _make_cap("book_flight", minimum_scope=["flights.write"])
     service = ANIPService(service_id="test-authority", capabilities=[cap], storage=":memory:")
     token = await _issue_token(service, ["other.read"], "book_flight")
     perms = service.discover_permissions(token)
 
-    denied = [d for d in perms.denied if d.capability == "book_flight"]
-    assert denied, "book_flight should be denied when no scope overlaps"
-    d = denied[0]
-    assert d.reason_type == "insufficient_scope"
+    restricted = [r for r in perms.restricted if r.capability == "book_flight"]
+    assert restricted, "book_flight should be restricted when no scope overlaps (not denied)"
+    r = restricted[0]
+    assert r.reason_type == "insufficient_scope"
+    assert r.grantable_by == "human:test@example.com"
+    assert r.resolution_hint == "request_broader_scope"
 
 
 # ---------------------------------------------------------------------------
@@ -103,16 +108,19 @@ async def test_no_scope_overlap_is_denied():
 
 
 async def test_admin_scope_is_not_special():
-    """Admin scope requirement -> denied with reason_type='insufficient_scope', NOT non_delegable."""
+    """Admin scope requirement -> restricted with reason_type='insufficient_scope', NOT non_delegable.
+
+    denied is reserved for non_delegable capabilities only.
+    """
     cap = _make_cap("admin_action", minimum_scope=["admin.superpower"])
     service = ANIPService(service_id="test-authority", capabilities=[cap], storage=":memory:")
     token = await _issue_token(service, ["other.read"], "admin_action")
     perms = service.discover_permissions(token)
 
-    denied = [d for d in perms.denied if d.capability == "admin_action"]
-    assert denied, "admin_action should be denied (no scope overlap)"
-    d = denied[0]
-    assert d.reason_type == "insufficient_scope", (
+    restricted = [r for r in perms.restricted if r.capability == "admin_action"]
+    assert restricted, "admin_action should be restricted (not denied — denied is for non_delegable only)"
+    r = restricted[0]
+    assert r.reason_type == "insufficient_scope", (
         "admin.* scopes should use insufficient_scope, not non_delegable"
     )
 

@@ -130,14 +130,8 @@ export function discoverPermissions(
         scope_match: matchedScopeStrs.join(", "),
         constraints,
       });
-    } else if (missing.length === requiredScopes.length) {
-      // No scope overlap at all — completely inaccessible
-      denied.push({
-        capability: name,
-        reason: `delegation chain lacks all required scope(s): ${missing.join(", ")}`,
-        reason_type: "insufficient_scope",
-      });
     } else {
+      // All scope gaps go to restricted — denied is only for non_delegable
       restricted.push({
         capability: name,
         reason: `delegation chain lacks scope(s): ${missing.join(", ")}`,

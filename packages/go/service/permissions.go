@@ -127,14 +127,8 @@ func (s *Service) DiscoverPermissions(token *core.DelegationToken) core.Permissi
 				ScopeMatch:  strings.Join(matchedScopeStrs, ", "),
 				Constraints: constraints,
 			})
-		} else if len(missing) == len(requiredScopes) {
-			// No scope overlap at all — completely inaccessible.
-			denied = append(denied, core.DeniedCapability{
-				Capability: name,
-				Reason:     fmt.Sprintf("delegation chain lacks all required scope(s): %s", strings.Join(missing, ", ")),
-				ReasonType: "insufficient_scope",
-			})
 		} else {
+			// All scope gaps go to restricted — denied is only for non_delegable.
 			restricted = append(restricted, core.RestrictedCapability{
 				Capability:     name,
 				Reason:         fmt.Sprintf("delegation chain lacks scope(s): %s", strings.Join(missing, ", ")),

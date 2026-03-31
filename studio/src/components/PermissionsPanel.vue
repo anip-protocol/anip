@@ -72,11 +72,11 @@ const reasonTypeBadge = computed<{ label: string; type: 'warning' | 'danger' | '
   const rt = detail.value?.reason_type
   if (!rt) return null
   const map: Record<string, { label: string; type: 'warning' | 'danger' | 'info' | 'neutral' }> = {
-    scope_insufficient:    { label: 'scope_insufficient',    type: 'warning' },
-    non_delegable_action:  { label: 'non_delegable_action',  type: 'danger'  },
-    principal_class:       { label: 'principal_class',       type: 'danger'  },
-    token_requirement:     { label: 'token_requirement',     type: 'warning' },
-    policy_blocked:        { label: 'policy_blocked',        type: 'danger'  },
+    insufficient_scope:                { label: 'insufficient_scope',                type: 'warning' },
+    insufficient_delegation_depth:     { label: 'insufficient_delegation_depth',     type: 'warning' },
+    stronger_delegation_required:      { label: 'stronger_delegation_required',      type: 'warning' },
+    unmet_control_requirement:         { label: 'unmet_control_requirement',         type: 'warning' },
+    non_delegable:                     { label: 'non_delegable',                     type: 'danger'  },
   }
   return map[rt] ?? { label: rt, type: 'neutral' }
 })

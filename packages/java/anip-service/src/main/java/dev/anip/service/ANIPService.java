@@ -998,14 +998,8 @@ public class ANIPService {
                 available.add(new PermissionResponse.AvailableCapability(
                         name, String.join(", ", matchedScopeStrs), constraints
                 ));
-            } else if (missing.size() == requiredScopes.size()) {
-                // No scope overlap at all — completely inaccessible
-                denied.add(new PermissionResponse.DeniedCapability(
-                        name,
-                        "delegation chain lacks all required scope(s): " + String.join(", ", missing),
-                        "insufficient_scope"
-                ));
             } else {
+                // All scope gaps go to restricted — denied is only for non_delegable
                 restricted.add(new PermissionResponse.RestrictedCapability(
                         name,
                         "delegation chain lacks scope(s): " + String.join(", ", missing),

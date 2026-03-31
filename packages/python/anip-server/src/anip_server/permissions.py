@@ -40,25 +40,16 @@ def discover_permissions(
                 missing.append(required)
 
         if missing:
-            if len(missing) == len(required_scopes):
-                # No scope overlap at all — completely inaccessible
-                denied.append(
-                    DeniedCapability(
-                        capability=name,
-                        reason=f"delegation chain lacks all required scope(s): {', '.join(missing)}",
-                        reason_type="insufficient_scope",
-                    )
+            # All scope gaps go to restricted — denied is only for non_delegable
+            restricted.append(
+                RestrictedCapability(
+                    capability=name,
+                    reason=f"delegation chain lacks scope(s): {', '.join(missing)}",
+                    reason_type="insufficient_scope",
+                    grantable_by=root_principal,
+                    resolution_hint="request_broader_scope",
                 )
-            else:
-                restricted.append(
-                    RestrictedCapability(
-                        capability=name,
-                        reason=f"delegation chain lacks scope(s): {', '.join(missing)}",
-                        reason_type="insufficient_scope",
-                        grantable_by=root_principal,
-                        resolution_hint="request_broader_scope",
-                    )
-                )
+            )
             continue
 
         # Scope matched — check token-evaluable control requirements

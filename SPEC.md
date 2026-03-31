@@ -250,10 +250,10 @@ permission_response:
       reason_type: insufficient_scope                 # v0.15
       resolution_hint: request_broader_scope          # v0.15
       grantable_by: "human:samir@example.com"
-  denied:
-    - capability: destroy_production_database
-      reason: "destructive action cannot be delegated to agents"
-      reason_type: non_delegable                      # v0.15
+  denied:                                              # only non_delegable capabilities appear here
+    # - capability: destroy_production_database
+    #   reason: "destructive action cannot be delegated to agents"
+    #   reason_type: non_delegable                    # declared by service at registration time
 ```
 
 The `unmet_token_requirements` field (v0.14) lists control requirements that are not satisfied by the current delegation token: `cost_ceiling` (token must carry `constraints.budget`) and `stronger_delegation_required` (token must have explicit capability binding). All control requirements are token-evaluable and surfaced here.

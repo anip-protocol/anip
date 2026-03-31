@@ -92,7 +92,7 @@ describe('InvokeResult', () => {
             detail: 'Missing scope',
             retry: false,
             resolution: {
-              action: 'request_scope',
+              action: 'request_broader_scope',
               requires: 'flights:book',
               grantable_by: 'human',
               estimated_availability: 'immediate',
@@ -103,7 +103,7 @@ describe('InvokeResult', () => {
     })
 
     expect(wrapper.find('.resolution-callout').exists()).toBe(true)
-    expect(wrapper.text()).toContain('request_scope')
+    expect(wrapper.text()).toContain('request_broader_scope')
     expect(wrapper.text()).toContain('flights:book')
     expect(wrapper.text()).toContain('human')
     expect(wrapper.text()).toContain('immediate')

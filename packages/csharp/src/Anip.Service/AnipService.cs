@@ -1256,18 +1256,9 @@ public class AnipService : IDisposable
                     Constraints = constraints.Count > 0 ? constraints : null,
                 });
             }
-            else if (missing.Count == requiredScopes.Count)
-            {
-                // No scope overlap at all — completely inaccessible
-                denied.Add(new DeniedCapability
-                {
-                    Capability = name,
-                    Reason = $"delegation chain lacks all required scope(s): {string.Join(", ", missing)}",
-                    ReasonType = "insufficient_scope",
-                });
-            }
             else
             {
+                // All scope gaps go to restricted — denied is only for non_delegable
                 restricted.Add(new RestrictedCapability
                 {
                     Capability = name,
