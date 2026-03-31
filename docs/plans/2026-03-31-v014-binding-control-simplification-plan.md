@@ -349,7 +349,7 @@ git commit -m "docs(website): remove bound_reference/freshness_window from contr
 
 - [ ] **Step 1: Remove `field` and `max_age` rendering from control requirements**
 
-In `CapabilityCard.vue` (~line 184), the control requirements section renders `req.field` and `req.max_age`. Since these fields no longer exist on ControlRequirement, remove those `v-if` spans. Keep the type badge and enforcement display.
+In `CapabilityCard.vue` (~line 184), the control requirements section renders `req.field` and `req.max_age`. Since these fields no longer exist on ControlRequirement, remove those `v-if` spans. The type badge is the only remaining display element.
 
 - [ ] **Step 2: Build and sync**
 
@@ -391,6 +391,7 @@ Update the default in:
 Update canonical protocol artifacts:
 - `SPEC.md`: update spec title/header version reference to v0.14
 - `schema/anip.schema.json`: update schema description/title to reference v0.14
+- `schema/anip.schema.json`: update `$id` from `https://anip.dev/schema/v0.13/anip.schema.json` to `https://anip.dev/schema/v0.14/anip.schema.json`
 
 Update website version references:
 - All `0.13.0` → `0.14.0` in website docs (install, quickstart, transports, reference, capabilities)
