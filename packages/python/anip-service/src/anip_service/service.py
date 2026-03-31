@@ -835,6 +835,24 @@ class ANIPService:
                         bound_price = _resolve_bound_price(decl, params)
                         if bound_price is not None:
                             check_amount = bound_price
+                        else:
+                            # Binding exists but no resolvable price — budget cannot be enforced.
+                            # If the binding field is missing entirely, binding_missing will also fire below,
+                            # but we must not silently skip budget enforcement when the field IS present
+                            # but doesn't carry a concrete price.
+                            return {
+                                "success": False,
+                                "failure": redact_failure({
+                                    "type": "budget_not_enforceable",
+                                    "detail": f"Capability {decl.name} has estimated cost with requires_binding but the provided binding does not carry a resolvable price",
+                                    "resolution": {"action": "provide_priced_binding", "requires": "binding value must include a 'price' field or the service must resolve binding to a concrete price"},
+                                    "retry": False,
+                                }, effective_level),
+                                "invocation_id": invocation_id,
+                                "client_reference_id": client_reference_id,
+                                "task_id": effective_task_id,
+                                "parent_invocation_id": parent_invocation_id,
+                            }
                     else:
                         return {
                             "success": False,

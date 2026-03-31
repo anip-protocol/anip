@@ -261,6 +261,22 @@ async def test_budget_invocation_hint_higher_ignored():
     assert result["budget_context"]["budget_max"] == 500  # clamped to token budget
 
 
+async def test_budget_estimated_binding_without_price_rejected():
+    """Token has budget, capability has estimated cost + requires_binding, but binding is a plain string (no resolvable price) -> budget_not_enforceable."""
+    service = ANIPService(
+        service_id="test-budget",
+        capabilities=[_estimated_cost_cap_with_binding()],
+        storage=":memory:",
+    )
+    token = await _issue_token(service, ["book"], "book_flight", budget=Budget(currency="USD", max_amount=500))
+    result = await service.invoke("book_flight", token, {
+        "route": "NYC-LAX",
+        "quote": "qt-abc123",  # plain string, no embedded price
+    })
+    assert result["success"] is False
+    assert result["failure"]["type"] == "budget_not_enforceable"
+
+
 async def test_budget_context_in_response():
     """budget_context present in successful response with budget."""
     service = ANIPService(

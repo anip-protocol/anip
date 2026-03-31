@@ -177,10 +177,11 @@ type TokenRequest struct {
 
 // TokenResponse is the server's response to token issuance.
 type TokenResponse struct {
-	Issued  bool   `json:"issued"`
-	TokenID string `json:"token_id"`
-	Token   string `json:"token"` // JWT string
-	Expires string `json:"expires"`
+	Issued  bool    `json:"issued"`
+	TokenID string  `json:"token_id"`
+	Token   string  `json:"token"` // JWT string
+	Expires string  `json:"expires"`
+	Budget  *Budget `json:"budget,omitempty"` // Echoed when budget was requested
 }
 
 // --- Permission Discovery ---

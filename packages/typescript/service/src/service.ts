@@ -1216,6 +1216,21 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
               const boundPrice = _resolveBoundPrice(declBindings, params);
               if (boundPrice !== null) {
                 checkAmount = boundPrice;
+              } else {
+                // Binding exists but no resolvable price — budget cannot be enforced.
+                return {
+                  success: false,
+                  failure: redactFailure({
+                    type: "budget_not_enforceable",
+                    detail: `Capability ${capabilityName} has estimated cost with requires_binding but the provided binding does not carry a resolvable price`,
+                    resolution: { action: "provide_priced_binding", requires: "binding value must include a 'price' field or the service must resolve binding to a concrete price" },
+                    retry: false,
+                  }, effectiveLevel),
+                  invocation_id: invocationId,
+                  client_reference_id: clientReferenceId,
+                  task_id: effectiveTaskId,
+                  parent_invocation_id: parentInvocationId,
+                };
               }
             } else {
               return {

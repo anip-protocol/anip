@@ -410,6 +410,28 @@ func (s *Service) Invoke(
 			case "estimated":
 				if len(decl.RequiresBinding) > 0 {
 					checkAmount = resolveBoundPrice(decl.RequiresBinding, params)
+					if checkAmount == nil {
+						// Binding exists but no resolvable price — budget cannot be enforced.
+						failure := map[string]any{
+							"type":   core.FailureBudgetNotEnforceable,
+							"detail": fmt.Sprintf("Capability %s has estimated cost with requires_binding but the provided binding does not carry a resolvable price", capName),
+							"resolution": map[string]any{
+								"action":   "provide_priced_binding",
+								"requires": "binding value must include a 'price' field or the service must resolve binding to a concrete price",
+							},
+							"retry": false,
+						}
+						effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
+						failure = RedactFailure(failure, effectiveLevel)
+						return map[string]any{
+							"success":              false,
+							"failure":              failure,
+							"invocation_id":        invocationID,
+							"client_reference_id":  opts.ClientReferenceID,
+							"task_id":              effectiveTaskID,
+							"parent_invocation_id": opts.ParentInvocationID,
+						}, nil
+					}
 				} else {
 					failure := map[string]any{
 						"type":   core.FailureBudgetNotEnforceable,
