@@ -867,7 +867,7 @@ Display `requires_binding` declarations in the capability card: type, field name
 
 - [ ] **Step 3: Show control_requirements in manifest**
 
-Display control requirements with enforcement level (reject/warn) badge.
+Display control requirements (v0.13: all are `reject` enforcement).
 
 - [ ] **Step 4: Show budget/binding context in audit entries**
 
