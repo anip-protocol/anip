@@ -89,7 +89,7 @@ type CapabilityDeclaration struct {
 type Purpose struct {
 	Capability string         `json:"capability"`
 	Parameters map[string]any `json:"parameters"`
-	TaskID     string         `json:"task_id"`
+	TaskID     string         `json:"task_id,omitempty"`
 }
 
 // DelegationConstraints constrains how delegation tokens can be sub-delegated.
