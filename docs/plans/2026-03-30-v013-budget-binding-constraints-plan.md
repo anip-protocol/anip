@@ -26,6 +26,8 @@ packages/python/anip-server/src/anip_server/delegation.py      # MODIFY: budget 
 packages/python/anip-server/src/anip_server/permissions.py     # MODIFY: unmet_token_requirements in permission discovery
 packages/python/anip-service/src/anip_service/service.py       # MODIFY: budget pre-check, binding check, control requirement check in invoke
 packages/python/anip-fastapi/src/anip_fastapi/routes.py        # MODIFY: extract budget from token issuance request
+packages/python/anip-grpc/src/anip_grpc/server.py             # MODIFY: extract budget from gRPC token issuance
+packages/python/anip-stdio/src/anip_stdio/server.py           # MODIFY: extract budget from stdio token issuance
 packages/python/anip-service/tests/test_budget.py              # CREATE: budget enforcement tests
 packages/python/anip-service/tests/test_binding.py             # CREATE: binding requirement tests
 packages/python/anip-service/tests/test_control_requirements.py # CREATE: control requirement tests
@@ -39,6 +41,7 @@ packages/typescript/rest/src/routes.ts                         # MODIFY: extract
 packages/typescript/express/src/routes.ts                      # MODIFY: extract budget from token issuance
 packages/typescript/fastify/src/routes.ts                      # MODIFY: extract budget from token issuance
 packages/typescript/hono/src/routes.ts                         # MODIFY: extract budget from token issuance
+packages/typescript/stdio/src/server.ts                        # MODIFY: extract budget from stdio token issuance
 
 # Go
 packages/go/core/models.go                                    # MODIFY: add FinancialCost, Budget, BindingRequirement, ControlRequirement structs
@@ -47,6 +50,8 @@ packages/go/service/invoke.go                                  # MODIFY: budget/
 packages/go/service/permissions.go                             # MODIFY: unmet_token_requirements
 packages/go/httpapi/handler.go                                 # MODIFY: extract budget from token issuance
 packages/go/ginapi/handler.go                                  # MODIFY: extract budget from token issuance
+packages/go/grpcapi/server.go                                  # MODIFY: extract budget from gRPC token issuance
+packages/go/stdioapi/server.go                                 # MODIFY: extract budget from stdio token issuance
 
 # Java
 packages/java/anip-core/src/main/java/dev/anip/core/FinancialCost.java      # CREATE
@@ -55,10 +60,11 @@ packages/java/anip-core/src/main/java/dev/anip/core/BindingRequirement.java  # C
 packages/java/anip-core/src/main/java/dev/anip/core/ControlRequirement.java  # CREATE
 packages/java/anip-core/src/main/java/dev/anip/core/CapabilityDeclaration.java # MODIFY: add requires_binding, control_requirements
 packages/java/anip-core/src/main/java/dev/anip/core/DelegationConstraints.java # MODIFY: add budget
-packages/java/anip-core/src/main/java/dev/anip/core/RestrictedCapability.java  # MODIFY: add unmet_token_requirements
+packages/java/anip-core/src/main/java/dev/anip/core/PermissionResponse.java   # MODIFY: add unmet_token_requirements to nested RestrictedCapability class
 packages/java/anip-server/src/main/java/dev/anip/server/DelegationEngine.java  # MODIFY: budget in token
 packages/java/anip-service/src/main/java/dev/anip/service/ANIPService.java     # MODIFY: enforcement
 packages/java/anip-rest/src/main/java/dev/anip/rest/RestRouter.java            # MODIFY: extract budget
+packages/java/anip-stdio/src/main/java/dev/anip/stdio/AnipStdioServer.java    # MODIFY: extract budget from stdio token issuance
 
 # C#
 packages/csharp/src/Anip.Core/FinancialCost.cs                # CREATE
@@ -71,6 +77,7 @@ packages/csharp/src/Anip.Core/RestrictedCapability.cs          # MODIFY: add unm
 packages/csharp/src/Anip.Server/DelegationEngine.cs            # MODIFY: budget in token
 packages/csharp/src/Anip.Service/AnipService.cs                # MODIFY: enforcement
 packages/csharp/src/Anip.Rest/RestRouter.cs                    # MODIFY: extract budget
+packages/csharp/src/Anip.Stdio/AnipStdioServer.cs             # MODIFY: extract budget from stdio token issuance
 
 # Conformance
 conformance/test_budget.py                     # CREATE: budget enforcement conformance tests
@@ -116,7 +123,7 @@ Add budget narrowing rule: child budget MUST NOT exceed parent budget.
 
 b) §4.1 (Capability Declaration): Add `requires_binding` and `control_requirements` to capability schema.
 
-c) §6.3 (Invocation): Add budget enforcement rule (pre-execution MUST reject). Add invocation-request `budget` as a negotiation hint — token budget is the ceiling, invocation hint can be lower but never higher. Remove scope-string budget convention entirely (pre-1.0, no backward compat needed).
+c) §6.3 (Invocation): Add budget enforcement rule (pre-execution MUST reject). Add invocation-request `budget` as a negotiation hint — token budget is the ceiling, invocation hint can be lower but never higher. Remove scope-string budget convention entirely (pre-1.0, no backward compat needed). Add `budget_context` to both success and failure responses when a budget was evaluated.
 
 d) §6.3 (Token Issuance): Add `budget` to token issuance request.
 
@@ -214,7 +221,7 @@ class ControlRequirement(BaseModel):
     type: str  # "cost_ceiling", "bound_reference", "freshness_window", "stronger_delegation_required"
     field: str | None = None  # for bound_reference and freshness_window (which param to check)
     max_age: str | None = None  # for freshness_window
-    enforcement: str = "reject"  # "reject" or "warn"
+    enforcement: str = "reject"  # v0.13: "reject" only; "warn" deferred to future slice
 ```
 
 - [ ] **Step 6: Add to CapabilityDeclaration**
@@ -268,6 +275,8 @@ git commit -m "feat(python): add FinancialCost, Budget, BindingRequirement, Cont
 - Modify: `packages/python/anip-server/src/anip_server/delegation.py`
 - Modify: `packages/python/anip-server/src/anip_server/permissions.py`
 - Modify: `packages/python/anip-fastapi/src/anip_fastapi/routes.py`
+- Modify: `packages/python/anip-grpc/src/anip_grpc/server.py`
+- Modify: `packages/python/anip-stdio/src/anip_stdio/server.py`
 
 - [ ] **Step 1: Accept budget in token issuance**
 
@@ -275,7 +284,7 @@ In `delegation.py` `issue_root_token()` and `delegate()`: read `budget` from the
 
 In `_create_token()`: accept `budget` parameter, include in JWT `constraints` claims.
 
-In `routes.py`: extract `budget` from the token issuance request body, pass to service.
+In all transport adapters (`routes.py`, `server.py` for gRPC and stdio): extract `budget` from the token issuance request body, pass to service.
 
 - [ ] **Step 2: Enforce budget narrowing**
 
@@ -450,7 +459,7 @@ for binding in decl.requires_binding:
 
 - [ ] **Step 4: Add control requirement check**
 
-Check `control_requirements` and reject/warn as specified:
+Check `control_requirements` — all are `reject` enforcement in v0.13:
 
 ```python
 for req in decl.control_requirements:
@@ -471,11 +480,9 @@ for req in decl.control_requirements:
         satisfied = token_has_explicit_capability_binding
 
     if not satisfied:
-        if req.enforcement == "reject":
-            return failure("control_requirement_unsatisfied",
-                detail=f"Capability {decl.name} requires {req.type}",
-                unsatisfied_requirements=[req.type])
-        # enforcement == "warn": include warning but proceed
+        return failure("control_requirement_unsatisfied",
+            detail=f"Capability {decl.name} requires {req.type}",
+            unsatisfied_requirements=[req.type])
 ```
 
 - [ ] **Step 5: Add budget_context and binding_context to audit entries**
@@ -529,7 +536,8 @@ Create `test_control_requirements.py`:
 - `test_cost_ceiling_required_without_budget` — cost_ceiling requirement + no budget → `control_requirement_unsatisfied`
 - `test_bound_reference_required_present` — bound_reference requirement + field present → success
 - `test_bound_reference_required_missing` — bound_reference requirement + field missing → `control_requirement_unsatisfied`
-- `test_warn_enforcement_proceeds` — enforcement="warn" + unsatisfied → proceeds with warning
+- `test_freshness_window_within` — freshness_window requirement + binding within max_age → success
+- `test_freshness_window_exceeded` — freshness_window requirement + binding older than max_age → `control_requirement_unsatisfied`
 - `test_unmet_token_requirements_in_permissions` — cost_ceiling requirement, no budget in token → capability shows in `restricted` with `unmet_token_requirements`
 
 - [ ] **Step 9: Run all Python tests**
@@ -553,11 +561,12 @@ git commit -m "feat(python): budget, binding, and control requirement enforcemen
 - Modify: `packages/typescript/core/src/models.ts` — add `FinancialCost`, `Budget`, `BindingRequirement`, `ControlRequirement` interfaces; update `Cost.financial` from `Record<string, unknown>` to `FinancialCost`; add `requiresBinding`, `controlRequirements` to `CapabilityDeclaration`; add `unmetTokenRequirements` to `RestrictedCapability`
 - Modify: `packages/typescript/server/src/delegation.ts` — budget in token issuance, budget narrowing enforcement
 - Modify: `packages/typescript/service/src/service.ts` — budget pre-check with invocation hint precedence, binding presence/staleness check, control requirement check; audit extensions
-- Modify: `packages/typescript/service/src/permissions.ts` — `unmetTokenRequirements` in permission discovery for token-evaluable controls
+- Modify: `packages/typescript/server/src/permissions.ts` — `unmetTokenRequirements` in permission discovery for token-evaluable controls
 - Modify: `packages/typescript/rest/src/routes.ts` — extract budget from token issuance request body
 - Modify: `packages/typescript/express/src/routes.ts` — extract budget from token issuance request body
 - Modify: `packages/typescript/fastify/src/routes.ts` — extract budget from token issuance request body
 - Modify: `packages/typescript/hono/src/routes.ts` — extract budget from token issuance request body
+- Modify: `packages/typescript/stdio/src/server.ts` — extract budget from stdio token issuance
 
 - [ ] **Step 1: Add models to `core/src/models.ts`**
 
@@ -575,11 +584,11 @@ In `service.ts`: add budget pre-check (effective budget = min of token budget an
 
 - [ ] **Step 4: Add permission discovery extension**
 
-In `permissions.ts`: add `unmetTokenRequirements` to restricted capabilities for token-evaluable control requirements.
+In `server/src/permissions.ts`: add `unmetTokenRequirements` to restricted capabilities for token-evaluable control requirements.
 
-- [ ] **Step 5: Extract budget in framework adapters**
+- [ ] **Step 5: Extract budget in all transport adapters**
 
-In all routes files: extract `budget` from token issuance request body, pass to service.
+In all routes files and stdio server: extract `budget` from token issuance request body, pass to service.
 
 - [ ] **Step 6: Run tests**
 
@@ -605,6 +614,8 @@ git commit -m "feat(typescript): budget, binding, and control requirement enforc
 - Modify: `packages/go/service/permissions.go` — `UnmetTokenRequirements` in discovery
 - Modify: `packages/go/httpapi/handler.go` — extract budget from token issuance
 - Modify: `packages/go/ginapi/handler.go` — extract budget from token issuance
+- Modify: `packages/go/grpcapi/server.go` — extract budget from gRPC token issuance
+- Modify: `packages/go/stdioapi/server.go` — extract budget from stdio token issuance
 
 - [ ] **Step 1: Add models to `core/models.go`**
 
@@ -616,7 +627,7 @@ Add Go structs matching the spec. Use `json:",omitempty"` tags for optional fiel
 
 - [ ] **Step 4: Permission discovery extension**
 
-- [ ] **Step 5: Extract budget in handlers**
+- [ ] **Step 5: Extract budget in all transport handlers (HTTP, Gin, gRPC, stdio)**
 
 - [ ] **Step 6: Regenerate gRPC Go code from updated proto**
 
@@ -648,13 +659,14 @@ git commit -m "feat(go): budget, binding, and control requirement enforcement (v
 - Create: `packages/java/anip-core/src/main/java/dev/anip/core/ControlRequirement.java`
 - Modify: `packages/java/anip-core/src/main/java/dev/anip/core/CapabilityDeclaration.java` — add `requiresBinding`, `controlRequirements` fields
 - Modify: `packages/java/anip-core/src/main/java/dev/anip/core/DelegationConstraints.java` — add `budget` field
-- Modify: `packages/java/anip-core/src/main/java/dev/anip/core/RestrictedCapability.java` — add `unmetTokenRequirements`
+- Modify: `packages/java/anip-core/src/main/java/dev/anip/core/PermissionResponse.java` — add `unmetTokenRequirements` to nested `RestrictedCapability` class
 - Modify: `packages/java/anip-core/src/main/java/dev/anip/core/Cost.java` — change `financial` from `Map<String,Object>` to `FinancialCost`
 - Modify: `packages/java/anip-server/src/main/java/dev/anip/server/DelegationEngine.java` — budget in token, narrowing
 - Modify: `packages/java/anip-service/src/main/java/dev/anip/service/ANIPService.java` — enforcement
 - Modify: `packages/java/anip-rest/src/main/java/dev/anip/rest/RestRouter.java` — extract budget
 - Modify: `packages/java/anip-rest-spring/src/main/java/dev/anip/rest/spring/AnipRestController.java` — extract budget
 - Modify: `packages/java/anip-rest-quarkus/src/main/java/dev/anip/rest/quarkus/AnipRestResource.java` — extract budget
+- Modify: `packages/java/anip-stdio/src/main/java/dev/anip/stdio/AnipStdioServer.java` — extract budget from stdio
 
 - [ ] **Step 1: Create new model classes**
 
@@ -662,7 +674,7 @@ Create `FinancialCost`, `Budget`, `BindingRequirement`, `ControlRequirement` as 
 
 - [ ] **Step 2: Update existing models**
 
-Update `Cost.java` to use `FinancialCost`. Add fields to `CapabilityDeclaration`, `DelegationConstraints`, `RestrictedCapability`.
+Update `Cost.java` to use `FinancialCost`. Add fields to `CapabilityDeclaration`, `DelegationConstraints`. Add `unmetTokenRequirements` to the nested `RestrictedCapability` class inside `PermissionResponse.java` (NOT a standalone file).
 
 - [ ] **Step 3: Budget in delegation with narrowing**
 
@@ -670,7 +682,7 @@ Update `Cost.java` to use `FinancialCost`. Add fields to `CapabilityDeclaration`
 
 - [ ] **Step 5: Permission discovery extension**
 
-- [ ] **Step 6: Extract budget in adapters**
+- [ ] **Step 6: Extract budget in all adapters (REST, Spring, Quarkus, stdio)**
 
 - [ ] **Step 7: Run tests**
 
@@ -702,6 +714,7 @@ git commit -m "feat(java): budget, binding, and control requirement enforcement 
 - Modify: `packages/csharp/src/Anip.Service/AnipService.cs` — enforcement
 - Modify: `packages/csharp/src/Anip.Rest/RestRouter.cs` — extract budget
 - Modify: `packages/csharp/src/Anip.Rest.AspNetCore/AnipRestController.cs` — extract budget
+- Modify: `packages/csharp/src/Anip.Stdio/AnipStdioServer.cs` — extract budget from stdio
 
 - [ ] **Step 1: Create new model classes**
 
@@ -717,7 +730,7 @@ Update `Cost.cs` to use `FinancialCost`. Add properties to `CapabilityDeclaratio
 
 - [ ] **Step 5: Permission discovery extension**
 
-- [ ] **Step 6: Extract budget in adapter**
+- [ ] **Step 6: Extract budget in all adapters (REST, AspNetCore, stdio)**
 
 - [ ] **Step 7: Run tests**
 
