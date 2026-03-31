@@ -28,19 +28,19 @@ class ANIPErrorTest {
     @Test
     void builderWithResolution() {
         ANIPError error = new ANIPError(Constants.FAILURE_SCOPE_INSUFFICIENT, "missing scope")
-                .withResolution("request_scope_grant")
+                .withResolution("request_broader_scope")
                 .withRetry();
 
         assertEquals(Constants.FAILURE_SCOPE_INSUFFICIENT, error.getErrorType());
         assertNotNull(error.getResolution());
-        assertEquals("request_scope_grant", error.getResolution().getAction());
+        assertEquals("request_broader_scope", error.getResolution().getAction());
         assertTrue(error.isRetry());
     }
 
     @Test
     void builderWithFullResolution() {
         Resolution resolution = new Resolution(
-                "request_scope_grant",
+                "request_broader_scope",
                 "delegation.scope += travel.book",
                 "human:samir@example.com",
                 null
@@ -51,7 +51,7 @@ class ANIPErrorTest {
                 .withRetry();
 
         assertNotNull(error.getResolution());
-        assertEquals("request_scope_grant", error.getResolution().getAction());
+        assertEquals("request_broader_scope", error.getResolution().getAction());
         assertEquals("delegation.scope += travel.book", error.getResolution().getRequires());
         assertEquals("human:samir@example.com", error.getResolution().getGrantableBy());
         assertTrue(error.isRetry());

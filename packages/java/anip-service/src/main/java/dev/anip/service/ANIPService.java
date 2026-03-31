@@ -961,11 +961,16 @@ public class ANIPService {
                         }
                     }
                     if (hasRejectEnforcement) {
+                        String ctrlResolutionHint = unmet.contains("cost_ceiling")
+                                ? "request_budget_bound_delegation"
+                                : "request_capability_binding";
                         restricted.add(new PermissionResponse.RestrictedCapability(
                                 name,
                                 "missing control requirements: " + String.join(", ", unmet),
+                                "unmet_control_requirement",
                                 rootPrincipal,
-                                unmet
+                                unmet,
+                                ctrlResolutionHint
                         ));
                         continue;
                     }
@@ -997,13 +1002,16 @@ public class ANIPService {
                 boolean hasAdmin = missing.stream().anyMatch(s -> s.startsWith("admin."));
                 if (hasAdmin) {
                     denied.add(new PermissionResponse.DeniedCapability(
-                            name, "requires admin principal"
+                            name, "requires admin principal", "non_delegable"
                     ));
                 } else {
                     restricted.add(new PermissionResponse.RestrictedCapability(
                             name,
                             "delegation chain lacks scope(s): " + String.join(", ", missing),
-                            rootPrincipal
+                            "insufficient_scope",
+                            rootPrincipal,
+                            null,
+                            "request_broader_scope"
                     ));
                 }
             }
