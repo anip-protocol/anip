@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = "anip/0.11";
+export const PROTOCOL_VERSION = "anip/0.13";
 export const MANIFEST_VERSION = "0.10.0";
 export const DEFAULT_PROFILE = {
   core: "1.0",

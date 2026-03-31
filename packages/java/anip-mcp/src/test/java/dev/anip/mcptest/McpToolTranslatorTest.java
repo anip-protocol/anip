@@ -5,6 +5,7 @@ import dev.anip.core.CapabilityInput;
 import dev.anip.core.CapabilityOutput;
 import dev.anip.core.CapabilityRequirement;
 import dev.anip.core.Cost;
+import dev.anip.core.FinancialCost;
 import dev.anip.core.SideEffect;
 import dev.anip.mcp.McpToolTranslator;
 
@@ -42,8 +43,7 @@ class McpToolTranslatorTest {
                 new CapabilityOutput("object", List.of("booking_id")),
                 new SideEffect("irreversible", "none"),
                 List.of("travel", "finance"),
-                new Cost("estimated", Map.of("currency", "USD",
-                        "estimated_range", Map.of("min", 100, "max", 500)),
+                new Cost("estimated", new FinancialCost("USD", null, 100.0, 500.0, null, null),
                         null, null, null, null),
                 List.of(new CapabilityRequirement("search_flights", "Must search first")),
                 List.of("sync")

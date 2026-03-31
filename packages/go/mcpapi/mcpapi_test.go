@@ -11,6 +11,8 @@ import (
 	"github.com/anip-protocol/anip/packages/go/service"
 )
 
+func floatPtr(f float64) *float64 { return &f }
+
 // --- Test capabilities ---
 
 func testCapabilities() []service.CapabilityDef {
@@ -67,12 +69,10 @@ func testCapabilities() []service.CapabilityDef {
 				MinimumScope: []string{"book"},
 				Cost: &core.Cost{
 					Certainty: "estimated",
-					Financial: map[string]any{
-						"currency": "USD",
-						"estimated_range": map[string]any{
-							"min": 10,
-							"max": 100,
-						},
+					Financial: &core.FinancialCost{
+						Currency: "USD",
+						RangeMin: floatPtr(10),
+						RangeMax: floatPtr(100),
 					},
 				},
 				Requires: []core.CapabilityRequirement{
@@ -251,10 +251,10 @@ func TestEnrichDescription_Cost(t *testing.T) {
 		SideEffect:  core.SideEffect{Type: "write"},
 		Cost: &core.Cost{
 			Certainty: "estimated",
-			Financial: map[string]any{
-				"currency":  "USD",
-				"range_min": 100,
-				"range_max": 500,
+			Financial: &core.FinancialCost{
+				Currency: "USD",
+				RangeMin: floatPtr(100),
+				RangeMax: floatPtr(500),
 			},
 		},
 	}
@@ -271,9 +271,9 @@ func TestEnrichDescription_FixedCost(t *testing.T) {
 		SideEffect:  core.SideEffect{Type: "read"},
 		Cost: &core.Cost{
 			Certainty: "fixed",
-			Financial: map[string]any{
-				"amount":   5.0,
-				"currency": "EUR",
+			Financial: &core.FinancialCost{
+				Currency: "EUR",
+				Amount:   floatPtr(5.0),
 			},
 		},
 	}

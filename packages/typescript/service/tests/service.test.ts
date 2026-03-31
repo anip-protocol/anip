@@ -6,6 +6,7 @@ import {
 } from "../src/index.js";
 import type { CapabilityDef, InvocationContext } from "../src/index.js";
 import type { CapabilityDeclaration, DelegationToken } from "@anip-dev/core";
+import { PROTOCOL_VERSION } from "@anip-dev/core";
 import { InMemoryStorage, DelegationEngine, CheckpointPolicy } from "@anip-dev/server";
 import type { StorageBackend } from "@anip-dev/server";
 
@@ -93,7 +94,7 @@ describe("ANIPService construction", () => {
     const ad = disc.anip_discovery;
 
     // Required fields per SPEC.md §6.1
-    expect(ad.protocol).toBe("anip/0.11");
+    expect(ad.protocol).toBe(PROTOCOL_VERSION);
     expect(ad.compliance).toBe("anip-compliant");
     expect(ad.base_url).toBe("https://test.example.com");
     expect(ad.profile.core).toBe("1.0");

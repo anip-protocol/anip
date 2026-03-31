@@ -11,7 +11,7 @@ public final class Constants {
     private Constants() {}
 
     /** Current ANIP protocol version. */
-    public static final String PROTOCOL_VERSION = "anip/0.11";
+    public static final String PROTOCOL_VERSION = "anip/0.13";
 
     /** Current manifest metadata version. */
     public static final String MANIFEST_VERSION = "0.10.0";
@@ -23,7 +23,13 @@ public final class Constants {
     public static final String FAILURE_SCOPE_INSUFFICIENT = "scope_insufficient";
     public static final String FAILURE_UNKNOWN_CAPABILITY = "unknown_capability";
     public static final String FAILURE_BUDGET_EXCEEDED = "budget_exceeded";
+    public static final String FAILURE_BUDGET_CURRENCY_MISMATCH = "budget_currency_mismatch";
+    public static final String FAILURE_BUDGET_NOT_ENFORCEABLE = "budget_not_enforceable";
+    public static final String FAILURE_BINDING_MISSING = "binding_missing";
+    public static final String FAILURE_BINDING_STALE = "binding_stale";
+    public static final String FAILURE_CONTROL_REQUIREMENT_UNSATISFIED = "control_requirement_unsatisfied";
     public static final String FAILURE_PURPOSE_MISMATCH = "purpose_mismatch";
+    public static final String FAILURE_SCOPE_ESCALATION = "scope_escalation";
     public static final String FAILURE_NOT_FOUND = "not_found";
     public static final String FAILURE_UNAVAILABLE = "unavailable";
     public static final String FAILURE_CONCURRENT_LOCK = "concurrent_lock";
@@ -71,7 +77,11 @@ public final class Constants {
         }
         return switch (failureType) {
             case FAILURE_AUTH_REQUIRED, FAILURE_INVALID_TOKEN, FAILURE_TOKEN_EXPIRED -> 401;
-            case FAILURE_SCOPE_INSUFFICIENT, FAILURE_BUDGET_EXCEEDED, FAILURE_PURPOSE_MISMATCH -> 403;
+            case FAILURE_SCOPE_INSUFFICIENT, FAILURE_BUDGET_EXCEEDED,
+                 FAILURE_BUDGET_CURRENCY_MISMATCH, FAILURE_BUDGET_NOT_ENFORCEABLE,
+                 FAILURE_BINDING_MISSING, FAILURE_BINDING_STALE,
+                 FAILURE_CONTROL_REQUIREMENT_UNSATISFIED,
+                 FAILURE_PURPOSE_MISMATCH, FAILURE_SCOPE_ESCALATION -> 403;
             case FAILURE_UNKNOWN_CAPABILITY, FAILURE_NOT_FOUND -> 404;
             case FAILURE_UNAVAILABLE, FAILURE_CONCURRENT_LOCK -> 409;
             case FAILURE_INTERNAL_ERROR -> 500;

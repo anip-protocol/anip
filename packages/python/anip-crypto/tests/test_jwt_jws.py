@@ -3,6 +3,7 @@ import json
 
 import pytest
 
+from anip_core import PROTOCOL_VERSION
 from anip_crypto import (
     KeyManager,
     build_jwks,
@@ -80,14 +81,14 @@ def test_verify_audit_entry_signature():
 
 def test_verify_manifest_signature():
     km = KeyManager()
-    manifest_bytes = b'{"protocol":"anip/0.11","capabilities":{}}'
+    manifest_bytes = f'{{"protocol":"{PROTOCOL_VERSION}","capabilities":{{}}}}'.encode()
     sig = sign_jws_detached(km, manifest_bytes)
     verify_manifest_signature(km, manifest_bytes, sig)
 
 
 def test_verify_manifest_signature_wrong_bytes_fails():
     km = KeyManager()
-    manifest_bytes = b'{"protocol":"anip/0.11"}'
+    manifest_bytes = f'{{"protocol":"{PROTOCOL_VERSION}"}}'.encode()
     sig = sign_jws_detached(km, manifest_bytes)
     with pytest.raises(Exception):
         verify_manifest_signature(km, b"tampered", sig)

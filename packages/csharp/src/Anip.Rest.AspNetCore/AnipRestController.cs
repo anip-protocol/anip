@@ -169,10 +169,19 @@ public class AnipRestController : ControllerBase
         }
 
         var clientRefId = Request.Headers["X-Client-Reference-Id"].FirstOrDefault();
+
+        // Extract budget from request body (v0.13).
+        Anip.Core.Budget? budget = null;
+        if (body != null && body.TryGetValue("budget", out var budgetObj) && budgetObj != null)
+        {
+            budget = ExtractBudget(budgetObj);
+        }
+
         var opts = new InvokeOpts
         {
             ClientReferenceId = clientRefId,
             Stream = false,
+            Budget = budget,
         };
 
         var result = _service.Invoke(capability, token, parameters, opts);
@@ -219,6 +228,37 @@ public class AnipRestController : ControllerBase
             ["failure"] = failure,
         };
         return StatusCode(status, resp);
+    }
+
+    private static Anip.Core.Budget? ExtractBudget(object? budgetObj)
+    {
+        if (budgetObj is JsonElement je && je.ValueKind == JsonValueKind.Object)
+        {
+            var currency = je.TryGetProperty("currency", out var currProp) && currProp.ValueKind == JsonValueKind.String
+                ? currProp.GetString() : null;
+            var maxAmount = je.TryGetProperty("max_amount", out var amtProp) && amtProp.ValueKind == JsonValueKind.Number
+                ? amtProp.GetDouble() : 0.0;
+            if (!string.IsNullOrEmpty(currency) && maxAmount > 0)
+            {
+                return new Anip.Core.Budget { Currency = currency, MaxAmount = maxAmount };
+            }
+        }
+        else if (budgetObj is Dictionary<string, object?> dict)
+        {
+            var currency = dict.TryGetValue("currency", out var currVal) ? currVal?.ToString() : null;
+            double maxAmount = 0;
+            if (dict.TryGetValue("max_amount", out var amtVal))
+            {
+                if (amtVal is double d) maxAmount = d;
+                else if (amtVal is int i) maxAmount = i;
+                else if (amtVal is long l) maxAmount = l;
+            }
+            if (!string.IsNullOrEmpty(currency) && maxAmount > 0)
+            {
+                return new Anip.Core.Budget { Currency = currency, MaxAmount = maxAmount };
+            }
+        }
+        return null;
     }
 
     /// <summary>

@@ -43,9 +43,15 @@ class ConcurrentBranches(str, Enum):
     EXCLUSIVE = "exclusive"
 
 
+class Budget(BaseModel):
+    currency: str
+    max_amount: float
+
+
 class DelegationConstraints(BaseModel):
     max_delegation_depth: int = 3
     concurrent_branches: ConcurrentBranches = ConcurrentBranches.ALLOWED
+    budget: Budget | None = None
 
 
 class DelegationToken(BaseModel):
@@ -94,9 +100,18 @@ class CostCertainty(str, Enum):
     DYNAMIC = "dynamic"
 
 
+class FinancialCost(BaseModel):
+    currency: str
+    amount: float | None = None        # for fixed costs
+    range_min: float | None = None     # for estimated costs
+    range_max: float | None = None     # for estimated costs
+    typical: float | None = None       # for estimated costs
+    upper_bound: float | None = None   # for dynamic costs
+
+
 class Cost(BaseModel):
     certainty: CostCertainty = CostCertainty.FIXED
-    financial: dict[str, Any] | None = None
+    financial: FinancialCost | None = None
     determined_by: str | None = None  # capability that resolves actual cost (for estimated)
     factors: list[str] | None = None  # what drives cost variation (for dynamic)
     compute: dict[str, Any] | None = None
@@ -104,7 +119,7 @@ class Cost(BaseModel):
 
 
 class CostActual(BaseModel):
-    financial: dict[str, Any]
+    financial: FinancialCost
     variance_from_estimate: str | None = None
 
 
@@ -135,6 +150,20 @@ class ObservabilityContract(BaseModel):
     audit_accessible_by: list[str] = Field(default_factory=list)
 
 
+class BindingRequirement(BaseModel):
+    type: str  # "quote", "offer", "price_lock"
+    field: str  # which param must carry the reference
+    source_capability: str | None = None  # advisory
+    max_age: str | None = None  # ISO 8601 duration, e.g. "PT15M"
+
+
+class ControlRequirement(BaseModel):
+    type: str  # "cost_ceiling", "bound_reference", "freshness_window", "stronger_delegation_required"
+    field: str | None = None  # for bound_reference and freshness_window (which param to check)
+    max_age: str | None = None  # for freshness_window
+    enforcement: str = "reject"  # v0.13: "reject" only; "warn" deferred to future slice
+
+
 class CapabilityDeclaration(BaseModel):
     name: str
     description: str
@@ -149,6 +178,8 @@ class CapabilityDeclaration(BaseModel):
     session: SessionInfo = Field(default_factory=SessionInfo)
     observability: ObservabilityContract | None = None
     response_modes: list[ResponseMode] = Field(default_factory=lambda: [ResponseMode.UNARY])
+    requires_binding: list[BindingRequirement] = Field(default_factory=list)
+    control_requirements: list[ControlRequirement] = Field(default_factory=list)
 
 
 # --- Permission Discovery ---
@@ -164,6 +195,7 @@ class RestrictedCapability(BaseModel):
     capability: str
     reason: str
     grantable_by: str
+    unmet_token_requirements: list[str] = Field(default_factory=list)
 
 
 class DeniedCapability(BaseModel):
@@ -313,7 +345,7 @@ class DiscoveryPosture(BaseModel):
 
 
 class ANIPManifest(BaseModel):
-    protocol: str = "anip/0.11"
+    protocol: str = "anip/0.13"
     profile: ProfileVersions
     capabilities: dict[str, CapabilityDeclaration]
     manifest_metadata: ManifestMetadata | None = None

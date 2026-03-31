@@ -9,4 +9,5 @@ public class InvokeOpts
     public string? TaskId { get; set; }
     public string? ParentInvocationId { get; set; }
     public bool Stream { get; set; }
+    public Anip.Core.Budget? Budget { get; set; }
 }

@@ -9,6 +9,8 @@ import (
 	"github.com/anip-protocol/anip/packages/go/server"
 )
 
+func floatPtr(f float64) *float64 { return &f }
+
 // testCapabilities returns two test capabilities for testing.
 func testCapabilities() []CapabilityDef {
 	return []CapabilityDef{
@@ -70,12 +72,10 @@ func testCapabilities() []CapabilityDef {
 				MinimumScope: []string{"travel.book"},
 				Cost: &core.Cost{
 					Certainty: "estimated",
-					Financial: map[string]any{
-						"currency": "USD",
-						"estimated_range": map[string]any{
-							"min": 280,
-							"max": 500,
-						},
+					Financial: &core.FinancialCost{
+						Currency: "USD",
+						RangeMin: floatPtr(280),
+						RangeMax: floatPtr(500),
 					},
 				},
 				Requires: []core.CapabilityRequirement{
@@ -85,9 +85,9 @@ func testCapabilities() []CapabilityDef {
 			},
 			Handler: func(ctx *InvocationContext, params map[string]any) (map[string]any, error) {
 				ctx.SetCostActual(&core.CostActual{
-					Financial: map[string]any{
-						"currency": "USD",
-						"amount":   280.00,
+					Financial: &core.FinancialCost{
+						Currency: "USD",
+						Amount:   floatPtr(280.00),
 					},
 				})
 				return map[string]any{

@@ -27,7 +27,9 @@ import {
 
 describe("Protocol constants", () => {
   it("exports correct protocol version", () => {
-    expect(PROTOCOL_VERSION).toBe("anip/0.11");
+    // Intentionally hardcoded — this is the one place that verifies the constant value.
+    // Update this when bumping the protocol version.
+    expect(PROTOCOL_VERSION).toBe("anip/0.13");
   });
 });
 
@@ -93,7 +95,7 @@ describe("ANIPFailure", () => {
 describe("ANIPManifest", () => {
   it("parses minimal manifest", () => {
     const result = ANIPManifest.safeParse({
-      protocol: "anip/0.11",
+      protocol: PROTOCOL_VERSION,
       profile: { core: "1.0" },
       capabilities: {},
     });

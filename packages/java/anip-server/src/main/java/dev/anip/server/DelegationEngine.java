@@ -1,6 +1,7 @@
 package dev.anip.server;
 
 import dev.anip.core.ANIPError;
+import dev.anip.core.Budget;
 import dev.anip.core.Constants;
 import dev.anip.core.DelegationConstraints;
 import dev.anip.core.DelegationToken;
@@ -69,7 +70,8 @@ public final class DelegationEngine {
         );
 
         // Build constraints.
-        DelegationConstraints constraints = new DelegationConstraints(3, "allowed");
+        DelegationConstraints constraints = new DelegationConstraints(3, "allowed",
+                req.getBudget());
 
         // Determine issuer and root_principal.
         String issuer = serviceId;
@@ -88,6 +90,36 @@ public final class DelegationEngine {
             rootPrincipal = parentToken.getRootPrincipal();
             parent = parentToken.getTokenId();
             constraints = parentToken.getConstraints();
+
+            // Budget narrowing: child budget must not exceed parent budget.
+            if (parentToken.getConstraints().getBudget() != null) {
+                if (req.getBudget() == null) {
+                    // Child inherits parent budget.
+                    constraints = new DelegationConstraints(
+                            constraints.getMaxDelegationDepth(),
+                            constraints.getConcurrentBranches(),
+                            parentToken.getConstraints().getBudget());
+                } else if (!req.getBudget().getCurrency().equals(
+                        parentToken.getConstraints().getBudget().getCurrency())) {
+                    throw new ANIPError(Constants.FAILURE_BUDGET_CURRENCY_MISMATCH,
+                            "Child budget currency " + req.getBudget().getCurrency()
+                                    + " does not match parent " + parentToken.getConstraints().getBudget().getCurrency());
+                } else if (req.getBudget().getMaxAmount() > parentToken.getConstraints().getBudget().getMaxAmount()) {
+                    throw new ANIPError(Constants.FAILURE_BUDGET_EXCEEDED,
+                            "Child budget $" + req.getBudget().getMaxAmount()
+                                    + " exceeds parent budget $" + parentToken.getConstraints().getBudget().getMaxAmount());
+                } else {
+                    constraints = new DelegationConstraints(
+                            constraints.getMaxDelegationDepth(),
+                            constraints.getConcurrentBranches(),
+                            req.getBudget());
+                }
+            } else if (req.getBudget() != null) {
+                constraints = new DelegationConstraints(
+                        constraints.getMaxDelegationDepth(),
+                        constraints.getConcurrentBranches(),
+                        req.getBudget());
+            }
         }
 
         // Default subject to the authenticated principal if not provided.

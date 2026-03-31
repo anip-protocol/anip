@@ -34,14 +34,11 @@ public class McpToolTranslatorTests
         Cost = new Cost
         {
             Certainty = "estimated",
-            Financial = new Dictionary<string, object>
+            Financial = new FinancialCost
             {
-                ["currency"] = "USD",
-                ["estimated_range"] = new Dictionary<string, object>
-                {
-                    ["min"] = 100,
-                    ["max"] = 500,
-                },
+                Currency = "USD",
+                RangeMin = 100,
+                RangeMax = 500,
             },
         },
         Requires = new List<CapabilityRequirement>

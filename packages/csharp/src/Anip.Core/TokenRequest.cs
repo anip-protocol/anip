@@ -24,4 +24,7 @@ public class TokenRequest
 
     [JsonPropertyName("caller_class")]
     public string? CallerClass { get; set; }
+
+    [JsonPropertyName("budget")]
+    public Budget? Budget { get; set; }
 }

@@ -92,6 +92,7 @@ export interface ANIPService {
       taskId?: string | null;
       parentInvocationId?: string | null;
       stream?: boolean;
+      budget?: Record<string, unknown> | null;
       progressSink?: (event: Record<string, unknown>) => Promise<void>;
     },
   ): Promise<Record<string, unknown>>;
@@ -152,6 +153,59 @@ function stableStringify(obj: unknown): string {
       `${JSON.stringify(k)}:${stableStringify((obj as Record<string, unknown>)[k])}`,
   );
   return `{${pairs.join(",")}}`;
+}
+
+// ---------------------------------------------------------------------------
+// Budget / binding / control helpers
+// ---------------------------------------------------------------------------
+
+/** Parse ISO 8601 duration like PT15M, PT1H30M, PT30S into seconds. */
+function _parseISO8601Duration(durationStr: string): number {
+  const match = durationStr.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+  const hours = parseInt(match[1] || "0", 10);
+  const minutes = parseInt(match[2] || "0", 10);
+  const seconds = parseInt(match[3] || "0", 10);
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
+/** Extract bound price from params using capability's binding declarations. */
+function _resolveBoundPrice(
+  bindings: Array<Record<string, unknown>>,
+  params: Record<string, unknown>,
+): number | null {
+  for (const binding of bindings) {
+    const field = binding.field as string;
+    if (field in params && params[field] !== null && params[field] !== undefined) {
+      const boundValue = params[field];
+      if (typeof boundValue === "object" && boundValue !== null && "price" in boundValue) {
+        return Number((boundValue as Record<string, unknown>).price);
+      }
+    }
+  }
+  return null;
+}
+
+/** Determine age of a binding value in seconds. Returns null if age cannot be determined. */
+function _resolveBindingAge(bindingValue: unknown, now?: number): number | null {
+  const nowTs = now ?? Date.now() / 1000;
+  // Try to extract timestamp from dict-like binding value
+  if (typeof bindingValue === "object" && bindingValue !== null && "issued_at" in bindingValue) {
+    const issuedAt = (bindingValue as Record<string, unknown>).issued_at as number;
+    return nowTs - issuedAt;
+  }
+  // Try to extract unix timestamp from string format like "qt-hexhex-1234567890"
+  if (typeof bindingValue === "string") {
+    const parts = bindingValue.split("-");
+    if (parts.length >= 2) {
+      const lastPart = parts[parts.length - 1];
+      const ts = parseInt(lastPart, 10);
+      if (!isNaN(ts) && ts > 1000000000) {
+        return nowTs - ts;
+      }
+    }
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -805,6 +859,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       const parentTokenId = request.parent_token as string | undefined;
       const ttlHours = (request.ttl_hours as number) ?? 2;
 
+      // Parse budget from request if present
+      const budgetData = request.budget as Record<string, unknown> | undefined;
+      const requestBudget = budgetData
+        ? { currency: budgetData.currency as string, max_amount: budgetData.max_amount as number }
+        : null;
+
       let result:
         | { token: DelegationToken; tokenId: string }
         | Awaited<ReturnType<DelegationEngine["delegate"]>>;
@@ -837,6 +897,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             | Record<string, unknown>
             | undefined,
           ttlHours,
+          budget: requestBudget,
         });
       } else {
         // Root token
@@ -849,6 +910,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             | Record<string, unknown>
             | undefined,
           ttlHours,
+          budget: requestBudget,
         });
       }
 
@@ -927,6 +989,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         taskId?: string | null;
         parentInvocationId?: string | null;
         stream?: boolean;
+        budget?: Record<string, unknown> | null;
         progressSink?: (event: Record<string, unknown>) => Promise<void>;
       },
     ): Promise<Record<string, unknown>> {
@@ -1084,6 +1147,215 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
       // Use the resolved/stored token from validation
       const resolvedToken = validationResult as DelegationToken;
+
+      // --- Budget, binding, and control requirement enforcement (v0.13) ---
+
+      // Parse invocation-level budget hint if present
+      const budgetHint = opts?.budget ?? null;
+      interface EffectiveBudget { currency: string; maxAmount: number }
+      let effectiveBudget: EffectiveBudget | null = null;
+      if (resolvedToken.constraints?.budget) {
+        effectiveBudget = {
+          currency: resolvedToken.constraints.budget.currency,
+          maxAmount: resolvedToken.constraints.budget.max_amount,
+        };
+        if (budgetHint) {
+          const hintCurrency = budgetHint.currency as string;
+          const hintMaxAmount = budgetHint.max_amount as number;
+          if (hintCurrency !== effectiveBudget.currency) {
+            return {
+              success: false,
+              failure: redactFailure({
+                type: "budget_currency_mismatch",
+                detail: `Invocation budget is in ${hintCurrency} but token budget is in ${effectiveBudget.currency}`,
+              }, effectiveLevel),
+              invocation_id: invocationId,
+              client_reference_id: clientReferenceId,
+              task_id: effectiveTaskId,
+              parent_invocation_id: parentInvocationId,
+            };
+          }
+          effectiveBudget = {
+            currency: effectiveBudget.currency,
+            maxAmount: Math.min(effectiveBudget.maxAmount, hintMaxAmount),
+          };
+        }
+      } else if (budgetHint) {
+        effectiveBudget = {
+          currency: budgetHint.currency as string,
+          maxAmount: budgetHint.max_amount as number,
+        };
+      }
+
+      // Budget enforcement against declared cost
+      let checkAmount: number | null = null;
+      if (effectiveBudget) {
+        const declCost = decl.cost as Record<string, unknown> | null;
+        const declFinancial = declCost?.financial as Record<string, unknown> | null;
+        if (declCost && declFinancial) {
+          if (declFinancial.currency !== effectiveBudget.currency) {
+            return {
+              success: false,
+              failure: redactFailure({
+                type: "budget_currency_mismatch",
+                detail: `Token budget is in ${effectiveBudget.currency} but capability cost is in ${declFinancial.currency}`,
+              }, effectiveLevel),
+              invocation_id: invocationId,
+              client_reference_id: clientReferenceId,
+              task_id: effectiveTaskId,
+              parent_invocation_id: parentInvocationId,
+            };
+          }
+
+          const certainty = declCost.certainty as string;
+          if (certainty === "fixed") {
+            checkAmount = declFinancial.amount as number | null;
+          } else if (certainty === "estimated") {
+            const declBindings = (decl as any).requires_binding ?? [];
+            if (declBindings.length > 0) {
+              const boundPrice = _resolveBoundPrice(declBindings, params);
+              if (boundPrice !== null) {
+                checkAmount = boundPrice;
+              } else {
+                // Binding exists but no resolvable price — budget cannot be enforced.
+                return {
+                  success: false,
+                  failure: redactFailure({
+                    type: "budget_not_enforceable",
+                    detail: `Capability ${capabilityName} has estimated cost with requires_binding but the provided binding does not carry a resolvable price`,
+                    resolution: { action: "provide_priced_binding", requires: "binding value must include a 'price' field or the service must resolve binding to a concrete price" },
+                    retry: false,
+                  }, effectiveLevel),
+                  invocation_id: invocationId,
+                  client_reference_id: clientReferenceId,
+                  task_id: effectiveTaskId,
+                  parent_invocation_id: parentInvocationId,
+                };
+              }
+            } else {
+              return {
+                success: false,
+                failure: redactFailure({
+                  type: "budget_not_enforceable",
+                  detail: `Capability ${capabilityName} has estimated cost but no requires_binding — budget cannot be enforced`,
+                }, effectiveLevel),
+                invocation_id: invocationId,
+                client_reference_id: clientReferenceId,
+                task_id: effectiveTaskId,
+                parent_invocation_id: parentInvocationId,
+              };
+            }
+          } else if (certainty === "dynamic") {
+            checkAmount = declFinancial.upper_bound as number | null;
+          }
+
+          if (checkAmount !== null && checkAmount > effectiveBudget.maxAmount) {
+            return {
+              success: false,
+              failure: redactFailure({
+                type: "budget_exceeded",
+                detail: `Cost $${checkAmount} exceeds budget $${effectiveBudget.maxAmount}`,
+              }, effectiveLevel),
+              budget_context: {
+                budget_max: effectiveBudget.maxAmount,
+                budget_currency: effectiveBudget.currency,
+                cost_check_amount: checkAmount,
+                cost_certainty: certainty,
+              },
+              invocation_id: invocationId,
+              client_reference_id: clientReferenceId,
+              task_id: effectiveTaskId,
+              parent_invocation_id: parentInvocationId,
+            };
+          }
+        }
+      }
+
+      // Binding enforcement
+      const requiresBinding = (decl as any).requires_binding ?? [];
+      for (const binding of requiresBinding as Array<Record<string, unknown>>) {
+        const field = binding.field as string;
+        if (!(field in params) || params[field] === null || params[field] === undefined) {
+          return {
+            success: false,
+            failure: redactFailure({
+              type: "binding_missing",
+              detail: `Capability ${capabilityName} requires '${field}' (type: ${binding.type})`,
+              resolution: {
+                action: "obtain_binding",
+                requires: `invoke ${binding.source_capability ?? "source capability"} to obtain a ${field}`,
+              },
+            }, effectiveLevel),
+            invocation_id: invocationId,
+            client_reference_id: clientReferenceId,
+            task_id: effectiveTaskId,
+            parent_invocation_id: parentInvocationId,
+          };
+        }
+        if (binding.max_age) {
+          const age = _resolveBindingAge(params[field]);
+          if (age !== null && age > _parseISO8601Duration(binding.max_age as string)) {
+            return {
+              success: false,
+              failure: redactFailure({
+                type: "binding_stale",
+                detail: `Binding '${field}' has exceeded max_age of ${binding.max_age}`,
+                resolution: {
+                  action: "refresh_binding",
+                  requires: `invoke ${binding.source_capability ?? "source capability"} again for a fresh ${field}`,
+                },
+              }, effectiveLevel),
+              invocation_id: invocationId,
+              client_reference_id: clientReferenceId,
+              task_id: effectiveTaskId,
+              parent_invocation_id: parentInvocationId,
+            };
+          }
+        }
+      }
+
+      // Control requirement enforcement (reject only)
+      const controlRequirements = (decl as any).control_requirements ?? [];
+      for (const req of controlRequirements as Array<Record<string, unknown>>) {
+        let satisfied = true;
+        const reqType = req.type as string;
+        if (reqType === "cost_ceiling") {
+          satisfied = effectiveBudget !== null;
+        } else if (reqType === "bound_reference") {
+          const reqField = req.field as string | null;
+          satisfied = reqField !== null && reqField in params && params[reqField] !== null && params[reqField] !== undefined;
+        } else if (reqType === "freshness_window") {
+          const reqField = req.field as string | null;
+          if (reqField && reqField in params) {
+            const age = _resolveBindingAge(params[reqField]);
+            const maxAge = req.max_age ? _parseISO8601Duration(req.max_age as string) : null;
+            satisfied = age === null || maxAge === null || age <= maxAge;
+          } else {
+            satisfied = false;
+          }
+        } else if (reqType === "stronger_delegation_required") {
+          satisfied = (
+            resolvedToken.purpose !== null &&
+            resolvedToken.purpose !== undefined &&
+            resolvedToken.purpose.capability === capabilityName
+          );
+        }
+
+        if (!satisfied) {
+          return {
+            success: false,
+            failure: redactFailure({
+              type: "control_requirement_unsatisfied",
+              detail: `Capability ${capabilityName} requires ${reqType}`,
+              unsatisfied_requirements: [reqType],
+            }, effectiveLevel),
+            invocation_id: invocationId,
+            client_reference_id: clientReferenceId,
+            task_id: effectiveTaskId,
+            parent_invocation_id: parentInvocationId,
+          };
+        }
+      }
 
       // 3. Build invocation context
       const chain = await engine.getChain(resolvedToken);
@@ -1260,6 +1532,26 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         }
         if (streamSummary) {
           response.stream_summary = streamSummary;
+        }
+
+        // Budget context in response (v0.13)
+        if (effectiveBudget) {
+          let costActualAmount: number | null = null;
+          if (costActual) {
+            const costActualFinancial = (costActual as Record<string, unknown>).financial as Record<string, unknown> | undefined;
+            if (costActualFinancial && typeof costActualFinancial === "object") {
+              costActualAmount = (costActualFinancial.amount as number) ?? null;
+            }
+          }
+          const declCostForCtx = decl.cost as Record<string, unknown> | null;
+          response.budget_context = {
+            budget_max: effectiveBudget.maxAmount,
+            budget_currency: effectiveBudget.currency,
+            cost_check_amount: checkAmount,
+            cost_certainty: declCostForCtx?.certainty ?? null,
+            cost_actual: costActualAmount,
+            within_budget: true,
+          };
         }
 
         return response;

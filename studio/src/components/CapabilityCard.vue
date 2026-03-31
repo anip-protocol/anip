@@ -31,6 +31,8 @@ const requires = computed(() => props.capability.requires || [])
 const responseModes = computed(() => props.capability.response_modes || ['unary'])
 const scope = computed(() => props.capability.minimum_scope || [])
 const observability = computed(() => props.capability.observability)
+const requiresBinding = computed(() => props.capability.requires_binding || [])
+const controlRequirements = computed(() => props.capability.control_requirements || [])
 </script>
 
 <template>
@@ -164,6 +166,28 @@ const observability = computed(() => props.capability.observability)
             <span class="cost-label">Fields logged</span>
             <span class="mono-value">{{ observability.fields_logged.join(', ') }}</span>
           </div>
+        </div>
+      </div>
+
+      <!-- Binding Requirements -->
+      <div class="cap-section" v-if="requiresBinding.length">
+        <div class="section-label">Binding Requirements</div>
+        <div v-for="binding in requiresBinding" :key="binding.field" class="binding-item">
+          <span class="scope-chip">{{ binding.type }}</span>
+          <span class="cost-label">Field:</span>
+          <code class="mono-value">{{ binding.field }}</code>
+          <span v-if="binding.source_capability" class="cost-label">from <span class="mono-value">{{ binding.source_capability }}</span></span>
+          <span v-if="binding.max_age" class="cost-label">expires after <span class="mono-value">{{ binding.max_age }}</span></span>
+        </div>
+      </div>
+
+      <!-- Control Requirements -->
+      <div class="cap-section" v-if="controlRequirements.length">
+        <div class="section-label">Control Requirements</div>
+        <div v-for="req in controlRequirements" :key="req.type" class="control-item">
+          <span class="badge-reject">{{ req.type }}</span>
+          <span v-if="req.field" class="cost-label">field: <code class="mono-value">{{ req.field }}</code></span>
+          <span v-if="req.max_age" class="cost-label">max age: <span class="mono-value">{{ req.max_age }}</span></span>
         </div>
       </div>
     </div>
@@ -356,5 +380,31 @@ const observability = computed(() => props.capability.observability)
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.binding-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.control-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.badge-reject {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--error);
+  font-size: 11px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-weight: 600;
 }
 </style>

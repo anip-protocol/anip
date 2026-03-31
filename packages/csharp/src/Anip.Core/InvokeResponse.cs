@@ -27,4 +27,7 @@ public class InvokeResponse
 
     [JsonPropertyName("failure")]
     public AnipError? Failure { get; set; }
+
+    [JsonPropertyName("budget_context")]
+    public BudgetContext? BudgetContext { get; set; }
 }

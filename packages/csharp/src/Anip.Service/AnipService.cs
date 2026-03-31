@@ -522,6 +522,288 @@ public class AnipService : IDisposable
                 ObservabilityHooks.CallHook(() => _hooks.OnScopeValidation(capName, true));
             }
 
+            // --- Budget, binding, and control requirement enforcement (v0.13) ---
+
+            // Parse invocation-level budget hint.
+            Budget? requestBudget = opts.Budget;
+
+            // Determine effective budget (token is ceiling, invocation hint can only narrow).
+            Budget? effectiveBudget = null;
+            if (token.Constraints.Budget != null)
+            {
+                effectiveBudget = token.Constraints.Budget;
+                if (requestBudget != null)
+                {
+                    if (requestBudget.Currency != effectiveBudget.Currency)
+                    {
+                        var failure = new Dictionary<string, object?>
+                        {
+                            ["type"] = Constants.FailureBudgetCurrencyMismatch,
+                            ["detail"] = $"Invocation budget is in {requestBudget.Currency} but token budget is in {effectiveBudget.Currency}",
+                        };
+                        var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                        failure = FailureRedaction.Redact(failure, effectiveLevel);
+                        return new Dictionary<string, object?>
+                        {
+                            ["success"] = false,
+                            ["failure"] = failure,
+                            ["invocation_id"] = invocationId,
+                            ["client_reference_id"] = opts.ClientReferenceId,
+                            ["task_id"] = effectiveTaskId,
+                            ["parent_invocation_id"] = opts.ParentInvocationId,
+                        };
+                    }
+                    var narrowedAmount = effectiveBudget.MaxAmount;
+                    if (requestBudget.MaxAmount < narrowedAmount)
+                    {
+                        narrowedAmount = requestBudget.MaxAmount;
+                    }
+                    effectiveBudget = new Budget
+                    {
+                        Currency = effectiveBudget.Currency,
+                        MaxAmount = narrowedAmount,
+                    };
+                }
+            }
+            else if (requestBudget != null)
+            {
+                effectiveBudget = requestBudget;
+            }
+
+            // Budget enforcement against declared cost.
+            double? checkAmount = null;
+            if (effectiveBudget != null)
+            {
+                var decl = capDef.Declaration;
+                if (decl.Cost != null && decl.Cost.Financial != null)
+                {
+                    if (decl.Cost.Financial.Currency != effectiveBudget.Currency)
+                    {
+                        var failure = new Dictionary<string, object?>
+                        {
+                            ["type"] = Constants.FailureBudgetCurrencyMismatch,
+                            ["detail"] = $"Token budget is in {effectiveBudget.Currency} but capability cost is in {decl.Cost.Financial.Currency}",
+                        };
+                        var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                        failure = FailureRedaction.Redact(failure, effectiveLevel);
+                        return new Dictionary<string, object?>
+                        {
+                            ["success"] = false,
+                            ["failure"] = failure,
+                            ["invocation_id"] = invocationId,
+                            ["client_reference_id"] = opts.ClientReferenceId,
+                            ["task_id"] = effectiveTaskId,
+                            ["parent_invocation_id"] = opts.ParentInvocationId,
+                        };
+                    }
+
+                    switch (decl.Cost.Certainty)
+                    {
+                        case "fixed":
+                            checkAmount = decl.Cost.Financial.Amount;
+                            break;
+                        case "estimated":
+                            if (decl.RequiresBinding != null && decl.RequiresBinding.Count > 0)
+                            {
+                                checkAmount = ResolveBoundPrice(decl.RequiresBinding, parameters);
+                            }
+                            else
+                            {
+                                var failure = new Dictionary<string, object?>
+                                {
+                                    ["type"] = Constants.FailureBudgetNotEnforceable,
+                                    ["detail"] = $"Capability {capName} has estimated cost but no requires_binding — budget cannot be enforced",
+                                };
+                                var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                                failure = FailureRedaction.Redact(failure, effectiveLevel);
+                                return new Dictionary<string, object?>
+                                {
+                                    ["success"] = false,
+                                    ["failure"] = failure,
+                                    ["invocation_id"] = invocationId,
+                                    ["client_reference_id"] = opts.ClientReferenceId,
+                                    ["task_id"] = effectiveTaskId,
+                                    ["parent_invocation_id"] = opts.ParentInvocationId,
+                                };
+                            }
+                            break;
+                        case "dynamic":
+                            checkAmount = decl.Cost.Financial.UpperBound;
+                            break;
+                    }
+
+                    if (checkAmount != null && checkAmount.Value > effectiveBudget.MaxAmount)
+                    {
+                        var failure = new Dictionary<string, object?>
+                        {
+                            ["type"] = Constants.FailureBudgetExceeded,
+                            ["detail"] = $"Cost ${checkAmount.Value} exceeds budget ${effectiveBudget.MaxAmount}",
+                        };
+                        var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                        failure = FailureRedaction.Redact(failure, effectiveLevel);
+                        return new Dictionary<string, object?>
+                        {
+                            ["success"] = false,
+                            ["failure"] = failure,
+                            ["invocation_id"] = invocationId,
+                            ["client_reference_id"] = opts.ClientReferenceId,
+                            ["task_id"] = effectiveTaskId,
+                            ["parent_invocation_id"] = opts.ParentInvocationId,
+                            ["budget_context"] = new Dictionary<string, object?>
+                            {
+                                ["budget_max"] = effectiveBudget.MaxAmount,
+                                ["budget_currency"] = effectiveBudget.Currency,
+                                ["cost_check_amount"] = checkAmount.Value,
+                                ["cost_certainty"] = decl.Cost.Certainty,
+                            },
+                        };
+                    }
+                }
+            }
+
+            // Binding enforcement.
+            if (capDef.Declaration.RequiresBinding != null)
+            {
+                foreach (var binding in capDef.Declaration.RequiresBinding)
+                {
+                    var hasVal = parameters.TryGetValue(binding.Field, out var val) && val != null;
+                    if (!hasVal)
+                    {
+                        var sourceDesc = !string.IsNullOrEmpty(binding.SourceCapability)
+                            ? binding.SourceCapability
+                            : "source capability";
+                        var failure = new Dictionary<string, object?>
+                        {
+                            ["type"] = Constants.FailureBindingMissing,
+                            ["detail"] = $"Capability {capName} requires '{binding.Field}' (type: {binding.Type})",
+                            ["resolution"] = new Dictionary<string, object?>
+                            {
+                                ["action"] = "obtain_binding",
+                                ["requires"] = $"invoke {sourceDesc} to obtain a {binding.Field}",
+                            },
+                        };
+                        var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                        failure = FailureRedaction.Redact(failure, effectiveLevel);
+                        return new Dictionary<string, object?>
+                        {
+                            ["success"] = false,
+                            ["failure"] = failure,
+                            ["invocation_id"] = invocationId,
+                            ["client_reference_id"] = opts.ClientReferenceId,
+                            ["task_id"] = effectiveTaskId,
+                            ["parent_invocation_id"] = opts.ParentInvocationId,
+                        };
+                    }
+
+                    if (!string.IsNullOrEmpty(binding.MaxAge))
+                    {
+                        var age = ResolveBindingAge(val!);
+                        if (age >= TimeSpan.Zero)
+                        {
+                            var maxAge = ParseISO8601Duration(binding.MaxAge);
+                            if (maxAge > TimeSpan.Zero && age > maxAge)
+                            {
+                                var sourceDesc = !string.IsNullOrEmpty(binding.SourceCapability)
+                                    ? binding.SourceCapability
+                                    : "source capability";
+                                var failure = new Dictionary<string, object?>
+                                {
+                                    ["type"] = Constants.FailureBindingStale,
+                                    ["detail"] = $"Binding '{binding.Field}' has exceeded max_age of {binding.MaxAge}",
+                                    ["resolution"] = new Dictionary<string, object?>
+                                    {
+                                        ["action"] = "refresh_binding",
+                                        ["requires"] = $"invoke {sourceDesc} again for a fresh {binding.Field}",
+                                    },
+                                };
+                                var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                                failure = FailureRedaction.Redact(failure, effectiveLevel);
+                                return new Dictionary<string, object?>
+                                {
+                                    ["success"] = false,
+                                    ["failure"] = failure,
+                                    ["invocation_id"] = invocationId,
+                                    ["client_reference_id"] = opts.ClientReferenceId,
+                                    ["task_id"] = effectiveTaskId,
+                                    ["parent_invocation_id"] = opts.ParentInvocationId,
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Control requirement enforcement (reject only — no warn in v0.13).
+            if (capDef.Declaration.ControlRequirements != null)
+            {
+                foreach (var req in capDef.Declaration.ControlRequirements)
+                {
+                    var satisfied = true;
+                    switch (req.Type)
+                    {
+                        case "cost_ceiling":
+                            satisfied = effectiveBudget != null;
+                            break;
+                        case "bound_reference":
+                            if (!string.IsNullOrEmpty(req.Field))
+                            {
+                                satisfied = parameters.TryGetValue(req.Field, out var brVal) && brVal != null;
+                            }
+                            else
+                            {
+                                satisfied = false;
+                            }
+                            break;
+                        case "freshness_window":
+                            if (!string.IsNullOrEmpty(req.Field))
+                            {
+                                if (parameters.TryGetValue(req.Field, out var fwVal) && fwVal != null)
+                                {
+                                    var age = ResolveBindingAge(fwVal);
+                                    if (age >= TimeSpan.Zero && !string.IsNullOrEmpty(req.MaxAge))
+                                    {
+                                        var maxAge = ParseISO8601Duration(req.MaxAge);
+                                        satisfied = maxAge == TimeSpan.Zero || age <= maxAge;
+                                    }
+                                }
+                                else
+                                {
+                                    satisfied = false;
+                                }
+                            }
+                            else
+                            {
+                                satisfied = false;
+                            }
+                            break;
+                        case "stronger_delegation_required":
+                            satisfied = token.Purpose?.Capability == capName;
+                            break;
+                    }
+
+                    if (!satisfied)
+                    {
+                        var failure = new Dictionary<string, object?>
+                        {
+                            ["type"] = Constants.FailureControlRequirementUnsatisfied,
+                            ["detail"] = $"Capability {capName} requires {req.Type}",
+                            ["unsatisfied_requirements"] = new List<string> { req.Type },
+                        };
+                        var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                        failure = FailureRedaction.Redact(failure, effectiveLevel);
+                        return new Dictionary<string, object?>
+                        {
+                            ["success"] = false,
+                            ["failure"] = failure,
+                            ["invocation_id"] = invocationId,
+                            ["client_reference_id"] = opts.ClientReferenceId,
+                            ["task_id"] = effectiveTaskId,
+                            ["parent_invocation_id"] = opts.ParentInvocationId,
+                        };
+                    }
+                }
+            }
+
             // 4. Build invocation context.
             var rootPrincipal = token.RootPrincipal ?? token.Issuer;
 
@@ -617,6 +899,35 @@ public class AnipService : IDisposable
             if (costActual != null)
             {
                 resp["cost_actual"] = costActual;
+            }
+
+            // Budget context in response (v0.13).
+            if (effectiveBudget != null)
+            {
+                double? costActualAmount = costActual?.Financial?.Amount;
+
+                string? costCertainty = null;
+                if (capDef.Declaration.Cost != null)
+                {
+                    costCertainty = capDef.Declaration.Cost.Certainty;
+                }
+
+                var budgetCtx = new Dictionary<string, object?>
+                {
+                    ["budget_max"] = effectiveBudget.MaxAmount,
+                    ["budget_currency"] = effectiveBudget.Currency,
+                    ["cost_certainty"] = costCertainty,
+                    ["within_budget"] = true,
+                };
+                if (checkAmount != null)
+                {
+                    budgetCtx["cost_check_amount"] = checkAmount.Value;
+                }
+                if (costActualAmount != null)
+                {
+                    budgetCtx["cost_actual"] = costActualAmount.Value;
+                }
+                resp["budget_context"] = budgetCtx;
             }
 
             invokeSuccess = true;
@@ -897,6 +1208,54 @@ public class AnipService : IDisposable
 
             if (missing.Count == 0)
             {
+                // Scope matched — check token-evaluable control requirements.
+                var unmet = new List<string>();
+                if (cap.Declaration.ControlRequirements != null)
+                {
+                    foreach (var req in cap.Declaration.ControlRequirements)
+                    {
+                        switch (req.Type)
+                        {
+                            case "cost_ceiling":
+                                if (token.Constraints.Budget == null)
+                                    unmet.Add("cost_ceiling");
+                                break;
+                            case "stronger_delegation_required":
+                                var tokenHasExplicitBinding = token.Purpose?.Capability == name;
+                                if (!tokenHasExplicitBinding)
+                                    unmet.Add("stronger_delegation_required");
+                                break;
+                        }
+                    }
+                }
+
+                if (unmet.Count > 0)
+                {
+                    var hasRejectEnforcement = false;
+                    if (cap.Declaration.ControlRequirements != null)
+                    {
+                        foreach (var req in cap.Declaration.ControlRequirements)
+                        {
+                            if (req.Enforcement == "reject" && unmet.Contains(req.Type))
+                            {
+                                hasRejectEnforcement = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (hasRejectEnforcement)
+                    {
+                        restricted.Add(new RestrictedCapability
+                        {
+                            Capability = name,
+                            Reason = $"missing control requirements: {string.Join(", ", unmet)}",
+                            GrantableBy = rootPrincipal,
+                            UnmetTokenRequirements = unmet,
+                        });
+                        continue;
+                    }
+                }
+
                 var constraints = new Dictionary<string, object>();
                 foreach (var scopeStr in matchedScopeStrs)
                 {
@@ -909,6 +1268,12 @@ public class AnipService : IDisposable
                             constraints["currency"] = "USD";
                         }
                     }
+                }
+                // Include constraints-level budget info if present.
+                if (token.Constraints.Budget != null)
+                {
+                    constraints["budget_remaining"] = token.Constraints.Budget.MaxAmount;
+                    constraints["currency"] = token.Constraints.Budget.Currency;
                 }
 
                 available.Add(new AvailableCapability
@@ -1152,6 +1517,96 @@ public class AnipService : IDisposable
         }
 
         return m;
+    }
+
+    // --- Budget/Binding helpers (v0.13) ---
+
+    /// <summary>
+    /// Parses a simple ISO 8601 duration string like PT15M, PT1H30M, PT30S.
+    /// </summary>
+    private static TimeSpan ParseISO8601Duration(string d)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(d, @"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?");
+        if (!match.Success)
+            return TimeSpan.Zero;
+
+        var total = TimeSpan.Zero;
+        if (match.Groups[1].Success && int.TryParse(match.Groups[1].Value, out var h))
+            total += TimeSpan.FromHours(h);
+        if (match.Groups[2].Success && int.TryParse(match.Groups[2].Value, out var m))
+            total += TimeSpan.FromMinutes(m);
+        if (match.Groups[3].Success && int.TryParse(match.Groups[3].Value, out var s))
+            total += TimeSpan.FromSeconds(s);
+        return total;
+    }
+
+    /// <summary>
+    /// Extracts a bound price from params using the capability's binding declarations.
+    /// </summary>
+    private static double? ResolveBoundPrice(List<BindingRequirement> bindings, Dictionary<string, object?> parameters)
+    {
+        foreach (var binding in bindings)
+        {
+            if (parameters.TryGetValue(binding.Field, out var val) && val != null)
+            {
+                // The binding value may be a dictionary with a "price" key.
+                if (val is Dictionary<string, object?> dict)
+                {
+                    if (dict.TryGetValue("price", out var price))
+                    {
+                        if (price is double d) return d;
+                        if (price is int i) return i;
+                        if (price is long l) return l;
+                    }
+                }
+                else if (val is System.Text.Json.JsonElement je && je.ValueKind == System.Text.Json.JsonValueKind.Object)
+                {
+                    if (je.TryGetProperty("price", out var priceProp) && priceProp.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    {
+                        return priceProp.GetDouble();
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Determines the age of a binding value.
+    /// Returns a negative TimeSpan if age cannot be determined.
+    /// </summary>
+    private static TimeSpan ResolveBindingAge(object val)
+    {
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        if (val is Dictionary<string, object?> dict)
+        {
+            if (dict.TryGetValue("issued_at", out var issuedAt))
+            {
+                if (issuedAt is double d) return TimeSpan.FromSeconds(now - (long)d);
+                if (issuedAt is int i) return TimeSpan.FromSeconds(now - i);
+                if (issuedAt is long l) return TimeSpan.FromSeconds(now - l);
+            }
+        }
+        else if (val is System.Text.Json.JsonElement je && je.ValueKind == System.Text.Json.JsonValueKind.Object)
+        {
+            if (je.TryGetProperty("issued_at", out var issuedProp) && issuedProp.ValueKind == System.Text.Json.JsonValueKind.Number)
+            {
+                return TimeSpan.FromSeconds(now - issuedProp.GetInt64());
+            }
+        }
+
+        if (val is string s)
+        {
+            // Try to extract unix timestamp from format like "qt-hexhex-1234567890"
+            var match = System.Text.RegularExpressions.Regex.Match(s, @"-(\d{10,})$");
+            if (match.Success && long.TryParse(match.Groups[1].Value, out var ts) && ts > 1000000000)
+            {
+                return TimeSpan.FromSeconds(now - ts);
+            }
+        }
+
+        return TimeSpan.FromSeconds(-1);
     }
 
     private static Dictionary<string, object?> TokenClaimsMap(DelegationToken token)

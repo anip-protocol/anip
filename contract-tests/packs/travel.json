@@ -7,12 +7,12 @@
   "samples": {
     "search_flights": {"origin": "SEA", "destination": "SFO"},
     "check_availability": {"flight_number": "AA100"},
-    "book_flight": {"flight_number": "DL310"}
+    "book_flight": {"flight_number": "DL310", "quote_id": {"id": "qt-contract-01", "price": 420, "issued_at": 9999999999}}
   },
   "compensation_scenarios": [
     {
       "setup_capability": "book_flight",
-      "setup_params": {"flight_number": "DL310"},
+      "setup_params": {"flight_number": "DL310", "quote_id": {"id": "qt-contract-02", "price": 420, "issued_at": 9999999999}},
       "extract_fields": ["booking_id"],
       "compensate_capability": "cancel_booking",
       "compensate_params_template": {"booking_id": "{booking_id}"}

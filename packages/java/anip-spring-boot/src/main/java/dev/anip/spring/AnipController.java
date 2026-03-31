@@ -124,8 +124,9 @@ public class AnipController {
                     ? ((Number) body.get("ttl_hours")).intValue() : 0;
             String callerClass = (String) body.get("caller_class");
 
+            dev.anip.core.Budget tokenBudget = extractBudget(body);
             TokenRequest req = new TokenRequest(subject, scope, capability,
-                    purposeParams, parentToken, ttlHours, callerClass);
+                    purposeParams, parentToken, ttlHours, callerClass, tokenBudget);
 
             TokenResponse resp = service.issueToken(principal.get(), req);
 
@@ -196,11 +197,17 @@ public class AnipController {
         String taskId = body != null ? (String) body.get("task_id") : null;
         String parentInvocationId = body != null ? (String) body.get("parent_invocation_id") : null;
 
+        // Extract budget from request body.
+        dev.anip.core.Budget budget = extractBudget(body);
+
         if (stream) {
-            return handleStreamInvoke(capability, token, params, clientRefId, taskId, parentInvocationId);
+            InvokeOpts streamOpts = new InvokeOpts(clientRefId, true, taskId, parentInvocationId);
+            if (budget != null) streamOpts.setBudget(budget);
+            return handleStreamInvoke(capability, token, params, clientRefId, taskId, parentInvocationId, budget);
         }
 
         InvokeOpts opts = new InvokeOpts(clientRefId, false, taskId, parentInvocationId);
+        if (budget != null) opts.setBudget(budget);
         Map<String, Object> result = service.invoke(capability, token, params, opts);
 
         boolean success = Boolean.TRUE.equals(result.get("success"));
@@ -315,12 +322,14 @@ public class AnipController {
 
     private SseEmitter handleStreamInvoke(String capability, DelegationToken token,
                                            Map<String, Object> params, String clientRefId,
-                                           String taskId, String parentInvocationId) {
+                                           String taskId, String parentInvocationId,
+                                           dev.anip.core.Budget budget) {
         SseEmitter emitter = new SseEmitter(0L); // no timeout
 
         StreamResult sr;
         try {
             InvokeOpts opts = new InvokeOpts(clientRefId, true, taskId, parentInvocationId);
+            if (budget != null) opts.setBudget(budget);
             sr = service.invokeStream(capability, token, params, opts);
         } catch (ANIPError e) {
             try {
@@ -376,6 +385,20 @@ public class AnipController {
     /**
      * Extracts bearer from Authorization header. Returns null if not present.
      */
+    @SuppressWarnings("unchecked")
+    private dev.anip.core.Budget extractBudget(Map<String, Object> body) {
+        if (body == null) return null;
+        Object budgetRaw = body.get("budget");
+        if (!(budgetRaw instanceof Map)) return null;
+        Map<String, Object> budgetMap = (Map<String, Object>) budgetRaw;
+        String currency = budgetMap.get("currency") instanceof String s ? s : null;
+        double maxAmount = budgetMap.get("max_amount") instanceof Number n ? n.doubleValue() : 0;
+        if (currency != null && !currency.isEmpty() && maxAmount > 0) {
+            return new dev.anip.core.Budget(currency, maxAmount);
+        }
+        return null;
+    }
+
     private String extractBearer(HttpServletRequest request) {
         String auth = request.getHeader("Authorization");
         if (auth != null && auth.startsWith("Bearer ")) {

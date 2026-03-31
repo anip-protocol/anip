@@ -8,14 +8,17 @@ import java.util.Map;
  */
 public class Cost {
 
-    private final String certainty;
-    private final Map<String, Object> financial;
-    private final String determinedBy;
-    private final List<String> factors;
-    private final Map<String, Object> compute;
-    private final Map<String, Object> rateLimit;
+    private String certainty;
+    private FinancialCost financial;
+    private String determinedBy;
+    private List<String> factors;
+    private Map<String, Object> compute;
+    private Map<String, Object> rateLimit;
 
-    public Cost(String certainty, Map<String, Object> financial, String determinedBy,
+    /** No-arg constructor for Jackson deserialization. */
+    public Cost() {}
+
+    public Cost(String certainty, FinancialCost financial, String determinedBy,
                 List<String> factors, Map<String, Object> compute, Map<String, Object> rateLimit) {
         this.certainty = certainty;
         this.financial = financial;
@@ -30,7 +33,7 @@ public class Cost {
         return certainty;
     }
 
-    public Map<String, Object> getFinancial() {
+    public FinancialCost getFinancial() {
         return financial;
     }
 
@@ -50,5 +53,29 @@ public class Cost {
 
     public Map<String, Object> getRateLimit() {
         return rateLimit;
+    }
+
+    public void setCertainty(String certainty) {
+        this.certainty = certainty;
+    }
+
+    public void setFinancial(FinancialCost financial) {
+        this.financial = financial;
+    }
+
+    public void setDeterminedBy(String determinedBy) {
+        this.determinedBy = determinedBy;
+    }
+
+    public void setFactors(List<String> factors) {
+        this.factors = factors;
+    }
+
+    public void setCompute(Map<String, Object> compute) {
+        this.compute = compute;
+    }
+
+    public void setRateLimit(Map<String, Object> rateLimit) {
+        this.rateLimit = rateLimit;
     }
 }

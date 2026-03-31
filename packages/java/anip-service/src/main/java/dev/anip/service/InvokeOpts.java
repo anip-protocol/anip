@@ -1,5 +1,7 @@
 package dev.anip.service;
 
+import dev.anip.core.Budget;
+
 /**
  * Optional parameters for invocation.
  */
@@ -9,6 +11,7 @@ public class InvokeOpts {
     private boolean stream;
     private String taskId;
     private String parentInvocationId;
+    private Budget budget;
 
     public InvokeOpts() {}
 
@@ -57,6 +60,15 @@ public class InvokeOpts {
 
     public InvokeOpts setParentInvocationId(String parentInvocationId) {
         this.parentInvocationId = parentInvocationId;
+        return this;
+    }
+
+    public Budget getBudget() {
+        return budget;
+    }
+
+    public InvokeOpts setBudget(Budget budget) {
+        this.budget = budget;
         return this;
     }
 }

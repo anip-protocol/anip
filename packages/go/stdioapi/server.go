@@ -29,17 +29,23 @@ const (
 
 // failureTypeToCode maps ANIP failure types to JSON-RPC error codes.
 var failureTypeToCode = map[string]int{
-	"authentication_required": codeAuthError,
-	"invalid_token":           codeAuthError,
-	"token_expired":           codeAuthError,
-	"scope_insufficient":      codeScopeError,
-	"budget_exceeded":         codeScopeError,
-	"purpose_mismatch":        codeScopeError,
-	"unknown_capability":      codeNotFound,
-	"not_found":               codeNotFound,
-	"internal_error":          codeInternalError,
-	"unavailable":             codeInternalError,
-	"concurrent_lock":         codeInternalError,
+	"authentication_required":          codeAuthError,
+	"invalid_token":                    codeAuthError,
+	"token_expired":                    codeAuthError,
+	"scope_insufficient":               codeScopeError,
+	"budget_exceeded":                  codeScopeError,
+	"budget_currency_mismatch":         codeScopeError,
+	"budget_not_enforceable":           codeScopeError,
+	"binding_missing":                  codeScopeError,
+	"binding_stale":                    codeScopeError,
+	"control_requirement_unsatisfied":  codeScopeError,
+	"purpose_mismatch":                 codeScopeError,
+	"scope_escalation":                 codeScopeError,
+	"unknown_capability":               codeNotFound,
+	"not_found":                        codeNotFound,
+	"internal_error":                   codeInternalError,
+	"unavailable":                      codeInternalError,
+	"concurrent_lock":                  codeInternalError,
 }
 
 // validMethods is the set of supported ANIP JSON-RPC methods.
@@ -338,6 +344,13 @@ func handleTokensIssue(s *Server, params map[string]any) (any, error) {
 	if v, ok := params["caller_class"].(string); ok {
 		req.CallerClass = v
 	}
+	if budgetRaw, ok := params["budget"].(map[string]any); ok {
+		currency, _ := budgetRaw["currency"].(string)
+		maxAmount, _ := budgetRaw["max_amount"].(float64)
+		if currency != "" && maxAmount > 0 {
+			req.Budget = &core.Budget{Currency: currency, MaxAmount: maxAmount}
+		}
+	}
 
 	resp, err := s.svc.IssueToken(principal, req)
 	if err != nil {
@@ -387,6 +400,16 @@ func handleInvoke(s *Server, params map[string]any) (any, error) {
 	parentInvID, _ := params["parent_invocation_id"].(string)
 	stream, _ := params["stream"].(bool)
 
+	// Extract budget from params.
+	var budget *core.Budget
+	if budgetRaw, ok := params["budget"].(map[string]any); ok {
+		currency, _ := budgetRaw["currency"].(string)
+		maxAmount, _ := budgetRaw["max_amount"].(float64)
+		if currency != "" && maxAmount > 0 {
+			budget = &core.Budget{Currency: currency, MaxAmount: maxAmount}
+		}
+	}
+
 	if stream {
 		// Streaming invocation — collect progress notifications then return final result.
 		sr, err := s.svc.InvokeStream(capability, token, parameters, service.InvokeOpts{
@@ -394,6 +417,7 @@ func handleInvoke(s *Server, params map[string]any) (any, error) {
 			TaskID:             taskID,
 			ParentInvocationID: parentInvID,
 			Stream:             true,
+			Budget:             budget,
 		})
 		if err != nil {
 			return nil, err
@@ -422,6 +446,7 @@ func handleInvoke(s *Server, params map[string]any) (any, error) {
 		ClientReferenceID:  clientRefID,
 		TaskID:             taskID,
 		ParentInvocationID: parentInvID,
+		Budget:             budget,
 	})
 	if err != nil {
 		return nil, err

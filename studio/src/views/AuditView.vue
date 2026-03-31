@@ -238,6 +238,17 @@ function formatTimestamp(ts: string): string {
                 <tr v-if="expandedEntry === idx" class="detail-row">
                   <td :colspan="9">
                     <div class="entry-detail">
+                      <div v-if="entry.budget_context" class="audit-context-row">
+                        <span class="context-label">Budget:</span>
+                        <span class="context-value">{{ entry.budget_context.budget_currency }} {{ entry.budget_context.budget_max }}</span>
+                        <span :class="entry.budget_context.within_budget ? 'status-ok' : 'status-error'">
+                          {{ entry.budget_context.within_budget ? '\u2713' : '\u2717' }}
+                        </span>
+                      </div>
+                      <div v-if="entry.binding_context" class="audit-context-row">
+                        <span class="context-label">Bindings:</span>
+                        <span class="context-value">{{ entry.binding_context.bindings_provided?.join(', ') || 'none' }} / {{ entry.binding_context.bindings_required?.join(', ') }}</span>
+                      </div>
                       <JsonPanel :data="entry" title="Entry Detail" :collapsed="false" />
                     </div>
                   </td>
@@ -531,6 +542,38 @@ function formatTimestamp(ts: string): string {
 
 .entry-detail {
   padding: 8px 12px 12px;
+}
+
+/* Audit context rows */
+.audit-context-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.context-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.context-value {
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--text-primary);
+}
+
+.status-ok {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--success);
+}
+
+.status-error {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--error);
 }
 
 /* Empty state */

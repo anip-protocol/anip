@@ -23,6 +23,7 @@ from typing import Any
 
 from anip_core import (
     ANIPFailure,
+    Budget,
     ConcurrentBranches,
     DelegationConstraints,
     DelegationToken,
@@ -61,6 +62,7 @@ class DelegationEngine:
         purpose_parameters: dict[str, Any] | None = None,
         ttl_hours: int = 2,
         max_delegation_depth: int = 3,
+        budget: Budget | None = None,
     ) -> tuple[DelegationToken, str]:
         """Issue a root delegation token.
 
@@ -79,6 +81,7 @@ class DelegationEngine:
             purpose_parameters=purpose_parameters,
             ttl_hours=ttl_hours,
             max_delegation_depth=max_delegation_depth,
+            budget=budget,
         )
 
     async def delegate(
@@ -90,6 +93,7 @@ class DelegationEngine:
         capability: str,
         purpose_parameters: dict[str, Any] | None = None,
         ttl_hours: int = 2,
+        budget: Budget | None = None,
     ) -> tuple[DelegationToken, str] | ANIPFailure:
         """Create a child delegation token from *parent_token*.
 
@@ -143,12 +147,12 @@ class DelegationEngine:
                             ),
                             retry=False,
                         )
-                    child_budget = float(child_scope.split(":max_$")[1])
-                    if child_budget > parent_budget:
+                    child_budget_amt = float(child_scope.split(":max_$")[1])
+                    if child_budget_amt > parent_budget:
                         return ANIPFailure(
                             type="scope_escalation",
                             detail=(
-                                f"child budget ${child_budget} exceeds parent "
+                                f"child budget ${child_budget_amt} exceeds parent "
                                 f"budget ${parent_budget} for scope '{child_base}'"
                             ),
                             resolution=Resolution(
@@ -158,6 +162,35 @@ class DelegationEngine:
                             ),
                             retry=False,
                         )
+
+        # Enforce budget narrowing on constraints-level budget
+        parent_constraints = parent_token.constraints
+        if parent_constraints and parent_constraints.budget:
+            if budget is None:
+                # Child inherits parent budget
+                budget = parent_constraints.budget
+            elif budget.currency != parent_constraints.budget.currency:
+                return ANIPFailure(
+                    type="budget_currency_mismatch",
+                    detail=f"Child budget currency {budget.currency} does not match parent {parent_constraints.budget.currency}",
+                    resolution=Resolution(
+                        action="match_parent_currency",
+                        requires=f"budget currency must be {parent_constraints.budget.currency}",
+                        grantable_by=root_principal,
+                    ),
+                    retry=False,
+                )
+            elif budget.max_amount > parent_constraints.budget.max_amount:
+                return ANIPFailure(
+                    type="budget_exceeded",
+                    detail=f"Child budget ${budget.max_amount} exceeds parent budget ${parent_constraints.budget.max_amount}",
+                    resolution=Resolution(
+                        action="narrow_budget",
+                        requires=f"budget must be <= ${parent_constraints.budget.max_amount}",
+                        grantable_by=root_principal,
+                    ),
+                    retry=False,
+                )
 
         return await self._create_token(
             issuer=parent_token.subject,
@@ -172,6 +205,7 @@ class DelegationEngine:
                 parent_token.constraints.max_delegation_depth,
                 parent_token.constraints.max_delegation_depth,
             ),
+            budget=budget,
         )
 
     async def validate_delegation(
@@ -581,6 +615,7 @@ class DelegationEngine:
         purpose_parameters: dict[str, Any] | None,
         ttl_hours: int,
         max_delegation_depth: int,
+        budget: Budget | None = None,
     ) -> tuple[DelegationToken, str]:
         """Internal token creation shared by ``issue_root_token`` and ``delegate``."""
         token_id = f"anip-{uuid.uuid4().hex[:12]}"
@@ -621,6 +656,7 @@ class DelegationEngine:
             constraints=DelegationConstraints(
                 max_delegation_depth=max_delegation_depth,
                 concurrent_branches=concurrent,
+                budget=budget,
             ),
             root_principal=root_principal,
         )

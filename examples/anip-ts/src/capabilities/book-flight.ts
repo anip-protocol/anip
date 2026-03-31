@@ -11,13 +11,14 @@ const DECLARATION: CapabilityDeclaration = {
     { name: "flight_number", type: "string", required: true, default: null, description: "Flight to book" },
     { name: "date", type: "date", required: true, default: null, description: "Travel date (YYYY-MM-DD)" },
     { name: "passengers", type: "integer", required: false, default: 1, description: "Number of passengers" },
+    { name: "quote_id", type: "object", required: true, default: null, description: "Priced quote from search_flights" },
   ],
   output: { type: "booking_confirmation", fields: ["booking_id", "flight_number", "departure_time", "total_cost"] },
   side_effect: { type: "irreversible", rollback_window: "none" },
   minimum_scope: ["travel.book"],
   cost: {
     certainty: "estimated",
-    financial: { range_min: 280, range_max: 500, typical: 420, currency: "USD" },
+    financial: { currency: "USD", amount: null, range_min: 280, range_max: 500, typical: 420, upper_bound: null },
     determined_by: "search_flights",
     factors: null,
     compute: { latency_p50: "2s", tokens: 1500 },
@@ -27,6 +28,15 @@ const DECLARATION: CapabilityDeclaration = {
   composes_with: [],
   session: { type: "stateless" },
   response_modes: ["unary"],
+  requires_binding: [
+    {
+      type: "quote",
+      field: "quote_id",
+      source_capability: "search_flights",
+      max_age: "PT15M",
+    },
+  ],
+  control_requirements: [],
   observability: {
     logged: true,
     retention: "P90D",

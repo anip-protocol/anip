@@ -39,9 +39,16 @@ export type Purpose = z.infer<typeof Purpose>;
 export const ConcurrentBranches = z.enum(["allowed", "exclusive"]);
 export type ConcurrentBranches = z.infer<typeof ConcurrentBranches>;
 
+export const Budget = z.object({
+  currency: z.string(),
+  max_amount: z.number(),
+});
+export type Budget = z.infer<typeof Budget>;
+
 export const DelegationConstraints = z.object({
   max_delegation_depth: z.number().int().default(3),
   concurrent_branches: ConcurrentBranches.default("allowed"),
+  budget: Budget.nullable().default(null),
 });
 export type DelegationConstraints = z.infer<typeof DelegationConstraints>;
 
@@ -84,9 +91,19 @@ export type CapabilityOutput = z.infer<typeof CapabilityOutput>;
 export const CostCertainty = z.enum(["fixed", "estimated", "dynamic"]);
 export type CostCertainty = z.infer<typeof CostCertainty>;
 
+export const FinancialCost = z.object({
+  currency: z.string(),
+  amount: z.number().nullable().default(null),        // fixed costs
+  range_min: z.number().nullable().default(null),      // estimated costs
+  range_max: z.number().nullable().default(null),      // estimated costs
+  typical: z.number().nullable().default(null),        // estimated costs
+  upper_bound: z.number().nullable().default(null),    // dynamic costs
+});
+export type FinancialCost = z.infer<typeof FinancialCost>;
+
 export const Cost = z.object({
   certainty: CostCertainty.default("fixed"),
-  financial: z.record(z.any()).nullable().default(null),
+  financial: FinancialCost.nullable().default(null),
   determined_by: z.string().nullable().default(null),
   factors: z.array(z.string()).nullable().default(null),
   compute: z.record(z.any()).nullable().default(null),
@@ -95,7 +112,7 @@ export const Cost = z.object({
 export type Cost = z.infer<typeof Cost>;
 
 export const CostActual = z.object({
-  financial: z.record(z.any()),
+  financial: FinancialCost,
   variance_from_estimate: z.string().nullable().default(null),
 });
 export type CostActual = z.infer<typeof CostActual>;
@@ -131,6 +148,32 @@ export type ObservabilityContract = z.infer<typeof ObservabilityContract>;
 export const ResponseMode = z.enum(["unary", "streaming"]);
 export type ResponseMode = z.infer<typeof ResponseMode>;
 
+export const BindingRequirement = z.object({
+  type: z.string(),        // "quote", "offer", "price_lock"
+  field: z.string(),       // which param must carry the reference
+  source_capability: z.string().nullable().default(null),  // advisory
+  max_age: z.string().nullable().default(null),            // ISO 8601 duration
+});
+export type BindingRequirement = z.infer<typeof BindingRequirement>;
+
+export const ControlRequirement = z.object({
+  type: z.string(),        // "cost_ceiling", "bound_reference", "freshness_window", "stronger_delegation_required"
+  enforcement: z.string().default("reject"),  // v0.13: "reject" only
+  field: z.string().nullable().default(null),
+  max_age: z.string().nullable().default(null),
+});
+export type ControlRequirement = z.infer<typeof ControlRequirement>;
+
+export const BudgetContext = z.object({
+  budget_max: z.number(),
+  budget_currency: z.string(),
+  cost_check_amount: z.number().nullable().default(null),
+  cost_certainty: z.string().nullable().default(null),
+  cost_actual: z.number().nullable().default(null),
+  within_budget: z.boolean().nullable().default(null),
+});
+export type BudgetContext = z.infer<typeof BudgetContext>;
+
 export const CapabilityDeclaration = z.object({
   name: z.string(),
   description: z.string(),
@@ -145,6 +188,8 @@ export const CapabilityDeclaration = z.object({
   session: SessionInfo.default({ type: "stateless" }),
   observability: ObservabilityContract.nullable().default(null),
   response_modes: z.array(ResponseMode).min(1).default(["unary"]),
+  requires_binding: z.array(BindingRequirement).default([]),
+  control_requirements: z.array(ControlRequirement).default([]),
 });
 export type CapabilityDeclaration = z.infer<typeof CapabilityDeclaration>;
 
@@ -163,6 +208,7 @@ export const RestrictedCapability = z.object({
   capability: z.string(),
   reason: z.string(),
   grantable_by: z.string(),
+  unmet_token_requirements: z.array(z.string()).default([]),
 });
 export type RestrictedCapability = z.infer<typeof RestrictedCapability>;
 
@@ -337,7 +383,7 @@ export const ServiceIdentity = z.object({
 export type ServiceIdentity = z.infer<typeof ServiceIdentity>;
 
 export const ANIPManifest = z.object({
-  protocol: z.string().default("anip/0.11"),
+  protocol: z.string().default("anip/0.13"),
   profile: ProfileVersions,
   capabilities: z.record(CapabilityDeclaration),
   manifest_metadata: ManifestMetadata.nullable().default(null),
@@ -377,6 +423,7 @@ export const InvokeResponse = z.object({
   failure: ANIPFailure.nullable().default(null),
   session: z.record(z.any()).nullable().default(null),
   stream_summary: StreamSummary.nullable().default(null),
+  budget_context: BudgetContext.nullable().default(null),
 });
 export type InvokeResponse = z.infer<typeof InvokeResponse>;
 

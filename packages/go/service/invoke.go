@@ -3,12 +3,85 @@ package service
 import (
 	"errors"
 	"fmt"
+	"regexp"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/anip-protocol/anip/packages/go/core"
 	"github.com/anip-protocol/anip/packages/go/server"
 )
+
+// parseISO8601Duration parses a simple ISO 8601 duration string like PT15M, PT1H30M, PT30S.
+func parseISO8601Duration(d string) time.Duration {
+	re := regexp.MustCompile(`PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?`)
+	m := re.FindStringSubmatch(d)
+	if m == nil {
+		return 0
+	}
+	var total time.Duration
+	if m[1] != "" {
+		h, _ := strconv.Atoi(m[1])
+		total += time.Duration(h) * time.Hour
+	}
+	if m[2] != "" {
+		mins, _ := strconv.Atoi(m[2])
+		total += time.Duration(mins) * time.Minute
+	}
+	if m[3] != "" {
+		s, _ := strconv.Atoi(m[3])
+		total += time.Duration(s) * time.Second
+	}
+	return total
+}
+
+// resolveBoundPrice extracts a bound price from params using capability's binding declarations.
+func resolveBoundPrice(bindings []core.BindingRequirement, params map[string]any) *float64 {
+	for _, binding := range bindings {
+		if v, ok := params[binding.Field]; ok && v != nil {
+			if m, ok := v.(map[string]any); ok {
+				if price, ok := m["price"]; ok {
+					switch p := price.(type) {
+					case float64:
+						return &p
+					case int:
+						f := float64(p)
+						return &f
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// resolveBindingAge determines the age of a binding value.
+// Returns -1 if age cannot be determined.
+func resolveBindingAge(bindingValue any) time.Duration {
+	now := time.Now().Unix()
+	if m, ok := bindingValue.(map[string]any); ok {
+		if issuedAt, ok := m["issued_at"]; ok {
+			switch v := issuedAt.(type) {
+			case float64:
+				return time.Duration(now-int64(v)) * time.Second
+			case int64:
+				return time.Duration(now-v) * time.Second
+			}
+		}
+	}
+	if s, ok := bindingValue.(string); ok {
+		// Try to extract unix timestamp from format like "qt-hexhex-1234567890"
+		re := regexp.MustCompile(`-(\d{10,})$`)
+		m := re.FindStringSubmatch(s)
+		if m != nil {
+			ts, err := strconv.ParseInt(m[1], 10, 64)
+			if err == nil && ts > 1000000000 {
+				return time.Duration(now-ts) * time.Second
+			}
+		}
+	}
+	return -1
+}
 
 // validateInputs checks that required inputs are present and basic types match.
 func validateInputs(decl *core.CapabilityDeclaration, params map[string]any) error {
@@ -267,6 +340,254 @@ func (s *Service) Invoke(
 		callHook(func() { s.hooks.OnScopeValidation(capName, true) })
 	}
 
+	// --- Budget, binding, and control requirement enforcement (v0.13) ---
+
+	// Parse invocation-level budget hint.
+	var requestBudget *core.Budget
+	if opts.Budget != nil {
+		requestBudget = opts.Budget
+	}
+
+	// Determine effective budget (token is ceiling, invocation hint can only narrow).
+	var effectiveBudget *core.Budget
+	if token.Constraints.Budget != nil {
+		effectiveBudget = token.Constraints.Budget
+		if requestBudget != nil {
+			if requestBudget.Currency != effectiveBudget.Currency {
+				failure := map[string]any{
+					"type":   core.FailureBudgetCurrencyMismatch,
+					"detail": fmt.Sprintf("Invocation budget is in %s but token budget is in %s", requestBudget.Currency, effectiveBudget.Currency),
+				}
+				effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
+				failure = RedactFailure(failure, effectiveLevel)
+				return map[string]any{
+					"success":              false,
+					"failure":              failure,
+					"invocation_id":        invocationID,
+					"client_reference_id":  opts.ClientReferenceID,
+					"task_id":              effectiveTaskID,
+					"parent_invocation_id": opts.ParentInvocationID,
+				}, nil
+			}
+			narrowedAmount := effectiveBudget.MaxAmount
+			if requestBudget.MaxAmount < narrowedAmount {
+				narrowedAmount = requestBudget.MaxAmount
+			}
+			effectiveBudget = &core.Budget{
+				Currency:  effectiveBudget.Currency,
+				MaxAmount: narrowedAmount,
+			}
+		}
+	} else if requestBudget != nil {
+		effectiveBudget = requestBudget
+	}
+
+	// Budget enforcement against declared cost.
+	var checkAmount *float64
+	if effectiveBudget != nil {
+		decl := capDef.Declaration
+		if decl.Cost != nil && decl.Cost.Financial != nil {
+			if decl.Cost.Financial.Currency != effectiveBudget.Currency {
+				failure := map[string]any{
+					"type":   core.FailureBudgetCurrencyMismatch,
+					"detail": fmt.Sprintf("Token budget is in %s but capability cost is in %s", effectiveBudget.Currency, decl.Cost.Financial.Currency),
+				}
+				effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
+				failure = RedactFailure(failure, effectiveLevel)
+				return map[string]any{
+					"success":              false,
+					"failure":              failure,
+					"invocation_id":        invocationID,
+					"client_reference_id":  opts.ClientReferenceID,
+					"task_id":              effectiveTaskID,
+					"parent_invocation_id": opts.ParentInvocationID,
+				}, nil
+			}
+
+			switch decl.Cost.Certainty {
+			case "fixed":
+				checkAmount = decl.Cost.Financial.Amount
+			case "estimated":
+				if len(decl.RequiresBinding) > 0 {
+					checkAmount = resolveBoundPrice(decl.RequiresBinding, params)
+					if checkAmount == nil {
+						// Binding exists but no resolvable price — budget cannot be enforced.
+						failure := map[string]any{
+							"type":   core.FailureBudgetNotEnforceable,
+							"detail": fmt.Sprintf("Capability %s has estimated cost with requires_binding but the provided binding does not carry a resolvable price", capName),
+							"resolution": map[string]any{
+								"action":   "provide_priced_binding",
+								"requires": "binding value must include a 'price' field or the service must resolve binding to a concrete price",
+							},
+							"retry": false,
+						}
+						effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
+						failure = RedactFailure(failure, effectiveLevel)
+						return map[string]any{
+							"success":              false,
+							"failure":              failure,
+							"invocation_id":        invocationID,
+							"client_reference_id":  opts.ClientReferenceID,
+							"task_id":              effectiveTaskID,
+							"parent_invocation_id": opts.ParentInvocationID,
+						}, nil
+					}
+				} else {
+					failure := map[string]any{
+						"type":   core.FailureBudgetNotEnforceable,
+						"detail": fmt.Sprintf("Capability %s has estimated cost but no requires_binding — budget cannot be enforced", capName),
+					}
+					effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
+					failure = RedactFailure(failure, effectiveLevel)
+					return map[string]any{
+						"success":              false,
+						"failure":              failure,
+						"invocation_id":        invocationID,
+						"client_reference_id":  opts.ClientReferenceID,
+						"task_id":              effectiveTaskID,
+						"parent_invocation_id": opts.ParentInvocationID,
+					}, nil
+				}
+			case "dynamic":
+				checkAmount = decl.Cost.Financial.UpperBound
+			}
+
+			if checkAmount != nil && *checkAmount > effectiveBudget.MaxAmount {
+				failure := map[string]any{
+					"type":   core.FailureBudgetExceeded,
+					"detail": fmt.Sprintf("Cost $%v exceeds budget $%v", *checkAmount, effectiveBudget.MaxAmount),
+				}
+				effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
+				failure = RedactFailure(failure, effectiveLevel)
+				resp := map[string]any{
+					"success":              false,
+					"failure":              failure,
+					"invocation_id":        invocationID,
+					"client_reference_id":  opts.ClientReferenceID,
+					"task_id":              effectiveTaskID,
+					"parent_invocation_id": opts.ParentInvocationID,
+					"budget_context": map[string]any{
+						"budget_max":        effectiveBudget.MaxAmount,
+						"budget_currency":   effectiveBudget.Currency,
+						"cost_check_amount": *checkAmount,
+						"cost_certainty":    decl.Cost.Certainty,
+					},
+				}
+				return resp, nil
+			}
+		}
+	}
+
+	// Binding enforcement.
+	for _, binding := range capDef.Declaration.RequiresBinding {
+		val, exists := params[binding.Field]
+		if !exists || val == nil {
+			sourceDesc := binding.SourceCapability
+			if sourceDesc == "" {
+				sourceDesc = "source capability"
+			}
+			failure := map[string]any{
+				"type":   core.FailureBindingMissing,
+				"detail": fmt.Sprintf("Capability %s requires '%s' (type: %s)", capName, binding.Field, binding.Type),
+				"resolution": map[string]any{
+					"action":   "obtain_binding",
+					"requires": fmt.Sprintf("invoke %s to obtain a %s", sourceDesc, binding.Field),
+				},
+			}
+			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
+			failure = RedactFailure(failure, effectiveLevel)
+			return map[string]any{
+				"success":              false,
+				"failure":              failure,
+				"invocation_id":        invocationID,
+				"client_reference_id":  opts.ClientReferenceID,
+				"task_id":              effectiveTaskID,
+				"parent_invocation_id": opts.ParentInvocationID,
+			}, nil
+		}
+		if binding.MaxAge != "" {
+			age := resolveBindingAge(val)
+			if age >= 0 {
+				maxAge := parseISO8601Duration(binding.MaxAge)
+				if maxAge > 0 && age > maxAge {
+					sourceDesc := binding.SourceCapability
+					if sourceDesc == "" {
+						sourceDesc = "source capability"
+					}
+					failure := map[string]any{
+						"type":   core.FailureBindingStale,
+						"detail": fmt.Sprintf("Binding '%s' has exceeded max_age of %s", binding.Field, binding.MaxAge),
+						"resolution": map[string]any{
+							"action":   "refresh_binding",
+							"requires": fmt.Sprintf("invoke %s again for a fresh %s", sourceDesc, binding.Field),
+						},
+					}
+					effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
+					failure = RedactFailure(failure, effectiveLevel)
+					return map[string]any{
+						"success":              false,
+						"failure":              failure,
+						"invocation_id":        invocationID,
+						"client_reference_id":  opts.ClientReferenceID,
+						"task_id":              effectiveTaskID,
+						"parent_invocation_id": opts.ParentInvocationID,
+					}, nil
+				}
+			}
+		}
+	}
+
+	// Control requirement enforcement (reject only — no warn in v0.13).
+	for _, req := range capDef.Declaration.ControlRequirements {
+		satisfied := true
+		switch req.Type {
+		case "cost_ceiling":
+			satisfied = effectiveBudget != nil
+		case "bound_reference":
+			if req.Field != "" {
+				val, exists := params[req.Field]
+				satisfied = exists && val != nil
+			} else {
+				satisfied = false
+			}
+		case "freshness_window":
+			if req.Field != "" {
+				val, exists := params[req.Field]
+				if exists && val != nil {
+					age := resolveBindingAge(val)
+					if age >= 0 && req.MaxAge != "" {
+						maxAge := parseISO8601Duration(req.MaxAge)
+						satisfied = maxAge == 0 || age <= maxAge
+					}
+				} else {
+					satisfied = false
+				}
+			} else {
+				satisfied = false
+			}
+		case "stronger_delegation_required":
+			satisfied = token.Purpose.Capability == capName
+		}
+
+		if !satisfied {
+			failure := map[string]any{
+				"type":                      core.FailureControlRequirementUnsatisfied,
+				"detail":                    fmt.Sprintf("Capability %s requires %s", capName, req.Type),
+				"unsatisfied_requirements":  []string{req.Type},
+			}
+			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
+			failure = RedactFailure(failure, effectiveLevel)
+			return map[string]any{
+				"success":              false,
+				"failure":              failure,
+				"invocation_id":        invocationID,
+				"client_reference_id":  opts.ClientReferenceID,
+				"task_id":              effectiveTaskID,
+				"parent_invocation_id": opts.ParentInvocationID,
+			}, nil
+		}
+	}
+
 	// 4. Build invocation context.
 	rootPrincipal := token.RootPrincipal
 	if rootPrincipal == "" {
@@ -356,6 +677,31 @@ func (s *Service) Invoke(
 	}
 	if costActual != nil {
 		resp["cost_actual"] = costActual
+	}
+
+	// Budget context in response (v0.13).
+	if effectiveBudget != nil {
+		var costActualAmount *float64
+		if costActual != nil && costActual.Financial != nil && costActual.Financial.Amount != nil {
+			costActualAmount = costActual.Financial.Amount
+		}
+		var costCertainty string
+		if capDef.Declaration.Cost != nil {
+			costCertainty = capDef.Declaration.Cost.Certainty
+		}
+		budgetCtx := map[string]any{
+			"budget_max":      effectiveBudget.MaxAmount,
+			"budget_currency": effectiveBudget.Currency,
+			"cost_certainty":  costCertainty,
+			"within_budget":   true,
+		}
+		if checkAmount != nil {
+			budgetCtx["cost_check_amount"] = *checkAmount
+		}
+		if costActualAmount != nil {
+			budgetCtx["cost_actual"] = *costActualAmount
+		}
+		resp["budget_context"] = budgetCtx
 	}
 
 	invokeSuccess = true

@@ -253,6 +253,7 @@ export class AnipStdioServer {
       "parent_token",
       "ttl_hours",
       "caller_class",
+      "budget",
     ]) {
       if (key in params) {
         body[key] = params[key];
@@ -288,6 +289,7 @@ export class AnipStdioServer {
     const parentInvocationId =
       (params.parent_invocation_id as string | undefined) ?? null;
     const stream = params.stream === true;
+    const budget = (params.budget as Record<string, unknown> | undefined) ?? null;
 
     if (stream) {
       const notifications: JsonRpcNotification[] = [];
@@ -305,6 +307,7 @@ export class AnipStdioServer {
         taskId,
         parentInvocationId,
         stream: true,
+        budget,
         progressSink,
       });
       return [notifications, result];
@@ -314,6 +317,7 @@ export class AnipStdioServer {
       clientReferenceId,
       taskId,
       parentInvocationId,
+      budget,
     });
   }
 

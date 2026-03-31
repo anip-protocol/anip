@@ -66,6 +66,7 @@ export async function mountAnip(
     const clientReferenceId = body.client_reference_id ?? null;
     const taskId = body.task_id ?? null;
     const parentInvocationId = body.parent_invocation_id ?? null;
+    const budget = body.budget ?? null;
 
     if (!body.stream) {
       // Unary mode — existing behavior
@@ -73,6 +74,7 @@ export async function mountAnip(
         clientReferenceId,
         taskId,
         parentInvocationId,
+        budget,
       });
       if (!result.success) {
         const failure = result.failure as Record<string, unknown>;
@@ -90,6 +92,7 @@ export async function mountAnip(
         taskId,
         parentInvocationId,
         stream: true,
+        budget,
       });
       const failure = result.failure as Record<string, unknown>;
       return c.json(result, failureStatus(failure?.type as string));
@@ -107,6 +110,7 @@ export async function mountAnip(
           taskId,
           parentInvocationId,
           stream: true,
+          budget,
           progressSink: async (event) => {
             const eventData = { ...event, timestamp: new Date().toISOString() };
             await writer.write(
@@ -244,6 +248,12 @@ function failureStatus(type?: string): ContentfulStatusCode {
     token_expired: 401,
     scope_insufficient: 403,
     insufficient_authority: 403,
+    budget_exceeded: 403,
+    budget_currency_mismatch: 400,
+    budget_not_enforceable: 400,
+    binding_missing: 400,
+    binding_stale: 400,
+    control_requirement_unsatisfied: 403,
     purpose_mismatch: 403,
     unknown_capability: 404,
     not_found: 404,

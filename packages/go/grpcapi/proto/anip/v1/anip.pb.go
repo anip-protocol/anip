@@ -6,7 +6,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.34.1
-// source: proto/anip/v1/anip.proto
+// source: anip/v1/anip.proto
 
 package v1
 
@@ -39,7 +39,7 @@ type AnipFailure struct {
 
 func (x *AnipFailure) Reset() {
 	*x = AnipFailure{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[0]
+	mi := &file_anip_v1_anip_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -51,7 +51,7 @@ func (x *AnipFailure) String() string {
 func (*AnipFailure) ProtoMessage() {}
 
 func (x *AnipFailure) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[0]
+	mi := &file_anip_v1_anip_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -64,7 +64,7 @@ func (x *AnipFailure) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnipFailure.ProtoReflect.Descriptor instead.
 func (*AnipFailure) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{0}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *AnipFailure) GetType() string {
@@ -95,6 +95,146 @@ func (x *AnipFailure) GetRetry() bool {
 	return false
 }
 
+// Budget represents an enforceable financial budget constraint.
+// Carried in delegation token constraints and token issuance requests.
+type Budget struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Currency      string                 `protobuf:"bytes,1,opt,name=currency,proto3" json:"currency,omitempty"`                      // ISO 4217 currency code (e.g., "USD", "EUR")
+	MaxAmount     float64                `protobuf:"fixed64,2,opt,name=max_amount,json=maxAmount,proto3" json:"max_amount,omitempty"` // Maximum amount the delegation authorizes
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Budget) Reset() {
+	*x = Budget{}
+	mi := &file_anip_v1_anip_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Budget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Budget) ProtoMessage() {}
+
+func (x *Budget) ProtoReflect() protoreflect.Message {
+	mi := &file_anip_v1_anip_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Budget.ProtoReflect.Descriptor instead.
+func (*Budget) Descriptor() ([]byte, []int) {
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *Budget) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
+func (x *Budget) GetMaxAmount() float64 {
+	if x != nil {
+		return x.MaxAmount
+	}
+	return 0
+}
+
+// BudgetContext provides transparency into budget enforcement decisions.
+// Present in invoke responses (both success and failure) when a budget was evaluated.
+type BudgetContext struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	BudgetMax       float64                `protobuf:"fixed64,1,opt,name=budget_max,json=budgetMax,proto3" json:"budget_max,omitempty"`                     // The max_amount from the token's budget constraint
+	BudgetCurrency  string                 `protobuf:"bytes,2,opt,name=budget_currency,json=budgetCurrency,proto3" json:"budget_currency,omitempty"`        // The currency from the token's budget constraint
+	CostCheckAmount float64                `protobuf:"fixed64,3,opt,name=cost_check_amount,json=costCheckAmount,proto3" json:"cost_check_amount,omitempty"` // The amount used for the pre-execution budget check
+	CostCertainty   string                 `protobuf:"bytes,4,opt,name=cost_certainty,json=costCertainty,proto3" json:"cost_certainty,omitempty"`           // The certainty level used (fixed, estimated, dynamic)
+	CostActual      float64                `protobuf:"fixed64,5,opt,name=cost_actual,json=costActual,proto3" json:"cost_actual,omitempty"`                  // Actual cost after execution (0 when not yet known)
+	WithinBudget    bool                   `protobuf:"varint,6,opt,name=within_budget,json=withinBudget,proto3" json:"within_budget,omitempty"`             // Whether the actual cost was within budget
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *BudgetContext) Reset() {
+	*x = BudgetContext{}
+	mi := &file_anip_v1_anip_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BudgetContext) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BudgetContext) ProtoMessage() {}
+
+func (x *BudgetContext) ProtoReflect() protoreflect.Message {
+	mi := &file_anip_v1_anip_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BudgetContext.ProtoReflect.Descriptor instead.
+func (*BudgetContext) Descriptor() ([]byte, []int) {
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *BudgetContext) GetBudgetMax() float64 {
+	if x != nil {
+		return x.BudgetMax
+	}
+	return 0
+}
+
+func (x *BudgetContext) GetBudgetCurrency() string {
+	if x != nil {
+		return x.BudgetCurrency
+	}
+	return ""
+}
+
+func (x *BudgetContext) GetCostCheckAmount() float64 {
+	if x != nil {
+		return x.CostCheckAmount
+	}
+	return 0
+}
+
+func (x *BudgetContext) GetCostCertainty() string {
+	if x != nil {
+		return x.CostCertainty
+	}
+	return ""
+}
+
+func (x *BudgetContext) GetCostActual() float64 {
+	if x != nil {
+		return x.CostActual
+	}
+	return 0
+}
+
+func (x *BudgetContext) GetWithinBudget() bool {
+	if x != nil {
+		return x.WithinBudget
+	}
+	return false
+}
+
 type DiscoveryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -103,7 +243,7 @@ type DiscoveryRequest struct {
 
 func (x *DiscoveryRequest) Reset() {
 	*x = DiscoveryRequest{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[1]
+	mi := &file_anip_v1_anip_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -115,7 +255,7 @@ func (x *DiscoveryRequest) String() string {
 func (*DiscoveryRequest) ProtoMessage() {}
 
 func (x *DiscoveryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[1]
+	mi := &file_anip_v1_anip_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -128,7 +268,7 @@ func (x *DiscoveryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoveryRequest.ProtoReflect.Descriptor instead.
 func (*DiscoveryRequest) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{1}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{3}
 }
 
 type DiscoveryResponse struct {
@@ -140,7 +280,7 @@ type DiscoveryResponse struct {
 
 func (x *DiscoveryResponse) Reset() {
 	*x = DiscoveryResponse{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[2]
+	mi := &file_anip_v1_anip_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -152,7 +292,7 @@ func (x *DiscoveryResponse) String() string {
 func (*DiscoveryResponse) ProtoMessage() {}
 
 func (x *DiscoveryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[2]
+	mi := &file_anip_v1_anip_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -165,7 +305,7 @@ func (x *DiscoveryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoveryResponse.ProtoReflect.Descriptor instead.
 func (*DiscoveryResponse) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{2}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *DiscoveryResponse) GetJson() string {
@@ -183,7 +323,7 @@ type ManifestRequest struct {
 
 func (x *ManifestRequest) Reset() {
 	*x = ManifestRequest{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[3]
+	mi := &file_anip_v1_anip_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -195,7 +335,7 @@ func (x *ManifestRequest) String() string {
 func (*ManifestRequest) ProtoMessage() {}
 
 func (x *ManifestRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[3]
+	mi := &file_anip_v1_anip_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -208,7 +348,7 @@ func (x *ManifestRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManifestRequest.ProtoReflect.Descriptor instead.
 func (*ManifestRequest) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{3}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{5}
 }
 
 type ManifestResponse struct {
@@ -221,7 +361,7 @@ type ManifestResponse struct {
 
 func (x *ManifestResponse) Reset() {
 	*x = ManifestResponse{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[4]
+	mi := &file_anip_v1_anip_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -233,7 +373,7 @@ func (x *ManifestResponse) String() string {
 func (*ManifestResponse) ProtoMessage() {}
 
 func (x *ManifestResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[4]
+	mi := &file_anip_v1_anip_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -246,7 +386,7 @@ func (x *ManifestResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManifestResponse.ProtoReflect.Descriptor instead.
 func (*ManifestResponse) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{4}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ManifestResponse) GetManifestJson() string {
@@ -271,7 +411,7 @@ type JwksRequest struct {
 
 func (x *JwksRequest) Reset() {
 	*x = JwksRequest{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[5]
+	mi := &file_anip_v1_anip_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -283,7 +423,7 @@ func (x *JwksRequest) String() string {
 func (*JwksRequest) ProtoMessage() {}
 
 func (x *JwksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[5]
+	mi := &file_anip_v1_anip_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -296,7 +436,7 @@ func (x *JwksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JwksRequest.ProtoReflect.Descriptor instead.
 func (*JwksRequest) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{5}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{7}
 }
 
 type JwksResponse struct {
@@ -308,7 +448,7 @@ type JwksResponse struct {
 
 func (x *JwksResponse) Reset() {
 	*x = JwksResponse{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[6]
+	mi := &file_anip_v1_anip_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -320,7 +460,7 @@ func (x *JwksResponse) String() string {
 func (*JwksResponse) ProtoMessage() {}
 
 func (x *JwksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[6]
+	mi := &file_anip_v1_anip_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -333,7 +473,7 @@ func (x *JwksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JwksResponse.ProtoReflect.Descriptor instead.
 func (*JwksResponse) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{6}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *JwksResponse) GetJson() string {
@@ -352,13 +492,14 @@ type IssueTokenRequest struct {
 	ParentToken           string                 `protobuf:"bytes,5,opt,name=parent_token,json=parentToken,proto3" json:"parent_token,omitempty"`                                 // Optional, JWT string for sub-delegation
 	TtlHours              int32                  `protobuf:"varint,6,opt,name=ttl_hours,json=ttlHours,proto3" json:"ttl_hours,omitempty"`
 	CallerClass           string                 `protobuf:"bytes,7,opt,name=caller_class,json=callerClass,proto3" json:"caller_class,omitempty"`
+	Budget                *Budget                `protobuf:"bytes,8,opt,name=budget,proto3" json:"budget,omitempty"` // Optional, v0.13: budget constraint to store in token
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
 
 func (x *IssueTokenRequest) Reset() {
 	*x = IssueTokenRequest{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[7]
+	mi := &file_anip_v1_anip_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -370,7 +511,7 @@ func (x *IssueTokenRequest) String() string {
 func (*IssueTokenRequest) ProtoMessage() {}
 
 func (x *IssueTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[7]
+	mi := &file_anip_v1_anip_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -383,7 +524,7 @@ func (x *IssueTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IssueTokenRequest.ProtoReflect.Descriptor instead.
 func (*IssueTokenRequest) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{7}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *IssueTokenRequest) GetSubject() string {
@@ -435,6 +576,13 @@ func (x *IssueTokenRequest) GetCallerClass() string {
 	return ""
 }
 
+func (x *IssueTokenRequest) GetBudget() *Budget {
+	if x != nil {
+		return x.Budget
+	}
+	return nil
+}
+
 type IssueTokenResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Issued        bool                   `protobuf:"varint,1,opt,name=issued,proto3" json:"issued,omitempty"`
@@ -442,13 +590,14 @@ type IssueTokenResponse struct {
 	Token         string                 `protobuf:"bytes,3,opt,name=token,proto3" json:"token,omitempty"`     // JWT string (when issued)
 	Expires       string                 `protobuf:"bytes,4,opt,name=expires,proto3" json:"expires,omitempty"` // ISO 8601 (when issued)
 	Failure       *AnipFailure           `protobuf:"bytes,5,opt,name=failure,proto3" json:"failure,omitempty"` // When !issued
+	Budget        *Budget                `protobuf:"bytes,6,opt,name=budget,proto3" json:"budget,omitempty"`   // v0.13: echoed when budget was requested
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *IssueTokenResponse) Reset() {
 	*x = IssueTokenResponse{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[8]
+	mi := &file_anip_v1_anip_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -460,7 +609,7 @@ func (x *IssueTokenResponse) String() string {
 func (*IssueTokenResponse) ProtoMessage() {}
 
 func (x *IssueTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[8]
+	mi := &file_anip_v1_anip_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -473,7 +622,7 @@ func (x *IssueTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IssueTokenResponse.ProtoReflect.Descriptor instead.
 func (*IssueTokenResponse) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{8}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *IssueTokenResponse) GetIssued() bool {
@@ -511,6 +660,13 @@ func (x *IssueTokenResponse) GetFailure() *AnipFailure {
 	return nil
 }
 
+func (x *IssueTokenResponse) GetBudget() *Budget {
+	if x != nil {
+		return x.Budget
+	}
+	return nil
+}
+
 type PermissionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -519,7 +675,7 @@ type PermissionsRequest struct {
 
 func (x *PermissionsRequest) Reset() {
 	*x = PermissionsRequest{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[9]
+	mi := &file_anip_v1_anip_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -531,7 +687,7 @@ func (x *PermissionsRequest) String() string {
 func (*PermissionsRequest) ProtoMessage() {}
 
 func (x *PermissionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[9]
+	mi := &file_anip_v1_anip_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -544,7 +700,7 @@ func (x *PermissionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionsRequest.ProtoReflect.Descriptor instead.
 func (*PermissionsRequest) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{9}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{11}
 }
 
 type PermissionsResponse struct {
@@ -558,7 +714,7 @@ type PermissionsResponse struct {
 
 func (x *PermissionsResponse) Reset() {
 	*x = PermissionsResponse{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[10]
+	mi := &file_anip_v1_anip_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -570,7 +726,7 @@ func (x *PermissionsResponse) String() string {
 func (*PermissionsResponse) ProtoMessage() {}
 
 func (x *PermissionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[10]
+	mi := &file_anip_v1_anip_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -583,7 +739,7 @@ func (x *PermissionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionsResponse.ProtoReflect.Descriptor instead.
 func (*PermissionsResponse) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{10}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *PermissionsResponse) GetSuccess() bool {
@@ -620,7 +776,7 @@ type InvokeRequest struct {
 
 func (x *InvokeRequest) Reset() {
 	*x = InvokeRequest{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[11]
+	mi := &file_anip_v1_anip_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -632,7 +788,7 @@ func (x *InvokeRequest) String() string {
 func (*InvokeRequest) ProtoMessage() {}
 
 func (x *InvokeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[11]
+	mi := &file_anip_v1_anip_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -645,7 +801,7 @@ func (x *InvokeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvokeRequest.ProtoReflect.Descriptor instead.
 func (*InvokeRequest) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{11}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *InvokeRequest) GetCapability() string {
@@ -693,13 +849,14 @@ type InvokeResponse struct {
 	Failure            *AnipFailure           `protobuf:"bytes,6,opt,name=failure,proto3" json:"failure,omitempty"`                                       // When !success
 	TaskId             string                 `protobuf:"bytes,7,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	ParentInvocationId string                 `protobuf:"bytes,8,opt,name=parent_invocation_id,json=parentInvocationId,proto3" json:"parent_invocation_id,omitempty"`
+	BudgetContext      *BudgetContext         `protobuf:"bytes,9,opt,name=budget_context,json=budgetContext,proto3" json:"budget_context,omitempty"` // v0.13: present when budget was evaluated
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
 
 func (x *InvokeResponse) Reset() {
 	*x = InvokeResponse{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[12]
+	mi := &file_anip_v1_anip_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -711,7 +868,7 @@ func (x *InvokeResponse) String() string {
 func (*InvokeResponse) ProtoMessage() {}
 
 func (x *InvokeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[12]
+	mi := &file_anip_v1_anip_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -724,7 +881,7 @@ func (x *InvokeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvokeResponse.ProtoReflect.Descriptor instead.
 func (*InvokeResponse) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{12}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *InvokeResponse) GetSuccess() bool {
@@ -783,6 +940,13 @@ func (x *InvokeResponse) GetParentInvocationId() string {
 	return ""
 }
 
+func (x *InvokeResponse) GetBudgetContext() *BudgetContext {
+	if x != nil {
+		return x.BudgetContext
+	}
+	return nil
+}
+
 type InvokeEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Event:
@@ -797,7 +961,7 @@ type InvokeEvent struct {
 
 func (x *InvokeEvent) Reset() {
 	*x = InvokeEvent{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[13]
+	mi := &file_anip_v1_anip_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -809,7 +973,7 @@ func (x *InvokeEvent) String() string {
 func (*InvokeEvent) ProtoMessage() {}
 
 func (x *InvokeEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[13]
+	mi := &file_anip_v1_anip_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -822,7 +986,7 @@ func (x *InvokeEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvokeEvent.ProtoReflect.Descriptor instead.
 func (*InvokeEvent) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{13}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *InvokeEvent) GetEvent() isInvokeEvent_Event {
@@ -891,7 +1055,7 @@ type ProgressEvent struct {
 
 func (x *ProgressEvent) Reset() {
 	*x = ProgressEvent{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[14]
+	mi := &file_anip_v1_anip_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -903,7 +1067,7 @@ func (x *ProgressEvent) String() string {
 func (*ProgressEvent) ProtoMessage() {}
 
 func (x *ProgressEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[14]
+	mi := &file_anip_v1_anip_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -916,7 +1080,7 @@ func (x *ProgressEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProgressEvent.ProtoReflect.Descriptor instead.
 func (*ProgressEvent) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{14}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ProgressEvent) GetInvocationId() string {
@@ -941,13 +1105,14 @@ type CompletedEvent struct {
 	CostActualJson     string                 `protobuf:"bytes,4,opt,name=cost_actual_json,json=costActualJson,proto3" json:"cost_actual_json,omitempty"`
 	TaskId             string                 `protobuf:"bytes,5,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	ParentInvocationId string                 `protobuf:"bytes,6,opt,name=parent_invocation_id,json=parentInvocationId,proto3" json:"parent_invocation_id,omitempty"`
+	BudgetContext      *BudgetContext         `protobuf:"bytes,7,opt,name=budget_context,json=budgetContext,proto3" json:"budget_context,omitempty"` // v0.13: present when budget was evaluated
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
 
 func (x *CompletedEvent) Reset() {
 	*x = CompletedEvent{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[15]
+	mi := &file_anip_v1_anip_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -959,7 +1124,7 @@ func (x *CompletedEvent) String() string {
 func (*CompletedEvent) ProtoMessage() {}
 
 func (x *CompletedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[15]
+	mi := &file_anip_v1_anip_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -972,7 +1137,7 @@ func (x *CompletedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompletedEvent.ProtoReflect.Descriptor instead.
 func (*CompletedEvent) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{15}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CompletedEvent) GetInvocationId() string {
@@ -1017,6 +1182,13 @@ func (x *CompletedEvent) GetParentInvocationId() string {
 	return ""
 }
 
+func (x *CompletedEvent) GetBudgetContext() *BudgetContext {
+	if x != nil {
+		return x.BudgetContext
+	}
+	return nil
+}
+
 type FailedEvent struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	InvocationId       string                 `protobuf:"bytes,1,opt,name=invocation_id,json=invocationId,proto3" json:"invocation_id,omitempty"`
@@ -1024,13 +1196,14 @@ type FailedEvent struct {
 	Failure            *AnipFailure           `protobuf:"bytes,3,opt,name=failure,proto3" json:"failure,omitempty"`
 	TaskId             string                 `protobuf:"bytes,4,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	ParentInvocationId string                 `protobuf:"bytes,5,opt,name=parent_invocation_id,json=parentInvocationId,proto3" json:"parent_invocation_id,omitempty"`
+	BudgetContext      *BudgetContext         `protobuf:"bytes,6,opt,name=budget_context,json=budgetContext,proto3" json:"budget_context,omitempty"` // v0.13: present when budget was evaluated
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
 
 func (x *FailedEvent) Reset() {
 	*x = FailedEvent{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[16]
+	mi := &file_anip_v1_anip_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1042,7 +1215,7 @@ func (x *FailedEvent) String() string {
 func (*FailedEvent) ProtoMessage() {}
 
 func (x *FailedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[16]
+	mi := &file_anip_v1_anip_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1055,7 +1228,7 @@ func (x *FailedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FailedEvent.ProtoReflect.Descriptor instead.
 func (*FailedEvent) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{16}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *FailedEvent) GetInvocationId() string {
@@ -1093,6 +1266,13 @@ func (x *FailedEvent) GetParentInvocationId() string {
 	return ""
 }
 
+func (x *FailedEvent) GetBudgetContext() *BudgetContext {
+	if x != nil {
+		return x.BudgetContext
+	}
+	return nil
+}
+
 type QueryAuditRequest struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Capability         string                 `protobuf:"bytes,1,opt,name=capability,proto3" json:"capability,omitempty"`
@@ -1109,7 +1289,7 @@ type QueryAuditRequest struct {
 
 func (x *QueryAuditRequest) Reset() {
 	*x = QueryAuditRequest{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[17]
+	mi := &file_anip_v1_anip_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1121,7 +1301,7 @@ func (x *QueryAuditRequest) String() string {
 func (*QueryAuditRequest) ProtoMessage() {}
 
 func (x *QueryAuditRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[17]
+	mi := &file_anip_v1_anip_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1134,7 +1314,7 @@ func (x *QueryAuditRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryAuditRequest.ProtoReflect.Descriptor instead.
 func (*QueryAuditRequest) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{17}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *QueryAuditRequest) GetCapability() string {
@@ -1204,7 +1384,7 @@ type QueryAuditResponse struct {
 
 func (x *QueryAuditResponse) Reset() {
 	*x = QueryAuditResponse{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[18]
+	mi := &file_anip_v1_anip_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1216,7 +1396,7 @@ func (x *QueryAuditResponse) String() string {
 func (*QueryAuditResponse) ProtoMessage() {}
 
 func (x *QueryAuditResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[18]
+	mi := &file_anip_v1_anip_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1229,7 +1409,7 @@ func (x *QueryAuditResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryAuditResponse.ProtoReflect.Descriptor instead.
 func (*QueryAuditResponse) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{18}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *QueryAuditResponse) GetSuccess() bool {
@@ -1262,7 +1442,7 @@ type ListCheckpointsRequest struct {
 
 func (x *ListCheckpointsRequest) Reset() {
 	*x = ListCheckpointsRequest{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[19]
+	mi := &file_anip_v1_anip_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1274,7 +1454,7 @@ func (x *ListCheckpointsRequest) String() string {
 func (*ListCheckpointsRequest) ProtoMessage() {}
 
 func (x *ListCheckpointsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[19]
+	mi := &file_anip_v1_anip_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1287,7 +1467,7 @@ func (x *ListCheckpointsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCheckpointsRequest.ProtoReflect.Descriptor instead.
 func (*ListCheckpointsRequest) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{19}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ListCheckpointsRequest) GetLimit() int32 {
@@ -1306,7 +1486,7 @@ type ListCheckpointsResponse struct {
 
 func (x *ListCheckpointsResponse) Reset() {
 	*x = ListCheckpointsResponse{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[20]
+	mi := &file_anip_v1_anip_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1318,7 +1498,7 @@ func (x *ListCheckpointsResponse) String() string {
 func (*ListCheckpointsResponse) ProtoMessage() {}
 
 func (x *ListCheckpointsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[20]
+	mi := &file_anip_v1_anip_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1331,7 +1511,7 @@ func (x *ListCheckpointsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCheckpointsResponse.ProtoReflect.Descriptor instead.
 func (*ListCheckpointsResponse) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{20}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ListCheckpointsResponse) GetJson() string {
@@ -1353,7 +1533,7 @@ type GetCheckpointRequest struct {
 
 func (x *GetCheckpointRequest) Reset() {
 	*x = GetCheckpointRequest{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[21]
+	mi := &file_anip_v1_anip_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1365,7 +1545,7 @@ func (x *GetCheckpointRequest) String() string {
 func (*GetCheckpointRequest) ProtoMessage() {}
 
 func (x *GetCheckpointRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[21]
+	mi := &file_anip_v1_anip_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1378,7 +1558,7 @@ func (x *GetCheckpointRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCheckpointRequest.ProtoReflect.Descriptor instead.
 func (*GetCheckpointRequest) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{21}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GetCheckpointRequest) GetId() string {
@@ -1418,7 +1598,7 @@ type GetCheckpointResponse struct {
 
 func (x *GetCheckpointResponse) Reset() {
 	*x = GetCheckpointResponse{}
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[22]
+	mi := &file_anip_v1_anip_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1430,7 +1610,7 @@ func (x *GetCheckpointResponse) String() string {
 func (*GetCheckpointResponse) ProtoMessage() {}
 
 func (x *GetCheckpointResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_anip_v1_anip_proto_msgTypes[22]
+	mi := &file_anip_v1_anip_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1443,7 +1623,7 @@ func (x *GetCheckpointResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCheckpointResponse.ProtoReflect.Descriptor instead.
 func (*GetCheckpointResponse) Descriptor() ([]byte, []int) {
-	return file_proto_anip_v1_anip_proto_rawDescGZIP(), []int{22}
+	return file_anip_v1_anip_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *GetCheckpointResponse) GetJson() string {
@@ -1453,16 +1633,29 @@ func (x *GetCheckpointResponse) GetJson() string {
 	return ""
 }
 
-var File_proto_anip_v1_anip_proto protoreflect.FileDescriptor
+var File_anip_v1_anip_proto protoreflect.FileDescriptor
 
-const file_proto_anip_v1_anip_proto_rawDesc = "" +
+const file_anip_v1_anip_proto_rawDesc = "" +
 	"\n" +
-	"\x18proto/anip/v1/anip.proto\x12\aanip.v1\"x\n" +
+	"\x12anip/v1/anip.proto\x12\aanip.v1\"x\n" +
 	"\vAnipFailure\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x16\n" +
 	"\x06detail\x18\x02 \x01(\tR\x06detail\x12'\n" +
 	"\x0fresolution_json\x18\x03 \x01(\tR\x0eresolutionJson\x12\x14\n" +
-	"\x05retry\x18\x04 \x01(\bR\x05retry\"\x12\n" +
+	"\x05retry\x18\x04 \x01(\bR\x05retry\"C\n" +
+	"\x06Budget\x12\x1a\n" +
+	"\bcurrency\x18\x01 \x01(\tR\bcurrency\x12\x1d\n" +
+	"\n" +
+	"max_amount\x18\x02 \x01(\x01R\tmaxAmount\"\xf0\x01\n" +
+	"\rBudgetContext\x12\x1d\n" +
+	"\n" +
+	"budget_max\x18\x01 \x01(\x01R\tbudgetMax\x12'\n" +
+	"\x0fbudget_currency\x18\x02 \x01(\tR\x0ebudgetCurrency\x12*\n" +
+	"\x11cost_check_amount\x18\x03 \x01(\x01R\x0fcostCheckAmount\x12%\n" +
+	"\x0ecost_certainty\x18\x04 \x01(\tR\rcostCertainty\x12\x1f\n" +
+	"\vcost_actual\x18\x05 \x01(\x01R\n" +
+	"costActual\x12#\n" +
+	"\rwithin_budget\x18\x06 \x01(\bR\fwithinBudget\"\x12\n" +
 	"\x10DiscoveryRequest\"'\n" +
 	"\x11DiscoveryResponse\x12\x12\n" +
 	"\x04json\x18\x01 \x01(\tR\x04json\"\x11\n" +
@@ -1472,7 +1665,7 @@ const file_proto_anip_v1_anip_proto_rawDesc = "" +
 	"\tsignature\x18\x02 \x01(\tR\tsignature\"\r\n" +
 	"\vJwksRequest\"\"\n" +
 	"\fJwksResponse\x12\x12\n" +
-	"\x04json\x18\x01 \x01(\tR\x04json\"\xfe\x01\n" +
+	"\x04json\x18\x01 \x01(\tR\x04json\"\xa7\x02\n" +
 	"\x11IssueTokenRequest\x12\x18\n" +
 	"\asubject\x18\x01 \x01(\tR\asubject\x12\x14\n" +
 	"\x05scope\x18\x02 \x03(\tR\x05scope\x12\x1e\n" +
@@ -1482,13 +1675,15 @@ const file_proto_anip_v1_anip_proto_rawDesc = "" +
 	"\x17purpose_parameters_json\x18\x04 \x01(\tR\x15purposeParametersJson\x12!\n" +
 	"\fparent_token\x18\x05 \x01(\tR\vparentToken\x12\x1b\n" +
 	"\tttl_hours\x18\x06 \x01(\x05R\bttlHours\x12!\n" +
-	"\fcaller_class\x18\a \x01(\tR\vcallerClass\"\xa7\x01\n" +
+	"\fcaller_class\x18\a \x01(\tR\vcallerClass\x12'\n" +
+	"\x06budget\x18\b \x01(\v2\x0f.anip.v1.BudgetR\x06budget\"\xd0\x01\n" +
 	"\x12IssueTokenResponse\x12\x16\n" +
 	"\x06issued\x18\x01 \x01(\bR\x06issued\x12\x19\n" +
 	"\btoken_id\x18\x02 \x01(\tR\atokenId\x12\x14\n" +
 	"\x05token\x18\x03 \x01(\tR\x05token\x12\x18\n" +
 	"\aexpires\x18\x04 \x01(\tR\aexpires\x12.\n" +
-	"\afailure\x18\x05 \x01(\v2\x14.anip.v1.AnipFailureR\afailure\"\x14\n" +
+	"\afailure\x18\x05 \x01(\v2\x14.anip.v1.AnipFailureR\afailure\x12'\n" +
+	"\x06budget\x18\x06 \x01(\v2\x0f.anip.v1.BudgetR\x06budget\"\x14\n" +
 	"\x12PermissionsRequest\"s\n" +
 	"\x13PermissionsResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x12\n" +
@@ -1501,7 +1696,7 @@ const file_proto_anip_v1_anip_proto_rawDesc = "" +
 	"\x0fparameters_json\x18\x02 \x01(\tR\x0eparametersJson\x12.\n" +
 	"\x13client_reference_id\x18\x03 \x01(\tR\x11clientReferenceId\x12\x17\n" +
 	"\atask_id\x18\x04 \x01(\tR\x06taskId\x120\n" +
-	"\x14parent_invocation_id\x18\x05 \x01(\tR\x12parentInvocationId\"\xc5\x02\n" +
+	"\x14parent_invocation_id\x18\x05 \x01(\tR\x12parentInvocationId\"\x84\x03\n" +
 	"\x0eInvokeResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12#\n" +
 	"\rinvocation_id\x18\x02 \x01(\tR\finvocationId\x12.\n" +
@@ -1511,7 +1706,8 @@ const file_proto_anip_v1_anip_proto_rawDesc = "" +
 	"\x10cost_actual_json\x18\x05 \x01(\tR\x0ecostActualJson\x12.\n" +
 	"\afailure\x18\x06 \x01(\v2\x14.anip.v1.AnipFailureR\afailure\x12\x17\n" +
 	"\atask_id\x18\a \x01(\tR\x06taskId\x120\n" +
-	"\x14parent_invocation_id\x18\b \x01(\tR\x12parentInvocationId\"\xb5\x01\n" +
+	"\x14parent_invocation_id\x18\b \x01(\tR\x12parentInvocationId\x12=\n" +
+	"\x0ebudget_context\x18\t \x01(\v2\x16.anip.v1.BudgetContextR\rbudgetContext\"\xb5\x01\n" +
 	"\vInvokeEvent\x124\n" +
 	"\bprogress\x18\x01 \x01(\v2\x16.anip.v1.ProgressEventH\x00R\bprogress\x127\n" +
 	"\tcompleted\x18\x02 \x01(\v2\x17.anip.v1.CompletedEventH\x00R\tcompleted\x12.\n" +
@@ -1519,7 +1715,7 @@ const file_proto_anip_v1_anip_proto_rawDesc = "" +
 	"\x05event\"W\n" +
 	"\rProgressEvent\x12#\n" +
 	"\rinvocation_id\x18\x01 \x01(\tR\finvocationId\x12!\n" +
-	"\fpayload_json\x18\x02 \x01(\tR\vpayloadJson\"\xfb\x01\n" +
+	"\fpayload_json\x18\x02 \x01(\tR\vpayloadJson\"\xba\x02\n" +
 	"\x0eCompletedEvent\x12#\n" +
 	"\rinvocation_id\x18\x01 \x01(\tR\finvocationId\x12.\n" +
 	"\x13client_reference_id\x18\x02 \x01(\tR\x11clientReferenceId\x12\x1f\n" +
@@ -1527,13 +1723,15 @@ const file_proto_anip_v1_anip_proto_rawDesc = "" +
 	"resultJson\x12(\n" +
 	"\x10cost_actual_json\x18\x04 \x01(\tR\x0ecostActualJson\x12\x17\n" +
 	"\atask_id\x18\x05 \x01(\tR\x06taskId\x120\n" +
-	"\x14parent_invocation_id\x18\x06 \x01(\tR\x12parentInvocationId\"\xdd\x01\n" +
+	"\x14parent_invocation_id\x18\x06 \x01(\tR\x12parentInvocationId\x12=\n" +
+	"\x0ebudget_context\x18\a \x01(\v2\x16.anip.v1.BudgetContextR\rbudgetContext\"\x9c\x02\n" +
 	"\vFailedEvent\x12#\n" +
 	"\rinvocation_id\x18\x01 \x01(\tR\finvocationId\x12.\n" +
 	"\x13client_reference_id\x18\x02 \x01(\tR\x11clientReferenceId\x12.\n" +
 	"\afailure\x18\x03 \x01(\v2\x14.anip.v1.AnipFailureR\afailure\x12\x17\n" +
 	"\atask_id\x18\x04 \x01(\tR\x06taskId\x120\n" +
-	"\x14parent_invocation_id\x18\x05 \x01(\tR\x12parentInvocationId\"\xa0\x02\n" +
+	"\x14parent_invocation_id\x18\x05 \x01(\tR\x12parentInvocationId\x12=\n" +
+	"\x0ebudget_context\x18\x06 \x01(\v2\x16.anip.v1.BudgetContextR\rbudgetContext\"\xa0\x02\n" +
 	"\x11QueryAuditRequest\x12\x1e\n" +
 	"\n" +
 	"capability\x18\x01 \x01(\tR\n" +
@@ -1577,85 +1775,92 @@ const file_proto_anip_v1_anip_proto_rawDesc = "" +
 	"QueryAudit\x12\x1a.anip.v1.QueryAuditRequest\x1a\x1b.anip.v1.QueryAuditResponseBAZ?github.com/anip-protocol/anip/packages/go/grpcapi/proto/anip/v1b\x06proto3"
 
 var (
-	file_proto_anip_v1_anip_proto_rawDescOnce sync.Once
-	file_proto_anip_v1_anip_proto_rawDescData []byte
+	file_anip_v1_anip_proto_rawDescOnce sync.Once
+	file_anip_v1_anip_proto_rawDescData []byte
 )
 
-func file_proto_anip_v1_anip_proto_rawDescGZIP() []byte {
-	file_proto_anip_v1_anip_proto_rawDescOnce.Do(func() {
-		file_proto_anip_v1_anip_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_anip_v1_anip_proto_rawDesc), len(file_proto_anip_v1_anip_proto_rawDesc)))
+func file_anip_v1_anip_proto_rawDescGZIP() []byte {
+	file_anip_v1_anip_proto_rawDescOnce.Do(func() {
+		file_anip_v1_anip_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_anip_v1_anip_proto_rawDesc), len(file_anip_v1_anip_proto_rawDesc)))
 	})
-	return file_proto_anip_v1_anip_proto_rawDescData
+	return file_anip_v1_anip_proto_rawDescData
 }
 
-var file_proto_anip_v1_anip_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
-var file_proto_anip_v1_anip_proto_goTypes = []any{
+var file_anip_v1_anip_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_anip_v1_anip_proto_goTypes = []any{
 	(*AnipFailure)(nil),             // 0: anip.v1.AnipFailure
-	(*DiscoveryRequest)(nil),        // 1: anip.v1.DiscoveryRequest
-	(*DiscoveryResponse)(nil),       // 2: anip.v1.DiscoveryResponse
-	(*ManifestRequest)(nil),         // 3: anip.v1.ManifestRequest
-	(*ManifestResponse)(nil),        // 4: anip.v1.ManifestResponse
-	(*JwksRequest)(nil),             // 5: anip.v1.JwksRequest
-	(*JwksResponse)(nil),            // 6: anip.v1.JwksResponse
-	(*IssueTokenRequest)(nil),       // 7: anip.v1.IssueTokenRequest
-	(*IssueTokenResponse)(nil),      // 8: anip.v1.IssueTokenResponse
-	(*PermissionsRequest)(nil),      // 9: anip.v1.PermissionsRequest
-	(*PermissionsResponse)(nil),     // 10: anip.v1.PermissionsResponse
-	(*InvokeRequest)(nil),           // 11: anip.v1.InvokeRequest
-	(*InvokeResponse)(nil),          // 12: anip.v1.InvokeResponse
-	(*InvokeEvent)(nil),             // 13: anip.v1.InvokeEvent
-	(*ProgressEvent)(nil),           // 14: anip.v1.ProgressEvent
-	(*CompletedEvent)(nil),          // 15: anip.v1.CompletedEvent
-	(*FailedEvent)(nil),             // 16: anip.v1.FailedEvent
-	(*QueryAuditRequest)(nil),       // 17: anip.v1.QueryAuditRequest
-	(*QueryAuditResponse)(nil),      // 18: anip.v1.QueryAuditResponse
-	(*ListCheckpointsRequest)(nil),  // 19: anip.v1.ListCheckpointsRequest
-	(*ListCheckpointsResponse)(nil), // 20: anip.v1.ListCheckpointsResponse
-	(*GetCheckpointRequest)(nil),    // 21: anip.v1.GetCheckpointRequest
-	(*GetCheckpointResponse)(nil),   // 22: anip.v1.GetCheckpointResponse
+	(*Budget)(nil),                  // 1: anip.v1.Budget
+	(*BudgetContext)(nil),           // 2: anip.v1.BudgetContext
+	(*DiscoveryRequest)(nil),        // 3: anip.v1.DiscoveryRequest
+	(*DiscoveryResponse)(nil),       // 4: anip.v1.DiscoveryResponse
+	(*ManifestRequest)(nil),         // 5: anip.v1.ManifestRequest
+	(*ManifestResponse)(nil),        // 6: anip.v1.ManifestResponse
+	(*JwksRequest)(nil),             // 7: anip.v1.JwksRequest
+	(*JwksResponse)(nil),            // 8: anip.v1.JwksResponse
+	(*IssueTokenRequest)(nil),       // 9: anip.v1.IssueTokenRequest
+	(*IssueTokenResponse)(nil),      // 10: anip.v1.IssueTokenResponse
+	(*PermissionsRequest)(nil),      // 11: anip.v1.PermissionsRequest
+	(*PermissionsResponse)(nil),     // 12: anip.v1.PermissionsResponse
+	(*InvokeRequest)(nil),           // 13: anip.v1.InvokeRequest
+	(*InvokeResponse)(nil),          // 14: anip.v1.InvokeResponse
+	(*InvokeEvent)(nil),             // 15: anip.v1.InvokeEvent
+	(*ProgressEvent)(nil),           // 16: anip.v1.ProgressEvent
+	(*CompletedEvent)(nil),          // 17: anip.v1.CompletedEvent
+	(*FailedEvent)(nil),             // 18: anip.v1.FailedEvent
+	(*QueryAuditRequest)(nil),       // 19: anip.v1.QueryAuditRequest
+	(*QueryAuditResponse)(nil),      // 20: anip.v1.QueryAuditResponse
+	(*ListCheckpointsRequest)(nil),  // 21: anip.v1.ListCheckpointsRequest
+	(*ListCheckpointsResponse)(nil), // 22: anip.v1.ListCheckpointsResponse
+	(*GetCheckpointRequest)(nil),    // 23: anip.v1.GetCheckpointRequest
+	(*GetCheckpointResponse)(nil),   // 24: anip.v1.GetCheckpointResponse
 }
-var file_proto_anip_v1_anip_proto_depIdxs = []int32{
-	0,  // 0: anip.v1.IssueTokenResponse.failure:type_name -> anip.v1.AnipFailure
-	0,  // 1: anip.v1.PermissionsResponse.failure:type_name -> anip.v1.AnipFailure
-	0,  // 2: anip.v1.InvokeResponse.failure:type_name -> anip.v1.AnipFailure
-	14, // 3: anip.v1.InvokeEvent.progress:type_name -> anip.v1.ProgressEvent
-	15, // 4: anip.v1.InvokeEvent.completed:type_name -> anip.v1.CompletedEvent
-	16, // 5: anip.v1.InvokeEvent.failed:type_name -> anip.v1.FailedEvent
-	0,  // 6: anip.v1.FailedEvent.failure:type_name -> anip.v1.AnipFailure
-	0,  // 7: anip.v1.QueryAuditResponse.failure:type_name -> anip.v1.AnipFailure
-	1,  // 8: anip.v1.AnipService.Discovery:input_type -> anip.v1.DiscoveryRequest
-	3,  // 9: anip.v1.AnipService.Manifest:input_type -> anip.v1.ManifestRequest
-	5,  // 10: anip.v1.AnipService.Jwks:input_type -> anip.v1.JwksRequest
-	19, // 11: anip.v1.AnipService.ListCheckpoints:input_type -> anip.v1.ListCheckpointsRequest
-	21, // 12: anip.v1.AnipService.GetCheckpoint:input_type -> anip.v1.GetCheckpointRequest
-	7,  // 13: anip.v1.AnipService.IssueToken:input_type -> anip.v1.IssueTokenRequest
-	9,  // 14: anip.v1.AnipService.Permissions:input_type -> anip.v1.PermissionsRequest
-	11, // 15: anip.v1.AnipService.Invoke:input_type -> anip.v1.InvokeRequest
-	11, // 16: anip.v1.AnipService.InvokeStream:input_type -> anip.v1.InvokeRequest
-	17, // 17: anip.v1.AnipService.QueryAudit:input_type -> anip.v1.QueryAuditRequest
-	2,  // 18: anip.v1.AnipService.Discovery:output_type -> anip.v1.DiscoveryResponse
-	4,  // 19: anip.v1.AnipService.Manifest:output_type -> anip.v1.ManifestResponse
-	6,  // 20: anip.v1.AnipService.Jwks:output_type -> anip.v1.JwksResponse
-	20, // 21: anip.v1.AnipService.ListCheckpoints:output_type -> anip.v1.ListCheckpointsResponse
-	22, // 22: anip.v1.AnipService.GetCheckpoint:output_type -> anip.v1.GetCheckpointResponse
-	8,  // 23: anip.v1.AnipService.IssueToken:output_type -> anip.v1.IssueTokenResponse
-	10, // 24: anip.v1.AnipService.Permissions:output_type -> anip.v1.PermissionsResponse
-	12, // 25: anip.v1.AnipService.Invoke:output_type -> anip.v1.InvokeResponse
-	13, // 26: anip.v1.AnipService.InvokeStream:output_type -> anip.v1.InvokeEvent
-	18, // 27: anip.v1.AnipService.QueryAudit:output_type -> anip.v1.QueryAuditResponse
-	18, // [18:28] is the sub-list for method output_type
-	8,  // [8:18] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+var file_anip_v1_anip_proto_depIdxs = []int32{
+	1,  // 0: anip.v1.IssueTokenRequest.budget:type_name -> anip.v1.Budget
+	0,  // 1: anip.v1.IssueTokenResponse.failure:type_name -> anip.v1.AnipFailure
+	1,  // 2: anip.v1.IssueTokenResponse.budget:type_name -> anip.v1.Budget
+	0,  // 3: anip.v1.PermissionsResponse.failure:type_name -> anip.v1.AnipFailure
+	0,  // 4: anip.v1.InvokeResponse.failure:type_name -> anip.v1.AnipFailure
+	2,  // 5: anip.v1.InvokeResponse.budget_context:type_name -> anip.v1.BudgetContext
+	16, // 6: anip.v1.InvokeEvent.progress:type_name -> anip.v1.ProgressEvent
+	17, // 7: anip.v1.InvokeEvent.completed:type_name -> anip.v1.CompletedEvent
+	18, // 8: anip.v1.InvokeEvent.failed:type_name -> anip.v1.FailedEvent
+	2,  // 9: anip.v1.CompletedEvent.budget_context:type_name -> anip.v1.BudgetContext
+	0,  // 10: anip.v1.FailedEvent.failure:type_name -> anip.v1.AnipFailure
+	2,  // 11: anip.v1.FailedEvent.budget_context:type_name -> anip.v1.BudgetContext
+	0,  // 12: anip.v1.QueryAuditResponse.failure:type_name -> anip.v1.AnipFailure
+	3,  // 13: anip.v1.AnipService.Discovery:input_type -> anip.v1.DiscoveryRequest
+	5,  // 14: anip.v1.AnipService.Manifest:input_type -> anip.v1.ManifestRequest
+	7,  // 15: anip.v1.AnipService.Jwks:input_type -> anip.v1.JwksRequest
+	21, // 16: anip.v1.AnipService.ListCheckpoints:input_type -> anip.v1.ListCheckpointsRequest
+	23, // 17: anip.v1.AnipService.GetCheckpoint:input_type -> anip.v1.GetCheckpointRequest
+	9,  // 18: anip.v1.AnipService.IssueToken:input_type -> anip.v1.IssueTokenRequest
+	11, // 19: anip.v1.AnipService.Permissions:input_type -> anip.v1.PermissionsRequest
+	13, // 20: anip.v1.AnipService.Invoke:input_type -> anip.v1.InvokeRequest
+	13, // 21: anip.v1.AnipService.InvokeStream:input_type -> anip.v1.InvokeRequest
+	19, // 22: anip.v1.AnipService.QueryAudit:input_type -> anip.v1.QueryAuditRequest
+	4,  // 23: anip.v1.AnipService.Discovery:output_type -> anip.v1.DiscoveryResponse
+	6,  // 24: anip.v1.AnipService.Manifest:output_type -> anip.v1.ManifestResponse
+	8,  // 25: anip.v1.AnipService.Jwks:output_type -> anip.v1.JwksResponse
+	22, // 26: anip.v1.AnipService.ListCheckpoints:output_type -> anip.v1.ListCheckpointsResponse
+	24, // 27: anip.v1.AnipService.GetCheckpoint:output_type -> anip.v1.GetCheckpointResponse
+	10, // 28: anip.v1.AnipService.IssueToken:output_type -> anip.v1.IssueTokenResponse
+	12, // 29: anip.v1.AnipService.Permissions:output_type -> anip.v1.PermissionsResponse
+	14, // 30: anip.v1.AnipService.Invoke:output_type -> anip.v1.InvokeResponse
+	15, // 31: anip.v1.AnipService.InvokeStream:output_type -> anip.v1.InvokeEvent
+	20, // 32: anip.v1.AnipService.QueryAudit:output_type -> anip.v1.QueryAuditResponse
+	23, // [23:33] is the sub-list for method output_type
+	13, // [13:23] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
-func init() { file_proto_anip_v1_anip_proto_init() }
-func file_proto_anip_v1_anip_proto_init() {
-	if File_proto_anip_v1_anip_proto != nil {
+func init() { file_anip_v1_anip_proto_init() }
+func file_anip_v1_anip_proto_init() {
+	if File_anip_v1_anip_proto != nil {
 		return
 	}
-	file_proto_anip_v1_anip_proto_msgTypes[13].OneofWrappers = []any{
+	file_anip_v1_anip_proto_msgTypes[15].OneofWrappers = []any{
 		(*InvokeEvent_Progress)(nil),
 		(*InvokeEvent_Completed)(nil),
 		(*InvokeEvent_Failed)(nil),
@@ -1664,17 +1869,17 @@ func file_proto_anip_v1_anip_proto_init() {
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_anip_v1_anip_proto_rawDesc), len(file_proto_anip_v1_anip_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_anip_v1_anip_proto_rawDesc), len(file_anip_v1_anip_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_proto_anip_v1_anip_proto_goTypes,
-		DependencyIndexes: file_proto_anip_v1_anip_proto_depIdxs,
-		MessageInfos:      file_proto_anip_v1_anip_proto_msgTypes,
+		GoTypes:           file_anip_v1_anip_proto_goTypes,
+		DependencyIndexes: file_anip_v1_anip_proto_depIdxs,
+		MessageInfos:      file_anip_v1_anip_proto_msgTypes,
 	}.Build()
-	File_proto_anip_v1_anip_proto = out.File
-	file_proto_anip_v1_anip_proto_goTypes = nil
-	file_proto_anip_v1_anip_proto_depIdxs = nil
+	File_anip_v1_anip_proto = out.File
+	file_anip_v1_anip_proto_goTypes = nil
+	file_anip_v1_anip_proto_depIdxs = nil
 }

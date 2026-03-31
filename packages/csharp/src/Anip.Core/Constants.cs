@@ -2,7 +2,7 @@ namespace Anip.Core;
 
 public static class Constants
 {
-    public const string ProtocolVersion = "anip/0.11";
+    public const string ProtocolVersion = "anip/0.13";
     public const string ManifestVersion = "0.10.0";
 
     // Failure types
@@ -12,6 +12,11 @@ public static class Constants
     public const string FailureScopeInsufficient = "scope_insufficient";
     public const string FailureUnknownCapability = "unknown_capability";
     public const string FailureBudgetExceeded = "budget_exceeded";
+    public const string FailureBudgetCurrencyMismatch = "budget_currency_mismatch";
+    public const string FailureBudgetNotEnforceable = "budget_not_enforceable";
+    public const string FailureBindingMissing = "binding_missing";
+    public const string FailureBindingStale = "binding_stale";
+    public const string FailureControlRequirementUnsatisfied = "control_requirement_unsatisfied";
     public const string FailurePurposeMismatch = "purpose_mismatch";
     public const string FailureNotFound = "not_found";
     public const string FailureUnavailable = "unavailable";
@@ -36,7 +41,9 @@ public static class Constants
     public static int FailureStatusCode(string? failureType) => failureType switch
     {
         FailureAuthRequired or FailureInvalidToken or FailureTokenExpired => 401,
-        FailureScopeInsufficient or FailureBudgetExceeded or FailurePurposeMismatch => 403,
+        FailureScopeInsufficient or FailureBudgetExceeded or FailureBudgetCurrencyMismatch
+            or FailureBudgetNotEnforceable or FailureBindingMissing or FailureBindingStale
+            or FailureControlRequirementUnsatisfied or FailurePurposeMismatch => 403,
         FailureUnknownCapability or FailureNotFound => 404,
         FailureUnavailable or FailureConcurrentLock => 409,
         FailureInternalError => 500,

@@ -41,6 +41,24 @@ message AnipFailure {
   bool retry = 4;
 }
 
+// Budget represents an enforceable financial budget constraint.
+// Carried in delegation token constraints and token issuance requests.
+message Budget {
+  string currency = 1;          // ISO 4217 currency code (e.g., "USD", "EUR")
+  double max_amount = 2;        // Maximum amount the delegation authorizes
+}
+
+// BudgetContext provides transparency into budget enforcement decisions.
+// Present in invoke responses (both success and failure) when a budget was evaluated.
+message BudgetContext {
+  double budget_max = 1;        // The max_amount from the token's budget constraint
+  string budget_currency = 2;   // The currency from the token's budget constraint
+  double cost_check_amount = 3; // The amount used for the pre-execution budget check
+  string cost_certainty = 4;    // The certainty level used (fixed, estimated, dynamic)
+  double cost_actual = 5;       // Actual cost after execution (0 when not yet known)
+  bool within_budget = 6;       // Whether the actual cost was within budget
+}
+
 // ============================================================
 // Discovery
 // ============================================================
@@ -84,6 +102,7 @@ message IssueTokenRequest {
   string parent_token = 5;             // Optional, JWT string for sub-delegation
   int32 ttl_hours = 6;
   string caller_class = 7;
+  Budget budget = 8;                   // Optional, v0.13: budget constraint to store in token
 }
 
 message IssueTokenResponse {
@@ -92,6 +111,7 @@ message IssueTokenResponse {
   string token = 3;             // JWT string (when issued)
   string expires = 4;           // ISO 8601 (when issued)
   AnipFailure failure = 5;      // When !issued
+  Budget budget = 6;            // v0.13: echoed when budget was requested
 }
 
 // ============================================================
@@ -127,6 +147,7 @@ message InvokeResponse {
   AnipFailure failure = 6;          // When !success
   string task_id = 7;
   string parent_invocation_id = 8;
+  BudgetContext budget_context = 9;  // v0.13: present when budget was evaluated
 }
 
 // ============================================================
@@ -153,6 +174,7 @@ message CompletedEvent {
   string cost_actual_json = 4;
   string task_id = 5;
   string parent_invocation_id = 6;
+  BudgetContext budget_context = 7;  // v0.13: present when budget was evaluated
 }
 
 message FailedEvent {
@@ -161,6 +183,7 @@ message FailedEvent {
   AnipFailure failure = 3;
   string task_id = 4;
   string parent_invocation_id = 5;
+  BudgetContext budget_context = 6;  // v0.13: present when budget was evaluated
 }
 
 // ============================================================

@@ -82,6 +82,7 @@ type InvokeOpts struct {
 	TaskID             string
 	ParentInvocationID string
 	Stream             bool
+	Budget             *core.Budget
 }
 
 // CheckpointPolicy configures automatic checkpoint creation.

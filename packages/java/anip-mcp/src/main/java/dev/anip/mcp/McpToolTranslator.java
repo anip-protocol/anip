@@ -30,6 +30,15 @@ public class McpToolTranslator {
 
     private McpToolTranslator() {}
 
+    /** Formats a double cleanly (no trailing .0 for whole numbers). */
+    private static String formatNumber(Double d) {
+        if (d == null) return "";
+        if (d == Math.floor(d) && !Double.isInfinite(d)) {
+            return String.valueOf((long) d.doubleValue());
+        }
+        return d.toString();
+    }
+
     /**
      * Builds an MCP tool from an ANIP capability declaration.
      */
@@ -120,30 +129,23 @@ public class McpToolTranslator {
 
         if (decl.getCost() != null) {
             String certainty = decl.getCost().getCertainty();
-            Map<String, Object> financial = decl.getCost().getFinancial();
+            dev.anip.core.FinancialCost financial = decl.getCost().getFinancial();
 
             if ("fixed".equals(certainty) && financial != null) {
-                Object amount = financial.get("amount");
-                String currency = financial.get("currency") != null
-                        ? (String) financial.get("currency") : "USD";
+                Double amount = financial.getAmount();
+                String currency = financial.getCurrency() != null
+                        ? financial.getCurrency() : "USD";
                 if (amount != null) {
-                    parts.add("Cost: " + currency + " " + amount + " (fixed).");
+                    parts.add("Cost: " + currency + " " + formatNumber(amount) + " (fixed).");
                 }
             } else if ("estimated".equals(certainty) && financial != null) {
-                String currency = financial.get("currency") != null
-                        ? (String) financial.get("currency") : "USD";
-                Object rangeMin = financial.get("range_min");
-                Object rangeMax = financial.get("range_max");
-                if (rangeMin == null || rangeMax == null) {
-                    Object estRange = financial.get("estimated_range");
-                    if (estRange instanceof Map) {
-                        Map<String, Object> range = (Map<String, Object>) estRange;
-                        rangeMin = range.get("min");
-                        rangeMax = range.get("max");
-                    }
-                }
+                String currency = financial.getCurrency() != null
+                        ? financial.getCurrency() : "USD";
+                Double rangeMin = financial.getRangeMin();
+                Double rangeMax = financial.getRangeMax();
                 if (rangeMin != null && rangeMax != null) {
-                    parts.add("Estimated cost: " + currency + " " + rangeMin + "-" + rangeMax + ".");
+                    parts.add("Estimated cost: " + currency + " " + formatNumber(rangeMin)
+                            + "-" + formatNumber(rangeMax) + ".");
                 }
             }
         }

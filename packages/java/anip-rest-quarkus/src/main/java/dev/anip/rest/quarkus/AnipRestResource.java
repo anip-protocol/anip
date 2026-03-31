@@ -1,6 +1,7 @@
 package dev.anip.rest.quarkus;
 
 import dev.anip.core.ANIPError;
+import dev.anip.core.Budget;
 import dev.anip.core.Constants;
 import dev.anip.core.DelegationToken;
 import dev.anip.rest.OpenApiGenerator;
@@ -163,6 +164,12 @@ public class AnipRestResource {
 
         InvokeOpts opts = new InvokeOpts(clientRefId, false);
 
+        // Extract budget from request body.
+        Budget budget = extractBudget(body);
+        if (budget != null) {
+            opts.setBudget(budget);
+        }
+
         Map<String, Object> result = service.invoke(capability, token, params, opts);
 
         boolean success = Boolean.TRUE.equals(result.get("success"));
@@ -175,6 +182,20 @@ public class AnipRestResource {
         }
 
         return Response.ok(result).build();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Budget extractBudget(Map<String, Object> body) {
+        if (body == null) return null;
+        Object budgetRaw = body.get("budget");
+        if (!(budgetRaw instanceof Map)) return null;
+        Map<String, Object> budgetMap = (Map<String, Object>) budgetRaw;
+        String currency = budgetMap.get("currency") instanceof String s ? s : null;
+        double maxAmount = budgetMap.get("max_amount") instanceof Number n ? n.doubleValue() : 0;
+        if (currency != null && !currency.isEmpty() && maxAmount > 0) {
+            return new Budget(currency, maxAmount);
+        }
+        return null;
     }
 
     private String extractBearer(String authHeader) {

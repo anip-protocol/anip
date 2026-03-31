@@ -44,6 +44,35 @@ const resolution = computed(() => failure.value?.resolution || null)
         </span>
       </div>
 
+      <!-- Budget Context -->
+      <div v-if="result.budget_context" class="budget-callout">
+        <div class="budget-title">Budget Context</div>
+        <div class="budget-fields">
+          <div class="result-meta">
+            <span class="meta-label">Budget</span>
+            <span class="meta-value">{{ result.budget_context.budget_currency }} {{ result.budget_context.budget_max }}</span>
+          </div>
+          <div class="result-meta">
+            <span class="meta-label">Check Amount</span>
+            <span class="meta-value">{{ result.budget_context.cost_check_amount }}</span>
+          </div>
+          <div class="result-meta">
+            <span class="meta-label">Certainty</span>
+            <span class="meta-value">{{ result.budget_context.cost_certainty }}</span>
+          </div>
+          <div v-if="result.budget_context.cost_actual != null" class="result-meta">
+            <span class="meta-label">Actual Cost</span>
+            <span class="meta-value">{{ result.budget_context.cost_actual }}</span>
+          </div>
+          <div class="result-meta">
+            <span class="meta-label">Within Budget</span>
+            <span :class="result.budget_context.within_budget ? 'status-ok' : 'status-error'">
+              {{ result.budget_context.within_budget ? 'Yes' : 'No' }}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <JsonPanel :data="result.result" title="Result Data" :collapsed="false" />
     </div>
 
@@ -97,6 +126,35 @@ const resolution = computed(() => failure.value?.resolution || null)
       <div class="result-meta">
         <span class="meta-label">Retryable</span>
         <span class="meta-value">{{ failure?.retry ? 'yes' : 'no' }}</span>
+      </div>
+
+      <!-- Budget Context (failure path) -->
+      <div v-if="result.budget_context" class="budget-callout">
+        <div class="budget-title">Budget Context</div>
+        <div class="budget-fields">
+          <div class="result-meta">
+            <span class="meta-label">Budget</span>
+            <span class="meta-value">{{ result.budget_context.budget_currency }} {{ result.budget_context.budget_max }}</span>
+          </div>
+          <div class="result-meta">
+            <span class="meta-label">Check Amount</span>
+            <span class="meta-value">{{ result.budget_context.cost_check_amount }}</span>
+          </div>
+          <div class="result-meta">
+            <span class="meta-label">Certainty</span>
+            <span class="meta-value">{{ result.budget_context.cost_certainty }}</span>
+          </div>
+          <div v-if="result.budget_context.cost_actual != null" class="result-meta">
+            <span class="meta-label">Actual Cost</span>
+            <span class="meta-value">{{ result.budget_context.cost_actual }}</span>
+          </div>
+          <div class="result-meta">
+            <span class="meta-label">Within Budget</span>
+            <span :class="result.budget_context.within_budget ? 'status-ok' : 'status-error'">
+              {{ result.budget_context.within_budget ? 'Yes' : 'No' }}
+            </span>
+          </div>
+        </div>
       </div>
 
       <JsonPanel :data="result" title="Raw Response" :collapsed="true" />
@@ -185,5 +243,41 @@ const resolution = computed(() => failure.value?.resolution || null)
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.budget-callout {
+  background: rgba(108, 99, 255, 0.08);
+  border-left: 3px solid var(--accent);
+  padding: 10px 14px;
+  border-radius: 0 6px 6px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.budget-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.budget-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.status-ok {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--success);
+}
+
+.status-error {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--error);
 }
 </style>

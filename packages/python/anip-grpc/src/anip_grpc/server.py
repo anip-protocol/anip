@@ -141,6 +141,11 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
             body["ttl_hours"] = request.ttl_hours
         if request.caller_class:
             body["caller_class"] = request.caller_class
+        if request.HasField("budget"):
+            body["budget"] = {
+                "currency": request.budget.currency,
+                "max_amount": request.budget.max_amount,
+            }
 
         try:
             result = _run_async(self._service.issue_token(principal, body))
@@ -154,12 +159,22 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                 ),
             )
 
-        return anip_pb2.IssueTokenResponse(
+        resp = anip_pb2.IssueTokenResponse(
             issued=result.get("issued", True),
             token_id=result.get("token_id", ""),
             token=result.get("token", ""),
             expires=result.get("expires", ""),
         )
+
+        # Echo budget in the response if present
+        budget_data = result.get("budget")
+        if budget_data:
+            resp.budget.CopyFrom(anip_pb2.Budget(
+                currency=budget_data.get("currency", ""),
+                max_amount=budget_data.get("max_amount", 0.0),
+            ))
+
+        return resp
 
     # --- JWT auth ---
 
@@ -215,6 +230,8 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
             success=success,
             invocation_id=result.get("invocation_id", ""),
             client_reference_id=result.get("client_reference_id", "") or "",
+            task_id=result.get("task_id", ""),
+            parent_invocation_id=result.get("parent_invocation_id", ""),
         )
 
         if success:
@@ -228,6 +245,18 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
             failure = result.get("failure")
             if failure:
                 resp.failure.CopyFrom(_make_anip_failure(failure))
+
+        # Populate budget_context if present (both success and failure).
+        budget_ctx = result.get("budget_context")
+        if budget_ctx:
+            resp.budget_context.CopyFrom(anip_pb2.BudgetContext(
+                budget_max=budget_ctx.get("budget_max", 0.0),
+                budget_currency=budget_ctx.get("budget_currency", ""),
+                cost_check_amount=budget_ctx.get("cost_check_amount", 0.0),
+                cost_certainty=budget_ctx.get("cost_certainty", ""),
+                cost_actual=budget_ctx.get("cost_actual", 0.0),
+                within_budget=budget_ctx.get("within_budget", False),
+            ))
 
         return resp
 
@@ -268,6 +297,8 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                         detail=exc.detail,
                         retry=exc.retry,
                     ),
+                    task_id=task_id or "",
+                    parent_invocation_id=parent_invocation_id or "",
                 ),
             )
             return
@@ -283,28 +314,47 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                 ),
             )
 
+        # Build budget_context if present.
+        budget_ctx = result.get("budget_context")
+        pb_budget_ctx = None
+        if budget_ctx:
+            pb_budget_ctx = anip_pb2.BudgetContext(
+                budget_max=budget_ctx.get("budget_max", 0.0),
+                budget_currency=budget_ctx.get("budget_currency", ""),
+                cost_check_amount=budget_ctx.get("cost_check_amount", 0.0),
+                cost_certainty=budget_ctx.get("cost_certainty", ""),
+                cost_actual=budget_ctx.get("cost_actual", 0.0),
+                within_budget=budget_ctx.get("within_budget", False),
+            )
+
         # Yield final completed or failed event
         success = result.get("success", True)
         if success:
             result_data = result.get("result")
             cost_actual = result.get("cost_actual")
-            yield anip_pb2.InvokeEvent(
-                completed=anip_pb2.CompletedEvent(
-                    invocation_id=invocation_id,
-                    client_reference_id=result.get("client_reference_id", "") or "",
-                    result_json=json.dumps(result_data) if result_data is not None else "",
-                    cost_actual_json=json.dumps(cost_actual) if cost_actual is not None else "",
-                ),
+            completed = anip_pb2.CompletedEvent(
+                invocation_id=invocation_id,
+                client_reference_id=result.get("client_reference_id", "") or "",
+                result_json=json.dumps(result_data) if result_data is not None else "",
+                cost_actual_json=json.dumps(cost_actual) if cost_actual is not None else "",
+                task_id=result.get("task_id", ""),
+                parent_invocation_id=result.get("parent_invocation_id", ""),
             )
+            if pb_budget_ctx:
+                completed.budget_context.CopyFrom(pb_budget_ctx)
+            yield anip_pb2.InvokeEvent(completed=completed)
         else:
             failure = result.get("failure", {})
-            yield anip_pb2.InvokeEvent(
-                failed=anip_pb2.FailedEvent(
-                    invocation_id=invocation_id,
-                    client_reference_id=result.get("client_reference_id", "") or "",
-                    failure=_make_anip_failure(failure),
-                ),
+            failed = anip_pb2.FailedEvent(
+                invocation_id=invocation_id,
+                client_reference_id=result.get("client_reference_id", "") or "",
+                failure=_make_anip_failure(failure),
+                task_id=result.get("task_id", ""),
+                parent_invocation_id=result.get("parent_invocation_id", ""),
             )
+            if pb_budget_ctx:
+                failed.budget_context.CopyFrom(pb_budget_ctx)
+            yield anip_pb2.InvokeEvent(failed=failed)
 
     def QueryAudit(self, request, context):
         token = self._resolve_jwt(context)

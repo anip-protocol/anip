@@ -8,7 +8,7 @@ public class Cost
     public string Certainty { get; set; } = "";
 
     [JsonPropertyName("financial")]
-    public Dictionary<string, object>? Financial { get; set; }
+    public FinancialCost? Financial { get; set; }
 
     [JsonPropertyName("determined_by")]
     public string? DeterminedBy { get; set; }

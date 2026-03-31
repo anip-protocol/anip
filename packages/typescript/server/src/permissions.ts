@@ -17,6 +17,7 @@ export interface PermissionResult {
     capability: string;
     reason: string;
     grantable_by: string;
+    unmet_token_requirements?: string[];
   }>;
   denied: Array<{
     capability: string;
@@ -66,6 +67,42 @@ export function discoverPermissions(
     }
 
     if (missing.length === 0) {
+      // Check token-evaluable control requirements
+      const controlRequirements = (cap as any).control_requirements ?? [];
+      const unmet: string[] = [];
+      const constraintsObj = token.constraints as Record<string, unknown> | undefined;
+      for (const req of controlRequirements as Array<Record<string, unknown>>) {
+        const reqType = req.type as string;
+        if (reqType === "cost_ceiling" && (!constraintsObj || !constraintsObj.budget)) {
+          unmet.push("cost_ceiling");
+        } else if (reqType === "stronger_delegation_required") {
+          const tokenHasExplicitBinding = (
+            token.purpose !== null &&
+            token.purpose !== undefined &&
+            token.purpose.capability === name
+          );
+          if (!tokenHasExplicitBinding) {
+            unmet.push("stronger_delegation_required");
+          }
+        }
+      }
+
+      if (
+        unmet.length > 0 &&
+        controlRequirements.some(
+          (r: Record<string, unknown>) =>
+            r.enforcement === "reject" && unmet.includes(r.type as string),
+        )
+      ) {
+        restricted.push({
+          capability: name,
+          reason: `missing control requirements: ${unmet.join(", ")}`,
+          grantable_by: rootPrincipal,
+          unmet_token_requirements: unmet,
+        });
+        continue;
+      }
+
       const constraints: Record<string, unknown> = {};
       for (const scopeStr of matchedScopeStrs) {
         if (scopeStr.includes(":max_$")) {
@@ -73,6 +110,12 @@ export function discoverPermissions(
           constraints.budget_remaining = maxBudget;
           constraints.currency = "USD";
         }
+      }
+      // Include constraints-level budget info if present
+      if (constraintsObj?.budget) {
+        const budget = constraintsObj.budget as Record<string, unknown>;
+        constraints.budget_remaining = budget.max_amount;
+        constraints.currency = budget.currency;
       }
       available.push({
         capability: name,

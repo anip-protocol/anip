@@ -8,6 +8,7 @@ import dev.anip.core.CapabilityRequirement;
 import dev.anip.core.Constants;
 import dev.anip.core.Cost;
 import dev.anip.core.CostActual;
+import dev.anip.core.FinancialCost;
 import dev.anip.core.SideEffect;
 import dev.anip.service.CapabilityDef;
 import dev.anip.service.InvocationContext;
@@ -42,10 +43,7 @@ public final class BookFlightCapability {
                 List.of("travel.book"),
                 new Cost(
                         "estimated",
-                        Map.of(
-                                "currency", "USD",
-                                "estimated_range", Map.of("min", 280, "max", 500)
-                        ),
+                        new FinancialCost("USD", null, 280.0, 500.0, null, null),
                         "search_flights",
                         null, null, null
                 ),
@@ -88,7 +86,7 @@ public final class BookFlightCapability {
 
         // Track actual cost.
         ctx.setCostActual(new CostActual(
-                Map.of("amount", totalCost, "currency", currency),
+                new FinancialCost(currency, totalCost),
                 null
         ));
 

@@ -1,25 +1,34 @@
 package dev.anip.core;
 
-import java.util.Map;
-
 /**
  * The actual cost incurred by an invocation.
  */
 public class CostActual {
 
-    private final Map<String, Object> financial;
-    private final String varianceFromEstimate;
+    private FinancialCost financial;
+    private String varianceFromEstimate;
 
-    public CostActual(Map<String, Object> financial, String varianceFromEstimate) {
+    /** No-arg constructor for Jackson deserialization. */
+    public CostActual() {}
+
+    public CostActual(FinancialCost financial, String varianceFromEstimate) {
         this.financial = financial;
         this.varianceFromEstimate = varianceFromEstimate;
     }
 
-    public Map<String, Object> getFinancial() {
+    public FinancialCost getFinancial() {
         return financial;
     }
 
     public String getVarianceFromEstimate() {
         return varianceFromEstimate;
+    }
+
+    public void setFinancial(FinancialCost financial) {
+        this.financial = financial;
+    }
+
+    public void setVarianceFromEstimate(String varianceFromEstimate) {
+        this.varianceFromEstimate = varianceFromEstimate;
     }
 }

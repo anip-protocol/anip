@@ -1,6 +1,6 @@
 import pytest
 from anip_service import ANIPService, Capability, InvocationContext, ANIPError
-from anip_core import CapabilityDeclaration, CapabilityInput, CapabilityOutput, SideEffect, SideEffectType
+from anip_core import CapabilityDeclaration, CapabilityInput, CapabilityOutput, SideEffect, SideEffectType, PROTOCOL_VERSION
 
 
 def _test_cap(name: str = "greet", scope: list[str] | None = None) -> Capability:
@@ -47,7 +47,7 @@ class TestANIPServiceInit:
         ad = disc["anip_discovery"]
 
         # Required fields per SPEC.md §6.1
-        assert ad["protocol"] == "anip/0.11"
+        assert ad["protocol"] == PROTOCOL_VERSION
         assert ad["compliance"] == "anip-compliant"
         assert ad["base_url"] == "https://test.example.com"
         assert ad["profile"]["core"] == "1.0"

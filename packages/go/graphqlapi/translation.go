@@ -364,16 +364,12 @@ func buildSDLDirectives(decl *core.CapabilityDeclaration) string {
 		}
 		costDir := fmt.Sprintf(`@anipCost(certainty: "%s"`, certainty)
 		if decl.Cost.Financial != nil {
-			if currency, ok := decl.Cost.Financial["currency"]; ok {
-				costDir += fmt.Sprintf(`, currency: "%v"`, currency)
+			costDir += fmt.Sprintf(`, currency: "%s"`, decl.Cost.Financial.Currency)
+			if decl.Cost.Financial.RangeMin != nil {
+				costDir += fmt.Sprintf(`, rangeMin: %v`, *decl.Cost.Financial.RangeMin)
 			}
-			if estRange, ok := decl.Cost.Financial["estimated_range"].(map[string]any); ok {
-				if rangeMin, ok := estRange["min"]; ok {
-					costDir += fmt.Sprintf(`, rangeMin: %v`, rangeMin)
-				}
-				if rangeMax, ok := estRange["max"]; ok {
-					costDir += fmt.Sprintf(`, rangeMax: %v`, rangeMax)
-				}
+			if decl.Cost.Financial.RangeMax != nil {
+				costDir += fmt.Sprintf(`, rangeMax: %v`, *decl.Cost.Financial.RangeMax)
 			}
 		}
 		costDir += ")"

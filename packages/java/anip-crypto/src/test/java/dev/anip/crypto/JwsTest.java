@@ -1,5 +1,6 @@
 package dev.anip.crypto;
 
+import dev.anip.core.Constants;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -12,7 +13,7 @@ class JwsTest {
     void signAndVerify() throws Exception {
         KeyManager km = KeyManager.create(null);
 
-        byte[] payload = "{\"protocol\":\"anip/0.11\",\"capabilities\":{}}".getBytes(StandardCharsets.UTF_8);
+        byte[] payload = ("{\"protocol\":\"" + Constants.PROTOCOL_VERSION + "\",\"capabilities\":{}}").getBytes(StandardCharsets.UTF_8);
 
         String sig = JwsSigner.signDetachedJws(km, payload);
         assertNotNull(sig);
@@ -25,7 +26,7 @@ class JwsTest {
     void verifyFailsWithWrongPayload() throws Exception {
         KeyManager km = KeyManager.create(null);
 
-        byte[] payload = "{\"protocol\":\"anip/0.11\",\"capabilities\":{}}".getBytes(StandardCharsets.UTF_8);
+        byte[] payload = ("{\"protocol\":\"" + Constants.PROTOCOL_VERSION + "\",\"capabilities\":{}}").getBytes(StandardCharsets.UTF_8);
 
         String sig = JwsSigner.signDetachedJws(km, payload);
 
