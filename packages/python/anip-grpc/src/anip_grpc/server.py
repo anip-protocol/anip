@@ -230,6 +230,8 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
             success=success,
             invocation_id=result.get("invocation_id", ""),
             client_reference_id=result.get("client_reference_id", "") or "",
+            task_id=result.get("task_id", ""),
+            parent_invocation_id=result.get("parent_invocation_id", ""),
         )
 
         if success:
@@ -252,6 +254,8 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                 budget_currency=budget_ctx.get("budget_currency", ""),
                 cost_check_amount=budget_ctx.get("cost_check_amount", 0.0),
                 cost_certainty=budget_ctx.get("cost_certainty", ""),
+                cost_actual=budget_ctx.get("cost_actual", 0.0),
+                within_budget=budget_ctx.get("within_budget", False),
             ))
 
         return resp
@@ -293,6 +297,8 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                         detail=exc.detail,
                         retry=exc.retry,
                     ),
+                    task_id=task_id or "",
+                    parent_invocation_id=parent_invocation_id or "",
                 ),
             )
             return
@@ -317,6 +323,8 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                 budget_currency=budget_ctx.get("budget_currency", ""),
                 cost_check_amount=budget_ctx.get("cost_check_amount", 0.0),
                 cost_certainty=budget_ctx.get("cost_certainty", ""),
+                cost_actual=budget_ctx.get("cost_actual", 0.0),
+                within_budget=budget_ctx.get("within_budget", False),
             )
 
         # Yield final completed or failed event
@@ -329,6 +337,8 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                 client_reference_id=result.get("client_reference_id", "") or "",
                 result_json=json.dumps(result_data) if result_data is not None else "",
                 cost_actual_json=json.dumps(cost_actual) if cost_actual is not None else "",
+                task_id=result.get("task_id", ""),
+                parent_invocation_id=result.get("parent_invocation_id", ""),
             )
             if pb_budget_ctx:
                 completed.budget_context.CopyFrom(pb_budget_ctx)
@@ -339,6 +349,8 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                 invocation_id=invocation_id,
                 client_reference_id=result.get("client_reference_id", "") or "",
                 failure=_make_anip_failure(failure),
+                task_id=result.get("task_id", ""),
+                parent_invocation_id=result.get("parent_invocation_id", ""),
             )
             if pb_budget_ctx:
                 failed.budget_context.CopyFrom(pb_budget_ctx)
