@@ -122,7 +122,12 @@ describe("Invoke", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        parameters: { flight_number: "AA100", date: "2026-03-10", passengers: 1 },
+        parameters: {
+          flight_number: "AA100",
+          date: "2026-03-10",
+          passengers: 1,
+          quote_id: { id: "qt-test-1234", price: 420, issued_at: Math.floor(Date.now() / 1000) },
+        },
       }),
     });
     expect(res.status).toBe(200);

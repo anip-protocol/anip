@@ -57,11 +57,11 @@ class TestBindingEnforcement:
         token = issue_token(client, all_scopes, cap_name, bootstrap_bearer)
 
         # Build params with the binding field(s) present
-        params = sample_inputs.get(cap_name, {})
-        if not params:
-            # Construct minimal params with binding fields populated
-            for binding in bindings:
-                field = binding["field"]
+        params = dict(sample_inputs.get(cap_name, {}))  # copy so we don't mutate fixture
+        # Always ensure binding fields are present
+        for binding in bindings:
+            field = binding["field"]
+            if field not in params:
                 params[field] = {"placeholder": True, "price": 100}
 
         resp = client.post(

@@ -118,7 +118,12 @@ class TestInvoke:
         resp = client.post(
             "/anip/invoke/book_flight",
             headers={"Authorization": f"Bearer {token}"},
-            json={"parameters": {"flight_number": "AA100", "date": "2026-03-10", "passengers": 1}},
+            json={"parameters": {
+                "flight_number": "AA100",
+                "date": "2026-03-10",
+                "passengers": 1,
+                "quote_id": {"id": "qt-test-1234", "price": 420, "issued_at": 1743300000},
+            }},
         )
         assert resp.status_code == 200
         data = resp.json()

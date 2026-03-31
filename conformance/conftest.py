@@ -41,13 +41,29 @@ def bootstrap_bearer(request):
 
 @pytest.fixture(scope="session")
 def sample_inputs(request):
-    """Load sample capability inputs from JSON file, or return empty dict."""
+    """Load sample capability inputs from JSON file, or return empty dict.
+
+    Any ``issued_at`` fields inside parameter objects are refreshed to the
+    current epoch time so that binding freshness checks (max_age) pass.
+    """
     path = request.config.getoption("--sample-inputs")
     if path is None:
         return {}
     import json
+    import time
     from pathlib import Path
-    return json.loads(Path(path).read_text())
+
+    data = json.loads(Path(path).read_text())
+
+    # Refresh issued_at timestamps so bindings are not stale
+    now = int(time.time())
+    for _cap, params in data.items():
+        if isinstance(params, dict):
+            for _key, val in params.items():
+                if isinstance(val, dict) and "issued_at" in val:
+                    val["issued_at"] = now
+
+    return data
 
 
 @pytest.fixture(scope="session")
