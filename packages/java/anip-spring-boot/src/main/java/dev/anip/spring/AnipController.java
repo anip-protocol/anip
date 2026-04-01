@@ -456,10 +456,11 @@ public class AnipController {
         Map<String, Object> failure = new LinkedHashMap<>();
         failure.put("type", Constants.FAILURE_AUTH_REQUIRED);
         failure.put("detail", "Authorization header with Bearer token required");
-        failure.put("resolution", Map.of(
-                "action", "provide_credentials",
-                "requires", "Bearer token"
-        ));
+        Map<String, Object> resolution = new LinkedHashMap<>();
+        resolution.put("action", "provide_credentials");
+        resolution.put("recovery_class", Constants.recoveryClassForAction("provide_credentials"));
+        resolution.put("requires", "Bearer token");
+        failure.put("resolution", resolution);
         failure.put("retry", true);
 
         Map<String, Object> body = new LinkedHashMap<>();
@@ -489,6 +490,7 @@ public class AnipController {
         if (e.getResolution() != null) {
             Map<String, Object> res = new LinkedHashMap<>();
             res.put("action", e.getResolution().getAction());
+            res.put("recovery_class", e.getResolution().getRecoveryClass());
             if (e.getResolution().getRequires() != null) {
                 res.put("requires", e.getResolution().getRequires());
             }
@@ -511,18 +513,25 @@ public class AnipController {
         return switch (failureType) {
             case Constants.FAILURE_AUTH_REQUIRED -> Map.of(
                     "action", "provide_credentials",
+                    "recovery_class", Constants.recoveryClassForAction("provide_credentials"),
                     "requires", "Bearer token"
             );
             case Constants.FAILURE_INVALID_TOKEN, Constants.FAILURE_TOKEN_EXPIRED -> Map.of(
-                    "action", "reauthenticate"
+                    "action", "request_new_delegation",
+                    "recovery_class", Constants.recoveryClassForAction("request_new_delegation")
             );
             case Constants.FAILURE_SCOPE_INSUFFICIENT -> Map.of(
-                    "action", "request_scope"
+                    "action", "request_broader_scope",
+                    "recovery_class", Constants.recoveryClassForAction("request_broader_scope")
             );
             case Constants.FAILURE_BUDGET_EXCEEDED -> Map.of(
-                    "action", "request_budget_increase"
+                    "action", "request_budget_increase",
+                    "recovery_class", Constants.recoveryClassForAction("request_budget_increase")
             );
-            default -> Map.of("action", "contact_administrator");
+            default -> Map.of(
+                    "action", "contact_service_owner",
+                    "recovery_class", Constants.recoveryClassForAction("contact_service_owner")
+            );
         };
     }
 

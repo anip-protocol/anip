@@ -287,7 +287,7 @@ public class ANIPService {
                         "type", Constants.FAILURE_PURPOSE_MISMATCH,
                         "detail", "Request task_id '" + requestTaskId
                                 + "' does not match token purpose task_id '" + tokenTaskId + "'",
-                        "resolution", Map.of("action", "use_token_task_id", "requires", "matching task_id or omit from request"),
+                        "resolution", Map.of("action", "use_token_task_id", "recovery_class", Constants.recoveryClassForAction("use_token_task_id"), "requires", "matching task_id or omit from request"),
                         "retry", false
                 ));
                 resp.put("invocation_id", invocationId);
@@ -344,7 +344,12 @@ public class ANIPService {
                 failure.put("type", e.getErrorType());
                 failure.put("detail", e.getDetail());
                 if (e.getResolution() != null) {
-                    failure.put("resolution", Map.of("action", e.getResolution().getAction()));
+                    failure.put("resolution", Map.of(
+                            "action", e.getResolution().getAction(),
+                            "recovery_class", e.getResolution().getRecoveryClass() != null
+                                    ? e.getResolution().getRecoveryClass()
+                                    : Constants.recoveryClassForAction(e.getResolution().getAction())
+                    ));
                 }
 
                 String sideEffectType = capDef.getDeclaration().getSideEffect() != null
@@ -496,6 +501,7 @@ public class ANIPService {
                                 + "' (type: " + binding.getType() + ")");
                         failure.put("resolution", Map.of(
                                 "action", "obtain_binding",
+                                "recovery_class", Constants.recoveryClassForAction("obtain_binding"),
                                 "requires", "invoke " + sourceDesc + " to obtain a " + binding.getField()
                         ));
                         Map<String, Object> tokenClaims = tokenClaimsMap(token);
@@ -525,6 +531,7 @@ public class ANIPService {
                                         + "' has exceeded max_age of " + binding.getMaxAge());
                                 failure.put("resolution", Map.of(
                                         "action", "refresh_binding",
+                                        "recovery_class", Constants.recoveryClassForAction("refresh_binding"),
                                         "requires", "invoke " + sourceDesc + " again for a fresh " + binding.getField()
                                 ));
                                 Map<String, Object> tokenClaims = tokenClaimsMap(token);

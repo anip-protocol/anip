@@ -90,7 +90,8 @@ public class SchemaBuilder {
 
         GraphQLObjectType resolutionType = newObject()
                 .name("Resolution")
-                .field(newFieldDefinition().name("action").type(GraphQLString))
+                .field(newFieldDefinition().name("action").type(nonNull(GraphQLString)))
+                .field(newFieldDefinition().name("recoveryClass").type(nonNull(GraphQLString)))
                 .field(newFieldDefinition().name("requires").type(GraphQLString))
                 .field(newFieldDefinition().name("grantableBy").type(GraphQLString))
                 .build();
@@ -219,7 +220,12 @@ public class SchemaBuilder {
                 failure.put("detail", e.getDetail());
                 failure.put("retry", e.isRetry());
                 if (e.getResolution() != null) {
-                    failure.put("resolution", Map.of("action", e.getResolution().getAction()));
+                    failure.put("resolution", Map.of(
+                            "action", e.getResolution().getAction(),
+                            "recovery_class", e.getResolution().getRecoveryClass() != null
+                                    ? e.getResolution().getRecoveryClass()
+                                    : Constants.recoveryClassForAction(e.getResolution().getAction())
+                    ));
                 }
                 return GraphQLResponseMapper.buildGraphQLResponse(Map.of(
                         "success", false,
@@ -275,7 +281,7 @@ public class SchemaBuilder {
         lines.add("type CostActual { financial: FinancialCost, varianceFromEstimate: String }");
         lines.add("type FinancialCost { amount: Float, currency: String }");
         lines.add("type ANIPFailure { type: String!, detail: String!, resolution: Resolution, retry: Boolean! }");
-        lines.add("type Resolution { action: String!, requires: String, grantableBy: String }");
+        lines.add("type Resolution { action: String!, recoveryClass: String!, requires: String, grantableBy: String }");
         lines.add("type RestrictedCapability { capability: String!, reason: String!, reasonType: String!, grantableBy: String!, unmetTokenRequirements: [String!]!, resolutionHint: String }");
         lines.add("type DeniedCapability { capability: String!, reason: String!, reasonType: String! }");
         lines.add("");

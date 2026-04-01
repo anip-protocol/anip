@@ -38,6 +38,53 @@ public final class Constants {
     public static final String FAILURE_INVALID_PARAMETERS = "invalid_parameters";
     public static final String FAILURE_NON_DELEGABLE_ACTION = "non_delegable_action";
 
+    /** Maps each canonical resolution action to its recovery class. */
+    public static final Map<String, String> RECOVERY_CLASS_MAP = Map.ofEntries(
+            Map.entry("retry_now", "retry_now"),
+            Map.entry("wait_and_retry", "wait_then_retry"),
+            Map.entry("obtain_binding", "refresh_then_retry"),
+            Map.entry("refresh_binding", "refresh_then_retry"),
+            Map.entry("obtain_quote_first", "refresh_then_retry"),
+            Map.entry("revalidate_state", "revalidate_then_retry"),
+            Map.entry("request_broader_scope", "redelegation_then_retry"),
+            Map.entry("request_budget_increase", "redelegation_then_retry"),
+            Map.entry("request_budget_bound_delegation", "redelegation_then_retry"),
+            Map.entry("request_matching_currency_delegation", "redelegation_then_retry"),
+            Map.entry("request_new_delegation", "redelegation_then_retry"),
+            Map.entry("request_capability_binding", "redelegation_then_retry"),
+            Map.entry("request_deeper_delegation", "redelegation_then_retry"),
+            Map.entry("escalate_to_root_principal", "terminal"),
+            Map.entry("provide_credentials", "retry_now"),
+            Map.entry("check_manifest", "revalidate_then_retry"),
+            Map.entry("contact_service_owner", "terminal"),
+            Map.entry("narrow_scope", "terminal"),
+            Map.entry("preserve_budget_constraint", "terminal"),
+            Map.entry("narrow_budget", "terminal"),
+            Map.entry("match_parent_currency", "terminal"),
+            Map.entry("register_missing_ancestor", "redelegation_then_retry"),
+            Map.entry("reduce_delegation_depth", "terminal"),
+            Map.entry("refresh_delegation_chain", "redelegation_then_retry"),
+            Map.entry("register_parent_token_first", "redelegation_then_retry"),
+            Map.entry("narrow_constraints", "terminal"),
+            Map.entry("preserve_constraint", "terminal"),
+            Map.entry("register_token", "redelegation_then_retry"),
+            Map.entry("use_token_task_id", "revalidate_then_retry"),
+            Map.entry("provide_priced_binding", "refresh_then_retry"),
+            Map.entry("list_checkpoints", "revalidate_then_retry")
+    );
+
+    /**
+     * Returns the recovery class for a given action.
+     * Throws IllegalArgumentException if the action is not in the map.
+     */
+    public static String recoveryClassForAction(String action) {
+        String cls = RECOVERY_CLASS_MAP.get(action);
+        if (cls == null) {
+            throw new IllegalArgumentException("No recovery class mapped for action: \"" + action + "\"");
+        }
+        return cls;
+    }
+
     /** Supported algorithms for signing. */
     public static final String[] SUPPORTED_ALGORITHMS = {"ES256"};
 
