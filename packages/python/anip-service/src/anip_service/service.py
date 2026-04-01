@@ -654,7 +654,7 @@ class ANIPService:
                 "failure": {
                     "type": "purpose_mismatch",
                     "detail": f"Request task_id '{task_id}' does not match token purpose task_id '{token_task_id}'",
-                    "resolution": {"action": "use_token_task_id", "requires": "matching task_id or omit from request"},
+                    "resolution": {"action": "use_token_task_id", "recovery_class": "revalidate_then_retry", "requires": "matching task_id or omit from request"},
                     "retry": False,
                 },
                 "invocation_id": invocation_id,
@@ -683,6 +683,7 @@ class ANIPService:
                 "failure": redact_failure({
                     "type": "unknown_capability",
                     "detail": f"Capability '{capability_name}' not found",
+                    "resolution": {"action": "check_manifest", "recovery_class": "revalidate_then_retry"},
                 }, effective_level),
                 "invocation_id": invocation_id,
                 "client_reference_id": client_reference_id,
@@ -714,6 +715,7 @@ class ANIPService:
                     "failure": redact_failure({
                         "type": "streaming_not_supported",
                         "detail": f"Capability '{capability_name}' does not support streaming",
+                        "resolution": {"action": "check_manifest", "recovery_class": "revalidate_then_retry"},
                     }, effective_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
@@ -798,6 +800,7 @@ class ANIPService:
                         "failure": redact_failure({
                             "type": "budget_currency_mismatch",
                             "detail": f"Invocation budget is in {request_budget.currency} but token budget is in {effective_budget.currency}",
+                            "resolution": {"action": "request_matching_currency_delegation", "recovery_class": "redelegation_then_retry"},
                         }, effective_level),
                         "invocation_id": invocation_id,
                         "client_reference_id": client_reference_id,
@@ -821,6 +824,7 @@ class ANIPService:
                         "failure": redact_failure({
                             "type": "budget_currency_mismatch",
                             "detail": f"Token budget is in {effective_budget.currency} but capability cost is in {decl.cost.financial.currency}",
+                            "resolution": {"action": "request_matching_currency_delegation", "recovery_class": "redelegation_then_retry"},
                         }, effective_level),
                         "invocation_id": invocation_id,
                         "client_reference_id": client_reference_id,
@@ -845,7 +849,7 @@ class ANIPService:
                                 "failure": redact_failure({
                                     "type": "budget_not_enforceable",
                                     "detail": f"Capability {decl.name} has estimated cost with requires_binding but the provided binding does not carry a resolvable price",
-                                    "resolution": {"action": "provide_priced_binding", "requires": "binding value must include a 'price' field or the service must resolve binding to a concrete price"},
+                                    "resolution": {"action": "provide_priced_binding", "recovery_class": "refresh_then_retry", "requires": "binding value must include a 'price' field or the service must resolve binding to a concrete price"},
                                     "retry": False,
                                 }, effective_level),
                                 "invocation_id": invocation_id,
@@ -859,6 +863,7 @@ class ANIPService:
                             "failure": redact_failure({
                                 "type": "budget_not_enforceable",
                                 "detail": f"Capability {decl.name} has estimated cost but no requires_binding — budget cannot be enforced",
+                                "resolution": {"action": "escalate_to_root_principal", "recovery_class": "terminal"},
                             }, effective_level),
                             "invocation_id": invocation_id,
                             "client_reference_id": client_reference_id,
@@ -874,6 +879,7 @@ class ANIPService:
                         "failure": redact_failure({
                             "type": "budget_exceeded",
                             "detail": f"Cost ${check_amount} exceeds budget ${effective_budget.max_amount}",
+                            "resolution": {"action": "request_budget_increase", "recovery_class": "redelegation_then_retry"},
                         }, effective_level),
                         "budget_context": {
                             "budget_max": effective_budget.max_amount,
@@ -899,6 +905,7 @@ class ANIPService:
                         "detail": f"Capability {decl.name} requires '{binding.field}' (type: {binding.type})",
                         "resolution": {
                             "action": "obtain_binding",
+                            "recovery_class": "refresh_then_retry",
                             "requires": f"invoke {binding.source_capability or 'source capability'} to obtain a {binding.field}",
                         },
                     }, effective_level),
@@ -917,6 +924,7 @@ class ANIPService:
                             "detail": f"Binding '{binding.field}' has exceeded max_age of {binding.max_age}",
                             "resolution": {
                                 "action": "refresh_binding",
+                                "recovery_class": "refresh_then_retry",
                                 "requires": f"invoke {binding.source_capability or 'source capability'} again for a fresh {binding.field}",
                             },
                         }, effective_level),
@@ -949,6 +957,7 @@ class ANIPService:
                         "type": "control_requirement_unsatisfied",
                         "detail": f"Capability {decl.name} requires {req.type}",
                         "unsatisfied_requirements": [req.type],
+                        "resolution": {"action": "request_capability_binding", "recovery_class": "redelegation_then_retry"},
                     }, effective_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,

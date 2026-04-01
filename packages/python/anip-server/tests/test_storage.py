@@ -499,7 +499,7 @@ async def test_inmemory_delete_expired_audit_entries():
     assert len(remaining) == 2
 
 
-from .compliance import ALL_COMPLIANCE_TESTS
+from compliance import ALL_COMPLIANCE_TESTS
 
 
 @pytest.mark.parametrize("test_fn", ALL_COMPLIANCE_TESTS, ids=lambda f: f.__name__)

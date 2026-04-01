@@ -29,6 +29,7 @@ from anip_core import (
     DelegationToken,
     Purpose,
     Resolution,
+    recovery_class_for_action,
 )
 
 from .storage import StorageBackend
@@ -122,6 +123,7 @@ class DelegationEngine:
                     ),
                     resolution=Resolution(
                         action="narrow_scope",
+                        recovery_class=recovery_class_for_action("narrow_scope"),
                         requires="child scope must be subset of parent scope",
                         grantable_by=root_principal,
                     ),
@@ -142,6 +144,7 @@ class DelegationEngine:
                             ),
                             resolution=Resolution(
                                 action="preserve_budget_constraint",
+                                recovery_class=recovery_class_for_action("preserve_budget_constraint"),
                                 requires=f"scope '{child_base}' must include budget <= ${parent_budget}",
                                 grantable_by=root_principal,
                             ),
@@ -157,6 +160,7 @@ class DelegationEngine:
                             ),
                             resolution=Resolution(
                                 action="narrow_budget",
+                                recovery_class=recovery_class_for_action("narrow_budget"),
                                 requires=f"budget must be <= ${parent_budget}",
                                 grantable_by=root_principal,
                             ),
@@ -175,6 +179,7 @@ class DelegationEngine:
                     detail=f"Child budget currency {budget.currency} does not match parent {parent_constraints.budget.currency}",
                     resolution=Resolution(
                         action="match_parent_currency",
+                        recovery_class=recovery_class_for_action("match_parent_currency"),
                         requires=f"budget currency must be {parent_constraints.budget.currency}",
                         grantable_by=root_principal,
                     ),
@@ -186,6 +191,7 @@ class DelegationEngine:
                     detail=f"Child budget ${budget.max_amount} exceeds parent budget ${parent_constraints.budget.max_amount}",
                     resolution=Resolution(
                         action="narrow_budget",
+                        recovery_class=recovery_class_for_action("narrow_budget"),
                         requires=f"budget must be <= ${parent_constraints.budget.max_amount}",
                         grantable_by=root_principal,
                     ),
@@ -232,6 +238,7 @@ class DelegationEngine:
                 detail=f"delegation token {token.token_id} expired at {token.expires.isoformat()}",
                 resolution=Resolution(
                     action="request_new_delegation",
+                    recovery_class=recovery_class_for_action("request_new_delegation"),
                     grantable_by=await self.get_root_principal(token),
                 ),
                 retry=True,
@@ -255,6 +262,7 @@ class DelegationEngine:
                 detail=f"delegation chain lacks scope(s): {', '.join(missing_scopes)}",
                 resolution=Resolution(
                     action="request_broader_scope",
+                    recovery_class=recovery_class_for_action("request_broader_scope"),
                     requires=f"delegation.scope += {', '.join(missing_scopes)}",
                     grantable_by=root_principal,
                 ),
@@ -271,6 +279,7 @@ class DelegationEngine:
                 ),
                 resolution=Resolution(
                     action="request_new_delegation",
+                    recovery_class=recovery_class_for_action("request_new_delegation"),
                     grantable_by=await self.get_root_principal(token),
                 ),
                 retry=True,
@@ -287,6 +296,7 @@ class DelegationEngine:
                 ),
                 resolution=Resolution(
                     action="register_missing_ancestor",
+                    recovery_class=recovery_class_for_action("register_missing_ancestor"),
                     grantable_by=await self.get_root_principal(token),
                 ),
                 retry=True,
@@ -301,6 +311,7 @@ class DelegationEngine:
                 detail=f"delegation chain depth is {actual_depth}, max allowed is {max_depth}",
                 resolution=Resolution(
                     action="reduce_delegation_depth",
+                    recovery_class=recovery_class_for_action("reduce_delegation_depth"),
                     requires=f"max_delegation_depth >= {actual_depth}",
                     grantable_by=await self.get_root_principal(token),
                 ),
@@ -315,6 +326,7 @@ class DelegationEngine:
                     detail=f"ancestor token {ancestor.token_id} in delegation chain has expired",
                     resolution=Resolution(
                         action="refresh_delegation_chain",
+                        recovery_class=recovery_class_for_action("refresh_delegation_chain"),
                         grantable_by=await self.get_root_principal(token),
                     ),
                     retry=True,
@@ -372,6 +384,7 @@ class DelegationEngine:
                 detail=f"parent token '{token.parent}' is not registered — cannot validate scope narrowing",
                 resolution=Resolution(
                     action="register_parent_token_first",
+                    recovery_class=recovery_class_for_action("register_parent_token_first"),
                     requires=f"token '{token.parent}' must be registered before its children",
                     grantable_by=token.issuer,
                 ),
@@ -395,6 +408,7 @@ class DelegationEngine:
                     ),
                     resolution=Resolution(
                         action="narrow_scope",
+                        recovery_class=recovery_class_for_action("narrow_scope"),
                         requires="child scope must be subset of parent scope",
                         grantable_by=await self.get_root_principal(parent),
                     ),
@@ -415,6 +429,7 @@ class DelegationEngine:
                             ),
                             resolution=Resolution(
                                 action="preserve_budget_constraint",
+                                recovery_class=recovery_class_for_action("preserve_budget_constraint"),
                                 requires=f"scope '{child_base}' must include budget <= ${parent_budget}",
                                 grantable_by=await self.get_root_principal(parent),
                             ),
@@ -430,6 +445,7 @@ class DelegationEngine:
                             ),
                             resolution=Resolution(
                                 action="narrow_budget",
+                                recovery_class=recovery_class_for_action("narrow_budget"),
                                 requires=f"budget must be <= ${parent_budget}",
                                 grantable_by=await self.get_root_principal(parent),
                             ),
@@ -462,6 +478,7 @@ class DelegationEngine:
                 ),
                 resolution=Resolution(
                     action="narrow_constraints",
+                    recovery_class=recovery_class_for_action("narrow_constraints"),
                     requires=f"max_delegation_depth must be <= {parent.constraints.max_delegation_depth}",
                     grantable_by=await self.get_root_principal(parent),
                 ),
@@ -477,6 +494,7 @@ class DelegationEngine:
                 detail="child weakened concurrent_branches from 'exclusive' to 'allowed'",
                 resolution=Resolution(
                     action="preserve_constraint",
+                    recovery_class=recovery_class_for_action("preserve_constraint"),
                     requires="concurrent_branches must remain 'exclusive'",
                     grantable_by=await self.get_root_principal(parent),
                 ),
@@ -498,6 +516,7 @@ class DelegationEngine:
                         detail=f"capability costs ${amount} but delegation chain authority is max ${max_budget}",
                         resolution=Resolution(
                             action="request_budget_increase",
+                            recovery_class=recovery_class_for_action("request_budget_increase"),
                             requires=f"delegation.scope budget raised to ${amount}",
                             grantable_by=await self.get_root_principal(token),
                         ),
@@ -534,6 +553,7 @@ class DelegationEngine:
                 detail=f"concurrent_branches is exclusive and another request from {root} is in progress",
                 resolution=Resolution(
                     action="wait_and_retry",
+                    recovery_class=recovery_class_for_action("wait_and_retry"),
                     grantable_by=root,
                 ),
                 retry=True,
@@ -596,6 +616,7 @@ class DelegationEngine:
                 ),
                 resolution=Resolution(
                     action="register_token",
+                    recovery_class=recovery_class_for_action("register_token"),
                     requires="token must be registered before use",
                     grantable_by=token.issuer,
                 ),

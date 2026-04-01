@@ -293,7 +293,7 @@ class TestAuthErrors:
         data = resp.json()
         assert data["success"] is False
         assert data["failure"]["type"] == "authentication_required"
-        assert data["failure"]["resolution"]["action"] == "provide_api_key"
+        assert data["failure"]["resolution"]["action"] == "provide_credentials"
         assert data["failure"]["retry"] is True
 
     def test_invoke_without_auth_returns_anip_failure(self, client):
@@ -302,7 +302,7 @@ class TestAuthErrors:
         data = resp.json()
         assert data["success"] is False
         assert data["failure"]["type"] == "authentication_required"
-        assert data["failure"]["resolution"]["action"] == "obtain_delegation_token"
+        assert data["failure"]["resolution"]["action"] == "request_new_delegation"
         assert data["failure"]["retry"] is True
 
     def test_permissions_without_auth_returns_anip_failure(self, client):
@@ -311,7 +311,7 @@ class TestAuthErrors:
         data = resp.json()
         assert data["success"] is False
         assert data["failure"]["type"] == "authentication_required"
-        assert data["failure"]["resolution"]["action"] == "obtain_delegation_token"
+        assert data["failure"]["resolution"]["action"] == "request_new_delegation"
 
     def test_audit_without_auth_returns_anip_failure(self, client):
         resp = client.post("/anip/audit")
@@ -319,7 +319,7 @@ class TestAuthErrors:
         data = resp.json()
         assert data["success"] is False
         assert data["failure"]["type"] == "authentication_required"
-        assert data["failure"]["resolution"]["action"] == "obtain_delegation_token"
+        assert data["failure"]["resolution"]["action"] == "request_new_delegation"
 
     def test_invoke_with_invalid_token_returns_structured_error(self, client):
         resp = client.post(

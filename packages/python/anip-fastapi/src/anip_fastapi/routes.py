@@ -257,6 +257,7 @@ def mount_anip(
                         "detail": f"Checkpoint {checkpoint_id} not found",
                         "resolution": {
                             "action": "list_checkpoints",
+                            "recovery_class": "revalidate_then_retry",
                             "requires": "GET /anip/checkpoints to find valid checkpoint IDs",
                             "grantable_by": None,
                             "estimated_availability": None,
@@ -324,19 +325,22 @@ def _failure_status(failure_type: str | None) -> int:
 
 _DEFAULT_RESOLUTIONS: dict[str, dict] = {
     "invalid_token": {
-        "action": "obtain_delegation_token",
+        "action": "request_new_delegation",
+        "recovery_class": "redelegation_then_retry",
         "requires": "Valid JWT from POST /anip/tokens",
         "grantable_by": None,
         "estimated_availability": None,
     },
     "scope_insufficient": {
         "action": "request_broader_scope",
+        "recovery_class": "redelegation_then_retry",
         "requires": "Token with required scope",
         "grantable_by": None,
         "estimated_availability": None,
     },
     "unknown_capability": {
         "action": "check_manifest",
+        "recovery_class": "revalidate_then_retry",
         "requires": "Valid capability name from GET /anip/manifest",
         "grantable_by": None,
         "estimated_availability": None,
@@ -349,7 +353,7 @@ def _error_response(error: ANIPError) -> JSONResponse:
     status = _failure_status(error.error_type)
     resolution = error.resolution or _DEFAULT_RESOLUTIONS.get(
         error.error_type,
-        {"action": "contact_service_owner", "requires": None, "grantable_by": None, "estimated_availability": None},
+        {"action": "contact_service_owner", "recovery_class": "terminal", "requires": None, "grantable_by": None, "estimated_availability": None},
     )
     return JSONResponse(
         {
@@ -366,7 +370,7 @@ def _error_response(error: ANIPError) -> JSONResponse:
 
 
 def _auth_failure_token_endpoint() -> JSONResponse:
-    """Structured auth failure for POST /anip/tokens (API key required)."""
+    """Structured auth failure for POST /anip/tokens (credentials required)."""
     return JSONResponse(
         {
             "success": False,
@@ -374,7 +378,8 @@ def _auth_failure_token_endpoint() -> JSONResponse:
                 "type": "authentication_required",
                 "detail": "A valid API key is required to issue delegation tokens",
                 "resolution": {
-                    "action": "provide_api_key",
+                    "action": "provide_credentials",
+                    "recovery_class": "retry_now",
                     "requires": "API key in Authorization header",
                     "grantable_by": None,
                     "estimated_availability": None,
@@ -395,7 +400,8 @@ def _auth_failure_jwt_endpoint() -> JSONResponse:
                 "type": "authentication_required",
                 "detail": "A valid delegation token (JWT) is required in the Authorization header",
                 "resolution": {
-                    "action": "obtain_delegation_token",
+                    "action": "request_new_delegation",
+                    "recovery_class": "redelegation_then_retry",
                     "requires": "Bearer token from POST /anip/tokens",
                     "grantable_by": None,
                     "estimated_availability": None,
