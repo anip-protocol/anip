@@ -226,6 +226,10 @@ func (s *Service) Invoke(
 		failure := map[string]any{
 			"type":   core.FailureUnknownCapability,
 			"detail": "Capability '" + capName + "' not found",
+			"resolution": map[string]any{
+				"action":         "check_manifest",
+				"recovery_class": core.RecoveryClassForAction("check_manifest"),
+			},
 		}
 
 		// Apply failure redaction (no token available).

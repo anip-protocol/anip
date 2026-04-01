@@ -414,6 +414,11 @@ public class AnipService : IDisposable
                 {
                     ["type"] = Constants.FailureUnknownCapability,
                     ["detail"] = $"Capability '{capName}' not found",
+                    ["resolution"] = new Dictionary<string, object?>
+                    {
+                        ["action"] = "check_manifest",
+                        ["recovery_class"] = Constants.RecoveryClassForAction("check_manifest"),
+                    },
                 };
 
                 var effectiveLevel = DisclosureControl.Resolve(_disclosureLevel, null, _disclosurePolicy);

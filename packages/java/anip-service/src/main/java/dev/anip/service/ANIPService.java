@@ -302,12 +302,16 @@ public class ANIPService {
             // 1. Look up capability.
             CapabilityDef capDef = capabilities.get(capName);
             if (capDef == null) {
+                Map<String, Object> failure = new LinkedHashMap<>();
+                failure.put("type", Constants.FAILURE_UNKNOWN_CAPABILITY);
+                failure.put("detail", "Capability '" + capName + "' not found");
+                failure.put("resolution", Map.of(
+                        "action", "check_manifest",
+                        "recovery_class", Constants.recoveryClassForAction("check_manifest")
+                ));
                 Map<String, Object> resp = new LinkedHashMap<>();
                 resp.put("success", false);
-                resp.put("failure", Map.of(
-                        "type", Constants.FAILURE_UNKNOWN_CAPABILITY,
-                        "detail", "Capability '" + capName + "' not found"
-                ));
+                resp.put("failure", failure);
                 resp.put("invocation_id", invocationId);
                 resp.put("client_reference_id", opts != null ? opts.getClientReferenceId() : null);
                 resp.put("task_id", effectiveTaskId);
