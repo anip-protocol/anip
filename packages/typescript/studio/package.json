@@ -1,6 +1,6 @@
 {
   "name": "@anip-dev/studio",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "ANIP Studio — embedded inspection and invocation UI",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
