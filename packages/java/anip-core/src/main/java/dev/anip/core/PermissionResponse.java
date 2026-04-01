@@ -53,38 +53,47 @@ public class PermissionResponse {
     public static class RestrictedCapability {
         private final String capability;
         private final String reason;
+        private final String reasonType;
         private final String grantableBy;
         private final List<String> unmetTokenRequirements;
+        private final String resolutionHint;
 
-        public RestrictedCapability(String capability, String reason, String grantableBy) {
-            this(capability, reason, grantableBy, null);
+        public RestrictedCapability(String capability, String reason, String reasonType, String grantableBy) {
+            this(capability, reason, reasonType, grantableBy, null, null);
         }
 
-        public RestrictedCapability(String capability, String reason, String grantableBy,
-                                     List<String> unmetTokenRequirements) {
+        public RestrictedCapability(String capability, String reason, String reasonType, String grantableBy,
+                                     List<String> unmetTokenRequirements, String resolutionHint) {
             this.capability = capability;
             this.reason = reason;
+            this.reasonType = reasonType;
             this.grantableBy = grantableBy;
             this.unmetTokenRequirements = unmetTokenRequirements;
+            this.resolutionHint = resolutionHint;
         }
 
         public String getCapability() { return capability; }
         public String getReason() { return reason; }
+        public String getReasonType() { return reasonType; }
         public String getGrantableBy() { return grantableBy; }
         public List<String> getUnmetTokenRequirements() { return unmetTokenRequirements; }
+        public String getResolutionHint() { return resolutionHint; }
     }
 
     /** A capability that cannot be granted. */
     public static class DeniedCapability {
         private final String capability;
         private final String reason;
+        private final String reasonType;
 
-        public DeniedCapability(String capability, String reason) {
+        public DeniedCapability(String capability, String reason, String reasonType) {
             this.capability = capability;
             this.reason = reason;
+            this.reasonType = reasonType;
         }
 
         public String getCapability() { return capability; }
         public String getReason() { return reason; }
+        public String getReasonType() { return reasonType; }
     }
 }

@@ -48,12 +48,12 @@ go get github.com/anip-protocol/anip/packages/go
 <dependency>
   <groupId>dev.anip</groupId>
   <artifactId>anip-service</artifactId>
-  <version>0.14.0</version>
+  <version>0.15.0</version>
 </dependency>
 <dependency>
   <groupId>dev.anip</groupId>
   <artifactId>anip-spring-boot</artifactId>
-  <version>0.14.0</version>
+  <version>0.15.0</version>
 </dependency>
 ```
 
@@ -344,7 +344,7 @@ curl http://localhost:9100/.well-known/anip | python -m json.tool
 ```json
 {
   "anip_discovery": {
-    "version": "0.14.0",
+    "version": "0.15.0",
     "service_id": "quickstart-flights",
     "endpoints": {
       "manifest": "/anip/manifest",

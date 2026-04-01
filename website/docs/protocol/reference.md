@@ -37,7 +37,7 @@ No authentication required. This is the entry point for any agent discovering th
 ```json
 {
   "anip_discovery": {
-    "version": "0.14.0",
+    "version": "0.15.0",
     "service_id": "travel-service",
     "endpoints": {
       "manifest": "/anip/manifest",
@@ -77,7 +77,7 @@ No authentication required. This is the entry point for any agent discovering th
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `version` | string | Yes | Protocol version (e.g., `"0.14.0"`) |
+| `version` | string | Yes | Protocol version (e.g., `"0.15.0"`) |
 | `service_id` | string | Yes | Unique service identifier |
 | `endpoints` | object | Yes | Map of operation names to URL paths |
 | `capabilities` | object | Yes | Lightweight capability summaries (name → metadata) |
@@ -131,7 +131,7 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 ```json
 {
   "manifest_metadata": {
-    "version": "0.14.0",
+    "version": "0.15.0",
     "sha256": "a1b2c3d4...",
     "issued_at": "2026-03-28T10:00:00Z",
     "expires_at": "2026-03-29T10:00:00Z"
@@ -383,8 +383,37 @@ The token issuance request can include a `budget` field, which the service store
 | Bucket | Meaning |
 |--------|---------|
 | `available` | Token has sufficient scope. Fields: `capability`, `scope_match`, `constraints` |
-| `restricted` | Missing a grantable scope. Fields: `capability`, `reason`, `grantable_by`, `unmet_token_requirements` |
-| `denied` | Structurally impossible (wrong principal class). Fields: `capability`, `reason` |
+| `restricted` | Missing a grantable scope. Fields: `capability`, `reason`, `reason_type`, `grantable_by`, `unmet_token_requirements`, `resolution_hint` |
+| `denied` | Structurally impossible (wrong principal class). Fields: `capability`, `reason`, `reason_type` |
+
+### Permission response fields — restricted entry (v0.15)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `capability` | string | Yes | Capability name |
+| `reason` | string | Yes | Human-readable explanation of the restriction |
+| `reason_type` | string | Yes | Machine-readable restriction category (see below) |
+| `grantable_by` | string | No | Principal who can grant the missing authority |
+| `unmet_token_requirements` | string[] | No | Unsatisfied `control_requirements` types |
+| `resolution_hint` | string | No | Short actionable suggestion for resolving the restriction |
+
+### Permission response fields — denied entry (v0.15)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `capability` | string | Yes | Capability name |
+| `reason` | string | Yes | Human-readable explanation of the denial |
+| `reason_type` | string | Yes | Machine-readable denial category (see below) |
+
+### reason_type values
+
+| Value | When used |
+|-------|-----------|
+| `insufficient_scope` | Token lacks one or more required scope strings |
+| `insufficient_delegation_depth` | Delegation chain is too deep for this capability |
+| `stronger_delegation_required` | Token needs explicit capability binding or tighter purpose constraints |
+| `unmet_control_requirement` | Token does not satisfy a declared control requirement |
+| `non_delegable` | Capability requires the direct (root) principal; delegated agents are blocked |
 
 ### Unmet token requirements (v0.14)
 
@@ -526,7 +555,7 @@ When a budget was evaluated (success or failure), the response includes a `budge
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `type` | string | Yes | Machine-readable failure category (e.g., `scope_insufficient`, `budget_exceeded`, `rate_limited`) |
+| `type` | string | Yes | Machine-readable failure category (e.g., `insufficient_scope`, `budget_exceeded`, `rate_limited`) |
 | `detail` | string | Yes | Human-readable explanation |
 | `retry` | boolean | Yes | Whether retrying the same call might succeed. Default: `true` |
 | `resolution` | object | Yes | Recovery guidance (see below) |
@@ -539,6 +568,12 @@ When a budget was evaluated (success or failure), the response includes a `budge
 | `requires` | string | No | What's needed to resolve |
 | `grantable_by` | string | No | Who can grant what's needed (principal identifier) |
 | `estimated_availability` | string | No | How soon resolution is possible (e.g., `immediate`, `24h`) |
+
+### Failure types — authority (v0.15)
+
+| Type | When | Retry | Typical resolution |
+|------|------|-------|--------------------|
+| `non_delegable_action` | Capability requires the root principal; a delegated agent attempted it | No | `invoke_as_root_principal` — the human must invoke directly |
 
 ### Failure types — budget, binding, and control (v0.14)
 

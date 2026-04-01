@@ -28,6 +28,10 @@ A complete inventory of what ANIP includes today, organized by layer.
 | Control requirements | Vocabulary: `cost_ceiling`, `stronger_delegation_required` | [Failures](/docs/protocol/failures-cost-audit) |
 | Budget context | `budget_context` in invoke responses (success and failure) | [Failures](/docs/protocol/failures-cost-audit#budget-context) |
 | `FinancialCost` type | Structured type replacing untyped cost dictionaries | [Cost](/docs/protocol/failures-cost-audit#cost-signaling) |
+| `reason_type` on permissions | Machine-readable restriction/denial category on `restricted` and `denied` entries | [Permissions](/docs/protocol/delegation-permissions#reason_type-vocabulary-v015) |
+| `resolution_hint` on permissions | Actionable suggestion string on `restricted` entries | [Permissions](/docs/protocol/delegation-permissions#resolution_hint-field-v015) |
+| `non_delegable_action` failure | Capability declares it requires direct (root) principal invocation | [Failures](/docs/protocol/failures-cost-audit#v015-failure-types) |
+| Canonical `request_broader_scope` | Replaces deprecated `request_scope_grant` resolution action | [Failures](/docs/protocol/failures-cost-audit#canonical-authority-resolution-actions-v015) |
 
 ## Trust and verification
 

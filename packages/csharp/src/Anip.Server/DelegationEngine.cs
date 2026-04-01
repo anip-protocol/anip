@@ -168,7 +168,7 @@ public static class DelegationEngine
             throw new AnipError(
                 Constants.FailureScopeInsufficient,
                 $"delegation chain lacks scope(s): {string.Join(", ", missing)}"
-            ).WithResolution("request_scope_grant");
+            ).WithResolution("request_broader_scope");
         }
     }
 

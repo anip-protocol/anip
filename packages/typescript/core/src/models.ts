@@ -205,14 +205,17 @@ export type AvailableCapability = z.infer<typeof AvailableCapability>;
 export const RestrictedCapability = z.object({
   capability: z.string(),
   reason: z.string(),
+  reason_type: z.string(),
   grantable_by: z.string(),
   unmet_token_requirements: z.array(z.string()).default([]),
+  resolution_hint: z.string().nullable().default(null),
 });
 export type RestrictedCapability = z.infer<typeof RestrictedCapability>;
 
 export const DeniedCapability = z.object({
   capability: z.string(),
   reason: z.string(),
+  reason_type: z.string(),
 });
 export type DeniedCapability = z.infer<typeof DeniedCapability>;
 
@@ -381,7 +384,7 @@ export const ServiceIdentity = z.object({
 export type ServiceIdentity = z.infer<typeof ServiceIdentity>;
 
 export const ANIPManifest = z.object({
-  protocol: z.string().default("anip/0.14"),
+  protocol: z.string().default("anip/0.15"),
   profile: ProfileVersions,
   capabilities: z.record(CapabilityDeclaration),
   manifest_metadata: ManifestMetadata.nullable().default(null),

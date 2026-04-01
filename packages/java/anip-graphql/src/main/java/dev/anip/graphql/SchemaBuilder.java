@@ -276,6 +276,8 @@ public class SchemaBuilder {
         lines.add("type FinancialCost { amount: Float, currency: String }");
         lines.add("type ANIPFailure { type: String!, detail: String!, resolution: Resolution, retry: Boolean! }");
         lines.add("type Resolution { action: String!, requires: String, grantableBy: String }");
+        lines.add("type RestrictedCapability { capability: String!, reason: String!, reasonType: String!, grantableBy: String!, unmetTokenRequirements: [String!]!, resolutionHint: String }");
+        lines.add("type DeniedCapability { capability: String!, reason: String!, reasonType: String! }");
         lines.add("");
 
         List<String> queries = new ArrayList<>();

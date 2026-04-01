@@ -104,6 +104,8 @@ export function generateSchema(
   lines.push('type FinancialCost { amount: Float, currency: String }');
   lines.push('type ANIPFailure { type: String!, detail: String!, resolution: Resolution, retry: Boolean! }');
   lines.push('type Resolution { action: String!, requires: String, grantableBy: String }');
+  lines.push('type RestrictedCapability { capability: String!, reason: String!, reasonType: String!, grantableBy: String!, unmetTokenRequirements: [String!]!, resolutionHint: String }');
+  lines.push('type DeniedCapability { capability: String!, reason: String!, reasonType: String! }');
   lines.push('');
 
   const queries: string[] = [];

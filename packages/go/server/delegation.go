@@ -220,7 +220,7 @@ func ValidateScope(token *core.DelegationToken, minimumScope []string) error {
 		return core.NewANIPError(
 			core.FailureScopeInsufficient,
 			fmt.Sprintf("delegation chain lacks scope(s): %s", strings.Join(missing, ", ")),
-		).WithResolution("request_scope_grant")
+		).WithResolution("request_broader_scope")
 	}
 
 	return nil

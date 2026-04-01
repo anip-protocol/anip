@@ -85,11 +85,20 @@ func (s *Service) DiscoverPermissions(token *core.DelegationToken) core.Permissi
 					}
 				}
 				if hasRejectEnforcement {
+					ctrlResolutionHint := "request_capability_binding"
+					for _, u := range unmet {
+						if u == "cost_ceiling" {
+							ctrlResolutionHint = "request_budget_bound_delegation"
+							break
+						}
+					}
 					restricted = append(restricted, core.RestrictedCapability{
 						Capability:             name,
 						Reason:                 fmt.Sprintf("missing control requirements: %s", strings.Join(unmet, ", ")),
+						ReasonType:             "unmet_control_requirement",
 						GrantableBy:            rootPrincipal,
 						UnmetTokenRequirements: unmet,
+						ResolutionHint:         ctrlResolutionHint,
 					})
 					continue
 				}
@@ -119,27 +128,14 @@ func (s *Service) DiscoverPermissions(token *core.DelegationToken) core.Permissi
 				Constraints: constraints,
 			})
 		} else {
-			// Check if any missing scopes require admin.
-			hasAdmin := false
-			for _, s := range missing {
-				if strings.HasPrefix(s, "admin.") {
-					hasAdmin = true
-					break
-				}
-			}
-
-			if hasAdmin {
-				denied = append(denied, core.DeniedCapability{
-					Capability: name,
-					Reason:     "requires admin principal",
-				})
-			} else {
-				restricted = append(restricted, core.RestrictedCapability{
-					Capability:  name,
-					Reason:      fmt.Sprintf("delegation chain lacks scope(s): %s", strings.Join(missing, ", ")),
-					GrantableBy: rootPrincipal,
-				})
-			}
+			// All scope gaps go to restricted — denied is only for non_delegable.
+			restricted = append(restricted, core.RestrictedCapability{
+				Capability:     name,
+				Reason:         fmt.Sprintf("delegation chain lacks scope(s): %s", strings.Join(missing, ", ")),
+				ReasonType:     "insufficient_scope",
+				GrantableBy:    rootPrincipal,
+				ResolutionHint: "request_broader_scope",
+			})
 		}
 	}
 
@@ -150,9 +146,8 @@ func (s *Service) DiscoverPermissions(token *core.DelegationToken) core.Permissi
 	if restricted == nil {
 		restricted = []core.RestrictedCapability{}
 	}
-	if denied == nil {
-		denied = []core.DeniedCapability{}
-	}
+	// denied is always empty in permission discovery — non_delegable is service-declared at invoke time
+	denied = []core.DeniedCapability{}
 
 	return core.PermissionResponse{
 		Available:  available,

@@ -253,7 +253,7 @@ public final class DelegationEngine {
             throw new ANIPError(
                     Constants.FAILURE_SCOPE_INSUFFICIENT,
                     "delegation chain lacks scope(s): " + String.join(", ", missing)
-            ).withResolution("request_scope_grant");
+            ).withResolution("request_broader_scope");
         }
     }
 

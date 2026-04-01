@@ -179,7 +179,7 @@ class DelegationEngineTest {
                 DelegationEngine.validateScope(token, List.of("admin")));
         assertEquals(Constants.FAILURE_SCOPE_INSUFFICIENT, error.getErrorType());
         assertNotNull(error.getResolution());
-        assertEquals("request_scope_grant", error.getResolution().getAction());
+        assertEquals("request_broader_scope", error.getResolution().getAction());
     }
 
     @Test

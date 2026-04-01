@@ -16,12 +16,15 @@ export interface PermissionResult {
   restricted: Array<{
     capability: string;
     reason: string;
+    reason_type: string;
     grantable_by: string;
     unmet_token_requirements?: string[];
+    resolution_hint?: string | null;
   }>;
   denied: Array<{
     capability: string;
     reason: string;
+    reason_type: string;
   }>;
 }
 
@@ -94,11 +97,16 @@ export function discoverPermissions(
             r.enforcement === "reject" && unmet.includes(r.type as string),
         )
       ) {
+        const ctrlResolutionHint = unmet.includes("cost_ceiling")
+          ? "request_budget_bound_delegation"
+          : "request_capability_binding";
         restricted.push({
           capability: name,
           reason: `missing control requirements: ${unmet.join(", ")}`,
+          reason_type: "unmet_control_requirement",
           grantable_by: rootPrincipal,
           unmet_token_requirements: unmet,
+          resolution_hint: ctrlResolutionHint,
         });
         continue;
       }
@@ -122,16 +130,14 @@ export function discoverPermissions(
         scope_match: matchedScopeStrs.join(", "),
         constraints,
       });
-    } else if (missing.some((s) => s.startsWith("admin."))) {
-      denied.push({
-        capability: name,
-        reason: "requires admin principal",
-      });
     } else {
+      // All scope gaps go to restricted — denied is only for non_delegable
       restricted.push({
         capability: name,
         reason: `delegation chain lacks scope(s): ${missing.join(", ")}`,
+        reason_type: "insufficient_scope",
         grantable_by: rootPrincipal,
+        resolution_hint: "request_broader_scope",
       });
     }
   }

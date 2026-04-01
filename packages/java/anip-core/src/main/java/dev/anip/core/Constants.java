@@ -11,7 +11,7 @@ public final class Constants {
     private Constants() {}
 
     /** Current ANIP protocol version. */
-    public static final String PROTOCOL_VERSION = "anip/0.14";
+    public static final String PROTOCOL_VERSION = "anip/0.15";
 
     /** Current manifest metadata version. */
     public static final String MANIFEST_VERSION = "0.10.0";
@@ -36,6 +36,7 @@ public final class Constants {
     public static final String FAILURE_INTERNAL_ERROR = "internal_error";
     public static final String FAILURE_STREAMING_NOT_SUPPORTED = "streaming_not_supported";
     public static final String FAILURE_INVALID_PARAMETERS = "invalid_parameters";
+    public static final String FAILURE_NON_DELEGABLE_ACTION = "non_delegable_action";
 
     /** Supported algorithms for signing. */
     public static final String[] SUPPORTED_ALGORITHMS = {"ES256"};
