@@ -192,13 +192,16 @@ class AvailableCapability(BaseModel):
 class RestrictedCapability(BaseModel):
     capability: str
     reason: str
+    reason_type: str
     grantable_by: str
     unmet_token_requirements: list[str] = Field(default_factory=list)
+    resolution_hint: str | None = None
 
 
 class DeniedCapability(BaseModel):
     capability: str
     reason: str
+    reason_type: str
 
 
 class PermissionResponse(BaseModel):
@@ -343,7 +346,7 @@ class DiscoveryPosture(BaseModel):
 
 
 class ANIPManifest(BaseModel):
-    protocol: str = "anip/0.14"
+    protocol: str = "anip/0.15"
     profile: ProfileVersions
     capabilities: dict[str, CapabilityDeclaration]
     manifest_metadata: ManifestMetadata | None = None

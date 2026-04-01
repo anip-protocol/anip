@@ -1213,12 +1213,17 @@ public class AnipService : IDisposable
                     }
                     if (hasRejectEnforcement)
                     {
+                        var ctrlResolutionHint = unmet.Contains("cost_ceiling")
+                            ? "request_budget_bound_delegation"
+                            : "request_capability_binding";
                         restricted.Add(new RestrictedCapability
                         {
                             Capability = name,
                             Reason = $"missing control requirements: {string.Join(", ", unmet)}",
+                            ReasonType = "unmet_control_requirement",
                             GrantableBy = rootPrincipal,
                             UnmetTokenRequirements = unmet,
+                            ResolutionHint = ctrlResolutionHint,
                         });
                         continue;
                     }
@@ -1253,24 +1258,15 @@ public class AnipService : IDisposable
             }
             else
             {
-                var hasAdmin = missing.Any(s => s.StartsWith("admin."));
-                if (hasAdmin)
+                // All scope gaps go to restricted — denied is only for non_delegable
+                restricted.Add(new RestrictedCapability
                 {
-                    denied.Add(new DeniedCapability
-                    {
-                        Capability = name,
-                        Reason = "requires admin principal",
-                    });
-                }
-                else
-                {
-                    restricted.Add(new RestrictedCapability
-                    {
-                        Capability = name,
-                        Reason = $"delegation chain lacks scope(s): {string.Join(", ", missing)}",
-                        GrantableBy = rootPrincipal,
-                    });
-                }
+                    Capability = name,
+                    Reason = $"delegation chain lacks scope(s): {string.Join(", ", missing)}",
+                    ReasonType = "insufficient_scope",
+                    GrantableBy = rootPrincipal,
+                    ResolutionHint = "request_broader_scope",
+                });
             }
         }
 

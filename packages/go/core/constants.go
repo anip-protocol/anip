@@ -6,7 +6,7 @@ import (
 )
 
 // ProtocolVersion is the current ANIP protocol version.
-const ProtocolVersion = "anip/0.14"
+const ProtocolVersion = "anip/0.15"
 
 // ManifestVersion is the current manifest metadata version.
 const ManifestVersion = "0.10.0"
@@ -32,6 +32,7 @@ const (
 	FailureInternalError               = "internal_error"
 	FailureStreamingNotSupported       = "streaming_not_supported"
 	FailureInvalidParameters           = "invalid_parameters"
+	FailureNonDelegableAction          = "non_delegable_action"
 )
 
 // Supported algorithms for signing.

@@ -1,4 +1,4 @@
-# ANIP Specification v0.14
+# ANIP Specification v0.15
 
 > Agent-Native Interface Protocol — Draft
 
@@ -211,6 +211,20 @@ Every request to an ANIP service MUST include a delegation token. The service MU
 
 An agent MUST be able to query its permission scope before attempting any action. The service responds with the agent's effective permissions given its delegation chain.
 
+#### reason_type vocabulary (v0.15)
+
+Every `RestrictedCapability` and `DeniedCapability` entry MUST include a `reason_type` drawn from the following vocabulary:
+
+| `reason_type` | Meaning |
+|---|---|
+| `insufficient_scope` | The delegation token lacks the required scope string(s) for this capability. |
+| `insufficient_delegation_depth` | The token's `constraints.max_delegation_depth` has been exhausted — further sub-delegation is not possible. |
+| `stronger_delegation_required` | The capability requires explicit capability binding in the token (e.g., a purpose-bound token), but the current token is general. |
+| `unmet_control_requirement` | One or more token-evaluable control requirements (e.g., `cost_ceiling`) are not satisfied by the current token. |
+| `non_delegable` | The capability is not delegable at all — it can only be invoked directly by the root principal. No amount of re-delegation will grant access. |
+
+`RestrictedCapability` additionally MAY include a `resolution_hint` — a string drawn from the canonical `resolution.action` vocabulary (see §4.5) — advising what action would resolve the restriction.
+
 ```yaml
 # Agent queries: "What can I do here?"
 
@@ -227,14 +241,19 @@ permission_response:
   restricted:
     - capability: execute_trade
       reason: "missing cost_ceiling in delegation"
+      reason_type: unmet_control_requirement          # v0.15
+      resolution_hint: request_budget_bound_delegation # v0.15
       grantable_by: "human:admin@company.com"
       unmet_token_requirements: ["cost_ceiling"]   # v0.14: token-evaluable requirements not met
     - capability: cancel_booking
       reason: "delegation chain lacks scope: travel.cancel"
+      reason_type: insufficient_scope                 # v0.15
+      resolution_hint: request_broader_scope          # v0.15
       grantable_by: "human:samir@example.com"
-  denied:
-    - capability: admin_override
-      reason: "requires admin principal, current chain root is standard user"
+  denied:                                              # only non_delegable capabilities appear here
+    # - capability: destroy_production_database
+    #   reason: "destructive action cannot be delegated to agents"
+    #   reason_type: non_delegable                    # declared by service at registration time
 ```
 
 The `unmet_token_requirements` field (v0.14) lists control requirements that are not satisfied by the current delegation token: `cost_ceiling` (token must carry `constraints.budget`) and `stronger_delegation_required` (token must have explicit capability binding). All control requirements are token-evaluable and surfaced here.
@@ -253,12 +272,34 @@ Permission Discovery is coupled to Delegation Chain by design: the permission su
 
 When something goes wrong, the service MUST return a failure object that an agent can reason about and recover from. Failures reference other ANIP primitives — delegation chain, scope, cost — rather than using opaque codes.
 
+#### Canonical resolution.action vocabulary (v0.15)
+
+The `resolution.action` field MUST be one of the following canonical values. Services MUST NOT use ad-hoc action strings.
+
+| `resolution.action` | When to use |
+|---|---|
+| `request_broader_scope` | Token lacks required scope — request re-delegation with wider scope. (Replaces deprecated `request_scope_grant`.) |
+| `request_budget_increase` | Token budget is too low for the capability cost. |
+| `request_budget_bound_delegation` | Token is missing a required budget constraint entirely. |
+| `request_matching_currency_delegation` | Token budget currency does not match capability cost currency. |
+| `request_new_delegation` | Token purpose binding is wrong or a fresh token is otherwise needed. |
+| `wait_and_retry` | Transient unavailability — capability will become available at `estimated_availability`. |
+| `obtain_quote_first` | Budget cannot be enforced without a bound price — get a quote first. |
+| `obtain_binding` | A required binding field is missing from invocation parameters. |
+| `refresh_binding` | A required binding is present but stale (exceeded `max_age`). |
+| `request_deeper_delegation` | Token `max_delegation_depth` is exhausted — a token with greater depth is needed. |
+| `escalate_to_root_principal` | Capability is non-delegable — only the root principal can invoke it directly. No delegation path exists. |
+
+> **Deprecated:** `request_scope_grant` is replaced by `request_broader_scope`. Services MUST NOT emit `request_scope_grant` in v0.15+.
+
+The `resolution_hint` field on `RestrictedCapability` (§4.4) MUST be consistent with the `resolution.action` that would appear in the corresponding failure if invocation were attempted. This allows agents to pre-screen blocked actions without a failed invocation round-trip.
+
 ```yaml
 failure:
   type: insufficient_authority
   detail: "delegation chain lacks scope: travel.book"
   resolution:
-    action: "request_scope_grant"
+    action: "request_broader_scope"
     requires: "delegation.scope += travel.book"
     grantable_by: "human:samir@example.com"
   retry: true
@@ -347,6 +388,18 @@ failure:
   resolution:
     action: "request_budget_bound_delegation"
     requires: "delegation token with budget constraint"
+  retry: false
+```
+
+```yaml
+# v0.15: non-delegable action — no delegation path exists
+failure:
+  type: non_delegable_action
+  detail: "Capability transfer_root_funds is non-delegable and can only be invoked directly by the root principal"
+  resolution:
+    action: "escalate_to_root_principal"
+    requires: "root principal must invoke this capability directly"
+    grantable_by: "human:samir@example.com"
   retry: false
 ```
 

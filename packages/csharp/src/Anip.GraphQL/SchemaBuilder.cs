@@ -186,6 +186,8 @@ public static class SchemaBuilder
             "type FinancialCost { amount: Float, currency: String }",
             "type ANIPFailure { type: String!, detail: String!, resolution: Resolution, retry: Boolean! }",
             "type Resolution { action: String!, requires: String, grantableBy: String }",
+            "type RestrictedCapability { capability: String!, reason: String!, reasonType: String!, grantableBy: String!, unmetTokenRequirements: [String!]!, resolutionHint: String }",
+            "type DeniedCapability { capability: String!, reason: String!, reasonType: String! }",
             "",
         };
 

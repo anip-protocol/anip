@@ -2,7 +2,7 @@ namespace Anip.Core;
 
 public static class Constants
 {
-    public const string ProtocolVersion = "anip/0.14";
+    public const string ProtocolVersion = "anip/0.15";
     public const string ManifestVersion = "0.10.0";
 
     // Failure types
@@ -24,6 +24,7 @@ public static class Constants
     public const string FailureInternalError = "internal_error";
     public const string FailureStreamingNotSupported = "streaming_not_supported";
     public const string FailureInvalidParameters = "invalid_parameters";
+    public const string FailureNonDelegableAction = "non_delegable_action";
 
     // Merkle hash prefixes (RFC 6962)
     public const byte LeafHashPrefix = 0x00;

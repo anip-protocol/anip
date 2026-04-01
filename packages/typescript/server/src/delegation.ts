@@ -316,7 +316,7 @@ export class DelegationEngine {
         type: "scope_insufficient",
         detail: `delegation chain lacks scope(s): ${missingScopes.join(", ")}`,
         resolution: {
-          action: "request_scope_grant",
+          action: "request_broader_scope",
           requires: `delegation.scope += ${missingScopes.join(", ")}`,
           grantable_by: rootPrincipal,
         },

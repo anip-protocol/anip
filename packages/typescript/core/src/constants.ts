@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = "anip/0.14";
+export const PROTOCOL_VERSION = "anip/0.15";
 export const MANIFEST_VERSION = "0.10.0";
 export const DEFAULT_PROFILE = {
   core: "1.0",
@@ -7,6 +7,7 @@ export const DEFAULT_PROFILE = {
   state_session: "1.0",
   observability: "1.0",
 };
+export const FAILURE_NON_DELEGABLE_ACTION = "non_delegable_action";
 export const SUPPORTED_ALGORITHMS = ["ES256"] as const;
 export const LEAF_HASH_PREFIX = 0x00;
 export const NODE_HASH_PREFIX = 0x01;

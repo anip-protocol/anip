@@ -195,14 +195,17 @@ type AvailableCapability struct {
 type RestrictedCapability struct {
 	Capability             string   `json:"capability"`
 	Reason                 string   `json:"reason"`
+	ReasonType             string   `json:"reason_type"`
 	GrantableBy            string   `json:"grantable_by"`
 	UnmetTokenRequirements []string `json:"unmet_token_requirements,omitempty"`
+	ResolutionHint         string   `json:"resolution_hint,omitempty"`
 }
 
 // DeniedCapability describes a capability that cannot be granted.
 type DeniedCapability struct {
 	Capability string `json:"capability"`
 	Reason     string `json:"reason"`
+	ReasonType string `json:"reason_type"`
 }
 
 // PermissionResponse is the response from the permissions endpoint.

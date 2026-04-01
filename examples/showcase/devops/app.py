@@ -11,7 +11,7 @@ from anip_studio import mount_anip_studio
 
 from capabilities import (
     list_deployments, get_service_health, scale_replicas,
-    update_config, rollback_deployment, delete_resource,
+    update_config, rollback_deployment, delete_resource, destroy_environment,
 )
 
 API_KEYS = {
@@ -36,7 +36,7 @@ service = ANIPService(
     service_id="anip-devops-showcase",
     capabilities=[
         list_deployments, get_service_health, scale_replicas,
-        update_config, rollback_deployment, delete_resource,
+        update_config, rollback_deployment, delete_resource, destroy_environment,
     ],
     storage=os.getenv("ANIP_STORAGE", ":memory:"),
     trust=os.getenv("ANIP_TRUST_LEVEL", "signed"),
