@@ -74,7 +74,7 @@ class TestTokens:
         data = resp.json()
         assert data["success"] is False
         assert data["failure"]["type"] == "authentication_required"
-        assert data["failure"]["resolution"]["action"] == "provide_api_key"
+        assert data["failure"]["resolution"]["action"] == "provide_credentials"
 
 
 class TestInvoke:
@@ -140,7 +140,7 @@ class TestInvoke:
         data = resp.json()
         assert data["success"] is False
         assert data["failure"]["type"] == "authentication_required"
-        assert data["failure"]["resolution"]["action"] == "obtain_delegation_token"
+        assert data["failure"]["resolution"]["action"] == "request_new_delegation"
 
     def test_invoke_unknown_capability(self, client, auth_headers):
         resp = client.post(

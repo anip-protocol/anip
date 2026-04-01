@@ -71,7 +71,7 @@ describe("Tokens", () => {
     const data = await res.json();
     expect(data.success).toBe(false);
     expect(data.failure.type).toBe("authentication_required");
-    expect(data.failure.resolution.action).toBe("provide_api_key");
+    expect(data.failure.resolution.action).toBe("provide_credentials");
   });
 });
 
@@ -159,7 +159,7 @@ describe("Invoke", () => {
     const data = await res.json();
     expect(data.success).toBe(false);
     expect(data.failure.type).toBe("authentication_required");
-    expect(data.failure.resolution.action).toBe("obtain_delegation_token");
+    expect(data.failure.resolution.action).toBe("request_new_delegation");
   });
 
   it("returns 404 for unknown capability", async () => {
