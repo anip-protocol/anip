@@ -14,7 +14,7 @@ import type {
   CapabilityDeclaration,
   DelegationToken,
 } from "@anip-dev/core";
-import { PROTOCOL_VERSION, DEFAULT_PROFILE } from "@anip-dev/core";
+import { PROTOCOL_VERSION, DEFAULT_PROFILE, recoveryClassForAction } from "@anip-dev/core";
 import { KeyManager } from "@anip-dev/crypto";
 import {
   AuditLog,
@@ -1017,7 +1017,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           failure: {
             type: "purpose_mismatch",
             detail: `Request task_id '${requestTaskId}' does not match token purpose task_id '${tokenTaskId}'`,
-            resolution: { action: "use_token_task_id", requires: "matching task_id or omit from request" },
+            resolution: { action: "use_token_task_id", recovery_class: recoveryClassForAction("use_token_task_id"), requires: "matching task_id or omit from request" },
             retry: false,
           },
           invocation_id: invocationId,
@@ -1045,6 +1045,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           failure: redactFailure({
             type: "unknown_capability",
             detail: `Capability '${capabilityName}' not found`,
+            resolution: { action: "check_manifest", recovery_class: recoveryClassForAction("check_manifest") },
           }, effectiveLevel),
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,
@@ -1077,6 +1078,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             failure: redactFailure({
               type: "streaming_not_supported",
               detail: `Capability '${capabilityName}' does not support streaming`,
+              resolution: { action: "check_manifest", recovery_class: recoveryClassForAction("check_manifest") },
             }, effectiveLevel),
             invocation_id: invocationId,
             client_reference_id: clientReferenceId,
@@ -1168,6 +1170,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
               failure: redactFailure({
                 type: "budget_currency_mismatch",
                 detail: `Invocation budget is in ${hintCurrency} but token budget is in ${effectiveBudget.currency}`,
+                resolution: { action: "request_matching_currency_delegation", recovery_class: recoveryClassForAction("request_matching_currency_delegation") },
               }, effectiveLevel),
               invocation_id: invocationId,
               client_reference_id: clientReferenceId,
@@ -1199,6 +1202,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
               failure: redactFailure({
                 type: "budget_currency_mismatch",
                 detail: `Token budget is in ${effectiveBudget.currency} but capability cost is in ${declFinancial.currency}`,
+                resolution: { action: "request_matching_currency_delegation", recovery_class: recoveryClassForAction("request_matching_currency_delegation") },
               }, effectiveLevel),
               invocation_id: invocationId,
               client_reference_id: clientReferenceId,
@@ -1223,7 +1227,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
                   failure: redactFailure({
                     type: "budget_not_enforceable",
                     detail: `Capability ${capabilityName} has estimated cost with requires_binding but the provided binding does not carry a resolvable price`,
-                    resolution: { action: "provide_priced_binding", requires: "binding value must include a 'price' field or the service must resolve binding to a concrete price" },
+                    resolution: { action: "provide_priced_binding", recovery_class: recoveryClassForAction("provide_priced_binding"), requires: "binding value must include a 'price' field or the service must resolve binding to a concrete price" },
                     retry: false,
                   }, effectiveLevel),
                   invocation_id: invocationId,
@@ -1238,6 +1242,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
                 failure: redactFailure({
                   type: "budget_not_enforceable",
                   detail: `Capability ${capabilityName} has estimated cost but no requires_binding — budget cannot be enforced`,
+                  resolution: { action: "escalate_to_root_principal", recovery_class: recoveryClassForAction("escalate_to_root_principal") },
                 }, effectiveLevel),
                 invocation_id: invocationId,
                 client_reference_id: clientReferenceId,
@@ -1255,6 +1260,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
               failure: redactFailure({
                 type: "budget_exceeded",
                 detail: `Cost $${checkAmount} exceeds budget $${effectiveBudget.maxAmount}`,
+                resolution: { action: "request_budget_increase", recovery_class: recoveryClassForAction("request_budget_increase") },
               }, effectiveLevel),
               budget_context: {
                 budget_max: effectiveBudget.maxAmount,
@@ -1283,6 +1289,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
               detail: `Capability ${capabilityName} requires '${field}' (type: ${binding.type})`,
               resolution: {
                 action: "obtain_binding",
+                recovery_class: recoveryClassForAction("obtain_binding"),
                 requires: `invoke ${binding.source_capability ?? "source capability"} to obtain a ${field}`,
               },
             }, effectiveLevel),
@@ -1302,6 +1309,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
                 detail: `Binding '${field}' has exceeded max_age of ${binding.max_age}`,
                 resolution: {
                   action: "refresh_binding",
+                  recovery_class: recoveryClassForAction("refresh_binding"),
                   requires: `invoke ${binding.source_capability ?? "source capability"} again for a fresh ${field}`,
                 },
               }, effectiveLevel),
@@ -1336,6 +1344,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
               type: "control_requirement_unsatisfied",
               detail: `Capability ${capabilityName} requires ${reqType}`,
               unsatisfied_requirements: [reqType],
+              resolution: { action: "request_capability_binding", recovery_class: recoveryClassForAction("request_capability_binding") },
             }, effectiveLevel),
             invocation_id: invocationId,
             client_reference_id: clientReferenceId,
@@ -1596,7 +1605,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           safeHook(metricsHooks?.onInvocationDuration,{ capability: capabilityName, durationMs: anipErrDurationMs, success: false });
           const response: Record<string, unknown> = {
             success: false,
-            failure: redactFailure({ type: err.errorType, detail: err.detail }, effectiveLevel),
+            failure: redactFailure({ type: err.errorType, detail: err.detail, resolution: err.resolution ?? { action: "contact_service_owner", recovery_class: recoveryClassForAction("contact_service_owner") } }, effectiveLevel),
             invocation_id: invocationId,
             client_reference_id: clientReferenceId,
             task_id: effectiveTaskId,
@@ -1649,7 +1658,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         safeHook(metricsHooks?.onInvocationDuration,{ capability: capabilityName, durationMs: internalErrDurationMs, success: false });
         const response: Record<string, unknown> = {
           success: false,
-          failure: redactFailure({ type: "internal_error", detail: "Internal error" }, effectiveLevel),
+          failure: redactFailure({ type: "internal_error", detail: "Internal error", resolution: { action: "contact_service_owner", recovery_class: recoveryClassForAction("contact_service_owner") } }, effectiveLevel),
           invocation_id: invocationId,
           client_reference_id: clientReferenceId,
           task_id: effectiveTaskId,

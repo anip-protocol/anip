@@ -232,6 +232,7 @@ export type PermissionResponse = z.infer<typeof PermissionResponse>;
 
 export const Resolution = z.object({
   action: z.string(),
+  recovery_class: z.string(),
   requires: z.string().nullable().default(null),
   grantable_by: z.string().nullable().default(null),
   estimated_availability: z.string().nullable().default(null),
