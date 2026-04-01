@@ -448,22 +448,9 @@ jobs:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
         run: |
           set -e
-          # Build everything first (once), then deploy each module individually
-          mvn package -DskipTests -Prelease
-          for mod in anip-core anip-crypto anip-server anip-service anip-spring-boot anip-quarkus anip-rest anip-rest-spring anip-rest-quarkus anip-graphql anip-graphql-spring anip-graphql-quarkus anip-mcp anip-mcp-spring anip-mcp-quarkus anip-stdio anip-studio; do
-            echo "=== Deploying $mod ==="
-            OUTPUT=$(mvn deploy -pl $mod -DskipTests -Prelease 2>&1) && {
-              echo "OK: $mod deployed"
-              continue
-            }
-            if echo "$OUTPUT" | grep -qiE "already exists|currently being published"; then
-              echo "SKIP: $mod already published or in-flight"
-              continue
-            fi
-            echo "FAIL: $mod deploy failed:"
-            echo "$OUTPUT"
-            exit 1
-          done
+          # Deploy the entire reactor at once — parent POM + all modules in dependency order.
+          # The central-publishing plugin bundles everything into a single deployment.
+          mvn deploy -DskipTests -Prelease
 
   publish-csharp:
     needs: bump-and-validate
