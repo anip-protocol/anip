@@ -116,7 +116,7 @@ export async function mountAnipGraphQL(
           failure: {
             type: "authentication_required",
             detail: "Authorization header required",
-            resolution: { action: "provide_credentials" },
+            resolution: { action: "provide_credentials", recovery_class: "retry_now" },
             retry: true,
           },
         });

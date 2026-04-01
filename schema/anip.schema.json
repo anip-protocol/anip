@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anip.dev/schema/v0.15/anip.schema.json",
+  "$id": "https://anip.dev/schema/v0.16/anip.schema.json",
   "title": "ANIP \u2014 Agent-Native Interface Protocol",
-  "description": "Canonical JSON Schema for all ANIP v0.15 types as defined in SPEC.md. Use these schemas to validate ANIP documents, responses, and delegation tokens.",
+  "description": "Canonical JSON Schema for all ANIP v0.16 types as defined in SPEC.md. Use these schemas to validate ANIP documents, responses, and delegation tokens.",
   "$defs": {
     "ConcurrentBranches": {
       "enum": [
@@ -603,11 +603,29 @@
       "title": "RestrictedCapability",
       "type": "object"
     },
+    "RecoveryClass": {
+      "enum": [
+        "retry_now",
+        "wait_then_retry",
+        "refresh_then_retry",
+        "redelegation_then_retry",
+        "revalidate_then_retry",
+        "terminal"
+      ],
+      "title": "RecoveryClass",
+      "type": "string",
+      "description": "Coarse recovery strategy for a failure resolution. Advisory — does not override the retry boolean. See SPEC.md §4.5."
+    },
     "Resolution": {
       "properties": {
         "action": {
           "title": "Action",
           "type": "string"
+        },
+        "recovery_class": {
+          "$ref": "#/$defs/RecoveryClass",
+          "title": "Recovery Class",
+          "description": "Coarse recovery strategy implied by the action. Advisory — does not override retry. See SPEC.md §4.5."
         },
         "requires": {
           "anyOf": [
@@ -647,7 +665,8 @@
         }
       },
       "required": [
-        "action"
+        "action",
+        "recovery_class"
       ],
       "title": "Resolution",
       "type": "object"

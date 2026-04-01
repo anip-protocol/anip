@@ -144,9 +144,10 @@ func BuildSchema(svc *service.Service, resolverFactory func(capName string) grap
 	resolutionType := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Resolution",
 		Fields: graphql.Fields{
-			"action":     &graphql.Field{Type: graphql.String},
-			"requires":   &graphql.Field{Type: graphql.String},
-			"grantableBy": &graphql.Field{Type: graphql.String},
+			"action":        &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+			"recoveryClass": &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+			"requires":      &graphql.Field{Type: graphql.String},
+			"grantableBy":   &graphql.Field{Type: graphql.String},
 		},
 	})
 
@@ -272,7 +273,7 @@ func generateSDL(svc *service.Service, capNames []string) string {
 		"type CostActual { financial: FinancialCost, varianceFromEstimate: String }",
 		"type FinancialCost { amount: Float, currency: String }",
 		"type ANIPFailure { type: String!, detail: String!, resolution: Resolution, retry: Boolean! }",
-		"type Resolution { action: String!, requires: String, grantableBy: String }",
+		"type Resolution { action: String!, recoveryClass: String!, requires: String, grantableBy: String }",
 		"type RestrictedCapability { capability: String!, reason: String!, reasonType: String!, grantableBy: String!, unmetTokenRequirements: [String!]!, resolutionHint: String }",
 		"type DeniedCapability { capability: String!, reason: String!, reasonType: String! }",
 		"",
@@ -438,9 +439,10 @@ func BuildGraphQLResponse(result map[string]any) map[string]any {
 
 		if resolution, ok := failure["resolution"].(map[string]any); ok {
 			f["resolution"] = map[string]any{
-				"action":      resolution["action"],
-				"requires":    resolution["requires"],
-				"grantableBy": resolution["grantable_by"],
+				"action":        resolution["action"],
+				"recoveryClass": resolution["recovery_class"],
+				"requires":      resolution["requires"],
+				"grantableBy":   resolution["grantable_by"],
 			}
 		}
 

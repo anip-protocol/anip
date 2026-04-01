@@ -103,8 +103,22 @@ public class AnipRestController : ControllerBase
         var route = RestRouter.FindRoute(_routes, capability);
         if (route == null)
         {
-            return FailureResponse(404, Constants.FailureUnknownCapability,
-                $"Capability '{capability}' not found", false);
+            var notFoundFailure = new Dictionary<string, object?>
+            {
+                ["type"] = Constants.FailureUnknownCapability,
+                ["detail"] = $"Capability '{capability}' not found",
+                ["resolution"] = new Dictionary<string, object?>
+                {
+                    ["action"] = "check_manifest",
+                    ["recovery_class"] = Constants.RecoveryClassForAction("check_manifest"),
+                },
+                ["retry"] = false,
+            };
+            return StatusCode(404, new Dictionary<string, object?>
+            {
+                ["success"] = false,
+                ["failure"] = notFoundFailure,
+            });
         }
 
         // Extract auth.
@@ -119,6 +133,7 @@ public class AnipRestController : ControllerBase
                 ["resolution"] = new Dictionary<string, object?>
                 {
                     ["action"] = "provide_credentials",
+                    ["recovery_class"] = Constants.RecoveryClassForAction("provide_credentials"),
                     ["requires"] = "Bearer token or API key",
                 },
                 ["retry"] = true,

@@ -59,8 +59,9 @@ func handleRESTRoute(w http.ResponseWriter, r *http.Request, svc *service.Servic
 				"type":   core.FailureAuthRequired,
 				"detail": "Authorization header with Bearer token or API key required",
 				"resolution": map[string]any{
-					"action":   "provide_credentials",
-					"requires": "Bearer token or API key",
+					"action":         "provide_credentials",
+					"recovery_class": core.RecoveryClassForAction("provide_credentials"),
+					"requires":       "Bearer token or API key",
 				},
 				"retry": true,
 			},

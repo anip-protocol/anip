@@ -232,7 +232,7 @@ describe("Auth error responses", () => {
     const data = await res.json();
     expect(data.success).toBe(false);
     expect(data.failure.type).toBe("authentication_required");
-    expect(data.failure.resolution.action).toBe("provide_api_key");
+    expect(data.failure.resolution.action).toBe("provide_credentials");
     expect(data.failure.retry).toBe(true);
   });
 
@@ -247,7 +247,7 @@ describe("Auth error responses", () => {
     const data = await res.json();
     expect(data.success).toBe(false);
     expect(data.failure.type).toBe("authentication_required");
-    expect(data.failure.resolution.action).toBe("obtain_delegation_token");
+    expect(data.failure.resolution.action).toBe("request_new_delegation");
     expect(data.failure.retry).toBe(true);
   });
 
@@ -262,7 +262,7 @@ describe("Auth error responses", () => {
     const data = await res.json();
     expect(data.success).toBe(false);
     expect(data.failure.type).toBe("authentication_required");
-    expect(data.failure.resolution.action).toBe("obtain_delegation_token");
+    expect(data.failure.resolution.action).toBe("request_new_delegation");
   });
 
   it("POST /anip/audit without auth returns ANIPFailure", async () => {
@@ -276,7 +276,7 @@ describe("Auth error responses", () => {
     const data = await res.json();
     expect(data.success).toBe(false);
     expect(data.failure.type).toBe("authentication_required");
-    expect(data.failure.resolution.action).toBe("obtain_delegation_token");
+    expect(data.failure.resolution.action).toBe("request_new_delegation");
   });
 
   it("POST /anip/invoke with invalid JWT returns structured invalid_token", async () => {

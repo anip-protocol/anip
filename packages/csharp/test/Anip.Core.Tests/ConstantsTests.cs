@@ -66,7 +66,7 @@ public class ConstantsTests
     {
         // Intentionally hardcoded — this is the one place that verifies the constant value.
         // Update this when bumping the protocol version.
-        Assert.Equal("anip/0.15", Constants.ProtocolVersion);
+        Assert.Equal("anip/0.16", Constants.ProtocolVersion);
     }
 
     [Fact]

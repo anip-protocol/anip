@@ -17,9 +17,9 @@ public class ANIPError extends RuntimeException {
         this.detail = detail;
     }
 
-    /** Builder: adds a resolution with the given action. */
+    /** Builder: adds a resolution with the given action, auto-populating recovery_class. */
     public ANIPError withResolution(String action) {
-        this.resolution = new Resolution(action, null, null, null);
+        this.resolution = new Resolution(action, Constants.recoveryClassForAction(action), null, null, null);
         return this;
     }
 

@@ -2,7 +2,7 @@ namespace Anip.Core;
 
 public static class Constants
 {
-    public const string ProtocolVersion = "anip/0.15";
+    public const string ProtocolVersion = "anip/0.16";
     public const string ManifestVersion = "0.10.0";
 
     // Failure types
@@ -25,6 +25,36 @@ public static class Constants
     public const string FailureStreamingNotSupported = "streaming_not_supported";
     public const string FailureInvalidParameters = "invalid_parameters";
     public const string FailureNonDelegableAction = "non_delegable_action";
+
+    // Maps each canonical resolution action to its recovery class.
+    public static readonly Dictionary<string, string> RecoveryClassMap = new()
+    {
+        ["retry_now"] = "retry_now",
+        ["wait_and_retry"] = "wait_then_retry",
+        ["obtain_binding"] = "refresh_then_retry",
+        ["refresh_binding"] = "refresh_then_retry",
+        ["obtain_quote_first"] = "refresh_then_retry",
+        ["revalidate_state"] = "revalidate_then_retry",
+        ["request_broader_scope"] = "redelegation_then_retry",
+        ["request_budget_increase"] = "redelegation_then_retry",
+        ["request_budget_bound_delegation"] = "redelegation_then_retry",
+        ["request_matching_currency_delegation"] = "redelegation_then_retry",
+        ["request_new_delegation"] = "redelegation_then_retry",
+        ["request_capability_binding"] = "redelegation_then_retry",
+        ["request_deeper_delegation"] = "redelegation_then_retry",
+        ["escalate_to_root_principal"] = "terminal",
+        ["provide_credentials"] = "retry_now",
+        ["check_manifest"] = "revalidate_then_retry",
+        ["contact_service_owner"] = "terminal",
+    };
+
+    /// <summary>Returns the recovery class for a given action. Throws if unmapped.</summary>
+    public static string RecoveryClassForAction(string action)
+    {
+        if (RecoveryClassMap.TryGetValue(action, out var cls))
+            return cls;
+        throw new ArgumentException($"No recovery class mapped for action: \"{action}\"");
+    }
 
     // Merkle hash prefixes (RFC 6962)
     public const byte LeafHashPrefix = 0x00;

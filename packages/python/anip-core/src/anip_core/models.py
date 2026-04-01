@@ -215,6 +215,7 @@ class PermissionResponse(BaseModel):
 
 class Resolution(BaseModel):
     action: str
+    recovery_class: str
     requires: str | None = None
     grantable_by: str | None = None
     estimated_availability: str | None = None
@@ -346,7 +347,7 @@ class DiscoveryPosture(BaseModel):
 
 
 class ANIPManifest(BaseModel):
-    protocol: str = "anip/0.15"
+    protocol: str = "anip/0.16"
     profile: ProfileVersions
     capabilities: dict[str, CapabilityDeclaration]
     manifest_metadata: ManifestMetadata | None = None

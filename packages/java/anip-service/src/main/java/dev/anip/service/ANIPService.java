@@ -287,7 +287,7 @@ public class ANIPService {
                         "type", Constants.FAILURE_PURPOSE_MISMATCH,
                         "detail", "Request task_id '" + requestTaskId
                                 + "' does not match token purpose task_id '" + tokenTaskId + "'",
-                        "resolution", Map.of("action", "use_token_task_id", "requires", "matching task_id or omit from request"),
+                        "resolution", Map.of("action", "revalidate_state", "recovery_class", Constants.recoveryClassForAction("revalidate_state"), "requires", "matching task_id or omit from request"),
                         "retry", false
                 ));
                 resp.put("invocation_id", invocationId);
@@ -302,12 +302,16 @@ public class ANIPService {
             // 1. Look up capability.
             CapabilityDef capDef = capabilities.get(capName);
             if (capDef == null) {
+                Map<String, Object> failure = new LinkedHashMap<>();
+                failure.put("type", Constants.FAILURE_UNKNOWN_CAPABILITY);
+                failure.put("detail", "Capability '" + capName + "' not found");
+                failure.put("resolution", Map.of(
+                        "action", "check_manifest",
+                        "recovery_class", Constants.recoveryClassForAction("check_manifest")
+                ));
                 Map<String, Object> resp = new LinkedHashMap<>();
                 resp.put("success", false);
-                resp.put("failure", Map.of(
-                        "type", Constants.FAILURE_UNKNOWN_CAPABILITY,
-                        "detail", "Capability '" + capName + "' not found"
-                ));
+                resp.put("failure", failure);
                 resp.put("invocation_id", invocationId);
                 resp.put("client_reference_id", opts != null ? opts.getClientReferenceId() : null);
                 resp.put("task_id", effectiveTaskId);
@@ -344,7 +348,12 @@ public class ANIPService {
                 failure.put("type", e.getErrorType());
                 failure.put("detail", e.getDetail());
                 if (e.getResolution() != null) {
-                    failure.put("resolution", Map.of("action", e.getResolution().getAction()));
+                    failure.put("resolution", Map.of(
+                            "action", e.getResolution().getAction(),
+                            "recovery_class", e.getResolution().getRecoveryClass() != null
+                                    ? e.getResolution().getRecoveryClass()
+                                    : Constants.recoveryClassForAction(e.getResolution().getAction())
+                    ));
                 }
 
                 String sideEffectType = capDef.getDeclaration().getSideEffect() != null
@@ -496,6 +505,7 @@ public class ANIPService {
                                 + "' (type: " + binding.getType() + ")");
                         failure.put("resolution", Map.of(
                                 "action", "obtain_binding",
+                                "recovery_class", Constants.recoveryClassForAction("obtain_binding"),
                                 "requires", "invoke " + sourceDesc + " to obtain a " + binding.getField()
                         ));
                         Map<String, Object> tokenClaims = tokenClaimsMap(token);
@@ -525,6 +535,7 @@ public class ANIPService {
                                         + "' has exceeded max_age of " + binding.getMaxAge());
                                 failure.put("resolution", Map.of(
                                         "action", "refresh_binding",
+                                        "recovery_class", Constants.recoveryClassForAction("refresh_binding"),
                                         "requires", "invoke " + sourceDesc + " again for a fresh " + binding.getField()
                                 ));
                                 Map<String, Object> tokenClaims = tokenClaimsMap(token);

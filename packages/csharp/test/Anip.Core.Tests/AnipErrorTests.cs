@@ -7,7 +7,8 @@ public class AnipErrorTests
     {
         var resolution = new Resolution
         {
-            Action = "reauthenticate",
+            Action = "request_new_delegation",
+            RecoveryClass = Constants.RecoveryClassForAction("request_new_delegation"),
             Requires = "oauth2",
             GrantableBy = "admin"
         };
@@ -21,7 +22,7 @@ public class AnipErrorTests
         Assert.Equal(Constants.FailureAuthRequired, error.ErrorType);
         Assert.Equal("Token has expired", error.Detail);
         Assert.NotNull(error.Resolution);
-        Assert.Equal("reauthenticate", error.Resolution!.Action);
+        Assert.Equal("request_new_delegation", error.Resolution!.Action);
         Assert.Equal("oauth2", error.Resolution.Requires);
         Assert.Equal("admin", error.Resolution.GrantableBy);
         Assert.True(error.Retry);
@@ -51,10 +52,11 @@ public class AnipErrorTests
     public void WithResolution_SetsResolution()
     {
         var error = new AnipError(Constants.FailureAuthRequired, "Need auth")
-            .WithResolution("reauthenticate");
+            .WithResolution("provide_credentials");
 
         Assert.NotNull(error.Resolution);
-        Assert.Equal("reauthenticate", error.Resolution!.Action);
+        Assert.Equal("provide_credentials", error.Resolution!.Action);
+        Assert.Equal("retry_now", error.Resolution.RecoveryClass);
     }
 
     [Fact]

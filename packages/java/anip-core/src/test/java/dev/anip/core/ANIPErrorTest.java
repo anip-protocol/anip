@@ -41,6 +41,7 @@ class ANIPErrorTest {
     void builderWithFullResolution() {
         Resolution resolution = new Resolution(
                 "request_broader_scope",
+                Constants.recoveryClassForAction("request_broader_scope"),
                 "delegation.scope += travel.book",
                 "human:samir@example.com",
                 null

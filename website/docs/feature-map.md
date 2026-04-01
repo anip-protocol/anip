@@ -32,6 +32,8 @@ A complete inventory of what ANIP includes today, organized by layer.
 | `resolution_hint` on permissions | Actionable suggestion string on `restricted` entries | [Permissions](/docs/protocol/delegation-permissions#resolution_hint-field-v015) |
 | `non_delegable_action` failure | Capability declares it requires direct (root) principal invocation | [Failures](/docs/protocol/failures-cost-audit#v015-failure-types) |
 | Canonical `request_broader_scope` | Replaces deprecated `request_scope_grant` resolution action | [Failures](/docs/protocol/failures-cost-audit#canonical-authority-resolution-actions-v015) |
+| `recovery_class` on resolution | Coarse recovery strategy on every `resolution` object: 6-value vocabulary (`retry_now`, `wait_then_retry`, `refresh_then_retry`, `redelegation_then_retry`, `revalidate_then_retry`, `terminal`) | [Failures](/docs/protocol/failures-cost-audit#v016-recovery_class--coarse-recovery-strategy) |
+| 5 new canonical `resolution.action` values | `retry_now`, `provide_credentials`, `wait_and_retry`, `revalidate_state`, `check_manifest` — completes the canonical action vocabulary | [Reference](/docs/protocol/reference#canonical-resolution-actions-v016) |
 
 ## Trust and verification
 

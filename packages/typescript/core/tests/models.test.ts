@@ -29,7 +29,7 @@ describe("Protocol constants", () => {
   it("exports correct protocol version", () => {
     // Intentionally hardcoded — this is the one place that verifies the constant value.
     // Update this when bumping the protocol version.
-    expect(PROTOCOL_VERSION).toBe("anip/0.15");
+    expect(PROTOCOL_VERSION).toBe("anip/0.16");
   });
 });
 
@@ -85,7 +85,7 @@ describe("ANIPFailure", () => {
     const result = ANIPFailure.parse({
       type: "scope_insufficient",
       detail: "Missing scope",
-      resolution: { action: "request_broader_scope" },
+      resolution: { action: "request_broader_scope", recovery_class: "redelegation_then_retry" },
       retry: false,
     });
     expect(result.type).toBe("scope_insufficient");

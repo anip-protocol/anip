@@ -1,16 +1,17 @@
 ---
 title: Version History
-description: ANIP protocol version progression from v0.1 through v0.15.
+description: ANIP protocol version progression from v0.1 through v0.16.
 ---
 
 # Version History
 
-ANIP's version line tracks the progression of protocol capabilities. The current version is **v0.15**.
+ANIP's version line tracks the progression of protocol capabilities. The current version is **v0.16**.
 
 ## Version progression
 
 | Version | What it added | Key concepts |
 |---------|--------------|--------------|
+| **v0.16** | Recovery posture | `recovery_class` on every `resolution` object (6-value vocabulary: `retry_now`, `wait_then_retry`, `refresh_then_retry`, `redelegation_then_retry`, `revalidate_then_retry`, `terminal`); 5 new canonical `resolution.action` values (`retry_now`, `provide_credentials`, `wait_and_retry`, `revalidate_state`, `check_manifest`) |
 | **v0.15** | Authority and blocked-action signals | `reason_type` on restricted/denied permission entries (5-value vocabulary); `resolution_hint` on restricted entries; `non_delegable_action` failure type; canonical `request_broader_scope` resolution action (deprecates `request_scope_grant`) |
 | **v0.14** | Binding/control simplification | Removed `bound_reference`/`freshness_window` overlap from `control_requirements` |
 | **v0.13** | Budget, binding, and control | Enforceable budget constraints; `requires_binding` on capabilities; `control_requirements` vocabulary; 6 new failure types; `budget_context` in responses; `FinancialCost` structured type |

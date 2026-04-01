@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = "anip/0.15";
+export const PROTOCOL_VERSION = "anip/0.16";
 export const MANIFEST_VERSION = "0.10.0";
 export const DEFAULT_PROFILE = {
   core: "1.0",
@@ -11,3 +11,40 @@ export const FAILURE_NON_DELEGABLE_ACTION = "non_delegable_action";
 export const SUPPORTED_ALGORITHMS = ["ES256"] as const;
 export const LEAF_HASH_PREFIX = 0x00;
 export const NODE_HASH_PREFIX = 0x01;
+
+// --- Recovery Posture (v0.16) ---
+
+/** Canonical action → recovery class mapping. */
+export const RECOVERY_CLASS_MAP: Record<string, string> = {
+  // Canonical actions (v0.16 spec)
+  retry_now: "retry_now",
+  wait_and_retry: "wait_then_retry",
+  obtain_binding: "refresh_then_retry",
+  refresh_binding: "refresh_then_retry",
+  obtain_quote_first: "refresh_then_retry",
+  revalidate_state: "revalidate_then_retry",
+  request_broader_scope: "redelegation_then_retry",
+  request_budget_increase: "redelegation_then_retry",
+  request_budget_bound_delegation: "redelegation_then_retry",
+  request_matching_currency_delegation: "redelegation_then_retry",
+  request_new_delegation: "redelegation_then_retry",
+  request_capability_binding: "redelegation_then_retry",
+  request_deeper_delegation: "redelegation_then_retry",
+  escalate_to_root_principal: "terminal",
+  provide_credentials: "retry_now",
+  check_manifest: "revalidate_then_retry",
+  contact_service_owner: "terminal",
+};
+
+/**
+ * Return the recovery class for a canonical action.
+ *
+ * Throws an error for non-canonical (unmapped) actions — no silent fallback.
+ */
+export function recoveryClassForAction(action: string): string {
+  const cls = RECOVERY_CLASS_MAP[action];
+  if (cls === undefined) {
+    throw new Error(`No recovery class mapped for action: "${action}"`);
+  }
+  return cls;
+}

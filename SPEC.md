@@ -1,4 +1,4 @@
-# ANIP Specification v0.15
+# ANIP Specification v0.16
 
 > Agent-Native Interface Protocol — Draft
 
@@ -272,25 +272,72 @@ Permission Discovery is coupled to Delegation Chain by design: the permission su
 
 When something goes wrong, the service MUST return a failure object that an agent can reason about and recover from. Failures reference other ANIP primitives — delegation chain, scope, cost — rather than using opaque codes.
 
-#### Canonical resolution.action vocabulary (v0.15)
+#### Canonical resolution.action vocabulary (v0.16)
 
 The `resolution.action` field MUST be one of the following canonical values. Services MUST NOT use ad-hoc action strings.
 
 | `resolution.action` | When to use |
 |---|---|
+| `retry_now` | The request can be retried immediately without any external change (e.g. transient network error or idempotent replay). |
 | `request_broader_scope` | Token lacks required scope — request re-delegation with wider scope. (Replaces deprecated `request_scope_grant`.) |
 | `request_budget_increase` | Token budget is too low for the capability cost. |
 | `request_budget_bound_delegation` | Token is missing a required budget constraint entirely. |
 | `request_matching_currency_delegation` | Token budget currency does not match capability cost currency. |
 | `request_new_delegation` | Token purpose binding is wrong or a fresh token is otherwise needed. |
+| `request_capability_binding` | A required capability binding (non-quote) is missing or invalid. |
 | `wait_and_retry` | Transient unavailability — capability will become available at `estimated_availability`. |
 | `obtain_quote_first` | Budget cannot be enforced without a bound price — get a quote first. |
 | `obtain_binding` | A required binding field is missing from invocation parameters. |
 | `refresh_binding` | A required binding is present but stale (exceeded `max_age`). |
 | `request_deeper_delegation` | Token `max_delegation_depth` is exhausted — a token with greater depth is needed. |
+| `revalidate_state` | Caller-held state (e.g. cached manifest, local token) is inconsistent with service state — re-fetch and re-validate before retrying. |
+| `provide_credentials` | Required credentials (API key, bearer token, etc.) are missing or invalid. |
+| `check_manifest` | Service capabilities have changed — caller should re-fetch the manifest and re-evaluate the interaction. |
 | `escalate_to_root_principal` | Capability is non-delegable — only the root principal can invoke it directly. No delegation path exists. |
+| `contact_service_owner` | Failure requires human intervention at the service level — automated resolution is not possible. |
 
 > **Deprecated:** `request_scope_grant` is replaced by `request_broader_scope`. Services MUST NOT emit `request_scope_grant` in v0.15+.
+
+#### recovery_class field (v0.16)
+
+The Resolution object MUST include a `recovery_class` field. `recovery_class` is a coarser classification of the recovery strategy implied by `action`, enabling agents to make routing decisions without pattern-matching on individual action strings.
+
+> **Advisory:** `recovery_class` is advisory. It does NOT override or replace `retry`. The existing `retry` boolean retains its meaning unchanged — whether the same request could succeed after the resolution is applied. `recovery_class` conveys how to recover, not whether to retry.
+
+**`recovery_class` vocabulary:**
+
+| `recovery_class` | Meaning |
+|---|---|
+| `retry_now` | Retry immediately — no external change required. |
+| `wait_then_retry` | Wait for a time-bounded condition (e.g. rate limit window, service cooldown), then retry. |
+| `refresh_then_retry` | Refresh a local artifact (binding, quote, token) and retry. |
+| `redelegation_then_retry` | Obtain a new or modified delegation token from an authority, then retry. |
+| `revalidate_then_retry` | Re-fetch and validate service-side state (manifest, capability graph) before retrying. |
+| `terminal` | No automated recovery path — requires human escalation or service-owner intervention. |
+
+**Mandatory action → recovery_class mapping:**
+
+Every canonical `resolution.action` maps to exactly one `recovery_class`. Services MUST use the mapping below.
+
+| `resolution.action` | `recovery_class` |
+|---|---|
+| `retry_now` | `retry_now` |
+| `provide_credentials` | `retry_now` |
+| `wait_and_retry` | `wait_then_retry` |
+| `obtain_binding` | `refresh_then_retry` |
+| `refresh_binding` | `refresh_then_retry` |
+| `obtain_quote_first` | `refresh_then_retry` |
+| `revalidate_state` | `revalidate_then_retry` |
+| `check_manifest` | `revalidate_then_retry` |
+| `request_broader_scope` | `redelegation_then_retry` |
+| `request_budget_increase` | `redelegation_then_retry` |
+| `request_budget_bound_delegation` | `redelegation_then_retry` |
+| `request_matching_currency_delegation` | `redelegation_then_retry` |
+| `request_new_delegation` | `redelegation_then_retry` |
+| `request_capability_binding` | `redelegation_then_retry` |
+| `request_deeper_delegation` | `redelegation_then_retry` |
+| `escalate_to_root_principal` | `terminal` |
+| `contact_service_owner` | `terminal` |
 
 The `resolution_hint` field on `RestrictedCapability` (§4.4) MUST be consistent with the `resolution.action` that would appear in the corresponding failure if invocation were attempted. This allows agents to pre-screen blocked actions without a failed invocation round-trip.
 
@@ -300,6 +347,7 @@ failure:
   detail: "delegation chain lacks scope: travel.book"
   resolution:
     action: "request_broader_scope"
+    recovery_class: "redelegation_then_retry"
     requires: "delegation.scope += travel.book"
     grantable_by: "human:samir@example.com"
   retry: true
@@ -311,6 +359,7 @@ failure:
   detail: "Capability cost $420 exceeds delegated budget of $200"
   resolution:
     action: "request_budget_increase"
+    recovery_class: "redelegation_then_retry"
     requires: "delegation token with higher budget"
     grantable_by: "human:samir@example.com"
   retry: false
@@ -322,6 +371,7 @@ failure:
   detail: "book_flight is temporarily unavailable"
   resolution:
     action: "wait_and_retry"
+    recovery_class: "wait_then_retry"
     estimated_availability: "2026-03-07T15:00:00Z"
   retry: true
 ```
@@ -332,6 +382,7 @@ failure:
   detail: "delegation token purpose is book_flight:SEA-SFO but request is for book_flight:SEA-LAX"
   resolution:
     action: "request_new_delegation"
+    recovery_class: "redelegation_then_retry"
     grantable_by: "agent:orchestrator-7x"
   retry: true
 ```
@@ -343,6 +394,7 @@ failure:
   detail: "Token budget is in USD but capability cost is in EUR"
   resolution:
     action: "request_matching_currency_delegation"
+    recovery_class: "redelegation_then_retry"
     requires: "delegation token with EUR budget"
   retry: false
 ```
@@ -354,6 +406,7 @@ failure:
   detail: "Capability book_flight has estimated cost ($200-$800) but no requires_binding — budget cannot be reliably enforced"
   resolution:
     action: "obtain_quote_first"
+    recovery_class: "refresh_then_retry"
     requires: "invoke search_flights to get a bound price, then book with the quote_id"
   retry: false
 ```
@@ -365,6 +418,7 @@ failure:
   detail: "Capability book_flight requires 'quote_id' (type: quote)"
   resolution:
     action: "obtain_binding"
+    recovery_class: "refresh_then_retry"
     requires: "invoke search_flights to obtain a quote_id"
   retry: false
 ```
@@ -376,6 +430,7 @@ failure:
   detail: "Binding 'quote_id' has exceeded max_age of 15 minutes"
   resolution:
     action: "refresh_binding"
+    recovery_class: "refresh_then_retry"
     requires: "invoke search_flights again for a fresh quote_id"
   retry: false
 ```
@@ -387,6 +442,7 @@ failure:
   detail: "Capability execute_trade requires cost_ceiling in delegation token"
   resolution:
     action: "request_budget_bound_delegation"
+    recovery_class: "redelegation_then_retry"
     requires: "delegation token with budget constraint"
   retry: false
 ```
@@ -398,6 +454,7 @@ failure:
   detail: "Capability transfer_root_funds is non-delegable and can only be invoked directly by the root principal"
   resolution:
     action: "escalate_to_root_principal"
+    recovery_class: "terminal"
     requires: "root principal must invoke this capability directly"
     grantable_by: "human:samir@example.com"
   retry: false
@@ -408,11 +465,12 @@ failure:
 - **type** — machine-readable failure category
 - **detail** — human-readable explanation (for debugging and logging)
 - **resolution** — what needs to happen to fix this, who can do it, and what action to take
+- **resolution.recovery_class** — coarse recovery strategy (see vocabulary above); advisory, does not override `retry`
 - **retry** — whether the same request could succeed after the resolution is applied
 
 Failure semantics are only meaningful because Delegation Chain is core. Without structured identity, failures collapse to "access denied." With it, failures become "here's exactly what's missing in the chain and who needs to grant it."
 
-A service MUST return failure objects conforming to this schema. A service MUST NOT return failures that lack a `type` and `resolution` field.
+A service MUST return failure objects conforming to this schema. A service MUST NOT return failures that lack a `type` and `resolution` field. A service MUST include `recovery_class` in every `resolution` object.
 
 ---
 
@@ -1368,6 +1426,7 @@ Services MUST apply disclosure-level redaction to failure responses at the respo
 | `failure.detail` | as-is | truncated to 200 chars | generic message per failure type |
 | `failure.retry` | as-is | as-is | as-is |
 | `resolution.action` | as-is | as-is | as-is |
+| `resolution.recovery_class` | as-is | as-is | as-is |
 | `resolution.requires` | as-is | as-is | `null` |
 | `resolution.grantable_by` | as-is | `null` | `null` |
 | `resolution.estimated_availability` | as-is | as-is | `null` |
@@ -1825,7 +1884,7 @@ The following categories define the surface area of ANIP conformance testing:
 
 **Category 5: Failure Semantics Validation**
 - All failures return structured failure objects conforming to Section 4.5, not raw HTTP error codes
-- Failure objects include `type`, `detail`, `resolution`, and `retry` fields
+- Failure objects include `type`, `detail`, `resolution`, and `retry` fields; `resolution` includes `recovery_class`
 - `resolution` includes actionable information (what's needed, who can grant it)
 - Unknown capabilities return `unknown_capability` with `check_manifest` resolution
 

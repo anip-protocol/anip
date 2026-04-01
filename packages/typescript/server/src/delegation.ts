@@ -20,6 +20,7 @@ import type {
   ANIPFailure as ANIPFailureType,
   Budget as BudgetType,
 } from "@anip-dev/core";
+import { recoveryClassForAction } from "@anip-dev/core";
 import type { StorageBackend } from "./storage.js";
 
 // Use plain objects matching the Zod-inferred type shapes from @anip-dev/core.
@@ -91,6 +92,7 @@ export class DelegationEngine {
         detail: `concurrent_branches is exclusive and another request from ${root} is in progress`,
         resolution: {
           action: "wait_and_retry",
+          recovery_class: recoveryClassForAction("wait_and_retry"),
           grantable_by: root,
         },
         retry: true,
@@ -174,7 +176,8 @@ export class DelegationEngine {
           type: "scope_escalation",
           detail: `child token scope '${childBase}' is not a subset of parent token scopes: ${[...parentScopeBases].sort().join(", ")}`,
           resolution: {
-            action: "narrow_scope",
+            action: "request_new_delegation",
+            recovery_class: recoveryClassForAction("request_new_delegation"),
             requires: "child scope must be subset of parent scope",
             grantable_by: rootPrincipal,
           },
@@ -194,7 +197,8 @@ export class DelegationEngine {
               type: "scope_escalation",
               detail: `child dropped budget constraint from scope '${childBase}' (parent has max $${parentBudget})`,
               resolution: {
-                action: "preserve_budget_constraint",
+                action: "request_new_delegation",
+                recovery_class: recoveryClassForAction("request_new_delegation"),
                 requires: `scope '${childBase}' must include budget <= $${parentBudget}`,
                 grantable_by: rootPrincipal,
               },
@@ -207,7 +211,8 @@ export class DelegationEngine {
               type: "scope_escalation",
               detail: `child budget $${childBudget} exceeds parent budget $${parentBudget} for scope '${childBase}'`,
               resolution: {
-                action: "narrow_budget",
+                action: "request_new_delegation",
+                recovery_class: recoveryClassForAction("request_new_delegation"),
                 requires: `budget must be <= $${parentBudget}`,
                 grantable_by: rootPrincipal,
               },
@@ -230,7 +235,8 @@ export class DelegationEngine {
           type: "budget_currency_mismatch",
           detail: `Child budget currency ${effectiveBudget.currency} does not match parent ${parentConstraints.budget.currency}`,
           resolution: {
-            action: "match_parent_currency",
+            action: "request_matching_currency_delegation",
+            recovery_class: recoveryClassForAction("request_matching_currency_delegation"),
             requires: `budget currency must be ${parentConstraints.budget.currency}`,
             grantable_by: rootPrincipal,
           },
@@ -241,7 +247,8 @@ export class DelegationEngine {
           type: "budget_exceeded",
           detail: `Child budget $${effectiveBudget.max_amount} exceeds parent budget $${parentConstraints.budget.max_amount}`,
           resolution: {
-            action: "narrow_budget",
+            action: "request_new_delegation",
+            recovery_class: recoveryClassForAction("request_new_delegation"),
             requires: `budget must be <= $${parentConstraints.budget.max_amount}`,
             grantable_by: rootPrincipal,
           },
@@ -291,6 +298,7 @@ export class DelegationEngine {
         detail: `delegation token ${token.token_id} expired at ${token.expires}`,
         resolution: {
           action: "request_new_delegation",
+          recovery_class: recoveryClassForAction("request_new_delegation"),
           grantable_by: await this.getRootPrincipal(token),
         },
         retry: true,
@@ -317,6 +325,7 @@ export class DelegationEngine {
         detail: `delegation chain lacks scope(s): ${missingScopes.join(", ")}`,
         resolution: {
           action: "request_broader_scope",
+          recovery_class: recoveryClassForAction("request_broader_scope"),
           requires: `delegation.scope += ${missingScopes.join(", ")}`,
           grantable_by: rootPrincipal,
         },
@@ -331,6 +340,7 @@ export class DelegationEngine {
         detail: `delegation token purpose is ${token.purpose.capability} but request is for ${capabilityName}`,
         resolution: {
           action: "request_new_delegation",
+          recovery_class: recoveryClassForAction("request_new_delegation"),
           grantable_by: await this.getRootPrincipal(token),
         },
         retry: true,
@@ -344,7 +354,8 @@ export class DelegationEngine {
         type: "broken_delegation_chain",
         detail: `delegation chain is incomplete — ancestor token '${chain[0].parent}' is not registered`,
         resolution: {
-          action: "register_missing_ancestor",
+          action: "request_deeper_delegation",
+          recovery_class: recoveryClassForAction("request_deeper_delegation"),
           grantable_by: await this.getRootPrincipal(token),
         },
         retry: true,
@@ -359,7 +370,8 @@ export class DelegationEngine {
         type: "delegation_depth_exceeded",
         detail: `delegation chain depth is ${actualDepth}, max allowed is ${maxDepth}`,
         resolution: {
-          action: "reduce_delegation_depth",
+          action: "request_deeper_delegation",
+          recovery_class: recoveryClassForAction("request_deeper_delegation"),
           requires: `max_delegation_depth >= ${actualDepth}`,
           grantable_by: await this.getRootPrincipal(token),
         },
@@ -375,7 +387,8 @@ export class DelegationEngine {
           type: "parent_token_expired",
           detail: `ancestor token ${ancestor.token_id} in delegation chain has expired`,
           resolution: {
-            action: "refresh_delegation_chain",
+            action: "refresh_binding",
+            recovery_class: recoveryClassForAction("refresh_binding"),
             grantable_by: await this.getRootPrincipal(token),
           },
           retry: true,
@@ -452,7 +465,8 @@ export class DelegationEngine {
         type: "token_not_registered",
         detail: `delegation token '${token.token_id}' is not registered — register via /anip/tokens first`,
         resolution: {
-          action: "register_token",
+          action: "request_new_delegation",
+          recovery_class: recoveryClassForAction("request_new_delegation"),
           requires: "token must be registered before use",
           grantable_by: token.issuer,
         },

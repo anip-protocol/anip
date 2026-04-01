@@ -327,7 +327,7 @@ describe("Auth error responses", () => {
     stopFn = undefined;
   });
 
-  it("POST /anip/tokens without auth returns ANIPFailure with provide_api_key", async () => {
+  it("POST /anip/tokens without auth returns ANIPFailure with provide_credentials", async () => {
     const { app, stop } = await makeApp();
     stopFn = stop;
     const res = await app.inject({
@@ -339,11 +339,11 @@ describe("Auth error responses", () => {
     const data = JSON.parse(res.payload);
     expect(data.success).toBe(false);
     expect(data.failure.type).toBe("authentication_required");
-    expect(data.failure.resolution.action).toBe("provide_api_key");
+    expect(data.failure.resolution.action).toBe("provide_credentials");
     expect(data.failure.retry).toBe(true);
   });
 
-  it("POST /anip/invoke without auth returns ANIPFailure with obtain_delegation_token", async () => {
+  it("POST /anip/invoke without auth returns ANIPFailure with request_new_delegation", async () => {
     const { app, stop } = await makeApp();
     stopFn = stop;
     const res = await app.inject({
@@ -355,11 +355,11 @@ describe("Auth error responses", () => {
     const data = JSON.parse(res.payload);
     expect(data.success).toBe(false);
     expect(data.failure.type).toBe("authentication_required");
-    expect(data.failure.resolution.action).toBe("obtain_delegation_token");
+    expect(data.failure.resolution.action).toBe("request_new_delegation");
     expect(data.failure.retry).toBe(true);
   });
 
-  it("POST /anip/permissions without auth returns ANIPFailure with obtain_delegation_token", async () => {
+  it("POST /anip/permissions without auth returns ANIPFailure with request_new_delegation", async () => {
     const { app, stop } = await makeApp();
     stopFn = stop;
     const res = await app.inject({
@@ -371,10 +371,10 @@ describe("Auth error responses", () => {
     const data = JSON.parse(res.payload);
     expect(data.success).toBe(false);
     expect(data.failure.type).toBe("authentication_required");
-    expect(data.failure.resolution.action).toBe("obtain_delegation_token");
+    expect(data.failure.resolution.action).toBe("request_new_delegation");
   });
 
-  it("POST /anip/audit without auth returns ANIPFailure with obtain_delegation_token", async () => {
+  it("POST /anip/audit without auth returns ANIPFailure with request_new_delegation", async () => {
     const { app, stop } = await makeApp();
     stopFn = stop;
     const res = await app.inject({
@@ -386,7 +386,7 @@ describe("Auth error responses", () => {
     const data = JSON.parse(res.payload);
     expect(data.success).toBe(false);
     expect(data.failure.type).toBe("authentication_required");
-    expect(data.failure.resolution.action).toBe("obtain_delegation_token");
+    expect(data.failure.resolution.action).toBe("request_new_delegation");
   });
 
   it("POST /anip/invoke with invalid JWT returns structured invalid_token", async () => {

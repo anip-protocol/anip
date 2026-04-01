@@ -47,7 +47,7 @@ def generate_schema(capabilities: dict[str, CapabilityDeclaration]) -> str:
         'type CostActual { financial: FinancialCost, varianceFromEstimate: String }',
         'type FinancialCost { amount: Float, currency: String }',
         'type ANIPFailure { type: String!, detail: String!, resolution: Resolution, retry: Boolean! }',
-        'type Resolution { action: String!, requires: String, grantableBy: String }',
+        'type Resolution { action: String!, recoveryClass: String!, requires: String, grantableBy: String }',
         'type RestrictedCapability { capability: String!, reason: String!, reasonType: String!, grantableBy: String!, unmetTokenRequirements: [String!]!, resolutionHint: String }',
         'type DeniedCapability { capability: String!, reason: String!, reasonType: String! }',
         '',
@@ -154,6 +154,7 @@ def build_graphql_response(result: dict[str, Any]) -> dict[str, Any]:
             "detail": failure.get("detail", ""),
             "resolution": {
                 "action": resolution.get("action", ""),
+                "recoveryClass": resolution.get("recovery_class", ""),
                 "requires": resolution.get("requires"),
                 "grantableBy": resolution.get("grantable_by"),
             } if resolution else None,
