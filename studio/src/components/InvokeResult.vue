@@ -10,6 +10,20 @@ const props = defineProps<{
 const isSuccess = computed(() => props.result?.success === true)
 const failure = computed(() => props.result?.failure || null)
 const resolution = computed(() => failure.value?.resolution || null)
+const recoveryClass = computed(() => resolution.value?.recovery_class || null)
+
+const RECOVERY_CLASS_COLORS: Record<string, string> = {
+  retry_now: 'rc-blue',
+  wait_then_retry: 'rc-yellow',
+  refresh_then_retry: 'rc-orange',
+  redelegation_then_retry: 'rc-purple',
+  revalidate_then_retry: 'rc-cyan',
+  terminal: 'rc-red',
+}
+
+const recoveryClassColor = computed(() =>
+  recoveryClass.value ? (RECOVERY_CLASS_COLORS[recoveryClass.value] || 'rc-default') : ''
+)
 </script>
 
 <template>
@@ -81,6 +95,11 @@ const resolution = computed(() => failure.value?.resolution || null)
       <div class="result-status-line">
         <StatusBadge label="Failed" type="danger" />
         <StatusBadge v-if="failure?.type" :label="failure.type" type="warning" />
+        <span
+          v-if="recoveryClass"
+          class="recovery-class-badge"
+          :class="recoveryClassColor"
+        >{{ recoveryClass }}</span>
         <span class="invocation-id">{{ result.invocation_id }}</span>
       </div>
 
@@ -279,5 +298,59 @@ const resolution = computed(() => failure.value?.resolution || null)
   font-size: 12px;
   font-weight: 600;
   color: var(--error);
+}
+
+/* Recovery class badge */
+.recovery-class-badge {
+  font-size: 10px;
+  font-weight: 600;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  padding: 2px 7px;
+  border-radius: 10px;
+  letter-spacing: 0.3px;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.rc-blue {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.rc-yellow {
+  background: rgba(234, 179, 8, 0.15);
+  color: #ca8a04;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.rc-orange {
+  background: rgba(249, 115, 22, 0.15);
+  color: #ea580c;
+  border: 1px solid rgba(249, 115, 22, 0.3);
+}
+
+.rc-purple {
+  background: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.rc-cyan {
+  background: rgba(6, 182, 212, 0.15);
+  color: #0891b2;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.rc-red {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.rc-default {
+  background: rgba(100, 116, 139, 0.15);
+  color: #64748b;
+  border: 1px solid rgba(100, 116, 139, 0.3);
 }
 </style>
