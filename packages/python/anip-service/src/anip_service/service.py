@@ -654,7 +654,7 @@ class ANIPService:
                 "failure": {
                     "type": "purpose_mismatch",
                     "detail": f"Request task_id '{task_id}' does not match token purpose task_id '{token_task_id}'",
-                    "resolution": {"action": "use_token_task_id", "recovery_class": "revalidate_then_retry", "requires": "matching task_id or omit from request"},
+                    "resolution": {"action": "revalidate_state", "recovery_class": "revalidate_then_retry", "requires": "matching task_id or omit from request"},
                     "retry": False,
                 },
                 "invocation_id": invocation_id,
@@ -849,7 +849,7 @@ class ANIPService:
                                 "failure": redact_failure({
                                     "type": "budget_not_enforceable",
                                     "detail": f"Capability {decl.name} has estimated cost with requires_binding but the provided binding does not carry a resolvable price",
-                                    "resolution": {"action": "provide_priced_binding", "recovery_class": "refresh_then_retry", "requires": "binding value must include a 'price' field or the service must resolve binding to a concrete price"},
+                                    "resolution": {"action": "obtain_binding", "recovery_class": "refresh_then_retry", "requires": "binding value must include a 'price' field or the service must resolve binding to a concrete price"},
                                     "retry": False,
                                 }, effective_level),
                                 "invocation_id": invocation_id,

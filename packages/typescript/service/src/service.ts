@@ -1017,7 +1017,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           failure: {
             type: "purpose_mismatch",
             detail: `Request task_id '${requestTaskId}' does not match token purpose task_id '${tokenTaskId}'`,
-            resolution: { action: "use_token_task_id", recovery_class: recoveryClassForAction("use_token_task_id"), requires: "matching task_id or omit from request" },
+            resolution: { action: "revalidate_state", recovery_class: recoveryClassForAction("revalidate_state"), requires: "matching task_id or omit from request" },
             retry: false,
           },
           invocation_id: invocationId,
@@ -1227,7 +1227,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
                   failure: redactFailure({
                     type: "budget_not_enforceable",
                     detail: `Capability ${capabilityName} has estimated cost with requires_binding but the provided binding does not carry a resolvable price`,
-                    resolution: { action: "provide_priced_binding", recovery_class: recoveryClassForAction("provide_priced_binding"), requires: "binding value must include a 'price' field or the service must resolve binding to a concrete price" },
+                    resolution: { action: "obtain_binding", recovery_class: recoveryClassForAction("obtain_binding"), requires: "binding value must include a 'price' field or the service must resolve binding to a concrete price" },
                     retry: false,
                   }, effectiveLevel),
                   invocation_id: invocationId,

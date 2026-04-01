@@ -180,7 +180,7 @@ export async function mountAnip(
             type: "not_found",
             detail: `Checkpoint ${req.params.id} not found`,
             resolution: {
-              action: "list_checkpoints",
+              action: "revalidate_state",
               recovery_class: "revalidate_then_retry",
               requires: "GET /anip/checkpoints to find valid checkpoint IDs",
               grantable_by: null,

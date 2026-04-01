@@ -396,7 +396,7 @@ public class AnipService : IDisposable
                     {
                         ["type"] = Constants.FailurePurposeMismatch,
                         ["detail"] = $"Request task_id '{opts.TaskId}' does not match token purpose task_id '{tokenTaskId}'",
-                        ["resolution"] = new Dictionary<string, object?> { ["action"] = "use_token_task_id", ["recovery_class"] = Constants.RecoveryClassForAction("use_token_task_id"), ["requires"] = "matching task_id or omit from request" },
+                        ["resolution"] = new Dictionary<string, object?> { ["action"] = "revalidate_state", ["recovery_class"] = Constants.RecoveryClassForAction("revalidate_state"), ["requires"] = "matching task_id or omit from request" },
                         ["retry"] = false,
                     },
                     ["invocation_id"] = invocationId,

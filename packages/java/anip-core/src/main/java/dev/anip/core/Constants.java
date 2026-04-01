@@ -56,21 +56,7 @@ public final class Constants {
             Map.entry("escalate_to_root_principal", "terminal"),
             Map.entry("provide_credentials", "retry_now"),
             Map.entry("check_manifest", "revalidate_then_retry"),
-            Map.entry("contact_service_owner", "terminal"),
-            Map.entry("narrow_scope", "terminal"),
-            Map.entry("preserve_budget_constraint", "terminal"),
-            Map.entry("narrow_budget", "terminal"),
-            Map.entry("match_parent_currency", "terminal"),
-            Map.entry("register_missing_ancestor", "redelegation_then_retry"),
-            Map.entry("reduce_delegation_depth", "terminal"),
-            Map.entry("refresh_delegation_chain", "redelegation_then_retry"),
-            Map.entry("register_parent_token_first", "redelegation_then_retry"),
-            Map.entry("narrow_constraints", "terminal"),
-            Map.entry("preserve_constraint", "terminal"),
-            Map.entry("register_token", "redelegation_then_retry"),
-            Map.entry("use_token_task_id", "revalidate_then_retry"),
-            Map.entry("provide_priced_binding", "refresh_then_retry"),
-            Map.entry("list_checkpoints", "revalidate_then_retry")
+            Map.entry("contact_service_owner", "terminal")
     );
 
     /**

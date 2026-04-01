@@ -34,22 +34,6 @@ export const RECOVERY_CLASS_MAP: Record<string, string> = {
   provide_credentials: "retry_now",
   check_manifest: "revalidate_then_retry",
   contact_service_owner: "terminal",
-  // Delegation-layer actions
-  narrow_scope: "terminal",
-  preserve_budget_constraint: "terminal",
-  narrow_budget: "terminal",
-  match_parent_currency: "terminal",
-  register_missing_ancestor: "redelegation_then_retry",
-  reduce_delegation_depth: "terminal",
-  refresh_delegation_chain: "redelegation_then_retry",
-  register_parent_token_first: "redelegation_then_retry",
-  narrow_constraints: "terminal",
-  preserve_constraint: "terminal",
-  register_token: "redelegation_then_retry",
-  // Service-layer actions
-  use_token_task_id: "revalidate_then_retry",
-  provide_priced_binding: "refresh_then_retry",
-  list_checkpoints: "revalidate_then_retry",
 };
 
 /**

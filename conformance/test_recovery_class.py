@@ -16,6 +16,27 @@ CANONICAL_RECOVERY_CLASSES = {
     "terminal",
 }
 
+# The 17 canonical resolution actions (spec §4.2.1)
+CANONICAL_ACTIONS = {
+    "retry_now",
+    "wait_and_retry",
+    "obtain_binding",
+    "refresh_binding",
+    "obtain_quote_first",
+    "revalidate_state",
+    "request_broader_scope",
+    "request_budget_increase",
+    "request_budget_bound_delegation",
+    "request_matching_currency_delegation",
+    "request_new_delegation",
+    "request_capability_binding",
+    "request_deeper_delegation",
+    "escalate_to_root_principal",
+    "provide_credentials",
+    "check_manifest",
+    "contact_service_owner",
+}
+
 # Mandatory action → recovery_class mapping (spec §4.2.1)
 ACTION_TO_RECOVERY_CLASS = {
     "retry_now": "retry_now",
@@ -35,9 +56,6 @@ ACTION_TO_RECOVERY_CLASS = {
     "request_deeper_delegation": "redelegation_then_retry",
     "escalate_to_root_principal": "terminal",
     "contact_service_owner": "terminal",
-    # Legacy / additional canonical actions
-    "invoke_as_root_principal": "terminal",
-    "obtain_matching_currency": "redelegation_then_retry",
 }
 
 
@@ -140,8 +158,10 @@ class TestRecoveryClass:
             if action is None or rc is None:
                 continue
             if action not in ACTION_TO_RECOVERY_CLASS:
-                # Non-canonical / service-specific action — skip mapping check
-                continue
+                pytest.fail(
+                    f"Non-canonical action '{action}' on failure type "
+                    f"'{failure.get('type')}' — all actions must be canonical"
+                )
             expected_rc = ACTION_TO_RECOVERY_CLASS[action]
             assert rc == expected_rc, (
                 f"recovery_class mismatch for action '{action}': "
@@ -196,7 +216,7 @@ class TestRecoveryClass:
         self, client, bootstrap_bearer, read_capability, write_capability
     ):
         """A resolution with a terminal action must have recovery_class 'terminal'."""
-        terminal_actions = {"escalate_to_root_principal", "contact_service_owner", "invoke_as_root_principal"}
+        terminal_actions = {"escalate_to_root_principal", "contact_service_owner"}
         failures = _collect_failure_responses(
             client, bootstrap_bearer, read_capability, write_capability
         )
@@ -257,3 +277,26 @@ class TestRecoveryClass:
                 )
         if not terminal_found:
             pytest.skip("No terminal recovery_class found in collected failure responses")
+
+    def test_resolution_action_is_canonical(
+        self, client, bootstrap_bearer, read_capability, write_capability
+    ):
+        """Every resolution.action value MUST be from the canonical vocabulary (spec §4.2.1).
+
+        Services MUST NOT emit non-canonical action strings such as
+        'use_token_task_id', 'narrow_scope', 'provide_priced_binding', etc.
+        """
+        failures = _collect_failure_responses(
+            client, bootstrap_bearer, read_capability, write_capability
+        )
+        assert failures, "Could not collect any failure responses to test"
+        for resp in failures:
+            failure = resp.get("failure", {})
+            resolution = failure.get("resolution", {})
+            action = resolution.get("action")
+            if action is not None:
+                assert action in CANONICAL_ACTIONS, (
+                    f"Non-canonical resolution action '{action}' on failure type "
+                    f"'{failure.get('type')}'. Must be one of: "
+                    f"{sorted(CANONICAL_ACTIONS)}"
+                )

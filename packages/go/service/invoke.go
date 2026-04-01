@@ -202,7 +202,7 @@ func (s *Service) Invoke(
 		failure := map[string]any{
 			"type":       core.FailurePurposeMismatch,
 			"detail":     "Request task_id '" + opts.TaskID + "' does not match token purpose task_id '" + tokenTaskID + "'",
-			"resolution": map[string]any{"action": "use_token_task_id", "recovery_class": core.RecoveryClassForAction("use_token_task_id"), "requires": "matching task_id or omit from request"},
+			"resolution": map[string]any{"action": "revalidate_state", "recovery_class": core.RecoveryClassForAction("revalidate_state"), "requires": "matching task_id or omit from request"},
 			"retry":      false,
 		}
 		resp := map[string]any{
@@ -417,8 +417,8 @@ func (s *Service) Invoke(
 							"type":   core.FailureBudgetNotEnforceable,
 							"detail": fmt.Sprintf("Capability %s has estimated cost with requires_binding but the provided binding does not carry a resolvable price", capName),
 							"resolution": map[string]any{
-								"action":         "provide_priced_binding",
-								"recovery_class": core.RecoveryClassForAction("provide_priced_binding"),
+								"action":         "obtain_binding",
+								"recovery_class": core.RecoveryClassForAction("obtain_binding"),
 								"requires":       "binding value must include a 'price' field or the service must resolve binding to a concrete price",
 							},
 							"retry": false,
