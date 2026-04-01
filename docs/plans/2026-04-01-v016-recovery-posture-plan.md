@@ -94,7 +94,7 @@ website/docs/releases/version-history.md                        # MODIFY: add v0
 
 - [ ] **Step 1: Update SPEC.md §4.5**
 
-Add `recovery_class` to Resolution definition. Add vocabulary table (6 values), advisory nature note, mandatory action→class mapping table (15 entries: 13 existing + 2 new), two new canonical actions (`retry_now`, `revalidate_state`). Update existing failure examples to include `recovery_class`. Add fallback rule: for actions not in the mapping table, services SHOULD use `retry_now` as the default recovery_class.
+Add `recovery_class` to Resolution definition. Add vocabulary table (6 values), advisory nature note, mandatory action→class mapping table (15 entries: 13 existing + 2 new), two new canonical actions (`retry_now`, `revalidate_state`). Update existing failure examples to include `recovery_class`. All canonical actions MUST appear in the mapping table — no fallback for unmapped actions.
 
 - [ ] **Step 2: Update JSON Schema**
 
@@ -200,7 +200,7 @@ Create `test_recovery_class.py`:
 - `test_recovery_class_present_on_all_failures` — every failure includes recovery_class
 - `test_retry_now_action` — `retry_now` action → `retry_now` class
 - `test_revalidate_state_action` — `revalidate_state` → `revalidate_then_retry`
-- `test_unmapped_action_defaults_to_retry_now` — non-canonical action → `retry_now`
+- `test_all_canonical_actions_have_mapping` — every action in the mapping table resolves without error
 
 - [ ] **Step 8: Run tests**
 
