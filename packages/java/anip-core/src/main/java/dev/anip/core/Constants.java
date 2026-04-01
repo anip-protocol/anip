@@ -11,7 +11,7 @@ public final class Constants {
     private Constants() {}
 
     /** Current ANIP protocol version. */
-    public static final String PROTOCOL_VERSION = "anip/0.15";
+    public static final String PROTOCOL_VERSION = "anip/0.16";
 
     /** Current manifest metadata version. */
     public static final String MANIFEST_VERSION = "0.10.0";

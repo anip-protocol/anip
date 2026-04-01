@@ -22,7 +22,7 @@ Messages are JSON-RPC 2.0 objects, one per line, on stdin (client→server) and 
 ```
 
 ```json
-{"jsonrpc": "2.0", "id": 1, "result": {"anip_discovery": {"version": "0.15.0", ...}}}
+{"jsonrpc": "2.0", "id": 1, "result": {"anip_discovery": {"version": "0.16.0", ...}}}
 ```
 
 ## Method mapping
