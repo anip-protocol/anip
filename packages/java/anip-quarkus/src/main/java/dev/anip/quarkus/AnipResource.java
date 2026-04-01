@@ -485,6 +485,8 @@ public class AnipResource {
         Map<String, Object> failure = new LinkedHashMap<>();
         failure.put("type", type);
         failure.put("detail", detail);
+        failure.put("resolution", defaultResolution(type));
+        failure.put("retry", !type.equals(Constants.FAILURE_NON_DELEGABLE_ACTION));
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("success", false);
