@@ -10,9 +10,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip-dev/core": "0.14.0",
-    "@anip-dev/hono": "0.14.0",
-    "@anip-dev/service": "0.14.0",
+    "@anip-dev/core": "0.15.0",
+    "@anip-dev/hono": "0.15.0",
+    "@anip-dev/service": "0.15.0",
     "@hono/node-server": "^1.11.0",
     "hono": "^4.4.0",
     "jose": "^6.2.2"
