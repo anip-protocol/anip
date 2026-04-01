@@ -205,7 +205,7 @@ public class SchemaBuilder {
                         "failure", Map.of(
                                 "type", Constants.FAILURE_AUTH_REQUIRED,
                                 "detail", "Authorization header required",
-                                "resolution", Map.of("action", "provide_credentials"),
+                                "resolution", Map.of("action", "provide_credentials", "recovery_class", Constants.recoveryClassForAction("provide_credentials")),
                                 "retry", true
                         )
                 ));

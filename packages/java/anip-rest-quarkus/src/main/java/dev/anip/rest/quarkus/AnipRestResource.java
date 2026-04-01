@@ -133,6 +133,7 @@ public class AnipRestResource {
             failure.put("detail", "Authorization header with Bearer token or API key required");
             failure.put("resolution", Map.of(
                     "action", "provide_credentials",
+                    "recovery_class", Constants.recoveryClassForAction("provide_credentials"),
                     "requires", "Bearer token or API key"
             ));
             failure.put("retry", true);
