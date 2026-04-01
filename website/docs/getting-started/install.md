@@ -87,7 +87,7 @@ Published to **Maven Central** under group `dev.anip`:
 <dependency>
   <groupId>dev.anip</groupId>
   <artifactId>anip-service</artifactId>
-  <version>0.15.0</version>
+  <version>0.16.0</version>
 </dependency>
 ```
 

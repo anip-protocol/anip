@@ -500,6 +500,7 @@ public class AnipController : ControllerBase
             ["resolution"] = new Dictionary<string, object?>
             {
                 ["action"] = "provide_credentials",
+                ["recovery_class"] = Constants.RecoveryClassForAction("provide_credentials"),
                 ["requires"] = "Bearer token",
             },
             ["retry"] = true,
@@ -547,6 +548,7 @@ public class AnipController : ControllerBase
             var res = new Dictionary<string, object?>
             {
                 ["action"] = e.Resolution.Action,
+                ["recovery_class"] = e.Resolution.RecoveryClass,
             };
             if (e.Resolution.Requires != null)
                 res["requires"] = e.Resolution.Requires;
@@ -574,23 +576,28 @@ public class AnipController : ControllerBase
         Constants.FailureAuthRequired => new Dictionary<string, object?>
         {
             ["action"] = "provide_credentials",
+            ["recovery_class"] = Constants.RecoveryClassForAction("provide_credentials"),
             ["requires"] = "Bearer token",
         },
         Constants.FailureInvalidToken or Constants.FailureTokenExpired => new Dictionary<string, object?>
         {
-            ["action"] = "reauthenticate",
+            ["action"] = "request_new_delegation",
+            ["recovery_class"] = Constants.RecoveryClassForAction("request_new_delegation"),
         },
         Constants.FailureScopeInsufficient => new Dictionary<string, object?>
         {
-            ["action"] = "request_scope",
+            ["action"] = "request_broader_scope",
+            ["recovery_class"] = Constants.RecoveryClassForAction("request_broader_scope"),
         },
         Constants.FailureBudgetExceeded => new Dictionary<string, object?>
         {
             ["action"] = "request_budget_increase",
+            ["recovery_class"] = Constants.RecoveryClassForAction("request_budget_increase"),
         },
         _ => new Dictionary<string, object?>
         {
-            ["action"] = "contact_administrator",
+            ["action"] = "contact_service_owner",
+            ["recovery_class"] = Constants.RecoveryClassForAction("contact_service_owner"),
         },
     };
 

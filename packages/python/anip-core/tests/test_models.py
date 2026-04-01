@@ -24,7 +24,7 @@ from anip_core import (
 def test_protocol_version():
     # Intentionally hardcoded — this is the one place that verifies the constant value.
     # Update this when bumping the protocol version.
-    assert PROTOCOL_VERSION == "anip/0.15"
+    assert PROTOCOL_VERSION == "anip/0.16"
 
 
 def test_delegation_token_roundtrip():
@@ -109,7 +109,7 @@ def test_capability_declaration():
 def test_anip_failure():
     failure = ANIPFailure(
         type="scope_insufficient", detail="Missing required scope",
-        resolution=Resolution(action="request_broader_scope"), retry=False,
+        resolution=Resolution(action="request_broader_scope", recovery_class="redelegation_then_retry"), retry=False,
     )
     assert failure.type == "scope_insufficient"
     assert failure.retry is False

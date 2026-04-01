@@ -334,7 +334,7 @@ func resolveToken(c *gin.Context, svc *service.Service) (*core.DelegationToken, 
 			return nil, false
 		}
 		anipErr := core.NewANIPError(core.FailureInvalidToken, "Invalid or expired delegation token").
-			WithResolution("obtain_delegation_token")
+			WithResolution("request_new_delegation")
 		status, body := httputil.FailureResponse(anipErr)
 		c.JSON(status, body)
 		return nil, false

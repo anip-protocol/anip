@@ -164,7 +164,7 @@ def _register_route(app: FastAPI, service: ANIPService, route: RESTRoute, prefix
                     "failure": {
                         "type": "authentication_required",
                         "detail": "Authorization header with Bearer token or API key required",
-                        "resolution": {"action": "provide_credentials"},
+                        "resolution": {"action": "provide_credentials", "recovery_class": "retry_now"},
                         "retry": True,
                     },
                 },

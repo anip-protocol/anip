@@ -346,8 +346,8 @@ func TestTokenIssuanceWithoutAuth(t *testing.T) {
 		t.Fatalf("expected type=%q, got %v", core.FailureAuthRequired, failure["type"])
 	}
 	resolution, _ := failure["resolution"].(map[string]any)
-	if resolution["action"] != "provide_api_key" {
-		t.Fatalf("expected resolution.action='provide_api_key', got %v", resolution["action"])
+	if resolution["action"] != "provide_credentials" {
+		t.Fatalf("expected resolution.action='provide_credentials', got %v", resolution["action"])
 	}
 }
 
@@ -410,8 +410,8 @@ func TestInvokeWithoutAuth(t *testing.T) {
 		t.Fatalf("expected type=%q, got %v", core.FailureAuthRequired, failure["type"])
 	}
 	resolution, _ := failure["resolution"].(map[string]any)
-	if resolution["action"] != "obtain_delegation_token" {
-		t.Fatalf("expected resolution.action='obtain_delegation_token', got %v", resolution["action"])
+	if resolution["action"] != "request_new_delegation" {
+		t.Fatalf("expected resolution.action='request_new_delegation', got %v", resolution["action"])
 	}
 }
 

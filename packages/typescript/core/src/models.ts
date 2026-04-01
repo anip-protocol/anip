@@ -232,6 +232,7 @@ export type PermissionResponse = z.infer<typeof PermissionResponse>;
 
 export const Resolution = z.object({
   action: z.string(),
+  recovery_class: z.string(),
   requires: z.string().nullable().default(null),
   grantable_by: z.string().nullable().default(null),
   estimated_availability: z.string().nullable().default(null),
@@ -384,7 +385,7 @@ export const ServiceIdentity = z.object({
 export type ServiceIdentity = z.infer<typeof ServiceIdentity>;
 
 export const ANIPManifest = z.object({
-  protocol: z.string().default("anip/0.15"),
+  protocol: z.string().default("anip/0.16"),
   profile: ProfileVersions,
   capabilities: z.record(CapabilityDeclaration),
   manifest_metadata: ManifestMetadata.nullable().default(null),

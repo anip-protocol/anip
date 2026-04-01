@@ -6,7 +6,9 @@ from .constants import (
     MANIFEST_VERSION,
     NODE_HASH_PREFIX,
     PROTOCOL_VERSION,
+    RECOVERY_CLASS_MAP,
     SUPPORTED_ALGORITHMS,
+    recovery_class_for_action,
 )
 from .models import (
     ANIPFailure,
@@ -70,7 +72,9 @@ __all__ = [
     "MANIFEST_VERSION",
     "NODE_HASH_PREFIX",
     "PROTOCOL_VERSION",
+    "RECOVERY_CLASS_MAP",
     "SUPPORTED_ALGORITHMS",
+    "recovery_class_for_action",
     # Enums
     "ConcurrentBranches",
     "CostCertainty",

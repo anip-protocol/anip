@@ -27,7 +27,7 @@ public class AnipError : Exception
 
     public AnipError WithResolution(string action)
     {
-        Resolution = new Resolution { Action = action };
+        Resolution = new Resolution { Action = action, RecoveryClass = Constants.RecoveryClassForAction(action) };
         return this;
     }
 
@@ -42,6 +42,9 @@ public class Resolution
 {
     [JsonPropertyName("action")]
     public string Action { get; set; } = "";
+
+    [JsonPropertyName("recovery_class")]
+    public string RecoveryClass { get; set; } = "";
 
     [JsonPropertyName("requires")]
     public string? Requires { get; set; }

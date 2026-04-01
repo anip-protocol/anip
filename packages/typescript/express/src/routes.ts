@@ -180,7 +180,8 @@ export async function mountAnip(
             type: "not_found",
             detail: `Checkpoint ${req.params.id} not found`,
             resolution: {
-              action: "list_checkpoints",
+              action: "revalidate_state",
+              recovery_class: "revalidate_then_retry",
               requires: "GET /anip/checkpoints to find valid checkpoint IDs",
               grantable_by: null,
               estimated_availability: null,
@@ -263,7 +264,8 @@ function authFailureTokenEndpoint(res: Response) {
       type: "authentication_required",
       detail: "A valid API key is required to issue delegation tokens",
       resolution: {
-        action: "provide_api_key",
+        action: "provide_credentials",
+        recovery_class: "retry_now",
         requires: "API key in Authorization header",
         grantable_by: null,
         estimated_availability: null,
@@ -280,7 +282,8 @@ function authFailureJwtEndpoint(res: Response) {
       type: "authentication_required",
       detail: "A valid delegation token (JWT) is required in the Authorization header",
       resolution: {
-        action: "obtain_delegation_token",
+        action: "request_new_delegation",
+        recovery_class: "redelegation_then_retry",
         requires: "Bearer token from POST /anip/tokens",
         grantable_by: null,
         estimated_availability: null,
@@ -292,19 +295,22 @@ function authFailureJwtEndpoint(res: Response) {
 
 const DEFAULT_RESOLUTIONS: Record<string, Record<string, unknown>> = {
   invalid_token: {
-    action: "obtain_delegation_token",
+    action: "request_new_delegation",
+    recovery_class: "redelegation_then_retry",
     requires: "Valid JWT from POST /anip/tokens",
     grantable_by: null,
     estimated_availability: null,
   },
   scope_insufficient: {
     action: "request_broader_scope",
+    recovery_class: "redelegation_then_retry",
     requires: "Token with required scope",
     grantable_by: null,
     estimated_availability: null,
   },
   unknown_capability: {
     action: "check_manifest",
+    recovery_class: "revalidate_then_retry",
     requires: "Valid capability name from GET /anip/manifest",
     grantable_by: null,
     estimated_availability: null,
@@ -315,6 +321,7 @@ function errorResponse(res: Response, error: ANIPError) {
   const status = failureStatus(error.errorType);
   const resolution = error.resolution ?? DEFAULT_RESOLUTIONS[error.errorType] ?? {
     action: "contact_service_owner",
+    recovery_class: "terminal",
     requires: null,
     grantable_by: null,
     estimated_availability: null,

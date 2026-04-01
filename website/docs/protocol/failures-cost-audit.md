@@ -75,19 +75,70 @@ Example:
 }
 ```
 
+### v0.16 recovery_class — coarse recovery strategy
+
+v0.16 adds `recovery_class` to every `resolution` object. It is a coarser classification of the recovery strategy implied by `resolution.action`, enabling agents to route failures without pattern-matching on individual action strings.
+
+> **Advisory:** `recovery_class` is advisory. It does **not** override or replace the `retry` boolean. `retry` retains its meaning — whether the same request could succeed after the resolution is applied. `recovery_class` conveys *how* to recover, not *whether* to retry.
+
+**`recovery_class` vocabulary:**
+
+| `recovery_class` | Meaning |
+|---|---|
+| `retry_now` | Retry immediately — no external change required. |
+| `wait_then_retry` | Wait for a time-bounded condition (e.g. rate-limit window, service cooldown), then retry. |
+| `refresh_then_retry` | Refresh a local artifact (binding, quote, token) and retry. |
+| `redelegation_then_retry` | Obtain a new or modified delegation token from an authority, then retry. |
+| `revalidate_then_retry` | Re-fetch and validate service-side state (manifest, capability graph) before retrying. |
+| `terminal` | No automated recovery path — requires human escalation or service-owner intervention. |
+
+**`terminal` invariant:** a failure with `recovery_class: "terminal"` MUST have `retry: false`. All other classes are compatible with either `retry` value.
+
+Example failure response with `recovery_class`:
+
+```json
+{
+  "success": false,
+  "invocation_id": "inv-9c1e2f3a4b5d",
+  "failure": {
+    "type": "insufficient_scope",
+    "detail": "Token lacks travel.book scope required by book_flight",
+    "retry": false,
+    "resolution": {
+      "action": "request_broader_scope",
+      "requires": "travel.book",
+      "grantable_by": "human:admin@company.com",
+      "recovery_class": "redelegation_then_retry"
+    }
+  }
+}
+```
+
 ### Canonical authority resolution actions (v0.15)
 
-The `resolution.action` field uses canonical string values. The table below lists all authority-related resolution actions:
+The `resolution.action` field uses canonical string values. The table below lists all authority-related resolution actions, including five new ones added in v0.16:
 
-| `resolution.action` | Meaning | Replaces (deprecated) |
-|--------------------|---------|----------------------|
-| `request_broader_scope` | Obtain a delegation token with wider scope | `request_scope_grant` (removed in v0.15) |
-| `request_budget_increase` | Obtain a higher-budget delegation | — |
-| `invoke_as_root_principal` | The human must invoke directly (non-delegable) | — |
-| `obtain_binding` | Invoke the source capability first to get a binding | — |
-| `refresh_binding` | Re-invoke the source capability for a fresh quote | — |
-| `obtain_quote_first` | Get a bound price before invoking an estimated-cost capability | — |
-| `obtain_matching_currency` | Re-delegate with matching budget currency | — |
+| `resolution.action` | `recovery_class` | Meaning |
+|--------------------|-----------------|---------|
+| `request_broader_scope` | `redelegation_then_retry` | Obtain a delegation token with wider scope |
+| `request_budget_increase` | `redelegation_then_retry` | Obtain a higher-budget delegation |
+| `invoke_as_root_principal` | `terminal` | The human must invoke directly (non-delegable) |
+| `obtain_binding` | `refresh_then_retry` | Invoke the source capability first to get a binding |
+| `refresh_binding` | `refresh_then_retry` | Re-invoke the source capability for a fresh quote |
+| `obtain_quote_first` | `refresh_then_retry` | Get a bound price before invoking an estimated-cost capability |
+| `obtain_matching_currency` | `redelegation_then_retry` | Re-delegate with matching budget currency |
+| `retry_now` | `retry_now` | Retry immediately — transient condition resolved |
+| `provide_credentials` | `retry_now` | Provide or refresh credentials and retry |
+| `wait_and_retry` | `wait_then_retry` | Wait for a time-bounded window, then retry |
+| `revalidate_state` | `revalidate_then_retry` | Re-fetch service-side state before retrying |
+| `check_manifest` | `revalidate_then_retry` | Re-fetch the manifest and verify capability declarations |
+| `request_budget_bound_delegation` | `redelegation_then_retry` | Request a delegation with an explicit budget bound |
+| `request_matching_currency_delegation` | `redelegation_then_retry` | Re-delegate with a currency that matches the capability cost |
+| `request_new_delegation` | `redelegation_then_retry` | Obtain a fresh delegation token (existing token expired or revoked) |
+| `request_capability_binding` | `redelegation_then_retry` | Obtain a delegation that binds to a specific capability |
+| `request_deeper_delegation` | `redelegation_then_retry` | Obtain a delegation from a principal higher in the chain |
+| `escalate_to_root_principal` | `terminal` | Escalate to the root principal; no automated recovery |
+| `contact_service_owner` | `terminal` | The service owner must intervene; no automated recovery |
 
 > **Deprecation:** The `request_scope_grant` value for `resolution.action` was removed in v0.15. All conformant implementations must use `request_broader_scope` instead. Clients that check for `request_scope_grant` should be updated.
 

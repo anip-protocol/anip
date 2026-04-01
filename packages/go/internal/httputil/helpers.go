@@ -47,7 +47,8 @@ func AuthFailureTokenEndpoint() (int, map[string]any) {
 			"type":   core.FailureAuthRequired,
 			"detail": "A valid API key is required to issue delegation tokens",
 			"resolution": map[string]any{
-				"action":                  "provide_api_key",
+				"action":                  "provide_credentials",
+				"recovery_class":          core.RecoveryClassForAction("provide_credentials"),
 				"requires":               "API key in Authorization header",
 				"grantable_by":           nil,
 				"estimated_availability": nil,
@@ -66,7 +67,8 @@ func AuthFailureJWTEndpoint() (int, map[string]any) {
 			"type":   core.FailureAuthRequired,
 			"detail": "A valid delegation token (JWT) is required in the Authorization header",
 			"resolution": map[string]any{
-				"action":                  "obtain_delegation_token",
+				"action":                  "request_new_delegation",
+				"recovery_class":          core.RecoveryClassForAction("request_new_delegation"),
 				"requires":               "Bearer token from POST /anip/tokens",
 				"grantable_by":           nil,
 				"estimated_availability": nil,
@@ -87,6 +89,7 @@ func BuildFailureBody(failureType, detail string, resolution *core.Resolution, r
 	if resolution != nil {
 		body["resolution"] = map[string]any{
 			"action":                  resolution.Action,
+			"recovery_class":          resolution.RecoveryClass,
 			"requires":               nilIfEmpty(resolution.Requires),
 			"grantable_by":           nilIfEmpty(resolution.GrantableBy),
 			"estimated_availability": nilIfEmpty(resolution.EstimatedAvailability),
@@ -94,6 +97,7 @@ func BuildFailureBody(failureType, detail string, resolution *core.Resolution, r
 	} else {
 		body["resolution"] = map[string]any{
 			"action":                  "contact_service_owner",
+			"recovery_class":          core.RecoveryClassForAction("contact_service_owner"),
 			"requires":               nil,
 			"grantable_by":           nil,
 			"estimated_availability": nil,
@@ -107,22 +111,26 @@ func DefaultResolution(failureType string) *core.Resolution {
 	switch failureType {
 	case core.FailureInvalidToken, core.FailureTokenExpired:
 		return &core.Resolution{
-			Action:   "obtain_delegation_token",
-			Requires: "Valid JWT from POST /anip/tokens",
+			Action:        "request_new_delegation",
+			RecoveryClass: core.RecoveryClassForAction("request_new_delegation"),
+			Requires:      "Valid JWT from POST /anip/tokens",
 		}
 	case core.FailureScopeInsufficient:
 		return &core.Resolution{
-			Action:   "request_broader_scope",
-			Requires: "Token with required scope",
+			Action:        "request_broader_scope",
+			RecoveryClass: core.RecoveryClassForAction("request_broader_scope"),
+			Requires:      "Token with required scope",
 		}
 	case core.FailureUnknownCapability:
 		return &core.Resolution{
-			Action:   "check_manifest",
-			Requires: "Valid capability name from GET /anip/manifest",
+			Action:        "check_manifest",
+			RecoveryClass: core.RecoveryClassForAction("check_manifest"),
+			Requires:      "Valid capability name from GET /anip/manifest",
 		}
 	default:
 		return &core.Resolution{
-			Action: "contact_service_owner",
+			Action:        "contact_service_owner",
+			RecoveryClass: core.RecoveryClassForAction("contact_service_owner"),
 		}
 	}
 }

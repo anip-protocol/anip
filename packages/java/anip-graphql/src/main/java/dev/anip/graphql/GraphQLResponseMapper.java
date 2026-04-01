@@ -96,6 +96,7 @@ public class GraphQLResponseMapper {
                 Map<String, Object> res = (Map<String, Object>) resolutionRaw;
                 Map<String, Object> mappedRes = new LinkedHashMap<>();
                 mappedRes.put("action", res.get("action"));
+                mappedRes.put("recoveryClass", res.get("recovery_class"));
                 mappedRes.put("requires", res.get("requires"));
                 mappedRes.put("grantableBy", res.get("grantable_by"));
                 f.put("resolution", mappedRes);
