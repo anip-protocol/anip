@@ -4,7 +4,7 @@
 
 **Goal:** Add `resolution.recovery_class` to failure responses — a 6-value advisory grouping that tells agents the category of recovery without changing existing `retry` semantics.
 
-**Architecture:** One new required field on the `Resolution` object (`recovery_class`) with mandatory action→class mapping. Two new canonical actions (`retry_now`, `revalidate_state`). Services populate `recovery_class` using a deterministic mapping function from `resolution.action`. Unmapped actions (transport-layer auth errors like `provide_api_key`) default to `retry_now`. No new failure types, no permission discovery changes, no `retry` semantics changes.
+**Architecture:** One new required field on the `Resolution` object (`recovery_class`) with mandatory action→class mapping. Five new canonical actions (`retry_now`, `revalidate_state`, `provide_credentials`, `check_manifest`, `contact_service_owner`). Transport-layer ad-hoc actions (`provide_api_key`) replaced with canonical equivalents. All actions in the mapping table — no defaulting loophole. No new failure types, no permission discovery changes, no `retry` semantics changes.
 
 **Tech Stack:** Python, TypeScript, Go, Java, C# runtimes + JSON Schema + SPEC.md + Vue (Studio)
 
@@ -145,10 +145,14 @@ RECOVERY_CLASS_MAP = {
     "request_capability_binding": "redelegation_then_retry",
     "request_deeper_delegation": "redelegation_then_retry",
     "escalate_to_root_principal": "terminal",
+    "provide_credentials": "retry_now",
+    "check_manifest": "revalidate_then_retry",
+    "contact_service_owner": "terminal",
 }
 
 def recovery_class_for_action(action: str) -> str:
-    return RECOVERY_CLASS_MAP.get(action, "retry_now")
+    """All canonical actions are in the map. KeyError for non-canonical actions."""
+    return RECOVERY_CLASS_MAP[action]
 ```
 
 Export from `__init__.py`.
@@ -163,12 +167,20 @@ Same pattern — find resolution dicts in delegation failure responses, add reco
 
 - [ ] **Step 4: Add recovery_class to ALL transport-layer responses**
 
-These files have hardcoded resolution dicts for auth/error responses that bypass the service layer:
-- `packages/python/anip-fastapi/src/anip_fastapi/routes.py` — search for `"action":` in resolution dicts (~lines 339, 352, 377)
-- `packages/python/anip-rest/src/anip_rest/routes.py` — search for `"action":` (~line 167)
-- `packages/python/anip-graphql/src/anip_graphql/routes.py` — search for `"action":` (~line 79)
+These files have hardcoded resolution dicts for auth/error responses that bypass the service layer. Replace ALL non-canonical action strings with canonical equivalents AND add `recovery_class`:
 
-For non-canonical actions like `provide_api_key`, `provide_credentials`, `check_manifest`, `contact_service_owner`, use `recovery_class_for_action()` which defaults to `retry_now`.
+- `packages/python/anip-fastapi/src/anip_fastapi/routes.py` (~lines 339, 352, 377)
+- `packages/python/anip-rest/src/anip_rest/routes.py` (~line 167)
+- `packages/python/anip-graphql/src/anip_graphql/routes.py` (~line 79)
+
+Replacements:
+- `provide_api_key` → `provide_credentials`
+- `provide_credentials` → keep (now canonical)
+- `check_manifest` → keep (now canonical)
+- `contact_service_owner` → keep (now canonical)
+- `obtain_delegation_token` → `request_new_delegation` (already canonical)
+
+Then add `"recovery_class": recovery_class_for_action(action)` to each resolution dict.
 
 - [ ] **Step 5: Update GraphQL SDL + response construction**
 
@@ -329,6 +341,8 @@ git commit -m "feat(csharp): add recovery_class to Resolution (v0.16)"
 - `test_scope_failure_is_redelegation` — scope failure → `recovery_class: "redelegation_then_retry"`
 - `test_retry_now_action_gives_retry_now_class` — `retry_now` action → `retry_now` class
 - `test_terminal_action_gives_terminal_class` — `escalate_to_root_principal` → `terminal` class (if non-delegable capability exists)
+- `test_retry_false_preserved_with_recovery_class` — failures that have `retry: false` (e.g., budget_exceeded) keep `retry: false` even with a non-terminal `recovery_class` like `redelegation_then_retry`
+- `test_terminal_requires_retry_false` — `recovery_class: "terminal"` always has `retry: false`
 
 - [ ] **Step 2: Commit**
 ```bash
