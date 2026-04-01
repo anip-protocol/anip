@@ -105,6 +105,7 @@ public static class GraphQLResponseMapper
                 f["resolution"] = new Dictionary<string, object?>
                 {
                     ["action"] = res.GetValueOrDefault("action"),
+                    ["recoveryClass"] = res.GetValueOrDefault("recovery_class"),
                     ["requires"] = res.GetValueOrDefault("requires"),
                     ["grantableBy"] = res.GetValueOrDefault("grantable_by"),
                 };

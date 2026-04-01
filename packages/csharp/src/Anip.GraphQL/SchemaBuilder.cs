@@ -63,7 +63,8 @@ public static class SchemaBuilder
         costActualType.Field<StringGraphType>("varianceFromEstimate");
 
         var resolutionType = new ObjectGraphType { Name = "Resolution" };
-        resolutionType.Field<StringGraphType>("action");
+        resolutionType.Field<NonNullGraphType<StringGraphType>>("action");
+        resolutionType.Field<NonNullGraphType<StringGraphType>>("recoveryClass");
         resolutionType.Field<StringGraphType>("requires");
         resolutionType.Field<StringGraphType>("grantableBy");
 
@@ -185,7 +186,7 @@ public static class SchemaBuilder
             "type CostActual { financial: FinancialCost, varianceFromEstimate: String }",
             "type FinancialCost { amount: Float, currency: String }",
             "type ANIPFailure { type: String!, detail: String!, resolution: Resolution, retry: Boolean! }",
-            "type Resolution { action: String!, requires: String, grantableBy: String }",
+            "type Resolution { action: String!, recoveryClass: String!, requires: String, grantableBy: String }",
             "type RestrictedCapability { capability: String!, reason: String!, reasonType: String!, grantableBy: String!, unmetTokenRequirements: [String!]!, resolutionHint: String }",
             "type DeniedCapability { capability: String!, reason: String!, reasonType: String! }",
             "",
@@ -373,7 +374,7 @@ internal class AnipFieldResolver : global::GraphQL.Resolvers.IFieldResolver
                 {
                     ["type"] = Constants.FailureAuthRequired,
                     ["detail"] = "Authorization header required",
-                    ["resolution"] = new Dictionary<string, object?> { ["action"] = "provide_credentials" },
+                    ["resolution"] = new Dictionary<string, object?> { ["action"] = "provide_credentials", ["recovery_class"] = Constants.RecoveryClassForAction("provide_credentials") },
                     ["retry"] = true,
                 },
             });
@@ -395,7 +396,13 @@ internal class AnipFieldResolver : global::GraphQL.Resolvers.IFieldResolver
             };
             if (e.Resolution != null)
             {
-                failure["resolution"] = new Dictionary<string, object?> { ["action"] = e.Resolution.Action };
+                failure["resolution"] = new Dictionary<string, object?>
+                {
+                    ["action"] = e.Resolution.Action,
+                    ["recovery_class"] = !string.IsNullOrEmpty(e.Resolution.RecoveryClass)
+                        ? e.Resolution.RecoveryClass
+                        : Constants.RecoveryClassForAction(e.Resolution.Action),
+                };
             }
             var authFailResult = GraphQLResponseMapper.BuildGraphQLResponse(new Dictionary<string, object?>
             {

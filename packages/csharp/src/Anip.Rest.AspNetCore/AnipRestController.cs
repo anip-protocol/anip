@@ -119,6 +119,7 @@ public class AnipRestController : ControllerBase
                 ["resolution"] = new Dictionary<string, object?>
                 {
                     ["action"] = "provide_credentials",
+                    ["recovery_class"] = Constants.RecoveryClassForAction("provide_credentials"),
                     ["requires"] = "Bearer token or API key",
                 },
                 ["retry"] = true,

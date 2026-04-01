@@ -396,7 +396,7 @@ public class AnipService : IDisposable
                     {
                         ["type"] = Constants.FailurePurposeMismatch,
                         ["detail"] = $"Request task_id '{opts.TaskId}' does not match token purpose task_id '{tokenTaskId}'",
-                        ["resolution"] = new Dictionary<string, object?> { ["action"] = "use_token_task_id", ["requires"] = "matching task_id or omit from request" },
+                        ["resolution"] = new Dictionary<string, object?> { ["action"] = "use_token_task_id", ["recovery_class"] = Constants.RecoveryClassForAction("use_token_task_id"), ["requires"] = "matching task_id or omit from request" },
                         ["retry"] = false,
                     },
                     ["invocation_id"] = invocationId,
@@ -493,6 +493,9 @@ public class AnipService : IDisposable
                     failure["resolution"] = new Dictionary<string, object?>
                     {
                         ["action"] = anipErr.Resolution.Action,
+                        ["recovery_class"] = !string.IsNullOrEmpty(anipErr.Resolution.RecoveryClass)
+                            ? anipErr.Resolution.RecoveryClass
+                            : Constants.RecoveryClassForAction(anipErr.Resolution.Action),
                     };
                 }
 
@@ -679,6 +682,7 @@ public class AnipService : IDisposable
                             ["resolution"] = new Dictionary<string, object?>
                             {
                                 ["action"] = "obtain_binding",
+                                ["recovery_class"] = Constants.RecoveryClassForAction("obtain_binding"),
                                 ["requires"] = $"invoke {sourceDesc} to obtain a {binding.Field}",
                             },
                         };
@@ -713,6 +717,7 @@ public class AnipService : IDisposable
                                     ["resolution"] = new Dictionary<string, object?>
                                     {
                                         ["action"] = "refresh_binding",
+                                        ["recovery_class"] = Constants.RecoveryClassForAction("refresh_binding"),
                                         ["requires"] = $"invoke {sourceDesc} again for a fresh {binding.Field}",
                                     },
                                 };
