@@ -564,27 +564,51 @@ When a budget was evaluated (success or failure), the response includes a `budge
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `action` | string | Yes | What to do (e.g., `request_scope`, `request_budget_increase`, `wait`) |
+| `action` | string | Yes | What to do (e.g., `request_broader_scope`, `request_budget_increase`, `wait_and_retry`) |
+| `recovery_class` | string | Yes | Coarse recovery strategy (see vocabulary below). Advisory — does not override `retry`. |
 | `requires` | string | No | What's needed to resolve |
 | `grantable_by` | string | No | Who can grant what's needed (principal identifier) |
 | `estimated_availability` | string | No | How soon resolution is possible (e.g., `immediate`, `24h`) |
 
+#### recovery_class vocabulary (v0.16)
+
+| `recovery_class` | Meaning |
+|---|---|
+| `retry_now` | Retry immediately — no external change required. |
+| `wait_then_retry` | Wait for a time-bounded condition, then retry. |
+| `refresh_then_retry` | Refresh a local artifact (binding, quote, token) and retry. |
+| `redelegation_then_retry` | Obtain a new or modified delegation token, then retry. |
+| `revalidate_then_retry` | Re-fetch and validate service-side state before retrying. |
+| `terminal` | No automated recovery — requires human escalation. Always paired with `retry: false`. |
+
 ### Failure types — authority (v0.15)
 
-| Type | When | Retry | Typical resolution |
-|------|------|-------|--------------------|
-| `non_delegable_action` | Capability requires the root principal; a delegated agent attempted it | No | `invoke_as_root_principal` — the human must invoke directly |
+| Type | When | Retry | Typical resolution | `recovery_class` |
+|------|------|-------|--------------------|-----------------|
+| `non_delegable_action` | Capability requires the root principal; a delegated agent attempted it | No | `invoke_as_root_principal` — the human must invoke directly | `terminal` |
+
+### Canonical resolution actions (v0.16)
+
+Five new canonical `resolution.action` values added in v0.16, completing the full action vocabulary:
+
+| `resolution.action` | `recovery_class` | When used |
+|---------------------|-----------------|-----------|
+| `retry_now` | `retry_now` | Transient condition; safe to retry immediately without any change |
+| `provide_credentials` | `retry_now` | Credentials are missing or need refreshing but no delegation change is required |
+| `wait_and_retry` | `wait_then_retry` | Rate-limit, cooldown, or time-bounded unavailability |
+| `revalidate_state` | `revalidate_then_retry` | Service-side state has changed; re-fetch and verify before retrying |
+| `check_manifest` | `revalidate_then_retry` | Capability graph or manifest may be stale; re-fetch manifest and retry |
 
 ### Failure types — budget, binding, and control (v0.14)
 
-| Type | When | Retry | Typical resolution |
-|------|------|-------|--------------------|
-| `budget_exceeded` | Cost exceeds the delegated budget | No | `request_budget_increase` — obtain a higher budget delegation |
-| `budget_currency_mismatch` | Budget and cost currencies differ | No | `obtain_matching_currency` — re-delegate with matching currency |
-| `budget_not_enforceable` | Estimated cost with no binding to pin a price | No | `obtain_quote_first` — invoke the source capability to get a bound price |
-| `binding_missing` | Required binding field absent from parameters | No | `obtain_binding` — invoke the source capability first |
-| `binding_stale` | Binding exceeded `max_age` | Yes | `refresh_binding` — re-invoke the source capability for a fresh quote |
-| `control_requirement_unsatisfied` | A declared control requirement is not met | No | Depends on requirement type (e.g., obtain budget delegation for `cost_ceiling`) |
+| Type | When | Retry | Typical resolution | `recovery_class` |
+|------|------|-------|--------------------|-----------------|
+| `budget_exceeded` | Cost exceeds the delegated budget | No | `request_budget_increase` — obtain a higher budget delegation | `redelegation_then_retry` |
+| `budget_currency_mismatch` | Budget and cost currencies differ | No | `obtain_matching_currency` — re-delegate with matching currency | `redelegation_then_retry` |
+| `budget_not_enforceable` | Estimated cost with no binding to pin a price | No | `obtain_quote_first` — invoke the source capability to get a bound price | `refresh_then_retry` |
+| `binding_missing` | Required binding field absent from parameters | No | `obtain_binding` — invoke the source capability first | `refresh_then_retry` |
+| `binding_stale` | Binding exceeded `max_age` | Yes | `refresh_binding` — re-invoke the source capability for a fresh quote | `refresh_then_retry` |
+| `control_requirement_unsatisfied` | A declared control requirement is not met | No | Depends on requirement type (e.g., obtain budget delegation for `cost_ceiling`) | `redelegation_then_retry` |
 
 ---
 
