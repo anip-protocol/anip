@@ -202,7 +202,7 @@ func (s *Service) Invoke(
 		failure := map[string]any{
 			"type":       core.FailurePurposeMismatch,
 			"detail":     "Request task_id '" + opts.TaskID + "' does not match token purpose task_id '" + tokenTaskID + "'",
-			"resolution": map[string]any{"action": "use_token_task_id", "requires": "matching task_id or omit from request"},
+			"resolution": map[string]any{"action": "use_token_task_id", "recovery_class": core.RecoveryClassForAction("use_token_task_id"), "requires": "matching task_id or omit from request"},
 			"retry":      false,
 		}
 		resp := map[string]any{
@@ -311,7 +311,8 @@ func (s *Service) Invoke(
 			}
 			if anipErr.Resolution != nil {
 				failure["resolution"] = map[string]any{
-					"action": anipErr.Resolution.Action,
+					"action":         anipErr.Resolution.Action,
+					"recovery_class": anipErr.Resolution.RecoveryClass,
 				}
 			}
 
@@ -416,8 +417,9 @@ func (s *Service) Invoke(
 							"type":   core.FailureBudgetNotEnforceable,
 							"detail": fmt.Sprintf("Capability %s has estimated cost with requires_binding but the provided binding does not carry a resolvable price", capName),
 							"resolution": map[string]any{
-								"action":   "provide_priced_binding",
-								"requires": "binding value must include a 'price' field or the service must resolve binding to a concrete price",
+								"action":         "provide_priced_binding",
+								"recovery_class": core.RecoveryClassForAction("provide_priced_binding"),
+								"requires":       "binding value must include a 'price' field or the service must resolve binding to a concrete price",
 							},
 							"retry": false,
 						}
@@ -490,8 +492,9 @@ func (s *Service) Invoke(
 				"type":   core.FailureBindingMissing,
 				"detail": fmt.Sprintf("Capability %s requires '%s' (type: %s)", capName, binding.Field, binding.Type),
 				"resolution": map[string]any{
-					"action":   "obtain_binding",
-					"requires": fmt.Sprintf("invoke %s to obtain a %s", sourceDesc, binding.Field),
+					"action":         "obtain_binding",
+					"recovery_class": core.RecoveryClassForAction("obtain_binding"),
+					"requires":       fmt.Sprintf("invoke %s to obtain a %s", sourceDesc, binding.Field),
 				},
 			}
 			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
@@ -518,8 +521,9 @@ func (s *Service) Invoke(
 						"type":   core.FailureBindingStale,
 						"detail": fmt.Sprintf("Binding '%s' has exceeded max_age of %s", binding.Field, binding.MaxAge),
 						"resolution": map[string]any{
-							"action":   "refresh_binding",
-							"requires": fmt.Sprintf("invoke %s again for a fresh %s", sourceDesc, binding.Field),
+							"action":         "refresh_binding",
+							"recovery_class": core.RecoveryClassForAction("refresh_binding"),
+							"requires":       fmt.Sprintf("invoke %s again for a fresh %s", sourceDesc, binding.Field),
 						},
 					}
 					effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)

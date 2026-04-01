@@ -339,7 +339,7 @@ func resolveToken(w http.ResponseWriter, r *http.Request, svc *service.Service) 
 			return nil, false
 		}
 		anipErr := core.NewANIPError(core.FailureInvalidToken, "Invalid or expired delegation token").
-			WithResolution("obtain_delegation_token")
+			WithResolution("request_new_delegation")
 		status, body := httputil.FailureResponse(anipErr)
 		writeJSON(w, status, body)
 		return nil, false

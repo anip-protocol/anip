@@ -11,6 +11,7 @@ type ANIPError struct {
 // Resolution describes how a failure can be resolved.
 type Resolution struct {
 	Action                string `json:"action"`
+	RecoveryClass         string `json:"recovery_class"`
 	Requires              string `json:"requires,omitempty"`
 	GrantableBy           string `json:"grantable_by,omitempty"`
 	EstimatedAvailability string `json:"estimated_availability,omitempty"`
@@ -26,9 +27,9 @@ func NewANIPError(errType, detail string) *ANIPError {
 	return &ANIPError{ErrorType: errType, Detail: detail}
 }
 
-// WithResolution adds a resolution to the error.
+// WithResolution adds a resolution to the error, automatically mapping recovery_class.
 func (e *ANIPError) WithResolution(action string) *ANIPError {
-	e.Resolution = &Resolution{Action: action}
+	e.Resolution = &Resolution{Action: action, RecoveryClass: RecoveryClassForAction(action)}
 	return e
 }
 

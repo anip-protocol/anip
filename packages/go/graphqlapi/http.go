@@ -108,7 +108,7 @@ func makeResolver(svc *service.Service, capName string) graphql.FieldResolveFn {
 				"failure": map[string]any{
 					"type":       core.FailureAuthRequired,
 					"detail":     "Authorization header required",
-					"resolution": map[string]any{"action": "provide_credentials"},
+					"resolution": map[string]any{"action": "provide_credentials", "recovery_class": core.RecoveryClassForAction("provide_credentials")},
 					"retry":      true,
 				},
 			}), nil
@@ -123,7 +123,7 @@ func makeResolver(svc *service.Service, capName string) graphql.FieldResolveFn {
 					"retry":  anipErr.Retry,
 				}
 				if anipErr.Resolution != nil {
-					failure["resolution"] = anipErr.Resolution
+					failure["resolution"] = resolutionToMap(anipErr.Resolution)
 				}
 				return BuildGraphQLResponse(map[string]any{
 					"success": false,
@@ -151,7 +151,7 @@ func makeResolver(svc *service.Service, capName string) graphql.FieldResolveFn {
 				failure["detail"] = anipErr.Detail
 				failure["retry"] = anipErr.Retry
 				if anipErr.Resolution != nil {
-					failure["resolution"] = anipErr.Resolution
+					failure["resolution"] = resolutionToMap(anipErr.Resolution)
 				}
 			}
 			return BuildGraphQLResponse(map[string]any{
@@ -181,6 +181,18 @@ async function run() {
   document.getElementById("r").textContent = JSON.stringify(await r.json(), null, 2);
 }
 </script></body></html>`
+}
+
+// resolutionToMap converts a *core.Resolution struct to a map[string]any with snake_case keys
+// suitable for passing through BuildGraphQLResponse.
+func resolutionToMap(r *core.Resolution) map[string]any {
+	m := map[string]any{
+		"action":         r.Action,
+		"recovery_class": r.RecoveryClass,
+		"requires":       r.Requires,
+		"grantable_by":   r.GrantableBy,
+	}
+	return m
 }
 
 // writeJSONResponse writes a JSON response.
