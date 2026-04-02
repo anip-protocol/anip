@@ -35,7 +35,7 @@ A complete inventory of what ANIP includes today, organized by layer.
 | `recovery_class` on resolution | Coarse recovery strategy on every `resolution` object: 6-value vocabulary (`retry_now`, `wait_then_retry`, `refresh_then_retry`, `redelegation_then_retry`, `revalidate_then_retry`, `terminal`) | [Failures](/docs/protocol/failures-cost-audit#v016-recovery_class--coarse-recovery-strategy) |
 | 5 new canonical `resolution.action` values | `retry_now`, `provide_credentials`, `wait_and_retry`, `revalidate_state`, `check_manifest` — completes the canonical action vocabulary | [Reference](/docs/protocol/reference#canonical-resolution-actions-v016) |
 | `refresh_via` composition hint | Advisory array of capability names to re-invoke when a stale artifact causes failure (e.g., `binding_stale`) | [Capabilities](/docs/protocol/capabilities#advisory-composition-hints-v017) |
-| `verify_via` composition hint | Advisory array of capability names to invoke to verify state before executing an irreversible action | [Capabilities](/docs/protocol/capabilities#advisory-composition-hints-v017) |
+| `verify_via` composition hint | Advisory array of capability names to invoke to verify side effects after executing an irreversible action | [Capabilities](/docs/protocol/capabilities#advisory-composition-hints-v017) |
 
 ## Trust and verification
 

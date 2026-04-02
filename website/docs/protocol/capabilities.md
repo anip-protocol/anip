@@ -256,9 +256,9 @@ Advisory composition hints let a capability declare which other capabilities in 
 | Field | Type | Description |
 |-------|------|-------------|
 | `refresh_via` | string[] | Capabilities the agent should invoke to refresh a stale or expired artifact before retrying this capability |
-| `verify_via` | string[] | Capabilities the agent should invoke to verify current state before executing this capability (especially useful for irreversible actions) |
+| `verify_via` | string[] | Capabilities the agent should invoke to verify side effects after executing this capability (especially useful for irreversible actions) |
 
-Both fields are optional, default to absent (not `[]`), and every name in either list MUST refer to a capability declared in the same manifest.
+Both fields are optional, default to `[]`, and every name in either list MUST refer to a capability declared in the same manifest.
 
 ### When to use each hint
 
@@ -272,7 +272,7 @@ Both fields are optional, default to absent (not `[]`), and every name in either
 }
 ```
 
-**`verify_via`** — Use on capabilities with irreversible side effects, where an agent should read current state before committing. The hint guides the agent to check preconditions without encoding them as hard protocol requirements.
+**`verify_via`** — Use on capabilities with irreversible side effects, where an agent should verify what actually changed after execution. The hint guides the agent to confirm side effects without encoding them as hard protocol requirements.
 
 ```json
 {
