@@ -238,6 +238,10 @@ function formatTimestamp(ts: string): string {
                 <tr v-if="expandedEntry === idx" class="detail-row">
                   <td :colspan="9">
                     <div class="entry-detail">
+                      <div v-if="entry.upstream_service" class="audit-context-row">
+                        <span class="context-label">Upstream Service:</span>
+                        <span class="context-value">{{ entry.upstream_service }}</span>
+                      </div>
                       <div v-if="entry.budget_context" class="audit-context-row">
                         <span class="context-label">Budget:</span>
                         <span class="context-value">{{ entry.budget_context.budget_currency }} {{ entry.budget_context.budget_max }}</span>
