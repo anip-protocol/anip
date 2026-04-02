@@ -236,6 +236,8 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 | `requires` | array | No | Prerequisite capabilities |
 | `response_modes` | string[] | No | `["unary"]`, `["streaming"]`, or `["unary", "streaming"]`. Default: `["unary"]` |
 | `observability` | object | No | Logging and retention posture |
+| `refresh_via` | string[] | No | Advisory: capabilities to re-invoke when a stale or missing artifact causes a failure. Every name must exist in the same manifest. |
+| `verify_via` | string[] | No | Advisory: capabilities to invoke to verify current state before executing this capability. Every name must exist in the same manifest. |
 
 ### Input field
 

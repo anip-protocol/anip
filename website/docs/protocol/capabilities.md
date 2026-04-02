@@ -247,6 +247,63 @@ A travel service with budget-enforced booking through binding:
 
 If the bound price had been $600, the service would reject with `budget_exceeded` before executing the booking. If the quote had expired, the service would reject with `binding_stale`.
 
+## Advisory composition hints (v0.17)
+
+Advisory composition hints let a capability declare which other capabilities in the same manifest are naturally paired with it — without enforcing any ordering at the protocol level. These are hints for agents, not protocol constraints.
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `refresh_via` | string[] | Capabilities the agent should invoke to refresh a stale or expired artifact before retrying this capability |
+| `verify_via` | string[] | Capabilities the agent should invoke to verify current state before executing this capability (especially useful for irreversible actions) |
+
+Both fields are optional, default to absent (not `[]`), and every name in either list MUST refer to a capability declared in the same manifest.
+
+### When to use each hint
+
+**`refresh_via`** — Use when the capability's success depends on a fresh artifact (quote, price lock, binding) that can become stale. An agent receiving `binding_stale` or `budget_not_enforceable` can use `refresh_via` to know exactly which capability to re-invoke for a fresh value.
+
+```json
+{
+  "book_flight": {
+    "refresh_via": ["search_flights"]
+  }
+}
+```
+
+**`verify_via`** — Use on capabilities with irreversible side effects, where an agent should read current state before committing. The hint guides the agent to check preconditions without encoding them as hard protocol requirements.
+
+```json
+{
+  "delete_resource": {
+    "verify_via": ["list_deployments"]
+  }
+}
+```
+
+### Same-manifest rule
+
+All capability names in `refresh_via` and `verify_via` MUST be declared in the same manifest. References to capabilities on other services are not permitted — the hints are local to a single service's declaration graph.
+
+### Complete example
+
+```json
+{
+  "search_flights": {
+    "description": "Search available flights",
+    "side_effect": { "type": "read" }
+  },
+  "book_flight": {
+    "description": "Book a confirmed flight reservation",
+    "side_effect": { "type": "irreversible" },
+    "refresh_via": ["search_flights"]
+  }
+}
+```
+
+In this example: if `book_flight` fails with `binding_stale`, an agent reading `refresh_via` knows to re-invoke `search_flights` to get a fresh quote before retrying.
+
 ## Next steps
 
 - **[Delegation & Permissions](/docs/protocol/delegation-permissions)** — How authority and scope work
