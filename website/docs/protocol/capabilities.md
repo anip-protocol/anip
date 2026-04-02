@@ -29,7 +29,7 @@ The manifest is served at `GET /anip/manifest` with a cryptographic signature in
 ```json
 {
   "manifest_metadata": {
-    "version": "0.17.0",
+    "version": "0.18.0",
     "sha256": "a1b2c3...",
     "issued_at": "2026-03-27T10:00:00Z"
   },

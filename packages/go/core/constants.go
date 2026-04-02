@@ -37,7 +37,7 @@ func RecoveryClassForAction(action string) string {
 }
 
 // ProtocolVersion is the current ANIP protocol version.
-const ProtocolVersion = "anip/0.17"
+const ProtocolVersion = "anip/0.18"
 
 // ManifestVersion is the current manifest metadata version.
 const ManifestVersion = "0.10.0"
