@@ -15,9 +15,10 @@
 ## File Structure
 
 ```
-# Spec and Schema
+# Spec, Schema, and Proto
 SPEC.md                                                        # MODIFY: §6.3 cross-service propagation rules + upstream_service field + reconstruction guidance
-schema/anip.schema.json                                        # MODIFY: add upstream_service to InvokeRequest + InvokeResponse
+schema/anip.schema.json                                        # MODIFY: add upstream_service to InvokeRequest, InvokeResponse, and AuditEntry
+proto/anip/v1/anip.proto                                       # MODIFY: add upstream_service to InvokeRequest + InvokeResponse + CompletedEvent + FailedEvent
 
 # Python
 packages/python/anip-core/src/anip_core/models.py              # MODIFY: add upstream_service to InvokeRequest/InvokeResponse if modeled
@@ -88,12 +89,30 @@ Also update the invocation request/response field tables to include `upstream_se
 
 - [ ] **Step 2: Update JSON Schema**
 
-Add `upstream_service` (optional string, default null) to the InvokeRequest and InvokeResponse schemas.
+Add `upstream_service` (optional string, default null) to the InvokeRequest, InvokeResponse, AND AuditEntry schemas.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Update Proto**
+
+In `proto/anip/v1/anip.proto`, add `string upstream_service` to:
+- `InvokeRequest` (next available field number)
+- `InvokeResponse` (next available field number)
+- `CompletedEvent` (next available field number)
+- `FailedEvent` (next available field number)
+
+Regenerate Python gRPC stubs:
+```bash
+python -m grpc_tools.protoc -I proto --python_out=packages/python/anip-grpc/src/anip_grpc/generated --pyi_out=packages/python/anip-grpc/src/anip_grpc/generated --grpc_python_out=packages/python/anip-grpc/src/anip_grpc/generated proto/anip/v1/anip.proto
+```
+
+Regenerate Go gRPC stubs:
+```bash
+cd packages/go && go generate ./...
+```
+
+- [ ] **Step 4: Commit**
 
 ```bash
-git add SPEC.md schema/anip.schema.json
+git add SPEC.md schema/anip.schema.json proto/ packages/python/anip-grpc/src/anip_grpc/generated/ packages/go/grpcapi/proto/
 git commit -m "spec: add cross-service continuity rules and upstream_service field (v0.18)"
 ```
 
@@ -261,6 +280,7 @@ git commit -m "feat(csharp): add upstream_service to invoke (v0.18)"
 - `test_upstream_service_optional` — invoke without upstream_service, verify response succeeds (field absent or null)
 - `test_upstream_service_in_audit` — invoke with upstream_service, query audit, verify entry contains it
 - `test_task_id_propagation_accepted` — invoke with a task_id that was not created by this service (simulates cross-service propagation), verify it's accepted and echoed
+- `test_foreign_parent_invocation_id_accepted` — invoke with a `parent_invocation_id` that was NOT issued by this service (e.g., a random valid `inv-{hex12}` string), verify it's accepted and echoed — services MUST NOT reject foreign parent IDs
 
 - [ ] **Step 2: Commit**
 
