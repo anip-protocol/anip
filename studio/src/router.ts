@@ -4,6 +4,42 @@ function normalizeBase(base: string): string {
   return base.endsWith('/') ? base : base + '/'
 }
 
+const inspectOnly = !!import.meta.env.VITE_INSPECT_ONLY
+
+// Only include Design routes in standalone builds (not embedded runtime packages)
+const designRoutes = inspectOnly ? [] : [
+  {
+    path: '/design',
+    name: 'design-home',
+    component: () => import('./views/DesignHomeView.vue'),
+  },
+  {
+    path: '/design/scenarios',
+    name: 'scenario-browser',
+    component: () => import('./views/ScenarioBrowserView.vue'),
+  },
+  {
+    path: '/design/scenarios/:pack',
+    name: 'scenario-detail',
+    component: () => import('./views/ScenarioDetailView.vue'),
+  },
+  {
+    path: '/design/requirements/:pack',
+    name: 'requirements',
+    component: () => import('./views/RequirementsView.vue'),
+  },
+  {
+    path: '/design/proposal/:pack',
+    name: 'proposal',
+    component: () => import('./views/ProposalView.vue'),
+  },
+  {
+    path: '/design/evaluation/:pack',
+    name: 'evaluation',
+    component: () => import('./views/EvaluationView.vue'),
+  },
+]
+
 const routes = [
   // Studio home
   {
@@ -48,37 +84,8 @@ const routes = [
     component: () => import('./views/InvokeView.vue'),
   },
 
-  // ── Design mode ──
-  {
-    path: '/design',
-    name: 'design-home',
-    component: () => import('./views/DesignHomeView.vue'),
-  },
-  {
-    path: '/design/scenarios',
-    name: 'scenario-browser',
-    component: () => import('./views/ScenarioBrowserView.vue'),
-  },
-  {
-    path: '/design/scenarios/:pack',
-    name: 'scenario-detail',
-    component: () => import('./views/ScenarioDetailView.vue'),
-  },
-  {
-    path: '/design/requirements/:pack',
-    name: 'requirements',
-    component: () => import('./views/RequirementsView.vue'),
-  },
-  {
-    path: '/design/proposal/:pack',
-    name: 'proposal',
-    component: () => import('./views/ProposalView.vue'),
-  },
-  {
-    path: '/design/evaluation/:pack',
-    name: 'evaluation',
-    component: () => import('./views/EvaluationView.vue'),
-  },
+  // ── Design mode (excluded from Inspect-only builds) ──
+  ...designRoutes,
 
   // ── Backward-compat redirects (old flat paths → /inspect/*) ──
   { path: '/manifest', redirect: '/inspect/manifest' },

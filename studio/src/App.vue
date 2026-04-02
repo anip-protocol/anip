@@ -12,6 +12,8 @@ const urlInput = ref('')
 const sidebarCollapsed = ref(false)
 const connecting = ref(false)
 
+const inspectOnly = !!import.meta.env.VITE_INSPECT_ONLY
+
 type StudioMode = 'home' | 'inspect' | 'design'
 
 const activeMode = computed<StudioMode>(() => {
@@ -106,8 +108,8 @@ function disconnect() {
           <span class="brand-logo">&#x25C6;</span>
           <span class="brand-name">ANIP <span class="brand-accent">Studio</span></span>
         </div>
-        <!-- Mode switcher -->
-        <div class="mode-switcher" v-if="activeMode !== 'home'">
+        <!-- Mode switcher (hidden in Inspect-only embedded builds) -->
+        <div class="mode-switcher" v-if="!inspectOnly && activeMode !== 'home'">
           <button
             class="mode-tab"
             :class="{ active: activeMode === 'inspect' }"

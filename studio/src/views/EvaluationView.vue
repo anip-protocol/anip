@@ -13,23 +13,14 @@ const pack = computed(() => {
 
 const evaluation = computed(() => pack.value?.evaluation?.evaluation ?? null)
 
-const categoryColors: Record<string, string> = {
-  auth: '#60a5fa',
-  discovery: '#a78bfa',
-  transport: '#34d399',
-  audit: '#fbbf24',
-  lineage: '#f472b6',
-  checkpoints: '#fb923c',
-  permissions: '#2dd4bf',
-  manifest: '#818cf8',
-}
-
 function categoryColor(cat: string): string {
-  const lower = cat.toLowerCase()
-  for (const [key, color] of Object.entries(categoryColors)) {
-    if (lower.includes(key)) return color
+  const colors: Record<string, string> = {
+    safety: 'var(--design-category-safety)',
+    orchestration: 'var(--design-category-orchestration)',
+    observability: 'var(--design-category-observability)',
+    cross_service: 'var(--design-category-cross-service)',
   }
-  return '#94a3b8'
+  return colors[cat] || 'var(--text-muted)'
 }
 </script>
 

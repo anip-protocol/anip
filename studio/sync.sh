@@ -1,18 +1,27 @@
 #!/bin/bash
-# WARNING: This syncs the full Studio build (including Design mode routes) into
-# runtime adapter packages. Design mode is intended as standalone-only and will
-# show empty/placeholder content when embedded. A proper Inspect-only build
-# split is planned but not yet implemented.
-#
-# Build Studio for embedded mode and sync assets to ALL runtime adapter packages
+# Build Studio for embedded mode and sync assets to ALL runtime adapter packages.
+# Only Inspect-only builds are allowed to be synced into runtime packages.
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$SCRIPT_DIR/.."
 
-# Build with embedded base path
-echo "Building Studio with VITE_BASE_PATH=/studio/ ..."
+# Build Inspect-only with embedded base path
+echo "Building Studio (Inspect-only) with VITE_BASE_PATH=/studio/ ..."
 cd "$SCRIPT_DIR"
-VITE_BASE_PATH=/studio/ npx vite build
+VITE_INSPECT_ONLY=true VITE_BASE_PATH=/studio/ npx vite build
+
+# Refuse to sync if Design mode leaked into the build
+if grep -q "DesignHome\|design/scenarios\|ScenarioBrowser" dist/assets/*.js 2>/dev/null; then
+  echo "ERROR: studio/dist contains Design mode routes."
+  echo "Embedded runtime packages must ship Inspect only."
+  echo ""
+  echo "To sync Inspect-only, run:"
+  echo "  VITE_INSPECT_ONLY=true npm run build"
+  echo "  bash studio/sync.sh"
+  echo ""
+  echo "Or use 'npm run build' for standalone (Docker/web) deployment."
+  exit 1
+fi
 
 # Sync to Python adapter
 DEST_PY="$ROOT/packages/python/anip-studio/src/anip_studio/static"

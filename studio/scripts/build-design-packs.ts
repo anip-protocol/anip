@@ -8,10 +8,9 @@
  * Usage:
  *   tsx scripts/build-design-packs.ts --source <path-to-examples>
  *
- * Resolution order for source path:
+ * Resolution order for source path (one is required):
  *   1. --source CLI argument
  *   2. DESIGN_PACKS_SOURCE environment variable
- *   3. ../../tooling/examples/ relative to this script
  */
 
 import * as fs from 'fs'
@@ -36,8 +35,18 @@ function resolveSource(): string {
   if (process.env.DESIGN_PACKS_SOURCE) {
     return path.resolve(process.env.DESIGN_PACKS_SOURCE)
   }
-  // Default: ../../tooling/examples relative to this script
-  return path.resolve(__dirname, '..', '..', 'tooling', 'examples')
+  console.error(`[build-design-packs] Error: pack source is required.
+
+  Provide one of:
+    --source <path>              CLI argument
+    DESIGN_PACKS_SOURCE=<path>   environment variable
+
+  Example:
+    npm run build:packs -- --source /path/to/tooling/examples
+
+  The generated packs.generated.ts is already committed, so this is only
+  needed when updating example packs.`)
+  process.exit(1)
 }
 
 // ---------------------------------------------------------------------------
@@ -123,16 +132,7 @@ function main() {
   console.log(`[build-design-packs] source: ${source}`)
 
   if (!fs.existsSync(source)) {
-    console.error(`[build-design-packs] Error: No pack source found.
-  --source <path> was not provided
-  DESIGN_PACKS_SOURCE env var is not set
-  Default path ../../tooling/examples/ does not exist
-
-  To regenerate packs, run:
-    npm run build:packs -- --source /path/to/tooling/examples
-
-  The generated packs.generated.ts is already committed, so this is only
-  needed when updating example packs.`)
+    console.error(`[build-design-packs] Error: source path does not exist: ${source}`)
     process.exit(1)
   }
 
