@@ -212,6 +212,7 @@ func (s *Service) Invoke(
 			"client_reference_id":   opts.ClientReferenceID,
 			"task_id":               opts.TaskID,
 			"parent_invocation_id":  opts.ParentInvocationID,
+			"upstream_service":      opts.UpstreamService,
 		}
 		return resp, nil
 	}
@@ -243,6 +244,7 @@ func (s *Service) Invoke(
 			"client_reference_id":   opts.ClientReferenceID,
 			"task_id":               effectiveTaskID,
 			"parent_invocation_id":  opts.ParentInvocationID,
+			"upstream_service":      opts.UpstreamService,
 		}
 		return resp, nil
 	}
@@ -271,6 +273,7 @@ func (s *Service) Invoke(
 				"client_reference_id":   opts.ClientReferenceID,
 				"task_id":               effectiveTaskID,
 				"parent_invocation_id":  opts.ParentInvocationID,
+				"upstream_service":      opts.UpstreamService,
 			}
 			return resp, nil
 		}
@@ -292,6 +295,7 @@ func (s *Service) Invoke(
 			"client_reference_id":   opts.ClientReferenceID,
 			"task_id":               effectiveTaskID,
 			"parent_invocation_id":  opts.ParentInvocationID,
+			"upstream_service":      opts.UpstreamService,
 		}
 		return resp, nil
 	}
@@ -321,7 +325,7 @@ func (s *Service) Invoke(
 			}
 
 			// Log audit for scope failure.
-			s.appendAuditEntry(capName, token, false, anipErr.ErrorType, nil, nil, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, capDef.Declaration.SideEffect.Type)
+			s.appendAuditEntry(capName, token, false, anipErr.ErrorType, nil, nil, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, opts.UpstreamService, capDef.Declaration.SideEffect.Type)
 
 			// Apply failure redaction.
 			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
@@ -334,6 +338,7 @@ func (s *Service) Invoke(
 				"client_reference_id":   opts.ClientReferenceID,
 				"task_id":               effectiveTaskID,
 				"parent_invocation_id":  opts.ParentInvocationID,
+				"upstream_service":      opts.UpstreamService,
 			}
 			return resp, nil
 		}
@@ -372,6 +377,7 @@ func (s *Service) Invoke(
 					"client_reference_id":  opts.ClientReferenceID,
 					"task_id":              effectiveTaskID,
 					"parent_invocation_id": opts.ParentInvocationID,
+					"upstream_service":     opts.UpstreamService,
 				}, nil
 			}
 			narrowedAmount := effectiveBudget.MaxAmount
@@ -406,6 +412,7 @@ func (s *Service) Invoke(
 					"client_reference_id":  opts.ClientReferenceID,
 					"task_id":              effectiveTaskID,
 					"parent_invocation_id": opts.ParentInvocationID,
+					"upstream_service":     opts.UpstreamService,
 				}, nil
 			}
 
@@ -436,6 +443,7 @@ func (s *Service) Invoke(
 							"client_reference_id":  opts.ClientReferenceID,
 							"task_id":              effectiveTaskID,
 							"parent_invocation_id": opts.ParentInvocationID,
+							"upstream_service":     opts.UpstreamService,
 						}, nil
 					}
 				} else {
@@ -452,6 +460,7 @@ func (s *Service) Invoke(
 						"client_reference_id":  opts.ClientReferenceID,
 						"task_id":              effectiveTaskID,
 						"parent_invocation_id": opts.ParentInvocationID,
+						"upstream_service":     opts.UpstreamService,
 					}, nil
 				}
 			case "dynamic":
@@ -472,6 +481,7 @@ func (s *Service) Invoke(
 					"client_reference_id":  opts.ClientReferenceID,
 					"task_id":              effectiveTaskID,
 					"parent_invocation_id": opts.ParentInvocationID,
+					"upstream_service":     opts.UpstreamService,
 					"budget_context": map[string]any{
 						"budget_max":        effectiveBudget.MaxAmount,
 						"budget_currency":   effectiveBudget.Currency,
@@ -510,6 +520,7 @@ func (s *Service) Invoke(
 				"client_reference_id":  opts.ClientReferenceID,
 				"task_id":              effectiveTaskID,
 				"parent_invocation_id": opts.ParentInvocationID,
+				"upstream_service":     opts.UpstreamService,
 			}, nil
 		}
 		if binding.MaxAge != "" {
@@ -539,6 +550,7 @@ func (s *Service) Invoke(
 						"client_reference_id":  opts.ClientReferenceID,
 						"task_id":              effectiveTaskID,
 						"parent_invocation_id": opts.ParentInvocationID,
+						"upstream_service":     opts.UpstreamService,
 					}, nil
 				}
 			}
@@ -574,6 +586,7 @@ func (s *Service) Invoke(
 				"client_reference_id":  opts.ClientReferenceID,
 				"task_id":              effectiveTaskID,
 				"parent_invocation_id": opts.ParentInvocationID,
+				"upstream_service":     opts.UpstreamService,
 			}, nil
 		}
 	}
@@ -594,6 +607,7 @@ func (s *Service) Invoke(
 		ClientReferenceID:  opts.ClientReferenceID,
 		TaskID:             effectiveTaskID,
 		ParentInvocationID: opts.ParentInvocationID,
+		UpstreamService:    opts.UpstreamService,
 		EmitProgress: func(payload map[string]any) error {
 			// No-op for unary invocations.
 			return nil
@@ -605,7 +619,7 @@ func (s *Service) Invoke(
 	if err != nil {
 		// Handler returned an error.
 		if anipErr, ok := err.(*core.ANIPError); ok {
-			s.appendAuditEntry(capName, token, false, anipErr.ErrorType, map[string]any{"detail": anipErr.Detail}, nil, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, capDef.Declaration.SideEffect.Type)
+			s.appendAuditEntry(capName, token, false, anipErr.ErrorType, map[string]any{"detail": anipErr.Detail}, nil, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, opts.UpstreamService, capDef.Declaration.SideEffect.Type)
 
 			failure := map[string]any{
 				"type":   anipErr.ErrorType,
@@ -623,12 +637,13 @@ func (s *Service) Invoke(
 				"client_reference_id":   opts.ClientReferenceID,
 				"task_id":               effectiveTaskID,
 				"parent_invocation_id":  opts.ParentInvocationID,
+				"upstream_service":      opts.UpstreamService,
 			}
 			return resp, nil
 		}
 
 		// Generic error -> internal_error.
-		s.appendAuditEntry(capName, token, false, core.FailureInternalError, nil, nil, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, capDef.Declaration.SideEffect.Type)
+		s.appendAuditEntry(capName, token, false, core.FailureInternalError, nil, nil, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, opts.UpstreamService, capDef.Declaration.SideEffect.Type)
 
 		failure := map[string]any{
 			"type":   core.FailureInternalError,
@@ -646,6 +661,7 @@ func (s *Service) Invoke(
 			"client_reference_id":   opts.ClientReferenceID,
 			"task_id":               effectiveTaskID,
 			"parent_invocation_id":  opts.ParentInvocationID,
+			"upstream_service":      opts.UpstreamService,
 		}
 		return resp, nil
 	}
@@ -654,7 +670,7 @@ func (s *Service) Invoke(
 	costActual := ctx.costActual
 
 	// 7. Log audit (success).
-	s.appendAuditEntry(capName, token, true, "", result, costActual, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, capDef.Declaration.SideEffect.Type)
+	s.appendAuditEntry(capName, token, true, "", result, costActual, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, opts.UpstreamService, capDef.Declaration.SideEffect.Type)
 
 	// 8. Build response.
 	resp := map[string]any{
@@ -664,6 +680,7 @@ func (s *Service) Invoke(
 		"client_reference_id":   opts.ClientReferenceID,
 		"task_id":               effectiveTaskID,
 		"parent_invocation_id":  opts.ParentInvocationID,
+		"upstream_service":      opts.UpstreamService,
 	}
 	if costActual != nil {
 		resp["cost_actual"] = costActual
@@ -752,6 +769,7 @@ func (s *Service) InvokeStream(
 
 	clientRefID := opts.ClientReferenceID
 	parentInvID := opts.ParentInvocationID
+	upstreamSvc := opts.UpstreamService
 
 	emitProgress := func(payload map[string]any) error {
 		mu.Lock()
@@ -766,6 +784,7 @@ func (s *Service) InvokeStream(
 				"client_reference_id":  nilIfEmpty(clientRefID),
 				"task_id":              nilIfEmpty(effectiveTaskID),
 				"parent_invocation_id": nilIfEmpty(parentInvID),
+				"upstream_service":     nilIfEmpty(upstreamSvc),
 				"timestamp":            time.Now().UTC().Format(time.RFC3339),
 				"payload":              payload,
 			},
@@ -784,6 +803,7 @@ func (s *Service) InvokeStream(
 		ClientReferenceID:  clientRefID,
 		TaskID:             effectiveTaskID,
 		ParentInvocationID: parentInvID,
+		UpstreamService:    upstreamSvc,
 		EmitProgress:       emitProgress,
 	}
 
@@ -824,7 +844,7 @@ func (s *Service) InvokeStream(
 				}
 			}
 
-			s.appendAuditEntry(capName, token, false, failType, map[string]any{"detail": detail}, nil, invocationID, clientRefID, effectiveTaskID, parentInvID, capDef.Declaration.SideEffect.Type)
+			s.appendAuditEntry(capName, token, false, failType, map[string]any{"detail": detail}, nil, invocationID, clientRefID, effectiveTaskID, parentInvID, upstreamSvc, capDef.Declaration.SideEffect.Type)
 
 			// Apply failure redaction to streaming failure.
 			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
@@ -837,6 +857,7 @@ func (s *Service) InvokeStream(
 					"client_reference_id":  nilIfEmpty(clientRefID),
 					"task_id":              nilIfEmpty(effectiveTaskID),
 					"parent_invocation_id": nilIfEmpty(parentInvID),
+					"upstream_service":     nilIfEmpty(upstreamSvc),
 					"timestamp":            time.Now().UTC().Format(time.RFC3339),
 					"success":              false,
 					"failure":              failureObj,
@@ -847,13 +868,14 @@ func (s *Service) InvokeStream(
 
 		// Success — send completed event.
 		costActual := ctx.costActual
-		s.appendAuditEntry(capName, token, true, "", result, costActual, invocationID, clientRefID, effectiveTaskID, parentInvID, capDef.Declaration.SideEffect.Type)
+		s.appendAuditEntry(capName, token, true, "", result, costActual, invocationID, clientRefID, effectiveTaskID, parentInvID, upstreamSvc, capDef.Declaration.SideEffect.Type)
 
 		payload := map[string]any{
 			"invocation_id":        invocationID,
 			"client_reference_id":  nilIfEmpty(clientRefID),
 			"task_id":              nilIfEmpty(effectiveTaskID),
 			"parent_invocation_id": nilIfEmpty(parentInvID),
+			"upstream_service":     nilIfEmpty(upstreamSvc),
 			"timestamp":            time.Now().UTC().Format(time.RFC3339),
 			"success":              true,
 			"result":               result,
@@ -900,6 +922,7 @@ func (s *Service) appendAuditEntry(
 	clientReferenceID string,
 	taskID string,
 	parentInvocationID string,
+	upstreamService string,
 	sideEffectType string,
 ) {
 	rootPrincipal := token.RootPrincipal
@@ -926,6 +949,7 @@ func (s *Service) appendAuditEntry(
 		ClientReferenceID:  clientReferenceID,
 		TaskID:             taskID,
 		ParentInvocationID: parentInvocationID,
+		UpstreamService:    upstreamService,
 		EventClass:         eventClass,
 		RetentionTier:      tier,
 		ExpiresAt:          expiresAt,
@@ -968,6 +992,7 @@ func (s *Service) entryToMap(entry *core.AuditEntry) map[string]any {
 		"client_reference_id":    entry.ClientReferenceID,
 		"task_id":                entry.TaskID,
 		"parent_invocation_id":   entry.ParentInvocationID,
+		"upstream_service":       entry.UpstreamService,
 		"token_id":               entry.TokenID,
 		"issuer":                 entry.Issuer,
 		"subject":                entry.Subject,

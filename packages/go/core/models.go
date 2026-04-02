@@ -227,6 +227,7 @@ type InvokeRequest struct {
 	ClientReferenceID  string         `json:"client_reference_id,omitempty"`
 	TaskID             string         `json:"task_id,omitempty"`
 	ParentInvocationID string         `json:"parent_invocation_id,omitempty"`
+	UpstreamService    string         `json:"upstream_service,omitempty"`
 	Stream             bool           `json:"stream,omitempty"`
 }
 
@@ -237,6 +238,7 @@ type InvokeResponse struct {
 	ClientReferenceID  string         `json:"client_reference_id,omitempty"`
 	TaskID             string         `json:"task_id,omitempty"`
 	ParentInvocationID string         `json:"parent_invocation_id,omitempty"`
+	UpstreamService    string         `json:"upstream_service,omitempty"`
 	Result             any            `json:"result,omitempty"`
 	CostActual         *CostActual    `json:"cost_actual,omitempty"`
 	Failure            *ANIPError     `json:"failure,omitempty"`
@@ -264,6 +266,7 @@ type AuditEntry struct {
 	ClientReferenceID   string         `json:"client_reference_id,omitempty"`
 	TaskID              string         `json:"task_id,omitempty"`
 	ParentInvocationID  string         `json:"parent_invocation_id,omitempty"`
+	UpstreamService     string         `json:"upstream_service,omitempty"`
 	PreviousHash        string         `json:"previous_hash,omitempty"`
 	Signature           string         `json:"signature,omitempty"`
 	EventClass          string         `json:"event_class,omitempty"`

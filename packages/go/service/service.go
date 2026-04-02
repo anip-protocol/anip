@@ -67,6 +67,7 @@ type InvocationContext struct {
 	ClientReferenceID  string
 	TaskID             string
 	ParentInvocationID string
+	UpstreamService    string
 	costActual         *core.CostActual
 	EmitProgress       func(payload map[string]any) error
 }
@@ -81,6 +82,7 @@ type InvokeOpts struct {
 	ClientReferenceID  string
 	TaskID             string
 	ParentInvocationID string
+	UpstreamService    string
 	Stream             bool
 	Budget             *core.Budget
 }
@@ -723,6 +725,7 @@ func (s *Service) persistAuditMap(entryData map[string]any) {
 		ClientReferenceID:  strVal(entryData, "client_reference_id"),
 		TaskID:             strVal(entryData, "task_id"),
 		ParentInvocationID: strVal(entryData, "parent_invocation_id"),
+		UpstreamService:    strVal(entryData, "upstream_service"),
 		TokenID:            strVal(entryData, "token_id"),
 		Issuer:             strVal(entryData, "issuer"),
 		Subject:            strVal(entryData, "subject"),

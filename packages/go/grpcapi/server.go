@@ -282,6 +282,7 @@ func (s *AnipGrpcServer) Invoke(ctx context.Context, req *pb.InvokeRequest) (*pb
 		ClientReferenceID:  req.ClientReferenceId,
 		TaskID:             req.TaskId,
 		ParentInvocationID: req.ParentInvocationId,
+		UpstreamService:    req.UpstreamService,
 		Budget:             budget,
 	})
 	if err != nil {
@@ -315,6 +316,9 @@ func (s *AnipGrpcServer) Invoke(ctx context.Context, req *pb.InvokeRequest) (*pb
 	}
 	if pid, ok := result["parent_invocation_id"].(string); ok {
 		resp.ParentInvocationId = pid
+	}
+	if us, ok := result["upstream_service"].(string); ok {
+		resp.UpstreamService = us
 	}
 
 	if resp.Success {
@@ -367,6 +371,7 @@ func (s *AnipGrpcServer) InvokeStream(req *pb.InvokeRequest, stream grpc.ServerS
 		ClientReferenceID:  req.ClientReferenceId,
 		TaskID:             req.TaskId,
 		ParentInvocationID: req.ParentInvocationId,
+		UpstreamService:    req.UpstreamService,
 		Stream:             true,
 	})
 	if err != nil {
@@ -417,6 +422,7 @@ func (s *AnipGrpcServer) InvokeStream(req *pb.InvokeRequest, stream grpc.ServerS
 			criVal, _ := event.Payload["client_reference_id"].(string)
 			tidVal, _ := event.Payload["task_id"].(string)
 			pidVal, _ := event.Payload["parent_invocation_id"].(string)
+			usVal, _ := event.Payload["upstream_service"].(string)
 			var resultJSON string
 			if r, ok := event.Payload["result"]; ok && r != nil {
 				rBytes, _ := json.Marshal(r)
@@ -432,6 +438,7 @@ func (s *AnipGrpcServer) InvokeStream(req *pb.InvokeRequest, stream grpc.ServerS
 				ClientReferenceId:  criVal,
 				TaskId:             tidVal,
 				ParentInvocationId: pidVal,
+				UpstreamService:    usVal,
 				ResultJson:         resultJSON,
 				CostActualJson:     costJSON,
 			}
@@ -453,6 +460,7 @@ func (s *AnipGrpcServer) InvokeStream(req *pb.InvokeRequest, stream grpc.ServerS
 			criVal, _ := event.Payload["client_reference_id"].(string)
 			tidVal, _ := event.Payload["task_id"].(string)
 			pidVal, _ := event.Payload["parent_invocation_id"].(string)
+			usVal, _ := event.Payload["upstream_service"].(string)
 			var failure *pb.AnipFailure
 			if f, ok := event.Payload["failure"].(map[string]any); ok {
 				failure = mapToAnipFailure(f)
@@ -462,6 +470,7 @@ func (s *AnipGrpcServer) InvokeStream(req *pb.InvokeRequest, stream grpc.ServerS
 				ClientReferenceId:  criVal,
 				TaskId:             tidVal,
 				ParentInvocationId: pidVal,
+				UpstreamService:    usVal,
 				Failure:            failure,
 			}
 			if bc, ok := event.Payload["budget_context"].(map[string]any); ok {

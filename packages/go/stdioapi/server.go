@@ -398,6 +398,7 @@ func handleInvoke(s *Server, params map[string]any) (any, error) {
 	clientRefID, _ := params["client_reference_id"].(string)
 	taskID, _ := params["task_id"].(string)
 	parentInvID, _ := params["parent_invocation_id"].(string)
+	upstreamSvc, _ := params["upstream_service"].(string)
 	stream, _ := params["stream"].(bool)
 
 	// Extract budget from params.
@@ -416,6 +417,7 @@ func handleInvoke(s *Server, params map[string]any) (any, error) {
 			ClientReferenceID:  clientRefID,
 			TaskID:             taskID,
 			ParentInvocationID: parentInvID,
+			UpstreamService:    upstreamSvc,
 			Stream:             true,
 			Budget:             budget,
 		})
@@ -446,6 +448,7 @@ func handleInvoke(s *Server, params map[string]any) (any, error) {
 		ClientReferenceID:  clientRefID,
 		TaskID:             taskID,
 		ParentInvocationID: parentInvID,
+		UpstreamService:    upstreamSvc,
 		Budget:             budget,
 	})
 	if err != nil {
