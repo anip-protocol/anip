@@ -55,8 +55,14 @@ studio/src/design/data/packs.generated.ts     # UPDATE: regenerate with all eval
 studio/scripts/build-design-packs.ts          # MODIFY: default source to tooling/examples/ (now in-repo)
 
 # Docker (standalone)
-studio/docker-compose.yml                     # CREATE: two-service compose
-studio/server/Dockerfile                      # CREATE: Python sidecar container
+studio/docker-compose.yml                     # CREATE: two-service compose (context: repo root)
+studio/server/Dockerfile                      # CREATE: Python sidecar container (context: repo root)
+studio/Dockerfile.standalone                  # CREATE: nginx + /api/ proxy to sidecar
+studio/nginx-standalone.conf                  # CREATE: nginx config with /api/ proxy block
+
+# Tests
+tooling/tests/test_evaluator.py               # CREATE: evaluator regression tests
+studio/server/test_api.py                     # CREATE: API endpoint tests
 ```
 
 ---
@@ -203,10 +209,30 @@ In all evaluators, apply these rules:
 - Advisory surfaces (refresh_via, verify_via, cross_service hints, recovery_class) → credit as "protocol-assisted" in the `why` section, do NOT auto-score as fully handled
 - Add explicit glue items when the scenario's core behavior depends on advisory hints
 
-- [ ] **Step 10: Run against existing 3 evaluated packs and verify**
+- [ ] **Step 10: Write evaluator regression tests**
+
+Create `tooling/tests/test_evaluator.py` with pytest:
+
+```python
+# Tests:
+# - test_safety_scenario_budget_overrun → result is PARTIAL, not HANDLED
+# - test_safety_scenario_denied → result is HANDLED
+# - test_orchestration_scenario_advisory_only → result is PARTIAL (advisory hints don't auto-score HANDLED)
+# - test_cross_service_scenario_advisory_only → result is PARTIAL
+# - test_category_dispatch_routes_correctly → each category calls the right evaluator
+# - test_handled_by_anip_contains_expected_surfaces → e.g. "permission discovery", "structured failure"
+# - test_glue_items_are_concrete_not_vague → no glue item is shorter than 20 chars
+# - test_unknown_category_falls_back_to_generic → unknown category → PARTIAL with note
+```
+
+Run:
+```bash
+cd /Users/samirski/Development/ANIP && python3 -m pytest tooling/tests/ -v
+```
+
+- [ ] **Step 11: Run against existing 3 evaluated packs and verify**
 
 ```bash
-cd /Users/samirski/Development/ANIP
 python3 tooling/bin/anip_design_validate.py \
   --requirements tooling/examples/travel-single/requirements.yaml \
   --proposal tooling/examples/travel-single/proposal.yaml \
@@ -215,7 +241,7 @@ python3 tooling/bin/anip_design_validate.py \
 
 Compare output against existing `evaluation.yaml`. The result should be similar or stricter, not more generous.
 
-- [ ] **Step 11: Commit**
+- [ ] **Step 12: Commit**
 
 ```bash
 git add tooling/bin/
@@ -360,7 +386,31 @@ server: {
 },
 ```
 
-- [ ] **Step 4: Test the sidecar locally**
+- [ ] **Step 4: Write API tests**
+
+Create `studio/server/test_api.py` using FastAPI's TestClient (no server needed):
+
+```python
+from fastapi.testclient import TestClient
+from .app import app
+import yaml
+from pathlib import Path
+
+client = TestClient(app)
+
+# Tests:
+# - test_health_returns_ok
+# - test_validate_travel_single → returns evaluation with result in (HANDLED, PARTIAL, REQUIRES_GLUE)
+# - test_validate_invalid_input → returns 422 or 400
+# - test_validate_response_has_required_fields → scenario_name, result, handled_by_anip, etc.
+```
+
+Run:
+```bash
+cd /Users/samirski/Development/ANIP && python3 -m pytest studio/server/test_api.py -v
+```
+
+- [ ] **Step 5: Test the sidecar manually**
 
 ```bash
 # Terminal 1: start the API server
@@ -372,7 +422,7 @@ uvicorn studio.server.app:app --port 8100
 curl -s http://localhost:8100/api/health
 ```
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add studio/server/ studio/vite.config.ts
@@ -472,44 +522,72 @@ git commit -m "feat(studio): add live validation — Run Validation button + API
 **Files:**
 - Create: `studio/docker-compose.yml`
 - Create: `studio/server/Dockerfile`
+- Create: `studio/nginx-standalone.conf`
 
 - [ ] **Step 1: Create Python sidecar Dockerfile**
+
+Build context is the repo root so all COPY paths are relative to repo root:
 
 ```dockerfile
 FROM python:3.12-slim
 WORKDIR /app
-COPY server/requirements.txt .
+COPY studio/server/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY server/ server/
-COPY ../tooling/ /app/tooling/
+COPY studio/server/ server/
+COPY tooling/ /app/tooling/
 ENV PYTHONPATH=/app
 EXPOSE 8100
 CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "8100"]
 ```
 
-- [ ] **Step 2: Create docker-compose.yml**
+- [ ] **Step 2: Create nginx-standalone.conf**
+
+Create `studio/nginx-standalone.conf` — same as existing `nginx.conf` but with `/api/` proxy:
+
+```nginx
+# ... existing location / block for serving static files ...
+
+location /api/ {
+    proxy_pass http://studio-api:8100;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+}
+```
+
+Copy the existing `studio/nginx.conf` as the base, then add the `/api/` proxy block.
+
+- [ ] **Step 3: Create docker-compose.yml**
+
+Build context for BOTH services is the repo root (one level up from `studio/`):
 
 ```yaml
 version: '3.8'
 services:
   studio-web:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: studio/Dockerfile.standalone
     ports:
       - "8080:8080"
+    depends_on:
+      - studio-api
 
   studio-api:
     build:
       context: ..
       dockerfile: studio/server/Dockerfile
-    ports:
-      - "8100:8100"
+    expose:
+      - "8100"
 ```
 
-Note: The web container needs nginx to proxy `/api/*` to the API container. Add a `nginx-standalone.conf` that proxies `/api/` to `studio-api:8100`.
+Note: `studio-web` uses a separate `Dockerfile.standalone` that copies `nginx-standalone.conf` instead of `nginx.conf`. The API container only exposes 8100 internally (not on host) — nginx proxies to it.
 
-- [ ] **Step 3: Test compose locally**
+Create `studio/Dockerfile.standalone` — same as existing `studio/Dockerfile` but in the serve stage, use `nginx-standalone.conf`:
+```dockerfile
+COPY nginx-standalone.conf /etc/nginx/nginx.conf
+```
+
+- [ ] **Step 4: Test compose locally**
 
 ```bash
 cd /Users/samirski/Development/ANIP/studio && docker compose up --build
@@ -517,10 +595,10 @@ cd /Users/samirski/Development/ANIP/studio && docker compose up --build
 
 Verify:
 - `http://localhost:8080/` serves Studio
-- `http://localhost:8100/api/health` returns ok
+- `http://localhost:8080/api/health` returns ok (proxied through nginx)
 - Live validation works from the UI
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add studio/docker-compose.yml studio/server/Dockerfile
