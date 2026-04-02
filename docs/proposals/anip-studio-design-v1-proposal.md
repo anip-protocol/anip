@@ -44,11 +44,11 @@ The sidebar navigation changes based on the active mode:
 /design/evaluation/:pack  → EvaluationView
 ```
 
-Existing `/` redirects to `/inspect/` to preserve backward compat.
+`/` is the **Studio home** — a neutral welcome introducing both Inspect and Design as peer entry points. No auto-redirect to Inspect. This is the product model.
 
-### Welcome Screen
+### Welcome Screen (Studio Home at `/`)
 
-When no mode is selected (or first load), show a welcome that presents both modes:
+First load shows both modes as equal choices:
 
 ```
 ◆ ANIP Studio
@@ -306,26 +306,22 @@ Component tags as colored pills. Rationale as bullet cards. Glue reduction group
 │                                      │
 │  ── Glue You Will Still Write ── ⚠  │
 │                                      │
-│  ┌──────────────────────────────────┐│
-│  │ Budget enforcement logic         ││
-│  │ ─────────────────────            ││
-│  │ Unless the budget limit is       ││
-│  │ represented in delegation,       ││
-│  │ permission evaluation, or a      ││
-│  │ protocol-visible control layer.  ││
-│  │                                  ││
-│  │ Category: safety                 ││
-│  └──────────────────────────────────┘│
+│  • Budget enforcement logic —        │
+│    unless the budget limit is        │
+│    represented in delegation,        │
+│    permission evaluation, or a       │
+│    protocol-visible control layer    │
 │                                      │
-│  ┌──────────────────────────────────┐│
-│  │ Approval / escalation routing    ││
-│  │ ─────────────────────            ││
-│  │ If the organization requires a   ││
-│  │ human to approve over-budget     ││
-│  │ bookings.                        ││
-│  │                                  ││
-│  │ Category: orchestration          ││
-│  └──────────────────────────────────┘│
+│  • Approval / escalation routing —   │
+│    if the organization requires a    │
+│    human to approve over-budget      │
+│    bookings                          │
+│                                      │
+│  • Comparison / replanning logic —   │
+│    if the agent must search for      │
+│    cheaper alternatives              │
+│                                      │
+│  Categories: [safety] [orchestration]│
 │                                      │
 │  ── Why ──                           │
 │  The design improves the decision    │
@@ -345,11 +341,13 @@ Component tags as colored pills. Rationale as bullet cards. Glue reduction group
 - `PARTIAL` → amber/yellow
 - `REQUIRES_GLUE` → red
 
-**Handled surfaces:** Green-bordered mini-cards in a responsive grid.
+**Handled surfaces:** Green-bordered mini-cards in a responsive grid. Rendered from `handled_by_anip` string array.
 
-**Glue items:** Each as an expandable card with explanation + category badge.
+**Glue items:** Rendered as a bullet list from the `glue_you_will_still_write` string array. Each item is a plain string — the UI renders it as-is, no invented per-item structure. The evaluation schema currently provides these as flat strings, not objects with categories.
 
-**Why + What Would Improve:** Prose sections at the bottom.
+**Categories:** Rendered as a flat row of category badges from the `glue_category` string array. These apply to the evaluation as a whole, not to individual glue items. If the schema evolves to support per-item categories later, the UI follows — but V1 renders what the truth layer actually provides.
+
+**Why + What Would Improve:** Prose sections at the bottom, rendered from `why` and `what_would_improve` string arrays.
 
 ---
 
@@ -357,17 +355,21 @@ Component tags as colored pills. Rationale as bullet cards. Glue reduction group
 
 ### V1: Static Example Packs
 
-Example packs are bundled as JSON at build time from the `tooling/examples/` YAML files:
+Example packs are bundled as JSON at build time from ALL subdirectories in `tooling/examples/`:
 
 ```
 studio/src/data/
-  packs.ts          # index of available packs
-  travel-single.ts  # { requirements, proposal, scenario, evaluation }
-  devops-single.ts
-  travel-multi.ts
+  packs.ts          # auto-generated index of all available packs
+  packs/            # one JSON file per pack, auto-generated
+    travel-single.json
+    devops-single.json
+    travel-multiservice.json
+    ...             # any new packs added to tooling/examples/ appear automatically
 ```
 
-A build-time script (`scripts/build-design-packs.ts`) reads the YAML files and the validator output, converts to JSON, and writes the `.ts` data modules. This keeps the truth layer in YAML while the UI consumes typed JSON.
+A build-time script (`scripts/build-design-packs.ts`) scans `tooling/examples/*/`, reads all YAML files (requirements, proposal, scenario) and any pre-computed evaluation output, converts to JSON, and writes the data modules. Adding a new pack to `tooling/examples/` is the only step needed — the UI picks it up on next build.
+
+This keeps the truth layer in YAML while the UI consumes typed JSON.
 
 ### V1 Store
 
@@ -429,9 +431,10 @@ Same as existing Studio — system font stack for UI, monospace for technical va
 
 ### V1 (this build)
 
+- Studio home at `/` — neutral welcome with Inspect and Design as peer entry points
 - Studio IA: Inspect/Design mode switcher
 - Design landing page
-- Scenario browser with 3 example packs
+- Scenario browser loading ALL packs from `tooling/examples/`
 - Scenario detail view (narrative + context)
 - Requirements view (guided cards)
 - Proposal view (structured components)
@@ -466,7 +469,7 @@ New Vue components needed:
 | `ProposalView.vue` | Structured proposal rendering |
 | `EvaluationView.vue` | Glue Gap Analysis display |
 | `ResultBadge.vue` | Large HANDLED/PARTIAL/REQUIRES_GLUE badge |
-| `GlueCard.vue` | Expandable card for a single glue item |
+| `GlueList.vue` | Bullet list rendering for flat glue string array |
 | `SurfaceTag.vue` | Mini-card for handled surfaces / components |
 | `CategoryBadge.vue` | Colored pill for glue categories |
 | `SectionCard.vue` | Reusable bordered section container |
