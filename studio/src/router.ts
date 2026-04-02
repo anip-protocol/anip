@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { checkApiAvailability } from './design/store'
 
 function normalizeBase(base: string): string {
   return base.endsWith('/') ? base : base + '/'
@@ -98,4 +99,12 @@ const routes = [
 export const router = createRouter({
   history: createWebHistory(normalizeBase(import.meta.env.VITE_BASE_PATH || '/studio/')),
   routes,
+})
+
+// Check API availability when entering Design mode routes
+router.beforeEach((to, _from, next) => {
+  if (typeof to.path === 'string' && to.path.startsWith('/design')) {
+    checkApiAvailability()
+  }
+  next()
 })
