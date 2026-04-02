@@ -147,6 +147,71 @@ graph TD
 
 Each service has its own audit log with its own `invocation_id`, but the shared `client_reference_id` prefix lets an operator reconstruct the full workflow across services.
 
+## Cross-service continuity (v0.18)
+
+When one ANIP service calls another as part of a workflow, the caller can include `upstream_service` in the invoke request to identify itself. This propagates the originating service identity into the downstream audit log.
+
+### Propagation rules
+
+- `upstream_service` is an optional string field on the invoke request (max 256 chars).
+- Services MUST echo it in the invoke response unchanged.
+- Services MUST record it in the audit entry.
+- Services MUST NOT reject any syntactically valid `parent_invocation_id` solely because it was not issued by the receiving service. Cross-service invocation trees are explicitly supported — referential validation of `parent_invocation_id` is prohibited.
+- Services MUST NOT reject any `task_id` that was not originated locally. `task_id` is a logical grouping key, not a service-local reference.
+
+### upstream_service field
+
+```json
+{
+  "parameters": { "origin": "SEA", "destination": "SFO" },
+  "task_id": "trip-2026",
+  "parent_invocation_id": "inv-a1b2c3d4e5f6",
+  "upstream_service": "trip-planner-service"
+}
+```
+
+The response echoes it back:
+
+```json
+{
+  "success": true,
+  "invocation_id": "inv-7f3a2b4c5d6e",
+  "task_id": "trip-2026",
+  "parent_invocation_id": "inv-a1b2c3d4e5f6",
+  "upstream_service": "trip-planner-service",
+  "result": { "flights": [] }
+}
+```
+
+And the audit entry records it:
+
+```json
+{
+  "invocation_id": "inv-7f3a2b4c5d6e",
+  "capability": "search_flights",
+  "task_id": "trip-2026",
+  "parent_invocation_id": "inv-a1b2c3d4e5f6",
+  "upstream_service": "trip-planner-service",
+  "timestamp": "2026-03-30T10:30:00Z"
+}
+```
+
+### Reconstructing a cross-service workflow
+
+With `upstream_service`, `task_id`, and `parent_invocation_id` all propagated, an operator can reconstruct the full call graph across services:
+
+1. Query each service's audit log by `task_id` to find all invocations in the workflow.
+2. Use `parent_invocation_id` to link invocations into a causal tree.
+3. Use `upstream_service` on each audit entry to identify which service initiated each call.
+
+```mermaid
+graph LR
+    TP["trip-planner-service<br/>inv-a1b2c3d4e5f6"] -->|"upstream_service=trip-planner-service<br/>parent=inv-a1b2"| TRV["travel-service<br/>search_flights → inv-7f3a2b4c5d6e"]
+    TP -->|"upstream_service=trip-planner-service<br/>parent=inv-a1b2"| HTL["hotel-service<br/>book_hotel → inv-9c8d7e6f5a4b"]
+```
+
+This replaces ad-hoc service identity headers and custom tracing sidecars that teams previously built into their orchestration layers.
+
 ## Lineage and trust
 
 Lineage connects to ANIP's trust model:

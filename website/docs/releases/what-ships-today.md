@@ -7,7 +7,7 @@ description: Current distribution status across all ANIP ecosystems.
 
 ANIP is not a spec waiting for implementations. Here's what's available now.
 
-## Protocol features through v0.17
+## Protocol features through v0.18
 
 Everything below is implemented in the runtimes and exercised by the conformance suite:
 
@@ -28,6 +28,7 @@ Everything below is implemented in the runtimes and exercised by the conformance
 - **Authority and blocked-action clarity (v0.15)**: `reason_type` on restricted/denied capabilities (5 values); `resolution_hint` on restricted; `non_delegable_action` failure type; canonical authority actions (`request_broader_scope`, `request_capability_binding`); deprecated `request_scope_grant`
 - **Recovery posture (v0.16)**: `recovery_class` on resolution (6 values: `retry_now`, `wait_then_retry`, `refresh_then_retry`, `redelegation_then_retry`, `revalidate_then_retry`, `terminal`); 5 new canonical actions (`retry_now`, `revalidate_state`, `provide_credentials`, `check_manifest`, `contact_service_owner`); all transport-layer actions canonicalized
 - **Advisory composition hints (v0.17)**: `refresh_via` and `verify_via` on capability declarations; same-manifest advisory hints for refresh paths and post-action verification
+- **Cross-service continuity (v0.18)**: `upstream_service` optional field on invoke request, response, and audit — identifies the originating ANIP service in cross-service workflows; echoed in response and recorded in audit; services MUST NOT reject foreign `parent_invocation_id` or `task_id` values
 
 ## Published to package registries
 

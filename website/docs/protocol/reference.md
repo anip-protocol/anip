@@ -465,6 +465,7 @@ All control requirements are token-evaluable and surfaced in permission discover
 | `client_reference_id` | string | No | Caller-supplied correlation ID (max 256 chars), echoed in response |
 | `task_id` | string | No | Task/workflow identity for grouping related invocations (max 256 chars). If the delegation token has `purpose.task_id`, must match or be omitted. |
 | `parent_invocation_id` | string | No | Reference to the invocation that triggered this one (format: `inv-{hex12}`). Syntactically validated, not referentially. |
+| `upstream_service` | string | No | Identifies the ANIP service that initiated this call as part of a cross-service workflow (max 256 chars). Echoed in response and recorded in audit. (v0.18) |
 | `stream` | boolean | No | Request streaming response (SSE). Default: `false` |
 
 ### Success response (HTTP 200)
@@ -521,6 +522,7 @@ All control requirements are token-evaluable and surfaced in permission discover
 | `client_reference_id` | string | If provided in request | Echoed caller correlation ID |
 | `task_id` | string | If provided or from token purpose | Task/workflow identity |
 | `parent_invocation_id` | string | If provided in request | Echoed parent invocation reference |
+| `upstream_service` | string | If provided in request | Echoed upstream service identifier (v0.18) |
 | `result` | object | On success | Capability-specific result data |
 | `cost_actual` | object | If capability has financial cost | `currency` and `amount` |
 | `failure` | object | On failure | Structured failure (see below) |
