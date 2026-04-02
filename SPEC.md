@@ -162,6 +162,108 @@ capability:
     rollback_window: "PT1H"
 ```
 
+#### Cross-Service Handoff Hints (v0.19)
+
+A capability MAY declare a `cross_service` block — advisory hints that help agents understand how capabilities on *different services* relate for planning purposes.
+
+**`ServiceCapabilityRef` type:**
+
+A `ServiceCapabilityRef` identifies a capability on another service. It is a two-field object:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `service` | string | Yes | Service identifier. SHOULD match the `upstream_service` hint from v0.18 invocation requests. Not resolvable by the protocol — advisory only. |
+| `capability` | string | Yes | Capability name on that service. Advisory, not resolvable. |
+
+**`cross_service` block fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `handoff_to` | array of `ServiceCapabilityRef` | No | Capabilities on other services that are direct output consumers of this capability — i.e., this capability's output is commonly passed as input to those capabilities |
+| `refresh_via` | array of `ServiceCapabilityRef` | No | Capabilities on other services that can refresh prerequisites or stale state before this capability is invoked |
+| `verify_via` | array of `ServiceCapabilityRef` | No | Capabilities on other services that can verify this capability's side effects after invocation |
+| `followup_via` | array of `ServiceCapabilityRef` | No | Capabilities on other services that represent delayed or async follow-up tasks spawned by this capability |
+
+> **Advisory:** All `cross_service` fields are advisory only. They are not enforced by the protocol and do not mandate any execution ordering, service resolution, or capability availability. They exist to guide agent planning — an agent MAY choose to interact with listed capabilities, but the service MUST NOT reject invocations based on whether the agent followed these hints. Cross-service references cannot be validated by the protocol (the referenced service may be unavailable or the capability may not exist).
+
+Normative guidance per field:
+
+- **`handoff_to`**: An agent planning a multi-service workflow SHOULD consider calling the listed capabilities with this capability's output. The agent is not required to do so.
+- **`refresh_via`**: An agent that detects stale prerequisites before invoking this capability MAY invoke the listed capabilities on other services to refresh state. If the agent already holds fresh state, it SHOULD NOT make unnecessary cross-service calls.
+- **`verify_via`**: An agent MAY invoke the listed capabilities after this capability completes to confirm side effects. Particularly useful for irreversible or write side-effect capabilities where confirmation is prudent.
+- **`followup_via`**: An agent orchestrating a multi-step task SHOULD be aware that async or delayed work may land on the listed capabilities. The agent MAY poll or query those capabilities for completion status.
+
+> **Note:** Same-manifest `refresh_via` and `verify_via` from v0.17 (arrays of strings) are unchanged. The `cross_service` block is an additive extension for cross-service references only. A capability MAY declare both same-manifest and cross-service hints independently.
+
+**Travel handoff example** (`book_flight` with `cross_service.handoff_to`):
+
+```yaml
+capability:
+  name: book_flight
+  description: "Book a confirmed flight reservation"
+  refresh_via: [search_flights]   # same-manifest refresh (v0.17)
+  cross_service:
+    handoff_to:
+      - service: hotel-service
+        capability: search_hotels   # flight output commonly feeds hotel search
+      - service: car-service
+        capability: search_cars     # flight output commonly feeds car rental search
+  side_effect:
+    type: irreversible
+    rollback_window: none
+```
+
+**Cross-service refresh example** (`process_order` with `cross_service.refresh_via`):
+
+```yaml
+capability:
+  name: process_order
+  description: "Process a customer order"
+  cross_service:
+    refresh_via:
+      - service: inventory-service
+        capability: check_stock     # refresh stock availability before processing
+    verify_via:
+      - service: inventory-service
+        capability: confirm_reservation   # verify reservation held after order
+  side_effect:
+    type: write
+    rollback_window: "PT30M"
+```
+
+**Deployment verification example** (`deploy` with `cross_service.verify_via`):
+
+```yaml
+capability:
+  name: deploy
+  description: "Deploy a service to production"
+  verify_via: [health_check]   # same-manifest verify (v0.17)
+  cross_service:
+    verify_via:
+      - service: monitoring-service
+        capability: check_alerts    # cross-service: check for new alerts after deploy
+  side_effect:
+    type: write
+    rollback_window: "PT1H"
+```
+
+**Async follow-up example** (`submit_order` with `cross_service.followup_via`):
+
+```yaml
+capability:
+  name: submit_order
+  description: "Submit a customer order for fulfillment"
+  cross_service:
+    followup_via:
+      - service: fulfillment-service
+        capability: get_shipment_status   # async fulfillment lands here
+      - service: notifications-service
+        capability: get_notification_status   # async notification delivery lands here
+  side_effect:
+    type: write
+    rollback_window: "PT15M"
+```
+
 ANIP uses JSON Schema (draft 2020-12) for capability declarations. Canonical schemas are defined in Section 9 and validated across the Python/Pydantic and TypeScript/Zod reference implementations. The Go, Java, and C# runtimes validate protocol conformance via the HTTP conformance suite.
 
 ### 4.2 Side-effect Typing

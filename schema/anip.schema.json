@@ -4,6 +4,17 @@
   "title": "ANIP \u2014 Agent-Native Interface Protocol",
   "description": "Canonical JSON Schema for all ANIP v0.17 types as defined in SPEC.md. Use these schemas to validate ANIP documents, responses, and delegation tokens.",
   "$defs": {
+    "ServiceCapabilityRef": {
+      "type": "object",
+      "properties": {
+        "service": {"type": "string", "minLength": 1},
+        "capability": {"type": "string", "minLength": 1}
+      },
+      "required": ["service", "capability"],
+      "additionalProperties": false,
+      "title": "ServiceCapabilityRef",
+      "description": "A reference to a capability on another service. Advisory only — not resolvable by the protocol. See SPEC.md §4.1."
+    },
     "ConcurrentBranches": {
       "enum": [
         "allowed",
@@ -906,6 +917,48 @@
           "default": [],
           "title": "Verify Via",
           "description": "Capability names (same manifest) that can verify this capability's side effects"
+        },
+        "cross_service": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "handoff_to": {
+                  "type": "array",
+                  "items": {"$ref": "#/$defs/ServiceCapabilityRef"},
+                  "default": [],
+                  "title": "Handoff To",
+                  "description": "Capabilities on other services that are direct output consumers of this capability. Advisory only. See SPEC.md §4.1."
+                },
+                "refresh_via": {
+                  "type": "array",
+                  "items": {"$ref": "#/$defs/ServiceCapabilityRef"},
+                  "default": [],
+                  "title": "Cross-Service Refresh Via",
+                  "description": "Capabilities on other services that can refresh prerequisites or stale state before this capability is invoked. Advisory only. See SPEC.md §4.1."
+                },
+                "verify_via": {
+                  "type": "array",
+                  "items": {"$ref": "#/$defs/ServiceCapabilityRef"},
+                  "default": [],
+                  "title": "Cross-Service Verify Via",
+                  "description": "Capabilities on other services that can verify this capability's side effects after invocation. Advisory only. See SPEC.md §4.1."
+                },
+                "followup_via": {
+                  "type": "array",
+                  "items": {"$ref": "#/$defs/ServiceCapabilityRef"},
+                  "default": [],
+                  "title": "Followup Via",
+                  "description": "Capabilities on other services for delayed or async follow-up tasks spawned by this capability. Advisory only. See SPEC.md §4.1."
+                }
+              },
+              "additionalProperties": false
+            },
+            {"type": "null"}
+          ],
+          "default": null,
+          "title": "Cross Service",
+          "description": "Advisory cross-service capability hints. Not enforced by the protocol. See SPEC.md §4.1."
         }
       },
       "required": [
