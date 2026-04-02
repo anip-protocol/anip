@@ -48,4 +48,10 @@ public class CapabilityDeclaration
 
     [JsonPropertyName("control_requirements")]
     public List<ControlRequirement>? ControlRequirements { get; set; }
+
+    [JsonPropertyName("refresh_via")]
+    public List<string>? RefreshVia { get; set; }
+
+    [JsonPropertyName("verify_via")]
+    public List<string>? VerifyVia { get; set; }
 }

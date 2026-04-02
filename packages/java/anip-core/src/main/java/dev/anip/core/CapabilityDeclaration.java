@@ -19,6 +19,8 @@ public class CapabilityDeclaration {
     private final List<String> responseModes;
     private final List<BindingRequirement> requiresBinding;
     private final List<ControlRequirement> controlRequirements;
+    private final List<String> refreshVia;
+    private final List<String> verifyVia;
 
     public CapabilityDeclaration(String name, String description, String contractVersion,
                                   List<CapabilityInput> inputs, CapabilityOutput output,
@@ -26,7 +28,7 @@ public class CapabilityDeclaration {
                                   Cost cost, List<CapabilityRequirement> requires,
                                   List<String> responseModes) {
         this(name, description, contractVersion, inputs, output, sideEffect,
-             minimumScope, cost, requires, responseModes, null, null);
+             minimumScope, cost, requires, responseModes, null, null, null, null);
     }
 
     public CapabilityDeclaration(String name, String description, String contractVersion,
@@ -36,6 +38,19 @@ public class CapabilityDeclaration {
                                   List<String> responseModes,
                                   List<BindingRequirement> requiresBinding,
                                   List<ControlRequirement> controlRequirements) {
+        this(name, description, contractVersion, inputs, output, sideEffect,
+             minimumScope, cost, requires, responseModes, requiresBinding, controlRequirements, null, null);
+    }
+
+    public CapabilityDeclaration(String name, String description, String contractVersion,
+                                  List<CapabilityInput> inputs, CapabilityOutput output,
+                                  SideEffect sideEffect, List<String> minimumScope,
+                                  Cost cost, List<CapabilityRequirement> requires,
+                                  List<String> responseModes,
+                                  List<BindingRequirement> requiresBinding,
+                                  List<ControlRequirement> controlRequirements,
+                                  List<String> refreshVia,
+                                  List<String> verifyVia) {
         this.name = name;
         this.description = description;
         this.contractVersion = contractVersion;
@@ -48,6 +63,8 @@ public class CapabilityDeclaration {
         this.responseModes = responseModes;
         this.requiresBinding = requiresBinding;
         this.controlRequirements = controlRequirements;
+        this.refreshVia = refreshVia != null ? refreshVia : java.util.Collections.emptyList();
+        this.verifyVia = verifyVia != null ? verifyVia : java.util.Collections.emptyList();
     }
 
     public String getName() {
@@ -96,5 +113,13 @@ public class CapabilityDeclaration {
 
     public List<ControlRequirement> getControlRequirements() {
         return controlRequirements;
+    }
+
+    public List<String> getRefreshVia() {
+        return refreshVia;
+    }
+
+    public List<String> getVerifyVia() {
+        return verifyVia;
     }
 }

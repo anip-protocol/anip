@@ -288,6 +288,7 @@ _DELETE_DECL = CapabilityDeclaration(
     minimum_scope=["infra.admin"],
     cost=Cost(certainty=CostCertainty.FIXED, financial=None, compute={"latency_p50": "500ms", "tokens": 300}),
     session=SessionInfo(),
+    verify_via=["list_deployments"],
     observability=ObservabilityContract(
         logged=True, retention="P365D",
         fields_logged=["capability", "delegation_chain", "parameters", "result"],

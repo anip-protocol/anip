@@ -178,6 +178,8 @@ class CapabilityDeclaration(BaseModel):
     response_modes: list[ResponseMode] = Field(default_factory=lambda: [ResponseMode.UNARY])
     requires_binding: list[BindingRequirement] = Field(default_factory=list)
     control_requirements: list[ControlRequirement] = Field(default_factory=list)
+    refresh_via: list[str] = Field(default_factory=list)
+    verify_via: list[str] = Field(default_factory=list)
 
 
 # --- Permission Discovery ---
@@ -347,7 +349,7 @@ class DiscoveryPosture(BaseModel):
 
 
 class ANIPManifest(BaseModel):
-    protocol: str = "anip/0.16"
+    protocol: str = "anip/0.17"
     profile: ProfileVersions
     capabilities: dict[str, CapabilityDeclaration]
     manifest_metadata: ManifestMetadata | None = None
