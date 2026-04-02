@@ -19,6 +19,7 @@ public class InvocationContext {
     private final String clientReferenceId;
     private final String taskId;
     private final String parentInvocationId;
+    private final String upstreamService;
     private final List<String> scopes;
     private final List<String> delegationChain;
     private final Function<Map<String, Object>, Boolean> emitProgress;
@@ -37,6 +38,15 @@ public class InvocationContext {
                              String taskId, String parentInvocationId,
                              List<String> scopes, List<String> delegationChain,
                              Function<Map<String, Object>, Boolean> emitProgress) {
+        this(token, rootPrincipal, subject, invocationId, clientReferenceId,
+                taskId, parentInvocationId, null, scopes, delegationChain, emitProgress);
+    }
+
+    public InvocationContext(DelegationToken token, String rootPrincipal, String subject,
+                             String invocationId, String clientReferenceId,
+                             String taskId, String parentInvocationId, String upstreamService,
+                             List<String> scopes, List<String> delegationChain,
+                             Function<Map<String, Object>, Boolean> emitProgress) {
         this.token = token;
         this.rootPrincipal = rootPrincipal;
         this.subject = subject;
@@ -44,6 +54,7 @@ public class InvocationContext {
         this.clientReferenceId = clientReferenceId;
         this.taskId = taskId;
         this.parentInvocationId = parentInvocationId;
+        this.upstreamService = upstreamService;
         this.scopes = scopes;
         this.delegationChain = delegationChain;
         this.emitProgress = emitProgress;
@@ -75,6 +86,10 @@ public class InvocationContext {
 
     public String getParentInvocationId() {
         return parentInvocationId;
+    }
+
+    public String getUpstreamService() {
+        return upstreamService;
     }
 
     public List<String> getScopes() {
