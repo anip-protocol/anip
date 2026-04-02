@@ -1,0 +1,26 @@
+evaluation:
+  scenario_name: search_then_book_across_services_with_budget_constraint
+  result: PARTIAL
+  handled_by_anip:
+    - cross-service task identity continuity
+    - parent invocation lineage
+    - independent but linkable audit records
+    - cleaner planning-to-booking handoff
+    - structured failure surfaces
+  glue_you_will_still_write:
+    - you will still write budget-enforcement logic in the booking service, because the constraint is not yet enforced through delegation or permissions
+    - you will still write some organization-specific handoff policy logic here
+    - you may still write a cross-service audit aggregation layer here
+  glue_category:
+    - safety
+    - orchestration
+    - observability
+  why:
+    - the design removes a large amount of cross-service correlation and trace-stitching glue
+    - task and parent invocation continuity are materially improved across the service boundary
+    - the budget-control requirement is still not encoded as an enforceable ANIP-visible control surface in the booking path
+  what_would_improve:
+    - represent budget as enforceable authority or policy in the booking path
+    - expose budget-based blocking through permissions or structured invoke failure
+    - add easier cross-service lineage query support for operators
+  confidence: high

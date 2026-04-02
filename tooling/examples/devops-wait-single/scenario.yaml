@@ -1,0 +1,29 @@
+scenario:
+  name: deploy_service_temporarily_unavailable_wait_path
+  category: orchestration
+  narrative: >
+    An agent attempts to deploy a service during a temporary rollout freeze.
+    The operation should not fail as a generic error and force wrapper-side
+    guesswork. The interface should make it clear that the correct next move is
+    to wait and retry rather than escalate or replan.
+  context:
+    capability: deploy_service
+    side_effect: transactional
+    temporary_block_reason: rollout_window_lock
+    token_scope:
+      - deploy:write
+    task_id: deploy-release-2026-04
+    client_reference_id: step-8-deploy
+    parent_invocation_id: inv-rollout-wait-001
+  expected_behavior:
+    - do_not_execute_blind_retry_loop
+    - explain_that_wait_is_the_correct_recovery_path
+    - preserve_lineage_across_retries
+    - produce_audit_entries_for_failed_attempts
+  expected_anip_support:
+    - structured_failure
+    - recovery_class
+    - estimated_availability_support
+    - task_id_support
+    - parent_invocation_id_support
+    - audit_queryability

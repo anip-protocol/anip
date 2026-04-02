@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anip.dev/schemas/evaluation.schema.json",
+  "title": "ANIP Evaluation",
+  "description": "Structured output for ANIP Execution Scenario Validation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "evaluation"
+  ],
+  "properties": {
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario_name",
+        "result",
+        "handled_by_anip",
+        "glue_you_will_still_write",
+        "glue_category",
+        "why",
+        "what_would_improve"
+      ],
+      "properties": {
+        "scenario_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "result": {
+          "type": "string",
+          "enum": [
+            "HANDLED",
+            "PARTIAL",
+            "REQUIRES_GLUE"
+          ]
+        },
+        "handled_by_anip": {
+          "type": "array",
+          "description": "Capabilities or semantic surfaces ANIP already covers for this scenario.",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "glue_you_will_still_write": {
+          "type": "array",
+          "description": "Concrete remaining glue. Must be explicit even when empty.",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "glue_category": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "safety",
+              "orchestration",
+              "observability"
+            ]
+          }
+        },
+        "why": {
+          "type": "array",
+          "description": "Short reasoning bullets justifying the result.",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "what_would_improve": {
+          "type": "array",
+          "description": "Changes that would move the result closer to HANDLED.",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "result": {
+                "const": "HANDLED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "glue_you_will_still_write": {
+                "maxItems": 3
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

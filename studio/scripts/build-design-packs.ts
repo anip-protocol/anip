@@ -35,17 +35,20 @@ function resolveSource(): string {
   if (process.env.DESIGN_PACKS_SOURCE) {
     return path.resolve(process.env.DESIGN_PACKS_SOURCE)
   }
-  console.error(`[build-design-packs] Error: pack source is required.
+  // Default: tooling/examples/ at repo root (two levels up from studio/scripts/)
+  const defaultPath = path.resolve(__dirname, '..', '..', 'tooling', 'examples')
+  if (fs.existsSync(defaultPath)) {
+    return defaultPath
+  }
+  console.error(`[build-design-packs] Error: pack source not found.
 
-  Provide one of:
-    --source <path>              CLI argument
-    DESIGN_PACKS_SOURCE=<path>   environment variable
+  Tried:
+    --source <path>              (not provided)
+    DESIGN_PACKS_SOURCE          (not set)
+    ${defaultPath}               (does not exist)
 
   Example:
-    npm run build:packs -- --source /path/to/tooling/examples
-
-  The generated packs.generated.ts is already committed, so this is only
-  needed when updating example packs.`)
+    npm run build:packs -- --source /path/to/tooling/examples`)
   process.exit(1)
 }
 

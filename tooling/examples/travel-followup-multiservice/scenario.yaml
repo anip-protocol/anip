@@ -1,0 +1,34 @@
+scenario:
+  name: search_book_verify_across_services_with_discoverable_followup
+  category: orchestration
+  narrative: >
+    An agent searches flights in one service, books the selected flight in a
+    second service, and then needs to confirm booking status through a third
+    service. The system should make the likely follow-up and verification path
+    visible without requiring wrapper-side maps or UI-only journey knowledge.
+  context:
+    planning_service_capability: search_flights
+    execution_service_capability: book_flight
+    verification_service_capability: get_booking_status
+    side_effect_execution: irreversible
+    task_id: trip-followup-2026-04
+    parent_search_invocation_id: inv-followup-search-001
+    token_scope_service_a:
+      - flights:search
+    token_scope_service_b:
+      - flights:book
+    token_scope_service_c:
+      - bookings:read
+  expected_behavior:
+    - search_service_returns_candidates
+    - booking_service_receives_lineage
+    - verification_path_is_discoverable_after_booking
+    - cross_service_task_identity_is_preserved
+    - operator_can_reconstruct_the_three_step_chain
+  expected_anip_support:
+    - task_id_support
+    - parent_invocation_id_support
+    - structured_failure
+    - audit_queryability
+    - follow_up_guidance
+    - verification_path_guidance

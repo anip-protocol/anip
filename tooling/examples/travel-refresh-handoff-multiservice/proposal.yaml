@@ -1,0 +1,36 @@
+proposal:
+  recommended_shape: multi_service_estate
+
+  rationale:
+    - the refresh source lives on a different service than the failing action
+    - continuity alone is not enough when the upstream artifact goes stale
+    - the main new problem is distributed refresh-path clarity
+
+  service_shapes:
+    travel-search:
+      shape: production_single_service
+    travel-booking:
+      shape: production_single_service
+
+  shared_requirements:
+    - cross-service continuity
+    - durable audit in both services
+    - refresh-source discoverability across the service boundary
+
+  required_components:
+    - manifest_generator_per_service
+    - token_verifier_per_service
+    - invocation_executor_per_service
+    - failure_mapper_per_service
+    - durable_audit_store_per_service
+    - lineage_recorder_per_service
+    - bounded_cross_service_refresh_guidance
+
+  anti_pattern_warnings:
+    - do_not_hide_refresh_source_only_in_ops_runbooks
+    - do_not_force_agents_to_infer_cross_service_refresh_paths_from_names
+
+  expected_glue_reduction:
+    orchestration:
+      - stale_quote_refresh_mapping_glue
+      - cross_service_retry_source_guesswork

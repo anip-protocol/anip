@@ -1,0 +1,39 @@
+proposal:
+  recommended_shape: production_single_service
+
+  rationale:
+    - one internal control surface is sufficient
+    - the key issue is reliable wait-and-retry guidance
+    - audit and lineage remain necessary for operator reconstruction
+
+  required_components:
+    - capability_registry
+    - manifest_generator
+    - token_verifier
+    - delegation_engine
+    - permission_evaluator
+    - invocation_executor
+    - failure_mapper
+    - durable_audit_store
+    - lineage_recorder
+    - http_adapter
+
+  optional_components:
+    - token_issuer
+    - embedded_studio
+
+  key_runtime_requirements:
+    - expose temporary unavailability with canonical wait posture
+    - preserve lineage across retry windows
+    - avoid forcing wrapper-side retry classification
+
+  anti_pattern_warnings:
+    - do_not_encode_wait_logic_only_in_clients
+    - do_not_force_agents_to_parse_rate_limit_text
+
+  expected_glue_reduction:
+    orchestration:
+      - wait_loop_wrapper_logic
+      - temporary_unavailability_retry_rules
+    observability:
+      - rollout_retry_chain_reconstruction

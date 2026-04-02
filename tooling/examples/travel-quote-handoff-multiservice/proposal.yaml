@@ -1,0 +1,50 @@
+proposal:
+  recommended_shape: multi_service_estate
+
+  rationale:
+    - search and booking remain split across service boundaries
+    - the main gap is not continuity alone but quote handoff meaning
+    - operators still need both services independently auditable
+
+  service_shapes:
+    travel-search:
+      shape: production_single_service
+    travel-booking:
+      shape: production_single_service
+
+  shared_requirements:
+    - task_id propagation across services
+    - parent_invocation_id propagation across service hops
+    - durable audit in both services
+    - explicit cross-service artifact handoff semantics
+
+  required_components:
+    - manifest_generator_per_service
+    - token_verifier_per_service
+    - permission_evaluator_per_service
+    - invocation_executor_per_service
+    - failure_mapper_per_service
+    - durable_audit_store_per_service
+    - lineage_recorder_per_service
+    - bounded_handoff_semantics
+
+  optional_components:
+    - central_aggregated_lineage_index
+    - operator_search_overlay
+
+  key_runtime_requirements:
+    - upstream search output should be legible to the downstream booking service
+    - handoff meaning should be visible without bespoke translation rules
+    - continuity should survive the boundary without hiding handoff ambiguity
+
+  anti_pattern_warnings:
+    - do_not_treat_cross_service_outputs_as_self_explanatory
+    - do_not_hide_quote_to_booking_contract_only_in_wrapper_code
+    - do_not_require_ui_journey_knowledge_to_complete_the_handoff
+
+  expected_glue_reduction:
+    orchestration:
+      - quote_to_booking_translation_glue
+      - service_boundary_handoff_guesswork
+    observability:
+      - operator_side_handoff_reconstruction_guesswork

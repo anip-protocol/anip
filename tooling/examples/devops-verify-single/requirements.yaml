@@ -1,0 +1,48 @@
+system:
+  name: deployment-operations-service
+  domain: devops
+  deployment_intent: internal_control_surface
+
+transports:
+  http: true
+  stdio: false
+  grpc: false
+
+trust:
+  mode: signed
+  checkpoints: false
+
+auth:
+  delegation_tokens: true
+  purpose_binding: true
+  scoped_authority: true
+
+permissions:
+  preflight_discovery: true
+  restricted_vs_denied: true
+
+audit:
+  durable: true
+  searchable: true
+
+lineage:
+  invocation_id: true
+  client_reference_id: true
+  task_id: true
+  parent_invocation_id: true
+
+risk_profile:
+  capabilities:
+    deploy_service:
+      side_effect: reversible
+      recovery_guidance_required: true
+    get_deployment_status:
+      side_effect: none
+
+business_constraints:
+  writes_should_have_a_discoverable_verification_path: true
+  operators_should_not_have_to_guess_the_post_action_check: true
+
+scale:
+  shape_preference: production_single_service
+  high_availability: false

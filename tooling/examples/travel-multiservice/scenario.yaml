@@ -1,0 +1,37 @@
+scenario:
+  name: search_then_book_across_services_with_budget_constraint
+  category: orchestration
+  narrative: >
+    An agent searches for flights in the search service, selects the cheapest
+    viable result, then attempts to book that flight through the booking
+    service. The chosen option costs 800 USD while the user's practical budget
+    limit is 500 USD. The system must preserve task identity and parent/child
+    invocation lineage across the service boundary.
+  context:
+    task_id: trip-q2-customer-42
+    parent_search_invocation_id: inv-a1b2c3d4e5f6
+    selected_capability_service_a: search_flights
+    selected_capability_service_b: book_flight
+    selected_flight: DL310
+    selected_cost: 800
+    budget_limit: 500
+    token_scope_service_a:
+      - flights:search
+    token_scope_service_b:
+      - flights:book
+    side_effect_service_b: irreversible
+  expected_behavior:
+    - search_service_returns_candidates
+    - booking_service_receives_task_identity
+    - booking_service_receives_parent_invocation_lineage
+    - system_does_not_execute_blindly_if_budget_control_exists
+    - both_services_produce_useful_audit_entries
+    - operator_can_reconstruct_the_cross_service_chain
+  expected_anip_support:
+    - permission_discovery
+    - side_effect_visibility
+    - cost_visibility
+    - task_id_support
+    - parent_invocation_id_support
+    - audit_queryability
+    - structured_failure

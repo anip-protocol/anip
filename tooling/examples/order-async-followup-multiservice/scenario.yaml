@@ -1,0 +1,24 @@
+scenario:
+  name: delayed_fulfillment_check_links_back_to_original_order
+  category: observability
+  narrative: >
+    An order is submitted on one service and, after a delay, fulfillment status
+    is checked on another service. The lineage should remain legible enough that
+    operators and agents do not need hidden scheduler-specific conventions to
+    understand the relationship.
+  context:
+    execution_service_capability: submit_order
+    followup_service_capability: check_fulfillment
+    task_id: order-followup-2026-04
+    parent_order_invocation_id: inv-order-001
+    delayed_followup: true
+  expected_behavior:
+    - delayed_downstream_step_preserves_task_identity
+    - parent_link_remains_legible_across_time_gap
+    - operator_can_reconstruct_the_two_service_chain
+  expected_anip_support:
+    - task_id_support
+    - parent_invocation_id_support
+    - audit_queryability
+    - cross_service_reconstruction_guidance
+

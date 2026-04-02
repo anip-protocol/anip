@@ -1,0 +1,23 @@
+proposal:
+  recommended_shape: multi_service_estate
+
+  rationale:
+    - a single planning step fans out into multiple downstream services
+    - continuity is useful here, but the real pressure is reconstructable distributed shape
+
+  required_components:
+    - manifest_generator_per_service
+    - token_verifier_per_service
+    - invocation_executor_per_service
+    - durable_audit_store_per_service
+    - lineage_recorder_per_service
+    - bounded_cross_service_relationship_guidance
+
+  anti_pattern_warnings:
+    - do_not_require_custom_trace_joiners_for_basic_fanout_reconstruction
+    - do_not_hide_fanout_shape_only_in_orchestrator_code
+
+  expected_glue_reduction:
+    observability:
+      - fanout_trace_stitching_glue
+      - parent_child_tree_reconstruction_guesswork
