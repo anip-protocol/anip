@@ -9,6 +9,14 @@ function normalizeBase(base: string): string {
 export default defineConfig({
   plugins: [vue()],
   base: normalizeBase(process.env.VITE_BASE_PATH ?? '/studio/'),
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8100',
+        changeOrigin: true,
+      },
+    },
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
