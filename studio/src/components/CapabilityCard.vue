@@ -33,6 +33,8 @@ const scope = computed(() => props.capability.minimum_scope || [])
 const observability = computed(() => props.capability.observability)
 const requiresBinding = computed(() => props.capability.requires_binding || [])
 const controlRequirements = computed(() => props.capability.control_requirements || [])
+const refreshVia = computed(() => props.capability.refresh_via || [])
+const verifyVia = computed(() => props.capability.verify_via || [])
 </script>
 
 <template>
@@ -186,6 +188,22 @@ const controlRequirements = computed(() => props.capability.control_requirements
         <div class="section-label">Control Requirements</div>
         <div v-for="req in controlRequirements" :key="req.type" class="control-item">
           <span class="badge-reject">{{ req.type }}</span>
+        </div>
+      </div>
+
+      <!-- Refresh Via -->
+      <div class="cap-section" v-if="refreshVia.length">
+        <div class="section-label">Refresh Via</div>
+        <div class="hint-row">
+          <span v-for="cap in refreshVia" :key="cap" class="hint-badge hint-badge--refresh">{{ cap }}</span>
+        </div>
+      </div>
+
+      <!-- Verify Via -->
+      <div class="cap-section" v-if="verifyVia.length">
+        <div class="section-label">Verify Via</div>
+        <div class="hint-row">
+          <span v-for="cap in verifyVia" :key="cap" class="hint-badge hint-badge--verify">{{ cap }}</span>
         </div>
       </div>
     </div>
@@ -404,5 +422,31 @@ const controlRequirements = computed(() => props.capability.control_requirements
   font-size: 11px;
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-weight: 600;
+}
+
+.hint-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hint-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-weight: 500;
+}
+
+.hint-badge--refresh {
+  background: rgba(52, 211, 153, 0.12);
+  color: #34d399;
+}
+
+.hint-badge--verify {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
 }
 </style>

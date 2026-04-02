@@ -25,6 +25,8 @@ const DECLARATION: CapabilityDeclaration = {
     rate_limit: null,
   },
   requires: [{ capability: "search_flights", reason: "must select from available flights before booking" }],
+  refresh_via: ["search_flights"],
+  verify_via: [],
   composes_with: [],
   session: { type: "stateless" },
   response_modes: ["unary"],

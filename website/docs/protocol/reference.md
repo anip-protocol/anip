@@ -37,7 +37,7 @@ No authentication required. This is the entry point for any agent discovering th
 ```json
 {
   "anip_discovery": {
-    "version": "0.16.0",
+    "version": "0.17.0",
     "service_id": "travel-service",
     "endpoints": {
       "manifest": "/anip/manifest",
@@ -77,7 +77,7 @@ No authentication required. This is the entry point for any agent discovering th
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `version` | string | Yes | Protocol version (e.g., `"0.16.0"`) |
+| `version` | string | Yes | Protocol version (e.g., `"0.17.0"`) |
 | `service_id` | string | Yes | Unique service identifier |
 | `endpoints` | object | Yes | Map of operation names to URL paths |
 | `capabilities` | object | Yes | Lightweight capability summaries (name → metadata) |
@@ -131,7 +131,7 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 ```json
 {
   "manifest_metadata": {
-    "version": "0.16.0",
+    "version": "0.17.0",
     "sha256": "a1b2c3d4...",
     "issued_at": "2026-03-28T10:00:00Z",
     "expires_at": "2026-03-29T10:00:00Z"
@@ -236,6 +236,8 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 | `requires` | array | No | Prerequisite capabilities |
 | `response_modes` | string[] | No | `["unary"]`, `["streaming"]`, or `["unary", "streaming"]`. Default: `["unary"]` |
 | `observability` | object | No | Logging and retention posture |
+| `refresh_via` | string[] | No | Advisory: capabilities to re-invoke when a stale or missing artifact causes a failure. Every name must exist in the same manifest. |
+| `verify_via` | string[] | No | Advisory: capabilities to invoke to verify side effects after executing this capability. Every name must exist in the same manifest. |
 
 ### Input field
 
