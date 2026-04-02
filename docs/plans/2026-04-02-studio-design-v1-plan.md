@@ -123,9 +123,9 @@ export interface Evaluation {
 export interface DesignPack {
   meta: PackMeta
   requirements: Requirements
-  proposal: Proposal
+  proposal: Proposal | null    // null when proposal.yaml is missing
   scenario: Scenario
-  evaluation: Evaluation
+  evaluation: Evaluation | null // null when evaluation.yaml is missing
 }
 ```
 
@@ -133,14 +133,15 @@ export interface DesignPack {
 
 Create `studio/scripts/build-design-packs.ts`. This script:
 1. Scans all subdirectories in the TOOLING examples path (configurable, default `../../tooling/examples/` relative to the script, or use an env var / CLI arg pointing to the codex tooling)
-2. For each directory containing `requirements.yaml`, `proposal.yaml`, `scenario.yaml`, and `evaluation.yaml`:
-   - Reads all 4 YAML files using `js-yaml`
+2. For each directory containing at least `requirements.yaml` and `scenario.yaml`:
+   - Reads `requirements.yaml` and `scenario.yaml` (required)
+   - Reads `proposal.yaml` and `evaluation.yaml` if present (optional — null when missing)
    - Extracts metadata (id from dir name, domain from requirements, category from scenario, etc.)
    - Bundles into a `DesignPack` object
 3. Writes a single `studio/src/design/data/packs.generated.ts` file exporting:
    - `PACKS: DesignPack[]` (all packs)
 
-Add `js-yaml` as a dev dependency: `cd studio && npm install --save-dev js-yaml @types/js-yaml`
+Add dev dependencies: `cd studio && npm install --save-dev js-yaml @types/js-yaml tsx`
 
 Add to `package.json` scripts: `"build:packs": "npx tsx scripts/build-design-packs.ts"`
 
@@ -152,7 +153,7 @@ Add to `package.json` scripts: `"build:packs": "npx tsx scripts/build-design-pac
 cd /Users/samirski/Development/ANIP/studio && npm run build:packs -- --source /Users/samirski/Development/codex/ANIP/tooling/examples
 ```
 
-Verify the generated file exists and contains all 13 packs.
+Verify the generated file exists and contains packs. The number depends on how many directories have at least `requirements.yaml` + `scenario.yaml`.
 
 - [ ] **Step 4: Add generated file to .gitignore**
 
@@ -437,6 +438,8 @@ This is the most important view. Layout:
 
 Every rendered value comes directly from the evaluation artifact. No UI-side interpretation or scoring.
 
+**When evaluation is null** (pack has no `evaluation.yaml`): show a clean "Evaluation not yet available" message with an explanation that this pack hasn't been evaluated yet. Same pattern for ProposalView when proposal is null.
+
 - [ ] **Step 2: Commit**
 
 ```bash
@@ -470,15 +473,11 @@ Verify:
 - Dark theme looks good, typography is readable
 - Responsive behavior works on smaller screens
 
-- [ ] **Step 3: Sync to runtime packages**
+- [ ] **Step 3: Commit**
+
+**Do NOT run `studio/sync.sh`.** Design is standalone only — it does NOT ship inside embedded runtime packages. The embedded packages continue shipping the pre-Design Studio build (Inspect only). The standalone Studio (with both Inspect and Design) is built separately and deployed via Docker or hosted web.
 
 ```bash
-cd /Users/samirski/Development/ANIP && bash studio/sync.sh
-```
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add studio/ packages/*/studio/
-git commit -m "feat(studio): complete Design V1 — build, polish, sync to runtimes"
+git add studio/
+git commit -m "feat(studio): complete Design V1 — build and polish (standalone only, not embedded)"
 ```
