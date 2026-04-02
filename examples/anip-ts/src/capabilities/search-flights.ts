@@ -24,6 +24,8 @@ const DECLARATION: CapabilityDeclaration = {
     rate_limit: null,
   },
   requires: [],
+  refresh_via: [],
+  verify_via: [],
   composes_with: [],
   session: { type: "stateless" },
   response_modes: ["unary"],
