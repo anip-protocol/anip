@@ -1057,6 +1057,26 @@ The `task_id` is an optional caller-supplied string (max 256 characters) that gr
 
 **Task ID precedence:** If the delegation token carries a `purpose.task_id`, the invocation `task_id` MUST match it or be omitted. A mismatch MUST result in a `purpose_mismatch` failure. If the token has no `purpose.task_id`, the invocation MAY provide a `task_id`. If neither the token nor the invocation provides a `task_id`, no `task_id` appears in the audit entry.
 
+**Cross-service task_id propagation (v0.18):** Agents SHOULD propagate the same `task_id` when downstream work is part of the same logical task. Services MUST NOT reject a `task_id` created by a different service — `task_id` is a caller-supplied opaque string with no service-locality constraint.
+
+**Cross-service parent_invocation_id linkage (v0.18):** Agents SHOULD set `parent_invocation_id` to the upstream invocation's `invocation_id`, even when that invocation was issued by a different service. Services MUST NOT reject a `parent_invocation_id` issued by a different service — the `inv-{hex12}` format is the only enforced constraint.
+
+**upstream_service field (v0.18):** An optional string on invoke requests and responses. Agent-supplied, unvalidated hint naming the originating service (e.g., `"booking-svc"`). The service MUST echo it in the response unchanged and include it in the audit entry. It is used only for cross-service trace reconstruction — it is not validated, enforced, or acted upon by the receiving service.
+
+**Cross-service reconstruction guidance (v0.18):** Reconstruction is best-effort, not guaranteed. Operators can attempt to reconstruct cross-service invocation lineage by querying audit logs by `task_id`, following the `parent_invocation_id` chain across services, and using `upstream_service` hints to identify which service issued the parent invocation.
+
+**Invocation request fields (v0.18 additions):**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `upstream_service` | string \| null | OPTIONAL | Agent-supplied hint naming the originating service. Unvalidated. Echoed in response and recorded in audit. |
+
+**Invocation response fields (v0.18 additions):**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `upstream_service` | string \| null | OPTIONAL | Echoed from request. Present when supplied by caller. |
+
 When `stream: true` is requested and the capability declares `streaming` in its `response_modes`, the response switches to SSE transport (see §6.6). When `stream: true` is requested but the capability only supports `unary`, the service MUST return a JSON failure with type `streaming_not_supported`.
 
 Lineage begins at the service `invoke()` boundary. Bearer auth failures (HTTP 401) occur in framework bindings before `invoke()` is called — they are transport-level rejections and do not receive lineage fields.

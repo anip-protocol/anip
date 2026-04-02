@@ -136,6 +136,7 @@ message InvokeRequest {
   string client_reference_id = 3;
   string task_id = 4;
   string parent_invocation_id = 5;
+  string upstream_service = 6;      // v0.18: agent-supplied hint for cross-service reconstruction
 }
 
 message InvokeResponse {
@@ -148,6 +149,7 @@ message InvokeResponse {
   string task_id = 7;
   string parent_invocation_id = 8;
   BudgetContext budget_context = 9;  // v0.14: present when budget was evaluated
+  string upstream_service = 10;     // v0.18: echoed from request
 }
 
 // ============================================================
@@ -175,6 +177,7 @@ message CompletedEvent {
   string task_id = 5;
   string parent_invocation_id = 6;
   BudgetContext budget_context = 7;  // v0.14: present when budget was evaluated
+  string upstream_service = 8;      // v0.18: echoed from request
 }
 
 message FailedEvent {
@@ -184,6 +187,7 @@ message FailedEvent {
   string task_id = 4;
   string parent_invocation_id = 5;
   BudgetContext budget_context = 6;  // v0.14: present when budget was evaluated
+  string upstream_service = 7;      // v0.18: echoed from request
 }
 
 // ============================================================
