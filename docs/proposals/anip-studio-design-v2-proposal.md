@@ -12,7 +12,19 @@ Make Design mode a real validation engine, not just an artifact viewer. V1 prove
 
 ---
 
-## 2. Evaluator Hardening
+## 2. Repo Boundary: Vendor Tooling into ANIP Repo
+
+### Decision
+
+The evaluator, schemas, and example packs currently live in the separate codex repo (`/Users/samirski/Development/codex/ANIP/tooling/`). V2 vendors them into the ANIP repo under `tooling/`.
+
+**Why:** Studio's build script, live validation server, and CI all need these artifacts. Keeping them in a separate repo creates a broken dependency chain — Studio can't build packs without codex, CI can't run the evaluator without codex, and contributors can't reproduce the validation flow.
+
+**V2 Task 0:** Copy `tooling/` from codex into the ANIP repo. This includes `bin/`, `schemas/`, `examples/`, `prompts/`, and `docs/`. The codex copy becomes the archive; the ANIP repo copy becomes the source of truth.
+
+---
+
+## 3. Evaluator Hardening
 
 ### Current State
 
@@ -64,6 +76,7 @@ Instead of the current two-path `if permissions_state == "denied"` / `if over_bu
 EVALUATORS = {
     "safety": evaluate_safety_scenario,
     "recovery": evaluate_recovery_scenario,
+    "orchestration": evaluate_orchestration_scenario,
     "cross_service": evaluate_cross_service_scenario,
     "observability": evaluate_observability_scenario,
 }
@@ -81,7 +94,7 @@ The evaluator stays as a single Python script. No external dependencies beyond `
 
 ---
 
-## 3. Live Validation in Studio
+## 4. Live Validation in Studio
 
 ### Current State
 
@@ -97,7 +110,7 @@ Add a "Run Validation" button to the Design sidebar or Evaluation view that:
 
 ### Architecture Options
 
-**Option A: Server-side validation (preferred for V2)**
+**Option A: Sidecar Python service (preferred for V2)**
 
 Add a thin Python HTTP server that wraps the existing evaluator:
 
@@ -107,11 +120,19 @@ Body: { requirements, proposal, scenario }
 Response: { evaluation }
 ```
 
-The server is a ~50-line FastAPI or Flask app that calls `evaluate()` from the existing script. It runs locally alongside the Studio dev server, or in the same Docker container for standalone deployment.
+The server is a ~50-line FastAPI app that calls `evaluate()` from the existing script. It runs as a **separate process** (sidecar), not inside the nginx static container.
 
-**Option B: WASM/browser-side validation (deferred)**
+**Development:** Two processes — `npm run dev` (Vite on :5173) + `python -m studio.server` (FastAPI on :8100). Vite proxies `/api/*` to the Python server.
 
-Port the evaluator to TypeScript and run in-browser. More complex, deferred.
+**Standalone Docker:** A `docker-compose.yml` with two services:
+- `studio-web`: nginx serving the built Vue app (same as today's Dockerfile)
+- `studio-api`: Python FastAPI validation server
+
+The current `studio/Dockerfile` (nginx-only) stays untouched for embedded Inspect builds.
+
+**Option B: In-browser validation (deferred)**
+
+Port the evaluator to TypeScript and run in-browser. More complex, deferred to V3+.
 
 ### Studio UI Changes
 
@@ -141,7 +162,7 @@ export async function runValidation(
 
 ---
 
-## 4. Evaluation Schema Improvements
+## 5. Evaluation Schema Improvements
 
 ### Current Schema
 
@@ -171,7 +192,7 @@ Per-item category tagging is tempting but not justified yet. The evaluator doesn
 
 ---
 
-## 5. Evaluate All 13 Packs
+## 6. Evaluate All 13 Packs
 
 ### Current State
 
@@ -190,17 +211,20 @@ Most of the 10 new evaluations should land at PARTIAL — the protocol has advis
 
 ---
 
-## 6. V2 Scope vs Deferred
+## 7. V2 Scope vs Deferred
 
 ### V2 (this build)
 
-- Hardened evaluator with scenario-type dispatch + honest advisory scoring
+- Vendor tooling into ANIP repo (Task 0)
+- Hardened evaluator with scenario-type dispatch (safety, recovery, orchestration, cross_service, observability) + honest advisory scoring
 - `cross_service` glue category added to schema
 - Optional `severity` on evaluation
-- Live validation from Studio (thin Python API server)
+- Live validation from Studio (Python FastAPI sidecar, NOT embedded in nginx container)
 - All 13 packs evaluated
 - "Run Validation" button in Studio UI
 - Live vs pre-computed result indicator
+- Vite dev proxy for `/api/*` to sidecar
+- Docker compose for standalone deployment (studio-web + studio-api)
 
 ### Deferred to V3+
 
@@ -215,9 +239,12 @@ Most of the 10 new evaluations should land at PARTIAL — the protocol has advis
 
 ---
 
-## 7. File Changes
+## 8. File Changes
 
 ```
+# Task 0: Vendor tooling into ANIP repo
+tooling/                                      # CREATE: copy from codex repo (bin/, schemas/, examples/, prompts/, docs/)
+
 # Evaluator improvements
 tooling/bin/anip_design_validate.py           # MODIFY: add scenario-type dispatch, advisory scoring, v0.14-v0.19 rules
 
@@ -227,8 +254,7 @@ tooling/schemas/evaluation.schema.json        # MODIFY: add cross_service to glu
 # Evaluations for all packs
 tooling/examples/*/evaluation.yaml            # CREATE/UPDATE: run hardened evaluator on all 13 packs
 
-# Validation API server
-studio/server/                                # CREATE: thin Python validation API
+# Validation API server (sidecar)
 studio/server/app.py                          # CREATE: FastAPI app wrapping evaluate()
 studio/server/requirements.txt                # CREATE: fastapi, uvicorn, pyyaml, jsonschema
 
@@ -238,16 +264,21 @@ studio/src/design/api.ts                      # CREATE: validation API client
 studio/src/design/store.ts                    # MODIFY: add live evaluation state
 studio/src/design/types.ts                    # MODIFY: add severity to Evaluation type
 
+# Vite dev proxy
+studio/vite.config.ts                         # MODIFY: add /api proxy to Python sidecar
+
 # Regenerated packs
 studio/src/design/data/packs.generated.ts     # UPDATE: regenerate with new evaluations
+studio/scripts/build-design-packs.ts          # MODIFY: update source path to tooling/examples/ (now in-repo)
 
-# Docker
-studio/Dockerfile                             # MODIFY: add Python validation server alongside Vite/nginx
+# Docker (standalone only — embedded Dockerfile untouched)
+studio/docker-compose.yml                     # CREATE: two-service compose (studio-web + studio-api)
+studio/server/Dockerfile                      # CREATE: Python validation server container
 ```
 
 ---
 
-## 8. Success Criteria
+## 9. Success Criteria
 
 V2 is successful if:
 
