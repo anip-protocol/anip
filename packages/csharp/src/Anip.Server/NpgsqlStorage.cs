@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     client_reference_id TEXT,
     task_id TEXT,
     parent_invocation_id TEXT,
+    upstream_service TEXT,
     data TEXT NOT NULL,
     previous_hash TEXT NOT NULL,
     signature TEXT
@@ -180,10 +181,10 @@ CREATE TABLE IF NOT EXISTS leader_leases (
                 insertCmd.CommandText = @"
                     INSERT INTO audit_log (timestamp, capability, token_id, root_principal,
                         invocation_id, client_reference_id, task_id, parent_invocation_id,
-                        data, previous_hash, signature)
+                        upstream_service, data, previous_hash, signature)
                     VALUES (@timestamp, @capability, @tokenId, @rootPrincipal,
                         @invocationId, @clientReferenceId, @taskId, @parentInvocationId,
-                        @data, @previousHash, @signature)
+                        @upstreamService, @data, @previousHash, @signature)
                     RETURNING sequence_number";
                 insertCmd.Parameters.AddWithValue("timestamp", (object?)entry.Timestamp ?? DBNull.Value);
                 insertCmd.Parameters.AddWithValue("capability", (object?)entry.Capability ?? DBNull.Value);
@@ -193,6 +194,7 @@ CREATE TABLE IF NOT EXISTS leader_leases (
                 insertCmd.Parameters.AddWithValue("clientReferenceId", (object?)entry.ClientReferenceId ?? DBNull.Value);
                 insertCmd.Parameters.AddWithValue("taskId", (object?)entry.TaskId ?? DBNull.Value);
                 insertCmd.Parameters.AddWithValue("parentInvocationId", (object?)entry.ParentInvocationId ?? DBNull.Value);
+                insertCmd.Parameters.AddWithValue("upstreamService", (object?)entry.UpstreamService ?? DBNull.Value);
                 insertCmd.Parameters.AddWithValue("data", data);
                 insertCmd.Parameters.AddWithValue("previousHash", prevHash);
                 insertCmd.Parameters.AddWithValue("signature", (object?)entry.Signature ?? DBNull.Value);

@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     client_reference_id TEXT,
     task_id TEXT,
     parent_invocation_id TEXT,
+    upstream_service TEXT,
     stream_summary TEXT,
     previous_hash TEXT NOT NULL,
     signature TEXT,
@@ -128,6 +129,11 @@ try {
 }
 try {
   db.exec("ALTER TABLE audit_log ADD COLUMN parent_invocation_id TEXT");
+} catch {
+  // Column may already exist
+}
+try {
+  db.exec("ALTER TABLE audit_log ADD COLUMN upstream_service TEXT");
 } catch {
   // Column may already exist
 }
@@ -250,12 +256,12 @@ function storeAuditEntry(entry: Record<string, unknown>): void {
       subject, root_principal, parameters, success, result_summary,
       failure_type, cost_actual, delegation_chain, invocation_id,
       client_reference_id, task_id, parent_invocation_id,
-      stream_summary, previous_hash, signature,
+      upstream_service, stream_summary, previous_hash, signature,
       event_class, retention_tier, expires_at,
       storage_redacted, entry_type, grouping_key,
       aggregation_window, aggregation_count, first_seen,
       last_seen, representative_detail)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     entry.sequence_number as number,
     entry.timestamp as string,
@@ -278,6 +284,7 @@ function storeAuditEntry(entry: Record<string, unknown>): void {
     (entry.client_reference_id as string) ?? null,
     (entry.task_id as string) ?? null,
     (entry.parent_invocation_id as string) ?? null,
+    (entry.upstream_service as string) ?? null,
     entry.stream_summary != null
       ? JSON.stringify(entry.stream_summary)
       : null,

@@ -49,6 +49,7 @@ export class AuditLog {
       client_reference_id: entryData.client_reference_id ?? null,
       task_id: entryData.task_id ?? null,
       parent_invocation_id: entryData.parent_invocation_id ?? null,
+      upstream_service: entryData.upstream_service ?? null,
       stream_summary: entryData.streamSummary ?? entryData.stream_summary ?? null,
       event_class: entryData.event_class ?? null,
       retention_tier: entryData.retention_tier ?? null,

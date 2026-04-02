@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 	client_reference_id TEXT,
 	task_id TEXT,
 	parent_invocation_id TEXT,
+	upstream_service TEXT,
 	data TEXT NOT NULL,
 	previous_hash TEXT NOT NULL,
 	signature TEXT NOT NULL DEFAULT ''
@@ -193,8 +194,8 @@ func (s *PostgresStorage) AppendAuditEntry(entry *core.AuditEntry) (*core.AuditE
 	_, err = tx.Exec(context.Background(),
 		`INSERT INTO audit_log (sequence_number, timestamp, capability, token_id, root_principal,
 		 invocation_id, client_reference_id, task_id, parent_invocation_id,
-		 data, previous_hash, signature)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+		 upstream_service, data, previous_hash, signature)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
 		newSeqNum,
 		entry.Timestamp,
 		entry.Capability,
@@ -204,6 +205,7 @@ func (s *PostgresStorage) AppendAuditEntry(entry *core.AuditEntry) (*core.AuditE
 		entry.ClientReferenceID,
 		entry.TaskID,
 		entry.ParentInvocationID,
+		entry.UpstreamService,
 		string(data),
 		prevHash,
 		entry.Signature,
