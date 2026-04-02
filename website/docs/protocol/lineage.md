@@ -153,7 +153,7 @@ When one ANIP service calls another as part of a workflow, the caller can includ
 
 ### Propagation rules
 
-- `upstream_service` is an optional string field on the invoke request (max 256 chars).
+- `upstream_service` is an optional string field on the invoke request.
 - Services MUST echo it in the invoke response unchanged.
 - Services MUST record it in the audit entry.
 - Services MUST NOT reject any syntactically valid `parent_invocation_id` solely because it was not issued by the receiving service. Cross-service invocation trees are explicitly supported — referential validation of `parent_invocation_id` is prohibited.

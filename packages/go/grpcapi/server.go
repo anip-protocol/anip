@@ -289,9 +289,12 @@ func (s *AnipGrpcServer) Invoke(ctx context.Context, req *pb.InvokeRequest) (*pb
 		var anipErr *core.ANIPError
 		if ok := isANIPError(err, &anipErr); ok {
 			return &pb.InvokeResponse{
-				Success:           false,
-				ClientReferenceId: req.ClientReferenceId,
-				Failure:           toAnipFailure(anipErr),
+				Success:             false,
+				ClientReferenceId:   req.ClientReferenceId,
+				Failure:             toAnipFailure(anipErr),
+				TaskId:              req.TaskId,
+				ParentInvocationId:  req.ParentInvocationId,
+				UpstreamService:     req.UpstreamService,
 			}, nil
 		}
 		return nil, status.Errorf(codes.Internal, "invoke: %v", err)

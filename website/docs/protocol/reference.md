@@ -465,7 +465,7 @@ All control requirements are token-evaluable and surfaced in permission discover
 | `client_reference_id` | string | No | Caller-supplied correlation ID (max 256 chars), echoed in response |
 | `task_id` | string | No | Task/workflow identity for grouping related invocations (max 256 chars). If the delegation token has `purpose.task_id`, must match or be omitted. |
 | `parent_invocation_id` | string | No | Reference to the invocation that triggered this one (format: `inv-{hex12}`). Syntactically validated, not referentially. |
-| `upstream_service` | string | No | Identifies the ANIP service that initiated this call as part of a cross-service workflow (max 256 chars). Echoed in response and recorded in audit. (v0.18) |
+| `upstream_service` | string | No | Identifies the ANIP service that initiated this call as part of a cross-service workflow. Echoed in response and recorded in audit. (v0.18) |
 | `stream` | boolean | No | Request streaming response (SSE). Default: `false` |
 
 ### Success response (HTTP 200)

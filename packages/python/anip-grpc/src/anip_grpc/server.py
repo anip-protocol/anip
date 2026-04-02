@@ -224,6 +224,9 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                     detail=exc.detail,
                     retry=exc.retry,
                 ),
+                task_id=request.task_id or "",
+                parent_invocation_id=request.parent_invocation_id or "",
+                upstream_service=request.upstream_service or "",
             )
 
         # The service returns a dict with success, result, invocation_id, etc.
