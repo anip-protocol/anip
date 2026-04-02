@@ -160,6 +160,7 @@ _BOOK_DECL = CapabilityDeclaration(
             max_age="PT15M",
         ),
     ],
+    refresh_via=["search_flights"],
     session=SessionInfo(),
     observability=ObservabilityContract(
         logged=True, retention="P90D",
