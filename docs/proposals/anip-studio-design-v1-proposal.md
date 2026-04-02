@@ -1,5 +1,28 @@
 # ANIP Studio: Design V1 — Design Proposal
 
+## 0. Embedded Studio Clarification
+
+`ANIP Studio` is the umbrella product. It includes two modes: **Inspect** and **Design**.
+
+This does **not** mean both modes are part of the same embeddable runtime/package surface.
+
+For package and runtime purposes:
+
+- `embedded_studio` (Inspect only) refers to the current embedded protocol inspection surface — manifest/discovery viewing, invoke, audit, permissions. It ships inside runtime adapter packages.
+- `Design` is a separate Studio mode/product surface built around scenario-driven execution design, execution scenario validation, and Glue Gap Analysis. It has its own packaging and deployment model. It does NOT ship inside the embedded runtime packages.
+
+The distinction:
+
+| Surface | What it is | Where it ships |
+|---------|-----------|----------------|
+| **ANIP Studio** | Umbrella product | Web app / standalone Docker |
+| **embedded_studio (Inspect only)** | Embedded protocol inspector | Inside runtime adapter packages |
+| **Design** | Scenario design + validation + Glue Gap Analysis | Standalone web app only |
+
+Optional component labels in proposals and manifests should use `embedded_studio (Inspect only)` or `embedded_inspect_studio` to avoid implying the full Design surface.
+
+---
+
 ## 1. Information Architecture
 
 ### Top-Level Studio Split
