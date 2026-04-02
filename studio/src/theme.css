@@ -19,4 +19,14 @@
   --radius: 8px;
   --radius-sm: 6px;
   --transition: 180ms ease;
+
+  /* Design mode */
+  --design-handled: #34d399;
+  --design-partial: #fbbf24;
+  --design-glue: #f87171;
+  --design-info: #60a5fa;
+  --design-category-safety: #f87171;
+  --design-category-orchestration: #fbbf24;
+  --design-category-observability: #60a5fa;
+  --design-category-cross-service: #a78bfa;
 }
