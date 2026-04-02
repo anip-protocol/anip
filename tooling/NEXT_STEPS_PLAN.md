@@ -329,3 +329,30 @@ It should start with:
 
 That is how ANIP shifts from aggressive semantic expansion to evidence-driven
 maturity.
+
+---
+
+## V3 Priority: Structured Proposal Surface Declarations
+
+The V2 evaluator infers which advisory surfaces a proposal declares by
+heuristically matching text in `required_components`, `key_runtime_requirements`,
+and `rationale`. This is wording-sensitive — changing prose can change the score
+without a real design change.
+
+V3 should introduce structured surface declarations in the proposal schema so
+evaluator judgments depend on machine-readable design surfaces, not text
+inference. For example:
+
+```yaml
+proposal:
+  declared_surfaces:
+    refresh_via: true
+    verify_via: true
+    cross_service_handoff: true
+    budget_enforcement: true
+    recovery_class: true
+```
+
+This would let the evaluator check declared intent directly instead of scanning
+prose. It is the single highest-leverage improvement for evaluator truthfulness
+after V2.

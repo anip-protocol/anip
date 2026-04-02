@@ -140,7 +140,15 @@ def _common_lineage_surfaces(
 
 
 def _extract_proposal_surfaces(proposal: dict[str, Any]) -> dict[str, bool]:
-    """Extract which advisory surfaces the proposal actually declares."""
+    """Extract which advisory surfaces the proposal actually declares.
+
+    LIMITATION (V2): This uses heuristic text matching against proposal
+    components, key_runtime_requirements, and rationale because the proposal
+    schema does not yet expose structured surface declarations. Changing
+    prose can change the score without a real design change. V3 should
+    introduce structured proposal surface declarations so evaluator
+    judgments depend on machine-readable design surfaces, not text inference.
+    """
     proposal_components = set(
         proposal.get("required_components", [])
         + proposal.get("optional_components", [])
