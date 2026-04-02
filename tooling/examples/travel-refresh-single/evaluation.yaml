@@ -1,0 +1,24 @@
+evaluation:
+  scenario_name: book_flight_with_stale_quote_needs_refresh_path
+  result: PARTIAL
+  handled_by_anip:
+  - task identity
+  - parent invocation lineage
+  - durable audit
+  - audit queryability
+  - structured failure
+  - refresh path guidance (protocol-assisted, advisory, not enforced)
+  - recovery class guidance (protocol-assisted, advisory, not enforced)
+  - binding freshness visibility (protocol-assisted, advisory, not enforced)
+  glue_you_will_still_write:
+  - the protocol provides advisory guidance but enforcement still requires wrapper
+    logic
+  glue_category:
+  - orchestration
+  why:
+  - "the protocol hints but does not enforce \u2014 advisory surfaces (refresh_via\
+    \ hint, recovery_class, binding freshness visibility) improve the decision surface\
+    \ but wrapper logic must still act on them"
+  what_would_improve:
+  - promote advisory orchestration hints to enforceable protocol surfaces
+  confidence: high

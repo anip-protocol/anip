@@ -2,23 +2,28 @@ evaluation:
   scenario_name: delete_production_cluster_without_permission
   result: HANDLED
   handled_by_anip:
-    - permission discovery
-    - high-risk side-effect visibility
-    - structured blocked-action failure
-    - escalation-friendly recovery guidance
-    - task identity
-    - parent invocation lineage
-    - durable audit
+  - permission discovery
+  - task identity
+  - parent invocation lineage
+  - durable audit
+  - audit queryability
+  - structured failure
+  - side-effect visibility
+  - blocked-action refusal before blind execution
+  - high-risk action understanding
+  - escalation-friendly recovery guidance
+  - purpose binding
+  - scoped authority
+  - grantable requirements visibility
   glue_you_will_still_write:
-    - you may still write organization-specific approval workflow integration here
+  - you may still write organization-specific approval workflow integration here
   glue_category:
-    - orchestration
+  - orchestration
   why:
-    - the core scenario requires safe refusal rather than successful execution
-    - the design already exposes enough authority, risk, recovery, and audit context to refuse cleanly
-    - remaining organization-specific approval integration is peripheral to the core scenario behavior
+  - the core scenario is safe refusal rather than successful execution
+  - 'business constraint: production cluster deletion requires strong authority'
   what_would_improve:
-    - add approval-aware declarations
-    - strengthen escalation vocabulary
-    - integrate more tightly with external approval systems
+  - add approval-aware declarations
+  - strengthen escalation vocabulary
+  - integrate more tightly with external approval systems
   confidence: high

@@ -1,0 +1,26 @@
+evaluation:
+  scenario_name: one_planning_step_fans_out_to_multiple_booking_services
+  result: PARTIAL
+  handled_by_anip:
+  - task identity
+  - parent invocation lineage
+  - durable audit
+  - audit queryability
+  - cross-service task identity continuity
+  - independent but linkable audit records
+  - cleaner service handoff
+  - searchable audit
+  - cross-service continuity primitives (task_id + parent_invocation_id)
+  - cross-service reconstruction guidance (protocol-assisted, advisory, not enforced)
+  glue_you_will_still_write:
+  - you will still write cross-service audit aggregation or reconstruction logic here
+  glue_category:
+  - observability
+  why:
+  - the design already removes a large amount of cross-service correlation and trace-stitching
+    glue
+  - the protocol provides lineage primitives and advisory reconstruction hints but
+    does not enforce cross-service reconstruction
+  what_would_improve:
+  - add structured cross-service reconstruction support beyond raw lineage primitives
+  confidence: high
