@@ -61,8 +61,9 @@ studio/Dockerfile.standalone                  # CREATE: nginx + /api/ proxy to s
 studio/nginx-standalone.conf                  # CREATE: nginx config with /api/ proxy block
 
 # Tests
-tooling/tests/test_evaluator.py               # CREATE: evaluator regression tests
-studio/server/test_api.py                     # CREATE: API endpoint tests
+tooling/tests/test_evaluator.py               # CREATE: evaluator regression tests (pytest)
+studio/server/test_api.py                     # CREATE: API endpoint tests (pytest + httpx TestClient)
+studio/src/__tests__/EvaluationView.test.ts   # CREATE: live validation UI tests (Vitest)
 ```
 
 ---
@@ -369,7 +370,11 @@ fastapi>=0.115.0
 uvicorn>=0.32.0
 pyyaml>=6.0
 jsonschema>=4.23.0
+httpx>=0.27.0
+pytest>=9.0.0
 ```
+
+Note: `httpx` is required by FastAPI's `TestClient`. `pytest` is the test runner. Both are needed for `studio/server/test_api.py` and `tooling/tests/test_evaluator.py`.
 
 - [ ] **Step 3: Add Vite dev proxy**
 
@@ -502,17 +507,36 @@ In `EvaluationView.vue`:
 
 When entering Design mode, call `checkApiAvailability()`. If the API is down, the "Run Validation" button is hidden — the UI gracefully falls back to static evaluations.
 
-- [ ] **Step 5: Build and verify**
+- [ ] **Step 5: Write Vitest cases for live validation UI**
+
+Create `studio/src/__tests__/EvaluationView.test.ts` (or add to existing test file). Tests:
+
+```typescript
+// - test: "Run Validation" button hidden when apiAvailable is false
+// - test: "Run Validation" button shown when apiAvailable is true
+// - test: displays "Live result" badge when liveEvaluation exists
+// - test: displays "Pre-computed result" badge when showing static evaluation
+// - test: "Reset to pre-computed" switches back from live to static
+```
+
+Use the existing Vitest + jsdom setup from `studio/vite.config.ts`.
+
+Run:
+```bash
+cd /Users/samirski/Development/ANIP/studio && npx vitest run
+```
+
+- [ ] **Step 6: Build and verify**
 
 ```bash
 cd /Users/samirski/Development/ANIP/studio && npm run build
 ```
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add studio/src/design/ studio/src/views/EvaluationView.vue
-git commit -m "feat(studio): add live validation — Run Validation button + API client"
+git add studio/src/design/ studio/src/views/EvaluationView.vue studio/src/__tests__/
+git commit -m "feat(studio): add live validation — Run Validation button + API client + tests"
 ```
 
 ---
@@ -601,7 +625,7 @@ Verify:
 - [ ] **Step 5: Commit**
 
 ```bash
-git add studio/docker-compose.yml studio/server/Dockerfile
+git add studio/docker-compose.yml studio/server/Dockerfile studio/Dockerfile.standalone studio/nginx-standalone.conf
 git commit -m "feat(studio): add Docker Compose for standalone deployment (web + API sidecar)"
 ```
 
