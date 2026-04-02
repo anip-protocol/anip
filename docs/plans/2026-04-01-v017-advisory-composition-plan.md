@@ -188,6 +188,7 @@ git commit -m "feat(showcase): add refresh_via and verify_via hints to travel + 
 
 - [ ] **Step 1: Write conformance tests**
 
+- `test_composition_hints_roundtrip_through_manifest` — fetch `/anip/manifest`, find a capability that declares `refresh_via` or `verify_via`, verify the fields are present in the HTTP response (not just in the model — proves the manifest serialization layer exposes them)
 - `test_refresh_via_references_exist_in_manifest` — if a capability declares `refresh_via`, every referenced capability MUST exist in the same manifest
 - `test_verify_via_references_exist_in_manifest` — same for `verify_via`
 - `test_refresh_via_is_string_array` — `refresh_via` values are strings (capability names)
@@ -232,6 +233,7 @@ git commit -m "feat(studio): display refresh_via and verify_via in capability ca
 
 **Files:**
 - Modify: `website/docs/protocol/capabilities.md`
+- Modify: `website/docs/protocol/reference.md`
 - Modify: `website/docs/feature-map.md`
 - Modify: `website/docs/releases/version-history.md`
 
@@ -243,7 +245,11 @@ Add section on advisory composition hints with:
 - Advisory nature note
 - Examples (travel refresh, devops verify)
 
-- [ ] **Step 2: Update feature map + version history**
+- [ ] **Step 2: Update reference page**
+
+Add `refresh_via` and `verify_via` to the CapabilityDeclaration field table in `website/docs/protocol/reference.md`.
+
+- [ ] **Step 3: Update feature map + version history**
 
 Add v0.17 entries.
 
