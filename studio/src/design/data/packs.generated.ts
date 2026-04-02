@@ -534,17 +534,17 @@ export const PACKS: DesignPack[] = [
           "parent invocation lineage",
           "durable audit",
           "audit queryability",
-          "verification path guidance (protocol-assisted, advisory, not enforced)",
-          "follow-up path guidance (protocol-assisted, advisory, not enforced)"
+          "verification path guidance (protocol-assisted, advisory, not enforced)"
         ],
         "glue_you_will_still_write": [
-          "the protocol provides advisory guidance but enforcement still requires wrapper logic"
+          "the protocol provides advisory guidance but enforcement still requires wrapper logic",
+          "the proposal does not declare follow-up advisory hint — agents must discover these paths through docs or wrapper logic"
         ],
         "glue_category": [
           "orchestration"
         ],
         "why": [
-          "the protocol hints but does not enforce — advisory surfaces (verify_via hint, followup_via hint) improve the decision surface but wrapper logic must still act on them"
+          "the protocol hints but does not enforce — advisory surfaces (verify_via hint) improve the decision surface but wrapper logic must still act on them"
         ],
         "what_would_improve": [
           "promote advisory orchestration hints to enforceable protocol surfaces"
@@ -700,17 +700,17 @@ export const PACKS: DesignPack[] = [
           "durable audit",
           "audit queryability",
           "structured failure",
-          "recovery class guidance (protocol-assisted, advisory, not enforced)",
           "estimated availability guidance (protocol-assisted, advisory, not enforced)"
         ],
         "glue_you_will_still_write": [
-          "the protocol provides advisory guidance but enforcement still requires wrapper logic"
+          "the protocol provides advisory guidance but enforcement still requires wrapper logic",
+          "the proposal does not declare recovery_class — agents must discover these paths through docs or wrapper logic"
         ],
         "glue_category": [
           "orchestration"
         ],
         "why": [
-          "the protocol hints but does not enforce — advisory surfaces (recovery_class, estimated availability hint) improve the decision surface but wrapper logic must still act on them"
+          "the protocol hints but does not enforce — advisory surfaces (estimated availability hint) improve the decision surface but wrapper logic must still act on them"
         ],
         "what_would_improve": [
           "promote advisory orchestration hints to enforceable protocol surfaces"
@@ -1019,7 +1019,6 @@ export const PACKS: DesignPack[] = [
           "audit queryability",
           "cross-service task identity continuity",
           "independent but linkable audit records",
-          "cleaner service handoff",
           "searchable audit",
           "cross-service continuity primitives (task_id + parent_invocation_id)",
           "cross-service reconstruction guidance (protocol-assisted, advisory, not enforced)"

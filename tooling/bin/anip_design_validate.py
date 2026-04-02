@@ -139,17 +139,103 @@ def _common_lineage_surfaces(
         append_unique(handled, "cost visibility")
 
 
+def _extract_proposal_surfaces(proposal: dict[str, Any]) -> dict[str, bool]:
+    """Extract which advisory surfaces the proposal actually declares."""
+    proposal_components = set(
+        proposal.get("required_components", [])
+        + proposal.get("optional_components", [])
+    )
+    key_requirements = proposal.get("key_runtime_requirements", [])
+    key_req_text = " ".join(key_requirements).lower()
+
+    # Also include rationale and component names in the surface scan
+    rationale_text = " ".join(proposal.get("rationale", [])).lower()
+    component_text = " ".join(proposal_components).lower()
+    all_text = key_req_text + " " + rationale_text + " " + component_text
+
+    return {
+        "refresh_via": (
+            "refresh_via" in all_text
+            or "refresh" in all_text
+        ),
+        "verify_via": (
+            "verify_via" in all_text
+            or "verif" in all_text
+        ),
+        "cross_service_hints": (
+            "cross_service" in all_text
+            or "cross-service" in all_text
+            or "handoff" in all_text
+        ),
+        "recovery_class": (
+            "recovery_class" in all_text
+            or "recovery" in all_text
+        ),
+        "budget_enforcement": (
+            "budget" in all_text
+            or "constraints.budget" in all_text
+        ),
+        "binding": (
+            "binding" in all_text
+            or "requires_binding" in all_text
+        ),
+        "audit": (
+            "audit" in all_text
+        ),
+        "lineage": (
+            "lineage" in all_text
+        ),
+        "upstream_service": (
+            "upstream" in all_text
+            or "task_id" in all_text
+            or "task identity" in all_text
+        ),
+        "followup": (
+            "followup" in all_text
+            or "follow-up" in all_text
+            or "follow_up" in all_text
+        ),
+        "revalidation": (
+            "revalidat" in all_text
+        ),
+        "availability": (
+            "availability" in all_text
+            or "unavailab" in all_text
+        ),
+    }
+
+
 def _common_multi_service_surfaces(
     req: dict[str, Any],
     proposal: dict[str, Any],
     handled: list[str],
     why: list[str],
 ) -> None:
-    """Add cross-service surfaces when req declares multiple services."""
-    if _is_multi_service(req, proposal):
+    """Add cross-service surfaces when req declares multiple services AND proposal declares them."""
+    if not _is_multi_service(req, proposal):
+        return
+
+    surfaces = _extract_proposal_surfaces(proposal)
+
+    # Only credit cross-service task identity if proposal declares lineage/task_id
+    if surfaces["upstream_service"] or surfaces["lineage"]:
         append_unique(handled, "cross-service task identity continuity")
+
+    # Only credit independent audit records if proposal declares audit
+    if surfaces["audit"]:
         append_unique(handled, "independent but linkable audit records")
+
+    # Only credit cleaner service handoff if proposal declares cross-service hints
+    if surfaces["cross_service_hints"]:
         append_unique(handled, "cleaner service handoff")
+
+    credited = [h for h in [
+        "cross-service task identity continuity",
+        "independent but linkable audit records",
+        "cleaner service handoff",
+    ] if h in handled]
+
+    if credited:
         why.append(
             "the design already removes a large amount of cross-service "
             "correlation and trace-stitching glue"
@@ -313,40 +399,68 @@ def evaluate_orchestration(
     _common_lineage_surfaces(req, handled, why, expected_support)
     _common_multi_service_surfaces(req, proposal, handled, why)
 
-    # --- Advisory composition hints ---
+    # --- Inspect proposal for actual declared surfaces ---
+    psurfaces = _extract_proposal_surfaces(proposal)
+
+    # --- Advisory composition hints (only credited when proposal declares them) ---
     advisory_surfaces: list[str] = []
+    missing_surfaces: list[str] = []
 
     if "refresh_path_guidance" in expected_support or "cross_service_refresh_guidance" in expected_support:
-        advisory_surfaces.append("refresh_via hint")
-        append_unique(handled, "refresh path guidance (protocol-assisted, advisory, not enforced)")
+        if psurfaces["refresh_via"]:
+            advisory_surfaces.append("refresh_via hint")
+            append_unique(handled, "refresh path guidance (protocol-assisted, advisory, not enforced)")
+        else:
+            missing_surfaces.append("refresh advisory hint")
 
     if "verification_path_guidance" in expected_support or "cross_service_verification_guidance" in expected_support:
-        advisory_surfaces.append("verify_via hint")
-        append_unique(handled, "verification path guidance (protocol-assisted, advisory, not enforced)")
+        if psurfaces["verify_via"]:
+            advisory_surfaces.append("verify_via hint")
+            append_unique(handled, "verification path guidance (protocol-assisted, advisory, not enforced)")
+        else:
+            missing_surfaces.append("verify advisory hint")
 
     if "follow_up_guidance" in expected_support:
-        advisory_surfaces.append("followup_via hint")
-        append_unique(handled, "follow-up path guidance (protocol-assisted, advisory, not enforced)")
+        if psurfaces["followup"]:
+            advisory_surfaces.append("followup_via hint")
+            append_unique(handled, "follow-up path guidance (protocol-assisted, advisory, not enforced)")
+        else:
+            missing_surfaces.append("follow-up advisory hint")
 
     if "cross_service_handoff_guidance" in expected_support:
-        advisory_surfaces.append("cross-service handoff hint")
-        append_unique(handled, "cross-service handoff guidance (protocol-assisted, advisory, not enforced)")
+        if psurfaces["cross_service_hints"]:
+            advisory_surfaces.append("cross-service handoff hint")
+            append_unique(handled, "cross-service handoff guidance (protocol-assisted, advisory, not enforced)")
+        else:
+            missing_surfaces.append("cross-service handoff hint")
 
     if "recovery_class" in expected_support:
-        advisory_surfaces.append("recovery_class")
-        append_unique(handled, "recovery class guidance (protocol-assisted, advisory, not enforced)")
+        if psurfaces["recovery_class"]:
+            advisory_surfaces.append("recovery_class")
+            append_unique(handled, "recovery class guidance (protocol-assisted, advisory, not enforced)")
+        else:
+            missing_surfaces.append("recovery_class")
 
     if "binding_freshness_visibility" in expected_support:
-        advisory_surfaces.append("binding freshness visibility")
-        append_unique(handled, "binding freshness visibility (protocol-assisted, advisory, not enforced)")
+        if psurfaces["binding"]:
+            advisory_surfaces.append("binding freshness visibility")
+            append_unique(handled, "binding freshness visibility (protocol-assisted, advisory, not enforced)")
+        else:
+            missing_surfaces.append("binding freshness visibility")
 
     if "estimated_availability_support" in expected_support:
-        advisory_surfaces.append("estimated availability hint")
-        append_unique(handled, "estimated availability guidance (protocol-assisted, advisory, not enforced)")
+        if psurfaces["availability"]:
+            advisory_surfaces.append("estimated availability hint")
+            append_unique(handled, "estimated availability guidance (protocol-assisted, advisory, not enforced)")
+        else:
+            missing_surfaces.append("estimated availability hint")
 
     if "revalidation_guidance" in expected_support:
-        advisory_surfaces.append("revalidation guidance hint")
-        append_unique(handled, "revalidation guidance (protocol-assisted, advisory, not enforced)")
+        if psurfaces["revalidation"]:
+            advisory_surfaces.append("revalidation guidance hint")
+            append_unique(handled, "revalidation guidance (protocol-assisted, advisory, not enforced)")
+        else:
+            missing_surfaces.append("revalidation guidance hint")
 
     # --- Recovery posture ---
     if "resolution_guidance" in expected_support:
@@ -370,6 +484,14 @@ def evaluate_orchestration(
             "no advisory orchestration surfaces detected — core behavior "
             "depends on protocol-visible semantics"
         )
+
+    if missing_surfaces:
+        glue.append(
+            "the proposal does not declare "
+            f"{', '.join(missing_surfaces)} — agents must discover these "
+            "paths through docs or wrapper logic"
+        )
+        append_unique(glue_category, "orchestration")
 
     # --- Cross-service handoff hints ---
     if _is_multi_service(req, proposal):
@@ -435,6 +557,9 @@ def evaluate_cross_service(
     _common_lineage_surfaces(req, handled, why, expected_support)
     _common_multi_service_surfaces(req, proposal, handled, why)
 
+    # --- Inspect proposal for actual declared surfaces ---
+    psurfaces = _extract_proposal_surfaces(proposal)
+
     lineage = req.get("lineage", {})
 
     # --- Cross-service continuity (enforceable) ---
@@ -445,28 +570,44 @@ def evaluate_cross_service(
     if context.get("upstream_service") or context.get("planning_service_capability"):
         append_unique(handled, "upstream service reference in context")
 
-    # --- Cross-service handoff block (advisory) ---
+    # --- Cross-service handoff block (advisory, gated by proposal) ---
     advisory_surfaces: list[str] = []
+    missing_surfaces: list[str] = []
 
     if "cross_service_handoff_guidance" in expected_support:
-        advisory_surfaces.append("handoff_to hint")
-        append_unique(handled, "cross-service handoff guidance (protocol-assisted, advisory, not enforced)")
+        if psurfaces["cross_service_hints"]:
+            advisory_surfaces.append("handoff_to hint")
+            append_unique(handled, "cross-service handoff guidance (protocol-assisted, advisory, not enforced)")
+        else:
+            missing_surfaces.append("cross-service handoff hint")
 
     if "cross_service_refresh_guidance" in expected_support:
-        advisory_surfaces.append("refresh_via hint")
-        append_unique(handled, "cross-service refresh guidance (protocol-assisted, advisory, not enforced)")
+        if psurfaces["refresh_via"]:
+            advisory_surfaces.append("refresh_via hint")
+            append_unique(handled, "cross-service refresh guidance (protocol-assisted, advisory, not enforced)")
+        else:
+            missing_surfaces.append("cross-service refresh hint")
 
     if "cross_service_verification_guidance" in expected_support:
-        advisory_surfaces.append("verify_via hint")
-        append_unique(handled, "cross-service verification guidance (protocol-assisted, advisory, not enforced)")
+        if psurfaces["verify_via"]:
+            advisory_surfaces.append("verify_via hint")
+            append_unique(handled, "cross-service verification guidance (protocol-assisted, advisory, not enforced)")
+        else:
+            missing_surfaces.append("cross-service verification hint")
 
     if "cross_service_reconstruction_guidance" in expected_support:
-        advisory_surfaces.append("cross-service reconstruction hint")
-        append_unique(handled, "cross-service reconstruction guidance (protocol-assisted, advisory, not enforced)")
+        if psurfaces["audit"]:
+            advisory_surfaces.append("cross-service reconstruction hint")
+            append_unique(handled, "cross-service reconstruction guidance (protocol-assisted, advisory, not enforced)")
+        else:
+            missing_surfaces.append("cross-service reconstruction hint")
 
     if "follow_up_guidance" in expected_support:
-        advisory_surfaces.append("followup_via hint")
-        append_unique(handled, "follow-up guidance (protocol-assisted, advisory, not enforced)")
+        if psurfaces["followup"]:
+            advisory_surfaces.append("followup_via hint")
+            append_unique(handled, "follow-up guidance (protocol-assisted, advisory, not enforced)")
+        else:
+            missing_surfaces.append("follow-up hint")
 
     # --- Score reconstruction quality ---
     audit = req.get("audit", {})
@@ -494,6 +635,14 @@ def evaluate_cross_service(
             "cross-service lineage primitives (task_id, parent_invocation_id) "
             "are present but higher-level handoff semantics are not enforced"
         )
+
+    if missing_surfaces:
+        glue.append(
+            "the proposal does not declare "
+            f"{', '.join(missing_surfaces)} — agents must discover these "
+            "paths through docs or wrapper logic"
+        )
+        append_unique(glue_category, "cross_service")
 
     glue.append(
         "you will still write cross-service orchestration and handoff "

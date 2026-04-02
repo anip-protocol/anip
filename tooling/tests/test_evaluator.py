@@ -88,8 +88,24 @@ def _make_requirements(
     return req
 
 
-def _make_proposal(*, shape: str = "production_single_service") -> dict:
-    return {"proposal": {"recommended_shape": shape}}
+def _make_proposal(
+    *,
+    shape: str = "production_single_service",
+    required_components: list | None = None,
+    optional_components: list | None = None,
+    key_runtime_requirements: list | None = None,
+    rationale: list | None = None,
+) -> dict:
+    p: dict = {"recommended_shape": shape}
+    if required_components is not None:
+        p["required_components"] = required_components
+    if optional_components is not None:
+        p["optional_components"] = optional_components
+    if key_runtime_requirements is not None:
+        p["key_runtime_requirements"] = key_runtime_requirements
+    if rationale is not None:
+        p["rationale"] = rationale
+    return {"proposal": p}
 
 
 def _make_scenario(
@@ -259,7 +275,13 @@ class TestOrchestrationAdvisoryOnly:
 
     def test_advisory_refresh_path(self):
         req = _make_requirements()
-        proposal = _make_proposal()
+        proposal = _make_proposal(
+            key_runtime_requirements=[
+                "expose stale-binding failures with explicit recovery posture",
+                "expose which capability typically refreshes stale quote state",
+                "preserve task and parent invocation lineage through refresh loops",
+            ],
+        )
         scenario = _make_scenario(
             name="stale_quote_refresh",
             category="orchestration",
@@ -290,6 +312,40 @@ class TestOrchestrationAdvisoryOnly:
         # Why should mention "hints but does not enforce"
         assert any("hints but does not enforce" in w for w in ev["why"])
 
+    def test_advisory_not_credited_when_proposal_omits_surfaces(self):
+        """When the proposal does not declare refresh/recovery surfaces,
+        the evaluator should NOT credit them as handled."""
+        req = _make_requirements()
+        proposal = _make_proposal()  # bare proposal with no declared surfaces
+        scenario = _make_scenario(
+            name="stale_quote_refresh_bare",
+            category="orchestration",
+            context={
+                "stale_capability": "book_flight",
+                "refresh_capability": "search_flights",
+                "side_effect": "irreversible",
+                "task_id": "trip-refresh",
+            },
+            expected_anip_support=[
+                "structured_failure",
+                "recovery_class",
+                "binding_freshness_visibility",
+                "refresh_path_guidance",
+                "task_id_support",
+                "parent_invocation_id_support",
+                "audit_queryability",
+            ],
+        )
+
+        result = evaluate(req, proposal, scenario)
+        ev = result["evaluation"]
+        assert ev["result"] == "PARTIAL"
+        # Advisory surfaces should NOT be in handled since proposal doesn't declare them
+        advisory_handled = [h for h in ev["handled_by_anip"] if "advisory" in h]
+        assert len(advisory_handled) == 0
+        # Glue should mention that proposal doesn't declare the surfaces
+        assert any("proposal does not declare" in g for g in ev["glue_you_will_still_write"])
+
 
 class TestCrossServiceAdvisoryOnly:
     """test_cross_service_scenario_advisory_only -> PARTIAL"""
@@ -303,7 +359,18 @@ class TestCrossServiceAdvisoryOnly:
             cross_service_continuity=True,
             cross_service_reconstruction=True,
         )
-        proposal = _make_proposal(shape="multi_service_estate")
+        proposal = _make_proposal(
+            shape="multi_service_estate",
+            required_components=[
+                "handoff_propagation_rules",
+                "durable_audit_store_per_service",
+                "lineage_recorder_per_service",
+            ],
+            key_runtime_requirements=[
+                "task identity should survive cross-service execution",
+                "each service should remain independently auditable",
+            ],
+        )
         scenario = _make_scenario(
             name="quote_handoff",
             category="cross_service",
@@ -325,6 +392,43 @@ class TestCrossServiceAdvisoryOnly:
         assert ev["result"] == "PARTIAL"
         # Advisory handoff hint should be noted
         assert any("advisory" in h for h in ev["handled_by_anip"])
+
+    def test_cross_service_not_credited_when_proposal_omits_surfaces(self):
+        """When proposal does not declare cross-service components,
+        advisory hints should not be credited."""
+        req = _make_requirements(
+            services=[
+                {"name": "search", "role": "planning"},
+                {"name": "booking", "role": "execution"},
+            ],
+            cross_service_continuity=True,
+            cross_service_reconstruction=True,
+        )
+        proposal = _make_proposal(shape="multi_service_estate")  # bare proposal
+        scenario = _make_scenario(
+            name="quote_handoff_bare",
+            category="cross_service",
+            context={
+                "planning_service_capability": "search_flights",
+                "execution_service_capability": "book_flight",
+                "task_id": "trip-handoff",
+            },
+            expected_anip_support=[
+                "task_id_support",
+                "parent_invocation_id_support",
+                "audit_queryability",
+                "cross_service_handoff_guidance",
+            ],
+        )
+
+        result = evaluate(req, proposal, scenario)
+        ev = result["evaluation"]
+        assert ev["result"] == "PARTIAL"
+        # Advisory surfaces should NOT be credited
+        advisory_handled = [h for h in ev["handled_by_anip"] if "advisory" in h]
+        assert len(advisory_handled) == 0
+        # Glue should note the missing proposal surfaces
+        assert any("proposal does not declare" in g for g in ev["glue_you_will_still_write"])
 
 
 class TestHandledByAnipSurfaces:

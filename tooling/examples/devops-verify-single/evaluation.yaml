@@ -7,16 +7,16 @@ evaluation:
   - durable audit
   - audit queryability
   - verification path guidance (protocol-assisted, advisory, not enforced)
-  - follow-up path guidance (protocol-assisted, advisory, not enforced)
   glue_you_will_still_write:
   - the protocol provides advisory guidance but enforcement still requires wrapper
     logic
+  - "the proposal does not declare follow-up advisory hint \u2014 agents must discover\
+    \ these paths through docs or wrapper logic"
   glue_category:
   - orchestration
   why:
   - "the protocol hints but does not enforce \u2014 advisory surfaces (verify_via\
-    \ hint, followup_via hint) improve the decision surface but wrapper logic must\
-    \ still act on them"
+    \ hint) improve the decision surface but wrapper logic must still act on them"
   what_would_improve:
   - promote advisory orchestration hints to enforceable protocol surfaces
   confidence: high

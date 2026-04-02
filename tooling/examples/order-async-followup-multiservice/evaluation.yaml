@@ -8,7 +8,6 @@ evaluation:
   - audit queryability
   - cross-service task identity continuity
   - independent but linkable audit records
-  - cleaner service handoff
   - searchable audit
   - cross-service continuity primitives (task_id + parent_invocation_id)
   - cross-service reconstruction guidance (protocol-assisted, advisory, not enforced)
