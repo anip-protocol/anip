@@ -18,8 +18,8 @@
 # Build-time pack converter
 studio/scripts/build-design-packs.ts         # CREATE: scan tooling/examples/*, convert YAML → JSON
 
-# Generated data (gitignored, built fresh)
-studio/src/design/data/packs.generated.ts    # AUTO-GENERATED: pack index + all pack data
+# Generated data (committed — CI has no access to codex tooling repo)
+studio/src/design/data/packs.generated.ts    # AUTO-GENERATED then committed: pack index + all pack data
 
 # Design store
 studio/src/design/store.ts                   # CREATE: reactive design store (active pack, loaded artifacts)
@@ -66,7 +66,7 @@ export interface PackMeta {
   domain: string        // from requirements.system.domain
   category: string      // from scenario.scenario.category
   narrative: string     // from scenario.scenario.narrative
-  result: string        // from evaluation.evaluation.result
+  result: string | null  // from evaluation.evaluation.result, or null when evaluation is missing
   isMultiService: boolean
 }
 
@@ -328,7 +328,7 @@ Sections:
 2. How it works: 5-step flow (Requirements → Proposal → Scenarios → Validation → Glue Gap Analysis) with icons
 3. Example packs: card grid showing all available packs from `getPackMetas()`. Each card shows: name, domain, category badge, narrative excerpt, result badge, "Explore →" link.
 
-Clicking a pack card navigates to `/design/scenarios/{pack.id}`.
+Clicking a pack card navigates to `/design/scenarios/{pack.id}`. Packs without evaluations show "Not evaluated" instead of a result badge.
 
 - [ ] **Step 2: Commit**
 
