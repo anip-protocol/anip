@@ -37,6 +37,7 @@ A complete inventory of what ANIP includes today, organized by layer.
 | `refresh_via` composition hint | Advisory array of capability names to re-invoke when a stale artifact causes failure (e.g., `binding_stale`) | [Capabilities](/docs/protocol/capabilities#advisory-composition-hints-v017) |
 | `verify_via` composition hint | Advisory array of capability names to invoke to verify side effects after executing an irreversible action | [Capabilities](/docs/protocol/capabilities#advisory-composition-hints-v017) |
 | Cross-service continuity | `upstream_service` on invoke request/response/audit — identifies the calling ANIP service in cross-service workflows; services MUST echo and record it, MUST NOT reject foreign `parent_invocation_id` or `task_id` values | [Lineage](/docs/protocol/lineage#cross-service-continuity-v018) |
+| Cross-service handoff hints | `cross_service` on capability declarations with four advisory arrays (`handoff_to`, `refresh_via`, `verify_via`, `followup_via`), each containing `ServiceCapabilityRef` objects (`service` + `capability` strings) for cross-service workflow guidance | [Capabilities](/docs/protocol/capabilities#cross-service-handoff-hints-v019) |
 
 ## Trust and verification
 

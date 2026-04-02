@@ -304,6 +304,76 @@ All capability names in `refresh_via` and `verify_via` MUST be declared in the s
 
 In this example: if `book_flight` fails with `binding_stale`, an agent reading `refresh_via` knows to re-invoke `search_flights` to get a fresh quote before retrying.
 
+## Cross-service handoff hints (v0.19)
+
+Cross-service handoff hints extend the advisory composition model across service boundaries. Where `refresh_via` and `verify_via` reference capabilities in the same manifest, `cross_service` references capabilities on other services.
+
+### Fields
+
+The `cross_service` object on a capability declaration carries four optional arrays:
+
+| Array | Type | Description |
+|-------|------|-------------|
+| `handoff_to` | ServiceCapabilityRef[] | Capabilities on other services this capability naturally leads into |
+| `refresh_via` | ServiceCapabilityRef[] | Capabilities on other services that can refresh a stale artifact before retrying this capability |
+| `verify_via` | ServiceCapabilityRef[] | Capabilities on other services that can verify side effects after executing this capability |
+| `followup_via` | ServiceCapabilityRef[] | Capabilities on other services that are useful follow-up steps after this capability completes |
+
+Each entry is a `ServiceCapabilityRef` with two required fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `service` | string | The service identifier of the target service |
+| `capability` | string | The capability name on that service |
+
+### When to use cross_service hints
+
+**`handoff_to`** — Use when this capability produces output that is intended as input to a capability on another service. For example, a search service that produces quotes intended for a booking service on a different ANIP endpoint.
+
+**`refresh_via`** — Use when the capability depends on a fresh artifact (quote, price lock) that may be produced by a capability on another service. An agent receiving `binding_stale` can follow this hint to refresh from the upstream service.
+
+**`verify_via`** — Use on capabilities with irreversible side effects where a capability on another service can confirm the side effect occurred correctly.
+
+**`followup_via`** — Use when this capability naturally triggers a subsequent step on another service as part of a multi-service workflow.
+
+### Example
+
+```json
+{
+  "search_flights": {
+    "description": "Search available flights",
+    "side_effect": { "type": "read" },
+    "cross_service": {
+      "handoff_to": [
+        { "service": "travel-booking", "capability": "book_flight" }
+      ]
+    }
+  },
+  "book_flight": {
+    "description": "Book a confirmed flight reservation",
+    "side_effect": { "type": "irreversible" },
+    "cross_service": {
+      "refresh_via": [
+        { "service": "travel-search", "capability": "search_flights" }
+      ]
+    }
+  }
+}
+```
+
+These hints are advisory only — the protocol does not enforce cross-service ordering. They guide agents in multi-service workflows without encoding hard protocol constraints.
+
+### Same-service vs cross-service hints
+
+| Hint type | Scope | Field |
+|-----------|-------|-------|
+| `refresh_via` (capability-level) | Same manifest | String array of capability names |
+| `verify_via` (capability-level) | Same manifest | String array of capability names |
+| `cross_service.handoff_to` | Other services | Array of `ServiceCapabilityRef` |
+| `cross_service.refresh_via` | Other services | Array of `ServiceCapabilityRef` |
+| `cross_service.verify_via` | Other services | Array of `ServiceCapabilityRef` |
+| `cross_service.followup_via` | Other services | Array of `ServiceCapabilityRef` |
+
 ## Next steps
 
 - **[Delegation & Permissions](/docs/protocol/delegation-permissions)** — How authority and scope work

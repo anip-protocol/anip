@@ -212,6 +212,8 @@ graph LR
 
 This replaces ad-hoc service identity headers and custom tracing sidecars that teams previously built into their orchestration layers.
 
+For agents that need to discover which capabilities to invoke on other services as part of a workflow, see [Cross-service handoff hints (v0.19)](/docs/protocol/capabilities#cross-service-handoff-hints-v019) — capability declarations can now carry advisory `cross_service` hints that name the target service and capability for handoff, refresh, verification, and follow-up steps.
+
 ## Lineage and trust
 
 Lineage connects to ANIP's trust model:

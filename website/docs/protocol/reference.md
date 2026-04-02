@@ -238,6 +238,7 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 | `observability` | object | No | Logging and retention posture |
 | `refresh_via` | string[] | No | Advisory: capabilities to re-invoke when a stale or missing artifact causes a failure. Every name must exist in the same manifest. |
 | `verify_via` | string[] | No | Advisory: capabilities to invoke to verify side effects after executing this capability. Every name must exist in the same manifest. |
+| `cross_service` | object | No | Advisory cross-service handoff hints. See [Cross-service handoff hints (v0.19)](/docs/protocol/capabilities#cross-service-handoff-hints-v019). |
 
 ### Input field
 
@@ -266,6 +267,24 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 | `financial` | object | Optional: `currency`, `range_min`, `range_max`, `typical` |
 | `compute` | object | Optional: `expected_duration`, resource hints |
 | `determined_by` | string | Optional: what determines the cost (e.g., `"passenger_count"`) |
+
+### Cross-service hints (v0.19)
+
+The `cross_service` object contains four optional arrays, each of type `ServiceCapabilityRef[]`:
+
+| Array | Description |
+|-------|-------------|
+| `handoff_to` | Capabilities on other services this capability naturally leads into |
+| `refresh_via` | Capabilities on other services that refresh a stale artifact |
+| `verify_via` | Capabilities on other services that verify side effects |
+| `followup_via` | Capabilities on other services useful after this one completes |
+
+### ServiceCapabilityRef (v0.19)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `service` | string | Yes | The service identifier of the target service |
+| `capability` | string | Yes | The capability name on that service |
 
 ---
 
