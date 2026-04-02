@@ -177,16 +177,7 @@ V2: `["safety", "orchestration", "observability", "cross_service"]`
 
 This was already noted in `tooling/SCHEMA_EVOLUTION_V2.md`.
 
-#### b) Add optional `severity` to evaluation
-
-```yaml
-evaluation:
-  severity: high | medium | low
-```
-
-Indicates how critical the remaining glue is. A `PARTIAL` with `severity: low` means "almost handled, minor wrapper remains." A `PARTIAL` with `severity: high` means "significant glue still required."
-
-#### c) Keep glue items as flat strings for V2
+#### b) Keep glue items as flat strings for V2
 
 Per-item category tagging is tempting but not justified yet. The evaluator doesn't produce per-item categories reliably. Keep them flat. Reconsider in V3 if the evaluator evolves to produce structured glue items.
 
@@ -218,7 +209,6 @@ Most of the 10 new evaluations should land at PARTIAL — the protocol has advis
 - Vendor tooling into ANIP repo (Task 0)
 - Hardened evaluator with scenario-type dispatch (safety, recovery, orchestration, cross_service, observability) + honest advisory scoring
 - `cross_service` glue category added to schema
-- Optional `severity` on evaluation
 - Live validation from Studio (Python FastAPI sidecar, NOT embedded in nginx container)
 - All 13 packs evaluated
 - "Run Validation" button in Studio UI
@@ -228,6 +218,7 @@ Most of the 10 new evaluations should land at PARTIAL — the protocol has advis
 
 ### Deferred to V3+
 
+- Evaluation `severity` field (needs a concrete evaluator rubric before adding to schema)
 - Per-glue-item category tagging (needs evaluator to produce structured items first)
 - Requirements/scenario editing in Studio
 - Legacy comparison mode
@@ -249,7 +240,7 @@ tooling/                                      # CREATE: copy from codex repo (bi
 tooling/bin/anip_design_validate.py           # MODIFY: add scenario-type dispatch, advisory scoring, v0.14-v0.19 rules
 
 # Schema
-tooling/schemas/evaluation.schema.json        # MODIFY: add cross_service to glue_category, add optional severity
+tooling/schemas/evaluation.schema.json        # MODIFY: add cross_service to glue_category
 
 # Evaluations for all packs
 tooling/examples/*/evaluation.yaml            # CREATE/UPDATE: run hardened evaluator on all 13 packs
@@ -262,7 +253,7 @@ studio/server/requirements.txt                # CREATE: fastapi, uvicorn, pyyaml
 studio/src/views/EvaluationView.vue           # MODIFY: add "Run Validation" button, live/pre-computed indicator
 studio/src/design/api.ts                      # CREATE: validation API client
 studio/src/design/store.ts                    # MODIFY: add live evaluation state
-studio/src/design/types.ts                    # MODIFY: add severity to Evaluation type
+studio/src/design/types.ts                    # MODIFY: add cross_service to category type
 
 # Vite dev proxy
 studio/vite.config.ts                         # MODIFY: add /api proxy to Python sidecar
@@ -286,5 +277,5 @@ V2 is successful if:
 - All 13 packs have evaluations that feel honest when read
 - Users can run validation from the Studio UI
 - The Glue Gap Analysis is more discriminating than V1 (stricter threshold)
-- The evaluation severity signal helps distinguish "almost handled" from "major gap"
+- The `cross_service` glue category makes distributed scenarios more honest
 - The product feels like a validation engine, not just an artifact viewer
