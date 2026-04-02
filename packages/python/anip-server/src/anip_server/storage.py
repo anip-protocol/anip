@@ -329,6 +329,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     client_reference_id TEXT,
     task_id TEXT,
     parent_invocation_id TEXT,
+    upstream_service TEXT,
     stream_summary TEXT,
     previous_hash TEXT NOT NULL,
     signature TEXT,
@@ -419,6 +420,10 @@ class SQLiteStorage:
             pass  # column already exists
         try:
             self._conn.execute("ALTER TABLE audit_log ADD COLUMN parent_invocation_id TEXT")
+        except Exception:
+            pass  # column already exists
+        try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN upstream_service TEXT")
         except Exception:
             pass  # column already exists
         try:
@@ -530,13 +535,13 @@ class SQLiteStorage:
                    (sequence_number, timestamp, capability, token_id, issuer,
                     subject, root_principal, parameters, success, result_summary,
                     failure_type, cost_actual, delegation_chain, invocation_id,
-                    client_reference_id, task_id, parent_invocation_id,
+                    client_reference_id, task_id, parent_invocation_id, upstream_service,
                     stream_summary, previous_hash, signature,
                     event_class, retention_tier, expires_at,
                     storage_redacted, entry_type, grouping_key,
                     aggregation_window, aggregation_count, first_seen,
                     last_seen, representative_detail)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     entry["sequence_number"],
                     entry["timestamp"],
@@ -555,6 +560,7 @@ class SQLiteStorage:
                     entry.get("client_reference_id"),
                     entry.get("task_id"),
                     entry.get("parent_invocation_id"),
+                    entry.get("upstream_service"),
                     json.dumps(entry["stream_summary"]) if entry.get("stream_summary") is not None else None,
                     entry["previous_hash"],
                     entry.get("signature"),
@@ -842,13 +848,13 @@ class SQLiteStorage:
                    (sequence_number, timestamp, capability, token_id, issuer,
                     subject, root_principal, parameters, success, result_summary,
                     failure_type, cost_actual, delegation_chain, invocation_id,
-                    client_reference_id, task_id, parent_invocation_id,
+                    client_reference_id, task_id, parent_invocation_id, upstream_service,
                     stream_summary, previous_hash, signature,
                     event_class, retention_tier, expires_at,
                     storage_redacted, entry_type, grouping_key,
                     aggregation_window, aggregation_count, first_seen,
                     last_seen, representative_detail)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     entry["sequence_number"],
                     entry.get("timestamp"),
@@ -867,6 +873,7 @@ class SQLiteStorage:
                     entry.get("client_reference_id"),
                     entry.get("task_id"),
                     entry.get("parent_invocation_id"),
+                    entry.get("upstream_service"),
                     json.dumps(entry["stream_summary"]) if entry.get("stream_summary") is not None else None,
                     entry["previous_hash"],
                     entry.get("signature"),

@@ -126,6 +126,7 @@ class AnipStdioServer:
         client_reference_id = params.get("client_reference_id")
         task_id = params.get("task_id")
         parent_invocation_id = params.get("parent_invocation_id")
+        upstream_service = params.get("upstream_service")
         stream = params.get("stream", False)
 
         if stream:
@@ -141,6 +142,7 @@ class AnipStdioServer:
                 client_reference_id=client_reference_id,
                 task_id=task_id,
                 parent_invocation_id=parent_invocation_id,
+                upstream_service=upstream_service,
                 stream=True,
                 _progress_sink=_progress_sink,
             )
@@ -151,6 +153,7 @@ class AnipStdioServer:
             client_reference_id=client_reference_id,
             task_id=task_id,
             parent_invocation_id=parent_invocation_id,
+            upstream_service=upstream_service,
         )
         return result
 

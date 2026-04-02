@@ -205,6 +205,7 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
         client_reference_id = request.client_reference_id or None
         task_id = request.task_id or None
         parent_invocation_id = request.parent_invocation_id or None
+        upstream_service = request.upstream_service or None
 
         try:
             result = _run_async(self._service.invoke(
@@ -212,6 +213,7 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                 client_reference_id=client_reference_id,
                 task_id=task_id,
                 parent_invocation_id=parent_invocation_id,
+                upstream_service=upstream_service,
             ))
         except ANIPError as exc:
             return anip_pb2.InvokeResponse(
@@ -232,6 +234,7 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
             client_reference_id=result.get("client_reference_id", "") or "",
             task_id=result.get("task_id", ""),
             parent_invocation_id=result.get("parent_invocation_id", ""),
+            upstream_service=result.get("upstream_service", "") or "",
         )
 
         if success:
@@ -268,6 +271,7 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
         client_reference_id = request.client_reference_id or None
         task_id = request.task_id or None
         parent_invocation_id = request.parent_invocation_id or None
+        upstream_service = request.upstream_service or None
 
         # Collect progress events, then yield them followed by the final event
         progress_events: list[dict[str, Any]] = []
@@ -281,6 +285,7 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                 client_reference_id=client_reference_id,
                 task_id=task_id,
                 parent_invocation_id=parent_invocation_id,
+                upstream_service=upstream_service,
                 stream=True,
                 _progress_sink=_progress_sink,
             )
@@ -299,6 +304,7 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                     ),
                     task_id=task_id or "",
                     parent_invocation_id=parent_invocation_id or "",
+                    upstream_service=upstream_service or "",
                 ),
             )
             return
@@ -339,6 +345,7 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                 cost_actual_json=json.dumps(cost_actual) if cost_actual is not None else "",
                 task_id=result.get("task_id", ""),
                 parent_invocation_id=result.get("parent_invocation_id", ""),
+                upstream_service=result.get("upstream_service", "") or "",
             )
             if pb_budget_ctx:
                 completed.budget_context.CopyFrom(pb_budget_ctx)
@@ -351,6 +358,7 @@ class AnipGrpcServicer(anip_pb2_grpc.AnipServiceServicer):
                 failure=_make_anip_failure(failure),
                 task_id=result.get("task_id", ""),
                 parent_invocation_id=result.get("parent_invocation_id", ""),
+                upstream_service=result.get("upstream_service", "") or "",
             )
             if pb_budget_ctx:
                 failed.budget_context.CopyFrom(pb_budget_ctx)
