@@ -7,7 +7,7 @@ description: Current distribution status across all ANIP ecosystems.
 
 ANIP is not a spec waiting for implementations. Here's what's available now.
 
-## Protocol features through v0.14
+## Protocol features through v0.17
 
 Everything below is implemented in the runtimes and exercised by the conformance suite:
 
@@ -25,6 +25,9 @@ Everything below is implemented in the runtimes and exercised by the conformance
 - **Task identity and invocation lineage (v0.12)**: `task_id` groups related invocations under a single task/workflow; `parent_invocation_id` forms invocation trees for causal tracing; token purpose binding (`purpose.task_id` authoritative, request must match); audit queries filterable by `task_id` and `parent_invocation_id`
 - **Budget, binding, and control (v0.13)**: Enforceable budget constraints via `token.constraints.budget`; budget narrowing in delegation chains; `requires_binding` on capabilities for execution-time binding; `control_requirements` vocabulary; 6 new failure types; `budget_context` in invoke responses; `unmet_token_requirements` in permission discovery; `FinancialCost` structured type
 - **Binding/control simplification (v0.14)**: Removed `bound_reference`/`freshness_window` overlap from `control_requirements`; protocol version `anip/0.14`
+- **Authority and blocked-action clarity (v0.15)**: `reason_type` on restricted/denied capabilities (5 values); `resolution_hint` on restricted; `non_delegable_action` failure type; canonical authority actions (`request_broader_scope`, `request_capability_binding`); deprecated `request_scope_grant`
+- **Recovery posture (v0.16)**: `recovery_class` on resolution (6 values: `retry_now`, `wait_then_retry`, `refresh_then_retry`, `redelegation_then_retry`, `revalidate_then_retry`, `terminal`); 5 new canonical actions (`retry_now`, `revalidate_state`, `provide_credentials`, `check_manifest`, `contact_service_owner`); all transport-layer actions canonicalized
+- **Advisory composition hints (v0.17)**: `refresh_via` and `verify_via` on capability declarations; same-manifest advisory hints for refresh paths and post-action verification
 
 ## Published to package registries
 
