@@ -253,7 +253,7 @@ Add `refresh_via` and `verify_via` to the CapabilityDeclaration field table in `
 
 Add v0.17 entries.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add website/
