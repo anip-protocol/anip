@@ -142,6 +142,7 @@ public class AnipController : ControllerBase
             parameters.Remove("client_reference_id");
             parameters.Remove("task_id");
             parameters.Remove("parent_invocation_id");
+            parameters.Remove("upstream_service");
         }
 
         // Check for streaming.
@@ -201,9 +202,23 @@ public class AnipController : ControllerBase
             }
         }
 
+        // Extract upstream_service.
+        string? upstreamService = null;
+        if (body.TryGetValue("upstream_service", out var usObj))
+        {
+            if (usObj is JsonElement usEl && usEl.ValueKind == JsonValueKind.String)
+            {
+                upstreamService = usEl.GetString();
+            }
+            else if (usObj is string usStr)
+            {
+                upstreamService = usStr;
+            }
+        }
+
         if (stream)
         {
-            return await HandleStreamInvoke(capability, token, parameters, clientRefId, taskId, parentInvocationId);
+            return await HandleStreamInvoke(capability, token, parameters, clientRefId, taskId, parentInvocationId, upstreamService);
         }
 
         var opts = new InvokeOpts
@@ -211,6 +226,7 @@ public class AnipController : ControllerBase
             ClientReferenceId = clientRefId,
             TaskId = taskId,
             ParentInvocationId = parentInvocationId,
+            UpstreamService = upstreamService,
             Stream = false,
         };
 
@@ -392,7 +408,8 @@ public class AnipController : ControllerBase
         Dictionary<string, object?> parameters,
         string? clientRefId,
         string? taskId,
-        string? parentInvocationId)
+        string? parentInvocationId,
+        string? upstreamService)
     {
         StreamResult sr;
         try
@@ -402,6 +419,7 @@ public class AnipController : ControllerBase
                 ClientReferenceId = clientRefId,
                 TaskId = taskId,
                 ParentInvocationId = parentInvocationId,
+                UpstreamService = upstreamService,
                 Stream = true,
             };
             sr = _service.InvokeStream(capability, token, parameters, opts);

@@ -22,6 +22,9 @@ public class InvokeRequest
     [JsonPropertyName("parent_invocation_id")]
     public string? ParentInvocationId { get; set; }
 
+    [JsonPropertyName("upstream_service")]
+    public string? UpstreamService { get; set; }
+
     [JsonPropertyName("stream")]
     public bool Stream { get; set; }
 }
