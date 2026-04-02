@@ -24,7 +24,7 @@ public static class SearchFlightsCapability
             Output = new CapabilityOutput
             {
                 Type = "flight_list",
-                Fields = new List<string> { "flight_number", "departure_time", "arrival_time", "price", "stops" },
+                Fields = new List<string> { "flight_number", "departure_time", "arrival_time", "price", "stops", "quote_id" },
             },
             SideEffect = new SideEffect
             {
@@ -33,6 +33,8 @@ public static class SearchFlightsCapability
             },
             MinimumScope = new List<string> { "travel.search" },
             ResponseModes = new List<string> { "unary" },
+            RefreshVia = new List<string>(),
+            VerifyVia = new List<string>(),
         };
 
         return new CapabilityDef(declaration, Handle);
@@ -51,6 +53,19 @@ public static class SearchFlightsCapability
         }
 
         var flights = FlightData.SearchFlights(origin, destination, date);
+        var epoch = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        foreach (var flight in flights)
+        {
+            var bytes = new byte[4];
+            System.Security.Cryptography.RandomNumberGenerator.Fill(bytes);
+            flight["quote_id"] = new Dictionary<string, object>
+            {
+                ["id"] = $"qt-{Convert.ToHexString(bytes).ToLowerInvariant()}",
+                ["price"] = flight["price"]!,
+                ["issued_at"] = epoch,
+            };
+        }
 
         return new Dictionary<string, object?>
         {

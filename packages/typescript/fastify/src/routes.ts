@@ -62,6 +62,7 @@ export async function mountAnip(
       const clientReferenceId = (body.client_reference_id as string) ?? null;
       const taskId = (body.task_id as string) ?? null;
       const parentInvocationId = (body.parent_invocation_id as string) ?? null;
+      const upstreamService = (body.upstream_service as string) ?? null;
       const budget = (body.budget as Record<string, unknown>) ?? null;
 
       if (!body.stream) {
@@ -70,6 +71,7 @@ export async function mountAnip(
           clientReferenceId,
           taskId,
           parentInvocationId,
+          upstreamService,
           budget,
         });
         if (!result.success) {
@@ -84,7 +86,7 @@ export async function mountAnip(
       const modes = (decl?.response_modes as string[]) ?? ["unary"];
       if (!modes.includes("streaming")) {
         const result = await service.invoke(req.params.capability, token, params, {
-          clientReferenceId, taskId, parentInvocationId, stream: true, budget,
+          clientReferenceId, taskId, parentInvocationId, upstreamService, stream: true, budget,
         });
         const failure = result.failure as Record<string, unknown>;
         return reply.status(failureStatus(failure?.type as string)).send(result);
@@ -103,6 +105,7 @@ export async function mountAnip(
         clientReferenceId,
         taskId,
         parentInvocationId,
+        upstreamService,
         stream: true,
         budget,
         progressSink: async (event) => {

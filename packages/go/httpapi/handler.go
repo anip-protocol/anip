@@ -202,6 +202,7 @@ func handleInvoke(svc *service.Service) http.HandlerFunc {
 		clientRefID, _ := body["client_reference_id"].(string)
 		taskID, _ := body["task_id"].(string)
 		parentInvID, _ := body["parent_invocation_id"].(string)
+		upstreamSvc, _ := body["upstream_service"].(string)
 		stream, _ := body["stream"].(bool)
 
 		// Extract budget from request body.
@@ -215,7 +216,7 @@ func handleInvoke(svc *service.Service) http.HandlerFunc {
 		}
 
 		if stream {
-			handleStreamInvoke(w, svc, capName, token, params, clientRefID, taskID, parentInvID, budget)
+			handleStreamInvoke(w, svc, capName, token, params, clientRefID, taskID, parentInvID, upstreamSvc, budget)
 			return
 		}
 
@@ -223,6 +224,7 @@ func handleInvoke(svc *service.Service) http.HandlerFunc {
 			ClientReferenceID:  clientRefID,
 			TaskID:             taskID,
 			ParentInvocationID: parentInvID,
+			UpstreamService:    upstreamSvc,
 			Stream:             false,
 			Budget:             budget,
 		})
@@ -245,11 +247,12 @@ func handleInvoke(svc *service.Service) http.HandlerFunc {
 	}
 }
 
-func handleStreamInvoke(w http.ResponseWriter, svc *service.Service, capName string, token *core.DelegationToken, params map[string]any, clientRefID, taskID, parentInvID string, budget *core.Budget) {
+func handleStreamInvoke(w http.ResponseWriter, svc *service.Service, capName string, token *core.DelegationToken, params map[string]any, clientRefID, taskID, parentInvID, upstreamSvc string, budget *core.Budget) {
 	sr, err := svc.InvokeStream(capName, token, params, service.InvokeOpts{
 		ClientReferenceID:  clientRefID,
 		TaskID:             taskID,
 		ParentInvocationID: parentInvID,
+		UpstreamService:    upstreamSvc,
 		Stream:             true,
 		Budget:             budget,
 	})

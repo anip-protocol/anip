@@ -3,12 +3,19 @@ package main
 import (
 	"crypto/rand"
 	"fmt"
+	"time"
 
 	"github.com/anip-protocol/anip/packages/go/core"
 	"github.com/anip-protocol/anip/packages/go/service"
 )
 
 func floatPtr(f float64) *float64 { return &f }
+
+func randomHex(n int) string {
+	b := make([]byte, n)
+	rand.Read(b)
+	return fmt.Sprintf("%x", b)
+}
 
 // SearchFlights returns the search_flights capability definition.
 func SearchFlights() service.CapabilityDef {
@@ -24,7 +31,7 @@ func SearchFlights() service.CapabilityDef {
 			},
 			Output: core.CapabilityOutput{
 				Type:   "flight_list",
-				Fields: []string{"flight_number", "departure_time", "arrival_time", "price", "stops"},
+				Fields: []string{"flight_number", "departure_time", "arrival_time", "price", "stops", "quote_id"},
 			},
 			SideEffect: core.SideEffect{
 				Type:           "read",
@@ -32,6 +39,8 @@ func SearchFlights() service.CapabilityDef {
 			},
 			MinimumScope:  []string{"travel.search"},
 			ResponseModes: []string{"unary"},
+			RefreshVia:    []string{},
+			VerifyVia:     []string{},
 		},
 		Handler: handleSearchFlights,
 	}
@@ -48,6 +57,7 @@ func BookFlight() service.CapabilityDef {
 				{Name: "flight_number", Type: "string", Required: true, Description: "Flight to book"},
 				{Name: "date", Type: "date", Required: true, Description: "Travel date (YYYY-MM-DD)"},
 				{Name: "passengers", Type: "integer", Required: false, Default: 1, Description: "Number of passengers"},
+				{Name: "quote_id", Type: "object", Required: false, Description: "Priced quote from search_flights"},
 			},
 			Output: core.CapabilityOutput{
 				Type:   "booking_confirmation",
@@ -73,7 +83,18 @@ func BookFlight() service.CapabilityDef {
 					Reason:     "must select from available flights before booking",
 				},
 			},
-			ResponseModes: []string{"unary"},
+			RequiresBinding: []core.BindingRequirement{
+				{
+					Type:             "quote",
+					Field:            "quote_id",
+					SourceCapability: "search_flights",
+					MaxAge:           "PT15M",
+				},
+			},
+			ControlRequirements: []core.ControlRequirement{},
+			RefreshVia:          []string{"search_flights"},
+			VerifyVia:           []string{},
+			ResponseModes:       []string{"unary"},
 		},
 		Handler: handleBookFlight,
 	}
@@ -142,6 +163,11 @@ func handleSearchFlights(ctx *service.InvocationContext, params map[string]any) 
 			"price":          f.Price,
 			"currency":       f.Currency,
 			"stops":          f.Stops,
+			"quote_id": map[string]any{
+				"id":        fmt.Sprintf("qt-%s-%d", randomHex(4), time.Now().Unix()),
+				"price":     f.Price,
+				"issued_at": time.Now().Unix(),
+			},
 		}
 	}
 
@@ -159,6 +185,14 @@ func handleBookFlight(ctx *service.InvocationContext, params map[string]any) (ma
 		passengers = int(p)
 	}
 
+	// Accept quote_id; extract price override if provided.
+	var quotedPrice float64
+	if qid, ok := params["quote_id"].(map[string]any); ok {
+		if p, ok := qid["price"].(float64); ok {
+			quotedPrice = p
+		}
+	}
+
 	if flightNumber == "" || date == "" {
 		return nil, core.NewANIPError("invalid_parameters", "flight_number and date are required")
 	}
@@ -168,7 +202,11 @@ func handleBookFlight(ctx *service.InvocationContext, params map[string]any) (ma
 		return nil, core.NewANIPError(core.FailureUnavailable, fmt.Sprintf("flight %s on %s not found", flightNumber, date))
 	}
 
-	totalCost := f.Price * float64(passengers)
+	price := f.Price
+	if quotedPrice > 0 {
+		price = quotedPrice
+	}
+	totalCost := price * float64(passengers)
 
 	// Generate booking ID.
 	b := make([]byte, 4)

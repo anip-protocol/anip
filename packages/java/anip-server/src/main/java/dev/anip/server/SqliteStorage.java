@@ -41,6 +41,7 @@ public class SqliteStorage implements Storage {
                 client_reference_id TEXT,
                 task_id TEXT,
                 parent_invocation_id TEXT,
+                upstream_service TEXT,
                 data TEXT NOT NULL,
                 previous_hash TEXT NOT NULL,
                 signature TEXT
@@ -160,8 +161,8 @@ public class SqliteStorage implements Storage {
                         """
                         INSERT INTO audit_log (timestamp, capability, token_id, root_principal,
                             invocation_id, client_reference_id, task_id, parent_invocation_id,
-                            data, previous_hash, signature)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            upstream_service, data, previous_hash, signature)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, Statement.RETURN_GENERATED_KEYS)) {
                     ps.setString(1, entry.getTimestamp());
                     ps.setString(2, entry.getCapability());
@@ -171,9 +172,10 @@ public class SqliteStorage implements Storage {
                     ps.setString(6, entry.getClientReferenceId());
                     ps.setString(7, entry.getTaskId());
                     ps.setString(8, entry.getParentInvocationId());
-                    ps.setString(9, data);
-                    ps.setString(10, prevHash);
-                    ps.setString(11, entry.getSignature());
+                    ps.setString(9, entry.getUpstreamService());
+                    ps.setString(10, data);
+                    ps.setString(11, prevHash);
+                    ps.setString(12, entry.getSignature());
                     ps.executeUpdate();
 
                     try (ResultSet keys = ps.getGeneratedKeys()) {

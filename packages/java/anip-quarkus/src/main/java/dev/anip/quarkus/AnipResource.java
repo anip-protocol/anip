@@ -194,6 +194,7 @@ public class AnipResource {
                 params.remove("client_reference_id");
                 params.remove("task_id");
                 params.remove("parent_invocation_id");
+                params.remove("upstream_service");
             }
         }
 
@@ -204,17 +205,18 @@ public class AnipResource {
         }
         String taskId = body != null ? (String) body.get("task_id") : null;
         String parentInvId = body != null ? (String) body.get("parent_invocation_id") : null;
+        String upstreamService = body != null ? (String) body.get("upstream_service") : null;
 
         // Extract budget from request body.
         dev.anip.core.Budget budget = extractBudget(body);
 
         if (stream) {
-            InvokeOpts streamOpts = new InvokeOpts(clientRefId, true, taskId, parentInvId);
+            InvokeOpts streamOpts = new InvokeOpts(clientRefId, true, taskId, parentInvId, upstreamService);
             if (budget != null) streamOpts.setBudget(budget);
             return handleStreamInvoke(capability, token, params, streamOpts);
         }
 
-        InvokeOpts opts = new InvokeOpts(clientRefId, false, taskId, parentInvId);
+        InvokeOpts opts = new InvokeOpts(clientRefId, false, taskId, parentInvId, upstreamService);
         if (budget != null) opts.setBudget(budget);
         Map<String, Object> result = service.invoke(capability, token, params, opts);
 

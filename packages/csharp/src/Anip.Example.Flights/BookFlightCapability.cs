@@ -21,6 +21,7 @@ public static class BookFlightCapability
                 new() { Name = "flight_number", Type = "string", Required = true, Description = "Flight to book" },
                 new() { Name = "date", Type = "date", Required = true, Description = "Travel date (YYYY-MM-DD)" },
                 new() { Name = "passengers", Type = "integer", Required = false, Default = 1, Description = "Number of passengers" },
+                new() { Name = "quote_id", Type = "object", Required = true, Description = "Priced quote from search_flights" },
             },
             Output = new CapabilityOutput
             {
@@ -52,6 +53,19 @@ public static class BookFlightCapability
                     Reason = "must select from available flights before booking",
                 },
             },
+            RequiresBinding = new List<BindingRequirement>
+            {
+                new()
+                {
+                    Type = "quote",
+                    Field = "quote_id",
+                    SourceCapability = "search_flights",
+                    MaxAge = "PT15M",
+                },
+            },
+            ControlRequirements = new List<ControlRequirement>(),
+            RefreshVia = new List<string> { "search_flights" },
+            VerifyVia = new List<string>(),
             ResponseModes = new List<string> { "unary" },
         };
 
@@ -63,6 +77,7 @@ public static class BookFlightCapability
         var flightNumber = GetString(parameters, "flight_number");
         var date = GetString(parameters, "date");
         var passengers = GetInt(parameters, "passengers", 1);
+        parameters.TryGetValue("quote_id", out var quoteId);
 
         if (string.IsNullOrEmpty(flightNumber) || string.IsNullOrEmpty(date))
         {

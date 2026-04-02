@@ -288,6 +288,7 @@ export class AnipStdioServer {
     const taskId = (params.task_id as string | undefined) ?? null;
     const parentInvocationId =
       (params.parent_invocation_id as string | undefined) ?? null;
+    const upstreamService = (params.upstream_service as string | undefined) ?? null;
     const stream = params.stream === true;
     const budget = (params.budget as Record<string, unknown> | undefined) ?? null;
 
@@ -306,6 +307,7 @@ export class AnipStdioServer {
         clientReferenceId,
         taskId,
         parentInvocationId,
+        upstreamService,
         stream: true,
         budget,
         progressSink,
@@ -317,6 +319,7 @@ export class AnipStdioServer {
       clientReferenceId,
       taskId,
       parentInvocationId,
+      upstreamService,
       budget,
     });
   }

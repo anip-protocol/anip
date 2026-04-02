@@ -41,6 +41,7 @@ public class PostgresStorage implements Storage {
                 client_reference_id TEXT,
                 task_id TEXT,
                 parent_invocation_id TEXT,
+                upstream_service TEXT,
                 data TEXT NOT NULL,
                 previous_hash TEXT NOT NULL,
                 signature TEXT NOT NULL DEFAULT ''
@@ -224,8 +225,8 @@ public class PostgresStorage implements Storage {
                         """
                         INSERT INTO audit_log (sequence_number, timestamp, capability, token_id, root_principal,
                             invocation_id, client_reference_id, task_id, parent_invocation_id,
-                            data, previous_hash, signature)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            upstream_service, data, previous_hash, signature)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """)) {
                     ps.setLong(1, newSeqNum);
                     ps.setString(2, entry.getTimestamp());
@@ -236,9 +237,10 @@ public class PostgresStorage implements Storage {
                     ps.setString(7, entry.getClientReferenceId());
                     ps.setString(8, entry.getTaskId());
                     ps.setString(9, entry.getParentInvocationId());
-                    ps.setString(10, data);
-                    ps.setString(11, prevHash);
-                    ps.setString(12, entry.getSignature() != null ? entry.getSignature() : "");
+                    ps.setString(10, entry.getUpstreamService());
+                    ps.setString(11, data);
+                    ps.setString(12, prevHash);
+                    ps.setString(13, entry.getSignature() != null ? entry.getSignature() : "");
                     ps.executeUpdate();
                 }
 
