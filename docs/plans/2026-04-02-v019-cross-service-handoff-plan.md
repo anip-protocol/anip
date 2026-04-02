@@ -81,10 +81,11 @@ Add `ServiceCapabilityRef` to `$defs`:
 "ServiceCapabilityRef": {
   "type": "object",
   "properties": {
-    "service": {"type": "string"},
-    "capability": {"type": "string"}
+    "service": {"type": "string", "minLength": 1},
+    "capability": {"type": "string", "minLength": 1}
   },
-  "required": ["service", "capability"]
+  "required": ["service", "capability"],
+  "additionalProperties": false
 }
 ```
 
@@ -220,7 +221,7 @@ cross_service=CrossServiceHints(
 )
 ```
 
-Note: the travel showcase is a single service, so these are illustrative — showing what the hints would look like if search and booking were separate services.
+Note: the travel showcase is a single service, not a real multi-service deployment. These hints are added so that conformance has a real manifest target to test against (the roundtrip test requires at least one capability with `cross_service`). The `service` values are hypothetical — they demonstrate the syntax and schema shape, not a real topology. Add a code comment in the capability declaration making this explicit: `# Cross-service hints (illustrative — this is a single-service showcase)`.
 
 - [ ] **Step 2: Commit**
 
@@ -238,11 +239,11 @@ git commit -m "feat(showcase): add cross_service handoff hints to travel example
 
 - [ ] **Step 1: Write conformance tests**
 
-- `test_cross_service_block_in_manifest` — fetch `/anip/manifest`, if any capability has `cross_service`, verify it's an object with the expected keys
-- `test_service_capability_ref_shape` — every entry in `handoff_to`/`refresh_via`/`verify_via`/`followup_via` must have `service` (string) and `capability` (string)
+- `test_cross_service_roundtrip_through_manifest` — fetch `/anip/manifest`, find a capability that declares `cross_service` (the showcase MUST have at least one), verify the block and its arrays survive serialization in the HTTP response. This is the primary test — it proves the manifest layer actually exposes the field, not just the model.
+- `test_service_capability_ref_shape` — every entry in `handoff_to`/`refresh_via`/`verify_via`/`followup_via` must have `service` (non-empty string) and `capability` (non-empty string), with no unexpected extra keys
 - `test_cross_service_optional` — capabilities without `cross_service` are valid (field is optional)
 
-Skip gracefully if no capabilities declare `cross_service`.
+The roundtrip test MUST NOT skip — the showcase app is required to declare `cross_service` on at least one capability so conformance has a real target.
 
 - [ ] **Step 2: Commit**
 
