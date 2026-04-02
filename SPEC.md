@@ -120,6 +120,48 @@ Each control requirement entry includes:
 
 When `enforcement` is `"reject"`, the service MUST reject invocations that do not satisfy the requirement, returning a `control_requirement_unsatisfied` failure.
 
+#### Advisory Composition Hints (v0.17)
+
+A capability MAY declare `refresh_via` and/or `verify_via` — advisory hints that help agents understand how capabilities relate for planning purposes.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `refresh_via` | array of strings | No | Capability names (same manifest) that can refresh prerequisites or stale state before this capability is invoked |
+| `verify_via` | array of strings | No | Capability names (same manifest) that can verify this capability's side effects after invocation |
+
+> **Advisory:** `refresh_via` and `verify_via` are advisory only. They are not enforced by the protocol and do not mandate any execution ordering. They exist to guide agent planning — an agent MAY choose to call a listed capability before or after invocation, but the service MUST NOT reject invocations that skip them.
+
+All capability names referenced in `refresh_via` and `verify_via` MUST exist in the same manifest. Referencing a capability from a different service or manifest is not permitted.
+
+**Travel example** (`book_flight` with `refresh_via`):
+
+```yaml
+capability:
+  name: book_flight
+  description: "Book a confirmed flight reservation"
+  refresh_via: [search_flights]   # re-run search to get a fresh quote_id if the current one is stale
+  requires_binding:
+    - type: quote
+      field: quote_id
+      source_capability: search_flights
+      max_age: "PT15M"
+  side_effect:
+    type: irreversible
+    rollback_window: none
+```
+
+**DevOps example** (`deploy` with `verify_via`):
+
+```yaml
+capability:
+  name: deploy
+  description: "Deploy a service to production"
+  verify_via: [health_check]   # check health endpoint after deploy to confirm side effects
+  side_effect:
+    type: write
+    rollback_window: "PT1H"
+```
+
 ANIP uses JSON Schema (draft 2020-12) for capability declarations. Canonical schemas are defined in Section 9 and validated across the Python/Pydantic and TypeScript/Zod reference implementations. The Go, Java, and C# runtimes validate protocol conformance via the HTTP conformance suite.
 
 ### 4.2 Side-effect Typing
