@@ -41,6 +41,12 @@ func SearchFlights() service.CapabilityDef {
 			ResponseModes: []string{"unary"},
 			RefreshVia:    []string{},
 			VerifyVia:     []string{},
+			// Cross-service hints (illustrative — this is a single-service showcase)
+			CrossService: &core.CrossServiceHints{
+				HandoffTo: []core.ServiceCapabilityRef{
+					{Service: "travel-booking", Capability: "book_flight"},
+				},
+			},
 		},
 		Handler: handleSearchFlights,
 	}
@@ -95,6 +101,12 @@ func BookFlight() service.CapabilityDef {
 			RefreshVia:          []string{"search_flights"},
 			VerifyVia:           []string{},
 			ResponseModes:       []string{"unary"},
+			// Cross-service hints (illustrative — this is a single-service showcase)
+			CrossService: &core.CrossServiceHints{
+				RefreshVia: []core.ServiceCapabilityRef{
+					{Service: "travel-search", Capability: "search_flights"},
+				},
+			},
 		},
 		Handler: handleBookFlight,
 	}

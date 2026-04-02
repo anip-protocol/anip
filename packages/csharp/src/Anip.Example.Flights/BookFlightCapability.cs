@@ -67,6 +67,14 @@ public static class BookFlightCapability
             RefreshVia = new List<string> { "search_flights" },
             VerifyVia = new List<string>(),
             ResponseModes = new List<string> { "unary" },
+            // Cross-service hints (illustrative — this is a single-service showcase)
+            CrossService = new CrossServiceHints
+            {
+                RefreshVia = new List<ServiceCapabilityRef>
+                {
+                    new() { Service = "travel-search", Capability = "search_flights" },
+                },
+            },
         };
 
         return new CapabilityDef(declaration, Handle);
