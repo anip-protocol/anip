@@ -123,7 +123,16 @@ function main() {
   console.log(`[build-design-packs] source: ${source}`)
 
   if (!fs.existsSync(source)) {
-    console.error(`[build-design-packs] ERROR: source path does not exist: ${source}`)
+    console.error(`[build-design-packs] Error: No pack source found.
+  --source <path> was not provided
+  DESIGN_PACKS_SOURCE env var is not set
+  Default path ../../tooling/examples/ does not exist
+
+  To regenerate packs, run:
+    npm run build:packs -- --source /path/to/tooling/examples
+
+  The generated packs.generated.ts is already committed, so this is only
+  needed when updating example packs.`)
     process.exit(1)
   }
 

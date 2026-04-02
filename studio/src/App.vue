@@ -192,7 +192,7 @@ function disconnect() {
           </li>
         </ul>
         <div class="sidebar-footer">
-          <span class="version">v0.11.1</span>
+          <span class="version">v0.19</span>
         </div>
       </nav>
 

@@ -1,4 +1,9 @@
 #!/bin/bash
+# WARNING: This syncs the full Studio build (including Design mode routes) into
+# runtime adapter packages. Design mode is intended as standalone-only and will
+# show empty/placeholder content when embedded. A proper Inspect-only build
+# split is planned but not yet implemented.
+#
 # Build Studio for embedded mode and sync assets to ALL runtime adapter packages
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
