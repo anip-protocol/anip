@@ -80,9 +80,9 @@ First load shows both modes as equal choices:
 Connect to an ANIP service       Design and validate ANIP systems
 to explore its protocol          against real execution scenarios
 surfaces.
-                                 Browse example packs or create
-                                 your own requirements and
-                                 scenarios.
+                                 Browse example packs to
+                                 understand what glue your
+                                 design still requires.
 ```
 
 ---
@@ -272,7 +272,7 @@ Checkmarks, badges, capability mini-cards. No raw YAML.
 │  [delegation_engine]  ...            │
 │                                      │
 │  ── Optional Components ──           │
-│  [token_issuer]  [studio]            │
+│  [token_issuer]  [embedded_inspect]   │
 │  [graphql]  [rest]  [mcp]            │
 │                                      │
 │  ── Key Runtime Requirements ──      │
@@ -441,7 +441,7 @@ Reuse the existing dark theme CSS variables. Add Design-mode-specific accents:
 - **Section cards** — bordered containers with header + content, used for requirements sections, proposal blocks
 - **Mini-cards** — compact badges for handled surfaces, components, capabilities
 - **Result badge** — large centered status indicator (HANDLED/PARTIAL/REQUIRES_GLUE)
-- **Glue cards** — expandable cards with explanation, each tagged with a category badge
+- **Glue list** — bullet list of plain strings from the flat `glue_you_will_still_write` array
 - **Category badges** — colored pills: safety=red, orchestration=amber, observability=blue, cross_service=purple
 
 ### Typography
