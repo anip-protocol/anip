@@ -272,7 +272,8 @@ Checkmarks, badges, capability mini-cards. No raw YAML.
 │  [delegation_engine]  ...            │
 │                                      │
 │  ── Optional Components ──           │
-│  [token_issuer]  [embedded_inspect]   │
+│  [token_issuer]  [embedded_studio     │
+│                   (Inspect only)]    │
 │  [graphql]  [rest]  [mcp]            │
 │                                      │
 │  ── Key Runtime Requirements ──      │
