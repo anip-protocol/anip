@@ -87,7 +87,7 @@ Verify the key files exist:
 
 - [ ] **Step 2: Update build-design-packs.ts default source**
 
-In `studio/scripts/build-design-packs.ts`, update the fallback source path from the non-existent `../../tooling/examples/` to the now-in-repo `../tooling/examples/` (relative to `studio/scripts/`), which resolves to `tooling/examples/` from the repo root.
+In `studio/scripts/build-design-packs.ts`, update the fallback source path. The script runs from `studio/scripts/`, so to reach `tooling/examples/` at the repo root, the relative path is `../../tooling/examples/` (up from `studio/scripts/` to repo root, then into `tooling/examples/`). This is the same `../../` depth as before, but now the target actually exists because tooling is vendored into the repo.
 
 - [ ] **Step 3: Verify pack regeneration works with in-repo source**
 
