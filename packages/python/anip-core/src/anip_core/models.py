@@ -78,6 +78,21 @@ class TokenRequest(BaseModel):
     caller_class: str | None = None
 
 
+# --- Cross-Service Handoff ---
+
+
+class ServiceCapabilityRef(BaseModel):
+    service: str
+    capability: str
+
+
+class CrossServiceHints(BaseModel):
+    handoff_to: list[ServiceCapabilityRef] = Field(default_factory=list)
+    refresh_via: list[ServiceCapabilityRef] = Field(default_factory=list)
+    verify_via: list[ServiceCapabilityRef] = Field(default_factory=list)
+    followup_via: list[ServiceCapabilityRef] = Field(default_factory=list)
+
+
 # --- Capability Declaration ---
 
 
@@ -180,6 +195,7 @@ class CapabilityDeclaration(BaseModel):
     control_requirements: list[ControlRequirement] = Field(default_factory=list)
     refresh_via: list[str] = Field(default_factory=list)
     verify_via: list[str] = Field(default_factory=list)
+    cross_service: CrossServiceHints | None = None
 
 
 # --- Permission Discovery ---
@@ -349,7 +365,7 @@ class DiscoveryPosture(BaseModel):
 
 
 class ANIPManifest(BaseModel):
-    protocol: str = "anip/0.18"
+    protocol: str = "anip/0.19"
     profile: ProfileVersions
     capabilities: dict[str, CapabilityDeclaration]
     manifest_metadata: ManifestMetadata | None = None

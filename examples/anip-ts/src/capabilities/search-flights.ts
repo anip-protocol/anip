@@ -26,6 +26,13 @@ const DECLARATION: CapabilityDeclaration = {
   requires: [],
   refresh_via: [],
   verify_via: [],
+  // Cross-service hints (illustrative — this is a single-service showcase)
+  cross_service: {
+    handoff_to: [{ service: "travel-booking", capability: "book_flight" }],
+    refresh_via: [],
+    verify_via: [],
+    followup_via: [],
+  },
   composes_with: [],
   session: { type: "stateless" },
   response_modes: ["unary"],

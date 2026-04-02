@@ -1,16 +1,17 @@
 ---
 title: Version History
-description: ANIP protocol version progression from v0.1 through v0.18.
+description: ANIP protocol version progression from v0.1 through v0.19.
 ---
 
 # Version History
 
-ANIP's version line tracks the progression of protocol capabilities. The current version is **v0.18**.
+ANIP's version line tracks the progression of protocol capabilities. The current version is **v0.19**.
 
 ## Version progression
 
 | Version | What it added | Key concepts |
 |---------|--------------|--------------|
+| **v0.19** | Cross-service handoff hints | `cross_service` optional object on capability declarations with four advisory arrays: `handoff_to`, `refresh_via`, `verify_via`, `followup_via`. Each entry is a `ServiceCapabilityRef` (`service` + `capability` strings) that names a capability on another ANIP service. Extends the advisory composition model from same-manifest hints to cross-service workflow guidance. |
 | **v0.18** | Cross-service continuity | `upstream_service` optional field on invoke request, response, and audit entry — identifies the ANIP service that initiated a call as part of a cross-service workflow. Services MUST echo and record it. Services MUST NOT reject syntactically valid `parent_invocation_id` or `task_id` values from foreign services. |
 | **v0.17** | Advisory composition hints | `refresh_via` and `verify_via` on capability declarations — advisory arrays of same-manifest capability names. `refresh_via` guides agents to re-invoke a source capability when a stale artifact (binding, quote) causes failure. `verify_via` guides agents to verify side effects after executing irreversible actions. |
 | **v0.16** | Recovery posture | `recovery_class` on every `resolution` object (6-value vocabulary: `retry_now`, `wait_then_retry`, `refresh_then_retry`, `redelegation_then_retry`, `revalidate_then_retry`, `terminal`); 5 new canonical `resolution.action` values (`retry_now`, `provide_credentials`, `wait_and_retry`, `revalidate_state`, `check_manifest`) |

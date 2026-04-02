@@ -27,6 +27,13 @@ const DECLARATION: CapabilityDeclaration = {
   requires: [{ capability: "search_flights", reason: "must select from available flights before booking" }],
   refresh_via: ["search_flights"],
   verify_via: [],
+  // Cross-service hints (illustrative — this is a single-service showcase)
+  cross_service: {
+    handoff_to: [],
+    refresh_via: [{ service: "travel-search", capability: "search_flights" }],
+    verify_via: [],
+    followup_via: [],
+  },
   composes_with: [],
   session: { type: "stateless" },
   response_modes: ["unary"],

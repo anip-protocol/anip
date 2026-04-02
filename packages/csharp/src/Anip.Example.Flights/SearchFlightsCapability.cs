@@ -35,6 +35,14 @@ public static class SearchFlightsCapability
             ResponseModes = new List<string> { "unary" },
             RefreshVia = new List<string>(),
             VerifyVia = new List<string>(),
+            // Cross-service hints (illustrative — this is a single-service showcase)
+            CrossService = new CrossServiceHints
+            {
+                HandoffTo = new List<ServiceCapabilityRef>
+                {
+                    new() { Service = "travel-booking", Capability = "book_flight" },
+                },
+            },
         };
 
         return new CapabilityDef(declaration, Handle);

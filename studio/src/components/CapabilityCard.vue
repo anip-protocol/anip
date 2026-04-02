@@ -35,6 +35,11 @@ const requiresBinding = computed(() => props.capability.requires_binding || [])
 const controlRequirements = computed(() => props.capability.control_requirements || [])
 const refreshVia = computed(() => props.capability.refresh_via || [])
 const verifyVia = computed(() => props.capability.verify_via || [])
+const crossService = computed(() => props.capability.cross_service || null)
+const csHandoffTo = computed(() => crossService.value?.handoff_to || [])
+const csRefreshVia = computed(() => crossService.value?.refresh_via || [])
+const csVerifyVia = computed(() => crossService.value?.verify_via || [])
+const csFollowupVia = computed(() => crossService.value?.followup_via || [])
 </script>
 
 <template>
@@ -204,6 +209,35 @@ const verifyVia = computed(() => props.capability.verify_via || [])
         <div class="section-label">Verify Via</div>
         <div class="hint-row">
           <span v-for="cap in verifyVia" :key="cap" class="hint-badge hint-badge--verify">{{ cap }}</span>
+        </div>
+      </div>
+
+      <!-- Cross-Service Hints -->
+      <div class="cap-section" v-if="crossService && (csHandoffTo.length || csRefreshVia.length || csVerifyVia.length || csFollowupVia.length)">
+        <div class="section-label">Cross-Service Hints</div>
+        <div v-if="csHandoffTo.length" class="cs-group">
+          <span class="cs-group-label">Handoff to</span>
+          <div class="hint-row">
+            <span v-for="ref in csHandoffTo" :key="ref.service + ':' + ref.capability" class="hint-badge hint-badge--cs-handoff">{{ ref.service }}:{{ ref.capability }}</span>
+          </div>
+        </div>
+        <div v-if="csRefreshVia.length" class="cs-group">
+          <span class="cs-group-label">Refresh via</span>
+          <div class="hint-row">
+            <span v-for="ref in csRefreshVia" :key="ref.service + ':' + ref.capability" class="hint-badge hint-badge--cs-refresh">{{ ref.service }}:{{ ref.capability }}</span>
+          </div>
+        </div>
+        <div v-if="csVerifyVia.length" class="cs-group">
+          <span class="cs-group-label">Verify via</span>
+          <div class="hint-row">
+            <span v-for="ref in csVerifyVia" :key="ref.service + ':' + ref.capability" class="hint-badge hint-badge--cs-verify">{{ ref.service }}:{{ ref.capability }}</span>
+          </div>
+        </div>
+        <div v-if="csFollowupVia.length" class="cs-group">
+          <span class="cs-group-label">Follow-up via</span>
+          <div class="hint-row">
+            <span v-for="ref in csFollowupVia" :key="ref.service + ':' + ref.capability" class="hint-badge hint-badge--cs-followup">{{ ref.service }}:{{ ref.capability }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -448,5 +482,42 @@ const verifyVia = computed(() => props.capability.verify_via || [])
 .hint-badge--verify {
   background: rgba(251, 191, 36, 0.12);
   color: #fbbf24;
+}
+
+.cs-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cs-group-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+/* handoff = blue */
+.hint-badge--cs-handoff {
+  background: rgba(96, 165, 250, 0.14);
+  color: #60a5fa;
+}
+
+/* refresh = green */
+.hint-badge--cs-refresh {
+  background: rgba(52, 211, 153, 0.14);
+  color: #34d399;
+}
+
+/* verify = amber */
+.hint-badge--cs-verify {
+  background: rgba(251, 191, 36, 0.14);
+  color: #fbbf24;
+}
+
+/* followup = purple */
+.hint-badge--cs-followup {
+  background: rgba(167, 139, 250, 0.14);
+  color: #a78bfa;
 }
 </style>
