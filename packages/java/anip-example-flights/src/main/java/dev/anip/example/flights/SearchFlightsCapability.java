@@ -5,6 +5,8 @@ import dev.anip.core.CapabilityDeclaration;
 import dev.anip.core.CapabilityInput;
 import dev.anip.core.CapabilityOutput;
 import dev.anip.core.Constants;
+import dev.anip.core.CrossServiceHints;
+import dev.anip.core.ServiceCapabilityRef;
 import dev.anip.core.SideEffect;
 import dev.anip.service.CapabilityDef;
 import dev.anip.service.InvocationContext;
@@ -42,7 +44,11 @@ public final class SearchFlightsCapability {
                 null, // no binding requirements
                 null, // no control requirements
                 List.of(), // refreshVia
-                List.of()  // verifyVia
+                List.of(), // verifyVia
+                // Cross-service hints (illustrative — this is a single-service showcase)
+                new CrossServiceHints(
+                        List.of(new ServiceCapabilityRef("travel-booking", "book_flight")),
+                        null, null, null)
         );
 
         return new CapabilityDef(decl, SearchFlightsCapability::handle);

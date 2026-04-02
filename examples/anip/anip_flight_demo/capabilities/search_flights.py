@@ -2,7 +2,8 @@
 from anip_service import Capability, InvocationContext, ANIPError
 from anip_core import (
     CapabilityDeclaration, CapabilityInput, CapabilityOutput,
-    Cost, CostCertainty, ObservabilityContract, SessionInfo, SideEffect, SideEffectType,
+    Cost, CostCertainty, CrossServiceHints, ObservabilityContract, ServiceCapabilityRef,
+    SessionInfo, SideEffect, SideEffectType,
 )
 from anip_flight_demo.domain.flights import search_flights as do_search
 
@@ -24,6 +25,10 @@ DECLARATION = CapabilityDeclaration(
         logged=True, retention="P90D",
         fields_logged=["capability", "parameters", "result_count"],
         audit_accessible_by=["delegation.root_principal"],
+    ),
+    # Cross-service hints (illustrative — this is a single-service demo)
+    cross_service=CrossServiceHints(
+        handoff_to=[ServiceCapabilityRef(service="travel-booking", capability="book_flight")],
     ),
 )
 

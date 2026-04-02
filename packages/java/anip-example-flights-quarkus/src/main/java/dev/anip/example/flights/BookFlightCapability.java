@@ -10,7 +10,9 @@ import dev.anip.core.Constants;
 import dev.anip.core.ControlRequirement;
 import dev.anip.core.Cost;
 import dev.anip.core.CostActual;
+import dev.anip.core.CrossServiceHints;
 import dev.anip.core.FinancialCost;
+import dev.anip.core.ServiceCapabilityRef;
 import dev.anip.core.SideEffect;
 import dev.anip.service.CapabilityDef;
 import dev.anip.service.InvocationContext;
@@ -56,7 +58,12 @@ public final class BookFlightCapability {
                 List.of(new BindingRequirement("quote", "quote_id", "search_flights", "PT15M")),
                 List.of(), // empty control requirements
                 List.of("search_flights"), // refreshVia
-                List.of()  // verifyVia
+                List.of(), // verifyVia
+                // Cross-service hints (illustrative — this is a single-service showcase)
+                new CrossServiceHints(
+                        null,
+                        List.of(new ServiceCapabilityRef("travel-search", "search_flights")),
+                        null, null)
         );
 
         return new CapabilityDef(decl, BookFlightCapability::handle);

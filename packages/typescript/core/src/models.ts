@@ -162,6 +162,24 @@ export const ControlRequirement = z.object({
 });
 export type ControlRequirement = z.infer<typeof ControlRequirement>;
 
+// ---------------------------------------------------------------------------
+// Cross-Service Handoff
+// ---------------------------------------------------------------------------
+
+export const ServiceCapabilityRef = z.object({
+  service: z.string(),
+  capability: z.string(),
+});
+export type ServiceCapabilityRef = z.infer<typeof ServiceCapabilityRef>;
+
+export const CrossServiceHints = z.object({
+  handoff_to: z.array(ServiceCapabilityRef).default([]),
+  refresh_via: z.array(ServiceCapabilityRef).default([]),
+  verify_via: z.array(ServiceCapabilityRef).default([]),
+  followup_via: z.array(ServiceCapabilityRef).default([]),
+});
+export type CrossServiceHints = z.infer<typeof CrossServiceHints>;
+
 export const BudgetContext = z.object({
   budget_max: z.number(),
   budget_currency: z.string(),
@@ -190,6 +208,7 @@ export const CapabilityDeclaration = z.object({
   control_requirements: z.array(ControlRequirement).default([]),
   refresh_via: z.array(z.string()).default([]),
   verify_via: z.array(z.string()).default([]),
+  cross_service: CrossServiceHints.nullable().default(null),
 });
 export type CapabilityDeclaration = z.infer<typeof CapabilityDeclaration>;
 
@@ -387,7 +406,7 @@ export const ServiceIdentity = z.object({
 export type ServiceIdentity = z.infer<typeof ServiceIdentity>;
 
 export const ANIPManifest = z.object({
-  protocol: z.string().default("anip/0.18"),
+  protocol: z.string().default("anip/0.19"),
   profile: ProfileVersions,
   capabilities: z.record(CapabilityDeclaration),
   manifest_metadata: ManifestMetadata.nullable().default(null),

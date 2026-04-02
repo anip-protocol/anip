@@ -37,7 +37,7 @@ No authentication required. This is the entry point for any agent discovering th
 ```json
 {
   "anip_discovery": {
-    "version": "0.18.0",
+    "version": "0.19.0",
     "service_id": "travel-service",
     "endpoints": {
       "manifest": "/anip/manifest",
@@ -77,7 +77,7 @@ No authentication required. This is the entry point for any agent discovering th
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `version` | string | Yes | Protocol version (e.g., `"0.18.0"`) |
+| `version` | string | Yes | Protocol version (e.g., `"0.19.0"`) |
 | `service_id` | string | Yes | Unique service identifier |
 | `endpoints` | object | Yes | Map of operation names to URL paths |
 | `capabilities` | object | Yes | Lightweight capability summaries (name → metadata) |
@@ -131,7 +131,7 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 ```json
 {
   "manifest_metadata": {
-    "version": "0.18.0",
+    "version": "0.19.0",
     "sha256": "a1b2c3d4...",
     "issued_at": "2026-03-28T10:00:00Z",
     "expires_at": "2026-03-29T10:00:00Z"
@@ -238,6 +238,7 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 | `observability` | object | No | Logging and retention posture |
 | `refresh_via` | string[] | No | Advisory: capabilities to re-invoke when a stale or missing artifact causes a failure. Every name must exist in the same manifest. |
 | `verify_via` | string[] | No | Advisory: capabilities to invoke to verify side effects after executing this capability. Every name must exist in the same manifest. |
+| `cross_service` | object | No | Advisory cross-service handoff hints. See [Cross-service handoff hints (v0.19)](/docs/protocol/capabilities#cross-service-handoff-hints-v019). |
 
 ### Input field
 
@@ -266,6 +267,24 @@ X-ANIP-Signature: eyJhbGciOiJFZERTQSJ9...
 | `financial` | object | Optional: `currency`, `range_min`, `range_max`, `typical` |
 | `compute` | object | Optional: `expected_duration`, resource hints |
 | `determined_by` | string | Optional: what determines the cost (e.g., `"passenger_count"`) |
+
+### Cross-service hints (v0.19)
+
+The `cross_service` object contains four optional arrays, each of type `ServiceCapabilityRef[]`:
+
+| Array | Description |
+|-------|-------------|
+| `handoff_to` | Capabilities on other services this capability naturally leads into |
+| `refresh_via` | Capabilities on other services that refresh a stale artifact |
+| `verify_via` | Capabilities on other services that verify side effects |
+| `followup_via` | Capabilities on other services useful after this one completes |
+
+### ServiceCapabilityRef (v0.19)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `service` | string | Yes | The service identifier of the target service |
+| `capability` | string | Yes | The capability name on that service |
 
 ---
 

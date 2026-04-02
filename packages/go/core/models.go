@@ -46,6 +46,22 @@ type ControlRequirement struct {
 	Enforcement string `json:"enforcement"`
 }
 
+// --- Cross-Service Handoff ---
+
+// ServiceCapabilityRef identifies a capability on another service.
+type ServiceCapabilityRef struct {
+	Service    string `json:"service"`
+	Capability string `json:"capability"`
+}
+
+// CrossServiceHints provides hints for cross-service coordination.
+type CrossServiceHints struct {
+	HandoffTo   []ServiceCapabilityRef `json:"handoff_to,omitempty"`
+	RefreshVia  []ServiceCapabilityRef `json:"refresh_via,omitempty"`
+	VerifyVia   []ServiceCapabilityRef `json:"verify_via,omitempty"`
+	FollowupVia []ServiceCapabilityRef `json:"followup_via,omitempty"`
+}
+
 // --- Side-effect Typing ---
 
 // SideEffect describes the side-effect characteristics of a capability.
@@ -131,6 +147,7 @@ type CapabilityDeclaration struct {
 	ControlRequirements []ControlRequirement    `json:"control_requirements,omitempty"`
 	RefreshVia          []string                `json:"refresh_via,omitempty"`
 	VerifyVia           []string                `json:"verify_via,omitempty"`
+	CrossService        *CrossServiceHints      `json:"cross_service,omitempty"`
 }
 
 // --- Delegation Chain ---

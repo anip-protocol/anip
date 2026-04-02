@@ -54,4 +54,7 @@ public class CapabilityDeclaration
 
     [JsonPropertyName("verify_via")]
     public List<string>? VerifyVia { get; set; }
+
+    [JsonPropertyName("cross_service")]
+    public CrossServiceHints? CrossService { get; set; }
 }

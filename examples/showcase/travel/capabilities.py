@@ -5,8 +5,9 @@ import uuid
 from anip_service import Capability, InvocationContext, ANIPError
 from anip_core import (
     BindingRequirement, CapabilityDeclaration, CapabilityInput, CapabilityOutput,
-    CapabilityRequirement, Cost, CostCertainty, FinancialCost, ObservabilityContract,
-    ResponseMode, SessionInfo, SideEffect, SideEffectType,
+    CapabilityRequirement, Cost, CostCertainty, CrossServiceHints, FinancialCost,
+    ObservabilityContract, ResponseMode, ServiceCapabilityRef, SessionInfo, SideEffect,
+    SideEffectType,
 )
 import data
 
@@ -35,6 +36,10 @@ _SEARCH_DECL = CapabilityDeclaration(
         logged=True, retention="P90D",
         fields_logged=["capability", "parameters", "result_count"],
         audit_accessible_by=["delegation.root_principal"],
+    ),
+    # Cross-service hints (illustrative — this is a single-service showcase)
+    cross_service=CrossServiceHints(
+        handoff_to=[ServiceCapabilityRef(service="travel-booking", capability="book_flight")],
     ),
 )
 
@@ -166,6 +171,10 @@ _BOOK_DECL = CapabilityDeclaration(
         logged=True, retention="P90D",
         fields_logged=["capability", "delegation_chain", "parameters", "result", "cost_actual"],
         audit_accessible_by=["delegation.root_principal"],
+    ),
+    # Cross-service hints (illustrative — this is a single-service showcase)
+    cross_service=CrossServiceHints(
+        refresh_via=[ServiceCapabilityRef(service="travel-search", capability="search_flights")],
     ),
 )
 
