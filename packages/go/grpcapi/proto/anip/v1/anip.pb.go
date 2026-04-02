@@ -770,6 +770,7 @@ type InvokeRequest struct {
 	ClientReferenceId  string                 `protobuf:"bytes,3,opt,name=client_reference_id,json=clientReferenceId,proto3" json:"client_reference_id,omitempty"`
 	TaskId             string                 `protobuf:"bytes,4,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	ParentInvocationId string                 `protobuf:"bytes,5,opt,name=parent_invocation_id,json=parentInvocationId,proto3" json:"parent_invocation_id,omitempty"`
+	UpstreamService    string                 `protobuf:"bytes,6,opt,name=upstream_service,json=upstreamService,proto3" json:"upstream_service,omitempty"` // v0.18: agent-supplied hint for cross-service reconstruction
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -839,6 +840,13 @@ func (x *InvokeRequest) GetParentInvocationId() string {
 	return ""
 }
 
+func (x *InvokeRequest) GetUpstreamService() string {
+	if x != nil {
+		return x.UpstreamService
+	}
+	return ""
+}
+
 type InvokeResponse struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Success            bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
@@ -849,7 +857,8 @@ type InvokeResponse struct {
 	Failure            *AnipFailure           `protobuf:"bytes,6,opt,name=failure,proto3" json:"failure,omitempty"`                                       // When !success
 	TaskId             string                 `protobuf:"bytes,7,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	ParentInvocationId string                 `protobuf:"bytes,8,opt,name=parent_invocation_id,json=parentInvocationId,proto3" json:"parent_invocation_id,omitempty"`
-	BudgetContext      *BudgetContext         `protobuf:"bytes,9,opt,name=budget_context,json=budgetContext,proto3" json:"budget_context,omitempty"` // v0.14: present when budget was evaluated
+	BudgetContext      *BudgetContext         `protobuf:"bytes,9,opt,name=budget_context,json=budgetContext,proto3" json:"budget_context,omitempty"`        // v0.14: present when budget was evaluated
+	UpstreamService    string                 `protobuf:"bytes,10,opt,name=upstream_service,json=upstreamService,proto3" json:"upstream_service,omitempty"` // v0.18: echoed from request
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -945,6 +954,13 @@ func (x *InvokeResponse) GetBudgetContext() *BudgetContext {
 		return x.BudgetContext
 	}
 	return nil
+}
+
+func (x *InvokeResponse) GetUpstreamService() string {
+	if x != nil {
+		return x.UpstreamService
+	}
+	return ""
 }
 
 type InvokeEvent struct {
@@ -1105,7 +1121,8 @@ type CompletedEvent struct {
 	CostActualJson     string                 `protobuf:"bytes,4,opt,name=cost_actual_json,json=costActualJson,proto3" json:"cost_actual_json,omitempty"`
 	TaskId             string                 `protobuf:"bytes,5,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	ParentInvocationId string                 `protobuf:"bytes,6,opt,name=parent_invocation_id,json=parentInvocationId,proto3" json:"parent_invocation_id,omitempty"`
-	BudgetContext      *BudgetContext         `protobuf:"bytes,7,opt,name=budget_context,json=budgetContext,proto3" json:"budget_context,omitempty"` // v0.14: present when budget was evaluated
+	BudgetContext      *BudgetContext         `protobuf:"bytes,7,opt,name=budget_context,json=budgetContext,proto3" json:"budget_context,omitempty"`       // v0.14: present when budget was evaluated
+	UpstreamService    string                 `protobuf:"bytes,8,opt,name=upstream_service,json=upstreamService,proto3" json:"upstream_service,omitempty"` // v0.18: echoed from request
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -1189,6 +1206,13 @@ func (x *CompletedEvent) GetBudgetContext() *BudgetContext {
 	return nil
 }
 
+func (x *CompletedEvent) GetUpstreamService() string {
+	if x != nil {
+		return x.UpstreamService
+	}
+	return ""
+}
+
 type FailedEvent struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	InvocationId       string                 `protobuf:"bytes,1,opt,name=invocation_id,json=invocationId,proto3" json:"invocation_id,omitempty"`
@@ -1196,7 +1220,8 @@ type FailedEvent struct {
 	Failure            *AnipFailure           `protobuf:"bytes,3,opt,name=failure,proto3" json:"failure,omitempty"`
 	TaskId             string                 `protobuf:"bytes,4,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	ParentInvocationId string                 `protobuf:"bytes,5,opt,name=parent_invocation_id,json=parentInvocationId,proto3" json:"parent_invocation_id,omitempty"`
-	BudgetContext      *BudgetContext         `protobuf:"bytes,6,opt,name=budget_context,json=budgetContext,proto3" json:"budget_context,omitempty"` // v0.14: present when budget was evaluated
+	BudgetContext      *BudgetContext         `protobuf:"bytes,6,opt,name=budget_context,json=budgetContext,proto3" json:"budget_context,omitempty"`       // v0.14: present when budget was evaluated
+	UpstreamService    string                 `protobuf:"bytes,7,opt,name=upstream_service,json=upstreamService,proto3" json:"upstream_service,omitempty"` // v0.18: echoed from request
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -1271,6 +1296,13 @@ func (x *FailedEvent) GetBudgetContext() *BudgetContext {
 		return x.BudgetContext
 	}
 	return nil
+}
+
+func (x *FailedEvent) GetUpstreamService() string {
+	if x != nil {
+		return x.UpstreamService
+	}
+	return ""
 }
 
 type QueryAuditRequest struct {
@@ -1688,7 +1720,7 @@ const file_anip_v1_anip_proto_rawDesc = "" +
 	"\x13PermissionsResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x12\n" +
 	"\x04json\x18\x02 \x01(\tR\x04json\x12.\n" +
-	"\afailure\x18\x03 \x01(\v2\x14.anip.v1.AnipFailureR\afailure\"\xd3\x01\n" +
+	"\afailure\x18\x03 \x01(\v2\x14.anip.v1.AnipFailureR\afailure\"\xfe\x01\n" +
 	"\rInvokeRequest\x12\x1e\n" +
 	"\n" +
 	"capability\x18\x01 \x01(\tR\n" +
@@ -1696,7 +1728,8 @@ const file_anip_v1_anip_proto_rawDesc = "" +
 	"\x0fparameters_json\x18\x02 \x01(\tR\x0eparametersJson\x12.\n" +
 	"\x13client_reference_id\x18\x03 \x01(\tR\x11clientReferenceId\x12\x17\n" +
 	"\atask_id\x18\x04 \x01(\tR\x06taskId\x120\n" +
-	"\x14parent_invocation_id\x18\x05 \x01(\tR\x12parentInvocationId\"\x84\x03\n" +
+	"\x14parent_invocation_id\x18\x05 \x01(\tR\x12parentInvocationId\x12)\n" +
+	"\x10upstream_service\x18\x06 \x01(\tR\x0fupstreamService\"\xaf\x03\n" +
 	"\x0eInvokeResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12#\n" +
 	"\rinvocation_id\x18\x02 \x01(\tR\finvocationId\x12.\n" +
@@ -1707,7 +1740,9 @@ const file_anip_v1_anip_proto_rawDesc = "" +
 	"\afailure\x18\x06 \x01(\v2\x14.anip.v1.AnipFailureR\afailure\x12\x17\n" +
 	"\atask_id\x18\a \x01(\tR\x06taskId\x120\n" +
 	"\x14parent_invocation_id\x18\b \x01(\tR\x12parentInvocationId\x12=\n" +
-	"\x0ebudget_context\x18\t \x01(\v2\x16.anip.v1.BudgetContextR\rbudgetContext\"\xb5\x01\n" +
+	"\x0ebudget_context\x18\t \x01(\v2\x16.anip.v1.BudgetContextR\rbudgetContext\x12)\n" +
+	"\x10upstream_service\x18\n" +
+	" \x01(\tR\x0fupstreamService\"\xb5\x01\n" +
 	"\vInvokeEvent\x124\n" +
 	"\bprogress\x18\x01 \x01(\v2\x16.anip.v1.ProgressEventH\x00R\bprogress\x127\n" +
 	"\tcompleted\x18\x02 \x01(\v2\x17.anip.v1.CompletedEventH\x00R\tcompleted\x12.\n" +
@@ -1715,7 +1750,7 @@ const file_anip_v1_anip_proto_rawDesc = "" +
 	"\x05event\"W\n" +
 	"\rProgressEvent\x12#\n" +
 	"\rinvocation_id\x18\x01 \x01(\tR\finvocationId\x12!\n" +
-	"\fpayload_json\x18\x02 \x01(\tR\vpayloadJson\"\xba\x02\n" +
+	"\fpayload_json\x18\x02 \x01(\tR\vpayloadJson\"\xe5\x02\n" +
 	"\x0eCompletedEvent\x12#\n" +
 	"\rinvocation_id\x18\x01 \x01(\tR\finvocationId\x12.\n" +
 	"\x13client_reference_id\x18\x02 \x01(\tR\x11clientReferenceId\x12\x1f\n" +
@@ -1724,14 +1759,16 @@ const file_anip_v1_anip_proto_rawDesc = "" +
 	"\x10cost_actual_json\x18\x04 \x01(\tR\x0ecostActualJson\x12\x17\n" +
 	"\atask_id\x18\x05 \x01(\tR\x06taskId\x120\n" +
 	"\x14parent_invocation_id\x18\x06 \x01(\tR\x12parentInvocationId\x12=\n" +
-	"\x0ebudget_context\x18\a \x01(\v2\x16.anip.v1.BudgetContextR\rbudgetContext\"\x9c\x02\n" +
+	"\x0ebudget_context\x18\a \x01(\v2\x16.anip.v1.BudgetContextR\rbudgetContext\x12)\n" +
+	"\x10upstream_service\x18\b \x01(\tR\x0fupstreamService\"\xc7\x02\n" +
 	"\vFailedEvent\x12#\n" +
 	"\rinvocation_id\x18\x01 \x01(\tR\finvocationId\x12.\n" +
 	"\x13client_reference_id\x18\x02 \x01(\tR\x11clientReferenceId\x12.\n" +
 	"\afailure\x18\x03 \x01(\v2\x14.anip.v1.AnipFailureR\afailure\x12\x17\n" +
 	"\atask_id\x18\x04 \x01(\tR\x06taskId\x120\n" +
 	"\x14parent_invocation_id\x18\x05 \x01(\tR\x12parentInvocationId\x12=\n" +
-	"\x0ebudget_context\x18\x06 \x01(\v2\x16.anip.v1.BudgetContextR\rbudgetContext\"\xa0\x02\n" +
+	"\x0ebudget_context\x18\x06 \x01(\v2\x16.anip.v1.BudgetContextR\rbudgetContext\x12)\n" +
+	"\x10upstream_service\x18\a \x01(\tR\x0fupstreamService\"\xa0\x02\n" +
 	"\x11QueryAuditRequest\x12\x1e\n" +
 	"\n" +
 	"capability\x18\x01 \x01(\tR\n" +

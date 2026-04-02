@@ -186,6 +186,7 @@ public class AnipController {
                 params.remove("client_reference_id");
                 params.remove("task_id");
                 params.remove("parent_invocation_id");
+                params.remove("upstream_service");
             }
         }
 
@@ -196,17 +197,18 @@ public class AnipController {
         }
         String taskId = body != null ? (String) body.get("task_id") : null;
         String parentInvocationId = body != null ? (String) body.get("parent_invocation_id") : null;
+        String upstreamService = body != null ? (String) body.get("upstream_service") : null;
 
         // Extract budget from request body.
         dev.anip.core.Budget budget = extractBudget(body);
 
         if (stream) {
-            InvokeOpts streamOpts = new InvokeOpts(clientRefId, true, taskId, parentInvocationId);
+            InvokeOpts streamOpts = new InvokeOpts(clientRefId, true, taskId, parentInvocationId, upstreamService);
             if (budget != null) streamOpts.setBudget(budget);
-            return handleStreamInvoke(capability, token, params, clientRefId, taskId, parentInvocationId, budget);
+            return handleStreamInvoke(capability, token, params, clientRefId, taskId, parentInvocationId, upstreamService, budget);
         }
 
-        InvokeOpts opts = new InvokeOpts(clientRefId, false, taskId, parentInvocationId);
+        InvokeOpts opts = new InvokeOpts(clientRefId, false, taskId, parentInvocationId, upstreamService);
         if (budget != null) opts.setBudget(budget);
         Map<String, Object> result = service.invoke(capability, token, params, opts);
 
@@ -323,12 +325,12 @@ public class AnipController {
     private SseEmitter handleStreamInvoke(String capability, DelegationToken token,
                                            Map<String, Object> params, String clientRefId,
                                            String taskId, String parentInvocationId,
-                                           dev.anip.core.Budget budget) {
+                                           String upstreamService, dev.anip.core.Budget budget) {
         SseEmitter emitter = new SseEmitter(0L); // no timeout
 
         StreamResult sr;
         try {
-            InvokeOpts opts = new InvokeOpts(clientRefId, true, taskId, parentInvocationId);
+            InvokeOpts opts = new InvokeOpts(clientRefId, true, taskId, parentInvocationId, upstreamService);
             if (budget != null) opts.setBudget(budget);
             sr = service.invokeStream(capability, token, params, opts);
         } catch (ANIPError e) {

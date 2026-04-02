@@ -403,6 +403,7 @@ public class AnipService : IDisposable
                     ["client_reference_id"] = opts.ClientReferenceId,
                     ["task_id"] = opts.TaskId,
                     ["parent_invocation_id"] = opts.ParentInvocationId,
+                    ["upstream_service"] = opts.UpstreamService,
                 };
             }
             var effectiveTaskId = opts.TaskId ?? tokenTaskId;
@@ -432,6 +433,7 @@ public class AnipService : IDisposable
                     ["client_reference_id"] = opts.ClientReferenceId,
                     ["task_id"] = effectiveTaskId,
                     ["parent_invocation_id"] = opts.ParentInvocationId,
+                    ["upstream_service"] = opts.UpstreamService,
                 };
             }
 
@@ -472,6 +474,7 @@ public class AnipService : IDisposable
                     ["client_reference_id"] = opts.ClientReferenceId,
                     ["task_id"] = effectiveTaskId,
                     ["parent_invocation_id"] = opts.ParentInvocationId,
+                    ["upstream_service"] = opts.UpstreamService,
                 };
             }
 
@@ -507,6 +510,7 @@ public class AnipService : IDisposable
                 // Log audit for scope failure.
                 AppendAuditEntry(capName, token, false, anipErr.ErrorType, null, null,
                     invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
+                    opts.UpstreamService,
                     capDef.Declaration.SideEffect?.Type);
 
                 // Apply failure redaction.
@@ -521,6 +525,7 @@ public class AnipService : IDisposable
                     ["client_reference_id"] = opts.ClientReferenceId,
                     ["task_id"] = effectiveTaskId,
                     ["parent_invocation_id"] = opts.ParentInvocationId,
+                    ["upstream_service"] = opts.UpstreamService,
                 };
             }
 
@@ -559,6 +564,7 @@ public class AnipService : IDisposable
                             ["client_reference_id"] = opts.ClientReferenceId,
                             ["task_id"] = effectiveTaskId,
                             ["parent_invocation_id"] = opts.ParentInvocationId,
+                            ["upstream_service"] = opts.UpstreamService,
                         };
                     }
                     var narrowedAmount = effectiveBudget.MaxAmount;
@@ -602,6 +608,7 @@ public class AnipService : IDisposable
                             ["client_reference_id"] = opts.ClientReferenceId,
                             ["task_id"] = effectiveTaskId,
                             ["parent_invocation_id"] = opts.ParentInvocationId,
+                            ["upstream_service"] = opts.UpstreamService,
                         };
                     }
 
@@ -632,6 +639,7 @@ public class AnipService : IDisposable
                                     ["client_reference_id"] = opts.ClientReferenceId,
                                     ["task_id"] = effectiveTaskId,
                                     ["parent_invocation_id"] = opts.ParentInvocationId,
+                                    ["upstream_service"] = opts.UpstreamService,
                                 };
                             }
                             break;
@@ -657,6 +665,7 @@ public class AnipService : IDisposable
                             ["client_reference_id"] = opts.ClientReferenceId,
                             ["task_id"] = effectiveTaskId,
                             ["parent_invocation_id"] = opts.ParentInvocationId,
+                            ["upstream_service"] = opts.UpstreamService,
                             ["budget_context"] = new Dictionary<string, object?>
                             {
                                 ["budget_max"] = effectiveBudget.MaxAmount,
@@ -701,6 +710,7 @@ public class AnipService : IDisposable
                             ["client_reference_id"] = opts.ClientReferenceId,
                             ["task_id"] = effectiveTaskId,
                             ["parent_invocation_id"] = opts.ParentInvocationId,
+                            ["upstream_service"] = opts.UpstreamService,
                         };
                     }
 
@@ -736,6 +746,7 @@ public class AnipService : IDisposable
                                     ["client_reference_id"] = opts.ClientReferenceId,
                                     ["task_id"] = effectiveTaskId,
                                     ["parent_invocation_id"] = opts.ParentInvocationId,
+                                    ["upstream_service"] = opts.UpstreamService,
                                 };
                             }
                         }
@@ -777,6 +788,7 @@ public class AnipService : IDisposable
                             ["client_reference_id"] = opts.ClientReferenceId,
                             ["task_id"] = effectiveTaskId,
                             ["parent_invocation_id"] = opts.ParentInvocationId,
+                            ["upstream_service"] = opts.UpstreamService,
                         };
                     }
                 }
@@ -795,7 +807,8 @@ public class AnipService : IDisposable
                 clientReferenceId: opts.ClientReferenceId,
                 taskId: effectiveTaskId,
                 parentInvocationId: opts.ParentInvocationId,
-                emitProgress: _ => false // No-op for unary invocations.
+                emitProgress: _ => false, // No-op for unary invocations.
+                upstreamService: opts.UpstreamService
             );
 
             // 5. Call handler.
@@ -809,6 +822,7 @@ public class AnipService : IDisposable
                 AppendAuditEntry(capName, token, false, anipErr.ErrorType,
                     new Dictionary<string, object?> { ["detail"] = anipErr.Detail }, null,
                     invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
+                    opts.UpstreamService,
                     capDef.Declaration.SideEffect?.Type);
 
                 var failure = new Dictionary<string, object?>
@@ -828,12 +842,14 @@ public class AnipService : IDisposable
                     ["client_reference_id"] = opts.ClientReferenceId,
                     ["task_id"] = effectiveTaskId,
                     ["parent_invocation_id"] = opts.ParentInvocationId,
+                    ["upstream_service"] = opts.UpstreamService,
                 };
             }
             catch (Exception)
             {
                 AppendAuditEntry(capName, token, false, Constants.FailureInternalError, null, null,
                     invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
+                    opts.UpstreamService,
                     capDef.Declaration.SideEffect?.Type);
 
                 var failure = new Dictionary<string, object?>
@@ -853,6 +869,7 @@ public class AnipService : IDisposable
                     ["client_reference_id"] = opts.ClientReferenceId,
                     ["task_id"] = effectiveTaskId,
                     ["parent_invocation_id"] = opts.ParentInvocationId,
+                    ["upstream_service"] = opts.UpstreamService,
                 };
             }
 
@@ -862,6 +879,7 @@ public class AnipService : IDisposable
             // 7. Log audit (success).
             AppendAuditEntry(capName, token, true, null, result, costActual,
                 invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
+                opts.UpstreamService,
                 capDef.Declaration.SideEffect?.Type);
 
             // 8. Build response.
@@ -873,6 +891,7 @@ public class AnipService : IDisposable
                 ["client_reference_id"] = opts.ClientReferenceId,
                 ["task_id"] = effectiveTaskId,
                 ["parent_invocation_id"] = opts.ParentInvocationId,
+                ["upstream_service"] = opts.UpstreamService,
             };
             if (costActual != null)
             {
@@ -977,6 +996,7 @@ public class AnipService : IDisposable
         var closed = false;
         var clientRefId = opts.ClientReferenceId;
         var parentInvId = opts.ParentInvocationId;
+        var upstreamSvc = opts.UpstreamService;
 
         Func<Dictionary<string, object?>, bool> emitProgress = payload =>
         {
@@ -994,6 +1014,7 @@ public class AnipService : IDisposable
                     ["client_reference_id"] = string.IsNullOrEmpty(clientRefId) ? null : clientRefId,
                     ["task_id"] = effectiveTaskId,
                     ["parent_invocation_id"] = parentInvId,
+                    ["upstream_service"] = upstreamSvc,
                     ["timestamp"] = DateTime.UtcNow.ToString("o"),
                     ["payload"] = payload,
                 },
@@ -1012,7 +1033,8 @@ public class AnipService : IDisposable
             clientReferenceId: clientRefId,
             taskId: effectiveTaskId,
             parentInvocationId: parentInvId,
-            emitProgress: emitProgress
+            emitProgress: emitProgress,
+            upstreamService: upstreamSvc
         );
 
         // 5. Run handler in background task.
@@ -1030,6 +1052,7 @@ public class AnipService : IDisposable
                     AppendAuditEntry(capName, token, false, anipErr.ErrorType,
                         new Dictionary<string, object?> { ["detail"] = anipErr.Detail }, null,
                         invocationId, clientRefId, effectiveTaskId, parentInvId,
+                        upstreamSvc,
                         capDef.Declaration.SideEffect?.Type);
 
                     var failureObj = new Dictionary<string, object?>
@@ -1054,6 +1077,7 @@ public class AnipService : IDisposable
                             ["client_reference_id"] = string.IsNullOrEmpty(clientRefId) ? null : clientRefId,
                             ["task_id"] = effectiveTaskId,
                             ["parent_invocation_id"] = parentInvId,
+                            ["upstream_service"] = upstreamSvc,
                             ["timestamp"] = DateTime.UtcNow.ToString("o"),
                             ["success"] = false,
                             ["failure"] = failureObj,
@@ -1065,6 +1089,7 @@ public class AnipService : IDisposable
                 {
                     AppendAuditEntry(capName, token, false, Constants.FailureInternalError, null, null,
                         invocationId, clientRefId, effectiveTaskId, parentInvId,
+                        upstreamSvc,
                         capDef.Declaration.SideEffect?.Type);
 
                     var failureObj = new Dictionary<string, object?>
@@ -1087,6 +1112,7 @@ public class AnipService : IDisposable
                             ["client_reference_id"] = string.IsNullOrEmpty(clientRefId) ? null : clientRefId,
                             ["task_id"] = effectiveTaskId,
                             ["parent_invocation_id"] = parentInvId,
+                            ["upstream_service"] = upstreamSvc,
                             ["timestamp"] = DateTime.UtcNow.ToString("o"),
                             ["success"] = false,
                             ["failure"] = failureObj,
@@ -1099,6 +1125,7 @@ public class AnipService : IDisposable
                 var costActual = ctx.CostActual;
                 AppendAuditEntry(capName, token, true, null, result, costActual,
                     invocationId, clientRefId, effectiveTaskId, parentInvId,
+                    upstreamSvc,
                     capDef.Declaration.SideEffect?.Type);
 
                 var payload = new Dictionary<string, object?>
@@ -1107,6 +1134,7 @@ public class AnipService : IDisposable
                     ["client_reference_id"] = string.IsNullOrEmpty(clientRefId) ? null : clientRefId,
                     ["task_id"] = effectiveTaskId,
                     ["parent_invocation_id"] = parentInvId,
+                    ["upstream_service"] = upstreamSvc,
                     ["timestamp"] = DateTime.UtcNow.ToString("o"),
                     ["success"] = true,
                     ["result"] = result,
@@ -1402,6 +1430,7 @@ public class AnipService : IDisposable
         string? clientReferenceId,
         string? taskId,
         string? parentInvocationId,
+        string? upstreamService,
         string? sideEffectType)
     {
         var rootPrincipal = token.RootPrincipal ?? token.Issuer;
@@ -1425,6 +1454,7 @@ public class AnipService : IDisposable
             ClientReferenceId = clientReferenceId,
             TaskId = taskId,
             ParentInvocationId = parentInvocationId,
+            UpstreamService = upstreamService,
             EventClass = eventClass,
             RetentionTier = tier,
             ExpiresAt = expiresAt,
@@ -1480,6 +1510,7 @@ public class AnipService : IDisposable
             ["client_reference_id"] = entry.ClientReferenceId,
             ["task_id"] = entry.TaskId,
             ["parent_invocation_id"] = entry.ParentInvocationId,
+            ["upstream_service"] = entry.UpstreamService,
             ["token_id"] = entry.TokenId,
             ["issuer"] = entry.Issuer,
             ["subject"] = entry.Subject,

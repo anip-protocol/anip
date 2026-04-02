@@ -13,6 +13,7 @@ export interface InvocationContext {
   clientReferenceId: string | null;
   taskId: string | null;
   parentInvocationId: string | null;
+  upstreamService: string | null;
   /** Set actual cost for variance tracking. */
   setCostActual(cost: Record<string, unknown>): void;
   /** Emit a progress event. No-op in unary mode. */

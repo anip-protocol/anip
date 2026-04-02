@@ -100,6 +100,7 @@ def mount_anip(
         client_reference_id = body.get("client_reference_id")
         task_id = body.get("task_id")
         parent_invocation_id = body.get("parent_invocation_id")
+        upstream_service = body.get("upstream_service")
         stream = body.get("stream", False)
 
         if not stream:
@@ -109,6 +110,7 @@ def mount_anip(
                 client_reference_id=client_reference_id,
                 task_id=task_id,
                 parent_invocation_id=parent_invocation_id,
+                upstream_service=upstream_service,
             )
             if not result.get("success"):
                 status = _failure_status(result.get("failure", {}).get("type"))
@@ -125,6 +127,7 @@ def mount_anip(
                     client_reference_id=client_reference_id,
                     task_id=task_id,
                     parent_invocation_id=parent_invocation_id,
+                    upstream_service=upstream_service,
                     stream=True,
                 )
                 status = _failure_status(result.get("failure", {}).get("type"))
@@ -143,6 +146,7 @@ def mount_anip(
                     client_reference_id=client_reference_id,
                     task_id=task_id,
                     parent_invocation_id=parent_invocation_id,
+                    upstream_service=upstream_service,
                     stream=True,
                     _progress_sink=progress_sink,
                 )

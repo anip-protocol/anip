@@ -11,6 +11,7 @@ public class InvokeOpts {
     private boolean stream;
     private String taskId;
     private String parentInvocationId;
+    private String upstreamService;
     private Budget budget;
 
     public InvokeOpts() {}
@@ -25,6 +26,14 @@ public class InvokeOpts {
         this.stream = stream;
         this.taskId = taskId;
         this.parentInvocationId = parentInvocationId;
+    }
+
+    public InvokeOpts(String clientReferenceId, boolean stream, String taskId, String parentInvocationId, String upstreamService) {
+        this.clientReferenceId = clientReferenceId;
+        this.stream = stream;
+        this.taskId = taskId;
+        this.parentInvocationId = parentInvocationId;
+        this.upstreamService = upstreamService;
     }
 
     public String getClientReferenceId() {
@@ -60,6 +69,15 @@ public class InvokeOpts {
 
     public InvokeOpts setParentInvocationId(String parentInvocationId) {
         this.parentInvocationId = parentInvocationId;
+        return this;
+    }
+
+    public String getUpstreamService() {
+        return upstreamService;
+    }
+
+    public InvokeOpts setUpstreamService(String upstreamService) {
+        this.upstreamService = upstreamService;
         return this;
     }
 

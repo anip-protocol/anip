@@ -66,6 +66,7 @@ export async function mountAnip(
     const clientReferenceId = body.client_reference_id ?? null;
     const taskId = body.task_id ?? null;
     const parentInvocationId = body.parent_invocation_id ?? null;
+    const upstreamService = body.upstream_service ?? null;
     const budget = body.budget ?? null;
 
     if (!body.stream) {
@@ -74,6 +75,7 @@ export async function mountAnip(
         clientReferenceId,
         taskId,
         parentInvocationId,
+        upstreamService,
         budget,
       });
       if (!result.success) {
@@ -91,6 +93,7 @@ export async function mountAnip(
         clientReferenceId,
         taskId,
         parentInvocationId,
+        upstreamService,
         stream: true,
         budget,
       });
@@ -109,6 +112,7 @@ export async function mountAnip(
           clientReferenceId,
           taskId,
           parentInvocationId,
+          upstreamService,
           stream: true,
           budget,
           progressSink: async (event) => {

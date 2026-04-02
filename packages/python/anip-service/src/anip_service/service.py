@@ -560,6 +560,7 @@ class ANIPService:
         client_reference_id: str | None = None,
         task_id: str | None = None,
         parent_invocation_id: str | None = None,
+        upstream_service: str | None = None,
         stream: bool = False,
         budget: dict[str, Any] | None = None,
         _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
@@ -594,6 +595,7 @@ class ANIPService:
                 client_reference_id=client_reference_id,
                 task_id=task_id,
                 parent_invocation_id=parent_invocation_id,
+                upstream_service=upstream_service,
                 stream=stream,
                 budget=budget,
                 _progress_sink=_progress_sink,
@@ -630,6 +632,7 @@ class ANIPService:
         client_reference_id: str | None,
         task_id: str | None,
         parent_invocation_id: str | None,
+        upstream_service: str | None,
         stream: bool,
         budget: dict[str, Any] | None,
         _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None,
@@ -661,6 +664,7 @@ class ANIPService:
                 "client_reference_id": client_reference_id,
                 "task_id": task_id,
                 "parent_invocation_id": parent_invocation_id,
+                "upstream_service": upstream_service,
             }
         effective_task_id = task_id or token_task_id
 
@@ -689,6 +693,7 @@ class ANIPService:
                 "client_reference_id": client_reference_id,
                 "task_id": effective_task_id,
                 "parent_invocation_id": parent_invocation_id,
+                "upstream_service": upstream_service,
             }
 
         cap = self._capabilities[capability_name]
@@ -721,6 +726,7 @@ class ANIPService:
                     "client_reference_id": client_reference_id,
                     "task_id": effective_task_id,
                     "parent_invocation_id": parent_invocation_id,
+                    "upstream_service": upstream_service,
                 }
 
         # 2. Validate delegation
@@ -755,6 +761,7 @@ class ANIPService:
                 cost_actual=None, cost_variance=None,
                 invocation_id=invocation_id, client_reference_id=client_reference_id,
                 task_id=effective_task_id, parent_invocation_id=parent_invocation_id,
+                upstream_service=upstream_service,
                 event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                 parent_span=root_span,
             )
@@ -777,6 +784,7 @@ class ANIPService:
                 "client_reference_id": client_reference_id,
                 "task_id": effective_task_id,
                 "parent_invocation_id": parent_invocation_id,
+                "upstream_service": upstream_service,
             }
 
         # Use the resolved/stored token from validation
@@ -806,6 +814,7 @@ class ANIPService:
                         "client_reference_id": client_reference_id,
                         "task_id": effective_task_id,
                         "parent_invocation_id": parent_invocation_id,
+                        "upstream_service": upstream_service,
                     }
                 effective_budget = Budget(
                     currency=effective_budget.currency,
@@ -830,6 +839,7 @@ class ANIPService:
                         "client_reference_id": client_reference_id,
                         "task_id": effective_task_id,
                         "parent_invocation_id": parent_invocation_id,
+                        "upstream_service": upstream_service,
                     }
 
                 if decl.cost.certainty == CostCertainty.FIXED:
@@ -856,6 +866,7 @@ class ANIPService:
                                 "client_reference_id": client_reference_id,
                                 "task_id": effective_task_id,
                                 "parent_invocation_id": parent_invocation_id,
+                                "upstream_service": upstream_service,
                             }
                     else:
                         return {
@@ -869,6 +880,7 @@ class ANIPService:
                             "client_reference_id": client_reference_id,
                             "task_id": effective_task_id,
                             "parent_invocation_id": parent_invocation_id,
+                            "upstream_service": upstream_service,
                         }
                 elif decl.cost.certainty == CostCertainty.DYNAMIC:
                     check_amount = decl.cost.financial.upper_bound
@@ -893,6 +905,7 @@ class ANIPService:
                         "client_reference_id": client_reference_id,
                         "task_id": effective_task_id,
                         "parent_invocation_id": parent_invocation_id,
+                        "upstream_service": upstream_service,
                     }
 
         # Binding enforcement
@@ -913,6 +926,7 @@ class ANIPService:
                     "client_reference_id": client_reference_id,
                     "task_id": effective_task_id,
                     "parent_invocation_id": parent_invocation_id,
+                    "upstream_service": upstream_service,
                 }
             if binding.max_age:
                 age = _resolve_binding_age(params[binding.field])
@@ -932,6 +946,7 @@ class ANIPService:
                         "client_reference_id": client_reference_id,
                         "task_id": effective_task_id,
                         "parent_invocation_id": parent_invocation_id,
+                        "upstream_service": upstream_service,
                     }
 
         # Control requirement enforcement (reject only — no warn in v0.14).
@@ -963,6 +978,7 @@ class ANIPService:
                     "client_reference_id": client_reference_id,
                     "task_id": effective_task_id,
                     "parent_invocation_id": parent_invocation_id,
+                    "upstream_service": upstream_service,
                 }
 
         # Set up progress tracking for streaming
@@ -1045,6 +1061,7 @@ class ANIPService:
                     result_summary=None, cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
                     task_id=effective_task_id, parent_invocation_id=parent_invocation_id,
+                    upstream_service=upstream_service,
                     event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                     parent_span=root_span,
                     budget_context=_audit_budget_base,
@@ -1069,6 +1086,7 @@ class ANIPService:
                     "client_reference_id": client_reference_id,
                     "task_id": effective_task_id,
                     "parent_invocation_id": parent_invocation_id,
+                    "upstream_service": upstream_service,
                 }
             locked = True
 
@@ -1111,6 +1129,7 @@ class ANIPService:
                     cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
                     task_id=effective_task_id, parent_invocation_id=parent_invocation_id,
+                    upstream_service=upstream_service,
                     stream_summary=fail_stream_summary,
                     event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                     parent_span=root_span,
@@ -1146,6 +1165,7 @@ class ANIPService:
                     "client_reference_id": client_reference_id,
                     "task_id": effective_task_id,
                     "parent_invocation_id": parent_invocation_id,
+                    "upstream_service": upstream_service,
                 }
                 if fail_stream_summary:
                     fail_response["stream_summary"] = fail_stream_summary
@@ -1170,6 +1190,7 @@ class ANIPService:
                     result_summary=None, cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
                     task_id=effective_task_id, parent_invocation_id=parent_invocation_id,
+                    upstream_service=upstream_service,
                     stream_summary=fail_stream_summary_exc,
                     event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                     parent_span=root_span,
@@ -1205,6 +1226,7 @@ class ANIPService:
                     "client_reference_id": client_reference_id,
                     "task_id": effective_task_id,
                     "parent_invocation_id": parent_invocation_id,
+                    "upstream_service": upstream_service,
                 }
                 if fail_stream_summary_exc:
                     fail_response_exc["stream_summary"] = fail_stream_summary_exc
@@ -1248,6 +1270,7 @@ class ANIPService:
                 cost_variance=cost_variance,
                 invocation_id=invocation_id, client_reference_id=client_reference_id,
                 task_id=effective_task_id, parent_invocation_id=parent_invocation_id,
+                upstream_service=upstream_service,
                 stream_summary=stream_summary,
                 event_class=_event_class, retention_tier=_retention_tier, expires_at=_expires_at,
                 parent_span=root_span,
@@ -1289,6 +1312,7 @@ class ANIPService:
                 "client_reference_id": client_reference_id,
                 "task_id": effective_task_id,
                 "parent_invocation_id": parent_invocation_id,
+                "upstream_service": upstream_service,
             }
             if cost_actual:
                 response["cost_actual"] = cost_actual
@@ -1681,6 +1705,7 @@ class ANIPService:
         client_reference_id: str | None = None,
         task_id: str | None = None,
         parent_invocation_id: str | None = None,
+        upstream_service: str | None = None,
         stream_summary: dict[str, Any] | None = None,
         event_class: str | None = None,
         retention_tier: str | None = None,
@@ -1709,6 +1734,7 @@ class ANIPService:
             "client_reference_id": client_reference_id,
             "task_id": task_id,
             "parent_invocation_id": parent_invocation_id,
+            "upstream_service": upstream_service,
             "stream_summary": stream_summary,
             "event_class": event_class,
             "retention_tier": retention_tier,

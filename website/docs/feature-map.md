@@ -36,6 +36,7 @@ A complete inventory of what ANIP includes today, organized by layer.
 | 5 new canonical `resolution.action` values | `retry_now`, `provide_credentials`, `wait_and_retry`, `revalidate_state`, `check_manifest` — completes the canonical action vocabulary | [Reference](/docs/protocol/reference#canonical-resolution-actions-v016) |
 | `refresh_via` composition hint | Advisory array of capability names to re-invoke when a stale artifact causes failure (e.g., `binding_stale`) | [Capabilities](/docs/protocol/capabilities#advisory-composition-hints-v017) |
 | `verify_via` composition hint | Advisory array of capability names to invoke to verify side effects after executing an irreversible action | [Capabilities](/docs/protocol/capabilities#advisory-composition-hints-v017) |
+| Cross-service continuity | `upstream_service` on invoke request/response/audit — identifies the calling ANIP service in cross-service workflows; services MUST echo and record it, MUST NOT reject foreign `parent_invocation_id` or `task_id` values | [Lineage](/docs/protocol/lineage#cross-service-continuity-v018) |
 
 ## Trust and verification
 

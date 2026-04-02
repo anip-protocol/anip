@@ -16,6 +16,7 @@ public class InvocationContext
     public string? ClientReferenceId { get; }
     public string? TaskId { get; }
     public string? ParentInvocationId { get; }
+    public string? UpstreamService { get; }
     public CostActual? CostActual { get; set; }
     public Func<Dictionary<string, object?>, bool> EmitProgress { get; }
 
@@ -29,7 +30,8 @@ public class InvocationContext
         string? clientReferenceId,
         string? taskId,
         string? parentInvocationId,
-        Func<Dictionary<string, object?>, bool> emitProgress)
+        Func<Dictionary<string, object?>, bool> emitProgress,
+        string? upstreamService = null)
     {
         Token = token;
         RootPrincipal = rootPrincipal;
@@ -40,6 +42,7 @@ public class InvocationContext
         ClientReferenceId = clientReferenceId;
         TaskId = taskId;
         ParentInvocationId = parentInvocationId;
+        UpstreamService = upstreamService;
         EmitProgress = emitProgress;
     }
 }

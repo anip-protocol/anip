@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 	client_reference_id TEXT,
 	task_id TEXT,
 	parent_invocation_id TEXT,
+	upstream_service TEXT,
 	data TEXT NOT NULL,
 	previous_hash TEXT NOT NULL,
 	signature TEXT
@@ -208,8 +209,8 @@ func (s *SQLiteStorage) AppendAuditEntry(entry *core.AuditEntry) (*core.AuditEnt
 	result, err := tx.Exec(
 		`INSERT INTO audit_log (timestamp, capability, token_id, root_principal,
 		 invocation_id, client_reference_id, task_id, parent_invocation_id,
-		 data, previous_hash, signature)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 upstream_service, data, previous_hash, signature)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		entry.Timestamp,
 		entry.Capability,
 		entry.TokenID,
@@ -218,6 +219,7 @@ func (s *SQLiteStorage) AppendAuditEntry(entry *core.AuditEntry) (*core.AuditEnt
 		entry.ClientReferenceID,
 		entry.TaskID,
 		entry.ParentInvocationID,
+		entry.UpstreamService,
 		string(data),
 		prevHash,
 		entry.Signature,

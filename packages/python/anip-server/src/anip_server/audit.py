@@ -51,6 +51,7 @@ class AuditLog:
             "client_reference_id": entry_data.get("client_reference_id"),
             "task_id": entry_data.get("task_id"),
             "parent_invocation_id": entry_data.get("parent_invocation_id"),
+            "upstream_service": entry_data.get("upstream_service"),
             "stream_summary": entry_data.get("stream_summary"),
             "event_class": entry_data.get("event_class"),
             "retention_tier": entry_data.get("retention_tier"),

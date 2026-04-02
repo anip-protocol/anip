@@ -19,6 +19,9 @@ public class InvokeResponse
     [JsonPropertyName("parent_invocation_id")]
     public string? ParentInvocationId { get; set; }
 
+    [JsonPropertyName("upstream_service")]
+    public string? UpstreamService { get; set; }
+
     [JsonPropertyName("result")]
     public object? Result { get; set; }
 

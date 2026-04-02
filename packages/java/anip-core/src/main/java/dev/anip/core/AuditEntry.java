@@ -39,6 +39,7 @@ public class AuditEntry {
     private Map<String, Object> streamSummary;
     private String taskId;
     private String parentInvocationId;
+    private String upstreamService;
 
     public AuditEntry() {}
 
@@ -134,4 +135,7 @@ public class AuditEntry {
 
     public String getParentInvocationId() { return parentInvocationId; }
     public void setParentInvocationId(String parentInvocationId) { this.parentInvocationId = parentInvocationId; }
+
+    public String getUpstreamService() { return upstreamService; }
+    public void setUpstreamService(String upstreamService) { this.upstreamService = upstreamService; }
 }
