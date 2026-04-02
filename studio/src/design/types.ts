@@ -10,15 +10,17 @@ export interface PackMeta {
 
 export interface Requirements {
   system: { name: string; domain: string; deployment_intent: string }
+  services?: Array<Record<string, any>>
   transports: Record<string, boolean>
   trust: { mode: string; checkpoints: boolean }
-  auth: Record<string, boolean>
-  permissions: Record<string, boolean>
-  audit: Record<string, boolean>
-  lineage: Record<string, boolean>
-  risk_profile: { capabilities: Record<string, any> }
-  business_constraints: Record<string, boolean>
-  scale: Record<string, any>
+  auth?: Record<string, boolean>
+  permissions?: Record<string, boolean>
+  audit?: Record<string, boolean>
+  lineage?: Record<string, boolean>
+  risk_profile?: Record<string, any>
+  business_constraints?: Record<string, boolean>
+  scale?: Record<string, any>
+  [key: string]: any
 }
 
 export interface Proposal {
@@ -26,10 +28,11 @@ export interface Proposal {
     recommended_shape: string
     rationale: string[]
     required_components: string[]
-    optional_components: string[]
-    key_runtime_requirements: string[]
+    optional_components?: string[]
+    key_runtime_requirements?: string[]
     anti_pattern_warnings: string[]
     expected_glue_reduction: Record<string, string[]>
+    [key: string]: any
   }
 }
 

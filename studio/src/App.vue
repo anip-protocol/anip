@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { store } from './store'
 import { fetchDiscovery } from './api'
+import { designStore } from './design/store'
 
 const router = useRouter()
 const route = useRoute()
@@ -11,16 +12,44 @@ const urlInput = ref('')
 const sidebarCollapsed = ref(false)
 const connecting = ref(false)
 
-const navItems = [
-  { name: 'discovery', label: 'Discovery', icon: '\u{1F50D}', path: '/' },
-  { name: 'manifest', label: 'Manifest', icon: '\u{1F4CB}', path: '/manifest' },
-  { name: 'jwks', label: 'JWKS', icon: '\u{1F511}', path: '/jwks' },
-  { name: 'audit', label: 'Audit', icon: '\u{1F4CA}', path: '/audit' },
-  { name: 'checkpoints', label: 'Checkpoints', icon: '\u2713', path: '/checkpoints' },
-  { name: 'invoke', label: 'Invoke', icon: '\u26A1', path: '/invoke' },
+type StudioMode = 'home' | 'inspect' | 'design'
+
+const activeMode = computed<StudioMode>(() => {
+  const path = route.path
+  if (path.startsWith('/inspect')) return 'inspect'
+  if (path.startsWith('/design')) return 'design'
+  return 'home'
+})
+
+const inspectNavItems = [
+  { name: 'discovery', label: 'Discovery', icon: '\u{1F50D}', path: '/inspect/discovery' },
+  { name: 'manifest', label: 'Manifest', icon: '\u{1F4CB}', path: '/inspect/manifest' },
+  { name: 'jwks', label: 'JWKS', icon: '\u{1F511}', path: '/inspect/jwks' },
+  { name: 'audit', label: 'Audit', icon: '\u{1F4CA}', path: '/inspect/audit' },
+  { name: 'checkpoints', label: 'Checkpoints', icon: '\u2713', path: '/inspect/checkpoints' },
+  { name: 'invoke', label: 'Invoke', icon: '\u26A1', path: '/inspect/invoke' },
 ]
 
+const designNavItems = computed(() => {
+  const packId = designStore.activePackId
+  const items = [
+    { name: 'design-home', label: 'Home', icon: '\u{1F3E0}', path: '/design' },
+    { name: 'scenario-browser', label: 'Scenarios', icon: '\u{1F4D6}', path: '/design/scenarios' },
+  ]
+  if (packId) {
+    items.push(
+      { name: 'requirements', label: 'Requirements', icon: '\u{1F4CB}', path: `/design/requirements/${packId}` },
+      { name: 'proposal', label: 'Proposal', icon: '\u{1F4A1}', path: `/design/proposal/${packId}` },
+      { name: 'evaluation', label: 'Evaluation', icon: '\u2713', path: `/design/evaluation/${packId}` },
+    )
+  }
+  return items
+})
+
 const activeRoute = computed(() => route.name as string)
+
+const showSidebar = computed(() => activeMode.value !== 'home')
+const showConnectBar = computed(() => activeMode.value === 'inspect')
 
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
@@ -28,6 +57,14 @@ function toggleSidebar() {
 
 function navigate(path: string) {
   router.push(path)
+}
+
+function switchMode(mode: 'inspect' | 'design') {
+  if (mode === 'inspect') {
+    router.push('/inspect/discovery')
+  } else {
+    router.push('/design')
+  }
 }
 
 async function connect() {
@@ -58,20 +95,33 @@ function disconnect() {
 </script>
 
 <template>
-  <div class="studio-app" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+  <div class="studio-app" :class="{ 'sidebar-collapsed': sidebarCollapsed, 'no-sidebar': !showSidebar }">
     <!-- Header -->
     <header class="header">
       <div class="header-left">
-        <button class="sidebar-toggle" @click="toggleSidebar" title="Toggle sidebar">
+        <button v-if="showSidebar" class="sidebar-toggle" @click="toggleSidebar" title="Toggle sidebar">
           <span class="toggle-icon">{{ sidebarCollapsed ? '\u25B6' : '\u25C0' }}</span>
         </button>
-        <div class="brand">
+        <div class="brand" @click="navigate('/')" style="cursor: pointer;">
           <span class="brand-logo">&#x25C6;</span>
           <span class="brand-name">ANIP <span class="brand-accent">Studio</span></span>
         </div>
+        <!-- Mode switcher -->
+        <div class="mode-switcher" v-if="activeMode !== 'home'">
+          <button
+            class="mode-tab"
+            :class="{ active: activeMode === 'inspect' }"
+            @click="switchMode('inspect')"
+          >Inspect</button>
+          <button
+            class="mode-tab"
+            :class="{ active: activeMode === 'design' }"
+            @click="switchMode('design')"
+          >Design</button>
+        </div>
       </div>
 
-      <div class="header-center">
+      <div class="header-center" v-if="showConnectBar">
         <div v-if="store.connected" class="connected-badge" @click="disconnect">
           <span class="status-dot connected"></span>
           <span class="connected-url">{{ store.baseUrl }}</span>
@@ -91,17 +141,18 @@ function disconnect() {
           </button>
         </div>
       </div>
+      <div class="header-center" v-else></div>
 
       <div class="header-right">
-        <span v-if="store.error" class="error-badge" :title="store.error">
+        <span v-if="showConnectBar && store.error" class="error-badge" :title="store.error">
           <span class="status-dot error"></span>
           Error
         </span>
-        <span v-else-if="store.connected" class="status-badge">
+        <span v-else-if="showConnectBar && store.connected" class="status-badge">
           <span class="status-dot connected"></span>
           Connected
         </span>
-        <span v-else class="status-badge muted">
+        <span v-else-if="showConnectBar" class="status-badge muted">
           <span class="status-dot idle"></span>
           Not connected
         </span>
@@ -110,11 +161,26 @@ function disconnect() {
 
     <!-- Body -->
     <div class="body">
-      <!-- Sidebar -->
-      <nav class="sidebar">
-        <ul class="nav-list">
+      <!-- Sidebar (Inspect or Design) -->
+      <nav v-if="showSidebar" class="sidebar">
+        <!-- Inspect sidebar -->
+        <ul v-if="activeMode === 'inspect'" class="nav-list">
           <li
-            v-for="item in navItems"
+            v-for="item in inspectNavItems"
+            :key="item.name"
+            class="nav-item"
+            :class="{ active: activeRoute === item.name }"
+            @click="navigate(item.path)"
+            :title="item.label"
+          >
+            <span class="nav-icon">{{ item.icon }}</span>
+            <span class="nav-label">{{ item.label }}</span>
+          </li>
+        </ul>
+        <!-- Design sidebar -->
+        <ul v-else-if="activeMode === 'design'" class="nav-list">
+          <li
+            v-for="item in designNavItems"
             :key="item.name"
             class="nav-item"
             :class="{ active: activeRoute === item.name }"
@@ -132,7 +198,7 @@ function disconnect() {
 
       <!-- Main Content -->
       <main class="content">
-        <div v-if="!store.connected" class="welcome">
+        <div v-if="activeMode === 'inspect' && !store.connected" class="welcome">
           <div class="welcome-icon">&#x25C6;</div>
           <h2 class="welcome-title">Connect to an ANIP service</h2>
           <p class="welcome-text">Enter a service URL to inspect its discovery document, manifest, capabilities, audit log, and more.</p>
@@ -238,6 +304,40 @@ function disconnect() {
 .brand-accent {
   color: var(--accent);
   font-weight: 500;
+}
+
+/* ── Mode Switcher ── */
+.mode-switcher {
+  display: flex;
+  margin-left: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.mode-tab {
+  padding: 4px 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.mode-tab:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+
+.mode-tab:hover {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+}
+
+.mode-tab.active {
+  color: var(--accent);
+  background: var(--accent-glow);
 }
 
 .header-center {
@@ -513,9 +613,13 @@ function disconnect() {
   .sidebar-footer .version {
     display: none;
   }
+
+  .mode-switcher {
+    margin-left: 4px;
+  }
 }
 
-/* ── Welcome (not connected) ── */
+/* ── Welcome (not connected — Inspect mode) ── */
 .welcome {
   display: flex;
   flex-direction: column;
