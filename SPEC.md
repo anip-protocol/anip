@@ -1,4 +1,4 @@
-# ANIP Specification v0.18
+# ANIP Specification v0.19
 
 > Agent-Native Interface Protocol — Draft
 

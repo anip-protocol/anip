@@ -29,7 +29,7 @@ describe("Protocol constants", () => {
   it("exports correct protocol version", () => {
     // Intentionally hardcoded — this is the one place that verifies the constant value.
     // Update this when bumping the protocol version.
-    expect(PROTOCOL_VERSION).toBe("anip/0.18");
+    expect(PROTOCOL_VERSION).toBe("anip/0.19");
   });
 });
 
