@@ -10,6 +10,7 @@ import dev.anip.service.CapabilityDef;
 import dev.anip.service.InvocationContext;
 
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,12 +33,16 @@ public final class SearchFlightsCapability {
                         new CapabilityInput("date", "date", true, "Travel date (YYYY-MM-DD)")
                 ),
                 new CapabilityOutput("flight_list",
-                        List.of("flight_number", "departure_time", "arrival_time", "price", "stops")),
+                        List.of("flight_number", "departure_time", "arrival_time", "price", "stops", "quote_id")),
                 new SideEffect("read", "not_applicable"),
                 List.of("travel.search"),
                 null, // no cost
                 null, // no requires
-                List.of("unary")
+                List.of("unary"),
+                null, // no binding requirements
+                null, // no control requirements
+                List.of(), // refreshVia
+                List.of()  // verifyVia
         );
 
         return new CapabilityDef(decl, SearchFlightsCapability::handle);
@@ -55,7 +60,23 @@ public final class SearchFlightsCapability {
                     "origin, destination, and date are all required");
         }
 
-        List<Map<String, Object>> flights = FlightData.searchFlights(origin, destination, date);
+        List<Map<String, Object>> rawFlights = FlightData.searchFlights(origin, destination, date);
+
+        long epoch = System.currentTimeMillis() / 1000L;
+        List<Map<String, Object>> flights = new ArrayList<>(rawFlights.size());
+        for (Map<String, Object> flight : rawFlights) {
+            byte[] b = new byte[4];
+            new java.security.SecureRandom().nextBytes(b);
+            String hex = HexFormat.of().formatHex(b);
+            Map<String, Object> quoteId = Map.of(
+                    "id", "qt-" + hex + "-" + epoch,
+                    "price", flight.get("price"),
+                    "issued_at", epoch
+            );
+            Map<String, Object> enriched = new LinkedHashMap<>(flight);
+            enriched.put("quote_id", quoteId);
+            flights.add(enriched);
+        }
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("flights", flights);

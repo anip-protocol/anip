@@ -1,11 +1,13 @@
 package dev.anip.example.flights;
 
 import dev.anip.core.ANIPError;
+import dev.anip.core.BindingRequirement;
 import dev.anip.core.CapabilityDeclaration;
 import dev.anip.core.CapabilityInput;
 import dev.anip.core.CapabilityOutput;
 import dev.anip.core.CapabilityRequirement;
 import dev.anip.core.Constants;
+import dev.anip.core.ControlRequirement;
 import dev.anip.core.Cost;
 import dev.anip.core.CostActual;
 import dev.anip.core.FinancialCost;
@@ -35,7 +37,8 @@ public final class BookFlightCapability {
                 List.of(
                         new CapabilityInput("flight_number", "string", true, "Flight to book"),
                         new CapabilityInput("date", "date", true, "Travel date (YYYY-MM-DD)"),
-                        new CapabilityInput("passengers", "integer", false, 1, "Number of passengers")
+                        new CapabilityInput("passengers", "integer", false, 1, "Number of passengers"),
+                        new CapabilityInput("quote_id", "object", true, "Priced quote from search_flights")
                 ),
                 new CapabilityOutput("booking_confirmation",
                         List.of("booking_id", "flight_number", "departure_time", "total_cost")),
@@ -49,7 +52,11 @@ public final class BookFlightCapability {
                 ),
                 List.of(new CapabilityRequirement("search_flights",
                         "must select from available flights before booking")),
-                List.of("unary")
+                List.of("unary"),
+                List.of(new BindingRequirement("quote", "quote_id", "search_flights", "PT15M")),
+                List.of(), // empty control requirements
+                List.of("search_flights"), // refreshVia
+                List.of()  // verifyVia
         );
 
         return new CapabilityDef(decl, BookFlightCapability::handle);
@@ -58,6 +65,8 @@ public final class BookFlightCapability {
     private static Map<String, Object> handle(InvocationContext ctx, Map<String, Object> params) {
         String flightNumber = (String) params.get("flight_number");
         String date = (String) params.get("date");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> quoteId = (Map<String, Object>) params.get("quote_id");
         int passengers = 1;
         if (params.get("passengers") instanceof Number p) {
             passengers = p.intValue();
