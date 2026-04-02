@@ -178,6 +178,8 @@ class CapabilityDeclaration(BaseModel):
     response_modes: list[ResponseMode] = Field(default_factory=lambda: [ResponseMode.UNARY])
     requires_binding: list[BindingRequirement] = Field(default_factory=list)
     control_requirements: list[ControlRequirement] = Field(default_factory=list)
+    refresh_via: list[str] = Field(default_factory=list)
+    verify_via: list[str] = Field(default_factory=list)
 
 
 # --- Permission Discovery ---

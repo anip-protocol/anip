@@ -129,6 +129,8 @@ type CapabilityDeclaration struct {
 	ResponseModes       []string                `json:"response_modes,omitempty"`
 	RequiresBinding     []BindingRequirement    `json:"requires_binding,omitempty"`
 	ControlRequirements []ControlRequirement    `json:"control_requirements,omitempty"`
+	RefreshVia          []string                `json:"refresh_via,omitempty"`
+	VerifyVia           []string                `json:"verify_via,omitempty"`
 }
 
 // --- Delegation Chain ---

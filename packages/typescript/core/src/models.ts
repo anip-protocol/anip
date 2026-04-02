@@ -188,6 +188,8 @@ export const CapabilityDeclaration = z.object({
   response_modes: z.array(ResponseMode).min(1).default(["unary"]),
   requires_binding: z.array(BindingRequirement).default([]),
   control_requirements: z.array(ControlRequirement).default([]),
+  refresh_via: z.array(z.string()).default([]),
+  verify_via: z.array(z.string()).default([]),
 });
 export type CapabilityDeclaration = z.infer<typeof CapabilityDeclaration>;
 
