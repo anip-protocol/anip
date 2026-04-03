@@ -109,26 +109,31 @@ In `tooling/bin/anip_design_validate.py`, modify `_extract_proposal_surfaces()`:
 
 ```python
 def _extract_proposal_surfaces(proposal: dict[str, Any]) -> dict[str, bool]:
-    # V3: prefer structured declared_surfaces when present
+    # V3: prefer structured declared_surfaces when present.
+    # IMPORTANT: return the SAME key names the existing evaluator consumers expect.
+    # Do NOT rename keys — only change how values are derived.
     declared = proposal.get("declared_surfaces")
     if declared and isinstance(declared, dict):
         return {
-            "has_budget_enforcement": declared.get("budget_enforcement", False),
-            "has_binding": declared.get("binding_requirements", False),
-            "has_authority_posture": declared.get("authority_posture", False),
-            "has_recovery_class": declared.get("recovery_class", False),
-            "has_refresh": declared.get("refresh_via", False),
-            "has_verify": declared.get("verify_via", False),
-            "has_followup": declared.get("followup_via", False),
-            "has_cross_service_handoff": declared.get("cross_service_handoff", False),
-            "has_cross_service_continuity": declared.get("cross_service_continuity", False),
-            "has_cross_service_reconstruction": declared.get("cross_service_reconstruction", False),
-            "has_audit": True,  # always true if structured declarations present
-            "has_lineage": True,
+            # Same keys as V2 heuristic output — consumers unchanged
+            "budget_enforcement": declared.get("budget_enforcement", False),
+            "binding": declared.get("binding_requirements", False),
+            "authority_posture": declared.get("authority_posture", False),
+            "recovery_class": declared.get("recovery_class", False),
+            "refresh_via": declared.get("refresh_via", False),
+            "verify_via": declared.get("verify_via", False),
+            "followup_via": declared.get("followup_via", False),
+            "cross_service_hints": declared.get("cross_service_handoff", False),
+            "upstream_service": declared.get("cross_service_continuity", False),
+            "cross_service_reconstruction": declared.get("cross_service_reconstruction", False),
+            "audit": True,  # always true if structured declarations present
+            "lineage": True,
         }
     # V2 fallback: heuristic text matching
     # ... existing code unchanged ...
 ```
+
+**IMPORTANT:** The returned dict uses the SAME key names as the V2 heuristic path (`budget_enforcement`, `refresh_via`, `cross_service_hints`, `audit`, `lineage`, etc.). No key renames. Only the value derivation changes — from text scanning to boolean lookup. All downstream consumer code in `evaluate_safety`, `evaluate_orchestration`, `evaluate_cross_service`, etc. works without changes.
 
 - [ ] **Step 4: Add evaluator tests for declared_surfaces**
 
@@ -287,6 +292,20 @@ Add functions:
 - `updateDraftRequirements(path, value)` — set a field in draft requirements
 - `updateDraftScenario(path, value)` — set a field in draft scenario
 - `updateDeclaredSurface(key, value)` — toggle a declared surface
+- `composeDraftProposal()` — merges `draftDeclaredSurfaces` into the original pack proposal and returns a complete proposal object. This is used for both live validation AND export:
+  ```typescript
+  function composeDraftProposal(): Record<string, any> | null {
+    const pack = getActivePack()
+    if (!pack?.proposal) return null
+    const base = structuredClone(pack.proposal)
+    if (designStore.draftDeclaredSurfaces) {
+      base.proposal.declared_surfaces = { ...designStore.draftDeclaredSurfaces }
+    }
+    return base
+  }
+  ```
+- Update `runLiveValidation()` to use `composeDraftProposal()` instead of the static pack proposal
+- Export YAML for proposal uses `composeDraftProposal()` to include current toggle state
 
 - [ ] **Step 2: Commit**
 
