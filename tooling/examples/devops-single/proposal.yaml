@@ -31,6 +31,18 @@ proposal:
     - preserve task and invocation lineage
     - return structured failure with escalation-friendly recovery data
 
+  declared_surfaces:
+    budget_enforcement: false
+    binding_requirements: false
+    authority_posture: true
+    recovery_class: true
+    refresh_via: false
+    verify_via: false
+    followup_via: false
+    cross_service_handoff: false
+    cross_service_continuity: false
+    cross_service_reconstruction: false
+
   anti_pattern_warnings:
     - do_not_rely_on_delete_then_parse_error
     - do_not_hide_authority_requirements_only_in_docs

@@ -42,6 +42,18 @@ proposal:
     - task identity should survive across planning, execution, and verification
     - each service should remain independently auditable
 
+  declared_surfaces:
+    budget_enforcement: false
+    binding_requirements: false
+    authority_posture: false
+    recovery_class: false
+    refresh_via: false
+    verify_via: true
+    followup_via: true
+    cross_service_handoff: true
+    cross_service_continuity: true
+    cross_service_reconstruction: false
+
   anti_pattern_warnings:
     - do_not_hide_cross_service_next_steps_only_in_wrapper_code
     - do_not_push_follow_up_relationships_only_into_docs

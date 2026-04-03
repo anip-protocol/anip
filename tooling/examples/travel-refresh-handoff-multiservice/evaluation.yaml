@@ -8,8 +8,6 @@ evaluation:
   - audit queryability
   - structured failure
   - cross-service task identity continuity
-  - independent but linkable audit records
-  - cleaner service handoff
   - refresh path guidance (protocol-assisted, advisory, not enforced)
   glue_you_will_still_write:
   - the protocol provides advisory guidance but enforcement still requires wrapper

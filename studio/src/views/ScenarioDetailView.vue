@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { designStore, setActivePack } from '../design/store'
+import { designStore, setActivePack, updateDraftField } from '../design/store'
+import EditorToolbar from '../design/components/EditorToolbar.vue'
+import KeyValueEditor from '../design/components/KeyValueEditor.vue'
+import StringListEditor from '../design/components/StringListEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -12,13 +15,31 @@ const pack = computed(() => {
   return designStore.packs.find(p => p.meta.id === id) ?? null
 })
 
-const context = computed(() => pack.value?.scenario?.scenario?.context ?? {})
+const isEditing = computed(() => designStore.editState === 'draft')
+
+// Source data: draft when editing, original pack data otherwise
+const scenario = computed(() => {
+  if (isEditing.value && designStore.draftScenario) {
+    return (designStore.draftScenario as Record<string, any>).scenario ?? {}
+  }
+  return pack.value?.scenario?.scenario ?? {}
+})
+
+const context = computed(() => scenario.value?.context ?? {})
 const contextKeys = computed(() => Object.keys(context.value))
 
 function navigateTo(view: string) {
   if (!pack.value) return
   router.push(`/design/${view}/${pack.value.meta.id}`)
 }
+
+// --- Draft helpers ---
+function setField(path: string, value: any) {
+  updateDraftField('scenario', `scenario.${path}`, value)
+}
+
+const CATEGORY_OPTIONS = ['safety', 'recovery', 'orchestration', 'cross_service', 'observability']
+const NAME_PATTERN = /^[a-z0-9_\-]+$/
 </script>
 
 <template>
@@ -26,45 +47,117 @@ function navigateTo(view: string) {
     <div class="layout">
       <!-- Main content -->
       <div class="main">
-        <h1 class="page-title">{{ pack.scenario.scenario.name }}</h1>
-        <span class="category-badge">{{ pack.scenario.scenario.category }}</span>
-        <div class="result-row" v-if="pack.meta.result">
-          <span class="result-badge" :class="'result-' + pack.meta.result.toLowerCase().replace('_', '-')">
-            {{ pack.meta.result }}
-          </span>
-        </div>
-        <div class="result-row" v-else>
-          <span class="result-badge result-none">Not evaluated</span>
-        </div>
+        <h1 class="page-title" v-if="!isEditing">{{ scenario.name }}</h1>
 
-        <p class="narrative">{{ pack.scenario.scenario.narrative }}</p>
+        <EditorToolbar artifact="scenario" />
 
-        <!-- Scenario Context -->
-        <div class="section" v-if="contextKeys.length">
-          <h2>Scenario Context</h2>
-          <dl class="info-grid">
-            <template v-for="key in contextKeys" :key="key">
-              <dt>{{ key }}</dt>
-              <dd>{{ typeof context[key] === 'object' ? JSON.stringify(context[key]) : context[key] }}</dd>
-            </template>
-          </dl>
-        </div>
+        <!-- Editable fields when in draft mode -->
+        <template v-if="isEditing">
+          <div class="section">
+            <h2>Scenario Details</h2>
+            <div class="form-grid">
+              <label class="form-label">Name</label>
+              <div class="form-field">
+                <input
+                  class="form-input"
+                  type="text"
+                  :value="scenario.name"
+                  @input="setField('name', ($event.target as HTMLInputElement).value)"
+                  placeholder="e.g. budget_exhaustion"
+                  :pattern="NAME_PATTERN.source"
+                />
+                <span
+                  class="field-hint"
+                  :class="{ error: scenario.name && !NAME_PATTERN.test(scenario.name) }"
+                >
+                  lowercase, digits, hyphens, underscores only
+                </span>
+              </div>
+              <label class="form-label">Category</label>
+              <select
+                class="form-select"
+                :value="scenario.category"
+                @change="setField('category', ($event.target as HTMLSelectElement).value)"
+              >
+                <option v-for="cat in CATEGORY_OPTIONS" :key="cat" :value="cat">{{ cat }}</option>
+              </select>
+              <label class="form-label">Narrative</label>
+              <textarea
+                class="form-textarea"
+                :value="scenario.narrative"
+                @input="setField('narrative', ($event.target as HTMLTextAreaElement).value)"
+                rows="4"
+                placeholder="Describe the scenario..."
+              ></textarea>
+            </div>
+          </div>
 
-        <!-- Expected Behavior -->
-        <div class="section">
-          <h2>Expected Behavior</h2>
-          <ul>
-            <li v-for="(item, i) in pack.scenario.scenario.expected_behavior" :key="i">{{ item }}</li>
-          </ul>
-        </div>
+          <div class="section">
+            <h2>Context</h2>
+            <KeyValueEditor
+              :modelValue="scenario.context ?? {}"
+              @update:modelValue="setField('context', $event)"
+            />
+          </div>
 
-        <!-- Expected ANIP Support -->
-        <div class="section">
-          <h2>Expected ANIP Support</h2>
-          <ul>
-            <li v-for="(item, i) in pack.scenario.scenario.expected_anip_support" :key="i">{{ item }}</li>
-          </ul>
-        </div>
+          <div class="section">
+            <h2>Expected Behavior</h2>
+            <StringListEditor
+              :modelValue="scenario.expected_behavior ?? []"
+              @update:modelValue="setField('expected_behavior', $event)"
+            />
+          </div>
+
+          <div class="section">
+            <h2>Expected ANIP Support</h2>
+            <StringListEditor
+              :modelValue="scenario.expected_anip_support ?? []"
+              @update:modelValue="setField('expected_anip_support', $event)"
+            />
+          </div>
+        </template>
+
+        <!-- Read-only display -->
+        <template v-else>
+          <span class="category-badge">{{ scenario.category }}</span>
+          <div class="result-row" v-if="pack.meta.result">
+            <span class="result-badge" :class="'result-' + pack.meta.result.toLowerCase().replace('_', '-')">
+              {{ pack.meta.result }}
+            </span>
+          </div>
+          <div class="result-row" v-else>
+            <span class="result-badge result-none">Not evaluated</span>
+          </div>
+
+          <p class="narrative">{{ scenario.narrative }}</p>
+
+          <!-- Scenario Context -->
+          <div class="section" v-if="contextKeys.length">
+            <h2>Scenario Context</h2>
+            <dl class="info-grid">
+              <template v-for="key in contextKeys" :key="key">
+                <dt>{{ key }}</dt>
+                <dd>{{ typeof context[key] === 'object' ? JSON.stringify(context[key]) : context[key] }}</dd>
+              </template>
+            </dl>
+          </div>
+
+          <!-- Expected Behavior -->
+          <div class="section">
+            <h2>Expected Behavior</h2>
+            <ul>
+              <li v-for="(item, i) in scenario.expected_behavior" :key="i">{{ item }}</li>
+            </ul>
+          </div>
+
+          <!-- Expected ANIP Support -->
+          <div class="section">
+            <h2>Expected ANIP Support</h2>
+            <ul>
+              <li v-for="(item, i) in scenario.expected_anip_support" :key="i">{{ item }}</li>
+            </ul>
+          </div>
+        </template>
       </div>
 
       <!-- Sidebar with quick links -->
@@ -259,5 +352,85 @@ function navigateTo(view: string) {
 .not-found {
   padding: 2rem;
   color: var(--text-muted);
+}
+
+/* ---- Edit-mode form controls ---- */
+.form-grid {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 0.75rem 1rem;
+  align-items: start;
+}
+
+.form-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+  padding-top: 6px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.field-hint.error {
+  color: var(--error);
+}
+
+.form-input {
+  font-size: 13px;
+  padding: 6px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-input:focus {
+  border-color: var(--border-focus);
+}
+
+.form-select {
+  font-size: 13px;
+  padding: 6px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+}
+
+.form-select:focus {
+  border-color: var(--border-focus);
+}
+
+.form-textarea {
+  font-size: 13px;
+  padding: 8px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  outline: none;
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.form-textarea:focus {
+  border-color: var(--border-focus);
 }
 </style>

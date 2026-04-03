@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
-import { reactive } from 'vue'
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -55,8 +54,8 @@ const mockPack = {
 
 const mockRunLiveValidation = vi.fn()
 
-vi.mock('../design/store', () => {
-  const { reactive: r } = require('vue')
+vi.mock('../design/store', async () => {
+  const { reactive: r } = await import('vue')
   const state = r({
     packs: [] as any[],
     activePackId: null as string | null,

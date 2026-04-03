@@ -27,6 +27,18 @@ proposal:
     - preserve lineage across write and verification steps
     - keep verification guidance advisory rather than mandatory workflow
 
+  declared_surfaces:
+    budget_enforcement: false
+    binding_requirements: false
+    authority_posture: false
+    recovery_class: false
+    refresh_via: false
+    verify_via: true
+    followup_via: false
+    cross_service_handoff: false
+    cross_service_continuity: false
+    cross_service_reconstruction: false
+
   anti_pattern_warnings:
     - do_not_hide_verification_paths_only_in_runbooks
     - do_not_force_agents_to_guess_the_post_deploy_check
