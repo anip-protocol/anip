@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { designStore, setActivePack, updateDraftField } from '../design/store'
+import { designStore, setActivePack, updateDraftField, setScenarioMode, updateGuidedScenarioAnswer } from '../design/store'
 import EditorToolbar from '../design/components/EditorToolbar.vue'
 import KeyValueEditor from '../design/components/KeyValueEditor.vue'
 import StringListEditor from '../design/components/StringListEditor.vue'
+import { SCENARIO_GUIDED_SECTIONS, BEHAVIOR_SUGGESTIONS, SUPPORT_SUGGESTIONS } from '../design/guided/scenario-questions'
+import { hydrateScenarioAnswers } from '../design/guided/scenario-mappings'
+import { evaluateScenarioCompleteness } from '../design/guided/scenario-hints'
+import GuidedSection from '../design/components/GuidedSection.vue'
+import ScenarioSummary from '../design/components/ScenarioSummary.vue'
+import CompletenessHints from '../design/components/CompletenessHints.vue'
+import SuggestionChips from '../design/components/SuggestionChips.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,6 +47,28 @@ function setField(path: string, value: any) {
 
 const CATEGORY_OPTIONS = ['safety', 'recovery', 'orchestration', 'cross_service', 'observability']
 const NAME_PATTERN = /^[a-z0-9_\-]+$/
+
+const guidedScenarioAnswers = computed(() => {
+  if (isEditing.value) return designStore.guidedScenarioAnswers
+  return hydrateScenarioAnswers(pack.value?.scenario ?? {})
+})
+
+const scenarioHints = computed(() => {
+  if (isEditing.value) return designStore.scenarioHints
+  return evaluateScenarioCompleteness(pack.value?.scenario ?? {})
+})
+
+const currentCategory = computed(() => {
+  return scenario.value?.category ?? 'safety'
+})
+
+const behaviorSuggestions = computed(() => {
+  return BEHAVIOR_SUGGESTIONS[currentCategory.value] ?? []
+})
+
+const supportSuggestions = computed(() => {
+  return SUPPORT_SUGGESTIONS[currentCategory.value] ?? []
+})
 </script>
 
 <template>
@@ -49,8 +78,72 @@ const NAME_PATTERN = /^[a-z0-9_\-]+$/
       <div class="main">
         <h1 class="page-title" v-if="!isEditing">{{ scenario.name }}</h1>
 
+        <div class="mode-toggle">
+          <button class="mode-btn" :class="{ active: designStore.scenarioMode === 'guided' }" @click="setScenarioMode('guided')" type="button">Guided</button>
+          <button class="mode-btn" :class="{ active: designStore.scenarioMode === 'advanced' }" @click="setScenarioMode('advanced')" type="button">Advanced</button>
+        </div>
+
         <EditorToolbar artifact="scenario" />
 
+        <template v-if="designStore.scenarioMode === 'guided'">
+          <ScenarioSummary :scenario="designStore.draftScenario ?? pack?.scenario ?? {}" />
+          <CompletenessHints :hints="scenarioHints" />
+
+          <div class="mapping-toggle" v-if="isEditing">
+            <label class="mapping-label">
+              <input type="checkbox" :checked="designStore.showFieldMappings" @change="designStore.showFieldMappings = !designStore.showFieldMappings" />
+              Show technical field mappings
+            </label>
+          </div>
+
+          <GuidedSection
+            v-for="section in SCENARIO_GUIDED_SECTIONS"
+            :key="section.id"
+            :section="section"
+            :answers="guidedScenarioAnswers"
+            :showMappings="designStore.showFieldMappings"
+            :readonly="!isEditing"
+            @update:answer="updateGuidedScenarioAnswer"
+          />
+
+          <!-- Expected Behavior with suggestions -->
+          <div class="guided-section-card">
+            <h2 class="guided-section-title">Expected Behavior</h2>
+            <p class="guided-section-desc">What should the system do in this situation?</p>
+            <SuggestionChips
+              :modelValue="scenario.expected_behavior ?? []"
+              :suggestions="behaviorSuggestions"
+              :readonly="!isEditing"
+              placeholder="Add custom behavior..."
+              @update:modelValue="setField('expected_behavior', $event)"
+            />
+          </div>
+
+          <!-- Expected ANIP Support with suggestions -->
+          <div class="guided-section-card">
+            <h2 class="guided-section-title">Expected ANIP Support</h2>
+            <p class="guided-section-desc">What should the protocol/interface itself make visible or explicit?</p>
+            <SuggestionChips
+              :modelValue="scenario.expected_anip_support ?? []"
+              :suggestions="supportSuggestions"
+              :readonly="!isEditing"
+              placeholder="Add custom ANIP support..."
+              @update:modelValue="setField('expected_anip_support', $event)"
+            />
+          </div>
+
+          <!-- Advanced context editor fallback -->
+          <div class="guided-section-card" v-if="isEditing">
+            <h2 class="guided-section-title">Additional Context</h2>
+            <p class="guided-section-desc">Add domain-specific context keys beyond the guided questions above.</p>
+            <KeyValueEditor
+              :modelValue="scenario.context ?? {}"
+              @update:modelValue="setField('context', $event)"
+            />
+          </div>
+        </template>
+
+        <template v-else>
         <!-- Editable fields when in draft mode -->
         <template v-if="isEditing">
           <div class="section">
@@ -157,6 +250,7 @@ const NAME_PATTERN = /^[a-z0-9_\-]+$/
               <li v-for="(item, i) in scenario.expected_anip_support" :key="i">{{ item }}</li>
             </ul>
           </div>
+        </template>
         </template>
       </div>
 
@@ -432,5 +526,73 @@ const NAME_PATTERN = /^[a-z0-9_\-]+$/
 
 .form-textarea:focus {
   border-color: var(--border-focus);
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  width: fit-content;
+}
+
+.mode-btn {
+  padding: 6px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.mode-btn.active {
+  background: var(--accent);
+  color: var(--text-primary);
+}
+
+.mode-btn:hover:not(.active) {
+  background: var(--bg-hover);
+}
+
+.mapping-toggle {
+  margin-bottom: 16px;
+}
+
+.mapping-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.mapping-label input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.guided-section-card {
+  background: var(--bg-input, #1a1a2e);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.guided-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.guided-section-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 12px;
 }
 </style>
