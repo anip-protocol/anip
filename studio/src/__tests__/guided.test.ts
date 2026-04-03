@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest'
-import { GUIDED_SECTIONS } from '../design/guided/questions'
 import {
   readAnswerFromArtifact,
   applyAnswerToArtifact,
