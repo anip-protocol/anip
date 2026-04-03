@@ -15,6 +15,8 @@ from typing import Any, Optional
 
 from psycopg.types.json import Json
 
+from .hashing import content_hash
+
 
 # ---------------------------------------------------------------------------
 # Exceptions
@@ -190,13 +192,22 @@ def _get_artifact(conn: Any, table: str, project_id: str,
 
 
 def _create_artifact(conn: Any, table: str, project_id: str,
-                     artifact_id: str, title: str, data: dict) -> dict:
+                     artifact_id: str, title: str, data: dict,
+                     extra_cols: dict[str, Any] | None = None) -> dict:
     # Ensure the project exists
     get_project(conn, project_id)
+    cols = ["id", "project_id", "title", "data", "content_hash"]
+    vals = [artifact_id, project_id, title, Json(data), content_hash(data)]
+    if extra_cols:
+        for k, v in extra_cols.items():
+            cols.append(k)
+            vals.append(v)
+    placeholders = ", ".join(["%s"] * len(cols))
+    col_names = ", ".join(cols)
     row = conn.execute(
-        f"INSERT INTO {table} (id, project_id, title, data)"
-        " VALUES (%s, %s, %s, %s) RETURNING *",
-        (artifact_id, project_id, title, Json(data)),
+        f"INSERT INTO {table} ({col_names})"
+        f" VALUES ({placeholders}) RETURNING *",
+        vals,
     ).fetchone()
     conn.commit()
     return row
@@ -213,6 +224,9 @@ def _update_artifact(conn: Any, table: str, project_id: str,
         if key == "data":
             sets.append(f"{key} = %s")
             params.append(Json(value))
+            # Recompute content_hash when data changes
+            sets.append("content_hash = %s")
+            params.append(content_hash(value))
         else:
             sets.append(f"{key} = %s")
             params.append(value)
@@ -267,8 +281,16 @@ def get_requirements(conn: Any, project_id: str, req_id: str) -> dict:
 
 def create_requirements(conn: Any, project_id: str, req_id: str,
                         title: str, data: dict) -> dict:
+    # Auto-assign role: first requirements set in project is 'primary'
+    has_primary = conn.execute(
+        "SELECT 1 FROM requirements_sets"
+        " WHERE project_id = %s AND role = 'primary' LIMIT 1",
+        (project_id,),
+    ).fetchone()
+    role = "alternative" if has_primary else "primary"
     return _create_artifact(conn, "requirements_sets", project_id,
-                            req_id, title, data)
+                            req_id, title, data,
+                            extra_cols={"role": role})
 
 
 def update_requirements(conn: Any, project_id: str, req_id: str,
@@ -281,6 +303,39 @@ def delete_requirements(conn: Any, project_id: str, req_id: str) -> None:
     _delete_artifact(conn, "requirements_sets", project_id, req_id,
                      blocked_by_table="proposals",
                      blocked_by_fk="requirements_id")
+
+
+def set_requirements_role(conn: Any, project_id: str, req_id: str,
+                          role: str) -> dict:
+    """Set the role of a requirements set ('primary' or 'alternative').
+
+    If promoting to 'primary', the current primary is first demoted to
+    'alternative'.  Both changes happen in the same transaction so the
+    partial unique index is never violated.
+    """
+    if role not in ("primary", "alternative"):
+        raise ValueError(f"Invalid role: {role!r}")
+
+    # Verify the target exists
+    _get_artifact(conn, "requirements_sets", project_id, req_id)
+
+    if role == "primary":
+        # Demote the current primary (if any) before promoting
+        conn.execute(
+            "UPDATE requirements_sets SET role = 'alternative'"
+            " WHERE project_id = %s AND role = 'primary'",
+            (project_id,),
+        )
+
+    row = conn.execute(
+        "UPDATE requirements_sets SET role = %s"
+        " WHERE id = %s AND project_id = %s RETURNING *",
+        (role, req_id, project_id),
+    ).fetchone()
+    if row is None:
+        raise NotFoundError("requirements_sets", req_id)
+    conn.commit()
+    return row
 
 
 # --- Scenarios ---
@@ -337,9 +392,10 @@ def create_proposal(conn: Any, project_id: str, proposal_id: str,
     get_project(conn, project_id)
     assert_same_project(conn, project_id, requirements_id=requirements_id)
     row = conn.execute(
-        "INSERT INTO proposals (id, project_id, requirements_id, title, data)"
-        " VALUES (%s, %s, %s, %s, %s) RETURNING *",
-        (proposal_id, project_id, requirements_id, title, Json(data)),
+        "INSERT INTO proposals (id, project_id, requirements_id, title, data, content_hash)"
+        " VALUES (%s, %s, %s, %s, %s, %s) RETURNING *",
+        (proposal_id, project_id, requirements_id, title, Json(data),
+         content_hash(data)),
     ).fetchone()
     conn.commit()
     return row
@@ -356,6 +412,9 @@ def update_proposal(conn: Any, project_id: str, proposal_id: str,
         if key == "data":
             sets.append(f"{key} = %s")
             params.append(Json(value))
+            # Recompute content_hash when data changes
+            sets.append("content_hash = %s")
+            params.append(content_hash(value))
         else:
             sets.append(f"{key} = %s")
             params.append(value)
@@ -398,19 +457,80 @@ def delete_proposal(conn: Any, project_id: str, proposal_id: str) -> None:
 # Evaluations
 # ---------------------------------------------------------------------------
 
+def _compute_staleness(eval_row: dict, current_req_hash: str,
+                       current_prop_hash: str,
+                       current_scn_hash: str) -> tuple[bool, list[str]]:
+    """Compare stored per-artifact hashes against current hashes."""
+    stale: list[str] = []
+    if eval_row["requirements_hash"] != current_req_hash:
+        stale.append("requirements")
+    if eval_row["proposal_hash"] != current_prop_hash:
+        stale.append("proposal")
+    if eval_row["scenario_hash"] != current_scn_hash:
+        stale.append("scenario")
+    return len(stale) > 0, stale
+
+
+def _enrich_evaluation_staleness(conn: Any, eval_dict: dict) -> dict:
+    """Add is_stale and stale_artifacts to a single evaluation dict."""
+    try:
+        req_row = get_requirements(conn, eval_dict["project_id"],
+                                   eval_dict["requirements_id"])
+        prop_row = get_proposal(conn, eval_dict["project_id"],
+                                eval_dict["proposal_id"])
+        scn_row = get_scenario(conn, eval_dict["project_id"],
+                               eval_dict["scenario_id"])
+        is_stale, stale_artifacts = _compute_staleness(
+            eval_dict,
+            req_row["content_hash"],
+            prop_row["content_hash"],
+            scn_row["content_hash"],
+        )
+    except NotFoundError:
+        # If a linked artifact has been deleted, mark as stale
+        is_stale = True
+        stale_artifacts = ["unknown"]
+    eval_dict["is_stale"] = is_stale
+    eval_dict["stale_artifacts"] = stale_artifacts
+    return eval_dict
+
+
 def list_evaluations(conn: Any, project_id: str, *,
                      scenario_id: Optional[str] = None,
                      proposal_id: Optional[str] = None) -> list[dict]:
-    query = "SELECT * FROM evaluations WHERE project_id = %s"
+    # Use a JOIN to avoid N+1 queries for staleness computation
+    query = (
+        "SELECT e.*,"
+        "  rs.content_hash AS current_req_hash,"
+        "  p.content_hash AS current_prop_hash,"
+        "  s.content_hash AS current_scn_hash"
+        " FROM evaluations e"
+        " JOIN requirements_sets rs ON e.requirements_id = rs.id"
+        " JOIN proposals p ON e.proposal_id = p.id"
+        " JOIN scenarios s ON e.scenario_id = s.id"
+        " WHERE e.project_id = %s"
+    )
     params: list[Any] = [project_id]
     if scenario_id is not None:
-        query += " AND scenario_id = %s"
+        query += " AND e.scenario_id = %s"
         params.append(scenario_id)
     if proposal_id is not None:
-        query += " AND proposal_id = %s"
+        query += " AND e.proposal_id = %s"
         params.append(proposal_id)
-    query += " ORDER BY created_at DESC"
-    return conn.execute(query, params).fetchall()
+    query += " ORDER BY e.created_at DESC"
+    rows = conn.execute(query, params).fetchall()
+    result = []
+    for row in rows:
+        is_stale, stale_artifacts = _compute_staleness(
+            row,
+            row.pop("current_req_hash", ""),
+            row.pop("current_prop_hash", ""),
+            row.pop("current_scn_hash", ""),
+        )
+        row["is_stale"] = is_stale
+        row["stale_artifacts"] = stale_artifacts
+        result.append(row)
+    return result
 
 
 def get_evaluation(conn: Any, project_id: str, eval_id: str) -> dict:
@@ -420,7 +540,7 @@ def get_evaluation(conn: Any, project_id: str, eval_id: str) -> dict:
     ).fetchone()
     if row is None:
         raise NotFoundError("evaluations", eval_id)
-    return row
+    return _enrich_evaluation_staleness(conn, row)
 
 
 def create_evaluation(conn: Any, project_id: str, eval_id: str,
@@ -434,15 +554,25 @@ def create_evaluation(conn: Any, project_id: str, eval_id: str,
         scenario_id=scenario_id,
         requirements_id=requirements_id,
     )
+    # Capture current content_hash of each linked artifact
+    req_row = get_requirements(conn, project_id, requirements_id)
+    prop_row = get_proposal(conn, project_id, proposal_id)
+    scn_row = get_scenario(conn, project_id, scenario_id)
+    requirements_hash = req_row["content_hash"]
+    proposal_hash = prop_row["content_hash"]
+    scenario_hash = scn_row["content_hash"]
+
     # Extract result from the evaluation data
     result = data.get("evaluation", {}).get("result", "REQUIRES_GLUE")
     row = conn.execute(
         "INSERT INTO evaluations"
         " (id, project_id, proposal_id, scenario_id, requirements_id,"
-        "  result, source, data, input_snapshot)"
-        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *",
+        "  result, source, data, input_snapshot,"
+        "  requirements_hash, proposal_hash, scenario_hash)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *",
         (eval_id, project_id, proposal_id, scenario_id, requirements_id,
-         result, source, Json(data), Json(input_snapshot)),
+         result, source, Json(data), Json(input_snapshot),
+         requirements_hash, proposal_hash, scenario_hash),
     ).fetchone()
     conn.commit()
     return row
@@ -513,12 +643,14 @@ def load_vocabulary_defaults(conn: Any, defaults_path: str | Path) -> int:
     for entry in entries:
         try:
             conn.execute(
-                "INSERT INTO vocabulary (project_id, category, value, origin, description)"
-                " VALUES (NULL, %s, %s, %s, %s)"
+                "INSERT INTO vocabulary"
+                " (project_id, category, value, origin, description, evaluator_recognized)"
+                " VALUES (NULL, %s, %s, %s, %s, %s)"
                 " ON CONFLICT DO NOTHING",
                 (entry["category"], entry["value"],
                  entry.get("origin", "canonical"),
-                 entry.get("description", "")),
+                 entry.get("description", ""),
+                 entry.get("evaluator_recognized", False)),
             )
             inserted += 1
         except Exception:
