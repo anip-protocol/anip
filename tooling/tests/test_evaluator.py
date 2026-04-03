@@ -95,6 +95,7 @@ def _make_proposal(
     optional_components: list | None = None,
     key_runtime_requirements: list | None = None,
     rationale: list | None = None,
+    declared_surfaces: dict | None = None,
 ) -> dict:
     p: dict = {"recommended_shape": shape}
     if required_components is not None:
@@ -105,6 +106,8 @@ def _make_proposal(
         p["key_runtime_requirements"] = key_runtime_requirements
     if rationale is not None:
         p["rationale"] = rationale
+    if declared_surfaces is not None:
+        p["declared_surfaces"] = declared_surfaces
     return {"proposal": p}
 
 
@@ -603,3 +606,155 @@ class TestUnknownCategoryFallback:
         ev = result["evaluation"]
         assert ev["result"] == "PARTIAL"
         assert any("unknown scenario category" in w for w in ev["why"])
+
+
+class TestDeclaredSurfaces:
+    """Tests for V3 declared_surfaces structured surface declarations."""
+
+    def test_declared_surfaces_preferred_over_text(self):
+        """With declared_surfaces, result differs from text-only heuristic.
+
+        A bare proposal with no text hints would NOT credit refresh_via or
+        recovery_class via V2 heuristics. With declared_surfaces, those
+        surfaces ARE credited.
+        """
+        req = _make_requirements()
+        # Bare proposal — no text that would trigger V2 heuristics for refresh/recovery
+        proposal_v2 = _make_proposal(
+            required_components=["capability_registry"],
+            rationale=["minimal design"],
+        )
+        # Same bare proposal but with declared_surfaces
+        proposal_v3 = _make_proposal(
+            required_components=["capability_registry"],
+            rationale=["minimal design"],
+            declared_surfaces={
+                "refresh_via": True,
+                "recovery_class": True,
+            },
+        )
+        scenario = _make_scenario(
+            name="declared_vs_text",
+            category="orchestration",
+            context={"task_id": "test"},
+            expected_anip_support=[
+                "refresh_path_guidance",
+                "recovery_class",
+            ],
+        )
+
+        result_v2 = evaluate(req, proposal_v2, scenario)
+        result_v3 = evaluate(req, proposal_v3, scenario)
+
+        # V2 (no text) should NOT credit advisory refresh or recovery
+        v2_advisory = [h for h in result_v2["evaluation"]["handled_by_anip"] if "advisory" in h]
+        assert len(v2_advisory) == 0, f"V2 should not credit advisory surfaces: {v2_advisory}"
+
+        # V3 (declared_surfaces) SHOULD credit them
+        v3_advisory = [h for h in result_v3["evaluation"]["handled_by_anip"] if "advisory" in h]
+        assert len(v3_advisory) >= 2, f"V3 should credit advisory surfaces: {v3_advisory}"
+
+    def test_declared_surfaces_false_produces_glue(self):
+        """When refresh_via is declared false, the evaluator should produce
+        glue noting the gap (proposal does not declare the surface)."""
+        req = _make_requirements()
+        proposal = _make_proposal(
+            required_components=["capability_registry"],
+            rationale=["minimal design"],
+            declared_surfaces={
+                "refresh_via": False,
+            },
+        )
+        scenario = _make_scenario(
+            name="false_refresh",
+            category="orchestration",
+            context={"task_id": "test"},
+            expected_anip_support=[
+                "refresh_path_guidance",
+            ],
+        )
+
+        result = evaluate(req, proposal, scenario)
+        ev = result["evaluation"]
+        # refresh should NOT be in handled
+        refresh_handled = [h for h in ev["handled_by_anip"] if "refresh" in h.lower()]
+        assert len(refresh_handled) == 0, f"False refresh_via should not be handled: {refresh_handled}"
+        # glue should note the gap
+        assert any("proposal does not declare" in g for g in ev["glue_you_will_still_write"])
+
+    def test_declared_surfaces_absent_falls_back(self):
+        """When declared_surfaces is absent, V2 text heuristic behavior is preserved."""
+        req = _make_requirements()
+        # Proposal text DOES mention refresh — V2 heuristic should pick it up
+        proposal = _make_proposal(
+            required_components=["capability_registry"],
+            key_runtime_requirements=[
+                "expose which capability typically refreshes stale state",
+            ],
+        )
+        scenario = _make_scenario(
+            name="fallback_text",
+            category="orchestration",
+            context={"task_id": "test"},
+            expected_anip_support=[
+                "refresh_path_guidance",
+            ],
+        )
+
+        result = evaluate(req, proposal, scenario)
+        ev = result["evaluation"]
+        # V2 text heuristic should credit refresh
+        refresh_handled = [h for h in ev["handled_by_anip"] if "refresh" in h.lower()]
+        assert len(refresh_handled) > 0, f"V2 fallback should credit refresh from text: {ev['handled_by_anip']}"
+
+    def test_declared_surfaces_all_true(self):
+        """All declared_surfaces true should yield maximum credit."""
+        req = _make_requirements(
+            services=[
+                {"name": "svc-a", "role": "planning"},
+                {"name": "svc-b", "role": "execution"},
+            ],
+            cross_service_continuity=True,
+            cross_service_reconstruction=True,
+        )
+        proposal = _make_proposal(
+            shape="multi_service_estate",
+            required_components=["capability_registry"],
+            rationale=["full design"],
+            declared_surfaces={
+                "budget_enforcement": True,
+                "binding_requirements": True,
+                "authority_posture": True,
+                "recovery_class": True,
+                "refresh_via": True,
+                "verify_via": True,
+                "followup_via": True,
+                "cross_service_handoff": True,
+                "cross_service_continuity": True,
+                "cross_service_reconstruction": True,
+            },
+        )
+        scenario = _make_scenario(
+            name="all_true",
+            category="orchestration",
+            context={"task_id": "test"},
+            expected_anip_support=[
+                "refresh_path_guidance",
+                "verification_path_guidance",
+                "follow_up_guidance",
+                "recovery_class",
+                "binding_freshness_visibility",
+                "cross_service_handoff_guidance",
+            ],
+        )
+
+        result = evaluate(req, proposal, scenario)
+        ev = result["evaluation"]
+        # Should have many advisory surfaces handled
+        advisory_handled = [h for h in ev["handled_by_anip"] if "advisory" in h]
+        assert len(advisory_handled) >= 5, (
+            f"All-true should credit at least 5 advisory surfaces, got {len(advisory_handled)}: {advisory_handled}"
+        )
+        # Should NOT have any "proposal does not declare" glue
+        missing_glue = [g for g in ev["glue_you_will_still_write"] if "proposal does not declare" in g]
+        assert len(missing_glue) == 0, f"All-true should not have missing-surface glue: {missing_glue}"

@@ -109,6 +109,23 @@
             "maxLength": 256
           }
         },
+        "declared_surfaces": {
+          "type": "object",
+          "description": "Machine-readable declaration of which ANIP semantic surfaces are present in this design.",
+          "additionalProperties": false,
+          "properties": {
+            "budget_enforcement": { "type": "boolean", "default": false },
+            "binding_requirements": { "type": "boolean", "default": false },
+            "authority_posture": { "type": "boolean", "default": false },
+            "recovery_class": { "type": "boolean", "default": false },
+            "refresh_via": { "type": "boolean", "default": false },
+            "verify_via": { "type": "boolean", "default": false },
+            "followup_via": { "type": "boolean", "default": false },
+            "cross_service_handoff": { "type": "boolean", "default": false },
+            "cross_service_continuity": { "type": "boolean", "default": false },
+            "cross_service_reconstruction": { "type": "boolean", "default": false }
+          }
+        },
         "expected_glue_reduction": {
           "type": "object",
           "additionalProperties": false,

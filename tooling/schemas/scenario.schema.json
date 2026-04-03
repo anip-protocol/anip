@@ -31,7 +31,9 @@
           "type": "string",
           "enum": [
             "safety",
+            "recovery",
             "orchestration",
+            "cross_service",
             "observability"
           ]
         },

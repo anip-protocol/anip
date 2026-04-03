@@ -142,13 +142,37 @@ def _common_lineage_surfaces(
 def _extract_proposal_surfaces(proposal: dict[str, Any]) -> dict[str, bool]:
     """Extract which advisory surfaces the proposal actually declares.
 
-    LIMITATION (V2): This uses heuristic text matching against proposal
-    components, key_runtime_requirements, and rationale because the proposal
-    schema does not yet expose structured surface declarations. Changing
-    prose can change the score without a real design change. V3 should
-    introduce structured proposal surface declarations so evaluator
-    judgments depend on machine-readable design surfaces, not text inference.
+    V3: When the proposal contains a structured `declared_surfaces` block,
+    use it directly — mapping schema keys to the consumer key names that
+    downstream evaluator code expects. This removes the V2 limitation where
+    prose changes could change scores without a real design change.
+
+    Fallback (V2): When `declared_surfaces` is absent, use heuristic text
+    matching against proposal components, key_runtime_requirements, and
+    rationale.
     """
+    ds = proposal.get("declared_surfaces")
+    if isinstance(ds, dict):
+        # Structured path: map schema keys to consumer key names
+        return {
+            "budget_enforcement": bool(ds.get("budget_enforcement", False)),
+            "binding": bool(ds.get("binding_requirements", False)),
+            "authority_posture": bool(ds.get("authority_posture", False)),
+            "recovery_class": bool(ds.get("recovery_class", False)),
+            "refresh_via": bool(ds.get("refresh_via", False)),
+            "verify_via": bool(ds.get("verify_via", False)),
+            "followup": bool(ds.get("followup_via", False)),
+            "cross_service_hints": bool(ds.get("cross_service_handoff", False)),
+            "upstream_service": bool(ds.get("cross_service_continuity", False)),
+            "cross_service_reconstruction": bool(ds.get("cross_service_reconstruction", False)),
+            # Surfaces not in declared_surfaces schema — default false
+            "audit": False,
+            "lineage": False,
+            "revalidation": False,
+            "availability": False,
+        }
+
+    # V2 fallback: heuristic text matching
     proposal_components = set(
         proposal.get("required_components", [])
         + proposal.get("optional_components", [])
