@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anip.dev/schemas/proposal.schema.json",
+  "title": "ANIP Proposal",
+  "description": "Structured proposed ANIP design produced from requirements and used as input to Execution Scenario Validation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "proposal"
+  ],
+  "properties": {
+    "proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recommended_shape",
+        "rationale",
+        "required_components"
+      ],
+      "properties": {
+        "recommended_shape": {
+          "type": "string",
+          "enum": [
+            "embedded_single_process",
+            "production_single_service",
+            "horizontally_scaled",
+            "control_plane_worker_split",
+            "multi_service_estate"
+          ]
+        },
+        "rationale": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "service_shapes": {
+          "type": "object",
+          "description": "Optional per-service shape map for multi-service proposals.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "shape"
+            ],
+            "properties": {
+              "shape": {
+                "type": "string",
+                "enum": [
+                  "embedded_single_process",
+                  "production_single_service",
+                  "horizontally_scaled",
+                  "control_plane_worker_split",
+                  "multi_service_estate"
+                ]
+              },
+              "notes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                }
+              }
+            }
+          }
+        },
+        "shared_requirements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "required_components": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "optional_components": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "key_runtime_requirements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "anti_pattern_warnings": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "declared_surfaces": {
+          "type": "object",
+          "description": "Machine-readable declaration of which ANIP semantic surfaces are present in this design.",
+          "additionalProperties": false,
+          "properties": {
+            "budget_enforcement": { "type": "boolean", "default": false },
+            "binding_requirements": { "type": "boolean", "default": false },
+            "authority_posture": { "type": "boolean", "default": false },
+            "recovery_class": { "type": "boolean", "default": false },
+            "refresh_via": { "type": "boolean", "default": false },
+            "verify_via": { "type": "boolean", "default": false },
+            "followup_via": { "type": "boolean", "default": false },
+            "cross_service_handoff": { "type": "boolean", "default": false },
+            "cross_service_continuity": { "type": "boolean", "default": false },
+            "cross_service_reconstruction": { "type": "boolean", "default": false }
+          }
+        },
+        "expected_glue_reduction": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "safety": {
+              "$ref": "#/$defs/stringArray"
+            },
+            "orchestration": {
+              "$ref": "#/$defs/stringArray"
+            },
+            "observability": {
+              "$ref": "#/$defs/stringArray"
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      }
+    }
+  }
+}
