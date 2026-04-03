@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
 import type { DesignPack, PackMeta, Evaluation, DeclaredSurfaces, EditState, ValidationError } from './types'
 import { PACKS } from './data/packs.generated'
 import { runValidation, checkHealth } from './api'
@@ -54,16 +54,18 @@ export function getPackMetas(): PackMeta[] {
 
 export async function runLiveValidation(): Promise<void> {
   const pack = getActivePack()
-  if (!pack || !pack.proposal) return
+  if (!pack) return
 
   designStore.validating = true
   designStore.validationError = null
   try {
-    const result = await runValidation(
-      pack.requirements,
-      pack.proposal,
-      pack.scenario,
-    )
+    // Use draft state when editing, otherwise use original pack data
+    const requirements = designStore.draftRequirements ?? pack.requirements
+    const scenario = designStore.draftScenario ? { scenario: designStore.draftScenario } : pack.scenario
+    const proposal = composeDraftProposal() ?? pack.proposal
+    if (!proposal) return
+
+    const result = await runValidation(requirements, proposal, scenario)
     designStore.liveEvaluation = result
   } catch (err: any) {
     designStore.validationError = err.message ?? 'Unknown error'
@@ -133,7 +135,10 @@ export function isDirty(): boolean {
   if (designStore.editState !== 'draft') return false
   return (
     JSON.stringify(designStore.draftRequirements) !== JSON.stringify(designStore.originalRequirements) ||
-    JSON.stringify(designStore.draftScenario) !== JSON.stringify(designStore.originalScenario)
+    JSON.stringify(designStore.draftScenario) !== JSON.stringify(designStore.originalScenario) ||
+    JSON.stringify(designStore.draftDeclaredSurfaces) !== JSON.stringify(
+      getActivePack()?.proposal?.proposal?.declared_surfaces ?? null
+    )
   )
 }
 
@@ -214,3 +219,19 @@ export function composeDraftProposal(): Record<string, any> | null {
   }
   return proposal
 }
+
+// ---------------------------------------------------------------------------
+// Auto-validate on draft changes (debounced)
+// ---------------------------------------------------------------------------
+
+let validateTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(
+  () => [designStore.draftRequirements, designStore.draftScenario, designStore.draftDeclaredSurfaces],
+  () => {
+    if (designStore.editState !== 'draft') return
+    if (validateTimer) clearTimeout(validateTimer)
+    validateTimer = setTimeout(() => validateDraft(), 300)
+  },
+  { deep: true },
+)

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { designStore, startEditing, discardEdits, validateDraft } from '../store'
+import { designStore, startEditing, discardEdits, validateDraft, getActivePack, composeDraftProposal } from '../store'
 import { diffObjects } from '../diff'
 import { downloadYaml, copyYamlToClipboard } from '../io'
 
@@ -17,6 +17,20 @@ const hasErrors = computed(() => errors.value.length > 0)
 
 const changeCount = computed(() => {
   if (!isEditing.value) return 0
+
+  if (props.artifact === 'proposal') {
+    const pack = getActivePack()
+    const allChanges: ReturnType<typeof diffObjects> = []
+    if (designStore.draftDeclaredSurfaces && pack?.proposal?.proposal?.declared_surfaces) {
+      const surfaceChanges = diffObjects(
+        pack.proposal.proposal.declared_surfaces,
+        designStore.draftDeclaredSurfaces,
+      )
+      allChanges.push(...surfaceChanges.map(c => ({ ...c, path: `declared_surfaces.${c.path}` })))
+    }
+    return allChanges.length
+  }
+
   const original = props.artifact === 'requirements'
     ? designStore.originalRequirements
     : designStore.originalScenario
@@ -35,24 +49,30 @@ function handleDiscard() {
 }
 
 function handleExport() {
+  if (props.artifact === 'proposal') {
+    const draftProposal = composeDraftProposal()
+    if (draftProposal) downloadYaml(draftProposal, 'proposal.yaml')
+    return
+  }
   const draft = props.artifact === 'requirements'
     ? designStore.draftRequirements
-    : props.artifact === 'scenario'
-      ? designStore.draftScenario
-      : null
+    : designStore.draftScenario
   if (draft) {
     downloadYaml(draft, `${props.artifact}.yaml`)
   }
 }
 
 async function handleCopy() {
-  const draft = props.artifact === 'requirements'
-    ? designStore.draftRequirements
-    : props.artifact === 'scenario'
-      ? designStore.draftScenario
-      : null
-  if (draft) {
-    await copyYamlToClipboard(draft)
+  let data: Record<string, any> | null = null
+  if (props.artifact === 'proposal') {
+    data = composeDraftProposal()
+  } else {
+    data = props.artifact === 'requirements'
+      ? designStore.draftRequirements
+      : designStore.draftScenario
+  }
+  if (data) {
+    await copyYamlToClipboard(data)
     copyFeedback.value = true
     setTimeout(() => { copyFeedback.value = false }, 1500)
   }
