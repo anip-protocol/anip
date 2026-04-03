@@ -1,6 +1,6 @@
 <!-- studio/src/design/components/SuggestionChips.vue -->
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import type { VocabularyEntry } from '../project-types'
 
 const props = defineProps<{
