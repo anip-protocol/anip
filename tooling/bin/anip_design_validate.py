@@ -397,6 +397,32 @@ def evaluate_safety(
     if permissions.get("grantable_requirements"):
         append_unique(handled, "grantable requirements visibility")
 
+    # --- business_constraints alignment ---
+    bc = req.get("business_constraints", {})
+    psurfaces = proposal.get("declared_surfaces", {})
+
+    # spending_possible: check budget_enforcement surface
+    if bc.get("spending_possible"):
+        if context.get("expected_cost") is not None or context.get("budget_limit") is not None:
+            if psurfaces.get("budget_enforcement"):
+                append_unique(handled, "budget enforcement for spending-possible system")
+            else:
+                improve.append("declare budget_enforcement surface for spending-possible system")
+
+    # approval_expected_for_high_risk: check authority_posture surface
+    if bc.get("approval_expected_for_high_risk"):
+        if psurfaces.get("authority_posture"):
+            append_unique(handled, "authority posture for high-risk approval expectations")
+        else:
+            improve.append("declare authority_posture surface for approval-expected system")
+
+    # cost_visibility_required: check budget_enforcement surface (implies cost visibility)
+    if bc.get("cost_visibility_required"):
+        if psurfaces.get("budget_enforcement"):
+            append_unique(handled, "cost visibility via budget enforcement")
+        else:
+            improve.append("declare budget_enforcement surface for cost-visibility-required system")
+
     # --- Normalize ---
     if result != "HANDLED" and not glue:
         result = "PARTIAL"
@@ -847,6 +873,25 @@ def evaluate_recovery(
             "no advisory recovery surfaces detected — limited protocol "
             "guidance for recovery paths"
         )
+
+    # --- business_constraints alignment ---
+    bc = req.get("business_constraints", {})
+    psurfaces = proposal.get("declared_surfaces", {})
+
+    # recovery_sensitive: check recovery_class surface
+    if bc.get("recovery_sensitive"):
+        if psurfaces.get("recovery_class"):
+            append_unique(handled, "recovery class guidance for recovery-sensitive system")
+        else:
+            improve.append("declare recovery_class surface for recovery-sensitive system")
+
+    # blocked_failure_posture: check recovery_class surface
+    posture = bc.get("blocked_failure_posture")
+    if posture and posture != "not_specified":
+        if psurfaces.get("recovery_class"):
+            append_unique(handled, f"recovery class aligns with declared failure posture ({posture})")
+        else:
+            improve.append(f"declare recovery_class surface for system with {posture} failure posture")
 
     # --- Normalize ---
     if not glue:
