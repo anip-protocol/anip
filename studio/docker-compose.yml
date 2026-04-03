@@ -1,5 +1,33 @@
 version: '3.8'
 services:
+  studio-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: anip_studio
+      POSTGRES_USER: anip
+      POSTGRES_PASSWORD: anip
+    ports:
+      - "5432:5432"
+    volumes:
+      - studio-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U anip -d anip_studio"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  studio-api:
+    build:
+      context: ..
+      dockerfile: studio/server/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://anip:anip@studio-db:5432/anip_studio
+    ports:
+      - "8100:8100"
+    depends_on:
+      studio-db:
+        condition: service_healthy
+
   studio-web:
     build:
       context: ..
@@ -9,9 +37,5 @@ services:
     depends_on:
       - studio-api
 
-  studio-api:
-    build:
-      context: ..
-      dockerfile: studio/server/Dockerfile
-    expose:
-      - "8100"
+volumes:
+  studio-pgdata:
