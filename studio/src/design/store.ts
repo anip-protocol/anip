@@ -1,9 +1,12 @@
 import { reactive, watch } from 'vue'
 import type { DesignPack, PackMeta, Evaluation, DeclaredSurfaces, EditState, ValidationError } from './types'
 import type { RequirementsMode } from './types'
+import type { ScenarioMode } from './types'
 import type { CompletenessHint } from './guided/types'
 import { hydrateAnswersFromArtifact, applyAnswerToArtifact } from './guided/mappings'
 import { evaluateCompleteness } from './guided/hints'
+import { hydrateScenarioAnswers, applyScenarioAnswer } from './guided/scenario-mappings'
+import { evaluateScenarioCompleteness } from './guided/scenario-hints'
 import { PACKS } from './data/packs.generated'
 import { runValidation, checkHealth } from './api'
 import { validateRequirements, validateScenario } from './schemas'
@@ -26,6 +29,9 @@ interface DesignState {
   guidedAnswers: Record<string, any>
   completenessHints: CompletenessHint[]
   showFieldMappings: boolean
+  scenarioMode: ScenarioMode
+  guidedScenarioAnswers: Record<string, any>
+  scenarioHints: CompletenessHint[]
 }
 
 export const designStore = reactive<DesignState>({
@@ -46,6 +52,9 @@ export const designStore = reactive<DesignState>({
   guidedAnswers: {},
   completenessHints: [],
   showFieldMappings: false,
+  scenarioMode: 'guided',
+  guidedScenarioAnswers: {},
+  scenarioHints: [],
 })
 
 export function getActivePack(): DesignPack | null {
@@ -132,6 +141,8 @@ export function startEditing(): void {
   // Hydrate guided answers from the draft artifact
   designStore.guidedAnswers = hydrateAnswersFromArtifact(designStore.draftRequirements!)
   designStore.completenessHints = evaluateCompleteness(designStore.draftRequirements!)
+  designStore.guidedScenarioAnswers = hydrateScenarioAnswers(designStore.draftScenario!)
+  designStore.scenarioHints = evaluateScenarioCompleteness(designStore.draftScenario!)
 }
 
 /** Discard all draft edits and return to read mode. */
@@ -145,6 +156,8 @@ export function discardEdits(): void {
   designStore.validationErrors = []
   designStore.guidedAnswers = {}
   designStore.completenessHints = []
+  designStore.guidedScenarioAnswers = {}
+  designStore.scenarioHints = []
 }
 
 /** Check whether draft differs from the original snapshot. */
@@ -248,6 +261,26 @@ export function setRequirementsMode(mode: RequirementsMode): void {
   }
 }
 
+/** Toggle between guided and advanced scenario mode. */
+export function setScenarioMode(mode: ScenarioMode): void {
+  designStore.scenarioMode = mode
+
+  if (mode === 'guided' && designStore.draftScenario) {
+    designStore.guidedScenarioAnswers = hydrateScenarioAnswers(designStore.draftScenario)
+    designStore.scenarioHints = evaluateScenarioCompleteness(designStore.draftScenario)
+  }
+}
+
+/** Update a single guided scenario answer and apply it to the draft artifact. */
+export function updateGuidedScenarioAnswer(questionId: string, value: any): void {
+  designStore.guidedScenarioAnswers[questionId] = value
+
+  if (designStore.draftScenario) {
+    applyScenarioAnswer(questionId, value, designStore.draftScenario)
+    designStore.scenarioHints = evaluateScenarioCompleteness(designStore.draftScenario)
+  }
+}
+
 /** Toggle field mapping chip visibility */
 export function toggleFieldMappings(): void {
   designStore.showFieldMappings = !designStore.showFieldMappings
@@ -282,6 +315,9 @@ watch(
       validateDraft()
       if (designStore.draftRequirements) {
         designStore.completenessHints = evaluateCompleteness(designStore.draftRequirements)
+      }
+      if (designStore.draftScenario) {
+        designStore.scenarioHints = evaluateScenarioCompleteness(designStore.draftScenario)
       }
     }, 300)
   },

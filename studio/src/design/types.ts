@@ -90,3 +90,5 @@ export interface ValidationError {
 export type EditState = 'read' | 'draft' | 'exported'
 
 export type RequirementsMode = 'guided' | 'advanced'
+
+export type ScenarioMode = 'guided' | 'advanced'
