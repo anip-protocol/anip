@@ -14,6 +14,7 @@ const copyFeedback = ref(false)
 const isEditing = computed(() => designStore.editState === 'draft')
 const errors = computed(() => designStore.validationErrors)
 const hasErrors = computed(() => errors.value.length > 0)
+const hintCount = computed(() => designStore.completenessHints.length)
 
 const changeCount = computed(() => {
   if (!isEditing.value) return 0
@@ -107,6 +108,9 @@ function handleValidate() {
               <span class="valid-icon">&#x2713;</span> Valid
             </template>
           </button>
+          <span v-if="hintCount > 0" class="hint-badge" :title="`${hintCount} design hint(s)`">
+            {{ hintCount }} hint{{ hintCount === 1 ? '' : 's' }}
+          </span>
         </template>
       </div>
 
@@ -310,5 +314,15 @@ function handleValidate() {
   background: rgba(248, 113, 113, 0.1);
   padding: 1px 5px;
   border-radius: 3px;
+}
+
+.hint-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(251, 191, 36, 0.9);
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  border-radius: 10px;
+  padding: 2px 10px;
 }
 </style>
