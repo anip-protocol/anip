@@ -149,6 +149,10 @@ class SetRoleRequest(BaseModel):
     role: str
 
 
+# Alias used by the router endpoint
+SetRequirementsRole = SetRoleRequest
+
+
 # ---------------------------------------------------------------------------
 # Import / Export
 # ---------------------------------------------------------------------------

@@ -16,6 +16,7 @@ from ..models import (
     EvaluationOut,
     ProposalOut,
     UpdateArtifact,
+    SetRequirementsRole,
 )
 from ..repository import (
     NotFoundError,
@@ -99,6 +100,13 @@ def update_requirements(pid: str, req_id: str, body: UpdateArtifact):
 def delete_requirements(pid: str, req_id: str):
     with get_pool().connection() as conn:
         repository.delete_requirements(conn, pid, req_id)
+
+
+@router.put("/requirements/{req_id}/role", response_model=ArtifactOut)
+@_handle_errors
+def set_requirements_role(pid: str, req_id: str, body: SetRequirementsRole):
+    with get_pool().connection() as conn:
+        return repository.set_requirements_role(conn, pid, req_id, body.role)
 
 
 # ---------------------------------------------------------------------------

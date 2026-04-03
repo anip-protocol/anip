@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { designStore, setActivePack, runLiveValidation, composeDraftProposal } from '../design/store'
 import { loadProject, projectStore, refreshArtifacts } from '../design/project-store'
 import { createEvaluation } from '../design/project-api'
 import { runValidation } from '../design/api'
 
 const route = useRoute()
+const router = useRouter()
 
 // --- Dual-route detection ---
 const isProjectMode = computed(() => !!route.params.projectId)
@@ -182,6 +183,77 @@ function clearLive() {
   savedEvalId.value = null
 }
 
+// --- Re-evaluate stale stored evaluations ---
+const reEvaluating = ref(false)
+const reEvaluateError = ref<string | null>(null)
+
+const isStoredStale = computed(() =>
+  isProjectMode.value &&
+  !isLive.value &&
+  projectRecord.value?.is_stale === true,
+)
+
+const staleArtifactLabels = computed<string[]>(() => {
+  const stale = projectRecord.value?.stale_artifacts ?? []
+  return stale.map(a => {
+    if (a === 'requirements') return 'Requirements changed'
+    if (a === 'scenario') return 'Scenario changed'
+    if (a === 'proposal') return 'Approach changed'
+    return `${a} changed`
+  })
+})
+
+async function handleReEvaluate() {
+  if (!projectStore.activeProject || !projectRecord.value) return
+
+  const pid = projectStore.activeProject.id
+  const stored = projectRecord.value
+
+  // Resolve the linked artifacts from the store
+  const reqRecord = projectStore.artifacts.requirements.find(r => r.id === stored.requirements_id)
+  const propRecord = projectStore.artifacts.proposals.find(p => p.id === stored.proposal_id)
+  const scnRecord = projectStore.artifacts.scenarios.find(s => s.id === stored.scenario_id)
+
+  if (!reqRecord || !propRecord || !scnRecord) {
+    reEvaluateError.value = 'Could not find linked artifacts for re-evaluation.'
+    return
+  }
+
+  reEvaluating.value = true
+  reEvaluateError.value = null
+  try {
+    const requirements = reqRecord.data
+    const scenario = scnRecord.data
+    const proposal = propRecord.data
+
+    const result = await runValidation(requirements, proposal, scenario)
+
+    const inputSnapshot: Record<string, any> = {
+      requirements: JSON.parse(JSON.stringify(requirements)),
+      scenario: JSON.parse(JSON.stringify(scenario)),
+      proposal: JSON.parse(JSON.stringify(proposal)),
+    }
+
+    const evalId = crypto.randomUUID()
+    await createEvaluation(pid, {
+      id: evalId,
+      proposal_id: stored.proposal_id,
+      scenario_id: stored.scenario_id,
+      requirements_id: stored.requirements_id,
+      source: 'live_validation',
+      data: JSON.parse(JSON.stringify(result)),
+      input_snapshot: inputSnapshot,
+    })
+
+    await refreshArtifacts()
+    router.push(`/design/projects/${pid}/evaluations/${evalId}`)
+  } catch (err) {
+    reEvaluateError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    reEvaluating.value = false
+  }
+}
+
 function categoryColor(cat: string): string {
   const colors: Record<string, string> = {
     safety: 'var(--design-category-safety)',
@@ -199,6 +271,7 @@ function categoryColor(cat: string): string {
       <h1 class="page-title">Evaluation: {{ artifactName }}</h1>
       <div class="header-actions">
         <span class="source-badge live" v-if="hasEvaluationResult && isLive && !savedEvalId">Live</span>
+        <span class="source-badge stale" v-else-if="hasEvaluationResult && isStoredStale">Stale</span>
         <span class="source-badge stored" v-else-if="hasEvaluationResult && (savedEvalId || (isProjectMode && !isLive))">Stored</span>
         <span class="source-badge precomputed" v-else-if="hasEvaluationResult">Pre-computed</span>
         <button
@@ -234,6 +307,26 @@ function categoryColor(cat: string): string {
     </div>
     <div class="save-section" v-else-if="savedEvalId">
       <span class="save-success">Evaluation saved to project.</span>
+    </div>
+
+    <!-- Stale evaluation notice + Re-evaluate -->
+    <div class="stale-section" v-if="isStoredStale">
+      <div class="stale-notice">
+        <span class="stale-icon">&#9888;</span>
+        This evaluation is out of date.
+        <span v-if="staleArtifactLabels.length > 0" class="stale-details">
+          {{ staleArtifactLabels.join(', ') }}.
+        </span>
+      </div>
+      <button
+        class="reevaluate-btn"
+        :disabled="reEvaluating"
+        @click="handleReEvaluate"
+      >
+        <span v-if="reEvaluating" class="spinner small"></span>
+        {{ reEvaluating ? 'Re-evaluating...' : 'Re-evaluate' }}
+      </button>
+      <div class="save-error" v-if="reEvaluateError">{{ reEvaluateError }}</div>
     </div>
 
     <!-- Validation error -->
@@ -373,6 +466,11 @@ function categoryColor(cat: string): string {
 .source-badge.stored {
   background: rgba(52, 211, 153, 0.15);
   color: #34d399;
+}
+
+.source-badge.stale {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
 }
 
 .run-btn {
@@ -597,5 +695,57 @@ function categoryColor(cat: string): string {
 .not-found {
   padding: 2rem;
   color: var(--text-muted);
+}
+
+/* Stale notice */
+.stale-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding: 10px 14px;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 6px;
+}
+
+.stale-notice {
+  flex: 1;
+  font-size: 13px;
+  color: #fbbf24;
+}
+
+.stale-icon {
+  margin-right: 6px;
+}
+
+.stale-details {
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.reevaluate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.1);
+  color: #fbbf24;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.reevaluate-btn:hover:not(:disabled) {
+  background: rgba(251, 191, 36, 0.2);
+}
+
+.reevaluate-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

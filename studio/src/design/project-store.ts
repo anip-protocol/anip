@@ -3,6 +3,7 @@ import type {
   ProjectSummary,
   ProjectDetail,
   ArtifactRecord,
+  RequirementsRecord,
   ProposalRecord,
   EvaluationRecord,
   VocabularyEntry,
@@ -30,7 +31,7 @@ interface ProjectState {
   projects: ProjectSummary[]
   activeProject: ProjectDetail | null
   artifacts: {
-    requirements: ArtifactRecord[]
+    requirements: RequirementsRecord[]
     scenarios: ArtifactRecord[]
     proposals: ProposalRecord[]
     evaluations: EvaluationRecord[]

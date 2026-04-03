@@ -19,6 +19,14 @@ function getOrigin(value: string): 'canonical' | 'project' | 'custom' {
   return entry.origin
 }
 
+/** Return true when the entry is canonical but NOT recognized by the evaluator. */
+function isNotEvaluated(value: string): boolean {
+  if (!props.vocabularyEntries) return false
+  const entry = props.vocabularyEntries.find(v => v.value === value)
+  if (!entry) return false
+  return entry.origin === 'canonical' && entry.evaluator_recognized === false
+}
+
 /** Check if a selected entry is custom (not in vocabulary at all) */
 function isCustomEntry(value: string): boolean {
   if (!props.vocabularyEntries) return !props.suggestions.includes(value)
@@ -74,6 +82,7 @@ function removeEntry(entry: string) {
       >
         {{ suggestion.replace(/_/g, ' ') }}
         <span v-if="vocabularyEntries && getOrigin(suggestion) === 'project'" class="origin-badge project-badge">project</span>
+        <span v-else-if="vocabularyEntries && isNotEvaluated(suggestion)" class="origin-badge not-evaluated-badge">not evaluated</span>
       </button>
     </div>
 
@@ -101,6 +110,7 @@ function removeEntry(entry: string) {
         <span class="entry-text">{{ entry.replace(/_/g, ' ') }}</span>
         <span v-if="vocabularyEntries && isCustomEntry(entry)" class="origin-badge custom-badge">custom</span>
         <span v-else-if="vocabularyEntries && getOrigin(entry) === 'project'" class="origin-badge project-badge">project</span>
+        <span v-else-if="vocabularyEntries && isNotEvaluated(entry)" class="origin-badge not-evaluated-badge">not evaluated</span>
         <button
           v-if="!readonly"
           class="remove-btn"
@@ -247,6 +257,14 @@ function removeEntry(entry: string) {
 .custom-badge {
   background: rgba(128, 128, 128, 0.12);
   color: var(--text-muted);
+}
+
+.not-evaluated-badge {
+  background: transparent;
+  color: var(--text-muted);
+  opacity: 0.65;
+  font-style: italic;
+  font-weight: 400;
 }
 
 /* Origin-based chip styling */
