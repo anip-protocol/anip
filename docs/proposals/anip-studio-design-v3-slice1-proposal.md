@@ -164,9 +164,9 @@ The current `RequirementsView.vue` renders read-only sections. In Slice 1, each 
 - **Trust & Auth** — toggles + dropdowns
 - **Permissions** — toggles
 - **Audit & Lineage** — toggles
-- **Risk Profile** — per-capability cards with editable side_effect, cost_visibility, recovery_guidance
-- **Business Constraints** — toggle list
-- **Scale** — dropdown + toggle
+- **Risk Profile** — dynamic key-value editor for per-capability entries (the schema allows flexible nested structures via additionalProperties, so a fixed form cannot cover all shapes). Each capability entry renders as a card with editable key-value pairs. Unknown keys are preserved on export.
+- **Business Constraints** — dynamic key-value editor (same reason — the schema allows arbitrary boolean keys). Known common keys get friendly labels; unknown keys show as raw key-value pairs.
+- **Scale** — dropdown + toggle for known fields; key-value fallback for unknown fields
 
 Each section has an "Edit" / "Done" toggle. When editing, fields become interactive. When done, they collapse back to the read display.
 
@@ -175,7 +175,7 @@ Each section has an "Edit" / "Done" toggle. When editing, fields become interact
 The current `ScenarioDetailView.vue` renders read-only narrative + context. In Slice 1:
 
 - **Name** — text input (validated against `^[a-z0-9_\-]+$`)
-- **Category** — dropdown (safety, orchestration, observability)
+- **Category** — dropdown (safety, recovery, orchestration, cross_service, observability). Note: the scenario schema currently only has 3 categories; Slice 1 expands the schema enum to match the V2 evaluator's 5-category dispatch.
 - **Narrative** — textarea
 - **Context** — dynamic key-value editor (add/remove/edit keys, values can be string/number/boolean/array)
 - **Expected Behavior** — editable string list (add/remove/reorder)
@@ -278,6 +278,7 @@ export interface ValidationError {
 ```
 # Schema
 tooling/schemas/proposal.schema.json              # MODIFY: add declared_surfaces
+tooling/schemas/scenario.schema.json              # MODIFY: expand category enum to 5 values (add recovery, cross_service)
 
 # Evaluator
 tooling/bin/anip_design_validate.py               # MODIFY: prefer declared_surfaces over text heuristic
@@ -348,8 +349,8 @@ tooling/tests/test_evaluator.py                   # MODIFY: add declared_surface
 
 ## 11. Success Criteria
 
-- Requirements round-trip: load → edit → export → re-load → identical structure
-- Scenario round-trip: same guarantee
+- Requirements round-trip: load → edit → export → re-load → all fields preserved (structured sections via forms, flexible sections like risk_profile/business_constraints via key-value editor — unknown keys round-trip intact)
+- Scenario round-trip: load → edit → export → re-load → all fields preserved (category dropdown now includes all 5 evaluator categories)
 - `declared_surfaces` on proposals: evaluator uses them, scores change when toggles change
 - No schema-invalid state can be exported
 - Diff shows what changed from original
