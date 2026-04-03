@@ -1,0 +1,146 @@
+[
+  {
+    "category": "context_key",
+    "value": "capability",
+    "origin": "canonical",
+    "description": "The capability being invoked (e.g. book_flight, deploy_service)"
+  },
+  {
+    "category": "context_key",
+    "value": "side_effect",
+    "origin": "canonical",
+    "description": "Side-effect posture of the capability (none, reversible, irreversible)"
+  },
+  {
+    "category": "context_key",
+    "value": "expected_cost",
+    "origin": "canonical",
+    "description": "Estimated monetary or resource cost of the invocation"
+  },
+  {
+    "category": "context_key",
+    "value": "budget_limit",
+    "origin": "canonical",
+    "description": "Maximum budget the delegating principal has authorized"
+  },
+  {
+    "category": "context_key",
+    "value": "permissions_state",
+    "origin": "canonical",
+    "description": "Whether required permissions are available, restricted, or denied"
+  },
+  {
+    "category": "context_key",
+    "value": "task_id",
+    "origin": "canonical",
+    "description": "Stable identifier for the logical task spanning multiple invocations"
+  },
+  {
+    "category": "context_key",
+    "value": "risk",
+    "origin": "canonical",
+    "description": "Risk classification for the operation (low, medium, high)"
+  },
+  {
+    "category": "context_key",
+    "value": "token_scope",
+    "origin": "canonical",
+    "description": "OAuth-style scopes carried by the delegation token"
+  },
+  {
+    "category": "behavior",
+    "value": "do_not_execute",
+    "origin": "canonical",
+    "description": "The action must not proceed under the given constraints"
+  },
+  {
+    "category": "behavior",
+    "value": "preserve_task_identity",
+    "origin": "canonical",
+    "description": "The task_id must be preserved across the invocation chain"
+  },
+  {
+    "category": "behavior",
+    "value": "preserve_parent_invocation_lineage",
+    "origin": "canonical",
+    "description": "Parent invocation ID must be propagated for lineage reconstruction"
+  },
+  {
+    "category": "behavior",
+    "value": "produce_audit_entry",
+    "origin": "canonical",
+    "description": "A durable audit record must be emitted for the invocation"
+  },
+  {
+    "category": "behavior",
+    "value": "explain_budget_conflict",
+    "origin": "canonical",
+    "description": "The failure response must explain why the budget was exceeded"
+  },
+  {
+    "category": "behavior",
+    "value": "explain_authority_gap",
+    "origin": "canonical",
+    "description": "The failure response must explain which authority or permission is missing"
+  },
+  {
+    "category": "behavior",
+    "value": "prefer_escalation_or_replan_over_blind_retry",
+    "origin": "canonical",
+    "description": "On failure, escalate to a principal or replan rather than retrying blindly"
+  },
+  {
+    "category": "anip_support",
+    "value": "cost_visibility",
+    "origin": "canonical",
+    "description": "ANIP exposes cost metadata before invocation so agents can reason about budget"
+  },
+  {
+    "category": "anip_support",
+    "value": "side_effect_visibility",
+    "origin": "canonical",
+    "description": "ANIP exposes side-effect posture so agents can assess risk before acting"
+  },
+  {
+    "category": "anip_support",
+    "value": "structured_failure",
+    "origin": "canonical",
+    "description": "ANIP returns machine-readable failure details with recovery guidance"
+  },
+  {
+    "category": "anip_support",
+    "value": "permission_discovery",
+    "origin": "canonical",
+    "description": "ANIP supports preflight permission checks before invocation"
+  },
+  {
+    "category": "anip_support",
+    "value": "task_id_support",
+    "origin": "canonical",
+    "description": "ANIP propagates task_id across invocations for correlation"
+  },
+  {
+    "category": "anip_support",
+    "value": "parent_invocation_id_support",
+    "origin": "canonical",
+    "description": "ANIP propagates parent_invocation_id for lineage reconstruction"
+  },
+  {
+    "category": "anip_support",
+    "value": "audit_queryability",
+    "origin": "canonical",
+    "description": "Audit records are searchable and queryable after the fact"
+  },
+  {
+    "category": "anip_support",
+    "value": "resolution_guidance",
+    "origin": "canonical",
+    "description": "ANIP provides actionable guidance on how to resolve failures"
+  },
+  {
+    "category": "anip_support",
+    "value": "cross_service_verification_guidance",
+    "origin": "canonical",
+    "description": "ANIP provides machine-readable pointers for cross-service verification"
+  }
+]
