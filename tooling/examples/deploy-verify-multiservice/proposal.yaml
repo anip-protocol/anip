@@ -25,6 +25,18 @@ proposal:
     - lineage_recorder_per_service
     - bounded_cross_service_verification_guidance
 
+  declared_surfaces:
+    budget_enforcement: false
+    binding_requirements: false
+    authority_posture: false
+    recovery_class: false
+    refresh_via: false
+    verify_via: true
+    followup_via: false
+    cross_service_handoff: true
+    cross_service_continuity: true
+    cross_service_reconstruction: false
+
   anti_pattern_warnings:
     - do_not_force_agents_to_guess_the_monitoring_service_after_deploy
     - do_not_push_verification_routes_only_into_human_runbooks

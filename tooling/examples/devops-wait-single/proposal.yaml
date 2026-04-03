@@ -27,6 +27,18 @@ proposal:
     - preserve lineage across retry windows
     - avoid forcing wrapper-side retry classification
 
+  declared_surfaces:
+    budget_enforcement: false
+    binding_requirements: false
+    authority_posture: false
+    recovery_class: true
+    refresh_via: false
+    verify_via: false
+    followup_via: false
+    cross_service_handoff: false
+    cross_service_continuity: false
+    cross_service_reconstruction: false
+
   anti_pattern_warnings:
     - do_not_encode_wait_logic_only_in_clients
     - do_not_force_agents_to_parse_rate_limit_text

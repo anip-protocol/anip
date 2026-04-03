@@ -11,7 +11,6 @@ evaluation:
   - side-effect visibility
   - cost visibility
   - cross-service task identity continuity
-  - independent but linkable audit records
   - cleaner service handoff
   glue_you_will_still_write:
   - you will still write cross-service handoff orchestration logic to act on advisory

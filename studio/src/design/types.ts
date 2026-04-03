@@ -68,3 +68,23 @@ export interface DesignPack {
   scenario: Scenario
   evaluation: Evaluation | null
 }
+
+export interface DeclaredSurfaces {
+  budget_enforcement: boolean
+  binding_requirements: boolean
+  authority_posture: boolean
+  recovery_class: boolean
+  refresh_via: boolean
+  verify_via: boolean
+  followup_via: boolean
+  cross_service_handoff: boolean
+  cross_service_continuity: boolean
+  cross_service_reconstruction: boolean
+}
+
+export interface ValidationError {
+  path: string
+  message: string
+}
+
+export type EditState = 'read' | 'draft' | 'exported'

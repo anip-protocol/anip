@@ -27,6 +27,18 @@ proposal:
     - point callers toward manifest refresh or equivalent revalidation
     - preserve task and invocation lineage through correction loops
 
+  declared_surfaces:
+    budget_enforcement: false
+    binding_requirements: false
+    authority_posture: false
+    recovery_class: true
+    refresh_via: true
+    verify_via: false
+    followup_via: false
+    cross_service_handoff: false
+    cross_service_continuity: false
+    cross_service_reconstruction: false
+
   anti_pattern_warnings:
     - do_not_hide_manifest_drift_only_in_transport_errors
     - do_not_force_manual_cache_invalidation_guesswork

@@ -114,6 +114,18 @@ export const PACKS: DesignPack[] = [
           "lineage_recorder_per_service",
           "bounded_cross_service_verification_guidance"
         ],
+        "declared_surfaces": {
+          "budget_enforcement": false,
+          "binding_requirements": false,
+          "authority_posture": false,
+          "recovery_class": false,
+          "refresh_via": false,
+          "verify_via": true,
+          "followup_via": false,
+          "cross_service_handoff": true,
+          "cross_service_continuity": true,
+          "cross_service_reconstruction": false
+        },
         "anti_pattern_warnings": [
           "do_not_force_agents_to_guess_the_monitoring_service_after_deploy",
           "do_not_push_verification_routes_only_into_human_runbooks"
@@ -167,7 +179,6 @@ export const PACKS: DesignPack[] = [
           "durable audit",
           "audit queryability",
           "cross-service task identity continuity",
-          "independent but linkable audit records",
           "cleaner service handoff",
           "verification path guidance (protocol-assisted, advisory, not enforced)"
         ],
@@ -289,6 +300,18 @@ export const PACKS: DesignPack[] = [
           "preserve task and invocation lineage",
           "return structured failure with escalation-friendly recovery data"
         ],
+        "declared_surfaces": {
+          "budget_enforcement": false,
+          "binding_requirements": false,
+          "authority_posture": true,
+          "recovery_class": true,
+          "refresh_via": false,
+          "verify_via": false,
+          "followup_via": false,
+          "cross_service_handoff": false,
+          "cross_service_continuity": false,
+          "cross_service_reconstruction": false
+        },
         "anti_pattern_warnings": [
           "do_not_rely_on_delete_then_parse_error",
           "do_not_hide_authority_requirements_only_in_docs",
@@ -478,6 +501,18 @@ export const PACKS: DesignPack[] = [
           "preserve lineage across write and verification steps",
           "keep verification guidance advisory rather than mandatory workflow"
         ],
+        "declared_surfaces": {
+          "budget_enforcement": false,
+          "binding_requirements": false,
+          "authority_posture": false,
+          "recovery_class": false,
+          "refresh_via": false,
+          "verify_via": true,
+          "followup_via": false,
+          "cross_service_handoff": false,
+          "cross_service_continuity": false,
+          "cross_service_reconstruction": false
+        },
         "anti_pattern_warnings": [
           "do_not_hide_verification_paths_only_in_runbooks",
           "do_not_force_agents_to_guess_the_post_deploy_check"
@@ -643,6 +678,18 @@ export const PACKS: DesignPack[] = [
           "preserve lineage across retry windows",
           "avoid forcing wrapper-side retry classification"
         ],
+        "declared_surfaces": {
+          "budget_enforcement": false,
+          "binding_requirements": false,
+          "authority_posture": false,
+          "recovery_class": true,
+          "refresh_via": false,
+          "verify_via": false,
+          "followup_via": false,
+          "cross_service_handoff": false,
+          "cross_service_continuity": false,
+          "cross_service_reconstruction": false
+        },
         "anti_pattern_warnings": [
           "do_not_encode_wait_logic_only_in_clients",
           "do_not_force_agents_to_parse_rate_limit_text"
@@ -700,17 +747,17 @@ export const PACKS: DesignPack[] = [
           "durable audit",
           "audit queryability",
           "structured failure",
-          "estimated availability guidance (protocol-assisted, advisory, not enforced)"
+          "recovery class guidance (protocol-assisted, advisory, not enforced)"
         ],
         "glue_you_will_still_write": [
           "the protocol provides advisory guidance but enforcement still requires wrapper logic",
-          "the proposal does not declare recovery_class — agents must discover these paths through docs or wrapper logic"
+          "the proposal does not declare estimated availability hint — agents must discover these paths through docs or wrapper logic"
         ],
         "glue_category": [
           "orchestration"
         ],
         "why": [
-          "the protocol hints but does not enforce — advisory surfaces (estimated availability hint) improve the decision surface but wrapper logic must still act on them"
+          "the protocol hints but does not enforce — advisory surfaces (recovery_class) improve the decision surface but wrapper logic must still act on them"
         ],
         "what_would_improve": [
           "promote advisory orchestration hints to enforceable protocol surfaces"
@@ -809,6 +856,18 @@ export const PACKS: DesignPack[] = [
           "point callers toward manifest refresh or equivalent revalidation",
           "preserve task and invocation lineage through correction loops"
         ],
+        "declared_surfaces": {
+          "budget_enforcement": false,
+          "binding_requirements": false,
+          "authority_posture": false,
+          "recovery_class": true,
+          "refresh_via": true,
+          "verify_via": false,
+          "followup_via": false,
+          "cross_service_handoff": false,
+          "cross_service_continuity": false,
+          "cross_service_reconstruction": false
+        },
         "anti_pattern_warnings": [
           "do_not_hide_manifest_drift_only_in_transport_errors",
           "do_not_force_manual_cache_invalidation_guesswork"
@@ -867,17 +926,17 @@ export const PACKS: DesignPack[] = [
           "durable audit",
           "audit queryability",
           "structured failure",
-          "recovery class guidance (protocol-assisted, advisory, not enforced)",
-          "revalidation guidance (protocol-assisted, advisory, not enforced)"
+          "recovery class guidance (protocol-assisted, advisory, not enforced)"
         ],
         "glue_you_will_still_write": [
-          "the protocol provides advisory guidance but enforcement still requires wrapper logic"
+          "the protocol provides advisory guidance but enforcement still requires wrapper logic",
+          "the proposal does not declare revalidation guidance hint — agents must discover these paths through docs or wrapper logic"
         ],
         "glue_category": [
           "orchestration"
         ],
         "why": [
-          "the protocol hints but does not enforce — advisory surfaces (recovery_class, revalidation guidance hint) improve the decision surface but wrapper logic must still act on them"
+          "the protocol hints but does not enforce — advisory surfaces (recovery_class) improve the decision surface but wrapper logic must still act on them"
         ],
         "what_would_improve": [
           "promote advisory orchestration hints to enforceable protocol surfaces"
@@ -969,6 +1028,18 @@ export const PACKS: DesignPack[] = [
           "lineage_recorder_per_service",
           "bounded_async_followup_guidance"
         ],
+        "declared_surfaces": {
+          "budget_enforcement": false,
+          "binding_requirements": false,
+          "authority_posture": false,
+          "recovery_class": false,
+          "refresh_via": false,
+          "verify_via": false,
+          "followup_via": true,
+          "cross_service_handoff": true,
+          "cross_service_continuity": true,
+          "cross_service_reconstruction": false
+        },
         "anti_pattern_warnings": [
           "do_not_drop_lineage_on_delayed_followups",
           "do_not_require_hidden_scheduler_specific_linkage_rules"
@@ -1018,7 +1089,7 @@ export const PACKS: DesignPack[] = [
           "durable audit",
           "audit queryability",
           "cross-service task identity continuity",
-          "independent but linkable audit records",
+          "cleaner service handoff",
           "searchable audit",
           "cross-service continuity primitives (task_id + parent_invocation_id)",
           "cross-service reconstruction guidance (protocol-assisted, advisory, not enforced)"
@@ -1181,6 +1252,18 @@ export const PACKS: DesignPack[] = [
           "task identity should survive across planning, execution, and verification",
           "each service should remain independently auditable"
         ],
+        "declared_surfaces": {
+          "budget_enforcement": false,
+          "binding_requirements": false,
+          "authority_posture": false,
+          "recovery_class": false,
+          "refresh_via": false,
+          "verify_via": true,
+          "followup_via": true,
+          "cross_service_handoff": true,
+          "cross_service_continuity": true,
+          "cross_service_reconstruction": false
+        },
         "anti_pattern_warnings": [
           "do_not_hide_cross_service_next_steps_only_in_wrapper_code",
           "do_not_push_follow_up_relationships_only_into_docs",
@@ -1248,7 +1331,6 @@ export const PACKS: DesignPack[] = [
           "audit queryability",
           "structured failure",
           "cross-service task identity continuity",
-          "independent but linkable audit records",
           "cleaner service handoff",
           "verification path guidance (protocol-assisted, advisory, not enforced)",
           "follow-up path guidance (protocol-assisted, advisory, not enforced)"
@@ -1402,6 +1484,18 @@ export const PACKS: DesignPack[] = [
           "task identity should survive cross-service execution",
           "each service should remain independently auditable"
         ],
+        "declared_surfaces": {
+          "budget_enforcement": false,
+          "binding_requirements": true,
+          "authority_posture": false,
+          "recovery_class": false,
+          "refresh_via": false,
+          "verify_via": false,
+          "followup_via": false,
+          "cross_service_handoff": true,
+          "cross_service_continuity": true,
+          "cross_service_reconstruction": false
+        },
         "anti_pattern_warnings": [
           "do_not_rely_on_custom_headers_as_the_primary_lineage_surface",
           "do_not_push_cross_service_correlation_only_into_logs",
@@ -1478,7 +1572,6 @@ export const PACKS: DesignPack[] = [
           "side-effect visibility",
           "cost visibility",
           "cross-service task identity continuity",
-          "independent but linkable audit records",
           "cleaner service handoff"
         ],
         "glue_you_will_still_write": [
@@ -1625,6 +1718,18 @@ export const PACKS: DesignPack[] = [
           "handoff meaning should be visible without bespoke translation rules",
           "continuity should survive the boundary without hiding handoff ambiguity"
         ],
+        "declared_surfaces": {
+          "budget_enforcement": false,
+          "binding_requirements": false,
+          "authority_posture": false,
+          "recovery_class": false,
+          "refresh_via": false,
+          "verify_via": false,
+          "followup_via": false,
+          "cross_service_handoff": true,
+          "cross_service_continuity": true,
+          "cross_service_reconstruction": false
+        },
         "anti_pattern_warnings": [
           "do_not_treat_cross_service_outputs_as_self_explanatory",
           "do_not_hide_quote_to_booking_contract_only_in_wrapper_code",
@@ -1684,7 +1789,6 @@ export const PACKS: DesignPack[] = [
           "durable audit",
           "audit queryability",
           "cross-service task identity continuity",
-          "independent but linkable audit records",
           "cleaner service handoff",
           "cross-service handoff guidance (protocol-assisted, advisory, not enforced)"
         ],
@@ -1818,6 +1922,18 @@ export const PACKS: DesignPack[] = [
           "lineage_recorder_per_service",
           "bounded_cross_service_refresh_guidance"
         ],
+        "declared_surfaces": {
+          "budget_enforcement": false,
+          "binding_requirements": false,
+          "authority_posture": false,
+          "recovery_class": true,
+          "refresh_via": true,
+          "verify_via": false,
+          "followup_via": false,
+          "cross_service_handoff": false,
+          "cross_service_continuity": true,
+          "cross_service_reconstruction": false
+        },
         "anti_pattern_warnings": [
           "do_not_hide_refresh_source_only_in_ops_runbooks",
           "do_not_force_agents_to_infer_cross_service_refresh_paths_from_names"
@@ -1873,8 +1989,6 @@ export const PACKS: DesignPack[] = [
           "audit queryability",
           "structured failure",
           "cross-service task identity continuity",
-          "independent but linkable audit records",
-          "cleaner service handoff",
           "refresh path guidance (protocol-assisted, advisory, not enforced)"
         ],
         "glue_you_will_still_write": [
@@ -1990,6 +2104,18 @@ export const PACKS: DesignPack[] = [
           "expose which capability typically refreshes stale quote state",
           "preserve task and parent invocation lineage through refresh loops"
         ],
+        "declared_surfaces": {
+          "budget_enforcement": false,
+          "binding_requirements": true,
+          "authority_posture": false,
+          "recovery_class": true,
+          "refresh_via": true,
+          "verify_via": false,
+          "followup_via": false,
+          "cross_service_handoff": false,
+          "cross_service_continuity": false,
+          "cross_service_reconstruction": false
+        },
         "anti_pattern_warnings": [
           "do_not_hide_quote_refresh_only_in_docs",
           "do_not_make_agents_guess_which_capability_refreshes_a_quote",
@@ -2177,6 +2303,18 @@ export const PACKS: DesignPack[] = [
           "persist invocation_id, client_reference_id, task_id, parent_invocation_id",
           "return structured failures with recovery guidance"
         ],
+        "declared_surfaces": {
+          "budget_enforcement": true,
+          "binding_requirements": true,
+          "authority_posture": true,
+          "recovery_class": true,
+          "refresh_via": false,
+          "verify_via": false,
+          "followup_via": false,
+          "cross_service_handoff": false,
+          "cross_service_continuity": false,
+          "cross_service_reconstruction": false
+        },
         "anti_pattern_warnings": [
           "do_not_leave_budget_reasoning_only_in_prompt_logic",
           "do_not_rely_on_invoke_then_fail_as_primary_permission_model",
@@ -2365,6 +2503,18 @@ export const PACKS: DesignPack[] = [
           "lineage_recorder_per_service",
           "bounded_cross_service_relationship_guidance"
         ],
+        "declared_surfaces": {
+          "budget_enforcement": false,
+          "binding_requirements": false,
+          "authority_posture": false,
+          "recovery_class": false,
+          "refresh_via": false,
+          "verify_via": false,
+          "followup_via": false,
+          "cross_service_handoff": true,
+          "cross_service_continuity": true,
+          "cross_service_reconstruction": true
+        },
         "anti_pattern_warnings": [
           "do_not_require_custom_trace_joiners_for_basic_fanout_reconstruction",
           "do_not_hide_fanout_shape_only_in_orchestrator_code"
@@ -2415,7 +2565,6 @@ export const PACKS: DesignPack[] = [
           "durable audit",
           "audit queryability",
           "cross-service task identity continuity",
-          "independent but linkable audit records",
           "cleaner service handoff",
           "searchable audit",
           "cross-service continuity primitives (task_id + parent_invocation_id)",

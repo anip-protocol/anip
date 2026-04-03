@@ -8,7 +8,6 @@ evaluation:
   - audit queryability
   - structured failure
   - cross-service task identity continuity
-  - independent but linkable audit records
   - cleaner service handoff
   - verification path guidance (protocol-assisted, advisory, not enforced)
   - follow-up path guidance (protocol-assisted, advisory, not enforced)

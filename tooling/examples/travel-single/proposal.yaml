@@ -33,6 +33,18 @@ proposal:
     - persist invocation_id, client_reference_id, task_id, parent_invocation_id
     - return structured failures with recovery guidance
 
+  declared_surfaces:
+    budget_enforcement: true
+    binding_requirements: true
+    authority_posture: true
+    recovery_class: true
+    refresh_via: false
+    verify_via: false
+    followup_via: false
+    cross_service_handoff: false
+    cross_service_continuity: false
+    cross_service_reconstruction: false
+
   anti_pattern_warnings:
     - do_not_leave_budget_reasoning_only_in_prompt_logic
     - do_not_rely_on_invoke_then_fail_as_primary_permission_model

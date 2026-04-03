@@ -37,6 +37,18 @@ proposal:
     - handoff meaning should be visible without bespoke translation rules
     - continuity should survive the boundary without hiding handoff ambiguity
 
+  declared_surfaces:
+    budget_enforcement: false
+    binding_requirements: false
+    authority_posture: false
+    recovery_class: false
+    refresh_via: false
+    verify_via: false
+    followup_via: false
+    cross_service_handoff: true
+    cross_service_continuity: true
+    cross_service_reconstruction: false
+
   anti_pattern_warnings:
     - do_not_treat_cross_service_outputs_as_self_explanatory
     - do_not_hide_quote_to_booking_contract_only_in_wrapper_code
