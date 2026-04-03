@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { designStore, setActivePack, updateDraftField } from '../design/store'
+import { designStore, setActivePack, updateDraftField, setRequirementsMode, updateGuidedAnswer } from '../design/store'
+import { GUIDED_SECTIONS } from '../design/guided/questions'
+import { hydrateAnswersFromArtifact } from '../design/guided/mappings'
+import { evaluateCompleteness } from '../design/guided/hints'
+import GuidedSection from '../design/components/GuidedSection.vue'
+import RequirementsSummary from '../design/components/RequirementsSummary.vue'
+import CompletenessHints from '../design/components/CompletenessHints.vue'
 import EditorToolbar from '../design/components/EditorToolbar.vue'
 import KeyValueEditor from '../design/components/KeyValueEditor.vue'
 
@@ -21,6 +27,16 @@ const req = computed(() => {
     return designStore.draftRequirements as Record<string, any>
   }
   return pack.value?.requirements ?? null
+})
+
+const guidedAnswers = computed(() => {
+  if (isEditing.value) return designStore.guidedAnswers
+  return hydrateAnswersFromArtifact(req.value ?? {})
+})
+
+const completenessHints = computed(() => {
+  if (isEditing.value) return designStore.completenessHints
+  return evaluateCompleteness(req.value ?? {})
 })
 
 const transportKeys = computed(() => req.value?.transports ? Object.keys(req.value.transports) : [])
@@ -81,8 +97,57 @@ function toggleScaleHA() {
   <div class="requirements-view" v-if="pack && req">
     <h1 class="page-title">Requirements: {{ pack.meta.name }}</h1>
 
+    <!-- Mode toggle -->
+    <div class="mode-toggle">
+      <button
+        class="mode-btn"
+        :class="{ active: designStore.requirementsMode === 'guided' }"
+        @click="setRequirementsMode('guided')"
+        type="button"
+      >
+        Guided
+      </button>
+      <button
+        class="mode-btn"
+        :class="{ active: designStore.requirementsMode === 'advanced' }"
+        @click="setRequirementsMode('advanced')"
+        type="button"
+      >
+        Advanced
+      </button>
+    </div>
+
     <EditorToolbar artifact="requirements" />
 
+    <!-- Guided mode -->
+    <template v-if="designStore.requirementsMode === 'guided'">
+      <RequirementsSummary :requirements="req" />
+      <CompletenessHints :hints="completenessHints" />
+
+      <div class="mapping-toggle" v-if="isEditing">
+        <label class="mapping-label">
+          <input
+            type="checkbox"
+            :checked="designStore.showFieldMappings"
+            @change="designStore.showFieldMappings = !designStore.showFieldMappings"
+          />
+          Show technical field mappings
+        </label>
+      </div>
+
+      <GuidedSection
+        v-for="section in GUIDED_SECTIONS"
+        :key="section.id"
+        :section="section"
+        :answers="guidedAnswers"
+        :showMappings="designStore.showFieldMappings"
+        :readonly="!isEditing"
+        @update:answer="updateGuidedAnswer"
+      />
+    </template>
+
+    <!-- Advanced mode -->
+    <template v-else>
     <!-- System -->
     <div class="section">
       <h2>System</h2>
@@ -160,9 +225,10 @@ function toggleScaleHA() {
         <div class="form-grid">
           <label class="form-label">Mode</label>
           <select class="form-select" :value="req.trust.mode" @change="setTrustMode">
-            <option value="signed">signed</option>
             <option value="unsigned">unsigned</option>
+            <option value="signed">signed</option>
             <option value="anchored">anchored</option>
+            <option value="attested">attested</option>
           </select>
           <label class="form-label">Checkpoints</label>
           <button
@@ -327,7 +393,7 @@ function toggleScaleHA() {
       <template v-else>
         <dl class="info-grid" v-if="businessConstraintKeys.length">
           <template v-for="key in businessConstraintKeys" :key="key">
-            <dt>{{ key }}</dt><dd>{{ req.business_constraints![key] ? 'Yes' : 'No' }}</dd>
+            <dt>{{ key }}</dt><dd>{{ typeof req.business_constraints![key] === 'boolean' ? (req.business_constraints![key] ? 'Yes' : 'No') : req.business_constraints![key] }}</dd>
           </template>
         </dl>
       </template>
@@ -345,9 +411,11 @@ function toggleScaleHA() {
             @change="setScaleShapePreference"
           >
             <option value="">-- select --</option>
-            <option value="minimal">minimal</option>
-            <option value="standard">standard</option>
-            <option value="full">full</option>
+            <option value="embedded_single_process">embedded_single_process</option>
+            <option value="production_single_service">production_single_service</option>
+            <option value="horizontally_scaled">horizontally_scaled</option>
+            <option value="control_plane_worker_split">control_plane_worker_split</option>
+            <option value="multi_service_estate">multi_service_estate</option>
           </select>
           <label class="form-label">High Availability</label>
           <button
@@ -369,6 +437,7 @@ function toggleScaleHA() {
         </dl>
       </template>
     </div>
+    </template>
   </div>
   <div v-else class="not-found">Pack not found.</div>
 </template>
@@ -592,5 +661,52 @@ function toggleScaleHA() {
 
 .toggle-switch:hover {
   background: var(--bg-hover);
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  width: fit-content;
+}
+
+.mode-btn {
+  padding: 6px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.mode-btn.active {
+  background: var(--accent);
+  color: var(--text-primary);
+}
+
+.mode-btn:hover:not(.active) {
+  background: var(--bg-hover);
+}
+
+.mapping-toggle {
+  margin-bottom: 16px;
+}
+
+.mapping-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.mapping-label input[type="checkbox"] {
+  cursor: pointer;
 }
 </style>
