@@ -1,5 +1,9 @@
 import { reactive, watch } from 'vue'
 import type { DesignPack, PackMeta, Evaluation, DeclaredSurfaces, EditState, ValidationError } from './types'
+import type { RequirementsMode } from './types'
+import type { CompletenessHint } from './guided/types'
+import { hydrateAnswersFromArtifact, applyAnswerToArtifact } from './guided/mappings'
+import { evaluateCompleteness } from './guided/hints'
 import { PACKS } from './data/packs.generated'
 import { runValidation, checkHealth } from './api'
 import { validateRequirements, validateScenario } from './schemas'
@@ -18,6 +22,10 @@ interface DesignState {
   originalScenario: Record<string, any> | null
   editState: EditState
   validationErrors: ValidationError[]
+  requirementsMode: RequirementsMode
+  guidedAnswers: Record<string, any>
+  completenessHints: CompletenessHint[]
+  showFieldMappings: boolean
 }
 
 export const designStore = reactive<DesignState>({
@@ -34,6 +42,10 @@ export const designStore = reactive<DesignState>({
   originalScenario: null,
   editState: 'read',
   validationErrors: [],
+  requirementsMode: 'guided',
+  guidedAnswers: {},
+  completenessHints: [],
+  showFieldMappings: false,
 })
 
 export function getActivePack(): DesignPack | null {
@@ -117,6 +129,9 @@ export function startEditing(): void {
 
   designStore.editState = 'draft'
   designStore.validationErrors = []
+  // Hydrate guided answers from the draft artifact
+  designStore.guidedAnswers = hydrateAnswersFromArtifact(designStore.draftRequirements!)
+  designStore.completenessHints = evaluateCompleteness(designStore.draftRequirements!)
 }
 
 /** Discard all draft edits and return to read mode. */
@@ -128,6 +143,8 @@ export function discardEdits(): void {
   designStore.originalScenario = null
   designStore.editState = 'read'
   designStore.validationErrors = []
+  designStore.guidedAnswers = {}
+  designStore.completenessHints = []
 }
 
 /** Check whether draft differs from the original snapshot. */
@@ -220,6 +237,36 @@ export function composeDraftProposal(): Record<string, any> | null {
   return proposal
 }
 
+/** Toggle between guided and advanced requirements mode.
+ *  Re-hydrates guided answers from the current draft when switching to guided. */
+export function setRequirementsMode(mode: RequirementsMode): void {
+  designStore.requirementsMode = mode
+
+  if (mode === 'guided' && designStore.draftRequirements) {
+    designStore.guidedAnswers = hydrateAnswersFromArtifact(designStore.draftRequirements)
+    designStore.completenessHints = evaluateCompleteness(designStore.draftRequirements)
+  }
+}
+
+/** Toggle field mapping chip visibility */
+export function toggleFieldMappings(): void {
+  designStore.showFieldMappings = !designStore.showFieldMappings
+}
+
+/** Update a single guided answer and apply it to the draft artifact */
+export function updateGuidedAnswer(questionId: string, value: any): void {
+  designStore.guidedAnswers[questionId] = value
+
+  if (designStore.draftRequirements) {
+    applyAnswerToArtifact(questionId, value, designStore.draftRequirements)
+  }
+
+  // Re-evaluate completeness hints
+  if (designStore.draftRequirements) {
+    designStore.completenessHints = evaluateCompleteness(designStore.draftRequirements)
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Auto-validate on draft changes (debounced)
 // ---------------------------------------------------------------------------
@@ -231,7 +278,12 @@ watch(
   () => {
     if (designStore.editState !== 'draft') return
     if (validateTimer) clearTimeout(validateTimer)
-    validateTimer = setTimeout(() => validateDraft(), 300)
+    validateTimer = setTimeout(() => {
+      validateDraft()
+      if (designStore.draftRequirements) {
+        designStore.completenessHints = evaluateCompleteness(designStore.draftRequirements)
+      }
+    }, 300)
   },
   { deep: true },
 )

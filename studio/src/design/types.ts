@@ -18,7 +18,7 @@ export interface Requirements {
   audit?: Record<string, boolean>
   lineage?: Record<string, boolean>
   risk_profile?: Record<string, any>
-  business_constraints?: Record<string, boolean>
+  business_constraints?: Record<string, boolean | string | number>
   scale?: Record<string, any>
   [key: string]: any
 }
@@ -88,3 +88,5 @@ export interface ValidationError {
 }
 
 export type EditState = 'read' | 'draft' | 'exported'
+
+export type RequirementsMode = 'guided' | 'advanced'
