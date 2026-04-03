@@ -13,7 +13,7 @@ function selectPack(id: string) {
 <template>
   <div class="scenario-browser">
     <h1 class="page-title">Scenario Packs</h1>
-    <p class="page-desc">Select a pack to explore its requirements, proposal, and evaluation.</p>
+    <p class="page-desc">Select a pack to explore its requirements, approach, and evaluation.</p>
     <div class="pack-grid">
       <div
         v-for="pack in packMetas"

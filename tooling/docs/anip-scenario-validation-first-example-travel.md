@@ -451,7 +451,7 @@ The user defines:
 - lineage expectations
 - scale assumptions
 
-### 2. Structure proposal view
+### 2. Structure approach view
 
 Studio proposes:
 
@@ -466,7 +466,7 @@ Studio lets the user:
 
 - pick canonical scenarios
 - add custom scenarios
-- run evaluation against the proposal
+- run evaluation against the approach
 
 ### 4. Glue-gap report
 
@@ -485,7 +485,7 @@ It would make it an ANIP design and validation cockpit.
 This first worked example shows the intended system clearly:
 
 - requirements describe the target system
-- the proposal suggests a valid ANIP structure
+- the approach suggests a valid ANIP structure
 - the scenario tests that structure against reality
 - the evaluation exposes remaining glue
 

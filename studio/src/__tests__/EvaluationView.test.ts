@@ -68,8 +68,33 @@ vi.mock('../design/store', async () => {
     designStore: state,
     setActivePack: (id: string) => { state.activePackId = id },
     runLiveValidation: () => {},
+    composeDraftProposal: () => null,
   }
 })
+
+vi.mock('../design/project-store', async () => {
+  const { reactive: r } = await import('vue')
+  const state = r({
+    projects: [],
+    activeProject: null,
+    artifacts: { requirements: [], scenarios: [], proposals: [], evaluations: [] },
+    vocabulary: [],
+    activeRequirementsId: null,
+    activeProposalId: null,
+    loading: false,
+    error: null,
+    dbAvailable: false,
+  })
+  return {
+    projectStore: state,
+    refreshArtifacts: vi.fn(),
+    openArtifactForEditing: vi.fn(),
+  }
+})
+
+vi.mock('../design/project-api', () => ({
+  createEvaluation: vi.fn(),
+}))
 
 // Import the mocked store so tests can manipulate it
 import { designStore } from '../design/store'
@@ -82,14 +107,14 @@ function makeRouter() {
   return createRouter({
     history: createMemoryHistory('/studio'),
     routes: [
-      { path: '/design/evaluation/:pack', name: 'evaluation', component: () => import('../views/EvaluationView.vue') },
+      { path: '/design/packs/:packId/evaluation', name: 'pack-evaluation', component: () => import('../views/EvaluationView.vue') },
     ],
   })
 }
 
 async function mountView(packId = 'travel-single') {
   const router = makeRouter()
-  router.push(`/design/evaluation/${packId}`)
+  router.push(`/design/packs/${packId}/evaluation`)
   await router.isReady()
 
   const wrapper = mount({
@@ -148,27 +173,27 @@ describe('EvaluationView', () => {
       expect(badge.classes()).toContain('precomputed')
     })
 
-    it('displays "Live result" badge when liveEvaluation exists in store', async () => {
+    it('displays "Live" badge when liveEvaluation exists in store', async () => {
       designStore.liveEvaluation = JSON.parse(JSON.stringify(mockLiveEvaluation))
       const { wrapper } = await mountView()
 
       const badge = wrapper.find('.source-badge.live')
       expect(badge.exists()).toBe(true)
-      expect(badge.text()).toBe('Live result')
+      expect(badge.text()).toBe('Live')
     })
   })
 
   describe('reset to pre-computed', () => {
-    it('shows "Reset to pre-computed" button when live evaluation is present', async () => {
+    it('shows "Reset" button when live evaluation is present', async () => {
       designStore.liveEvaluation = JSON.parse(JSON.stringify(mockLiveEvaluation))
       const { wrapper } = await mountView()
 
       const resetBtn = wrapper.find('.reset-btn')
       expect(resetBtn.exists()).toBe(true)
-      expect(resetBtn.text()).toBe('Reset to pre-computed')
+      expect(resetBtn.text()).toBe('Reset')
     })
 
-    it('clears liveEvaluation from store when "Reset to pre-computed" is clicked', async () => {
+    it('clears liveEvaluation from store when "Reset" is clicked', async () => {
       designStore.liveEvaluation = JSON.parse(JSON.stringify(mockLiveEvaluation))
       const { wrapper } = await mountView()
 
@@ -181,7 +206,7 @@ describe('EvaluationView', () => {
       expect(designStore.validationError).toBeNull()
     })
 
-    it('hides "Reset to pre-computed" button when showing static evaluation', async () => {
+    it('hides "Reset" button when showing static evaluation', async () => {
       designStore.liveEvaluation = null
       const { wrapper } = await mountView()
 

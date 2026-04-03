@@ -94,7 +94,7 @@ Examples:
 - approval expectations
 - domain-specific action risk
 
-### 2. Structure proposal
+### 2. Structure approach
 
 Maps those requirements to a proposed ANIP shape.
 

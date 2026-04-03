@@ -8,7 +8,7 @@ These example packs serve two roles:
 Each pack is meant to be runnable through the validator using:
 
 - `requirements.yaml`
-- `proposal.yaml`
+- `proposal.yaml` (Approach artifact in current compatibility form)
 - `scenario.yaml`
 
 ## Core Baseline

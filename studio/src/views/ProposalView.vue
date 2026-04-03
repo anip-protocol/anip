@@ -1,20 +1,76 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { designStore, setActivePack, updateDeclaredSurface } from '../design/store'
+import { designStore, setActivePack, updateDeclaredSurface, composeDraftProposal } from '../design/store'
+import { loadProject, projectStore, openArtifactForEditing, refreshArtifacts } from '../design/project-store'
+import { updateProposal } from '../design/project-api'
 import EditorToolbar from '../design/components/EditorToolbar.vue'
 
 const route = useRoute()
 
+// --- Dual-route detection ---
+const isProjectMode = computed(() => !!route.params.projectId)
+const projectId = computed(() => route.params.projectId as string | undefined)
+
+onMounted(() => {
+  if (isProjectMode.value && projectId.value && projectStore.activeProject?.id !== projectId.value) {
+    loadProject(projectId.value)
+  }
+})
+
+watch(projectId, (id) => {
+  if (isProjectMode.value && id && projectStore.activeProject?.id !== id) {
+    loadProject(id)
+  }
+})
+
+// Project mode: look up record from projectStore.artifacts.proposals
+const projectRecord = computed(() => {
+  if (!isProjectMode.value) return null
+  const id = route.params.id as string
+  return projectStore.artifacts.proposals.find(p => p.id === id) ?? null
+})
+
+// Legacy mode: look up pack from designStore.packs
 const pack = computed(() => {
-  const id = route.params.pack as string
+  if (isProjectMode.value) return null
+  const id = route.params.packId as string
   if (id) setActivePack(id)
   return designStore.packs.find(p => p.meta.id === id) ?? null
 })
 
-const proposal = computed(() => pack.value?.proposal?.proposal ?? null)
+// Hydrate design store when project record changes
+watch(projectRecord, (record) => {
+  if (record) {
+    openArtifactForEditing('proposal', record)
+  }
+}, { immediate: true })
 
-const isEditing = computed(() => designStore.editState === 'draft')
+const proposal = computed(() => {
+  if (isProjectMode.value) {
+    return projectRecord.value?.data?.proposal ?? null
+  }
+  return pack.value?.proposal?.proposal ?? null
+})
+
+const isEditing = computed(() => {
+  if (!isProjectMode.value) return false // Legacy mode is read-only
+  return designStore.editState === 'draft'
+})
+
+// Whether we have data to display
+const hasData = computed(() => {
+  if (isProjectMode.value) return !!projectRecord.value
+  return !!pack.value
+})
+
+// Display name for the title
+const artifactName = computed(() => {
+  if (isProjectMode.value) {
+    return projectRecord.value?.title ?? 'Approach'
+  }
+  return pack.value?.meta.name ?? 'Approach'
+})
 
 const glueCategories = computed(() => {
   if (!proposal.value?.expected_glue_reduction) return []
@@ -38,18 +94,48 @@ const SURFACE_LABELS: Record<string, string> = {
 const surfaceKeys = computed(() => Object.keys(SURFACE_LABELS))
 
 const draftSurfaces = computed(() => designStore.draftDeclaredSurfaces)
+const saving = ref(false)
+const saveError = ref<string | null>(null)
 
 function toggleSurface(key: string) {
   const current = draftSurfaces.value?.[key as keyof typeof draftSurfaces.value] ?? false
   updateDeclaredSurface(key, !current)
 }
+
+async function handleSave() {
+  if (!isProjectMode.value || !projectRecord.value) return
+  const proposalData = composeDraftProposal()
+  if (!proposalData) return
+
+  saving.value = true
+  saveError.value = null
+  try {
+    await updateProposal(projectRecord.value.project_id, projectRecord.value.id, {
+      title: projectRecord.value.title,
+      status: projectRecord.value.status,
+      data: proposalData,
+    })
+    designStore.originalProposal = JSON.parse(JSON.stringify(proposalData))
+    await refreshArtifacts()
+  } catch (err) {
+    saveError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    saving.value = false
+  }
+}
 </script>
 
 <template>
-  <div class="proposal-view" v-if="pack && proposal">
-    <h1 class="page-title">Proposal: {{ pack.meta.name }}</h1>
+  <div class="proposal-view" v-if="hasData && proposal">
+    <h1 class="page-title">Approach: {{ artifactName }}</h1>
 
-    <EditorToolbar artifact="proposal" />
+    <EditorToolbar
+      artifact="proposal"
+      :canSave="isProjectMode"
+      :saving="saving"
+      :saveError="saveError"
+      @save="handleSave"
+    />
 
     <!-- Declared Surfaces (editable when in draft mode) -->
     <div class="section">
@@ -165,8 +251,8 @@ function toggleSurface(key: string) {
       </div>
     </div>
   </div>
-  <div v-else-if="pack" class="not-found">No proposal available for this pack.</div>
-  <div v-else class="not-found">Pack not found.</div>
+  <div v-else-if="hasData" class="not-found">No approach data available.</div>
+  <div v-else class="not-found">{{ isProjectMode ? 'Approach not found.' : 'Pack not found.' }}</div>
 </template>
 
 <style scoped>

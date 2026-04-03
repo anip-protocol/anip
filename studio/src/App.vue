@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { store } from './store'
 import { fetchDiscovery } from './api'
-import { designStore } from './design/store'
+import { projectStore } from './design/project-store'
 
 const router = useRouter()
 const route = useRoute()
@@ -33,17 +33,21 @@ const inspectNavItems = [
 ]
 
 const designNavItems = computed(() => {
-  const packId = designStore.activePackId
-  const items = [
-    { name: 'design-home', label: 'Home', icon: '\u{1F3E0}', path: '/design' },
-    { name: 'scenario-browser', label: 'Scenarios', icon: '\u{1F4D6}', path: '/design/scenarios' },
+  const project = projectStore.activeProject
+  const items: Array<{ name: string; label: string; icon: string; path: string }> = [
+    { name: 'project-list', label: 'Projects', icon: '\u{1F3E0}', path: '/design' },
   ]
-  if (packId) {
+  if (project) {
+    const pid = project.id
     items.push(
-      { name: 'requirements', label: 'Requirements', icon: '\u{1F4CB}', path: `/design/requirements/${packId}` },
-      { name: 'proposal', label: 'Proposal', icon: '\u{1F4A1}', path: `/design/proposal/${packId}` },
-      { name: 'evaluation', label: 'Evaluation', icon: '\u2713', path: `/design/evaluation/${packId}` },
+      { name: 'project-overview', label: project.name, icon: '\u{1F4C1}', path: `/design/projects/${pid}` },
     )
+    if (projectStore.activeRequirementsId) {
+      items.push({ name: 'requirements', label: 'Requirements', icon: '\u{1F4CB}', path: `/design/projects/${pid}/requirements/${projectStore.activeRequirementsId}` })
+    }
+    if (projectStore.activeProposalId) {
+      items.push({ name: 'proposal', label: 'Approach', icon: '\u{1F4A1}', path: `/design/projects/${pid}/proposals/${projectStore.activeProposalId}` })
+    }
   }
   return items
 })

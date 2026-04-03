@@ -9,7 +9,7 @@ import { hydrateScenarioAnswers, applyScenarioAnswer } from './guided/scenario-m
 import { evaluateScenarioCompleteness } from './guided/scenario-hints'
 import { PACKS } from './data/packs.generated'
 import { runValidation, checkHealth } from './api'
-import { validateRequirements, validateScenario } from './schemas'
+import { validateProposal, validateRequirements, validateScenario } from './schemas'
 
 interface DesignState {
   packs: DesignPack[]
@@ -23,6 +23,7 @@ interface DesignState {
   draftDeclaredSurfaces: DeclaredSurfaces | null
   originalRequirements: Record<string, any> | null
   originalScenario: Record<string, any> | null
+  originalProposal: Record<string, any> | null
   editState: EditState
   validationErrors: ValidationError[]
   requirementsMode: RequirementsMode
@@ -46,6 +47,7 @@ export const designStore = reactive<DesignState>({
   draftDeclaredSurfaces: null,
   originalRequirements: null,
   originalScenario: null,
+  originalProposal: null,
   editState: 'read',
   validationErrors: [],
   requirementsMode: 'guided',
@@ -135,6 +137,7 @@ export function startEditing(): void {
   designStore.draftDeclaredSurfaces = surfaces
     ? deepClone({ ...DEFAULT_SURFACES, ...surfaces })
     : deepClone(DEFAULT_SURFACES)
+  designStore.originalProposal = pack.proposal ? deepClone(pack.proposal) : null
 
   designStore.editState = 'draft'
   designStore.validationErrors = []
@@ -152,6 +155,7 @@ export function discardEdits(): void {
   designStore.draftDeclaredSurfaces = null
   designStore.originalRequirements = null
   designStore.originalScenario = null
+  designStore.originalProposal = null
   designStore.editState = 'read'
   designStore.validationErrors = []
   designStore.guidedAnswers = {}
@@ -167,7 +171,7 @@ export function isDirty(): boolean {
     JSON.stringify(designStore.draftRequirements) !== JSON.stringify(designStore.originalRequirements) ||
     JSON.stringify(designStore.draftScenario) !== JSON.stringify(designStore.originalScenario) ||
     JSON.stringify(designStore.draftDeclaredSurfaces) !== JSON.stringify(
-      getActivePack()?.proposal?.proposal?.declared_surfaces ?? null
+      designStore.originalProposal?.proposal?.declared_surfaces ?? null
     )
   )
 }
@@ -194,6 +198,19 @@ export function validateDraft(): boolean {
       for (const err of validateScenario.errors) {
         errors.push({
           path: `scenario${err.instancePath}`,
+          message: err.message ?? 'validation error',
+        })
+      }
+    }
+  }
+
+  const draftProposal = composeDraftProposal()
+  if (draftProposal) {
+    const valid = validateProposal(draftProposal)
+    if (!valid && validateProposal.errors) {
+      for (const err of validateProposal.errors) {
+        errors.push({
+          path: `proposal${err.instancePath}`,
           message: err.message ?? 'validation error',
         })
       }
@@ -240,10 +257,10 @@ export function updateDeclaredSurface(key: string, value: boolean): void {
  * Used by live validation and export.
  */
 export function composeDraftProposal(): Record<string, any> | null {
-  const pack = getActivePack()
-  if (!pack?.proposal) return null
+  const baseProposal = designStore.originalProposal ?? getActivePack()?.proposal ?? null
+  if (!baseProposal) return null
 
-  const proposal = deepClone(pack.proposal)
+  const proposal = deepClone(baseProposal)
   if (designStore.draftDeclaredSurfaces) {
     proposal.proposal.declared_surfaces = deepClone(designStore.draftDeclaredSurfaces)
   }

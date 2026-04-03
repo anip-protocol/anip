@@ -1,23 +1,55 @@
-"""Thin validation API wrapping the ANIP evaluator."""
+"""Thin validation API wrapping the ANIP evaluator, plus project workspace API."""
+
+from contextlib import asynccontextmanager
+from pathlib import Path
+import sys
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import sys
-from pathlib import Path
 
 # Add tooling to Python path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tooling" / "bin"))
-from anip_design_validate import evaluate, validate_payload, load_json
+from anip_design_validate import evaluate, validate_payload  # noqa: E402
 
-app = FastAPI(title="ANIP Studio Validation API")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+from .db import get_pool, init_db  # noqa: E402
+from .repository import load_vocabulary_defaults  # noqa: E402
+from .routers import projects, artifacts, vocabulary, import_export  # noqa: E402
 
 SCHEMA_DIR = Path(__file__).resolve().parents[2] / "tooling" / "schemas"
+VOCAB_DEFAULTS_PATH = Path(__file__).parent / "vocabulary_defaults.json"
+
 
 class ValidateRequest(BaseModel):
     requirements: dict
     proposal: dict
     scenario: dict
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    with get_pool().connection() as conn:
+        load_vocabulary_defaults(conn, str(VOCAB_DEFAULTS_PATH))
+    yield
+
+
+app = FastAPI(title="ANIP Studio Validation API", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# --- Include routers ---
+app.include_router(projects.router)
+app.include_router(artifacts.router)
+app.include_router(vocabulary.router)
+app.include_router(import_export.router)
+
+
+# --- Existing endpoints (unchanged) ---
 
 @app.post("/api/validate")
 async def validate_endpoint(req: ValidateRequest):
@@ -30,6 +62,7 @@ async def validate_endpoint(req: ValidateRequest):
         return result
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
+
 
 @app.get("/api/health")
 async def health():

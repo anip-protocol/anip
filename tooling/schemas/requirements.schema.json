@@ -188,7 +188,7 @@
     },
     "business_constraints": {
       "type": "object",
-      "description": "Arbitrary domain constraints that should affect the proposal and evaluation.",
+      "description": "Arbitrary domain constraints that should affect the approach and evaluation.",
       "additionalProperties": {
         "oneOf": [
           {

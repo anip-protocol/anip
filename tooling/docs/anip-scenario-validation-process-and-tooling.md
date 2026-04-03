@@ -92,7 +92,7 @@ This stage should produce:
 
 ### Stage 4: Evaluate
 
-The evaluator checks whether the proposal can satisfy the scenario without
+The evaluator checks whether the approach can satisfy the scenario without
 extra glue.
 
 This stage should answer:
@@ -362,7 +362,7 @@ Why:
 Build:
 
 - rules-based proposal engine
-- proposal schema
+- approach schema
 - basic diagram generation
 
 Why:

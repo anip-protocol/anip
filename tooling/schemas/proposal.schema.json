@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://anip.dev/schemas/proposal.schema.json",
-  "title": "ANIP Proposal",
+  "title": "ANIP Approach",
   "description": "Structured proposed ANIP design produced from requirements and used as input to Execution Scenario Validation.",
   "type": "object",
   "additionalProperties": false,

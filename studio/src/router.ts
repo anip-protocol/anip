@@ -9,34 +9,56 @@ const inspectOnly = !!import.meta.env.VITE_INSPECT_ONLY
 
 // Only include Design routes in standalone builds (not embedded runtime packages)
 const designRoutes = inspectOnly ? [] : [
+  // ── Project routes (primary) ──
   {
     path: '/design',
-    name: 'design-home',
-    component: () => import('./views/DesignHomeView.vue'),
+    name: 'project-list',
+    component: () => import('./views/ProjectListView.vue'),
   },
   {
-    path: '/design/scenarios',
-    name: 'scenario-browser',
-    component: () => import('./views/ScenarioBrowserView.vue'),
+    path: '/design/projects/:projectId',
+    name: 'project-overview',
+    component: () => import('./views/ProjectOverviewView.vue'),
   },
   {
-    path: '/design/scenarios/:pack',
-    name: 'scenario-detail',
-    component: () => import('./views/ScenarioDetailView.vue'),
-  },
-  {
-    path: '/design/requirements/:pack',
+    path: '/design/projects/:projectId/requirements/:id',
     name: 'requirements',
     component: () => import('./views/RequirementsView.vue'),
   },
   {
-    path: '/design/proposal/:pack',
+    path: '/design/projects/:projectId/scenarios/:id',
+    name: 'scenario-detail',
+    component: () => import('./views/ScenarioDetailView.vue'),
+  },
+  {
+    path: '/design/projects/:projectId/proposals/:id',
     name: 'proposal',
     component: () => import('./views/ProposalView.vue'),
   },
   {
-    path: '/design/evaluation/:pack',
+    path: '/design/projects/:projectId/evaluations/:id',
     name: 'evaluation',
+    component: () => import('./views/EvaluationView.vue'),
+  },
+  // ── Legacy pack routes (read-only fallback) ──
+  {
+    path: '/design/packs/:packId',
+    name: 'pack-detail',
+    component: () => import('./views/ScenarioDetailView.vue'),
+  },
+  {
+    path: '/design/packs/:packId/requirements',
+    name: 'pack-requirements',
+    component: () => import('./views/RequirementsView.vue'),
+  },
+  {
+    path: '/design/packs/:packId/proposal',
+    name: 'pack-proposal',
+    component: () => import('./views/ProposalView.vue'),
+  },
+  {
+    path: '/design/packs/:packId/evaluation',
+    name: 'pack-evaluation',
     component: () => import('./views/EvaluationView.vue'),
   },
 ]

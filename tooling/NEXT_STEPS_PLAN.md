@@ -181,7 +181,7 @@ Core objects:
 
 - `Scenario`
 - `RequirementsSet`
-- `Proposal`
+- `Approach`
 - `Evaluation`
 - `Comparison`
 - `Review`
@@ -190,6 +190,14 @@ Core objects:
 The rule:
 
 - every important UI action should map cleanly to these objects and operations
+- evaluations should always tie back to a specific
+  requirements/scenario/approach combination
+- stored evaluations should become explicitly distinguishable as:
+  - live
+  - stored
+  - stale after linked artifact changes
+- one primary requirements set per project should be the normal case, while
+  multiple approaches should remain a normal comparison mechanism
 
 Expected outputs:
 
@@ -207,7 +215,7 @@ Build first:
 
 - scenario browser
 - guided requirements entry
-- proposal viewer
+- approach viewer
 - evaluation viewer
 - comparison/report view
 
@@ -234,7 +242,7 @@ Agents should be able to:
 - generate scenarios
 - draft requirements
 - propose ANIP shapes
-- critique proposals
+- critique approaches
 - critique evaluations
 - compare ANIP vs legacy outcomes
 - suggest protocol/tooling improvements
@@ -332,14 +340,15 @@ maturity.
 
 ---
 
-## V3 Priority: Structured Proposal Surface Declarations
+## V3 Priority: Structured Approach Surface Declarations
 
-The V2 evaluator infers which advisory surfaces a proposal declares by
+The V2 evaluator infers which advisory surfaces an approach declares by
 heuristically matching text in `required_components`, `key_runtime_requirements`,
 and `rationale`. This is wording-sensitive — changing prose can change the score
 without a real design change.
 
-V3 should introduce structured surface declarations in the proposal schema so
+V3 should introduce structured surface declarations in the current `proposal`
+schema so
 evaluator judgments depend on machine-readable design surfaces, not text
 inference. For example:
 

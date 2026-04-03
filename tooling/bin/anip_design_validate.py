@@ -519,7 +519,7 @@ def evaluate_orchestration(
 
     if missing_surfaces:
         glue.append(
-            "the proposal does not declare "
+            "the approach does not declare "
             f"{', '.join(missing_surfaces)} — agents must discover these "
             "paths through docs or wrapper logic"
         )
@@ -670,7 +670,7 @@ def evaluate_cross_service(
 
     if missing_surfaces:
         glue.append(
-            "the proposal does not declare "
+            "the approach does not declare "
             f"{', '.join(missing_surfaces)} — agents must discover these "
             "paths through docs or wrapper logic"
         )

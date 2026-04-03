@@ -276,7 +276,7 @@ This should be built first.
 
 Why:
 
-- once validation exists, proposal generation can be judged honestly
+- once validation exists, approach generation can be judged honestly
 - otherwise design proposals are too easy to make vague or flattering
 
 Design Mode should grow on top of the validation system.

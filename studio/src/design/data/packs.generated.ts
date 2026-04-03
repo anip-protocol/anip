@@ -573,7 +573,7 @@ export const PACKS: DesignPack[] = [
         ],
         "glue_you_will_still_write": [
           "the protocol provides advisory guidance but enforcement still requires wrapper logic",
-          "the proposal does not declare follow-up advisory hint — agents must discover these paths through docs or wrapper logic"
+          "the approach does not declare follow-up advisory hint — agents must discover these paths through docs or wrapper logic"
         ],
         "glue_category": [
           "orchestration"
@@ -751,7 +751,7 @@ export const PACKS: DesignPack[] = [
         ],
         "glue_you_will_still_write": [
           "the protocol provides advisory guidance but enforcement still requires wrapper logic",
-          "the proposal does not declare estimated availability hint — agents must discover these paths through docs or wrapper logic"
+          "the approach does not declare estimated availability hint — agents must discover these paths through docs or wrapper logic"
         ],
         "glue_category": [
           "orchestration"
@@ -930,7 +930,7 @@ export const PACKS: DesignPack[] = [
         ],
         "glue_you_will_still_write": [
           "the protocol provides advisory guidance but enforcement still requires wrapper logic",
-          "the proposal does not declare revalidation guidance hint — agents must discover these paths through docs or wrapper logic"
+          "the approach does not declare revalidation guidance hint — agents must discover these paths through docs or wrapper logic"
         ],
         "glue_category": [
           "orchestration"

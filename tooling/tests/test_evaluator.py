@@ -316,7 +316,7 @@ class TestOrchestrationAdvisoryOnly:
         assert any("hints but does not enforce" in w for w in ev["why"])
 
     def test_advisory_not_credited_when_proposal_omits_surfaces(self):
-        """When the proposal does not declare refresh/recovery surfaces,
+        """When the approach does not declare refresh/recovery surfaces,
         the evaluator should NOT credit them as handled."""
         req = _make_requirements()
         proposal = _make_proposal()  # bare proposal with no declared surfaces
@@ -347,7 +347,7 @@ class TestOrchestrationAdvisoryOnly:
         advisory_handled = [h for h in ev["handled_by_anip"] if "advisory" in h]
         assert len(advisory_handled) == 0
         # Glue should mention that proposal doesn't declare the surfaces
-        assert any("proposal does not declare" in g for g in ev["glue_you_will_still_write"])
+        assert any("approach does not declare" in g for g in ev["glue_you_will_still_write"])
 
 
 class TestCrossServiceAdvisoryOnly:
@@ -397,7 +397,7 @@ class TestCrossServiceAdvisoryOnly:
         assert any("advisory" in h for h in ev["handled_by_anip"])
 
     def test_cross_service_not_credited_when_proposal_omits_surfaces(self):
-        """When proposal does not declare cross-service components,
+        """When the approach does not declare cross-service components,
         advisory hints should not be credited."""
         req = _make_requirements(
             services=[
@@ -431,7 +431,7 @@ class TestCrossServiceAdvisoryOnly:
         advisory_handled = [h for h in ev["handled_by_anip"] if "advisory" in h]
         assert len(advisory_handled) == 0
         # Glue should note the missing proposal surfaces
-        assert any("proposal does not declare" in g for g in ev["glue_you_will_still_write"])
+        assert any("approach does not declare" in g for g in ev["glue_you_will_still_write"])
 
 
 class TestHandledByAnipSurfaces:
@@ -656,7 +656,7 @@ class TestDeclaredSurfaces:
 
     def test_declared_surfaces_false_produces_glue(self):
         """When refresh_via is declared false, the evaluator should produce
-        glue noting the gap (proposal does not declare the surface)."""
+        glue noting the gap (approach does not declare the surface)."""
         req = _make_requirements()
         proposal = _make_proposal(
             required_components=["capability_registry"],
@@ -680,7 +680,7 @@ class TestDeclaredSurfaces:
         refresh_handled = [h for h in ev["handled_by_anip"] if "refresh" in h.lower()]
         assert len(refresh_handled) == 0, f"False refresh_via should not be handled: {refresh_handled}"
         # glue should note the gap
-        assert any("proposal does not declare" in g for g in ev["glue_you_will_still_write"])
+        assert any("approach does not declare" in g for g in ev["glue_you_will_still_write"])
 
     def test_declared_surfaces_absent_falls_back(self):
         """When declared_surfaces is absent, V2 text heuristic behavior is preserved."""
@@ -755,6 +755,6 @@ class TestDeclaredSurfaces:
         assert len(advisory_handled) >= 5, (
             f"All-true should credit at least 5 advisory surfaces, got {len(advisory_handled)}: {advisory_handled}"
         )
-        # Should NOT have any "proposal does not declare" glue
-        missing_glue = [g for g in ev["glue_you_will_still_write"] if "proposal does not declare" in g]
+        # Should NOT have any "approach does not declare" glue
+        missing_glue = [g for g in ev["glue_you_will_still_write"] if "approach does not declare" in g]
         assert len(missing_glue) == 0, f"All-true should not have missing-surface glue: {missing_glue}"
