@@ -1,0 +1,64 @@
+system:
+  name: travel-multiservice-estate
+  domain: travel
+  deployment_intent: multi_service_agent_execution
+
+services:
+  - name: travel-search
+    role: planning
+    public_http: true
+  - name: travel-booking
+    role: execution
+    public_http: true
+
+transports:
+  http: true
+  stdio: false
+  grpc: false
+
+trust:
+  mode: signed
+  checkpoints: false
+
+auth:
+  delegation_tokens: true
+  purpose_binding: true
+  scoped_authority: true
+  service_to_service_handoffs: true
+
+permissions:
+  preflight_discovery: true
+  restricted_vs_denied: true
+  grantable_requirements: true
+
+audit:
+  durable: true
+  searchable: true
+  cross_service_reconstruction_required: true
+
+lineage:
+  invocation_id: true
+  client_reference_id: true
+  task_id: true
+  parent_invocation_id: true
+  cross_service_continuity_required: true
+
+risk_profile:
+  service_a:
+    search_flights:
+      side_effect: none
+  service_b:
+    book_flight:
+      side_effect: irreversible
+      cost_visibility_required: true
+      recovery_guidance_required: true
+
+business_constraints:
+  agent_must_compare_before_booking: true
+  booking_budget_limit_required: true
+  booking_service_must_be_auditable_independently: true
+  cross_service_action_chain_must_be_reconstructable: true
+
+scale:
+  shape_preference: multi_service_estate
+  high_availability: false

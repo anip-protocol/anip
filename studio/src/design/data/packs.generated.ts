@@ -10,7 +10,7 @@ export const PACKS: DesignPack[] = [
       "domain": "devops",
       "category": "orchestration",
       "narrative": "An agent deploys a service through one ANIP surface and must verify rollout health through a separate monitoring service. The interface should expose enough relationship clarity that the post-deplo...",
-      "result": null,
+      "result": "PARTIAL",
       "isMultiService": true
     },
     "requirements": {
@@ -157,7 +157,37 @@ export const PACKS: DesignPack[] = [
         ]
       }
     },
-    "evaluation": null
+    "evaluation": {
+      "evaluation": {
+        "scenario_name": "deploy_on_one_service_verify_on_another",
+        "result": "PARTIAL",
+        "handled_by_anip": [
+          "task identity",
+          "parent invocation lineage",
+          "durable audit",
+          "audit queryability",
+          "cross-service task identity continuity",
+          "independent but linkable audit records",
+          "cleaner service handoff",
+          "verification path guidance (protocol-assisted, advisory, not enforced)"
+        ],
+        "glue_you_will_still_write": [
+          "the protocol provides advisory guidance but enforcement still requires wrapper logic",
+          "you will still write cross-service handoff orchestration logic to act on advisory hints"
+        ],
+        "glue_category": [
+          "orchestration"
+        ],
+        "why": [
+          "the design already removes a large amount of cross-service correlation and trace-stitching glue",
+          "the protocol hints but does not enforce — advisory surfaces (verify_via hint) improve the decision surface but wrapper logic must still act on them"
+        ],
+        "what_would_improve": [
+          "promote advisory orchestration hints to enforceable protocol surfaces"
+        ],
+        "confidence": "high"
+      }
+    }
   },
   {
     "meta": {
@@ -323,12 +353,18 @@ export const PACKS: DesignPack[] = [
         "result": "HANDLED",
         "handled_by_anip": [
           "permission discovery",
-          "high-risk side-effect visibility",
-          "structured blocked-action failure",
-          "escalation-friendly recovery guidance",
           "task identity",
           "parent invocation lineage",
-          "durable audit"
+          "durable audit",
+          "audit queryability",
+          "structured failure",
+          "side-effect visibility",
+          "blocked-action refusal before blind execution",
+          "high-risk action understanding",
+          "escalation-friendly recovery guidance",
+          "purpose binding",
+          "scoped authority",
+          "grantable requirements visibility"
         ],
         "glue_you_will_still_write": [
           "you may still write organization-specific approval workflow integration here"
@@ -337,9 +373,8 @@ export const PACKS: DesignPack[] = [
           "orchestration"
         ],
         "why": [
-          "the core scenario requires safe refusal rather than successful execution",
-          "the design already exposes enough authority, risk, recovery, and audit context to refuse cleanly",
-          "remaining organization-specific approval integration is peripheral to the core scenario behavior"
+          "the core scenario is safe refusal rather than successful execution",
+          "business constraint: production cluster deletion requires strong authority"
         ],
         "what_would_improve": [
           "add approval-aware declarations",
@@ -357,7 +392,7 @@ export const PACKS: DesignPack[] = [
       "domain": "devops",
       "category": "orchestration",
       "narrative": "An agent deploys a service successfully. The next sensible move is usually to verify rollout status using a separate read capability. The interface should make that relationship visible so the agen...",
-      "result": null,
+      "result": "PARTIAL",
       "isMultiService": false
     },
     "requirements": {
@@ -490,7 +525,33 @@ export const PACKS: DesignPack[] = [
         ]
       }
     },
-    "evaluation": null
+    "evaluation": {
+      "evaluation": {
+        "scenario_name": "deploy_service_then_verify_status_path",
+        "result": "PARTIAL",
+        "handled_by_anip": [
+          "task identity",
+          "parent invocation lineage",
+          "durable audit",
+          "audit queryability",
+          "verification path guidance (protocol-assisted, advisory, not enforced)"
+        ],
+        "glue_you_will_still_write": [
+          "the protocol provides advisory guidance but enforcement still requires wrapper logic",
+          "the proposal does not declare follow-up advisory hint — agents must discover these paths through docs or wrapper logic"
+        ],
+        "glue_category": [
+          "orchestration"
+        ],
+        "why": [
+          "the protocol hints but does not enforce — advisory surfaces (verify_via hint) improve the decision surface but wrapper logic must still act on them"
+        ],
+        "what_would_improve": [
+          "promote advisory orchestration hints to enforceable protocol surfaces"
+        ],
+        "confidence": "high"
+      }
+    }
   },
   {
     "meta": {
@@ -499,7 +560,7 @@ export const PACKS: DesignPack[] = [
       "domain": "devops",
       "category": "orchestration",
       "narrative": "An agent attempts to deploy a service during a temporary rollout freeze. The operation should not fail as a generic error and force wrapper-side guesswork. The interface should make it clear that t...",
-      "result": null,
+      "result": "PARTIAL",
       "isMultiService": false
     },
     "requirements": {
@@ -629,7 +690,34 @@ export const PACKS: DesignPack[] = [
         ]
       }
     },
-    "evaluation": null
+    "evaluation": {
+      "evaluation": {
+        "scenario_name": "deploy_service_temporarily_unavailable_wait_path",
+        "result": "PARTIAL",
+        "handled_by_anip": [
+          "task identity",
+          "parent invocation lineage",
+          "durable audit",
+          "audit queryability",
+          "structured failure",
+          "estimated availability guidance (protocol-assisted, advisory, not enforced)"
+        ],
+        "glue_you_will_still_write": [
+          "the protocol provides advisory guidance but enforcement still requires wrapper logic",
+          "the proposal does not declare recovery_class — agents must discover these paths through docs or wrapper logic"
+        ],
+        "glue_category": [
+          "orchestration"
+        ],
+        "why": [
+          "the protocol hints but does not enforce — advisory surfaces (estimated availability hint) improve the decision surface but wrapper logic must still act on them"
+        ],
+        "what_would_improve": [
+          "promote advisory orchestration hints to enforceable protocol surfaces"
+        ],
+        "confidence": "high"
+      }
+    }
   },
   {
     "meta": {
@@ -638,7 +726,7 @@ export const PACKS: DesignPack[] = [
       "domain": "platform_ops",
       "category": "orchestration",
       "narrative": "An agent attempts an operation using a cached understanding of the service manifest or capability shape. The service state has changed. The interface should make clear that the right move is to rev...",
-      "result": null,
+      "result": "PARTIAL",
       "isMultiService": false
     },
     "requirements": {
@@ -769,7 +857,34 @@ export const PACKS: DesignPack[] = [
         ]
       }
     },
-    "evaluation": null
+    "evaluation": {
+      "evaluation": {
+        "scenario_name": "stale_manifest_requires_revalidation_before_retry",
+        "result": "PARTIAL",
+        "handled_by_anip": [
+          "task identity",
+          "parent invocation lineage",
+          "durable audit",
+          "audit queryability",
+          "structured failure",
+          "recovery class guidance (protocol-assisted, advisory, not enforced)",
+          "revalidation guidance (protocol-assisted, advisory, not enforced)"
+        ],
+        "glue_you_will_still_write": [
+          "the protocol provides advisory guidance but enforcement still requires wrapper logic"
+        ],
+        "glue_category": [
+          "orchestration"
+        ],
+        "why": [
+          "the protocol hints but does not enforce — advisory surfaces (recovery_class, revalidation guidance hint) improve the decision surface but wrapper logic must still act on them"
+        ],
+        "what_would_improve": [
+          "promote advisory orchestration hints to enforceable protocol surfaces"
+        ],
+        "confidence": "high"
+      }
+    }
   },
   {
     "meta": {
@@ -778,7 +893,7 @@ export const PACKS: DesignPack[] = [
       "domain": "commerce",
       "category": "observability",
       "narrative": "An order is submitted on one service and, after a delay, fulfillment status is checked on another service. The lineage should remain legible enough that operators and agents do not need hidden sche...",
-      "result": null,
+      "result": "PARTIAL",
       "isMultiService": true
     },
     "requirements": {
@@ -893,7 +1008,37 @@ export const PACKS: DesignPack[] = [
         ]
       }
     },
-    "evaluation": null
+    "evaluation": {
+      "evaluation": {
+        "scenario_name": "delayed_fulfillment_check_links_back_to_original_order",
+        "result": "PARTIAL",
+        "handled_by_anip": [
+          "task identity",
+          "parent invocation lineage",
+          "durable audit",
+          "audit queryability",
+          "cross-service task identity continuity",
+          "independent but linkable audit records",
+          "searchable audit",
+          "cross-service continuity primitives (task_id + parent_invocation_id)",
+          "cross-service reconstruction guidance (protocol-assisted, advisory, not enforced)"
+        ],
+        "glue_you_will_still_write": [
+          "you will still write cross-service audit aggregation or reconstruction logic here"
+        ],
+        "glue_category": [
+          "observability"
+        ],
+        "why": [
+          "the design already removes a large amount of cross-service correlation and trace-stitching glue",
+          "the protocol provides lineage primitives and advisory reconstruction hints but does not enforce cross-service reconstruction"
+        ],
+        "what_would_improve": [
+          "add structured cross-service reconstruction support beyond raw lineage primitives"
+        ],
+        "confidence": "high"
+      }
+    }
   },
   {
     "meta": {
@@ -902,7 +1047,7 @@ export const PACKS: DesignPack[] = [
       "domain": "travel",
       "category": "orchestration",
       "narrative": "An agent searches flights in one service, books the selected flight in a second service, and then needs to confirm booking status through a third service. The system should make the likely follow-u...",
-      "result": null,
+      "result": "PARTIAL",
       "isMultiService": true
     },
     "requirements": {
@@ -1092,7 +1237,39 @@ export const PACKS: DesignPack[] = [
         ]
       }
     },
-    "evaluation": null
+    "evaluation": {
+      "evaluation": {
+        "scenario_name": "search_book_verify_across_services_with_discoverable_followup",
+        "result": "PARTIAL",
+        "handled_by_anip": [
+          "task identity",
+          "parent invocation lineage",
+          "durable audit",
+          "audit queryability",
+          "structured failure",
+          "cross-service task identity continuity",
+          "independent but linkable audit records",
+          "cleaner service handoff",
+          "verification path guidance (protocol-assisted, advisory, not enforced)",
+          "follow-up path guidance (protocol-assisted, advisory, not enforced)"
+        ],
+        "glue_you_will_still_write": [
+          "the protocol provides advisory guidance but enforcement still requires wrapper logic",
+          "you will still write cross-service handoff orchestration logic to act on advisory hints"
+        ],
+        "glue_category": [
+          "orchestration"
+        ],
+        "why": [
+          "the design already removes a large amount of cross-service correlation and trace-stitching glue",
+          "the protocol hints but does not enforce — advisory surfaces (verify_via hint, followup_via hint) improve the decision surface but wrapper logic must still act on them"
+        ],
+        "what_would_improve": [
+          "promote advisory orchestration hints to enforceable protocol surfaces"
+        ],
+        "confidence": "high"
+      }
+    }
   },
   {
     "meta": {
@@ -1292,31 +1469,33 @@ export const PACKS: DesignPack[] = [
         "scenario_name": "search_then_book_across_services_with_budget_constraint",
         "result": "PARTIAL",
         "handled_by_anip": [
-          "cross-service task identity continuity",
+          "permission discovery",
+          "task identity",
           "parent invocation lineage",
+          "durable audit",
+          "audit queryability",
+          "structured failure",
+          "side-effect visibility",
+          "cost visibility",
+          "cross-service task identity continuity",
           "independent but linkable audit records",
-          "cleaner planning-to-booking handoff",
-          "structured failure surfaces"
+          "cleaner service handoff"
         ],
         "glue_you_will_still_write": [
-          "you will still write budget-enforcement logic in the booking service, because the constraint is not yet enforced through delegation or permissions",
-          "you will still write some organization-specific handoff policy logic here",
-          "you may still write a cross-service audit aggregation layer here"
+          "you will still write cross-service handoff orchestration logic to act on advisory hints",
+          "you will still write budget-enforcement logic because the constraint is not yet enforced through delegation or permissions"
         ],
         "glue_category": [
-          "safety",
           "orchestration",
-          "observability"
+          "safety"
         ],
         "why": [
-          "the design removes a large amount of cross-service correlation and trace-stitching glue",
-          "task and parent invocation continuity are materially improved across the service boundary",
-          "the budget-control requirement is still not encoded as an enforceable ANIP-visible control surface in the booking path"
+          "the design already removes a large amount of cross-service correlation and trace-stitching glue",
+          "no advisory orchestration surfaces detected — core behavior depends on protocol-visible semantics",
+          "the budget-control requirement is still not encoded as an enforceable ANIP-visible control surface"
         ],
         "what_would_improve": [
-          "represent budget as enforceable authority or policy in the booking path",
-          "expose budget-based blocking through permissions or structured invoke failure",
-          "add easier cross-service lineage query support for operators"
+          "represent budget as enforceable authority or policy in the booking path"
         ],
         "confidence": "high"
       }
@@ -1329,7 +1508,7 @@ export const PACKS: DesignPack[] = [
       "domain": "travel",
       "category": "orchestration",
       "narrative": "A search service returns a priced quote artifact and a booking service must consume it. The system should make the cross-service handoff semantically legible enough that the agent does not rely on ...",
-      "result": null,
+      "result": "PARTIAL",
       "isMultiService": true
     },
     "requirements": {
@@ -1495,7 +1674,37 @@ export const PACKS: DesignPack[] = [
         ]
       }
     },
-    "evaluation": null
+    "evaluation": {
+      "evaluation": {
+        "scenario_name": "quote_handoff_from_search_service_to_booking_service",
+        "result": "PARTIAL",
+        "handled_by_anip": [
+          "task identity",
+          "parent invocation lineage",
+          "durable audit",
+          "audit queryability",
+          "cross-service task identity continuity",
+          "independent but linkable audit records",
+          "cleaner service handoff",
+          "cross-service handoff guidance (protocol-assisted, advisory, not enforced)"
+        ],
+        "glue_you_will_still_write": [
+          "the protocol provides advisory guidance but enforcement still requires wrapper logic",
+          "you will still write cross-service handoff orchestration logic to act on advisory hints"
+        ],
+        "glue_category": [
+          "orchestration"
+        ],
+        "why": [
+          "the design already removes a large amount of cross-service correlation and trace-stitching glue",
+          "the protocol hints but does not enforce — advisory surfaces (cross-service handoff hint) improve the decision surface but wrapper logic must still act on them"
+        ],
+        "what_would_improve": [
+          "promote advisory orchestration hints to enforceable protocol surfaces"
+        ],
+        "confidence": "high"
+      }
+    }
   },
   {
     "meta": {
@@ -1504,7 +1713,7 @@ export const PACKS: DesignPack[] = [
       "domain": "travel",
       "category": "orchestration",
       "narrative": "A booking service rejects an upstream quote because it is stale. The agent now needs to know which upstream service and capability should be invoked to refresh the artifact before retrying, without...",
-      "result": null,
+      "result": "PARTIAL",
       "isMultiService": true
     },
     "requirements": {
@@ -1653,7 +1862,38 @@ export const PACKS: DesignPack[] = [
         ]
       }
     },
-    "evaluation": null
+    "evaluation": {
+      "evaluation": {
+        "scenario_name": "stale_quote_requires_cross_service_refresh_before_booking",
+        "result": "PARTIAL",
+        "handled_by_anip": [
+          "task identity",
+          "parent invocation lineage",
+          "durable audit",
+          "audit queryability",
+          "structured failure",
+          "cross-service task identity continuity",
+          "independent but linkable audit records",
+          "cleaner service handoff",
+          "refresh path guidance (protocol-assisted, advisory, not enforced)"
+        ],
+        "glue_you_will_still_write": [
+          "the protocol provides advisory guidance but enforcement still requires wrapper logic",
+          "you will still write cross-service handoff orchestration logic to act on advisory hints"
+        ],
+        "glue_category": [
+          "orchestration"
+        ],
+        "why": [
+          "the design already removes a large amount of cross-service correlation and trace-stitching glue",
+          "the protocol hints but does not enforce — advisory surfaces (refresh_via hint) improve the decision surface but wrapper logic must still act on them"
+        ],
+        "what_would_improve": [
+          "promote advisory orchestration hints to enforceable protocol surfaces"
+        ],
+        "confidence": "high"
+      }
+    }
   },
   {
     "meta": {
@@ -1662,7 +1902,7 @@ export const PACKS: DesignPack[] = [
       "domain": "travel",
       "category": "orchestration",
       "narrative": "An agent attempts to book a flight using a quote obtained earlier in the task. The quote is now stale. The system should not just say \"refresh required\" — it should make the refresh path itself dis...",
-      "result": null,
+      "result": "PARTIAL",
       "isMultiService": false
     },
     "requirements": {
@@ -1806,7 +2046,35 @@ export const PACKS: DesignPack[] = [
         ]
       }
     },
-    "evaluation": null
+    "evaluation": {
+      "evaluation": {
+        "scenario_name": "book_flight_with_stale_quote_needs_refresh_path",
+        "result": "PARTIAL",
+        "handled_by_anip": [
+          "task identity",
+          "parent invocation lineage",
+          "durable audit",
+          "audit queryability",
+          "structured failure",
+          "refresh path guidance (protocol-assisted, advisory, not enforced)",
+          "recovery class guidance (protocol-assisted, advisory, not enforced)",
+          "binding freshness visibility (protocol-assisted, advisory, not enforced)"
+        ],
+        "glue_you_will_still_write": [
+          "the protocol provides advisory guidance but enforcement still requires wrapper logic"
+        ],
+        "glue_category": [
+          "orchestration"
+        ],
+        "why": [
+          "the protocol hints but does not enforce — advisory surfaces (refresh_via hint, recovery_class, binding freshness visibility) improve the decision surface but wrapper logic must still act on them"
+        ],
+        "what_would_improve": [
+          "promote advisory orchestration hints to enforceable protocol surfaces"
+        ],
+        "confidence": "high"
+      }
+    }
   },
   {
     "meta": {
@@ -1971,13 +2239,15 @@ export const PACKS: DesignPack[] = [
         "scenario_name": "book_flight_over_budget",
         "result": "PARTIAL",
         "handled_by_anip": [
-          "side-effect visibility",
-          "cost visibility",
-          "permission discovery",
-          "structured failure",
           "task identity",
           "parent invocation lineage",
-          "audit recording"
+          "durable audit",
+          "audit queryability",
+          "structured failure",
+          "side-effect visibility",
+          "cost visibility",
+          "purpose binding",
+          "scoped authority"
         ],
         "glue_you_will_still_write": [
           "you will still write budget-enforcement logic here unless the budget limit is represented in delegation, permission evaluation, or a protocol-visible control layer",
@@ -1990,8 +2260,8 @@ export const PACKS: DesignPack[] = [
         ],
         "why": [
           "the design improves the decision surface substantially before action",
-          "the budget constraint is not yet clearly enforceable through an ANIP-visible control surface",
-          "the system is better informed, but still depends on non-ANIP logic for the final guarantee"
+          "the budget-control requirement is still not encoded as an enforceable ANIP-visible control surface",
+          "business constraint: over-budget actions must not execute"
         ],
         "what_would_improve": [
           "represent budget as part of enforceable authority or purpose binding",
@@ -2009,7 +2279,7 @@ export const PACKS: DesignPack[] = [
       "domain": "travel",
       "category": "observability",
       "narrative": "One planning invocation triggers three downstream bookings on different services. The system should make the fan-out reconstructable without custom trace-stitching logic and without implying a work...",
-      "result": null,
+      "result": "PARTIAL",
       "isMultiService": true
     },
     "requirements": {
@@ -2135,6 +2405,37 @@ export const PACKS: DesignPack[] = [
         ]
       }
     },
-    "evaluation": null
+    "evaluation": {
+      "evaluation": {
+        "scenario_name": "one_planning_step_fans_out_to_multiple_booking_services",
+        "result": "PARTIAL",
+        "handled_by_anip": [
+          "task identity",
+          "parent invocation lineage",
+          "durable audit",
+          "audit queryability",
+          "cross-service task identity continuity",
+          "independent but linkable audit records",
+          "cleaner service handoff",
+          "searchable audit",
+          "cross-service continuity primitives (task_id + parent_invocation_id)",
+          "cross-service reconstruction guidance (protocol-assisted, advisory, not enforced)"
+        ],
+        "glue_you_will_still_write": [
+          "you will still write cross-service audit aggregation or reconstruction logic here"
+        ],
+        "glue_category": [
+          "observability"
+        ],
+        "why": [
+          "the design already removes a large amount of cross-service correlation and trace-stitching glue",
+          "the protocol provides lineage primitives and advisory reconstruction hints but does not enforce cross-service reconstruction"
+        ],
+        "what_would_improve": [
+          "add structured cross-service reconstruction support beyond raw lineage primitives"
+        ],
+        "confidence": "high"
+      }
+    }
   }
 ]

@@ -1,0 +1,33 @@
+evaluation:
+  scenario_name: search_then_book_across_services_with_budget_constraint
+  result: PARTIAL
+  handled_by_anip:
+  - permission discovery
+  - task identity
+  - parent invocation lineage
+  - durable audit
+  - audit queryability
+  - structured failure
+  - side-effect visibility
+  - cost visibility
+  - cross-service task identity continuity
+  - independent but linkable audit records
+  - cleaner service handoff
+  glue_you_will_still_write:
+  - you will still write cross-service handoff orchestration logic to act on advisory
+    hints
+  - you will still write budget-enforcement logic because the constraint is not yet
+    enforced through delegation or permissions
+  glue_category:
+  - orchestration
+  - safety
+  why:
+  - the design already removes a large amount of cross-service correlation and trace-stitching
+    glue
+  - "no advisory orchestration surfaces detected \u2014 core behavior depends on protocol-visible\
+    \ semantics"
+  - the budget-control requirement is still not encoded as an enforceable ANIP-visible
+    control surface
+  what_would_improve:
+  - represent budget as enforceable authority or policy in the booking path
+  confidence: high

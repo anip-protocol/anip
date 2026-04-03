@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  studio-web:
+    build:
+      context: ..
+      dockerfile: studio/Dockerfile.standalone
+    ports:
+      - "8080:8080"
+    depends_on:
+      - studio-api
+
+  studio-api:
+    build:
+      context: ..
+      dockerfile: studio/server/Dockerfile
+    expose:
+      - "8100"

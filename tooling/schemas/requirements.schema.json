@@ -1,0 +1,268 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anip.dev/schemas/requirements.schema.json",
+  "title": "ANIP Requirements",
+  "description": "Structured requirements input for Scenario-Driven Execution Design.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "system",
+    "transports",
+    "trust",
+    "auth",
+    "permissions",
+    "audit",
+    "lineage",
+    "scale"
+  ],
+  "properties": {
+    "system": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "domain",
+        "deployment_intent"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "domain": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "deployment_intent": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "services": {
+      "type": "array",
+      "description": "Optional service inventory for multi-service designs.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "role"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "role": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "public_http": {
+            "type": "boolean"
+          },
+          "internal_only": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "transports": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "http": {
+          "type": "boolean"
+        },
+        "stdio": {
+          "type": "boolean"
+        },
+        "grpc": {
+          "type": "boolean"
+        }
+      }
+    },
+    "trust": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "checkpoints"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "unsigned",
+            "signed",
+            "anchored",
+            "attested"
+          ]
+        },
+        "checkpoints": {
+          "type": "boolean"
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "delegation_tokens": {
+          "type": "boolean"
+        },
+        "purpose_binding": {
+          "type": "boolean"
+        },
+        "scoped_authority": {
+          "type": "boolean"
+        },
+        "service_to_service_handoffs": {
+          "type": "boolean"
+        }
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "preflight_discovery": {
+          "type": "boolean"
+        },
+        "restricted_vs_denied": {
+          "type": "boolean"
+        },
+        "grantable_requirements": {
+          "type": "boolean"
+        }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "durable": {
+          "type": "boolean"
+        },
+        "searchable": {
+          "type": "boolean"
+        },
+        "cross_service_reconstruction_required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "invocation_id": {
+          "type": "boolean"
+        },
+        "client_reference_id": {
+          "type": "boolean"
+        },
+        "task_id": {
+          "type": "boolean"
+        },
+        "parent_invocation_id": {
+          "type": "boolean"
+        },
+        "cross_service_continuity_required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "risk_profile": {
+      "type": "object",
+      "description": "Flexible risk and capability posture information. Supports single-service and multi-service layouts.",
+      "additionalProperties": {
+        "$ref": "#/$defs/riskNode"
+      }
+    },
+    "business_constraints": {
+      "type": "object",
+      "description": "Arbitrary domain constraints that should affect the proposal and evaluation.",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          }
+        ]
+      }
+    },
+    "scale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shape_preference",
+        "high_availability"
+      ],
+      "properties": {
+        "shape_preference": {
+          "type": "string",
+          "enum": [
+            "embedded_single_process",
+            "production_single_service",
+            "horizontally_scaled",
+            "control_plane_worker_split",
+            "multi_service_estate"
+          ]
+        },
+        "high_availability": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "capabilityConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "side_effect": {
+          "type": "string",
+          "enum": [
+            "none",
+            "reversible",
+            "irreversible"
+          ]
+        },
+        "high_risk": {
+          "type": "boolean"
+        },
+        "cost_visibility_required": {
+          "type": "boolean"
+        },
+        "recovery_guidance_required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "riskNode": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/capabilityConfig"
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/riskNode"
+          }
+        }
+      ]
+    }
+  }
+}

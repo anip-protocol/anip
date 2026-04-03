@@ -1,0 +1,61 @@
+system:
+  name: deploy-verify-estate
+  domain: devops
+  deployment_intent: multi_service_agent_execution
+
+services:
+  - name: deploy-service
+    role: execution
+    public_http: true
+  - name: monitoring-service
+    role: verification
+    public_http: true
+
+transports:
+  http: true
+  stdio: false
+  grpc: false
+
+trust:
+  mode: signed
+  checkpoints: false
+
+auth:
+  delegation_tokens: true
+  purpose_binding: true
+  scoped_authority: true
+  service_to_service_handoffs: true
+
+permissions:
+  preflight_discovery: true
+  restricted_vs_denied: true
+
+audit:
+  durable: true
+  searchable: true
+  cross_service_reconstruction_required: true
+
+lineage:
+  invocation_id: true
+  client_reference_id: true
+  task_id: true
+  parent_invocation_id: true
+  cross_service_continuity_required: true
+
+risk_profile:
+  execution_service:
+    deploy_service:
+      side_effect: irreversible
+      recovery_guidance_required: true
+  verification_service:
+    get_deployment_status:
+      side_effect: none
+
+business_constraints:
+  cross_service_verification_should_not_depend_on_operator_memory: true
+  deploy_to_monitoring_relationship_should_be_machine_visible: true
+  execution_and_verification_capabilities_live_in_different_services: true
+
+scale:
+  shape_preference: multi_service_estate
+  high_availability: false

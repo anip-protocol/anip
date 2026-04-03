@@ -1,0 +1,35 @@
+proposal:
+  recommended_shape: multi_service_estate
+
+  rationale:
+    - deployment and verification are intentionally split across services
+    - continuity is necessary but not sufficient
+    - the main gap is distributed verification-path discoverability
+
+  service_shapes:
+    deploy-service:
+      shape: production_single_service
+    monitoring-service:
+      shape: production_single_service
+
+  shared_requirements:
+    - cross-service continuity
+    - durable audit in both services
+    - discoverable verification relationship across services
+
+  required_components:
+    - manifest_generator_per_service
+    - token_verifier_per_service
+    - invocation_executor_per_service
+    - durable_audit_store_per_service
+    - lineage_recorder_per_service
+    - bounded_cross_service_verification_guidance
+
+  anti_pattern_warnings:
+    - do_not_force_agents_to_guess_the_monitoring_service_after_deploy
+    - do_not_push_verification_routes_only_into_human_runbooks
+
+  expected_glue_reduction:
+    orchestration:
+      - deploy_then_verify_service_map_glue
+      - cross_service_post_action_check_guesswork

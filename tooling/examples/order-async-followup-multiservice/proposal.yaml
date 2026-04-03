@@ -1,0 +1,24 @@
+proposal:
+  recommended_shape: multi_service_estate
+
+  rationale:
+    - the downstream action happens later on a different service
+    - continuity survives, but interpretation of delayed follow-up still needs explicit pressure
+
+  required_components:
+    - manifest_generator_per_service
+    - token_verifier_per_service
+    - invocation_executor_per_service
+    - durable_audit_store_per_service
+    - lineage_recorder_per_service
+    - bounded_async_followup_guidance
+
+  anti_pattern_warnings:
+    - do_not_drop_lineage_on_delayed_followups
+    - do_not_require_hidden_scheduler_specific_linkage_rules
+
+  expected_glue_reduction:
+    orchestration:
+      - delayed_followup_parent_link_glue
+    observability:
+      - async_cross_service_reconstruction_guesswork

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { designStore, setActivePack } from '../design/store'
+import { designStore, setActivePack, runLiveValidation } from '../design/store'
 
 const route = useRoute()
 
@@ -11,7 +11,19 @@ const pack = computed(() => {
   return designStore.packs.find(p => p.meta.id === id) ?? null
 })
 
-const evaluation = computed(() => pack.value?.evaluation?.evaluation ?? null)
+const isLive = computed(() => designStore.liveEvaluation !== null)
+
+const evaluation = computed(() => {
+  if (designStore.liveEvaluation) {
+    return designStore.liveEvaluation.evaluation
+  }
+  return pack.value?.evaluation?.evaluation ?? null
+})
+
+function clearLive() {
+  designStore.liveEvaluation = null
+  designStore.validationError = null
+}
 
 function categoryColor(cat: string): string {
   const colors: Record<string, string> = {
@@ -26,7 +38,29 @@ function categoryColor(cat: string): string {
 
 <template>
   <div class="evaluation-view" v-if="pack && evaluation">
-    <h1 class="page-title">Evaluation: {{ pack.meta.name }}</h1>
+    <div class="header-row">
+      <h1 class="page-title">Evaluation: {{ pack.meta.name }}</h1>
+      <div class="header-actions">
+        <span class="source-badge live" v-if="isLive">Live result</span>
+        <span class="source-badge precomputed" v-else>Pre-computed</span>
+        <button
+          v-if="designStore.apiAvailable && !designStore.validating"
+          class="run-btn"
+          @click="runLiveValidation"
+        >Run Validation</button>
+        <span v-if="designStore.validating" class="spinner"></span>
+        <button
+          v-if="isLive"
+          class="reset-btn"
+          @click="clearLive"
+        >Reset to pre-computed</button>
+      </div>
+    </div>
+
+    <!-- Validation error -->
+    <div class="validation-error" v-if="designStore.validationError">
+      {{ designStore.validationError }}
+    </div>
 
     <!-- Result badge -->
     <div class="result-badge" :class="'result-' + evaluation.result.toLowerCase().replace('_', '-')">
@@ -102,11 +136,101 @@ function categoryColor(cat: string): string {
   max-width: 800px;
 }
 
+.header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
 .page-title {
   font-size: 22px;
   font-weight: 600;
   color: var(--text-primary);
-  margin: 0 0 1rem;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.source-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 10px;
+}
+
+.source-badge.live {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.source-badge.precomputed {
+  background: rgba(156, 163, 175, 0.15);
+  color: #9ca3af;
+}
+
+.run-btn {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.run-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.reset-btn {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.reset-btn:hover {
+  background: rgba(156, 163, 175, 0.1);
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.validation-error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 1rem;
 }
 
 .result-badge {

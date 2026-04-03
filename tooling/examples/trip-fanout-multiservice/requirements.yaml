@@ -1,0 +1,57 @@
+system:
+  name: trip-fanout-estate
+  domain: travel
+  deployment_intent: multi_service_agent_execution
+
+services:
+  - name: trip-planner
+    role: planning
+    public_http: true
+  - name: flight-booking
+    role: execution
+    public_http: true
+  - name: hotel-booking
+    role: execution
+    public_http: true
+  - name: car-booking
+    role: execution
+    public_http: true
+
+transports:
+  http: true
+  stdio: false
+  grpc: false
+
+trust:
+  mode: signed
+  checkpoints: false
+
+auth:
+  delegation_tokens: true
+  purpose_binding: true
+  scoped_authority: true
+  service_to_service_handoffs: true
+
+permissions:
+  preflight_discovery: true
+  restricted_vs_denied: true
+
+audit:
+  durable: true
+  searchable: true
+  cross_service_reconstruction_required: true
+
+lineage:
+  invocation_id: true
+  client_reference_id: true
+  task_id: true
+  parent_invocation_id: true
+  cross_service_continuity_required: true
+
+business_constraints:
+  one_upstream_planning_step_should_link_cleanly_to_multiple_downstream_steps: true
+  operator_should_reconstruct_fanout_without_custom_trace_joiner: true
+
+scale:
+  shape_preference: multi_service_estate
+  high_availability: false

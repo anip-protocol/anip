@@ -1,0 +1,34 @@
+evaluation:
+  scenario_name: book_flight_over_budget
+  result: PARTIAL
+  handled_by_anip:
+  - task identity
+  - parent invocation lineage
+  - durable audit
+  - audit queryability
+  - structured failure
+  - side-effect visibility
+  - cost visibility
+  - purpose binding
+  - scoped authority
+  glue_you_will_still_write:
+  - you will still write budget-enforcement logic here unless the budget limit is
+    represented in delegation, permission evaluation, or a protocol-visible control
+    layer
+  - you will still write approval or escalation routing here if the organization requires
+    a human to approve over-budget bookings
+  - you may still write comparison or replanning logic here if the agent must search
+    for cheaper alternatives before escalation
+  glue_category:
+  - safety
+  - orchestration
+  why:
+  - the design improves the decision surface substantially before action
+  - the budget-control requirement is still not encoded as an enforceable ANIP-visible
+    control surface
+  - 'business constraint: over-budget actions must not execute'
+  what_would_improve:
+  - represent budget as part of enforceable authority or purpose binding
+  - expose budget-based blocking in permission discovery or invoke failure semantics
+  - make the over-budget path explicit in the runtime control surface
+  confidence: high

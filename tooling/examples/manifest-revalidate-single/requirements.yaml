@@ -1,0 +1,46 @@
+system:
+  name: api-integration-service
+  domain: platform_ops
+  deployment_intent: internal_control_surface
+
+transports:
+  http: true
+  stdio: false
+  grpc: false
+
+trust:
+  mode: signed
+  checkpoints: false
+
+auth:
+  delegation_tokens: true
+  purpose_binding: true
+  scoped_authority: true
+
+permissions:
+  preflight_discovery: true
+  restricted_vs_denied: true
+
+audit:
+  durable: true
+  searchable: true
+
+lineage:
+  invocation_id: true
+  client_reference_id: true
+  task_id: true
+  parent_invocation_id: true
+
+risk_profile:
+  capabilities:
+    sync_partner_account:
+      side_effect: reversible
+      recovery_guidance_required: true
+
+business_constraints:
+  stale_manifest_assumptions_should_not_trigger_blind_retry: true
+  revalidation_path_should_be_clear: true
+
+scale:
+  shape_preference: production_single_service
+  high_availability: false

@@ -1,0 +1,30 @@
+scenario:
+  name: quote_handoff_from_search_service_to_booking_service
+  category: orchestration
+  narrative: >
+    A search service returns a priced quote artifact and a booking service must
+    consume it. The system should make the cross-service handoff semantically
+    legible enough that the agent does not rely on bespoke wrapper contracts to
+    know how the downstream booking action relates to the upstream quote.
+  context:
+    planning_service_capability: search_flights
+    execution_service_capability: book_flight
+    upstream_artifact: priced_quote
+    side_effect_execution: irreversible
+    task_id: trip-handoff-2026-04
+    parent_search_invocation_id: inv-quote-handoff-001
+    token_scope_service_a:
+      - flights:search
+    token_scope_service_b:
+      - flights:book
+  expected_behavior:
+    - search_service_returns_quote_artifact
+    - booking_service_receives_cross_service_lineage
+    - handoff_meaning_is_more_explicit_than_a_raw_object_pass
+    - operator_can_reconstruct_the_cross_service_booking_chain
+  expected_anip_support:
+    - task_id_support
+    - parent_invocation_id_support
+    - audit_queryability
+    - cross_service_handoff_guidance
+

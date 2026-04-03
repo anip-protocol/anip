@@ -1,0 +1,25 @@
+scenario:
+  name: one_planning_step_fans_out_to_multiple_booking_services
+  category: observability
+  narrative: >
+    One planning invocation triggers three downstream bookings on different
+    services. The system should make the fan-out reconstructable without custom
+    trace-stitching logic and without implying a workflow engine.
+  context:
+    planning_service_capability: plan_trip
+    downstream_capabilities:
+      - book_flight
+      - book_hotel
+      - book_car
+    task_id: trip-fanout-2026-04
+    parent_planning_invocation_id: inv-fanout-001
+  expected_behavior:
+    - all_downstream_services_share_task_identity
+    - all_downstream_services_link_back_to_one_parent
+    - operator_can_reconstruct_fanout_shape_from_service_local_audit_logs
+  expected_anip_support:
+    - task_id_support
+    - parent_invocation_id_support
+    - audit_queryability
+    - cross_service_reconstruction_guidance
+
