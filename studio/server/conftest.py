@@ -5,7 +5,6 @@ and truncates data tables between test modules so tests stay isolated.
 """
 
 import os
-from pathlib import Path
 
 # Must be set before any import of studio.server.app / db
 os.environ["DATABASE_URL"] = "postgresql://anip:anip@localhost:5432/anip_studio"

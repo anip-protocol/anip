@@ -3,8 +3,6 @@
 import os
 os.environ.setdefault("DATABASE_URL", "postgresql://anip:anip@localhost:5432/anip_studio")
 
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helpers
