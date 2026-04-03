@@ -61,7 +61,7 @@ export async function runLiveValidation(): Promise<void> {
   try {
     // Use draft state when editing, otherwise use original pack data
     const requirements = designStore.draftRequirements ?? pack.requirements
-    const scenario = designStore.draftScenario ? { scenario: designStore.draftScenario } : pack.scenario
+    const scenario = designStore.draftScenario ?? pack.scenario
     const proposal = composeDraftProposal() ?? pack.proposal
     if (!proposal) return
 
