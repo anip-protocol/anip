@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 # Add tooling to Python path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tooling" / "bin"))
-from anip_design_validate import evaluate, validate_payload, load_json  # noqa: E402
+from anip_design_validate import evaluate, validate_payload  # noqa: E402
 
 from .db import get_pool, init_db  # noqa: E402
 from .repository import load_vocabulary_defaults  # noqa: E402
