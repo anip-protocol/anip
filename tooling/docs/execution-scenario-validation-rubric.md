@@ -62,7 +62,7 @@ In practice, this means:
 - the interface does not expose enough decision context
 - recovery or escalation is mostly bespoke
 - observability depends on custom stitching
-- the proposal leaves a major control requirement outside the design
+- the approach leaves a major control requirement outside the design
 
 Use this result when the scenario claim would otherwise be misleading.
 

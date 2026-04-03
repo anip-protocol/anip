@@ -10,7 +10,7 @@ evaluation:
   glue_you_will_still_write:
   - the protocol provides advisory guidance but enforcement still requires wrapper
     logic
-  - "the proposal does not declare follow-up advisory hint \u2014 agents must discover\
+  - "the approach does not declare follow-up advisory hint \u2014 agents must discover\
     \ these paths through docs or wrapper logic"
   glue_category:
   - orchestration

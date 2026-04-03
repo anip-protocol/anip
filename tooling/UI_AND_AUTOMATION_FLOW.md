@@ -14,7 +14,7 @@ That matters for two reasons:
 
 1. humans, especially non-engineering users, will not want to author raw YAML
 2. agents will need a stable, automatable interface for creating scenarios,
-   requirements, proposals, and reviews
+   requirements, approaches, and reviews
 
 So the right direction is:
 
@@ -76,7 +76,7 @@ This is critical because agents should eventually be able to:
 - create scenarios
 - draft requirements
 - propose ANIP structures
-- critique proposals
+- critique approaches
 - review evaluations
 - compare legacy vs ANIP results
 
@@ -115,7 +115,7 @@ Stable operations such as:
 
 - create scenario
 - create requirements set
-- create proposal
+- create approach
 - run evaluation
 - compare evaluations
 - list glue gaps
@@ -165,7 +165,7 @@ Questions:
 Needs:
 
 - requirements definition
-- proposal inspection
+- approach inspection
 - multi-service structure understanding
 - Glue Gap Analysis with technical detail
 
@@ -180,7 +180,7 @@ Questions:
 Needs:
 
 - precise scenario context
-- proposal detail
+- approach detail
 - evaluation rationale
 - exportable artifacts
 
@@ -278,7 +278,7 @@ There are two good ways:
 - user fills or edits a proposed structure
 - system generates a first proposal from requirements + scenario
 
-Proposal UI should show:
+Approach UI should show:
 
 - recommended shape
 - required components
@@ -321,7 +321,7 @@ It should show:
 Users should be able to compare:
 
 - ANIP vs legacy
-- proposal A vs proposal B
+- approach A vs approach B
 - current ANIP vs future ANIP slice
 
 This is where the biggest AHA moments will happen.
@@ -371,7 +371,7 @@ The basic flow should be:
 
 1. create or select a scenario
 2. infer missing requirements
-3. draft a proposal
+3. draft an approach
 4. run evaluation
 5. critique the evaluation
 6. propose improvements
@@ -409,7 +409,7 @@ Agent can:
 - generate skeletons or stubs from a validated proposal
 - choose an appropriate starter shape for single-service or multi-service cases
 - attach TODOs to required ANIP surfaces
-- keep generated output aligned with the proposal and scenario pack
+- keep generated output aligned with the approach and scenario pack
 
 ### Evaluation Review
 
@@ -655,7 +655,7 @@ The initial product shape should be:
 A web UI is the strongest surface for:
 
 - guided scenario creation
-- proposal review
+- approach review
 - Glue Gap Analysis reports
 - side-by-side comparison
 - ANIP vs legacy demonstrations
@@ -748,7 +748,7 @@ Not replace it with architecture jargon.
 
 - example browser
 - scenario card view
-- proposal summary view
+- approach summary view
 - evaluation report viewer
 - first hosted web shell for the validator
 
@@ -762,13 +762,13 @@ Not replace it with architecture jargon.
 
 - ANIP vs legacy side-by-side
 - version-to-version comparison
-- proposal A vs proposal B
+- approach A vs approach B
 
 ### Phase D: Agent participation
 
 - scenario generation
 - requirement inference
-- proposal critique
+- approach critique
 - evaluation review
 
 ### Phase E: Live validation
@@ -786,7 +786,7 @@ Because if agents can:
 
 - create scenarios
 - draft requirements
-- critique proposals
+- critique approaches
 - review evaluations
 
 then the system stops being just a validator.

@@ -7,8 +7,15 @@ import {
   loadVocabulary,
   setActiveRequirements,
   setActiveProposal,
+  refreshArtifacts,
 } from '../design/project-store'
-import { exportProject, importArtifacts } from '../design/project-api'
+import {
+  createProposal,
+  createRequirements,
+  createScenario,
+  exportProject,
+  importArtifacts,
+} from '../design/project-api'
 
 const route = useRoute()
 const router = useRouter()
@@ -28,6 +35,7 @@ const activeProposalId = computed(() => projectStore.activeProposalId)
 
 const importing = ref(false)
 const exporting = ref(false)
+const creating = ref<'requirements' | 'scenario' | 'proposal' | null>(null)
 
 onMounted(() => {
   if (projectId.value) {
@@ -69,6 +77,11 @@ function navigateEvaluation(id: string) {
   router.push(`/design/projects/${projectId.value}/evaluations/${id}`)
 }
 
+function navigateScenarioValidation(id: string, event: Event) {
+  event.stopPropagation()
+  router.push(`/design/projects/${projectId.value}/evaluations/${id}`)
+}
+
 async function handleExport() {
   if (!projectId.value) return
   exporting.value = true
@@ -99,7 +112,14 @@ function handleImportClick() {
     try {
       const text = await file.text()
       const parsed = JSON.parse(text)
-      const artifacts = Array.isArray(parsed.artifacts) ? parsed.artifacts : []
+      const artifacts = Array.isArray(parsed.artifacts)
+        ? parsed.artifacts
+        : [
+            ...(Array.isArray(parsed.requirements) ? parsed.requirements.map((item: any) => ({ type: 'requirements', data: item })) : []),
+            ...(Array.isArray(parsed.scenarios) ? parsed.scenarios.map((item: any) => ({ type: 'scenario', data: item })) : []),
+            ...(Array.isArray(parsed.proposals) ? parsed.proposals.map((item: any) => ({ type: 'proposal', data: item })) : []),
+            ...(Array.isArray(parsed.evaluations) ? parsed.evaluations.map((item: any) => ({ type: 'evaluation', data: item })) : []),
+          ]
       await importArtifacts(projectId.value, artifacts)
       await loadProject(projectId.value)
     } catch {
@@ -117,6 +137,149 @@ function formatDate(iso: string): string {
     month: 'short',
     day: 'numeric',
   })
+}
+
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function makeRequirementsTemplate() {
+  const name = project.value?.name || 'new-service'
+  const domain = project.value?.domain || 'general'
+  return {
+    system: {
+      name: slugify(name) || 'new-service',
+      domain,
+      deployment_intent: 'public_http_service',
+    },
+    transports: { http: true, stdio: false, grpc: false },
+    trust: { mode: 'signed', checkpoints: false },
+    auth: {
+      delegation_tokens: true,
+      purpose_binding: true,
+      scoped_authority: true,
+    },
+    permissions: {
+      preflight_discovery: true,
+      restricted_vs_denied: true,
+    },
+    audit: { durable: true, searchable: true },
+    lineage: {
+      invocation_id: true,
+      client_reference_id: true,
+      task_id: true,
+      parent_invocation_id: true,
+    },
+    risk_profile: {},
+    business_constraints: {},
+    scale: {
+      shape_preference: 'production_single_service',
+      high_availability: false,
+    },
+  }
+}
+
+function makeScenarioTemplate(nextIndex: number) {
+  return {
+    scenario: {
+      name: `scenario_${nextIndex}`,
+      category: 'safety',
+      narrative: 'Describe the situation, constraints, and expected outcome for this scenario.',
+      context: {
+        capability: 'describe_the_action_under_review',
+      },
+      expected_behavior: ['describe_expected_system_behavior'],
+      expected_anip_support: ['describe_expected_anip_support'],
+    },
+  }
+}
+
+function makeProposalTemplate() {
+  return {
+    proposal: {
+      recommended_shape: 'production_single_service',
+      rationale: ['Describe why this approach is appropriate for the project.'],
+      required_components: ['describe_required_component'],
+      optional_components: [],
+      key_runtime_requirements: [],
+      anti_pattern_warnings: [],
+      expected_glue_reduction: {},
+      declared_surfaces: {
+        budget_enforcement: false,
+        binding_requirements: false,
+        authority_posture: false,
+        recovery_class: false,
+        refresh_via: false,
+        verify_via: false,
+        followup_via: false,
+        cross_service_handoff: false,
+        cross_service_continuity: false,
+        cross_service_reconstruction: false,
+      },
+    },
+  }
+}
+
+async function handleCreateRequirements() {
+  if (!projectId.value) return
+  creating.value = 'requirements'
+  try {
+    const nextIndex = requirements.value.length + 1
+    const created = await createRequirements(projectId.value, {
+      id: `req-${crypto.randomUUID()}`,
+      title: nextIndex === 1 ? 'Requirements' : `Requirements ${nextIndex}`,
+      data: makeRequirementsTemplate(),
+    })
+    await refreshArtifacts()
+    setActiveRequirements(created.id)
+    router.push(`/design/projects/${projectId.value}/requirements/${created.id}`)
+  } finally {
+    creating.value = null
+  }
+}
+
+async function handleCreateScenario() {
+  if (!projectId.value) return
+  creating.value = 'scenario'
+  try {
+    const nextIndex = scenarios.value.length + 1
+    const data = makeScenarioTemplate(nextIndex)
+    const created = await createScenario(projectId.value, {
+      id: `scn-${crypto.randomUUID()}`,
+      title: data.scenario.name,
+      data,
+    })
+    await refreshArtifacts()
+    router.push(`/design/projects/${projectId.value}/scenarios/${created.id}`)
+  } finally {
+    creating.value = null
+  }
+}
+
+async function handleCreateProposal() {
+  if (!projectId.value) return
+  const requirementsId = activeRequirementsId.value || requirements.value[0]?.id || null
+  if (!requirementsId) return
+
+  creating.value = 'proposal'
+  try {
+    const nextIndex = proposals.value.length + 1
+    const created = await createProposal(projectId.value, {
+      id: `prop-${crypto.randomUUID()}`,
+      title: nextIndex === 1 ? 'Approach' : `Approach ${nextIndex}`,
+      requirements_id: requirementsId,
+      data: makeProposalTemplate(),
+    })
+    await refreshArtifacts()
+    setActiveProposal(created.id)
+    router.push(`/design/projects/${projectId.value}/proposals/${created.id}`)
+  } finally {
+    creating.value = null
+  }
 }
 </script>
 
@@ -141,7 +304,7 @@ function formatDate(iso: string): string {
       <!-- Active design context -->
       <section class="context-section">
         <h2 class="section-title">Active Design Context</h2>
-        <p class="section-desc">Select the requirements set and proposal for evaluation.</p>
+        <p class="section-desc">Select the requirements set and approach for evaluation.</p>
         <div class="context-selects">
           <div class="context-field">
             <label class="field-label">Requirements Set</label>
@@ -159,7 +322,7 @@ function formatDate(iso: string): string {
             </select>
           </div>
           <div class="context-field">
-            <label class="field-label">Proposal</label>
+            <label class="field-label">Approach</label>
             <select
               class="field-select"
               :value="activeProposalId ?? ''"
@@ -173,6 +336,27 @@ function formatDate(iso: string): string {
               >{{ p.title || p.id }}</option>
             </select>
           </div>
+        </div>
+      </section>
+
+      <section class="creation-section">
+        <h2 class="section-title">Create Artifacts</h2>
+        <p class="section-desc">Build the project directly in Studio instead of relying on import or seed data.</p>
+        <div class="creation-actions">
+          <button class="btn btn-primary" @click="handleCreateRequirements" :disabled="creating !== null">
+            {{ creating === 'requirements' ? 'Creating requirements...' : 'New Requirements' }}
+          </button>
+          <button class="btn btn-primary" @click="handleCreateScenario" :disabled="creating !== null">
+            {{ creating === 'scenario' ? 'Creating scenario...' : 'New Scenario' }}
+          </button>
+          <button
+            class="btn btn-primary"
+            @click="handleCreateProposal"
+            :disabled="creating !== null || requirements.length === 0"
+            :title="requirements.length === 0 ? 'Create a requirements set first' : ''"
+          >
+            {{ creating === 'proposal' ? 'Creating approach...' : 'New Approach' }}
+          </button>
         </div>
       </section>
 
@@ -215,13 +399,21 @@ function formatDate(iso: string): string {
         >
           <span class="artifact-title">{{ s.title || s.id }}</span>
           <span class="artifact-status" :class="'status-' + s.status">{{ s.status }}</span>
+          <button
+            class="artifact-action"
+            :disabled="!activeRequirementsId || !activeProposalId"
+            :title="!activeRequirementsId || !activeProposalId ? 'Select requirements and approach first' : 'Run validation for this scenario'"
+            @click="navigateScenarioValidation(s.id, $event)"
+          >
+            Validate
+          </button>
           <span class="artifact-date">{{ formatDate(s.updated_at) }}</span>
         </div>
       </section>
 
       <section class="artifact-section">
-        <h2 class="section-title">Proposals ({{ proposals.length }})</h2>
-        <div v-if="proposals.length === 0" class="empty-row">No proposals yet.</div>
+        <h2 class="section-title">Approaches ({{ proposals.length }})</h2>
+        <div v-if="proposals.length === 0" class="empty-row">No approaches yet.</div>
         <div
           v-for="p in proposals"
           :key="p.id"
@@ -331,6 +523,14 @@ function formatDate(iso: string): string {
   margin-bottom: 1.5rem;
 }
 
+.creation-section {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
 .section-title {
   font-size: 15px;
   font-weight: 600;
@@ -347,6 +547,12 @@ function formatDate(iso: string): string {
 .context-selects {
   display: flex;
   gap: 16px;
+  flex-wrap: wrap;
+}
+
+.creation-actions {
+  display: flex;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -412,6 +618,15 @@ function formatDate(iso: string): string {
 .btn-secondary:hover:not(:disabled) {
   background: var(--bg-hover);
   color: var(--text-primary);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
 }
 
 .banner {
@@ -507,5 +722,27 @@ function formatDate(iso: string): string {
   font-size: 11px;
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+.artifact-action {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: var(--radius-sm);
+  background: rgba(59, 130, 246, 0.08);
+  color: #3b82f6;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.artifact-action:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.16);
+}
+
+.artifact-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 </style>

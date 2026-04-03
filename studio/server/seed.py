@@ -92,9 +92,9 @@ def seed_from_examples(conn: Any) -> dict:
             data=scenario_data,
         )
 
-        # Create proposal
+        # Create approach
         prop_id = f"prop-{pack}"
-        prop_title = f"{project_name} proposal"
+        prop_title = f"{project_name} approach"
         repository.create_proposal(
             conn,
             project_id=pack,

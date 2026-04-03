@@ -56,9 +56,9 @@ The current requirements schema is good enough for:
 
 It is still useful as the internal source of truth.
 
-### Proposal
+### Approach
 
-The current proposal schema is good enough for:
+The current approach schema is good enough for:
 
 - recommended shape
 - required components
@@ -124,7 +124,7 @@ This will better match the actual direction of the ANIP story.
 
 ## 2. Strengthen Multi-Service Modeling In `proposal`
 
-The current proposal schema is intentionally light.
+The current approach schema is intentionally light.
 
 That is fine for v1.
 
@@ -142,7 +142,7 @@ Likely v2 additions:
 
 Not necessarily all at once.
 
-But the proposal layer will probably need more structure than:
+But the approach layer will probably need more structure than:
 
 - `recommended_shape`
 - `required_components`
@@ -196,7 +196,7 @@ Likely v2 artifact additions:
 To represent:
 
 - ANIP vs legacy
-- proposal A vs proposal B
+- approach A vs approach B
 - version-to-version changes
 
 ### `review`
@@ -206,7 +206,7 @@ To represent:
 - human review comments
 - agent review comments
 - consistency checks
-- critique of an evaluation or proposal
+- critique of an evaluation or approach
 
 This will matter once the system becomes collaborative and automatable.
 
@@ -272,7 +272,7 @@ deserve formalization.
 
 ### Do not turn `proposal` into a giant architecture schema yet
 
-The current proposal structure is simple and useful.
+The current approach structure is simple and useful.
 
 Adding too much complexity too early would make the tool harder to evolve.
 
@@ -287,7 +287,7 @@ The likely safest sequence is:
 1. add `cross_service` category support
 2. introduce `comparison` and `review` artifact concepts
 3. add optional common scenario vocabulary
-4. strengthen multi-service proposal structure
+4. strengthen multi-service approach structure
 5. add provenance/version metadata
 6. separate canonical artifact models from UI-specific input models
 

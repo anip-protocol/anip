@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { designStore, startEditing, discardEdits, validateDraft, getActivePack, composeDraftProposal } from '../store'
+import { designStore, startEditing, discardEdits, validateDraft, composeDraftProposal } from '../store'
 import { diffObjects } from '../diff'
 import { downloadYaml, copyYamlToClipboard } from '../io'
 
 const props = defineProps<{
   artifact: 'requirements' | 'scenario' | 'proposal'
+  canSave?: boolean
+  saving?: boolean
+  saveLabel?: string
+  saveError?: string | null
+}>()
+
+const emit = defineEmits<{
+  save: []
 }>()
 
 const showErrors = ref(false)
@@ -25,11 +33,11 @@ const changeCount = computed(() => {
   if (!isEditing.value) return 0
 
   if (props.artifact === 'proposal') {
-    const pack = getActivePack()
     const allChanges: ReturnType<typeof diffObjects> = []
-    if (designStore.draftDeclaredSurfaces && pack?.proposal?.proposal?.declared_surfaces) {
+    const originalSurfaces = designStore.originalProposal?.proposal?.declared_surfaces
+    if (designStore.draftDeclaredSurfaces && originalSurfaces) {
       const surfaceChanges = diffObjects(
-        pack.proposal.proposal.declared_surfaces,
+        originalSurfaces,
         designStore.draftDeclaredSurfaces,
       )
       allChanges.push(...surfaceChanges.map(c => ({ ...c, path: `declared_surfaces.${c.path}` })))
@@ -89,6 +97,10 @@ function handleValidate() {
   showErrors.value = true
 }
 
+function handleSave() {
+  emit('save')
+}
+
 </script>
 
 <template>
@@ -122,6 +134,15 @@ function handleValidate() {
       <!-- Right: action buttons -->
       <div class="toolbar-right">
         <template v-if="isEditing">
+          <button
+            v-if="props.canSave"
+            class="tb-btn primary"
+            @click="handleSave"
+            :disabled="hasErrors || props.saving"
+            title="Save changes to the current project artifact"
+          >
+            {{ props.saving ? 'Saving...' : (props.saveLabel ?? 'Save to Project') }}
+          </button>
           <button class="tb-btn secondary" @click="handleExport" title="Export as YAML file">
             Export YAML
           </button>
@@ -150,6 +171,15 @@ function handleValidate() {
         <li v-for="(err, i) in errors" :key="i">
           <code>{{ err.path }}</code> &mdash; {{ err.message }}
         </li>
+      </ul>
+    </div>
+
+    <div class="error-list" v-if="isEditing && props.saveError">
+      <div class="error-list-header">
+        <span>Save Error</span>
+      </div>
+      <ul>
+        <li>{{ props.saveError }}</li>
       </ul>
     </div>
   </div>

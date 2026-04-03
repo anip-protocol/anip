@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { designStore, setActivePack, updateDraftField, setRequirementsMode, updateGuidedAnswer } from '../design/store'
-import { projectStore, openArtifactForEditing } from '../design/project-store'
+import { loadProject, projectStore, openArtifactForEditing, refreshArtifacts } from '../design/project-store'
+import { updateRequirements } from '../design/project-api'
 import { GUIDED_SECTIONS } from '../design/guided/questions'
 import { hydrateAnswersFromArtifact } from '../design/guided/mappings'
 import { evaluateCompleteness } from '../design/guided/hints'
@@ -16,6 +17,19 @@ const route = useRoute()
 
 // --- Dual-route detection ---
 const isProjectMode = computed(() => !!route.params.projectId)
+const projectId = computed(() => route.params.projectId as string | undefined)
+
+onMounted(() => {
+  if (isProjectMode.value && projectId.value && projectStore.activeProject?.id !== projectId.value) {
+    loadProject(projectId.value)
+  }
+})
+
+watch(projectId, (id) => {
+  if (isProjectMode.value && id && projectStore.activeProject?.id !== id) {
+    loadProject(id)
+  }
+})
 
 // Project mode: look up record from projectStore.artifacts.requirements
 const projectRecord = computed(() => {
@@ -91,6 +105,9 @@ const riskCapabilities = computed(() => {
   return Object.entries(req.value.risk_profile)
 })
 
+const saving = ref(false)
+const saveError = ref<string | null>(null)
+
 // --- Draft helpers ---
 function setField(path: string, value: any) {
   updateDraftField('requirements', path, value)
@@ -131,6 +148,26 @@ function setScaleShapePreference(event: Event) {
 function toggleScaleHA() {
   setField('scale.high_availability', !req.value?.scale?.high_availability)
 }
+
+async function handleSave() {
+  if (!isProjectMode.value || !projectRecord.value || !designStore.draftRequirements) return
+
+  saving.value = true
+  saveError.value = null
+  try {
+    await updateRequirements(projectRecord.value.project_id, projectRecord.value.id, {
+      title: designStore.draftRequirements.system?.name || projectRecord.value.title,
+      status: projectRecord.value.status,
+      data: designStore.draftRequirements,
+    })
+    designStore.originalRequirements = JSON.parse(JSON.stringify(designStore.draftRequirements))
+    await refreshArtifacts()
+  } catch (err) {
+    saveError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    saving.value = false
+  }
+}
 </script>
 
 <template>
@@ -157,7 +194,13 @@ function toggleScaleHA() {
       </button>
     </div>
 
-    <EditorToolbar artifact="requirements" />
+    <EditorToolbar
+      artifact="requirements"
+      :canSave="isProjectMode"
+      :saving="saving"
+      :saveError="saveError"
+      @save="handleSave"
+    />
 
     <!-- Guided mode -->
     <template v-if="designStore.requirementsMode === 'guided'">

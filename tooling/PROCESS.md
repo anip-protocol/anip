@@ -14,6 +14,11 @@ It evaluates the current state of a design or interface and reports:
 - what is only partially handled
 - what still requires bespoke glue
 
+User-facing terminology note:
+
+- `Approach` is the preferred Studio/product name for the candidate system answer
+- current schema/file compatibility still uses `proposal`, `proposal.yaml`, and `proposal.schema.json`
+
 ## Current Scope
 
 The first implemented slice is:
@@ -40,13 +45,13 @@ The current flow is:
 
 This is the underlying method:
 
-- `requirements -> proposal -> scenario -> evaluation`
+- `requirements -> approach -> scenario -> evaluation`
 
 This is the **truth-layer flow**.
 
 The longer-term user-facing flow should add one more optional step:
 
-- `requirements -> proposal -> scenario -> evaluation -> starter pack`
+- `requirements -> approach -> scenario -> evaluation -> starter pack`
 
 That last step exists for one reason:
 
@@ -67,13 +72,13 @@ For protocol evolution checkpoints, use:
 The validator currently expects three YAML files:
 
 1. `requirements.yaml`
-2. `proposal.yaml`
+2. `proposal.yaml` (current file name for the Approach artifact)
 3. `scenario.yaml`
 
 These are validated against the schemas in:
 
 - [tooling/schemas/requirements.schema.json](/Users/samirski/Development/codex/ANIP/tooling/schemas/requirements.schema.json)
-- [tooling/schemas/proposal.schema.json](/Users/samirski/Development/codex/ANIP/tooling/schemas/proposal.schema.json)
+- [tooling/schemas/proposal.schema.json](/Users/samirski/Development/codex/ANIP/tooling/schemas/proposal.schema.json) (`Approach` artifact schema in current compatibility form)
 - [tooling/schemas/scenario.schema.json](/Users/samirski/Development/codex/ANIP/tooling/schemas/scenario.schema.json)
 
 The output is validated against:
@@ -100,9 +105,9 @@ This file answers:
 
 > What kind of system are we trying to support?
 
-### `proposal.yaml`
+### `proposal.yaml` (`Approach` artifact)
 
-This describes the proposed ANIP structure for that system.
+This describes the candidate ANIP system approach for that system.
 
 Typical contents:
 
@@ -114,7 +119,7 @@ Typical contents:
 
 This file answers:
 
-> What ANIP-based structure are we proposing?
+> What ANIP-based approach are we taking?
 
 ### `scenario.yaml`
 
@@ -160,7 +165,7 @@ The evaluator also reports:
 
 Design Mode should eventually produce **two** outputs:
 
-### 1. Proposal Output
+### 1. Approach Output
 
 This is the design answer:
 
@@ -295,7 +300,7 @@ The tool only helps if the inputs are honest and concrete.
 You need:
 
 - realistic requirements
-- a defensible proposal
+- a defensible approach
 - a concrete scenario
 
 Bad inputs produce vague output.
@@ -310,7 +315,7 @@ That means:
 
 - it does not yet inspect live services directly
 - it does not yet support Legacy Validation Mode
-- it does not yet generate proposals automatically
+- it does not yet generate approaches automatically
 - it does not yet cover every protocol nuance
 
 That is acceptable for the current phase.
@@ -390,7 +395,7 @@ The longer-term Design Mode workflow should become:
 
 1. start from a scenario or template
 2. confirm requirements
-3. generate or refine a proposal
+3. generate or refine an approach
 4. run validation
 5. review Glue Gap Analysis
 6. optionally generate a starter pack

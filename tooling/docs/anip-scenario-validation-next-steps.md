@@ -153,7 +153,7 @@ Success criteria:
 - one command can produce a full Glue Gap Analysis
 - the output is stable enough to use in demos
 
-### Phase 4: Add the proposal helper
+### Phase 4: Add the approach helper
 
 Only after validation is working should the structure proposer become real.
 

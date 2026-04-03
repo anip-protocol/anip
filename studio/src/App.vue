@@ -46,7 +46,7 @@ const designNavItems = computed(() => {
       items.push({ name: 'requirements', label: 'Requirements', icon: '\u{1F4CB}', path: `/design/projects/${pid}/requirements/${projectStore.activeRequirementsId}` })
     }
     if (projectStore.activeProposalId) {
-      items.push({ name: 'proposal', label: 'Proposal', icon: '\u{1F4A1}', path: `/design/projects/${pid}/proposals/${projectStore.activeProposalId}` })
+      items.push({ name: 'proposal', label: 'Approach', icon: '\u{1F4A1}', path: `/design/projects/${pid}/proposals/${projectStore.activeProposalId}` })
     }
   }
   return items

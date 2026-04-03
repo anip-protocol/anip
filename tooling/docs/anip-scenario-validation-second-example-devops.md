@@ -91,7 +91,7 @@ scale:
 
 ## Step 2: Proposed Structure
 
-Below is the proposed `proposal.yaml`.
+Below is the proposed `proposal.yaml` for the Approach artifact.
 
 ```yaml
 proposal:

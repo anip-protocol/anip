@@ -58,7 +58,7 @@ export function updateProject(
   payload: Partial<Pick<ProjectSummary, 'name' | 'summary' | 'domain' | 'labels'>>,
 ): Promise<ProjectSummary> {
   return api<ProjectSummary>(`/api/projects/${id}`, {
-    method: 'PATCH',
+    method: 'PUT',
     body: JSON.stringify(payload),
   })
 }
@@ -95,7 +95,7 @@ export function updateRequirements(
   payload: Partial<{ title: string; status: string; data: Record<string, any> }>,
 ): Promise<ArtifactRecord> {
   return api<ArtifactRecord>(`/api/projects/${projectId}/requirements/${id}`, {
-    method: 'PATCH',
+    method: 'PUT',
     body: JSON.stringify(payload),
   })
 }
@@ -132,7 +132,7 @@ export function updateScenario(
   payload: Partial<{ title: string; status: string; data: Record<string, any> }>,
 ): Promise<ArtifactRecord> {
   return api<ArtifactRecord>(`/api/projects/${projectId}/scenarios/${id}`, {
-    method: 'PATCH',
+    method: 'PUT',
     body: JSON.stringify(payload),
   })
 }
@@ -159,6 +159,17 @@ export function createProposal(
 ): Promise<ProposalRecord> {
   return api<ProposalRecord>(`/api/projects/${projectId}/proposals`, {
     method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateProposal(
+  projectId: string,
+  id: string,
+  payload: Partial<{ title: string; status: string; data: Record<string, any> }>,
+): Promise<ProposalRecord> {
+  return api<ProposalRecord>(`/api/projects/${projectId}/proposals/${id}`, {
+    method: 'PUT',
     body: JSON.stringify(payload),
   })
 }

@@ -51,11 +51,11 @@ def import_artifacts(pid: str, body: ImportRequest):
                     )
                 elif art_type == "proposal":
                     art_id = data.get("id", f"imp-prop-{i}")
-                    title = data.get("title", f"Imported proposal {i}")
+                    title = data.get("title", f"Imported approach {i}")
                     requirements_id = data.get("requirements_id")
                     if not requirements_id:
                         errors.append(
-                            f"Artifact {i}: proposal requires requirements_id"
+                            f"Artifact {i}: approach requires requirements_id"
                         )
                         continue
                     repository.create_proposal(

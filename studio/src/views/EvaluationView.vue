@@ -1,20 +1,40 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { designStore, setActivePack, runLiveValidation, composeDraftProposal } from '../design/store'
-import { projectStore, refreshArtifacts } from '../design/project-store'
+import { loadProject, projectStore, refreshArtifacts } from '../design/project-store'
 import { createEvaluation } from '../design/project-api'
+import { runValidation } from '../design/api'
 
 const route = useRoute()
 
 // --- Dual-route detection ---
 const isProjectMode = computed(() => !!route.params.projectId)
+const projectId = computed(() => route.params.projectId as string | undefined)
+
+onMounted(() => {
+  if (isProjectMode.value && projectId.value && projectStore.activeProject?.id !== projectId.value) {
+    loadProject(projectId.value)
+  }
+})
+
+watch(projectId, (id) => {
+  if (isProjectMode.value && id && projectStore.activeProject?.id !== id) {
+    loadProject(id)
+  }
+})
 
 // Project mode: look up record from projectStore.artifacts.evaluations
 const projectRecord = computed(() => {
   if (!isProjectMode.value) return null
   const id = route.params.id as string
   return projectStore.artifacts.evaluations.find(e => e.id === id) ?? null
+})
+
+const projectScenario = computed(() => {
+  if (!isProjectMode.value) return null
+  const id = route.params.id as string
+  return projectStore.artifacts.scenarios.find(s => s.id === id) ?? null
 })
 
 // Legacy mode: look up pack from designStore.packs
@@ -27,14 +47,14 @@ const pack = computed(() => {
 
 // Whether we have data to display
 const hasData = computed(() => {
-  if (isProjectMode.value) return !!projectRecord.value || designStore.liveEvaluation !== null
+  if (isProjectMode.value) return !!projectRecord.value || !!projectScenario.value || designStore.liveEvaluation !== null
   return !!pack.value
 })
 
 // Display name for the title
 const artifactName = computed(() => {
   if (isProjectMode.value) {
-    return projectRecord.value?.scenario_id ?? 'Evaluation'
+    return projectRecord.value?.scenario_id ?? projectScenario.value?.title ?? 'Evaluation'
   }
   return pack.value?.meta.name ?? 'Evaluation'
 })
@@ -51,6 +71,8 @@ const evaluation = computed(() => {
   return pack.value?.evaluation?.evaluation ?? null
 })
 
+const hasEvaluationResult = computed(() => evaluation.value !== null)
+
 // --- Save to Project ---
 const saving = ref(false)
 const saveError = ref<string | null>(null)
@@ -66,7 +88,7 @@ const missingContext = computed(() => {
   if (!canSave.value) return null
   const missing: string[] = []
   if (!projectStore.activeRequirementsId) missing.push('requirements set')
-  if (!projectStore.activeProposalId) missing.push('proposal')
+  if (!projectStore.activeProposalId) missing.push('approach')
   return missing.length > 0 ? missing : null
 })
 
@@ -77,17 +99,21 @@ async function saveToProject() {
   saving.value = true
   saveError.value = null
   try {
+    const requirementsRecord = projectStore.artifacts.requirements.find(
+      r => r.id === projectStore.activeRequirementsId,
+    )
+    const proposalRecord = projectStore.artifacts.proposals.find(
+      p => p.id === projectStore.activeProposalId,
+    )
+
     const inputSnapshot: Record<string, any> = {}
-    if (designStore.draftRequirements) {
-      inputSnapshot.requirements = JSON.parse(JSON.stringify(designStore.draftRequirements))
-    }
-    if (designStore.draftScenario) {
-      inputSnapshot.scenario = JSON.parse(JSON.stringify(designStore.draftScenario))
-    }
-    const proposal = composeDraftProposal()
-    if (proposal) {
-      inputSnapshot.proposal = JSON.parse(JSON.stringify(proposal))
-    }
+    const requirements = designStore.draftRequirements ?? requirementsRecord?.data
+    const scenario = designStore.draftScenario ?? projectScenario.value?.data
+    const proposal = composeDraftProposal() ?? proposalRecord?.data
+
+    if (requirements) inputSnapshot.requirements = JSON.parse(JSON.stringify(requirements))
+    if (scenario) inputSnapshot.scenario = JSON.parse(JSON.stringify(scenario))
+    if (proposal) inputSnapshot.proposal = JSON.parse(JSON.stringify(proposal))
 
     const scenarioId = route.params.id as string
     const evalId = crypto.randomUUID()
@@ -111,6 +137,45 @@ async function saveToProject() {
   }
 }
 
+async function handleRunValidation() {
+  if (!isProjectMode.value) {
+    await runLiveValidation()
+    return
+  }
+
+  if (!projectStore.activeRequirementsId || !projectStore.activeProposalId || !projectScenario.value) {
+    designStore.validationError = 'Select a requirements set, approach, and scenario before validation.'
+    return
+  }
+
+  const requirementsRecord = projectStore.artifacts.requirements.find(
+    r => r.id === projectStore.activeRequirementsId,
+  )
+  const proposalRecord = projectStore.artifacts.proposals.find(
+    p => p.id === projectStore.activeProposalId,
+  )
+  const scenarioRecord = projectScenario.value
+
+  if (!requirementsRecord || !proposalRecord) {
+    designStore.validationError = 'Active design context is incomplete.'
+    return
+  }
+
+  designStore.validating = true
+  designStore.validationError = null
+  try {
+    const requirements = designStore.draftRequirements ?? requirementsRecord.data
+    const scenario = designStore.draftScenario ?? scenarioRecord.data
+    const proposal = composeDraftProposal() ?? proposalRecord.data
+    const result = await runValidation(requirements, proposal, scenario)
+    designStore.liveEvaluation = result
+  } catch (err: any) {
+    designStore.validationError = err.message ?? 'Unknown error'
+  } finally {
+    designStore.validating = false
+  }
+}
+
 function clearLive() {
   designStore.liveEvaluation = null
   designStore.validationError = null
@@ -129,17 +194,17 @@ function categoryColor(cat: string): string {
 </script>
 
 <template>
-  <div class="evaluation-view" v-if="hasData && evaluation">
+  <div class="evaluation-view" v-if="hasData">
     <div class="header-row">
       <h1 class="page-title">Evaluation: {{ artifactName }}</h1>
       <div class="header-actions">
-        <span class="source-badge live" v-if="isLive && !savedEvalId">Live</span>
-        <span class="source-badge stored" v-else-if="savedEvalId || (isProjectMode && !isLive)">Stored</span>
-        <span class="source-badge precomputed" v-else>Pre-computed</span>
+        <span class="source-badge live" v-if="hasEvaluationResult && isLive && !savedEvalId">Live</span>
+        <span class="source-badge stored" v-else-if="hasEvaluationResult && (savedEvalId || (isProjectMode && !isLive))">Stored</span>
+        <span class="source-badge precomputed" v-else-if="hasEvaluationResult">Pre-computed</span>
         <button
           v-if="designStore.apiAvailable && !designStore.validating"
           class="run-btn"
-          @click="runLiveValidation"
+          @click="handleRunValidation"
         >Run Validation</button>
         <span v-if="designStore.validating" class="spinner"></span>
         <button
@@ -176,71 +241,76 @@ function categoryColor(cat: string): string {
       {{ designStore.validationError }}
     </div>
 
-    <!-- Result badge -->
-    <div class="result-badge" :class="'result-' + evaluation.result.toLowerCase().replace('_', '-')">
-      {{ evaluation.result }}
+    <div v-if="!hasEvaluationResult" class="empty-evaluation">
+      No evaluation result yet. Run validation to evaluate this scenario against the active design context.
     </div>
 
-    <!-- Confidence -->
-    <div class="confidence" v-if="evaluation.confidence">
-      <span class="confidence-label">Confidence:</span>
-      <span class="confidence-value">{{ evaluation.confidence }}</span>
-    </div>
-
-    <!-- Glue categories -->
-    <div class="categories-section" v-if="evaluation.glue_category && evaluation.glue_category.length">
-      <h2>Categories</h2>
-      <div class="pill-row">
-        <span
-          class="cat-pill"
-          v-for="(cat, i) in evaluation.glue_category"
-          :key="i"
-          :style="{ background: categoryColor(cat) + '1a', color: categoryColor(cat), borderColor: categoryColor(cat) + '4d' }"
-        >{{ cat }}</span>
+    <template v-if="evaluation">
+      <!-- Result badge -->
+      <div class="result-badge" :class="'result-' + evaluation.result.toLowerCase().replace('_', '-')">
+        {{ evaluation.result }}
       </div>
-    </div>
 
-    <!-- Handled by ANIP -->
-    <div class="section">
-      <h2>Handled by ANIP</h2>
-      <ul>
-        <li v-for="(item, i) in evaluation.handled_by_anip" :key="i">{{ item }}</li>
-      </ul>
-    </div>
+      <!-- Confidence -->
+      <div class="confidence" v-if="evaluation.confidence">
+        <span class="confidence-label">Confidence:</span>
+        <span class="confidence-value">{{ evaluation.confidence }}</span>
+      </div>
 
-    <!-- Glue You Will Still Write -->
-    <div class="section" v-if="evaluation.glue_you_will_still_write && evaluation.glue_you_will_still_write.length">
-      <h2>Glue You Will Still Write</h2>
-      <ul class="glue-list">
-        <li v-for="(item, i) in evaluation.glue_you_will_still_write" :key="i">{{ item }}</li>
-      </ul>
-    </div>
+      <!-- Glue categories -->
+      <div class="categories-section" v-if="evaluation.glue_category && evaluation.glue_category.length">
+        <h2>Categories</h2>
+        <div class="pill-row">
+          <span
+            class="cat-pill"
+            v-for="(cat, i) in evaluation.glue_category"
+            :key="i"
+            :style="{ background: categoryColor(cat) + '1a', color: categoryColor(cat), borderColor: categoryColor(cat) + '4d' }"
+          >{{ cat }}</span>
+        </div>
+      </div>
 
-    <!-- Why -->
-    <div class="section">
-      <h2>Why</h2>
-      <ul>
-        <li v-for="(item, i) in evaluation.why" :key="i">{{ item }}</li>
-      </ul>
-    </div>
+      <!-- Handled by ANIP -->
+      <div class="section">
+        <h2>Handled by ANIP</h2>
+        <ul>
+          <li v-for="(item, i) in evaluation.handled_by_anip" :key="i">{{ item }}</li>
+        </ul>
+      </div>
 
-    <!-- What Would Improve -->
-    <div class="section" v-if="evaluation.what_would_improve && evaluation.what_would_improve.length">
-      <h2>What Would Improve</h2>
-      <ul>
-        <li v-for="(item, i) in evaluation.what_would_improve" :key="i">{{ item }}</li>
-      </ul>
-    </div>
+      <!-- Glue You Will Still Write -->
+      <div class="section" v-if="evaluation.glue_you_will_still_write && evaluation.glue_you_will_still_write.length">
+        <h2>Glue You Will Still Write</h2>
+        <ul class="glue-list">
+          <li v-for="(item, i) in evaluation.glue_you_will_still_write" :key="i">{{ item }}</li>
+        </ul>
+      </div>
 
-    <!-- Notes -->
-    <div class="section" v-if="evaluation.notes && evaluation.notes.length">
-      <h2>Notes</h2>
-      <ul class="notes-list">
-        <li v-for="(note, i) in evaluation.notes" :key="i">{{ note }}</li>
-      </ul>
-    </div>
+      <!-- Why -->
+      <div class="section">
+        <h2>Why</h2>
+        <ul>
+          <li v-for="(item, i) in evaluation.why" :key="i">{{ item }}</li>
+        </ul>
+      </div>
+
+      <!-- What Would Improve -->
+      <div class="section" v-if="evaluation.what_would_improve && evaluation.what_would_improve.length">
+        <h2>What Would Improve</h2>
+        <ul>
+          <li v-for="(item, i) in evaluation.what_would_improve" :key="i">{{ item }}</li>
+        </ul>
+      </div>
+
+      <!-- Notes -->
+      <div class="section" v-if="evaluation.notes && evaluation.notes.length">
+        <h2>Notes</h2>
+        <ul class="notes-list">
+          <li v-for="(note, i) in evaluation.notes" :key="i">{{ note }}</li>
+        </ul>
+      </div>
+    </template>
   </div>
-  <div v-else-if="hasData" class="not-found">No evaluation data available.</div>
   <div v-else class="not-found">{{ isProjectMode ? 'Evaluation not found.' : 'Pack not found.' }}</div>
 </template>
 
@@ -264,6 +334,15 @@ function categoryColor(cat: string): string {
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+}
+
+.empty-evaluation {
+  margin: 1rem 0 1.5rem;
+  padding: 0.9rem 1rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  background: var(--bg-input);
 }
 
 .header-actions {

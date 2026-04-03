@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { designStore, setActivePack, updateDraftField, setScenarioMode, updateGuidedScenarioAnswer } from '../design/store'
-import { projectStore, openArtifactForEditing } from '../design/project-store'
+import { loadProject, projectStore, openArtifactForEditing, refreshArtifacts } from '../design/project-store'
+import { updateScenario } from '../design/project-api'
 import EditorToolbar from '../design/components/EditorToolbar.vue'
 import KeyValueEditor from '../design/components/KeyValueEditor.vue'
 import StringListEditor from '../design/components/StringListEditor.vue'
@@ -19,6 +20,19 @@ const router = useRouter()
 
 // --- Dual-route detection ---
 const isProjectMode = computed(() => !!route.params.projectId)
+const projectId = computed(() => route.params.projectId as string | undefined)
+
+onMounted(() => {
+  if (isProjectMode.value && projectId.value && projectStore.activeProject?.id !== projectId.value) {
+    loadProject(projectId.value)
+  }
+})
+
+watch(projectId, (id) => {
+  if (isProjectMode.value && id && projectStore.activeProject?.id !== id) {
+    loadProject(id)
+  }
+})
 
 // Project mode: look up record from projectStore.artifacts.scenarios
 const projectRecord = computed(() => {
@@ -155,6 +169,29 @@ function setExtraContext(newExtra: Record<string, any>) {
   Object.assign(merged, newExtra)
   setField('context', merged)
 }
+
+const saving = ref(false)
+const saveError = ref<string | null>(null)
+
+async function handleSave() {
+  if (!isProjectMode.value || !projectRecord.value || !designStore.draftScenario) return
+
+  saving.value = true
+  saveError.value = null
+  try {
+    await updateScenario(projectRecord.value.project_id, projectRecord.value.id, {
+      title: designStore.draftScenario.scenario?.name || projectRecord.value.title,
+      status: projectRecord.value.status,
+      data: designStore.draftScenario,
+    })
+    designStore.originalScenario = JSON.parse(JSON.stringify(designStore.draftScenario))
+    await refreshArtifacts()
+  } catch (err) {
+    saveError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    saving.value = false
+  }
+}
 </script>
 
 <template>
@@ -169,7 +206,13 @@ function setExtraContext(newExtra: Record<string, any>) {
           <button class="mode-btn" :class="{ active: designStore.scenarioMode === 'advanced' }" @click="setScenarioMode('advanced')" type="button">Advanced</button>
         </div>
 
-        <EditorToolbar artifact="scenario" />
+        <EditorToolbar
+          artifact="scenario"
+          :canSave="isProjectMode"
+          :saving="saving"
+          :saveError="saveError"
+          @save="handleSave"
+        />
 
         <template v-if="designStore.scenarioMode === 'guided'">
           <ScenarioSummary :scenario="designStore.draftScenario ?? scenarioWrapper" />
@@ -347,7 +390,7 @@ function setExtraContext(newExtra: Record<string, any>) {
           <span class="link-icon">&#x1F4CB;</span> Requirements
         </button>
         <button class="link-btn" @click="navigateTo('proposal')" :disabled="isProjectMode ? !projectStore.activeProposalId : !pack?.proposal">
-          <span class="link-icon">&#x1F4A1;</span> Proposal
+          <span class="link-icon">&#x1F4A1;</span> Approach
         </button>
         <button v-if="!isProjectMode" class="link-btn" @click="navigateTo('evaluation')" :disabled="!pack?.evaluation">
           <span class="link-icon">&#x2713;</span> Evaluation

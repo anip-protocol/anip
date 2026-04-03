@@ -218,22 +218,43 @@ export function openArtifactForEditing(
   const data = record.data ?? {}
 
   if (artifactType === 'requirements') {
+    designStore.draftScenario = null
+    designStore.originalScenario = null
+    designStore.draftDeclaredSurfaces = null
+    designStore.guidedScenarioAnswers = {}
+    designStore.scenarioHints = []
     designStore.draftRequirements = JSON.parse(JSON.stringify(data))
     designStore.originalRequirements = JSON.parse(JSON.stringify(data))
+    designStore.originalProposal = null
     designStore.guidedAnswers = hydrateAnswersFromArtifact(designStore.draftRequirements!)
     designStore.completenessHints = evaluateCompleteness(designStore.draftRequirements!)
     designStore.editState = 'draft'
     // Update active context
     projectStore.activeRequirementsId = record.id
   } else if (artifactType === 'scenario') {
+    designStore.draftRequirements = null
+    designStore.originalRequirements = null
+    designStore.draftDeclaredSurfaces = null
+    designStore.guidedAnswers = {}
+    designStore.completenessHints = []
     designStore.draftScenario = JSON.parse(JSON.stringify(data))
     designStore.originalScenario = JSON.parse(JSON.stringify(data))
+    designStore.originalProposal = null
     designStore.guidedScenarioAnswers = hydrateScenarioAnswers(designStore.draftScenario!)
     designStore.scenarioHints = evaluateScenarioCompleteness(designStore.draftScenario!)
     designStore.editState = 'draft'
   } else if (artifactType === 'proposal') {
+    designStore.draftRequirements = null
+    designStore.originalRequirements = null
+    designStore.draftScenario = null
+    designStore.originalScenario = null
+    designStore.guidedAnswers = {}
+    designStore.completenessHints = []
+    designStore.guidedScenarioAnswers = {}
+    designStore.scenarioHints = []
     // Proposal data is nested: record.data may contain the full proposal object
     // Merge declared_surfaces into draftDeclaredSurfaces if present
+    designStore.originalProposal = JSON.parse(JSON.stringify(data))
     const surfaces = data?.proposal?.declared_surfaces
     designStore.draftDeclaredSurfaces = surfaces
       ? JSON.parse(JSON.stringify(surfaces))

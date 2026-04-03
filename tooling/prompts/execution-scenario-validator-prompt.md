@@ -114,7 +114,7 @@ Why:
 What would improve the result:
 - ...
 
-Now evaluate the provided requirements, proposal, and scenario.
+Now evaluate the provided requirements, approach, and scenario.
 ```
 
 ## Recommended Use
@@ -130,13 +130,13 @@ It should be used to refine:
 
 - the rubric
 - the scenario schema
-- the proposal format
+- the approach format (currently carried in the `proposal` artifact shape)
 
 ## What This Prompt Should Not Do
 
 It should not:
 
-- invent a whole new architecture unrelated to the proposal
+- invent a whole new architecture unrelated to the approach
 - overclaim that ANIP solves everything
 - hide the remaining glue behind vague language
 - confuse ordinary application logic with glue

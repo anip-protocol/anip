@@ -10,12 +10,17 @@ protocol, positioning, and roadmap writing in the main documentation area.
 
 ## What Lives Here
 
+User-facing terminology note:
+
+- `Approach` is now the preferred Studio/PM-facing name for the candidate system answer
+- low-level artifact/schema compatibility still uses `proposal` / `proposal.yaml` / `proposal.schema.json` for now
+
 - `bin/`
   - runnable tooling entrypoints
 - `schemas/`
   - truth-layer contracts for:
     - requirements
-    - proposal
+    - approach (`proposal` in current schema/file compatibility)
     - scenario
     - evaluation
 - `examples/`
@@ -35,7 +40,7 @@ It supports the first version of `Execution Scenario Validation`:
 
 - input:
   - `requirements.yaml`
-  - `proposal.yaml`
+  - `proposal.yaml` (the current file name for the Approach artifact)
   - `scenario.yaml`
 - output:
   - structured evaluation
@@ -51,7 +56,7 @@ The tooling is expected to grow in three modes:
 
 Design Mode should eventually have two outputs:
 
-1. proposal output
+1. approach output
 2. optional starter-pack output
 
 That starter pack should be:
@@ -101,7 +106,7 @@ The same rule applies to future scaffold generation:
 The core artifact contracts in this folder are:
 
 - `schemas/requirements.schema.json`
-- `schemas/proposal.schema.json`
+- `schemas/proposal.schema.json` (`Approach` artifact schema in current compatibility form)
 - `schemas/scenario.schema.json`
 - `schemas/evaluation.schema.json`
 
