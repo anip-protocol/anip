@@ -14,7 +14,12 @@ const copyFeedback = ref(false)
 const isEditing = computed(() => designStore.editState === 'draft')
 const errors = computed(() => designStore.validationErrors)
 const hasErrors = computed(() => errors.value.length > 0)
-const hintCount = computed(() => designStore.completenessHints.length)
+const hintCount = computed(() => {
+  if (props.artifact === 'scenario') {
+    return designStore.scenarioHints.length
+  }
+  return designStore.completenessHints.length
+})
 
 const changeCount = computed(() => {
   if (!isEditing.value) return 0
