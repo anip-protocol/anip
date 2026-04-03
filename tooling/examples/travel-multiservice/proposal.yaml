@@ -42,6 +42,18 @@ proposal:
     - task identity should survive cross-service execution
     - each service should remain independently auditable
 
+  declared_surfaces:
+    budget_enforcement: false
+    binding_requirements: true
+    authority_posture: false
+    recovery_class: false
+    refresh_via: false
+    verify_via: false
+    followup_via: false
+    cross_service_handoff: true
+    cross_service_continuity: true
+    cross_service_reconstruction: false
+
   anti_pattern_warnings:
     - do_not_rely_on_custom_headers_as_the_primary_lineage_surface
     - do_not_push_cross_service_correlation_only_into_logs

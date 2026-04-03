@@ -13,6 +13,18 @@ proposal:
     - lineage_recorder_per_service
     - bounded_async_followup_guidance
 
+  declared_surfaces:
+    budget_enforcement: false
+    binding_requirements: false
+    authority_posture: false
+    recovery_class: false
+    refresh_via: false
+    verify_via: false
+    followup_via: true
+    cross_service_handoff: true
+    cross_service_continuity: true
+    cross_service_reconstruction: false
+
   anti_pattern_warnings:
     - do_not_drop_lineage_on_delayed_followups
     - do_not_require_hidden_scheduler_specific_linkage_rules

@@ -26,6 +26,18 @@ proposal:
     - lineage_recorder_per_service
     - bounded_cross_service_refresh_guidance
 
+  declared_surfaces:
+    budget_enforcement: false
+    binding_requirements: false
+    authority_posture: false
+    recovery_class: true
+    refresh_via: true
+    verify_via: false
+    followup_via: false
+    cross_service_handoff: false
+    cross_service_continuity: true
+    cross_service_reconstruction: false
+
   anti_pattern_warnings:
     - do_not_hide_refresh_source_only_in_ops_runbooks
     - do_not_force_agents_to_infer_cross_service_refresh_paths_from_names

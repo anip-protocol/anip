@@ -7,7 +7,6 @@ evaluation:
   - durable audit
   - audit queryability
   - cross-service task identity continuity
-  - independent but linkable audit records
   - cleaner service handoff
   - searchable audit
   - cross-service continuity primitives (task_id + parent_invocation_id)

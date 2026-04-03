@@ -27,6 +27,18 @@ proposal:
     - expose which capability typically refreshes stale quote state
     - preserve task and parent invocation lineage through refresh loops
 
+  declared_surfaces:
+    budget_enforcement: false
+    binding_requirements: true
+    authority_posture: false
+    recovery_class: true
+    refresh_via: true
+    verify_via: false
+    followup_via: false
+    cross_service_handoff: false
+    cross_service_continuity: false
+    cross_service_reconstruction: false
+
   anti_pattern_warnings:
     - do_not_hide_quote_refresh_only_in_docs
     - do_not_make_agents_guess_which_capability_refreshes_a_quote
