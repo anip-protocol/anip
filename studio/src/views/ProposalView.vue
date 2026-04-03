@@ -1,20 +1,62 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { designStore, setActivePack, updateDeclaredSurface } from '../design/store'
+import { projectStore, openArtifactForEditing } from '../design/project-store'
 import EditorToolbar from '../design/components/EditorToolbar.vue'
 
 const route = useRoute()
 
+// --- Dual-route detection ---
+const isProjectMode = computed(() => !!route.params.projectId)
+
+// Project mode: look up record from projectStore.artifacts.proposals
+const projectRecord = computed(() => {
+  if (!isProjectMode.value) return null
+  const id = route.params.id as string
+  return projectStore.artifacts.proposals.find(p => p.id === id) ?? null
+})
+
+// Legacy mode: look up pack from designStore.packs
 const pack = computed(() => {
-  const id = route.params.pack as string
+  if (isProjectMode.value) return null
+  const id = route.params.packId as string
   if (id) setActivePack(id)
   return designStore.packs.find(p => p.meta.id === id) ?? null
 })
 
-const proposal = computed(() => pack.value?.proposal?.proposal ?? null)
+// Hydrate design store when project record changes
+watch(projectRecord, (record) => {
+  if (record) {
+    openArtifactForEditing('proposal', record)
+  }
+}, { immediate: true })
 
-const isEditing = computed(() => designStore.editState === 'draft')
+const proposal = computed(() => {
+  if (isProjectMode.value) {
+    return projectRecord.value?.data?.proposal ?? null
+  }
+  return pack.value?.proposal?.proposal ?? null
+})
+
+const isEditing = computed(() => {
+  if (!isProjectMode.value) return false // Legacy mode is read-only
+  return designStore.editState === 'draft'
+})
+
+// Whether we have data to display
+const hasData = computed(() => {
+  if (isProjectMode.value) return !!projectRecord.value
+  return !!pack.value
+})
+
+// Display name for the title
+const artifactName = computed(() => {
+  if (isProjectMode.value) {
+    return projectRecord.value?.title ?? 'Proposal'
+  }
+  return pack.value?.meta.name ?? 'Proposal'
+})
 
 const glueCategories = computed(() => {
   if (!proposal.value?.expected_glue_reduction) return []
@@ -46,8 +88,8 @@ function toggleSurface(key: string) {
 </script>
 
 <template>
-  <div class="proposal-view" v-if="pack && proposal">
-    <h1 class="page-title">Proposal: {{ pack.meta.name }}</h1>
+  <div class="proposal-view" v-if="hasData && proposal">
+    <h1 class="page-title">Proposal: {{ artifactName }}</h1>
 
     <EditorToolbar artifact="proposal" />
 
@@ -165,8 +207,8 @@ function toggleSurface(key: string) {
       </div>
     </div>
   </div>
-  <div v-else-if="pack" class="not-found">No proposal available for this pack.</div>
-  <div v-else class="not-found">Pack not found.</div>
+  <div v-else-if="hasData" class="not-found">No proposal data available.</div>
+  <div v-else class="not-found">{{ isProjectMode ? 'Proposal not found.' : 'Pack not found.' }}</div>
 </template>
 
 <style scoped>

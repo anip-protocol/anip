@@ -1,14 +1,42 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { designStore, setActivePack, runLiveValidation } from '../design/store'
+import { designStore, setActivePack, runLiveValidation, composeDraftProposal } from '../design/store'
+import { projectStore, refreshArtifacts } from '../design/project-store'
+import { createEvaluation } from '../design/project-api'
 
 const route = useRoute()
 
+// --- Dual-route detection ---
+const isProjectMode = computed(() => !!route.params.projectId)
+
+// Project mode: look up record from projectStore.artifacts.evaluations
+const projectRecord = computed(() => {
+  if (!isProjectMode.value) return null
+  const id = route.params.id as string
+  return projectStore.artifacts.evaluations.find(e => e.id === id) ?? null
+})
+
+// Legacy mode: look up pack from designStore.packs
 const pack = computed(() => {
-  const id = route.params.pack as string
+  if (isProjectMode.value) return null
+  const id = route.params.packId as string
   if (id) setActivePack(id)
   return designStore.packs.find(p => p.meta.id === id) ?? null
+})
+
+// Whether we have data to display
+const hasData = computed(() => {
+  if (isProjectMode.value) return !!projectRecord.value || designStore.liveEvaluation !== null
+  return !!pack.value
+})
+
+// Display name for the title
+const artifactName = computed(() => {
+  if (isProjectMode.value) {
+    return projectRecord.value?.scenario_id ?? 'Evaluation'
+  }
+  return pack.value?.meta.name ?? 'Evaluation'
 })
 
 const isLive = computed(() => designStore.liveEvaluation !== null)
@@ -17,12 +45,76 @@ const evaluation = computed(() => {
   if (designStore.liveEvaluation) {
     return designStore.liveEvaluation.evaluation
   }
+  if (isProjectMode.value) {
+    return projectRecord.value?.data?.evaluation ?? null
+  }
   return pack.value?.evaluation?.evaluation ?? null
 })
+
+// --- Save to Project ---
+const saving = ref(false)
+const saveError = ref<string | null>(null)
+const savedEvalId = ref<string | null>(null)
+
+const canSave = computed(() =>
+  isProjectMode.value &&
+  isLive.value &&
+  projectStore.activeProject !== null,
+)
+
+const missingContext = computed(() => {
+  if (!canSave.value) return null
+  const missing: string[] = []
+  if (!projectStore.activeRequirementsId) missing.push('requirements set')
+  if (!projectStore.activeProposalId) missing.push('proposal')
+  return missing.length > 0 ? missing : null
+})
+
+async function saveToProject() {
+  if (!canSave.value || !projectStore.activeProject) return
+  if (missingContext.value) return
+
+  saving.value = true
+  saveError.value = null
+  try {
+    const inputSnapshot: Record<string, any> = {}
+    if (designStore.draftRequirements) {
+      inputSnapshot.requirements = JSON.parse(JSON.stringify(designStore.draftRequirements))
+    }
+    if (designStore.draftScenario) {
+      inputSnapshot.scenario = JSON.parse(JSON.stringify(designStore.draftScenario))
+    }
+    const proposal = composeDraftProposal()
+    if (proposal) {
+      inputSnapshot.proposal = JSON.parse(JSON.stringify(proposal))
+    }
+
+    const scenarioId = route.params.id as string
+    const evalId = crypto.randomUUID()
+
+    await createEvaluation(projectStore.activeProject.id, {
+      id: evalId,
+      proposal_id: projectStore.activeProposalId!,
+      scenario_id: scenarioId,
+      requirements_id: projectStore.activeRequirementsId!,
+      source: 'live_validation',
+      data: JSON.parse(JSON.stringify(designStore.liveEvaluation)),
+      input_snapshot: inputSnapshot,
+    })
+
+    savedEvalId.value = evalId
+    await refreshArtifacts()
+  } catch (err) {
+    saveError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    saving.value = false
+  }
+}
 
 function clearLive() {
   designStore.liveEvaluation = null
   designStore.validationError = null
+  savedEvalId.value = null
 }
 
 function categoryColor(cat: string): string {
@@ -37,11 +129,12 @@ function categoryColor(cat: string): string {
 </script>
 
 <template>
-  <div class="evaluation-view" v-if="pack && evaluation">
+  <div class="evaluation-view" v-if="hasData && evaluation">
     <div class="header-row">
-      <h1 class="page-title">Evaluation: {{ pack.meta.name }}</h1>
+      <h1 class="page-title">Evaluation: {{ artifactName }}</h1>
       <div class="header-actions">
-        <span class="source-badge live" v-if="isLive">Live result</span>
+        <span class="source-badge live" v-if="isLive && !savedEvalId">Live</span>
+        <span class="source-badge stored" v-else-if="savedEvalId || (isProjectMode && !isLive)">Stored</span>
         <span class="source-badge precomputed" v-else>Pre-computed</span>
         <button
           v-if="designStore.apiAvailable && !designStore.validating"
@@ -53,8 +146,29 @@ function categoryColor(cat: string): string {
           v-if="isLive"
           class="reset-btn"
           @click="clearLive"
-        >Reset to pre-computed</button>
+        >Reset</button>
       </div>
+    </div>
+
+    <!-- Save to Project -->
+    <div class="save-section" v-if="canSave && !savedEvalId">
+      <div class="save-warning" v-if="missingContext">
+        Select a {{ missingContext.join(' and ') }} in the project overview before saving.
+      </div>
+      <template v-else>
+        <button
+          class="save-btn"
+          :disabled="saving"
+          @click="saveToProject"
+        >
+          <span v-if="saving" class="spinner small"></span>
+          {{ saving ? 'Saving...' : 'Save to Project' }}
+        </button>
+        <div class="save-error" v-if="saveError">{{ saveError }}</div>
+      </template>
+    </div>
+    <div class="save-section" v-else-if="savedEvalId">
+      <span class="save-success">Evaluation saved to project.</span>
     </div>
 
     <!-- Validation error -->
@@ -126,8 +240,8 @@ function categoryColor(cat: string): string {
       </ul>
     </div>
   </div>
-  <div v-else-if="pack" class="not-found">No evaluation available for this pack.</div>
-  <div v-else class="not-found">Pack not found.</div>
+  <div v-else-if="hasData" class="not-found">No evaluation data available.</div>
+  <div v-else class="not-found">{{ isProjectMode ? 'Evaluation not found.' : 'Pack not found.' }}</div>
 </template>
 
 <style scoped>
@@ -175,6 +289,11 @@ function categoryColor(cat: string): string {
 .source-badge.precomputed {
   background: rgba(156, 163, 175, 0.15);
   color: #9ca3af;
+}
+
+.source-badge.stored {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
 }
 
 .run-btn {
@@ -336,6 +455,64 @@ function categoryColor(cat: string): string {
 .notes-list li {
   color: var(--text-muted);
   font-style: italic;
+}
+
+/* Save to Project */
+.save-section {
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  background: rgba(52, 211, 153, 0.1);
+  color: #34d399;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: rgba(52, 211, 153, 0.2);
+}
+
+.save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.save-warning {
+  font-size: 13px;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+
+.save-error {
+  font-size: 13px;
+  color: #ef4444;
+}
+
+.save-success {
+  font-size: 13px;
+  font-weight: 500;
+  color: #34d399;
+}
+
+.spinner.small {
+  width: 12px;
+  height: 12px;
+  border-width: 1.5px;
 }
 
 .not-found {

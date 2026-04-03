@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { designStore, setActivePack, updateDraftField, setScenarioMode, updateGuidedScenarioAnswer } from '../design/store'
+import { projectStore, openArtifactForEditing } from '../design/project-store'
 import EditorToolbar from '../design/components/EditorToolbar.vue'
 import KeyValueEditor from '../design/components/KeyValueEditor.vue'
 import StringListEditor from '../design/components/StringListEditor.vue'
@@ -16,18 +17,49 @@ import SuggestionChips from '../design/components/SuggestionChips.vue'
 const route = useRoute()
 const router = useRouter()
 
+// --- Dual-route detection ---
+const isProjectMode = computed(() => !!route.params.projectId)
+
+// Project mode: look up record from projectStore.artifacts.scenarios
+const projectRecord = computed(() => {
+  if (!isProjectMode.value) return null
+  const id = route.params.id as string
+  return projectStore.artifacts.scenarios.find(s => s.id === id) ?? null
+})
+
+// Legacy mode: look up pack from designStore.packs
 const pack = computed(() => {
-  const id = route.params.pack as string
+  if (isProjectMode.value) return null
+  const id = route.params.packId as string
   if (id) setActivePack(id)
   return designStore.packs.find(p => p.meta.id === id) ?? null
 })
 
-const isEditing = computed(() => designStore.editState === 'draft')
+// Hydrate design store when project record changes
+watch(projectRecord, (record) => {
+  if (record) {
+    openArtifactForEditing('scenario', record)
+  }
+}, { immediate: true })
 
-// Source data: draft when editing, original pack data otherwise
+const isEditing = computed(() => {
+  if (!isProjectMode.value) return false // Legacy mode is read-only
+  return designStore.editState === 'draft'
+})
+
+// Whether we have data to display
+const hasData = computed(() => {
+  if (isProjectMode.value) return !!projectRecord.value
+  return !!pack.value
+})
+
+// Source data: draft when editing, original record/pack data otherwise
 const scenario = computed(() => {
   if (isEditing.value && designStore.draftScenario) {
     return (designStore.draftScenario as Record<string, any>).scenario ?? {}
+  }
+  if (isProjectMode.value) {
+    return projectRecord.value?.data?.scenario ?? {}
   }
   return pack.value?.scenario?.scenario ?? {}
 })
@@ -36,8 +68,22 @@ const context = computed(() => scenario.value?.context ?? {})
 const contextKeys = computed(() => Object.keys(context.value))
 
 function navigateTo(view: string) {
+  if (isProjectMode.value) {
+    const pid = route.params.projectId as string
+    // Map view names to project-route artifact segments
+    const routeMap: Record<string, string> = {
+      requirements: projectStore.activeRequirementsId ? `requirements/${projectStore.activeRequirementsId}` : '',
+      proposal: projectStore.activeProposalId ? `proposals/${projectStore.activeProposalId}` : '',
+      evaluation: '', // evaluations don't have a single default
+    }
+    const segment = routeMap[view]
+    if (segment) {
+      router.push(`/design/projects/${pid}/${segment}`)
+    }
+    return
+  }
   if (!pack.value) return
-  router.push(`/design/${view}/${pack.value.meta.id}`)
+  router.push(`/design/packs/${pack.value.meta.id}/${view}`)
 }
 
 // --- Draft helpers ---
@@ -48,14 +94,22 @@ function setField(path: string, value: any) {
 const CATEGORY_OPTIONS = ['safety', 'recovery', 'orchestration', 'cross_service', 'observability']
 const NAME_PATTERN = /^[a-z0-9_\-]+$/
 
+// Full scenario wrapper object (includes .scenario sub-key)
+const scenarioWrapper = computed(() => {
+  if (isProjectMode.value) {
+    return projectRecord.value?.data ?? {}
+  }
+  return pack.value?.scenario ?? {}
+})
+
 const guidedScenarioAnswers = computed(() => {
   if (isEditing.value) return designStore.guidedScenarioAnswers
-  return hydrateScenarioAnswers(pack.value?.scenario ?? {})
+  return hydrateScenarioAnswers(scenarioWrapper.value)
 })
 
 const scenarioHints = computed(() => {
   if (isEditing.value) return designStore.scenarioHints
-  return evaluateScenarioCompleteness(pack.value?.scenario ?? {})
+  return evaluateScenarioCompleteness(scenarioWrapper.value)
 })
 
 const currentCategory = computed(() => {
@@ -104,7 +158,7 @@ function setExtraContext(newExtra: Record<string, any>) {
 </script>
 
 <template>
-  <div class="scenario-detail" v-if="pack">
+  <div class="scenario-detail" v-if="hasData">
     <div class="layout">
       <!-- Main content -->
       <div class="main">
@@ -118,7 +172,7 @@ function setExtraContext(newExtra: Record<string, any>) {
         <EditorToolbar artifact="scenario" />
 
         <template v-if="designStore.scenarioMode === 'guided'">
-          <ScenarioSummary :scenario="designStore.draftScenario ?? pack?.scenario ?? {}" />
+          <ScenarioSummary :scenario="designStore.draftScenario ?? scenarioWrapper" />
           <CompletenessHints :hints="scenarioHints" />
 
           <div class="mapping-toggle" v-if="isEditing">
@@ -245,12 +299,12 @@ function setExtraContext(newExtra: Record<string, any>) {
         <!-- Read-only display -->
         <template v-else>
           <span class="category-badge">{{ scenario.category }}</span>
-          <div class="result-row" v-if="pack.meta.result">
+          <div class="result-row" v-if="!isProjectMode && pack?.meta.result">
             <span class="result-badge" :class="'result-' + pack.meta.result.toLowerCase().replace('_', '-')">
               {{ pack.meta.result }}
             </span>
           </div>
-          <div class="result-row" v-else>
+          <div class="result-row" v-else-if="!isProjectMode">
             <span class="result-badge result-none">Not evaluated</span>
           </div>
 
@@ -288,20 +342,20 @@ function setExtraContext(newExtra: Record<string, any>) {
 
       <!-- Sidebar with quick links -->
       <aside class="quick-links">
-        <h3>Pack Artifacts</h3>
-        <button class="link-btn" @click="navigateTo('requirements')">
+        <h3>{{ isProjectMode ? 'Project Artifacts' : 'Pack Artifacts' }}</h3>
+        <button class="link-btn" @click="navigateTo('requirements')" :disabled="isProjectMode && !projectStore.activeRequirementsId">
           <span class="link-icon">&#x1F4CB;</span> Requirements
         </button>
-        <button class="link-btn" @click="navigateTo('proposal')" :disabled="!pack.proposal">
+        <button class="link-btn" @click="navigateTo('proposal')" :disabled="isProjectMode ? !projectStore.activeProposalId : !pack?.proposal">
           <span class="link-icon">&#x1F4A1;</span> Proposal
         </button>
-        <button class="link-btn" @click="navigateTo('evaluation')" :disabled="!pack.evaluation">
+        <button v-if="!isProjectMode" class="link-btn" @click="navigateTo('evaluation')" :disabled="!pack?.evaluation">
           <span class="link-icon">&#x2713;</span> Evaluation
         </button>
       </aside>
     </div>
   </div>
-  <div v-else class="not-found">Pack not found.</div>
+  <div v-else class="not-found">{{ isProjectMode ? 'Scenario not found.' : 'Pack not found.' }}</div>
 </template>
 
 <style scoped>

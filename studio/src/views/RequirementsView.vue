@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { designStore, setActivePack, updateDraftField, setRequirementsMode, updateGuidedAnswer } from '../design/store'
+import { projectStore, openArtifactForEditing } from '../design/project-store'
 import { GUIDED_SECTIONS } from '../design/guided/questions'
 import { hydrateAnswersFromArtifact } from '../design/guided/mappings'
 import { evaluateCompleteness } from '../design/guided/hints'
@@ -13,18 +14,57 @@ import KeyValueEditor from '../design/components/KeyValueEditor.vue'
 
 const route = useRoute()
 
+// --- Dual-route detection ---
+const isProjectMode = computed(() => !!route.params.projectId)
+
+// Project mode: look up record from projectStore.artifacts.requirements
+const projectRecord = computed(() => {
+  if (!isProjectMode.value) return null
+  const id = route.params.id as string
+  return projectStore.artifacts.requirements.find(r => r.id === id) ?? null
+})
+
+// Legacy mode: look up pack from designStore.packs
 const pack = computed(() => {
-  const id = route.params.pack as string
+  if (isProjectMode.value) return null
+  const id = route.params.packId as string
   if (id) setActivePack(id)
   return designStore.packs.find(p => p.meta.id === id) ?? null
 })
 
-const isEditing = computed(() => designStore.editState === 'draft')
+// Hydrate design store when project record changes
+watch(projectRecord, (record) => {
+  if (record) {
+    openArtifactForEditing('requirements', record)
+  }
+}, { immediate: true })
 
-// Source data: draft when editing, original pack data otherwise
+const isEditing = computed(() => {
+  if (!isProjectMode.value) return false // Legacy mode is read-only
+  return designStore.editState === 'draft'
+})
+
+// Display name for the title
+const artifactName = computed(() => {
+  if (isProjectMode.value) {
+    return projectRecord.value?.title ?? 'Requirements'
+  }
+  return pack.value?.meta.name ?? 'Requirements'
+})
+
+// Whether we have data to display
+const hasData = computed(() => {
+  if (isProjectMode.value) return !!projectRecord.value
+  return !!pack.value
+})
+
+// Source data: draft when editing, original record/pack data otherwise
 const req = computed(() => {
   if (isEditing.value && designStore.draftRequirements) {
     return designStore.draftRequirements as Record<string, any>
+  }
+  if (isProjectMode.value) {
+    return projectRecord.value?.data ?? null
   }
   return pack.value?.requirements ?? null
 })
@@ -94,8 +134,8 @@ function toggleScaleHA() {
 </script>
 
 <template>
-  <div class="requirements-view" v-if="pack && req">
-    <h1 class="page-title">Requirements: {{ pack.meta.name }}</h1>
+  <div class="requirements-view" v-if="hasData && req">
+    <h1 class="page-title">Requirements: {{ artifactName }}</h1>
 
     <!-- Mode toggle -->
     <div class="mode-toggle">
@@ -439,7 +479,7 @@ function toggleScaleHA() {
     </div>
     </template>
   </div>
-  <div v-else class="not-found">Pack not found.</div>
+  <div v-else class="not-found">{{ isProjectMode ? 'Requirements not found.' : 'Pack not found.' }}</div>
 </template>
 
 <style scoped>
