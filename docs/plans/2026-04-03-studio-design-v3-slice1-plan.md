@@ -122,7 +122,7 @@ def _extract_proposal_surfaces(proposal: dict[str, Any]) -> dict[str, bool]:
             "recovery_class": declared.get("recovery_class", False),
             "refresh_via": declared.get("refresh_via", False),
             "verify_via": declared.get("verify_via", False),
-            "followup_via": declared.get("followup_via", False),
+            "followup": declared.get("followup_via", False),
             "cross_service_hints": declared.get("cross_service_handoff", False),
             "upstream_service": declared.get("cross_service_continuity", False),
             "cross_service_reconstruction": declared.get("cross_service_reconstruction", False),
