@@ -69,6 +69,38 @@ const behaviorSuggestions = computed(() => {
 const supportSuggestions = computed(() => {
   return SUPPORT_SUGGESTIONS[currentCategory.value] ?? []
 })
+
+/** Context keys managed by guided questions — excluded from the fallback editor */
+const GUIDED_CONTEXT_KEYS = new Set([
+  'capability', 'side_effect', 'expected_cost', 'budget_limit', 'permissions_state', 'task_id',
+])
+
+/** Context entries NOT managed by guided questions — shown in the fallback editor */
+const extraContext = computed(() => {
+  const ctx = scenario.value?.context ?? {}
+  const filtered: Record<string, any> = {}
+  for (const [key, value] of Object.entries(ctx)) {
+    if (!GUIDED_CONTEXT_KEYS.has(key)) {
+      filtered[key] = value
+    }
+  }
+  return filtered
+})
+
+/** Merge extra context changes back, preserving guided-managed keys */
+function setExtraContext(newExtra: Record<string, any>) {
+  const ctx = scenario.value?.context ?? {}
+  const merged: Record<string, any> = {}
+  // Keep guided-managed keys from the current context
+  for (const key of GUIDED_CONTEXT_KEYS) {
+    if (ctx[key] !== undefined) {
+      merged[key] = ctx[key]
+    }
+  }
+  // Add the user-edited extra keys
+  Object.assign(merged, newExtra)
+  setField('context', merged)
+}
 </script>
 
 <template>
@@ -132,13 +164,13 @@ const supportSuggestions = computed(() => {
             />
           </div>
 
-          <!-- Advanced context editor fallback -->
+          <!-- Additional context editor — only shows keys NOT managed by guided questions -->
           <div class="guided-section-card" v-if="isEditing">
             <h2 class="guided-section-title">Additional Context</h2>
             <p class="guided-section-desc">Add domain-specific context keys beyond the guided questions above.</p>
             <KeyValueEditor
-              :modelValue="scenario.context ?? {}"
-              @update:modelValue="setField('context', $event)"
+              :modelValue="extraContext"
+              @update:modelValue="setExtraContext($event)"
             />
           </div>
         </template>

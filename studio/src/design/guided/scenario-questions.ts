@@ -93,9 +93,9 @@ export const SCENARIO_GUIDED_SECTIONS: GuidedSection[] = [
     questions: [
       {
         id: 'scenario-title',
-        prompt: 'Give this scenario a descriptive title',
+        prompt: 'Name this scenario',
         helpText:
-          'A human-friendly name — the technical slug will be derived automatically (e.g. "Book Flight Over Budget" becomes book_flight_over_budget)',
+          'A short description used to derive the technical identifier. Stored as a slug (e.g. "Book Flight Over Budget" becomes book_flight_over_budget). Capitalization and punctuation are not preserved.',
         answerType: 'text',
         fieldMappings: [{ path: 'scenario.name', label: 'scenario.name' }],
         defaultValue: '',
