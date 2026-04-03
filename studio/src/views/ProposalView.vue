@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { designStore, setActivePack } from '../design/store'
+import { designStore, setActivePack, updateDeclaredSurface } from '../design/store'
+import EditorToolbar from '../design/components/EditorToolbar.vue'
 
 const route = useRoute()
 
@@ -13,15 +14,93 @@ const pack = computed(() => {
 
 const proposal = computed(() => pack.value?.proposal?.proposal ?? null)
 
+const isEditing = computed(() => designStore.editState === 'draft')
+
 const glueCategories = computed(() => {
   if (!proposal.value?.expected_glue_reduction) return []
   return Object.entries(proposal.value.expected_glue_reduction)
 })
+
+// Surface definitions: key -> human-readable label
+const SURFACE_LABELS: Record<string, string> = {
+  budget_enforcement: 'Budget Enforcement',
+  binding_requirements: 'Binding Requirements',
+  authority_posture: 'Authority Posture',
+  recovery_class: 'Recovery Class',
+  refresh_via: 'Refresh Via',
+  verify_via: 'Verify Via',
+  followup_via: 'Follow-up Via',
+  cross_service_handoff: 'Cross-Service Handoff',
+  cross_service_continuity: 'Cross-Service Continuity',
+  cross_service_reconstruction: 'Cross-Service Reconstruction',
+}
+
+const surfaceKeys = computed(() => Object.keys(SURFACE_LABELS))
+
+const draftSurfaces = computed(() => designStore.draftDeclaredSurfaces)
+
+function toggleSurface(key: string) {
+  const current = draftSurfaces.value?.[key as keyof typeof draftSurfaces.value] ?? false
+  updateDeclaredSurface(key, !current)
+}
 </script>
 
 <template>
   <div class="proposal-view" v-if="pack && proposal">
     <h1 class="page-title">Proposal: {{ pack.meta.name }}</h1>
+
+    <EditorToolbar artifact="proposal" />
+
+    <!-- Declared Surfaces (editable when in draft mode) -->
+    <div class="section">
+      <h2>Declared Surfaces</h2>
+      <template v-if="isEditing && draftSurfaces">
+        <div class="surfaces-grid">
+          <div
+            class="surface-toggle"
+            v-for="key in surfaceKeys"
+            :key="key"
+          >
+            <button
+              class="surface-btn"
+              :class="{ on: (draftSurfaces as Record<string, boolean>)[key], off: !(draftSurfaces as Record<string, boolean>)[key] }"
+              @click="toggleSurface(key)"
+              type="button"
+            >
+              <span class="surface-indicator">
+                {{ (draftSurfaces as Record<string, boolean>)[key] ? '&#x2713;' : '&#x2717;' }}
+              </span>
+              <span class="surface-name">{{ SURFACE_LABELS[key] }}</span>
+              <span class="surface-state">
+                {{ (draftSurfaces as Record<string, boolean>)[key] ? 'ON' : 'OFF' }}
+              </span>
+            </button>
+          </div>
+        </div>
+      </template>
+      <template v-else>
+        <div class="surfaces-grid">
+          <div
+            class="surface-toggle"
+            v-for="key in surfaceKeys"
+            :key="key"
+          >
+            <div
+              class="surface-display"
+              :class="{ on: proposal.declared_surfaces?.[key], off: !proposal.declared_surfaces?.[key] }"
+            >
+              <span class="surface-indicator">
+                {{ proposal.declared_surfaces?.[key] ? '&#x2713;' : '&#x2717;' }}
+              </span>
+              <span class="surface-name">{{ SURFACE_LABELS[key] }}</span>
+              <span class="surface-state">
+                {{ proposal.declared_surfaces?.[key] ? 'ON' : 'OFF' }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
 
     <!-- Shape header -->
     <div class="shape-header">
@@ -101,6 +180,104 @@ const glueCategories = computed(() => {
   font-weight: 600;
   color: var(--text-primary);
   margin: 0 0 1rem;
+}
+
+/* Declared Surfaces grid */
+.surfaces-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.surface-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all var(--transition);
+  font-size: 13px;
+  text-align: left;
+}
+
+.surface-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.surface-btn.on,
+.surface-display.on {
+  background: rgba(52, 211, 153, 0.08);
+  border-color: rgba(52, 211, 153, 0.25);
+}
+
+.surface-btn.off,
+.surface-display.off {
+  background: transparent;
+}
+
+.surface-btn:hover {
+  background: var(--bg-hover);
+}
+
+.surface-btn.on:hover {
+  background: rgba(52, 211, 153, 0.14);
+}
+
+.surface-indicator {
+  font-size: 12px;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.surface-btn.on .surface-indicator,
+.surface-display.on .surface-indicator {
+  color: var(--success);
+}
+
+.surface-btn.off .surface-indicator,
+.surface-display.off .surface-indicator {
+  color: var(--text-muted);
+}
+
+.surface-name {
+  flex: 1;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.surface-btn.off .surface-name,
+.surface-display.off .surface-name {
+  color: var(--text-muted);
+}
+
+.surface-state {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.surface-btn.on .surface-state,
+.surface-display.on .surface-state {
+  color: var(--success);
+}
+
+.surface-btn.off .surface-state,
+.surface-display.off .surface-state {
+  color: var(--text-muted);
+  opacity: 0.5;
 }
 
 /* Shape header */
