@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from psycopg.errors import UniqueViolation
 
 from ..db import get_pool
@@ -15,9 +15,9 @@ router = APIRouter(prefix="/api/projects", tags=["projects"])
 
 
 @router.get("", response_model=list[ProjectOut])
-def list_projects():
+def list_projects(workspace_id: str | None = Query(default=None)):
     with get_pool().connection() as conn:
-        return repository.list_projects(conn)
+        return repository.list_projects(conn, workspace_id=workspace_id)
 
 
 @router.post("", response_model=ProjectOut, status_code=201)
@@ -27,6 +27,7 @@ def create_project(body: CreateProject):
             return repository.create_project(
                 conn,
                 project_id=body.id,
+                workspace_id=body.workspace_id,
                 name=body.name,
                 summary=body.summary,
                 domain=body.domain,

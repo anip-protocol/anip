@@ -1,7 +1,20 @@
 // Types mirroring the backend Pydantic models for the workspace API.
 
+export interface WorkspaceSummary {
+  id: string
+  name: string
+  summary: string
+  created_at: string
+  updated_at: string
+}
+
+export interface WorkspaceDetail extends WorkspaceSummary {
+  projects_count: number
+}
+
 export interface ProjectSummary {
   id: string
+  workspace_id: string
   name: string
   summary: string
   domain: string
@@ -74,6 +87,7 @@ export interface VocabularyEntry {
 
 export interface CreateProject {
   id: string
+  workspace_id?: string
   name: string
   summary?: string
   domain?: string

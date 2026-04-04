@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { projectStore, checkDbAvailable, loadProjects, seedDb } from '../design/project-store'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { projectStore, checkDbAvailable, loadProjects, loadWorkspace, seedDb } from '../design/project-store'
 import { createProject, deleteProject } from '../design/project-api'
-import { PACKS } from '../design/data/packs.generated'
 
+const route = useRoute()
 const router = useRouter()
+const workspaceId = computed(() => route.params.workspaceId as string)
 
 const showCreateForm = ref(false)
 const newName = ref('')
@@ -19,6 +20,7 @@ const dbAvailable = computed(() => projectStore.dbAvailable)
 const projects = computed(() => projectStore.projects)
 const loading = computed(() => projectStore.loading)
 const error = computed(() => projectStore.error)
+const workspace = computed(() => projectStore.activeWorkspace)
 const junkProjects = computed(() =>
   projects.value.filter(project =>
     project.id.startsWith('proj-') &&
@@ -30,17 +32,21 @@ const junkProjects = computed(() =>
 
 onMounted(async () => {
   await checkDbAvailable()
-  if (projectStore.dbAvailable) {
-    await loadProjects()
+  if (projectStore.dbAvailable && workspaceId.value) {
+    await loadWorkspace(workspaceId.value)
+    await loadProjects(workspaceId.value)
+  }
+})
+
+watch(workspaceId, async (id) => {
+  if (projectStore.dbAvailable && id) {
+    await loadWorkspace(id)
+    await loadProjects(id)
   }
 })
 
 function openProject(id: string) {
   router.push(`/design/projects/${id}`)
-}
-
-function openPack(packId: string) {
-  router.push(`/design/packs/${packId}`)
 }
 
 async function handleCreate() {
@@ -51,6 +57,7 @@ async function handleCreate() {
     const id = crypto.randomUUID()
     await createProject({
       id,
+      workspace_id: workspaceId.value,
       name,
       domain: newDomain.value.trim() || undefined,
       summary: newSummary.value.trim() || undefined,
@@ -59,7 +66,7 @@ async function handleCreate() {
     newDomain.value = ''
     newSummary.value = ''
     showCreateForm.value = false
-    await loadProjects()
+    await loadProjects(workspaceId.value)
     router.push(`/design/projects/${id}`)
   } catch {
     // error is surfaced via projectStore.error
@@ -70,6 +77,7 @@ async function handleCreate() {
 
 async function handleSeed() {
   await seedDb()
+  await loadProjects(workspaceId.value)
 }
 
 async function handleDeleteProject(projectId: string, projectName: string, event: Event) {
@@ -81,7 +89,7 @@ async function handleDeleteProject(projectId: string, projectName: string, event
   deletingProjectId.value = projectId
   try {
     await deleteProject(projectId)
-    await loadProjects()
+    await loadProjects(workspaceId.value)
   } finally {
     deletingProjectId.value = null
   }
@@ -98,7 +106,7 @@ async function handleCleanJunkProjects() {
     for (const project of junkProjects.value) {
       await deleteProject(project.id)
     }
-    await loadProjects()
+    await loadProjects(workspaceId.value)
   } finally {
     cleaningJunk.value = false
   }
@@ -107,37 +115,13 @@ async function handleCleanJunkProjects() {
 
 <template>
   <div class="project-list">
-    <h1 class="page-title">Projects</h1>
-    <p class="page-desc">Manage your ANIP design projects, clean out test clutter, or load showcase examples people can explore.</p>
-
-    <!-- Sidecar unavailable banner + read-only pack cards -->
     <template v-if="!dbAvailable">
-      <div class="banner banner-warning">
-        Sidecar unavailable — read-only mode
-      </div>
-      <div class="pack-grid">
-        <div
-          v-for="pack in PACKS"
-          :key="pack.meta.id"
-          class="pack-card"
-          @click="openPack(pack.meta.id)"
-        >
-          <div class="pack-header">
-            <span class="domain-badge">{{ pack.meta.domain }}</span>
-            <span
-              v-if="pack.meta.result"
-              class="result-badge"
-              :class="'result-' + pack.meta.result.toLowerCase().replace('_', '-')"
-            >{{ pack.meta.result }}</span>
-          </div>
-          <h3 class="card-name">{{ pack.meta.name }}</h3>
-          <p class="card-summary">{{ pack.meta.narrative }}</p>
-        </div>
-      </div>
+      <div class="banner banner-warning">Sidecar unavailable — design workspaces are unavailable.</div>
     </template>
-
-    <!-- DB available: project list -->
     <template v-else>
+      <button class="back-link" @click="router.push('/design')">&larr; Workspaces</button>
+      <h1 class="page-title">{{ workspace?.name || 'Workspace Projects' }}</h1>
+      <p class="page-desc">{{ workspace?.summary || 'Manage the projects inside this workspace.' }}</p>
       <div class="toolbar">
         <button class="btn btn-primary" @click="showCreateForm = !showCreateForm">
           {{ showCreateForm ? 'Cancel' : 'Create Project' }}
@@ -196,7 +180,7 @@ async function handleCleanJunkProjects() {
       <div v-if="error" class="banner banner-error">{{ error }}</div>
 
       <div v-if="!loading && projects.length === 0 && !error" class="empty-state">
-        No projects yet. Create one or seed from example packs.
+        No projects in this workspace yet. Create one to start shaping services and evaluating scenarios.
       </div>
 
       <div class="pack-grid">
@@ -232,6 +216,16 @@ async function handleCleanJunkProjects() {
 <style scoped>
 .project-list {
   padding: 2rem;
+}
+
+.back-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 0.75rem;
 }
 
 .page-title {

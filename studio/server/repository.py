@@ -91,12 +91,93 @@ def assert_same_project(conn: Any, project_id: str, **refs: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Workspaces
+# ---------------------------------------------------------------------------
+
+def list_workspaces(conn: Any) -> list[dict]:
+    return conn.execute(
+        "SELECT w.*, "
+        "  (SELECT count(*) FROM projects WHERE workspace_id = w.id) AS projects_count "
+        "FROM workspaces w ORDER BY updated_at DESC, name ASC"
+    ).fetchall()
+
+
+def get_workspace(conn: Any, workspace_id: str) -> dict:
+    row = conn.execute(
+        "SELECT w.*, "
+        "  (SELECT count(*) FROM projects WHERE workspace_id = w.id) AS projects_count "
+        "FROM workspaces w WHERE id = %s",
+        (workspace_id,),
+    ).fetchone()
+    if row is None:
+        raise NotFoundError("workspace", workspace_id)
+    return row
+
+
+def get_default_workspace_id(conn: Any) -> str:
+    row = conn.execute(
+        "SELECT id FROM workspaces ORDER BY created_at ASC LIMIT 1"
+    ).fetchone()
+    if row is None:
+        row = conn.execute(
+            "INSERT INTO workspaces (id, name, summary) VALUES (%s, %s, %s) RETURNING id",
+            ("default", "Default Workspace", "Default Studio workspace"),
+        ).fetchone()
+        conn.commit()
+    return row["id"]
+
+
+def create_workspace(conn: Any, workspace_id: str, name: str, summary: str = "") -> dict:
+    row = conn.execute(
+        "INSERT INTO workspaces (id, name, summary) VALUES (%s, %s, %s) RETURNING *, 0 AS projects_count",
+        (workspace_id, name, summary),
+    ).fetchone()
+    conn.commit()
+    return row
+
+
+def update_workspace(conn: Any, workspace_id: str, **fields: Any) -> dict:
+    allowed = {"name", "summary"}
+    sets: list[str] = []
+    params: list[Any] = []
+    for key, value in fields.items():
+        if key not in allowed or value is None:
+            continue
+        sets.append(f"{key} = %s")
+        params.append(value)
+    if not sets:
+        return get_workspace(conn, workspace_id)
+    sets.append("updated_at = now()")
+    params.append(workspace_id)
+    row = conn.execute(
+        f"UPDATE workspaces SET {', '.join(sets)} WHERE id = %s RETURNING *",
+        params,
+    ).fetchone()
+    if row is None:
+        raise NotFoundError("workspace", workspace_id)
+    conn.commit()
+    return get_workspace(conn, workspace_id)
+
+
+def delete_workspace(conn: Any, workspace_id: str) -> None:
+    cur = conn.execute("DELETE FROM workspaces WHERE id = %s", (workspace_id,))
+    if cur.rowcount == 0:
+        raise NotFoundError("workspace", workspace_id)
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
 # Projects
 # ---------------------------------------------------------------------------
 
-def list_projects(conn: Any) -> list[dict]:
+def list_projects(conn: Any, workspace_id: str | None = None) -> list[dict]:
+    if workspace_id is None:
+        return conn.execute(
+            "SELECT * FROM projects ORDER BY updated_at DESC"
+        ).fetchall()
     return conn.execute(
-        "SELECT * FROM projects ORDER BY updated_at DESC"
+        "SELECT * FROM projects WHERE workspace_id = %s ORDER BY updated_at DESC",
+        (workspace_id,),
     ).fetchall()
 
 
@@ -126,12 +207,15 @@ def get_project_detail(conn: Any, project_id: str) -> dict:
 
 
 def create_project(conn: Any, project_id: str, name: str, summary: str = "",
-                   domain: str = "", labels: list | None = None) -> dict:
+                   domain: str = "", labels: list | None = None,
+                   workspace_id: str | None = None) -> dict:
     labels = labels if labels is not None else []
+    workspace_id = workspace_id or get_default_workspace_id(conn)
+    get_workspace(conn, workspace_id)
     row = conn.execute(
-        "INSERT INTO projects (id, name, summary, domain, labels)"
-        " VALUES (%s, %s, %s, %s, %s) RETURNING *",
-        (project_id, name, summary, domain, Json(labels)),
+        "INSERT INTO projects (id, workspace_id, name, summary, domain, labels)"
+        " VALUES (%s, %s, %s, %s, %s, %s) RETURNING *",
+        (project_id, workspace_id, name, summary, domain, Json(labels)),
     ).fetchone()
     conn.commit()
     return row

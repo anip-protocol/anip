@@ -12,6 +12,11 @@ const designRoutes = inspectOnly ? [] : [
   // ── Project routes (primary) ──
   {
     path: '/design',
+    name: 'workspace-list',
+    component: () => import('./views/WorkspaceListView.vue'),
+  },
+  {
+    path: '/design/workspaces/:workspaceId',
     name: 'project-list',
     component: () => import('./views/ProjectListView.vue'),
   },

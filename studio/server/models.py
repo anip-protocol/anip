@@ -9,11 +9,39 @@ from pydantic import BaseModel, Field
 
 
 # ---------------------------------------------------------------------------
+# Workspaces
+# ---------------------------------------------------------------------------
+
+class CreateWorkspace(BaseModel):
+    id: str
+    name: str
+    summary: str = ""
+
+
+class UpdateWorkspace(BaseModel):
+    name: Optional[str] = None
+    summary: Optional[str] = None
+
+
+class WorkspaceOut(BaseModel):
+    id: str
+    name: str
+    summary: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class WorkspaceDetail(WorkspaceOut):
+    projects_count: int
+
+
+# ---------------------------------------------------------------------------
 # Projects
 # ---------------------------------------------------------------------------
 
 class CreateProject(BaseModel):
     id: str
+    workspace_id: Optional[str] = None
     name: str
     summary: str = ""
     domain: str = ""
@@ -29,6 +57,7 @@ class UpdateProject(BaseModel):
 
 class ProjectOut(BaseModel):
     id: str
+    workspace_id: str
     name: str
     summary: str
     domain: str

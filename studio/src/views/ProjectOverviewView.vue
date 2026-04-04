@@ -412,7 +412,7 @@ async function handleCreateShape() {
       <!-- Project header -->
       <div class="project-header">
         <div class="header-top">
-          <button class="back-link" @click="router.push('/design')">&larr; Projects</button>
+          <button class="back-link" @click="router.push(project?.workspace_id ? `/design/workspaces/${project.workspace_id}` : '/design')">&larr; Projects</button>
         </div>
         <h1 class="page-title">{{ project.name }}</h1>
         <div class="project-meta">

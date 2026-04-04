@@ -1,5 +1,6 @@
 import { reactive } from 'vue'
 import type {
+  WorkspaceDetail,
   ProjectSummary,
   ProjectDetail,
   ArtifactRecord,
@@ -10,6 +11,8 @@ import type {
   VocabularyEntry,
 } from './project-types'
 import {
+  listWorkspaces,
+  getWorkspace,
   listProjects,
   listRequirements,
   listScenarios,
@@ -30,6 +33,8 @@ import { evaluateScenarioCompleteness } from './guided/scenario-hints'
 // ---------------------------------------------------------------------------
 
 interface ProjectState {
+  workspaces: WorkspaceDetail[]
+  activeWorkspace: WorkspaceDetail | null
   projects: ProjectSummary[]
   activeProject: ProjectDetail | null
   artifacts: {
@@ -50,6 +55,8 @@ interface ProjectState {
 }
 
 export const projectStore = reactive<ProjectState>({
+  workspaces: [],
+  activeWorkspace: null,
   projects: [],
   activeProject: null,
   artifacts: {
@@ -159,19 +166,41 @@ function autoSelectActiveIds(): void {
 /** Check if the sidecar/DB is reachable. Sets dbAvailable. Never throws. */
 export async function checkDbAvailable(): Promise<void> {
   try {
-    await listProjects()
+    await listWorkspaces()
     projectStore.dbAvailable = true
   } catch {
     projectStore.dbAvailable = false
   }
 }
 
-/** Fetch all projects and populate the projects list. */
-export async function loadProjects(): Promise<void> {
+export async function loadWorkspaces(): Promise<void> {
   setLoading(true)
   clearError()
   try {
-    projectStore.projects = await listProjects()
+    projectStore.workspaces = await listWorkspaces()
+  } catch (err) {
+    setError(err)
+  } finally {
+    setLoading(false)
+  }
+}
+
+export async function loadWorkspace(id: string): Promise<void> {
+  clearError()
+  try {
+    projectStore.activeWorkspace = await getWorkspace(id)
+  } catch (err) {
+    setError(err)
+    projectStore.activeWorkspace = null
+  }
+}
+
+/** Fetch all projects and populate the projects list. */
+export async function loadProjects(workspaceId?: string): Promise<void> {
+  setLoading(true)
+  clearError()
+  try {
+    projectStore.projects = await listProjects(workspaceId)
   } catch (err) {
     setError(err)
   } finally {
@@ -210,6 +239,11 @@ export async function loadProject(id: string): Promise<void> {
     ])
 
     projectStore.activeProject = detail
+    if (detail.workspace_id) {
+      if (projectStore.activeWorkspace?.id !== detail.workspace_id) {
+        await loadWorkspace(detail.workspace_id)
+      }
+    }
     projectStore.artifacts.requirements = requirements
     projectStore.artifacts.scenarios = scenarios
     projectStore.artifacts.proposals = proposals
@@ -345,6 +379,7 @@ export async function seedDb(): Promise<void> {
  * Active Context Reset Rules: clearProject() clears both active IDs to null.
  */
 export function clearProject(): void {
+  projectStore.activeWorkspace = null
   projectStore.activeProject = null
   projectStore.artifacts.requirements = []
   projectStore.artifacts.scenarios = []
@@ -353,8 +388,13 @@ export function clearProject(): void {
   projectStore.artifacts.evaluations = []
   projectStore.vocabulary = []
   projectStore.activeRequirementsId = null
+  projectStore.activeScenarioId = null
   projectStore.activeProposalId = null
   projectStore.activeShapeId = null
+}
+
+export function setActiveWorkspace(workspace: WorkspaceDetail | null): void {
+  projectStore.activeWorkspace = workspace
 }
 
 // ---------------------------------------------------------------------------

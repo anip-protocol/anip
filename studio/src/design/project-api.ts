@@ -1,4 +1,6 @@
 import type {
+  WorkspaceSummary,
+  WorkspaceDetail,
   ProjectSummary,
   ProjectDetail,
   ArtifactRecord,
@@ -38,11 +40,35 @@ async function api<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // ---------------------------------------------------------------------------
+// Workspaces
+// ---------------------------------------------------------------------------
+
+export function listWorkspaces(): Promise<WorkspaceDetail[]> {
+  return api<WorkspaceDetail[]>('/api/workspaces')
+}
+
+export function getWorkspace(id: string): Promise<WorkspaceDetail> {
+  return api<WorkspaceDetail>(`/api/workspaces/${id}`)
+}
+
+export function createWorkspace(payload: { id: string; name: string; summary?: string }): Promise<WorkspaceSummary> {
+  return api<WorkspaceSummary>('/api/workspaces', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteWorkspace(id: string): Promise<void> {
+  return api<void>(`/api/workspaces/${id}`, { method: 'DELETE' })
+}
+
+// ---------------------------------------------------------------------------
 // Projects
 // ---------------------------------------------------------------------------
 
-export function listProjects(): Promise<ProjectSummary[]> {
-  return api<ProjectSummary[]>('/api/projects')
+export function listProjects(workspaceId?: string): Promise<ProjectSummary[]> {
+  const qs = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : ''
+  return api<ProjectSummary[]>(`/api/projects${qs}`)
 }
 
 export function getProject(id: string): Promise<ProjectDetail> {

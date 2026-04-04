@@ -43,8 +43,17 @@ type DesignNavItem = {
 const designNavItems = computed<DesignNavItem[]>(() => {
   const project = projectStore.activeProject
   const items: DesignNavItem[] = [
-    { name: 'project-list', label: 'Projects', icon: '\u{1F3E0}', path: '/design' },
+    { name: 'workspace-list', label: 'Workspaces', icon: '\u{1F5C2}', path: '/design' },
   ]
+  const workspace = projectStore.activeWorkspace
+  if (workspace) {
+    items.push({
+      name: 'workspace-projects',
+      label: workspace.name,
+      icon: '\u{1F4C2}',
+      path: `/design/workspaces/${workspace.id}`,
+    })
+  }
   if (project) {
     const pid = project.id
     items.push(
