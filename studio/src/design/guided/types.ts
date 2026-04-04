@@ -22,6 +22,8 @@ export interface GuidedQuestion {
   prompt: string
   helpText?: string
   answerType: AnswerType
+  /** Render text answers as a multiline field when the content is narrative */
+  multiline?: boolean
   /** For select answers */
   options?: SelectOption[]
   /** Which artifact fields this question maps to */

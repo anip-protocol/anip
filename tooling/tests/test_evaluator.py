@@ -399,7 +399,7 @@ class TestOrchestrationAdvisoryOnly:
         assert any("hints but does not enforce" in w for w in ev["why"])
 
     def test_advisory_not_credited_when_proposal_omits_surfaces(self):
-        """When the approach does not declare refresh/recovery surfaces,
+        """When the current design does not expose refresh/recovery surfaces,
         the evaluator should NOT credit them as handled."""
         req = _make_requirements()
         proposal = _make_proposal()  # bare proposal with no declared surfaces
@@ -430,7 +430,7 @@ class TestOrchestrationAdvisoryOnly:
         advisory_handled = [h for h in ev["handled_by_anip"] if "advisory" in h]
         assert len(advisory_handled) == 0
         # Glue should mention that proposal doesn't declare the surfaces
-        assert any("approach does not declare" in g for g in ev["glue_you_will_still_write"])
+        assert any("current design does not expose" in g for g in ev["glue_you_will_still_write"])
 
 
 class TestCrossServiceAdvisoryOnly:
@@ -480,7 +480,7 @@ class TestCrossServiceAdvisoryOnly:
         assert any("advisory" in h for h in ev["handled_by_anip"])
 
     def test_cross_service_not_credited_when_proposal_omits_surfaces(self):
-        """When the approach does not declare cross-service components,
+        """When the current design does not expose cross-service components,
         advisory hints should not be credited."""
         req = _make_requirements(
             services=[
@@ -514,7 +514,7 @@ class TestCrossServiceAdvisoryOnly:
         advisory_handled = [h for h in ev["handled_by_anip"] if "advisory" in h]
         assert len(advisory_handled) == 0
         # Glue should note the missing proposal surfaces
-        assert any("approach does not declare" in g for g in ev["glue_you_will_still_write"])
+        assert any("current design does not expose" in g for g in ev["glue_you_will_still_write"])
 
 
 class TestHandledByAnipSurfaces:
@@ -739,7 +739,7 @@ class TestDeclaredSurfaces:
 
     def test_declared_surfaces_false_produces_glue(self):
         """When refresh_via is declared false, the evaluator should produce
-        glue noting the gap (approach does not declare the surface)."""
+        glue noting the gap (current design does not expose the surface)."""
         req = _make_requirements()
         proposal = _make_proposal(
             required_components=["capability_registry"],
@@ -763,7 +763,7 @@ class TestDeclaredSurfaces:
         refresh_handled = [h for h in ev["handled_by_anip"] if "refresh" in h.lower()]
         assert len(refresh_handled) == 0, f"False refresh_via should not be handled: {refresh_handled}"
         # glue should note the gap
-        assert any("approach does not declare" in g for g in ev["glue_you_will_still_write"])
+        assert any("current design does not expose" in g for g in ev["glue_you_will_still_write"])
 
     def test_declared_surfaces_absent_falls_back(self):
         """When declared_surfaces is absent, V2 text heuristic behavior is preserved."""
@@ -839,7 +839,7 @@ class TestDeclaredSurfaces:
             f"All-true should credit at least 5 advisory surfaces, got {len(advisory_handled)}: {advisory_handled}"
         )
         # Should NOT have any "approach does not declare" glue
-        missing_glue = [g for g in ev["glue_you_will_still_write"] if "approach does not declare" in g]
+        missing_glue = [g for g in ev["glue_you_will_still_write"] if "current design does not expose" in g]
         assert len(missing_glue) == 0, f"All-true should not have missing-surface glue: {missing_glue}"
 
 
@@ -881,7 +881,7 @@ class TestBusinessConstraintsAlignment:
         result = evaluate(req, proposal, scenario)
         ev = result["evaluation"]
         assert any(
-            "declare budget_enforcement surface for spending-possible system" in item
+            "the current design should expose budget enforcement for a spending-possible system" in item
             for item in ev["what_would_improve"]
         ), f"Expected improve hint in what_would_improve: {ev['what_would_improve']}"
 
@@ -941,7 +941,7 @@ class TestBusinessConstraintsAlignment:
         result = evaluate(req, proposal, scenario)
         ev = result["evaluation"]
         assert any(
-            "declare recovery_class surface for recovery-sensitive system" in item
+            "the current design should expose recovery class for a recovery-sensitive system" in item
             for item in ev["what_would_improve"]
         ), f"Expected improve hint in what_would_improve: {ev['what_would_improve']}"
 

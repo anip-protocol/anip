@@ -1,36 +1,52 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { projectStore, checkDbAvailable, loadProjects, seedDb } from '../design/project-store'
-import { createProject } from '../design/project-api'
-import { PACKS } from '../design/data/packs.generated'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { projectStore, checkDbAvailable, loadProjects, loadWorkspace, seedDb } from '../design/project-store'
+import { createProject, deleteProject } from '../design/project-api'
 
+const route = useRoute()
 const router = useRouter()
+const workspaceId = computed(() => route.params.workspaceId as string)
 
 const showCreateForm = ref(false)
 const newName = ref('')
 const newDomain = ref('')
 const newSummary = ref('')
 const creating = ref(false)
+const deletingProjectId = ref<string | null>(null)
+const cleaningJunk = ref(false)
 
 const dbAvailable = computed(() => projectStore.dbAvailable)
 const projects = computed(() => projectStore.projects)
 const loading = computed(() => projectStore.loading)
 const error = computed(() => projectStore.error)
+const workspace = computed(() => projectStore.activeWorkspace)
+const junkProjects = computed(() =>
+  projects.value.filter(project =>
+    project.id.startsWith('proj-') &&
+    !project.domain &&
+    !project.summary &&
+    (!project.labels || project.labels.length === 0),
+  ),
+)
 
 onMounted(async () => {
   await checkDbAvailable()
-  if (projectStore.dbAvailable) {
-    await loadProjects()
+  if (projectStore.dbAvailable && workspaceId.value) {
+    await loadWorkspace(workspaceId.value)
+    await loadProjects(workspaceId.value)
+  }
+})
+
+watch(workspaceId, async (id) => {
+  if (projectStore.dbAvailable && id) {
+    await loadWorkspace(id)
+    await loadProjects(id)
   }
 })
 
 function openProject(id: string) {
   router.push(`/design/projects/${id}`)
-}
-
-function openPack(packId: string) {
-  router.push(`/design/packs/${packId}`)
 }
 
 async function handleCreate() {
@@ -41,6 +57,7 @@ async function handleCreate() {
     const id = crypto.randomUUID()
     await createProject({
       id,
+      workspace_id: workspaceId.value,
       name,
       domain: newDomain.value.trim() || undefined,
       summary: newSummary.value.trim() || undefined,
@@ -49,7 +66,7 @@ async function handleCreate() {
     newDomain.value = ''
     newSummary.value = ''
     showCreateForm.value = false
-    await loadProjects()
+    await loadProjects(workspaceId.value)
     router.push(`/design/projects/${id}`)
   } catch {
     // error is surfaced via projectStore.error
@@ -60,45 +77,62 @@ async function handleCreate() {
 
 async function handleSeed() {
   await seedDb()
+  await loadProjects(workspaceId.value)
+}
+
+async function handleDeleteProject(projectId: string, projectName: string, event: Event) {
+  event.stopPropagation()
+  if (!window.confirm(`Delete project "${projectName}"? This will remove its requirements, scenarios, shapes, and evaluations.`)) {
+    return
+  }
+
+  deletingProjectId.value = projectId
+  try {
+    await deleteProject(projectId)
+    await loadProjects(workspaceId.value)
+  } finally {
+    deletingProjectId.value = null
+  }
+}
+
+async function handleCleanJunkProjects() {
+  if (junkProjects.value.length === 0) return
+  if (!window.confirm(`Delete ${junkProjects.value.length} test projects from the local Studio database?`)) {
+    return
+  }
+
+  cleaningJunk.value = true
+  try {
+    for (const project of junkProjects.value) {
+      await deleteProject(project.id)
+    }
+    await loadProjects(workspaceId.value)
+  } finally {
+    cleaningJunk.value = false
+  }
 }
 </script>
 
 <template>
   <div class="project-list">
-    <h1 class="page-title">Projects</h1>
-    <p class="page-desc">Manage your ANIP design projects or explore example packs.</p>
-
-    <!-- Sidecar unavailable banner + read-only pack cards -->
     <template v-if="!dbAvailable">
-      <div class="banner banner-warning">
-        Sidecar unavailable — read-only mode
-      </div>
-      <div class="pack-grid">
-        <div
-          v-for="pack in PACKS"
-          :key="pack.meta.id"
-          class="pack-card"
-          @click="openPack(pack.meta.id)"
-        >
-          <div class="pack-header">
-            <span class="domain-badge">{{ pack.meta.domain }}</span>
-            <span
-              v-if="pack.meta.result"
-              class="result-badge"
-              :class="'result-' + pack.meta.result.toLowerCase().replace('_', '-')"
-            >{{ pack.meta.result }}</span>
-          </div>
-          <h3 class="card-name">{{ pack.meta.name }}</h3>
-          <p class="card-summary">{{ pack.meta.narrative }}</p>
-        </div>
-      </div>
+      <div class="banner banner-warning">Sidecar unavailable — design workspaces are unavailable.</div>
     </template>
-
-    <!-- DB available: project list -->
     <template v-else>
+      <button class="back-link" @click="router.push('/design')">&larr; Workspaces</button>
+      <h1 class="page-title">{{ workspace?.name || 'Workspace Projects' }}</h1>
+      <p class="page-desc">{{ workspace?.summary || 'Manage the projects inside this workspace.' }}</p>
       <div class="toolbar">
         <button class="btn btn-primary" @click="showCreateForm = !showCreateForm">
           {{ showCreateForm ? 'Cancel' : 'Create Project' }}
+        </button>
+        <button
+          v-if="junkProjects.length > 0"
+          class="btn btn-secondary"
+          @click="handleCleanJunkProjects"
+          :disabled="cleaningJunk"
+        >
+          {{ cleaningJunk ? 'Cleaning...' : `Clean Test Projects (${junkProjects.length})` }}
         </button>
         <button
           v-if="projects.length === 0 && !loading"
@@ -112,31 +146,40 @@ async function handleSeed() {
 
       <!-- Inline create form -->
       <div v-if="showCreateForm" class="create-form">
-        <div class="form-row">
+        <div class="field-group">
+          <label class="field-label">Project Name</label>
           <input
             v-model="newName"
-            class="form-input"
+            class="form-input form-input-lg"
             placeholder="Project name"
             @keyup.enter="handleCreate"
           />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Domain</label>
           <input
             v-model="newDomain"
-            class="form-input form-input-sm"
-            placeholder="Domain (e.g. travel)"
+            class="form-input"
+            placeholder="Domain (for example: travel, devops, finance)"
           />
         </div>
-        <input
-          v-model="newSummary"
-          class="form-input"
-          placeholder="Summary (optional)"
-        />
-        <button
-          class="btn btn-primary"
-          @click="handleCreate"
-          :disabled="!newName.trim() || creating"
-        >
-          {{ creating ? 'Creating...' : 'Create' }}
-        </button>
+        <div class="field-group">
+          <label class="field-label">Summary</label>
+          <textarea
+            v-model="newSummary"
+            class="form-textarea"
+            placeholder="What problem should this project explore?"
+          ></textarea>
+        </div>
+        <div class="form-actions">
+          <button
+            class="btn btn-primary btn-create"
+            @click="handleCreate"
+            :disabled="!newName.trim() || creating"
+          >
+            {{ creating ? 'Creating...' : 'Create Project' }}
+          </button>
+        </div>
       </div>
 
       <div v-if="loading && projects.length === 0" class="empty-state">
@@ -146,7 +189,7 @@ async function handleSeed() {
       <div v-if="error" class="banner banner-error">{{ error }}</div>
 
       <div v-if="!loading && projects.length === 0 && !error" class="empty-state">
-        No projects yet. Create one or seed from example packs.
+        No projects in this workspace yet. Create one to start shaping services and evaluating scenarios.
       </div>
 
       <div class="pack-grid">
@@ -165,6 +208,13 @@ async function handleSeed() {
             <span v-if="project.labels?.length" class="card-labels">
               <span v-for="label in project.labels" :key="label" class="label-chip">{{ label }}</span>
             </span>
+            <button
+              class="delete-link"
+              :disabled="deletingProjectId !== null || cleaningJunk"
+              @click="handleDeleteProject(project.id, project.name, $event)"
+            >
+              {{ deletingProjectId === project.id ? 'Deleting...' : 'Delete' }}
+            </button>
           </div>
         </div>
       </div>
@@ -175,6 +225,16 @@ async function handleSeed() {
 <style scoped>
 .project-list {
   padding: 2rem;
+}
+
+.back-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 0.75rem;
 }
 
 .page-title {
@@ -256,31 +316,33 @@ async function handleSeed() {
 .create-form {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 1rem;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
+  gap: 16px;
+  padding: 1.5rem;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.03), rgba(15, 23, 42, 0.06));
+  border: 1px solid rgba(59, 130, 246, 0.18);
   border-radius: var(--radius);
   margin-bottom: 1rem;
-  max-width: 480px;
-}
-
-.form-row {
-  display: flex;
-  gap: 8px;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
 }
 
 .form-input {
-  flex: 1;
-  height: 36px;
-  padding: 0 12px;
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
   background: var(--bg-app);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 15px;
   outline: none;
   transition: border-color var(--transition);
+  box-sizing: border-box;
+  line-height: 1.2;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .form-input::placeholder {
@@ -291,8 +353,53 @@ async function handleSeed() {
   border-color: var(--border-focus);
 }
 
-.form-input-sm {
-  max-width: 140px;
+.form-input-lg {
+  min-height: 56px;
+  padding: 14px 18px;
+  font-size: 17px;
+  font-weight: 600;
+  border-width: 2px;
+  line-height: 1.2;
+}
+
+.form-textarea {
+  width: 100%;
+  min-height: 132px;
+  padding: 14px 16px;
+  background: var(--bg-app);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.btn-create {
+  width: auto;
+  min-width: 160px;
 }
 
 .empty-state {
@@ -379,7 +486,9 @@ async function handleSeed() {
 
 .card-meta {
   display: flex;
-  gap: 6px;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -395,5 +504,24 @@ async function handleSeed() {
   border-radius: 8px;
   background: var(--bg-hover);
   color: var(--text-muted);
+}
+
+.delete-link {
+  border: none;
+  background: transparent;
+  color: #ef4444;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.delete-link:hover:not(:disabled) {
+  color: #dc2626;
+}
+
+.delete-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

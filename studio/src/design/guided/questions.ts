@@ -27,6 +27,7 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
         helpText:
           'Describe the deployment target — e.g. "production SaaS", "internal tooling", "embedded in CLI"',
         answerType: 'text',
+        multiline: true,
         fieldMappings: [{ path: 'system.deployment_intent', label: 'Deployment Intent' }],
         defaultValue: '',
       },

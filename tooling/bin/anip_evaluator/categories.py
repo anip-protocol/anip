@@ -71,13 +71,13 @@ def _evaluate_over_budget_safety_obligations(
         if budget_control_supported:
             append_unique(handled, "budget enforcement for over-budget action blocking")
             why.append(
-                "the approach declares budget_enforcement for the budget-sensitive action path"
+                "the current design exposes budget enforcement for the budget-sensitive action path"
             )
         else:
             missing_required = True
             glue.append(
                 "you will still write budget-control enforcement here because the "
-                "approach does not declare budget_enforcement for an over-budget path"
+                "current design does not expose budget enforcement for an over-budget path"
             )
             append_unique(glue_category, "safety")
             if _is_multi_service(req, proposal):
@@ -86,7 +86,7 @@ def _evaluate_over_budget_safety_obligations(
                 )
                 append_unique(glue_category, "orchestration")
             improve.append(
-                "declare budget_enforcement so over-budget blocking is visible in the runtime control surface"
+                "the current design should expose budget enforcement so over-budget blocking is visible in the runtime control surface"
             )
     elif budget_control_supported:
         append_unique(handled, "budget-aware control surface")
@@ -102,17 +102,17 @@ def _evaluate_over_budget_safety_obligations(
         if escalation_supported:
             append_unique(handled, "escalation posture for blocked budget conflicts")
             why.append(
-                "the artifact set requires escalation and the approach declares authority or recovery posture"
+                "the artifact set requires escalation and the current design exposes authority posture or recovery class"
             )
         else:
             missing_required = True
             glue.append(
                 "you will still write blocked-action escalation routing here because the "
-                "requirements require escalation but the approach does not declare authority_posture or recovery_class"
+                "requirements require escalation but the current design does not expose authority posture or recovery class"
             )
             append_unique(glue_category, "orchestration")
             improve.append(
-                "declare authority_posture or recovery_class when blocked budget conflicts must escalate cleanly"
+                "the current design should expose authority posture or recovery class when blocked budget conflicts must escalate cleanly"
             )
     else:
         improve.append(
@@ -200,19 +200,19 @@ def evaluate_safety(
             if psurfaces.get("budget_enforcement"):
                 append_unique(handled, "budget enforcement for spending-possible system")
             else:
-                improve.append("declare budget_enforcement surface for spending-possible system")
+                improve.append("the current design should expose budget enforcement for a spending-possible system")
 
     if bc.get("approval_expected_for_high_risk"):
         if psurfaces.get("authority_posture"):
             append_unique(handled, "authority posture for high-risk approval expectations")
         else:
-            improve.append("declare authority_posture surface for approval-expected system")
+            improve.append("the current design should expose authority posture for an approval-expected system")
 
     if bc.get("cost_visibility_required"):
         if psurfaces.get("budget_enforcement"):
             append_unique(handled, "cost visibility via budget enforcement")
         else:
-            improve.append("declare budget_enforcement surface for cost-visibility-required system")
+            improve.append("the current design should expose budget enforcement for a cost-visibility-required system")
 
     if result != "HANDLED" and not glue:
         result = "PARTIAL"
@@ -330,7 +330,7 @@ def evaluate_orchestration(
 
     if missing_surfaces:
         glue.append(
-            "the approach does not declare "
+            "the current design does not expose "
             f"{', '.join(missing_surfaces)} — agents must discover these "
             "paths through docs or wrapper logic"
         )
@@ -471,7 +471,7 @@ def evaluate_cross_service(
 
     if missing_surfaces:
         glue.append(
-            "the approach does not declare "
+            "the current design does not expose "
             f"{', '.join(missing_surfaces)} — agents must discover these "
             "paths through docs or wrapper logic"
         )
@@ -644,14 +644,14 @@ def evaluate_recovery(
         if psurfaces.get("recovery_class"):
             append_unique(handled, "recovery class guidance for recovery-sensitive system")
         else:
-            improve.append("declare recovery_class surface for recovery-sensitive system")
+            improve.append("the current design should expose recovery class for a recovery-sensitive system")
 
     posture = bc.get("blocked_failure_posture")
     if posture and posture != "not_specified":
         if psurfaces.get("recovery_class"):
             append_unique(handled, f"recovery class aligns with declared failure posture ({posture})")
         else:
-            improve.append(f"declare recovery_class surface for system with {posture} failure posture")
+            improve.append(f"the current design should expose recovery class for a system with {posture} failure posture")
 
     if not glue:
         glue.append(

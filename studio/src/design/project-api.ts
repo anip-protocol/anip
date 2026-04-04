@@ -1,14 +1,18 @@
 import type {
+  WorkspaceSummary,
+  WorkspaceDetail,
   ProjectSummary,
   ProjectDetail,
   ArtifactRecord,
   RequirementsRecord,
   ProposalRecord,
+  ShapeRecord,
   EvaluationRecord,
   VocabularyEntry,
   CreateProject,
   ImportResult,
 } from './project-types'
+import type { DerivedExpectation } from './shape-types'
 
 // ---------------------------------------------------------------------------
 // Core fetch wrapper
@@ -36,11 +40,35 @@ async function api<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // ---------------------------------------------------------------------------
+// Workspaces
+// ---------------------------------------------------------------------------
+
+export function listWorkspaces(): Promise<WorkspaceDetail[]> {
+  return api<WorkspaceDetail[]>('/api/workspaces')
+}
+
+export function getWorkspace(id: string): Promise<WorkspaceDetail> {
+  return api<WorkspaceDetail>(`/api/workspaces/${id}`)
+}
+
+export function createWorkspace(payload: { id: string; name: string; summary?: string }): Promise<WorkspaceSummary> {
+  return api<WorkspaceSummary>('/api/workspaces', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteWorkspace(id: string): Promise<void> {
+  return api<void>(`/api/workspaces/${id}`, { method: 'DELETE' })
+}
+
+// ---------------------------------------------------------------------------
 // Projects
 // ---------------------------------------------------------------------------
 
-export function listProjects(): Promise<ProjectSummary[]> {
-  return api<ProjectSummary[]>('/api/projects')
+export function listProjects(workspaceId?: string): Promise<ProjectSummary[]> {
+  const qs = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : ''
+  return api<ProjectSummary[]>(`/api/projects${qs}`)
 }
 
 export function getProject(id: string): Promise<ProjectDetail> {
@@ -212,9 +240,10 @@ export function createEvaluation(
   projectId: string,
   payload: {
     id: string
-    proposal_id: string
+    proposal_id?: string | null
     scenario_id: string
     requirements_id: string
+    shape_id?: string | null
     source?: string
     data: Record<string, any>
     input_snapshot: Record<string, any>
@@ -228,6 +257,51 @@ export function createEvaluation(
 
 export function deleteEvaluation(projectId: string, id: string): Promise<void> {
   return api<void>(`/api/projects/${projectId}/evaluations/${id}`, { method: 'DELETE' })
+}
+
+// ---------------------------------------------------------------------------
+// Shapes
+// ---------------------------------------------------------------------------
+
+export function listShapes(projectId: string): Promise<ShapeRecord[]> {
+  return api<ShapeRecord[]>(`/api/projects/${projectId}/shapes`)
+}
+
+export function getShape(projectId: string, id: string): Promise<ShapeRecord> {
+  return api<ShapeRecord>(`/api/projects/${projectId}/shapes/${id}`)
+}
+
+export function createShape(
+  projectId: string,
+  payload: { id: string; title: string; requirements_id: string; data: Record<string, any> },
+): Promise<ShapeRecord> {
+  return api<ShapeRecord>(`/api/projects/${projectId}/shapes`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateShape(
+  projectId: string,
+  id: string,
+  payload: Partial<{ title: string; status: string; data: Record<string, any> }>,
+): Promise<ShapeRecord> {
+  return api<ShapeRecord>(`/api/projects/${projectId}/shapes/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteShape(projectId: string, id: string): Promise<void> {
+  return api<void>(`/api/projects/${projectId}/shapes/${id}`, { method: 'DELETE' })
+}
+
+export async function getShapeExpectations(
+  projectId: string,
+  id: string,
+): Promise<DerivedExpectation[]> {
+  const resp = await api<{ expectations: DerivedExpectation[] }>(`/api/projects/${projectId}/shapes/${id}/expectations`)
+  return resp.expectations
 }
 
 // ---------------------------------------------------------------------------

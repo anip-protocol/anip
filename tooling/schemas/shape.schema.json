@@ -1,0 +1,60 @@
+{
+  "type": "object",
+  "required": ["shape"],
+  "properties": {
+    "shape": {
+      "type": "object",
+      "required": ["id", "name", "type", "services"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "enum": ["single_service", "multi_service"] },
+        "notes": { "type": "array", "items": { "type": "string" } },
+        "services": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "role"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "role": { "type": "string" },
+              "responsibilities": { "type": "array", "items": { "type": "string" } },
+              "capabilities": { "type": "array", "items": { "type": "string" } },
+              "owns_concepts": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "coordination": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["from", "to", "relationship"],
+            "properties": {
+              "from": { "type": "string" },
+              "to": { "type": "string" },
+              "relationship": { "type": "string", "enum": ["handoff", "verification", "async_followup"] },
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "domain_concepts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "meaning"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "meaning": { "type": "string" },
+              "owner": { "type": "string" },
+              "sensitivity": { "type": "string", "enum": ["none", "medium", "high"] },
+              "risk_note": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

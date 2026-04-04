@@ -9,11 +9,39 @@ from pydantic import BaseModel, Field
 
 
 # ---------------------------------------------------------------------------
+# Workspaces
+# ---------------------------------------------------------------------------
+
+class CreateWorkspace(BaseModel):
+    id: str
+    name: str
+    summary: str = ""
+
+
+class UpdateWorkspace(BaseModel):
+    name: Optional[str] = None
+    summary: Optional[str] = None
+
+
+class WorkspaceOut(BaseModel):
+    id: str
+    name: str
+    summary: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class WorkspaceDetail(WorkspaceOut):
+    projects_count: int
+
+
+# ---------------------------------------------------------------------------
 # Projects
 # ---------------------------------------------------------------------------
 
 class CreateProject(BaseModel):
     id: str
+    workspace_id: Optional[str] = None
     name: str
     summary: str = ""
     domain: str = ""
@@ -29,6 +57,7 @@ class UpdateProject(BaseModel):
 
 class ProjectOut(BaseModel):
     id: str
+    workspace_id: str
     name: str
     summary: str
     domain: str
@@ -42,6 +71,7 @@ class ProjectDetail(ProjectOut):
     scenarios_count: int
     proposals_count: int
     evaluations_count: int
+    shapes_count: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -88,14 +118,36 @@ class ProposalOut(ArtifactOut):
 
 
 # ---------------------------------------------------------------------------
+# Shapes
+# ---------------------------------------------------------------------------
+
+class CreateShape(BaseModel):
+    id: str
+    title: str
+    requirements_id: str
+    data: dict
+
+
+class UpdateShape(BaseModel):
+    title: Optional[str] = None
+    status: Optional[str] = None
+    data: Optional[dict] = None
+
+
+class ShapeOut(ArtifactOut):
+    requirements_id: str
+
+
+# ---------------------------------------------------------------------------
 # Evaluations
 # ---------------------------------------------------------------------------
 
 class CreateEvaluation(BaseModel):
     id: str
-    proposal_id: str
+    proposal_id: Optional[str] = None
     scenario_id: str
     requirements_id: str
+    shape_id: Optional[str] = None
     source: str = "manual"
     data: dict
     input_snapshot: dict
@@ -104,9 +156,10 @@ class CreateEvaluation(BaseModel):
 class EvaluationOut(BaseModel):
     id: str
     project_id: str
-    proposal_id: str
+    proposal_id: Optional[str] = None
     scenario_id: str
     requirements_id: str
+    shape_id: Optional[str] = None
     result: str
     source: str
     data: dict
@@ -114,6 +167,8 @@ class EvaluationOut(BaseModel):
     requirements_hash: str = ""
     proposal_hash: str = ""
     scenario_hash: str = ""
+    shape_hash: str = ""
+    derived_expectations: Optional[list] = None
     is_stale: bool = False
     stale_artifacts: list[str] = Field(default_factory=list)
     created_at: datetime

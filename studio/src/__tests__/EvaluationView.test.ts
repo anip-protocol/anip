@@ -145,20 +145,20 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('EvaluationView', () => {
-  describe('Run Validation button visibility', () => {
-    it('hides "Run Validation" button when apiAvailable is false', async () => {
+  describe('Evaluate This Design button visibility', () => {
+    it('hides the evaluation button when apiAvailable is false', async () => {
       designStore.apiAvailable = false
       const { wrapper } = await mountView()
 
       expect(wrapper.find('.run-btn').exists()).toBe(false)
     })
 
-    it('shows "Run Validation" button when apiAvailable is true', async () => {
+    it('shows "Evaluate This Design" when apiAvailable is true', async () => {
       designStore.apiAvailable = true
       const { wrapper } = await mountView()
 
       expect(wrapper.find('.run-btn').exists()).toBe(true)
-      expect(wrapper.find('.run-btn').text()).toBe('Run Validation')
+      expect(wrapper.find('.run-btn').text()).toBe('Evaluate This Design')
     })
   })
 

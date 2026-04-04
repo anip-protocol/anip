@@ -25,7 +25,7 @@ function onSelectChange(event: Event) {
 
 function onTextInput(event: Event) {
   if (props.readonly) return
-  emit('update:modelValue', (event.target as HTMLInputElement).value)
+  emit('update:modelValue', (event.target as HTMLInputElement | HTMLTextAreaElement).value)
 }
 </script>
 
@@ -73,7 +73,17 @@ function onTextInput(event: Event) {
       </template>
 
       <template v-else-if="question.answerType === 'text'">
+        <textarea
+          v-if="question.multiline"
+          class="form-textarea"
+          :value="modelValue"
+          :disabled="readonly"
+          :placeholder="question.helpText ?? ''"
+          rows="4"
+          @input="onTextInput"
+        ></textarea>
         <input
+          v-else
           class="form-input"
           type="text"
           :value="modelValue"
@@ -189,7 +199,8 @@ function onTextInput(event: Event) {
   cursor: default;
 }
 
-.form-input {
+.form-input,
+.form-textarea {
   font-size: 13px;
   padding: 6px 10px;
   background: var(--bg-input);
@@ -202,7 +213,15 @@ function onTextInput(event: Event) {
   box-sizing: border-box;
 }
 
-.form-input:disabled {
+.form-textarea {
+  min-height: 92px;
+  resize: vertical;
+  line-height: 1.45;
+  font-family: inherit;
+}
+
+.form-input:disabled,
+.form-textarea:disabled {
   opacity: 0.5;
   cursor: default;
 }
