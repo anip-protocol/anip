@@ -18,6 +18,23 @@ export async function fetchManifest(baseUrl: string) {
   return { manifest: body, signature }
 }
 
+export async function issueToken(
+  baseUrl: string,
+  bearer: string,
+  payload: Record<string, any>,
+): Promise<any> {
+  const res = await fetch(`${baseUrl}/anip/tokens`, {
+    method: 'POST',
+    headers: headers(bearer),
+    body: JSON.stringify(payload),
+  })
+  const contentType = res.headers.get('content-type') || ''
+  if (contentType.includes('application/json')) {
+    return res.json()
+  }
+  throw new Error(`Issue token: ${res.status} (non-JSON response)`)
+}
+
 export async function fetchJwks(baseUrl: string) {
   const res = await fetch(`${baseUrl}/.well-known/jwks.json`)
   if (!res.ok) throw new Error(`JWKS: ${res.status}`)

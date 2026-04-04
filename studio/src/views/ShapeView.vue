@@ -2,9 +2,10 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { projectStore, loadProject, refreshArtifacts, setActiveShape } from '../design/project-store'
-import { getShape, updateShape, getShapeExpectations } from '../design/project-api'
-import type { ShapeRecord } from '../design/project-types'
+import { getShape, updateShape, getShapeExpectations, explainShapeWithAssistant } from '../design/project-api'
+import type { ShapeRecord, AssistantExplanation } from '../design/project-types'
 import type { ShapeData, ShapeService, CoordinationEdge, DomainConcept, DerivedExpectation } from '../design/shape-types'
+import StudioAssistantPanel from '../design/components/StudioAssistantPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -24,6 +25,9 @@ const saving = ref(false)
 const saveError = ref<string | null>(null)
 const expectations = ref<DerivedExpectation[]>([])
 const expectationsLoading = ref(false)
+const assistantLoading = ref(false)
+const assistantError = ref<string | null>(null)
+const assistantExplanation = ref<AssistantExplanation | null>(null)
 
 const isEditing = computed(() => shape.value?.status === 'draft')
 
@@ -128,6 +132,19 @@ function sensitivityLabel(s: string | undefined): string {
   if (s === 'high') return 'High'
   return s
 }
+
+async function handleExplainShape(question: string) {
+  if (!projectId.value || !shapeId.value) return
+  assistantLoading.value = true
+  assistantError.value = null
+  try {
+    assistantExplanation.value = await explainShapeWithAssistant(projectId.value, shapeId.value, question)
+  } catch (err) {
+    assistantError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    assistantLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -153,6 +170,16 @@ function sensitivityLabel(s: string | undefined): string {
           <span class="meta-date">Updated {{ formatDate(shape.updated_at) }}</span>
         </div>
       </div>
+
+      <StudioAssistantPanel
+        title="Explain This Shape"
+        description="Ask Studio to explain what this shape is optimizing for, which ANIP semantics it expects to expose, and what looks weak or incomplete."
+        button-label="Explain This Shape"
+        :explanation="assistantExplanation"
+        :loading="assistantLoading"
+        :error="assistantError"
+        @run="handleExplainShape"
+      />
 
       <!-- Editor toolbar -->
       <div class="toolbar" v-if="isEditing">

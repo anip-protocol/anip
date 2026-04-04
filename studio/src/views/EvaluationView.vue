@@ -3,8 +3,10 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { designStore, setActivePack, runLiveValidation, composeDraftProposal } from '../design/store'
 import { loadProject, projectStore, refreshArtifacts } from '../design/project-store'
-import { createEvaluation } from '../design/project-api'
+import { createEvaluation, explainEvaluationWithAssistant } from '../design/project-api'
+import type { AssistantExplanation } from '../design/project-types'
 import { runShapeValidation, runValidation } from '../design/api'
+import StudioAssistantPanel from '../design/components/StudioAssistantPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -199,6 +201,9 @@ function clearLive() {
 // --- Re-evaluate stale stored evaluations ---
 const reEvaluating = ref(false)
 const reEvaluateError = ref<string | null>(null)
+const assistantLoading = ref(false)
+const assistantError = ref<string | null>(null)
+const assistantExplanation = ref<AssistantExplanation | null>(null)
 
 const isStoredStale = computed(() =>
   isProjectMode.value &&
@@ -292,6 +297,19 @@ function categoryColor(cat: string): string {
   }
   return colors[cat] || 'var(--text-muted)'
 }
+
+async function handleExplainEvaluation(question: string) {
+  if (!isProjectMode.value || !projectRecord.value || !projectId.value) return
+  assistantLoading.value = true
+  assistantError.value = null
+  try {
+    assistantExplanation.value = await explainEvaluationWithAssistant(projectId.value, projectRecord.value.id, question)
+  } catch (err) {
+    assistantError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    assistantLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -368,6 +386,17 @@ function categoryColor(cat: string): string {
     </div>
 
     <template v-if="evaluation">
+      <StudioAssistantPanel
+        v-if="isProjectMode && projectRecord"
+        title="Explain This Evaluation"
+        description="Ask Studio to explain the result in plain terms, highlight the main support gaps, and point to the next design moves."
+        button-label="Explain This Evaluation"
+        :explanation="assistantExplanation"
+        :loading="assistantLoading"
+        :error="assistantError"
+        @run="handleExplainEvaluation"
+      />
+
       <!-- Result badge -->
       <div class="result-badge" :class="'result-' + evaluation.result.toLowerCase().replace('_', '-')">
         {{ evaluation.result }}

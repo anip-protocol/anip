@@ -30,8 +30,8 @@ services:
 
   studio-web:
     build:
-      context: ..
-      dockerfile: studio/Dockerfile.standalone
+      context: .
+      dockerfile: Dockerfile.standalone
     ports:
       - "8080:8080"
     depends_on:

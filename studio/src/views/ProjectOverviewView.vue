@@ -17,9 +17,12 @@ import {
   createScenario,
   createShape,
   exportProject,
+  interpretProjectIntentWithAssistant,
   importArtifacts,
   setRequirementsRole,
 } from '../design/project-api'
+import type { IntentInterpretation } from '../design/project-types'
+import StudioIntentPanel from '../design/components/StudioIntentPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -51,6 +54,9 @@ const exporting = ref(false)
 const creating = ref<'requirements' | 'scenario' | 'proposal' | 'shape' | null>(null)
 const promotingId = ref<string | null>(null)
 const showAlternatives = ref(false)
+const intentLoading = ref(false)
+const intentError = ref<string | null>(null)
+const intentInterpretation = ref<IntentInterpretation | null>(null)
 
 const primaryRequirements = computed(() =>
   requirements.value.filter(r => r.role === 'primary'),
@@ -401,6 +407,19 @@ async function handleCreateShape() {
     creating.value = null
   }
 }
+
+async function handleInterpretIntent(intent: string) {
+  if (!projectId.value || !intent) return
+  intentLoading.value = true
+  intentError.value = null
+  try {
+    intentInterpretation.value = await interpretProjectIntentWithAssistant(projectId.value, intent)
+  } catch (err) {
+    intentError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    intentLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -422,6 +441,15 @@ async function handleCreateShape() {
       </div>
 
       <section class="flow-section" id="overview">
+        <StudioIntentPanel
+          title="Start from Plain Language"
+          description="Describe what you want to build in normal language. Studio will suggest the first requirements pressure, scenario starters, domain concepts, and service-shape direction."
+          :result="intentInterpretation"
+          :loading="intentLoading"
+          :error="intentError"
+          @run="handleInterpretIntent"
+        />
+
         <div class="flow-intro">
           <h2 class="section-title">Design Flow</h2>
           <p class="section-desc">Shape the service in one clear loop: define what matters, model the service, then evaluate whether it will work.</p>
