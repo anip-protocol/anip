@@ -127,24 +127,32 @@ async function handleCleanWorkspaces() {
       </div>
 
       <div v-if="showCreateForm" class="create-form">
-        <input
-          v-model="newName"
-          class="form-input"
-          placeholder="Workspace name"
-          @keyup.enter="handleCreate"
-        />
-        <input
-          v-model="newSummary"
-          class="form-input"
-          placeholder="Summary (optional)"
-        />
-        <button
-          class="btn btn-primary"
-          @click="handleCreate"
-          :disabled="!newName.trim() || creating"
-        >
-          {{ creating ? 'Creating...' : 'Create Workspace' }}
-        </button>
+        <div class="field-group">
+          <label class="field-label">Workspace Name</label>
+          <input
+            v-model="newName"
+            class="form-input form-input-lg"
+            placeholder="Workspace name"
+            @keyup.enter="handleCreate"
+          />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Summary</label>
+          <textarea
+            v-model="newSummary"
+            class="form-textarea"
+            placeholder="What kind of projects should live in this workspace?"
+          ></textarea>
+        </div>
+        <div class="form-actions">
+          <button
+            class="btn btn-primary btn-create"
+            @click="handleCreate"
+            :disabled="!newName.trim() || creating"
+          >
+            {{ creating ? 'Creating...' : 'Create Workspace' }}
+          </button>
+        </div>
       </div>
 
       <div v-if="loading && workspaces.length === 0" class="empty-state">Loading workspaces...</div>
@@ -255,25 +263,82 @@ async function handleCleanWorkspaces() {
 .create-form {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 1rem;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
+  gap: 16px;
+  padding: 1.5rem;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.03), rgba(15, 23, 42, 0.06));
+  border: 1px solid rgba(59, 130, 246, 0.18);
   border-radius: var(--radius);
-  margin-bottom: 1rem;
-  max-width: 480px;
+  margin: 0 0 1.25rem;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
 }
 
 .form-input {
-  flex: 1;
-  height: 36px;
-  padding: 0 12px;
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
   background: var(--bg-app);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 15px;
   outline: none;
+  box-sizing: border-box;
+  line-height: 1.2;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.form-input-lg {
+  min-height: 56px;
+  padding: 14px 18px;
+  font-size: 17px;
+  font-weight: 600;
+  border-width: 2px;
+  line-height: 1.2;
+}
+
+.form-textarea {
+  width: 100%;
+  min-height: 148px;
+  padding: 14px 16px;
+  background: var(--bg-app);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.btn-create {
+  width: auto;
+  min-width: 168px;
+  height: 38px;
 }
 
 .empty-state {

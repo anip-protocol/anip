@@ -151,6 +151,7 @@ export const SCENARIO_GUIDED_SECTIONS: GuidedSection[] = [
         helpText:
           'e.g. "An agent is helping a user book travel within a budget, but the selected flight exceeds the budget limit."',
         answerType: 'text',
+        multiline: true,
         fieldMappings: [{ path: 'scenario.narrative', label: 'scenario.narrative' }],
         defaultValue: '',
       },

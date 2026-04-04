@@ -168,12 +168,13 @@ function sensitivityLabel(s: string | undefined): string {
         <div v-if="shapeData.notes && shapeData.notes.length > 0" class="notes-list">
           <div v-for="(note, i) in shapeData.notes" :key="i" class="note-item">
             <template v-if="isEditing">
-              <input
+              <textarea
                 class="note-input"
                 :value="note"
-                @input="updateNote(i, ($event.target as HTMLInputElement).value)"
+                rows="3"
+                @input="updateNote(i, ($event.target as HTMLTextAreaElement).value)"
                 placeholder="Design rationale..."
-              />
+              ></textarea>
               <button class="remove-btn" @click="removeNote(i)" title="Remove note">&times;</button>
             </template>
             <span v-else class="note-text">{{ note }}</span>
@@ -481,7 +482,7 @@ function sensitivityLabel(s: string | undefined): string {
 
 .note-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
 }
 
@@ -493,8 +494,8 @@ function sensitivityLabel(s: string | undefined): string {
 
 .note-input {
   flex: 1;
-  height: 32px;
-  padding: 0 10px;
+  min-height: 76px;
+  padding: 10px 12px;
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -502,6 +503,10 @@ function sensitivityLabel(s: string | undefined): string {
   font-size: 13px;
   outline: none;
   transition: border-color var(--transition);
+  line-height: 1.45;
+  resize: vertical;
+  font-family: inherit;
+  box-sizing: border-box;
 }
 
 .note-input:focus {

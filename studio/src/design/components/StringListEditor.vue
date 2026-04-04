@@ -27,13 +27,13 @@ function addItem() {
 <template>
   <div class="sl-editor">
     <div class="sl-row" v-for="(item, i) in modelValue" :key="i">
-      <input
+      <textarea
         class="sl-input"
-        type="text"
         :value="item"
-        @input="updateItem(i, ($event.target as HTMLInputElement).value)"
+        rows="2"
+        @input="updateItem(i, ($event.target as HTMLTextAreaElement).value)"
         placeholder="Enter value..."
-      />
+      ></textarea>
       <button class="sl-delete" @click="removeItem(i)" type="button" title="Remove item">
         &#x2715;
       </button>
@@ -54,7 +54,7 @@ function addItem() {
 
 .sl-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
 }
 
@@ -62,12 +62,17 @@ function addItem() {
   flex: 1;
   min-width: 0;
   font-size: 13px;
-  padding: 6px 10px;
+  min-height: 56px;
+  padding: 10px 12px;
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   outline: none;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.45;
+  box-sizing: border-box;
 }
 
 .sl-input:focus {
