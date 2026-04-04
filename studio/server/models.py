@@ -139,7 +139,7 @@ class EvaluationOut(BaseModel):
     proposal_hash: str = ""
     scenario_hash: str = ""
     shape_hash: str = ""
-    derived_expectations: Optional[dict] = None
+    derived_expectations: Optional[list] = None
     is_stale: bool = False
     stale_artifacts: list[str] = Field(default_factory=list)
     created_at: datetime

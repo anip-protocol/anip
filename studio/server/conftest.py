@@ -31,6 +31,7 @@ def client():
         with get_pool().connection() as conn:
             # Truncate in dependency order (children before parents)
             conn.execute("DELETE FROM evaluations")
+            conn.execute("DELETE FROM shapes")
             conn.execute("DELETE FROM proposals")
             conn.execute("DELETE FROM scenarios")
             conn.execute("DELETE FROM requirements_sets")
