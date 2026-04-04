@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { projectStore, checkDbAvailable, loadProjects, seedDb } from '../design/project-store'
-import { createProject } from '../design/project-api'
+import { createProject, deleteProject } from '../design/project-api'
 import { PACKS } from '../design/data/packs.generated'
 
 const router = useRouter()
@@ -12,11 +12,21 @@ const newName = ref('')
 const newDomain = ref('')
 const newSummary = ref('')
 const creating = ref(false)
+const deletingProjectId = ref<string | null>(null)
+const cleaningJunk = ref(false)
 
 const dbAvailable = computed(() => projectStore.dbAvailable)
 const projects = computed(() => projectStore.projects)
 const loading = computed(() => projectStore.loading)
 const error = computed(() => projectStore.error)
+const junkProjects = computed(() =>
+  projects.value.filter(project =>
+    project.id.startsWith('proj-') &&
+    !project.domain &&
+    !project.summary &&
+    (!project.labels || project.labels.length === 0),
+  ),
+)
 
 onMounted(async () => {
   await checkDbAvailable()
@@ -61,12 +71,44 @@ async function handleCreate() {
 async function handleSeed() {
   await seedDb()
 }
+
+async function handleDeleteProject(projectId: string, projectName: string, event: Event) {
+  event.stopPropagation()
+  if (!window.confirm(`Delete project "${projectName}"? This will remove its requirements, scenarios, shapes, and evaluations.`)) {
+    return
+  }
+
+  deletingProjectId.value = projectId
+  try {
+    await deleteProject(projectId)
+    await loadProjects()
+  } finally {
+    deletingProjectId.value = null
+  }
+}
+
+async function handleCleanJunkProjects() {
+  if (junkProjects.value.length === 0) return
+  if (!window.confirm(`Delete ${junkProjects.value.length} test projects from the local Studio database?`)) {
+    return
+  }
+
+  cleaningJunk.value = true
+  try {
+    for (const project of junkProjects.value) {
+      await deleteProject(project.id)
+    }
+    await loadProjects()
+  } finally {
+    cleaningJunk.value = false
+  }
+}
 </script>
 
 <template>
   <div class="project-list">
     <h1 class="page-title">Projects</h1>
-    <p class="page-desc">Manage your ANIP design projects or explore example packs.</p>
+    <p class="page-desc">Manage your ANIP design projects, clean out test clutter, or load showcase examples people can explore.</p>
 
     <!-- Sidecar unavailable banner + read-only pack cards -->
     <template v-if="!dbAvailable">
@@ -99,6 +141,14 @@ async function handleSeed() {
       <div class="toolbar">
         <button class="btn btn-primary" @click="showCreateForm = !showCreateForm">
           {{ showCreateForm ? 'Cancel' : 'Create Project' }}
+        </button>
+        <button
+          v-if="junkProjects.length > 0"
+          class="btn btn-secondary"
+          @click="handleCleanJunkProjects"
+          :disabled="cleaningJunk"
+        >
+          {{ cleaningJunk ? 'Cleaning...' : `Clean Test Projects (${junkProjects.length})` }}
         </button>
         <button
           v-if="projects.length === 0 && !loading"
@@ -165,6 +215,13 @@ async function handleSeed() {
             <span v-if="project.labels?.length" class="card-labels">
               <span v-for="label in project.labels" :key="label" class="label-chip">{{ label }}</span>
             </span>
+            <button
+              class="delete-link"
+              :disabled="deletingProjectId !== null || cleaningJunk"
+              @click="handleDeleteProject(project.id, project.name, $event)"
+            >
+              {{ deletingProjectId === project.id ? 'Deleting...' : 'Delete' }}
+            </button>
           </div>
         </div>
       </div>
@@ -379,7 +436,9 @@ async function handleSeed() {
 
 .card-meta {
   display: flex;
-  gap: 6px;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -395,5 +454,24 @@ async function handleSeed() {
   border-radius: 8px;
   background: var(--bg-hover);
   color: var(--text-muted);
+}
+
+.delete-link {
+  border: none;
+  background: transparent;
+  color: #ef4444;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.delete-link:hover:not(:disabled) {
+  color: #dc2626;
+}
+
+.delete-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

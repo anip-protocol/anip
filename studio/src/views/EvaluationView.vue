@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { designStore, setActivePack, runLiveValidation, composeDraftProposal } from '../design/store'
 import { loadProject, projectStore, refreshArtifacts } from '../design/project-store'
 import { createEvaluation } from '../design/project-api'
-import { runValidation } from '../design/api'
+import { runShapeValidation, runValidation } from '../design/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -106,21 +106,26 @@ async function saveToProject() {
     const proposalRecord = projectStore.artifacts.proposals.find(
       p => p.id === projectStore.activeProposalId,
     )
+    const shapeRecord = projectStore.activeShapeId
+      ? projectStore.artifacts.shapes.find(s => s.id === projectStore.activeShapeId)
+      : null
 
     const inputSnapshot: Record<string, any> = {}
     const requirements = designStore.draftRequirements ?? requirementsRecord?.data
     const scenario = designStore.draftScenario ?? projectScenario.value?.data
-    const proposal = composeDraftProposal() ?? proposalRecord?.data
+    const proposal = shapeRecord ? null : (composeDraftProposal() ?? proposalRecord?.data)
+    const shape = shapeRecord?.data
 
     if (requirements) inputSnapshot.requirements = JSON.parse(JSON.stringify(requirements))
     if (scenario) inputSnapshot.scenario = JSON.parse(JSON.stringify(scenario))
     if (proposal) inputSnapshot.proposal = JSON.parse(JSON.stringify(proposal))
+    if (shape) inputSnapshot.shape = JSON.parse(JSON.stringify(shape))
 
     const scenarioId = route.params.id as string
     const evalId = crypto.randomUUID()
 
     // Shape-first: use shape_id when available, fall back to proposal_id
-    const useShape = !!projectStore.activeShapeId
+    const useShape = !!shapeRecord
 
     await createEvaluation(projectStore.activeProject.id, {
       id: evalId,
@@ -149,7 +154,7 @@ async function handleRunValidation() {
   }
 
   if (!projectStore.activeRequirementsId || (!projectStore.activeProposalId && !projectStore.activeShapeId) || !projectScenario.value) {
-    designStore.validationError = 'Select a requirements set, shape or approach, and scenario before validation.'
+    designStore.validationError = 'Choose a requirements set, scenario, and shape or approach before evaluating.'
     return
   }
 
@@ -159,9 +164,12 @@ async function handleRunValidation() {
   const proposalRecord = projectStore.activeProposalId
     ? projectStore.artifacts.proposals.find(p => p.id === projectStore.activeProposalId)
     : null
+  const shapeRecord = projectStore.activeShapeId
+    ? projectStore.artifacts.shapes.find(s => s.id === projectStore.activeShapeId)
+    : null
   const scenarioRecord = projectScenario.value
 
-  if (!requirementsRecord) {
+  if (!requirementsRecord || (projectStore.activeShapeId && !shapeRecord)) {
     designStore.validationError = 'Active design context is incomplete.'
     return
   }
@@ -171,8 +179,9 @@ async function handleRunValidation() {
   try {
     const requirements = designStore.draftRequirements ?? requirementsRecord.data
     const scenario = designStore.draftScenario ?? scenarioRecord.data
-    const proposal = composeDraftProposal() ?? proposalRecord?.data ?? {}
-    const result = await runValidation(requirements, proposal, scenario)
+    const result = shapeRecord
+      ? await runShapeValidation(requirements, shapeRecord.data, scenario)
+      : await runValidation(requirements, composeDraftProposal() ?? proposalRecord?.data ?? {}, scenario)
     designStore.liveEvaluation = result
   } catch (err: any) {
     designStore.validationError = err.message ?? 'Unknown error'
@@ -219,6 +228,9 @@ async function handleReEvaluate() {
   const propRecord = stored.proposal_id
     ? projectStore.artifacts.proposals.find(p => p.id === stored.proposal_id)
     : null
+  const shapeRecord = stored.shape_id
+    ? projectStore.artifacts.shapes.find(s => s.id === stored.shape_id)
+    : null
   const scnRecord = projectStore.artifacts.scenarios.find(s => s.id === stored.scenario_id)
 
   if (!reqRecord || !scnRecord) {
@@ -226,8 +238,7 @@ async function handleReEvaluate() {
     return
   }
 
-  // Must have either proposal or shape
-  if (!propRecord && !stored.shape_id) {
+  if (!propRecord && !shapeRecord) {
     reEvaluateError.value = 'Could not find linked approach or shape for re-evaluation.'
     return
   }
@@ -237,14 +248,18 @@ async function handleReEvaluate() {
   try {
     const requirements = reqRecord.data
     const scenario = scnRecord.data
-    const proposal = propRecord?.data ?? {}
-
-    const result = await runValidation(requirements, proposal, scenario)
+    const result = shapeRecord
+      ? await runShapeValidation(requirements, shapeRecord.data, scenario)
+      : await runValidation(requirements, propRecord?.data ?? {}, scenario)
 
     const inputSnapshot: Record<string, any> = {
       requirements: JSON.parse(JSON.stringify(requirements)),
       scenario: JSON.parse(JSON.stringify(scenario)),
-      proposal: JSON.parse(JSON.stringify(proposal)),
+    }
+    if (shapeRecord) {
+      inputSnapshot.shape = JSON.parse(JSON.stringify(shapeRecord.data))
+    } else if (propRecord) {
+      inputSnapshot.proposal = JSON.parse(JSON.stringify(propRecord.data))
     }
 
     const evalId = crypto.randomUUID()
@@ -292,7 +307,7 @@ function categoryColor(cat: string): string {
           v-if="designStore.apiAvailable && !designStore.validating"
           class="run-btn"
           @click="handleRunValidation"
-        >Run Validation</button>
+        >Evaluate This Design</button>
         <span v-if="designStore.validating" class="spinner"></span>
         <button
           v-if="isLive"
@@ -349,7 +364,7 @@ function categoryColor(cat: string): string {
     </div>
 
     <div v-if="!hasEvaluationResult" class="empty-evaluation">
-      No evaluation result yet. Run validation to evaluate this scenario against the active design context.
+      No evaluation yet. Use Evaluate This Design to see what this shape supports, what still needs custom work, and what should change next.
     </div>
 
     <template v-if="evaluation">

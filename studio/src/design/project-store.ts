@@ -41,6 +41,7 @@ interface ProjectState {
   }
   vocabulary: VocabularyEntry[]
   activeRequirementsId: string | null
+  activeScenarioId: string | null
   activeProposalId: string | null
   activeShapeId: string | null
   loading: boolean
@@ -60,6 +61,7 @@ export const projectStore = reactive<ProjectState>({
   },
   vocabulary: [],
   activeRequirementsId: null,
+  activeScenarioId: null,
   activeProposalId: null,
   activeShapeId: null,
   loading: false,
@@ -97,6 +99,13 @@ function revalidateActiveIds(): void {
   }
 
   if (
+    projectStore.activeScenarioId !== null &&
+    !projectStore.artifacts.scenarios.some(s => s.id === projectStore.activeScenarioId)
+  ) {
+    projectStore.activeScenarioId = null
+  }
+
+  if (
     projectStore.activeProposalId !== null &&
     !projectStore.artifacts.proposals.some(p => p.id === projectStore.activeProposalId)
   ) {
@@ -121,17 +130,24 @@ function revalidateActiveIds(): void {
  * proposal if no shapes exist (legacy project).
  */
 function autoSelectActiveIds(): void {
-  if (projectStore.artifacts.requirements.length === 1) {
-    projectStore.activeRequirementsId = projectStore.artifacts.requirements[0].id
+  if (projectStore.activeRequirementsId === null) {
+    const primary = projectStore.artifacts.requirements.find(r => r.role === 'primary')
+    if (primary) {
+      projectStore.activeRequirementsId = primary.id
+    } else if (projectStore.artifacts.requirements.length === 1) {
+      projectStore.activeRequirementsId = projectStore.artifacts.requirements[0].id
+    }
   }
 
-  // Shape-first: prefer shapes over proposals
+  if (projectStore.activeScenarioId === null && projectStore.artifacts.scenarios.length === 1) {
+    projectStore.activeScenarioId = projectStore.artifacts.scenarios[0].id
+  }
+
   if (projectStore.artifacts.shapes.length > 0) {
-    if (projectStore.artifacts.shapes.length === 1) {
+    if (projectStore.activeShapeId === null && projectStore.artifacts.shapes.length === 1) {
       projectStore.activeShapeId = projectStore.artifacts.shapes[0].id
     }
-    // Do not auto-select proposal when shapes exist
-  } else if (projectStore.artifacts.proposals.length === 1) {
+  } else if (projectStore.activeProposalId === null && projectStore.artifacts.proposals.length === 1) {
     projectStore.activeProposalId = projectStore.artifacts.proposals[0].id
   }
 }
@@ -173,6 +189,7 @@ export async function loadProjects(): Promise<void> {
 export async function loadProject(id: string): Promise<void> {
   // Clear context immediately before any async work (switching projects)
   projectStore.activeRequirementsId = null
+  projectStore.activeScenarioId = null
   projectStore.activeProposalId = null
   projectStore.activeShapeId = null
 
@@ -223,6 +240,11 @@ export async function loadVocabulary(projectId?: string): Promise<void> {
 /** Set the active requirements set for evaluation context. */
 export function setActiveRequirements(id: string | null): void {
   projectStore.activeRequirementsId = id
+}
+
+/** Set the active scenario for evaluation context. */
+export function setActiveScenario(id: string | null): void {
+  projectStore.activeScenarioId = id
 }
 
 /** Set the active proposal for evaluation context. */
@@ -277,6 +299,7 @@ export function openArtifactForEditing(
     designStore.guidedScenarioAnswers = hydrateScenarioAnswers(designStore.draftScenario!)
     designStore.scenarioHints = evaluateScenarioCompleteness(designStore.draftScenario!)
     designStore.editState = 'draft'
+    projectStore.activeScenarioId = record.id
   } else if (artifactType === 'proposal') {
     designStore.draftRequirements = null
     designStore.originalRequirements = null
@@ -378,6 +401,9 @@ export function onShapeDeleted(id: string): void {
  */
 export function onScenarioDeleted(id: string): void {
   projectStore.artifacts.scenarios = projectStore.artifacts.scenarios.filter(s => s.id !== id)
+  if (projectStore.activeScenarioId === id) {
+    projectStore.activeScenarioId = null
+  }
 }
 
 /**
@@ -411,6 +437,7 @@ export async function refreshArtifacts(): Promise<void> {
     projectStore.artifacts.evaluations = evaluations
     // Revalidate per Active Context Reset Rules
     revalidateActiveIds()
+    autoSelectActiveIds()
   } catch (err) {
     setError(err)
   }

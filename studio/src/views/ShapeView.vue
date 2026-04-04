@@ -164,7 +164,7 @@ function sensitivityLabel(s: string | undefined): string {
 
       <!-- Notes -->
       <section class="shape-section">
-        <h2 class="section-title">Design Notes</h2>
+        <h2 class="section-title">Why This Shape</h2>
         <div v-if="shapeData.notes && shapeData.notes.length > 0" class="notes-list">
           <div v-for="(note, i) in shapeData.notes" :key="i" class="note-item">
             <template v-if="isEditing">
@@ -179,14 +179,14 @@ function sensitivityLabel(s: string | undefined): string {
             <span v-else class="note-text">{{ note }}</span>
           </div>
         </div>
-        <div v-else-if="!isEditing" class="empty-hint">No design notes.</div>
+        <div v-else-if="!isEditing" class="empty-hint">No notes yet. Capture the main boundary or tradeoff decisions behind this shape.</div>
         <button v-if="isEditing" class="btn btn-secondary btn-sm" @click="addNote">+ Add Note</button>
       </section>
 
       <!-- Services -->
       <section class="shape-section">
-        <h2 class="section-title">Services ({{ services.length }})</h2>
-        <div v-if="services.length === 0" class="empty-hint">No services defined.</div>
+        <h2 class="section-title">Service Responsibilities ({{ services.length }})</h2>
+        <div v-if="services.length === 0" class="empty-hint">No services defined yet. Start by naming the service or service estate you want to shape.</div>
         <div v-for="svc in services" :key="svc.id" class="service-card">
           <div class="service-header">
             <span class="service-name">{{ svc.name }}</span>
@@ -215,7 +215,7 @@ function sensitivityLabel(s: string | undefined): string {
 
       <!-- Coordination -->
       <section class="shape-section" v-if="coordination.length > 0">
-        <h2 class="section-title">Coordination ({{ coordination.length }})</h2>
+        <h2 class="section-title">How Services Coordinate ({{ coordination.length }})</h2>
         <div class="coordination-list">
           <div v-for="(edge, i) in coordination" :key="i" class="coordination-edge">
             <span class="edge-from">{{ edge.from }}</span>
@@ -260,11 +260,11 @@ function sensitivityLabel(s: string | undefined): string {
 
       <!-- Derived Contract Expectations -->
       <section class="shape-section expectations-section">
-        <h2 class="section-title">Derived Contract Expectations</h2>
-        <p class="section-desc">ANIP semantics implied by this shape and its linked requirements. Read-only.</p>
+        <h2 class="section-title">What ANIP Should Expose</h2>
+        <p class="section-desc">These ANIP semantics are implied by this shape and its linked requirements. They are derived from the design rather than authored directly.</p>
         <div v-if="expectationsLoading" class="loading-hint">Loading expectations...</div>
         <div v-else-if="expectations.length === 0" class="empty-hint">
-          No contract expectations derived. This may indicate the shape or requirements are incomplete.
+          No expectations were derived yet. This usually means the shape or requirements are still too incomplete to evaluate confidently.
         </div>
         <div v-else class="expectations-list">
           <div v-for="(exp, i) in expectations" :key="i" class="expectation-item">

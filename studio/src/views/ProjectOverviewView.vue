@@ -6,6 +6,7 @@ import {
   loadProject,
   loadVocabulary,
   setActiveRequirements,
+  setActiveScenario,
   setActiveProposal,
   setActiveShape,
   refreshArtifacts,
@@ -35,6 +36,7 @@ const shapes = computed(() => projectStore.artifacts.shapes)
 const evaluations = computed(() => projectStore.artifacts.evaluations)
 
 const activeRequirementsId = computed(() => projectStore.activeRequirementsId)
+const activeScenarioId = computed(() => projectStore.activeScenarioId)
 const activeProposalId = computed(() => projectStore.activeProposalId)
 const activeShapeId = computed(() => projectStore.activeShapeId)
 
@@ -42,6 +44,7 @@ const activeShapeId = computed(() => projectStore.activeShapeId)
 const hasShapes = computed(() => shapes.value.length > 0)
 /** Legacy: project has proposals but no shapes */
 const isLegacyProposalProject = computed(() => proposals.value.length > 0 && !hasShapes.value)
+const isShapeFirstProject = computed(() => !isLegacyProposalProject.value)
 
 const importing = ref(false)
 const exporting = ref(false)
@@ -56,6 +59,31 @@ const primaryRequirements = computed(() =>
 const alternativeRequirements = computed(() =>
   requirements.value.filter(r => r.role === 'alternative'),
 )
+
+const hasRequirements = computed(() => requirements.value.length > 0)
+const hasScenarios = computed(() => scenarios.value.length > 0)
+const hasServiceShape = computed(() => isLegacyProposalProject.value ? proposals.value.length > 0 : shapes.value.length > 0)
+const canEvaluate = computed(() =>
+  !!activeRequirementsId.value &&
+  !!activeScenarioId.value &&
+  (!!activeShapeId.value || !!activeProposalId.value),
+)
+
+const nextStepTitle = computed(() => {
+  if (!hasRequirements.value) return 'Start with requirements'
+  if (!hasScenarios.value) return 'Add the key scenarios'
+  if (!hasServiceShape.value) return isLegacyProposalProject.value ? 'Define the legacy approach' : 'Define the service shape'
+  if (!canEvaluate.value) return 'Choose the active evaluation context'
+  return 'Run an evaluation'
+})
+
+const nextStepDescription = computed(() => {
+  if (!hasRequirements.value) return 'Describe what must be true before deciding how the service should be shaped.'
+  if (!hasScenarios.value) return 'Capture the situations that should pressure and validate the design.'
+  if (!hasServiceShape.value) return 'Describe the service or service estate that should satisfy the requirements across those scenarios.'
+  if (!canEvaluate.value) return 'Pick the requirements, scenario, and service shape you want to test together.'
+  return 'You have enough context to evaluate whether this design will work and what still needs to change.'
+})
 
 async function handlePromote(rid: string) {
   if (!projectId.value) return
@@ -87,6 +115,11 @@ function onRequirementsChange(event: Event) {
   setActiveRequirements(value || null)
 }
 
+function onScenarioChange(event: Event) {
+  const value = (event.target as HTMLSelectElement).value
+  setActiveScenario(value || null)
+}
+
 function onProposalChange(event: Event) {
   const value = (event.target as HTMLSelectElement).value
   setActiveProposal(value || null)
@@ -113,9 +146,9 @@ function navigateEvaluation(id: string) {
   router.push(`/design/projects/${projectId.value}/evaluations/${id}`)
 }
 
-function navigateScenarioValidation(id: string, event: Event) {
-  event.stopPropagation()
-  router.push(`/design/projects/${projectId.value}/evaluations/${id}`)
+function goToEvaluation() {
+  if (!activeScenarioId.value) return
+  router.push(`/design/projects/${projectId.value}/evaluations/${activeScenarioId.value}`)
 }
 
 async function handleExport() {
@@ -290,6 +323,7 @@ async function handleCreateScenario() {
       data,
     })
     await refreshArtifacts()
+    setActiveScenario(created.id)
     router.push(`/design/projects/${projectId.value}/scenarios/${created.id}`)
   } finally {
     creating.value = null
@@ -356,7 +390,7 @@ async function handleCreateShape() {
     const nextIndex = shapes.value.length + 1
     const created = await createShape(projectId.value, {
       id: `shape-${crypto.randomUUID()}`,
-      title: nextIndex === 1 ? 'Shape' : `Shape ${nextIndex}`,
+      title: nextIndex === 1 ? 'Service Shape' : `Service Shape ${nextIndex}`,
       requirements_id: requirementsId,
       data: makeShapeTemplate(),
     })
@@ -387,13 +421,54 @@ async function handleCreateShape() {
         </div>
       </div>
 
+      <section class="flow-section" id="overview">
+        <div class="flow-intro">
+          <h2 class="section-title">Design Flow</h2>
+          <p class="section-desc">Shape the service in one clear loop: define what matters, model the service, then evaluate whether it will work.</p>
+        </div>
+        <div class="flow-cards">
+          <div class="flow-card" :class="{ ready: hasRequirements }">
+            <span class="flow-step">1</span>
+            <div>
+              <div class="flow-label">Requirements</div>
+              <div class="flow-meta">{{ requirements.length }} set{{ requirements.length === 1 ? '' : 's' }}</div>
+            </div>
+          </div>
+          <div class="flow-card" :class="{ ready: hasScenarios }">
+            <span class="flow-step">2</span>
+            <div>
+              <div class="flow-label">Scenarios</div>
+              <div class="flow-meta">{{ scenarios.length }} scenario{{ scenarios.length === 1 ? '' : 's' }}</div>
+            </div>
+          </div>
+          <div class="flow-card" :class="{ ready: hasServiceShape }">
+            <span class="flow-step">3</span>
+            <div>
+              <div class="flow-label">{{ isLegacyProposalProject ? 'Legacy Approach' : 'Service Shape' }}</div>
+              <div class="flow-meta">{{ isLegacyProposalProject ? proposals.length : shapes.length }} defined</div>
+            </div>
+          </div>
+          <div class="flow-card" :class="{ ready: evaluations.length > 0 }">
+            <span class="flow-step">4</span>
+            <div>
+              <div class="flow-label">Evaluation</div>
+              <div class="flow-meta">{{ evaluations.length }} run{{ evaluations.length === 1 ? '' : 's' }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="next-step-callout">
+          <strong>{{ nextStepTitle }}</strong>
+          <p>{{ nextStepDescription }}</p>
+        </div>
+      </section>
+
       <!-- Active design context -->
-      <section class="context-section">
-        <h2 class="section-title">Active Design Context</h2>
-        <p class="section-desc">Select the requirements set and {{ hasShapes ? 'shape' : 'approach' }} for evaluation.</p>
+      <section class="context-section" id="evaluate">
+        <h2 class="section-title">Evaluate the Current Design</h2>
+        <p class="section-desc">Choose the requirements, scenario, and {{ isLegacyProposalProject ? 'legacy approach' : 'service shape' }} you want to test together.</p>
         <div class="context-selects">
           <div class="context-field">
-            <label class="field-label">Requirements Set</label>
+            <label class="field-label">Requirements</label>
             <select
               class="field-select"
               :value="activeRequirementsId ?? ''"
@@ -407,8 +482,23 @@ async function handleCreateShape() {
               >{{ r.title || r.id }}</option>
             </select>
           </div>
-          <div v-if="hasShapes" class="context-field">
-            <label class="field-label">Shape</label>
+          <div class="context-field">
+            <label class="field-label">Scenario</label>
+            <select
+              class="field-select"
+              :value="activeScenarioId ?? ''"
+              @change="onScenarioChange"
+            >
+              <option value="">-- Select --</option>
+              <option
+                v-for="s in scenarios"
+                :key="s.id"
+                :value="s.id"
+              >{{ s.title || s.id }}</option>
+            </select>
+          </div>
+          <div v-if="isShapeFirstProject" class="context-field">
+            <label class="field-label">Service Shape</label>
             <select
               class="field-select"
               :value="activeShapeId ?? ''"
@@ -438,11 +528,21 @@ async function handleCreateShape() {
             </select>
           </div>
         </div>
+        <div class="context-actions">
+          <button
+            class="btn btn-primary"
+            :disabled="!canEvaluate"
+            :title="canEvaluate ? 'Evaluate this design context' : 'Select requirements, a scenario, and a service shape first'"
+            @click="goToEvaluation"
+          >
+            Evaluate This Design
+          </button>
+        </div>
       </section>
 
       <section class="creation-section">
-        <h2 class="section-title">Create Artifacts</h2>
-        <p class="section-desc">Build the project directly in Studio instead of relying on import or seed data.</p>
+        <h2 class="section-title">Build the Design</h2>
+        <p class="section-desc">Build the project directly in Studio. Define what matters, capture the key scenarios, shape the service, then evaluate whether it will work.</p>
         <div class="creation-actions">
           <button class="btn btn-primary" @click="handleCreateRequirements" :disabled="creating !== null">
             {{ creating === 'requirements' ? 'Creating requirements...' : 'New Requirements' }}
@@ -456,7 +556,7 @@ async function handleCreateShape() {
             :disabled="creating !== null || requirements.length === 0"
             :title="requirements.length === 0 ? 'Create a requirements set first' : ''"
           >
-            {{ creating === 'shape' ? 'Creating shape...' : 'New Shape' }}
+            {{ creating === 'shape' ? 'Creating service shape...' : 'New Service Shape' }}
           </button>
           <button
             v-if="isLegacyProposalProject"
@@ -483,9 +583,9 @@ async function handleCreateShape() {
       <div v-if="error" class="banner banner-error">{{ error }}</div>
 
       <!-- Artifact lists -->
-      <section class="artifact-section">
+      <section class="artifact-section" id="requirements">
         <h2 class="section-title">Requirements ({{ requirements.length }})</h2>
-        <div v-if="requirements.length === 0" class="empty-row">No requirements sets yet.</div>
+        <div v-if="requirements.length === 0" class="empty-row">No requirements yet. Start here so the service shape and evaluation have something real to optimize for.</div>
 
         <!-- Primary requirements -->
         <div
@@ -532,9 +632,9 @@ async function handleCreateShape() {
         </template>
       </section>
 
-      <section class="artifact-section">
+      <section class="artifact-section" id="scenarios">
         <h2 class="section-title">Scenarios ({{ scenarios.length }})</h2>
-        <div v-if="scenarios.length === 0" class="empty-row">No scenarios yet.</div>
+        <div v-if="scenarios.length === 0" class="empty-row">No scenarios yet. Add the situations that should pressure the design and reveal whether it will work.</div>
         <div
           v-for="s in scenarios"
           :key="s.id"
@@ -543,22 +643,14 @@ async function handleCreateShape() {
         >
           <span class="artifact-title">{{ s.title || s.id }}</span>
           <span class="artifact-status" :class="'status-' + s.status">{{ s.status }}</span>
-          <button
-            class="artifact-action"
-            :disabled="!activeRequirementsId || (!activeProposalId && !activeShapeId)"
-            :title="!activeRequirementsId || (!activeProposalId && !activeShapeId) ? 'Select requirements and a shape or approach first' : 'Run validation for this scenario'"
-            @click="navigateScenarioValidation(s.id, $event)"
-          >
-            Validate
-          </button>
           <span class="artifact-date">{{ formatDate(s.updated_at) }}</span>
         </div>
       </section>
 
       <!-- Shapes section (primary design artifact) -->
-      <section class="artifact-section" v-if="hasShapes || !isLegacyProposalProject">
-        <h2 class="section-title">Shapes ({{ shapes.length }})</h2>
-        <div v-if="shapes.length === 0" class="empty-row">No shapes yet. Create one to define your service design.</div>
+      <section class="artifact-section" id="shape" v-if="hasShapes || !isLegacyProposalProject">
+        <h2 class="section-title">Service Shapes ({{ shapes.length }})</h2>
+        <div v-if="shapes.length === 0" class="empty-row">No service shape yet. Define the services, the domain concepts they own, and how they coordinate.</div>
         <div
           v-for="s in shapes"
           :key="s.id"
@@ -574,7 +666,7 @@ async function handleCreateShape() {
       <!-- Approaches section (legacy projects only) -->
       <section class="artifact-section" v-if="isLegacyProposalProject">
         <h2 class="section-title">Approaches (Legacy) ({{ proposals.length }})</h2>
-        <p class="section-desc legacy-note">This project uses the legacy approach model. Create a Shape to use the new design workflow.</p>
+        <p class="section-desc legacy-note">This project uses the legacy approach model. Create a Service Shape to move into the new design workflow.</p>
         <div
           v-for="p in proposals"
           :key="p.id"
@@ -589,7 +681,7 @@ async function handleCreateShape() {
 
       <section class="artifact-section">
         <h2 class="section-title">Evaluations ({{ evaluations.length }})</h2>
-        <div v-if="evaluations.length === 0" class="empty-row">No evaluations yet.</div>
+        <div v-if="evaluations.length === 0" class="empty-row">No evaluations yet. Use the evaluation context above to test whether this design will work and what still needs to change.</div>
         <div
           v-for="e in evaluations"
           :key="e.id"
@@ -676,6 +768,84 @@ async function handleCreateShape() {
   line-height: 1.5;
 }
 
+.flow-section {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.04));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.flow-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.flow-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: var(--bg-app);
+}
+
+.flow-card.ready {
+  border-color: rgba(52, 211, 153, 0.35);
+  background: rgba(52, 211, 153, 0.06);
+}
+
+.flow-step {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.flow-card.ready .flow-step {
+  background: rgba(52, 211, 153, 0.14);
+  color: #34d399;
+}
+
+.flow-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.flow-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.next-step-callout {
+  border-left: 3px solid var(--accent);
+  padding-left: 12px;
+}
+
+.next-step-callout strong {
+  display: block;
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.next-step-callout p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
 /* Active design context */
 .context-section {
   background: var(--bg-input);
@@ -710,6 +880,7 @@ async function handleCreateShape() {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
+  margin-bottom: 12px;
 }
 
 .creation-actions {
@@ -746,6 +917,11 @@ async function handleCreateShape() {
 
 .field-select:focus {
   border-color: var(--border-focus);
+}
+
+.context-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 /* Import / Export */
@@ -808,6 +984,7 @@ async function handleCreateShape() {
 /* Artifact sections */
 .artifact-section {
   margin-bottom: 1.5rem;
+  scroll-margin-top: 72px;
 }
 
 .artifact-section .section-title {

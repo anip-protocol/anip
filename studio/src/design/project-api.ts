@@ -270,11 +270,12 @@ export function deleteShape(projectId: string, id: string): Promise<void> {
   return api<void>(`/api/projects/${projectId}/shapes/${id}`, { method: 'DELETE' })
 }
 
-export function getShapeExpectations(
+export async function getShapeExpectations(
   projectId: string,
   id: string,
 ): Promise<DerivedExpectation[]> {
-  return api<DerivedExpectation[]>(`/api/projects/${projectId}/shapes/${id}/expectations`)
+  const resp = await api<{ expectations: DerivedExpectation[] }>(`/api/projects/${projectId}/shapes/${id}/expectations`)
+  return resp.expectations
 }
 
 // ---------------------------------------------------------------------------

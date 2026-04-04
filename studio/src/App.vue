@@ -32,26 +32,86 @@ const inspectNavItems = [
   { name: 'invoke', label: 'Invoke', icon: '\u26A1', path: '/inspect/invoke' },
 ]
 
-const designNavItems = computed(() => {
+type DesignNavItem = {
+  name: string
+  label: string
+  icon: string
+  path: string
+  child?: boolean
+}
+
+const designNavItems = computed<DesignNavItem[]>(() => {
   const project = projectStore.activeProject
-  const items: Array<{ name: string; label: string; icon: string; path: string }> = [
+  const items: DesignNavItem[] = [
     { name: 'project-list', label: 'Projects', icon: '\u{1F3E0}', path: '/design' },
   ]
   if (project) {
     const pid = project.id
     items.push(
       { name: 'project-overview', label: project.name, icon: '\u{1F4C1}', path: `/design/projects/${pid}` },
+      { name: 'project-overview:overview', label: 'Overview', icon: '\u2022', path: `/design/projects/${pid}`, child: true },
+      {
+        name: 'project-overview:requirements',
+        label: 'Requirements',
+        icon: '\u2022',
+        path: projectStore.activeRequirementsId
+          ? `/design/projects/${pid}/requirements/${projectStore.activeRequirementsId}`
+          : `/design/projects/${pid}#requirements`,
+        child: true,
+      },
+      {
+        name: 'project-overview:scenarios',
+        label: 'Scenarios',
+        icon: '\u2022',
+        path: projectStore.activeScenarioId
+          ? `/design/projects/${pid}/scenarios/${projectStore.activeScenarioId}`
+          : `/design/projects/${pid}#scenarios`,
+        child: true,
+      },
     )
-    if (projectStore.activeRequirementsId) {
-      items.push({ name: 'requirements', label: 'Requirements', icon: '\u{1F4CB}', path: `/design/projects/${pid}/requirements/${projectStore.activeRequirementsId}` })
-    }
-    // Shape-first: show Shape nav if shapes exist, otherwise show Proposal for legacy projects
     const hasShapes = projectStore.artifacts.shapes.length > 0
     if (hasShapes && projectStore.activeShapeId) {
-      items.push({ name: 'shape', label: 'Shape', icon: '\u{1F3D7}', path: `/design/projects/${pid}/shapes/${projectStore.activeShapeId}` })
+      items.push({
+        name: 'shape',
+        label: 'Service Shape',
+        icon: '\u2022',
+        path: `/design/projects/${pid}/shapes/${projectStore.activeShapeId}`,
+        child: true,
+      })
+    } else if (hasShapes) {
+      items.push({
+        name: 'project-overview:shape',
+        label: 'Service Shape',
+        icon: '\u2022',
+        path: `/design/projects/${pid}#shape`,
+        child: true,
+      })
+    } else if (projectStore.artifacts.proposals.length === 0) {
+      items.push({
+        name: 'project-overview:shape',
+        label: 'Service Shape',
+        icon: '\u2022',
+        path: `/design/projects/${pid}#shape`,
+        child: true,
+      })
     } else if (!hasShapes && projectStore.activeProposalId) {
-      items.push({ name: 'proposal', label: 'Approach', icon: '\u{1F4A1}', path: `/design/projects/${pid}/proposals/${projectStore.activeProposalId}` })
+      items.push({
+        name: 'proposal',
+        label: 'Legacy Approach',
+        icon: '\u2022',
+        path: `/design/projects/${pid}/proposals/${projectStore.activeProposalId}`,
+        child: true,
+      })
     }
+    items.push({
+      name: 'project-overview:evaluate',
+      label: 'Evaluate',
+      icon: '\u2022',
+      path: projectStore.activeScenarioId
+        ? `/design/projects/${pid}/evaluations/${projectStore.activeScenarioId}`
+        : `/design/projects/${pid}#evaluate`,
+      child: true,
+    })
   }
   return items
 })
@@ -67,6 +127,14 @@ function toggleSidebar() {
 
 function navigate(path: string) {
   router.push(path)
+}
+
+function isDesignItemActive(item: DesignNavItem): boolean {
+  if (item.path.includes('#')) {
+    const [base, hash] = item.path.split('#')
+    return route.path === base && route.hash === `#${hash}`
+  }
+  return route.path === item.path || activeRoute.value === item.name
 }
 
 function switchMode(mode: 'inspect' | 'design') {
@@ -193,7 +261,7 @@ function disconnect() {
             v-for="item in designNavItems"
             :key="item.name"
             class="nav-item"
-            :class="{ active: activeRoute === item.name }"
+            :class="{ active: isDesignItemActive(item), 'nav-item-child': item.child }"
             @click="navigate(item.path)"
             :title="item.label"
           >
@@ -554,6 +622,23 @@ function disconnect() {
   background: var(--bg-active);
   color: var(--text-primary);
   box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.nav-item-child {
+  margin-left: 18px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  color: var(--text-muted);
+}
+
+.nav-item-child .nav-icon {
+  width: 16px;
+  font-size: 12px;
+}
+
+.nav-item-child .nav-label {
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .nav-icon {
