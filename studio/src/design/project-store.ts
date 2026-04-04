@@ -20,7 +20,6 @@ import {
   listShapes,
   listEvaluations,
   listVocabulary,
-  seedDatabase,
 } from './project-api'
 import { designStore } from './store'
 import { hydrateAnswersFromArtifact } from './guided/mappings'
@@ -308,6 +307,7 @@ export function openArtifactForEditing(
   const data = record.data ?? {}
 
   if (artifactType === 'requirements') {
+    designStore.activeArtifact = 'requirements'
     designStore.draftScenario = null
     designStore.originalScenario = null
     designStore.draftDeclaredSurfaces = null
@@ -322,6 +322,7 @@ export function openArtifactForEditing(
     // Update active context
     projectStore.activeRequirementsId = record.id
   } else if (artifactType === 'scenario') {
+    designStore.activeArtifact = 'scenario'
     designStore.draftRequirements = null
     designStore.originalRequirements = null
     designStore.draftDeclaredSurfaces = null
@@ -335,6 +336,7 @@ export function openArtifactForEditing(
     designStore.editState = 'draft'
     projectStore.activeScenarioId = record.id
   } else if (artifactType === 'proposal') {
+    designStore.activeArtifact = 'proposal'
     designStore.draftRequirements = null
     designStore.originalRequirements = null
     designStore.draftScenario = null
@@ -357,20 +359,6 @@ export function openArtifactForEditing(
 
   designStore.validationErrors = []
   designStore.liveEvaluation = null
-}
-
-/** Seed the database from example packs, then reload the project list. */
-export async function seedDb(): Promise<void> {
-  setLoading(true)
-  clearError()
-  try {
-    await seedDatabase()
-    await loadProjects()
-  } catch (err) {
-    setError(err)
-  } finally {
-    setLoading(false)
-  }
 }
 
 /**

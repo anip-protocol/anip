@@ -45,6 +45,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
   const items: DesignNavItem[] = [
     { name: 'workspace-list', label: 'Workspaces', icon: '\u{1F5C2}', path: '/design' },
   ]
+
   const workspace = projectStore.activeWorkspace
   if (workspace) {
     items.push({

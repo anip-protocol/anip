@@ -50,27 +50,6 @@ const designRoutes = inspectOnly ? [] : [
     name: 'evaluation',
     component: () => import('./views/EvaluationView.vue'),
   },
-  // ── Legacy pack routes (read-only fallback) ──
-  {
-    path: '/design/packs/:packId',
-    name: 'pack-detail',
-    component: () => import('./views/ScenarioDetailView.vue'),
-  },
-  {
-    path: '/design/packs/:packId/requirements',
-    name: 'pack-requirements',
-    component: () => import('./views/RequirementsView.vue'),
-  },
-  {
-    path: '/design/packs/:packId/proposal',
-    name: 'pack-proposal',
-    component: () => import('./views/ProposalView.vue'),
-  },
-  {
-    path: '/design/packs/:packId/evaluation',
-    name: 'pack-evaluation',
-    component: () => import('./views/EvaluationView.vue'),
-  },
 ]
 
 const routes = [

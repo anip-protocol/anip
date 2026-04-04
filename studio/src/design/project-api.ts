@@ -390,7 +390,7 @@ export function deleteVocabularyEntry(id: number): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Import / Export / Seed
+// Import / Export
 // ---------------------------------------------------------------------------
 
 export function importArtifacts(
@@ -405,10 +405,6 @@ export function importArtifacts(
 
 export function exportProject(projectId: string): Promise<Record<string, any>> {
   return api<Record<string, any>>(`/api/projects/${projectId}/export`)
-}
-
-export function seedDatabase(): Promise<{ created_projects: number; skipped: number }> {
-  return api<{ created_projects: number; skipped: number }>('/api/seed', { method: 'POST' })
 }
 
 // ---------------------------------------------------------------------------

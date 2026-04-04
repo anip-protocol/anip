@@ -3,7 +3,6 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { checkDbAvailable, loadWorkspaces, projectStore } from '../design/project-store'
 import { createWorkspace, deleteWorkspace } from '../design/project-api'
-import { PACKS } from '../design/data/packs.generated'
 
 const router = useRouter()
 
@@ -18,6 +17,12 @@ const dbAvailable = computed(() => projectStore.dbAvailable)
 const workspaces = computed(() => projectStore.workspaces)
 const loading = computed(() => projectStore.loading)
 const error = computed(() => projectStore.error)
+const pageTitle = computed(() => dbAvailable.value ? 'Workspaces' : 'Showcase Examples')
+const pageDescription = computed(() =>
+  dbAvailable.value
+    ? 'Organize multiple design projects under a shared workspace, then move into service shaping and evaluation inside each project.'
+    : 'Studio cannot reach its sidecar right now, so you are looking at read-only example packs instead of real workspaces and projects.',
+)
 const junkWorkspaces = computed(() =>
   workspaces.value.filter(workspace =>
     workspace.id.startsWith('ws-') &&
@@ -34,10 +39,6 @@ onMounted(async () => {
 
 function openWorkspace(id: string) {
   router.push(`/design/workspaces/${id}`)
-}
-
-function openPack(packId: string) {
-  router.push(`/design/packs/${packId}`)
 }
 
 async function handleCreate() {
@@ -90,25 +91,14 @@ async function handleCleanWorkspaces() {
 
 <template>
   <div class="workspace-list">
-    <h1 class="page-title">Workspaces</h1>
-    <p class="page-desc">Organize multiple design projects under a shared workspace, then move into service shaping and evaluation inside each project.</p>
+    <h1 class="page-title">{{ pageTitle }}</h1>
+    <p class="page-desc">{{ pageDescription }}</p>
 
     <template v-if="!dbAvailable">
-      <div class="banner banner-warning">Sidecar unavailable — read-only mode</div>
-      <div class="pack-grid">
-        <div
-          v-for="pack in PACKS"
-          :key="pack.meta.id"
-          class="pack-card"
-          @click="openPack(pack.meta.id)"
-        >
-          <div class="pack-header">
-            <span class="domain-badge">{{ pack.meta.domain }}</span>
-          </div>
-          <h3 class="card-name">{{ pack.meta.name }}</h3>
-          <p class="card-summary">{{ pack.meta.narrative }}</p>
-        </div>
-      </div>
+      <div class="banner banner-warning">Studio sidecar unavailable</div>
+      <p class="fallback-note">
+        Workspaces, projects, service shaping, and evaluation require the Studio sidecar. Bring the sidecar back up to keep working in Studio.
+      </p>
     </template>
 
     <template v-else>
@@ -227,6 +217,13 @@ async function handleCleanWorkspaces() {
   background: rgba(248, 113, 113, 0.12);
   border: 1px solid rgba(248, 113, 113, 0.3);
   color: var(--error);
+}
+
+.fallback-note {
+  margin: 0 0 1.25rem;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .toolbar {

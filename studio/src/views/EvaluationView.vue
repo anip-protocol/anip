@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { designStore, setActivePack, runLiveValidation, composeDraftProposal } from '../design/store'
+import { designStore, composeDraftProposal } from '../design/store'
 import { loadProject, projectStore, refreshArtifacts } from '../design/project-store'
 import { createEvaluation, explainEvaluationWithAssistant } from '../design/project-api'
 import type { AssistantExplanation } from '../design/project-types'
@@ -11,55 +11,35 @@ import StudioAssistantPanel from '../design/components/StudioAssistantPanel.vue'
 const route = useRoute()
 const router = useRouter()
 
-// --- Dual-route detection ---
-const isProjectMode = computed(() => !!route.params.projectId)
-const projectId = computed(() => route.params.projectId as string | undefined)
+const projectId = computed(() => route.params.projectId as string)
 
 onMounted(() => {
-  if (isProjectMode.value && projectId.value && projectStore.activeProject?.id !== projectId.value) {
+  if (projectId.value && projectStore.activeProject?.id !== projectId.value) {
     loadProject(projectId.value)
   }
 })
 
 watch(projectId, (id) => {
-  if (isProjectMode.value && id && projectStore.activeProject?.id !== id) {
+  if (id && projectStore.activeProject?.id !== id) {
     loadProject(id)
   }
 })
 
-// Project mode: look up record from projectStore.artifacts.evaluations
 const projectRecord = computed(() => {
-  if (!isProjectMode.value) return null
   const id = route.params.id as string
   return projectStore.artifacts.evaluations.find(e => e.id === id) ?? null
 })
 
 const projectScenario = computed(() => {
-  if (!isProjectMode.value) return null
   const id = route.params.id as string
   return projectStore.artifacts.scenarios.find(s => s.id === id) ?? null
 })
 
-// Legacy mode: look up pack from designStore.packs
-const pack = computed(() => {
-  if (isProjectMode.value) return null
-  const id = route.params.packId as string
-  if (id) setActivePack(id)
-  return designStore.packs.find(p => p.meta.id === id) ?? null
-})
-
-// Whether we have data to display
-const hasData = computed(() => {
-  if (isProjectMode.value) return !!projectRecord.value || !!projectScenario.value || designStore.liveEvaluation !== null
-  return !!pack.value
-})
+const hasData = computed(() => !!projectRecord.value || !!projectScenario.value || designStore.liveEvaluation !== null)
 
 // Display name for the title
 const artifactName = computed(() => {
-  if (isProjectMode.value) {
-    return projectRecord.value?.scenario_id ?? projectScenario.value?.title ?? 'Evaluation'
-  }
-  return pack.value?.meta.name ?? 'Evaluation'
+  return projectRecord.value?.scenario_id ?? projectScenario.value?.title ?? 'Evaluation'
 })
 
 const isLive = computed(() => designStore.liveEvaluation !== null)
@@ -68,10 +48,7 @@ const evaluation = computed(() => {
   if (designStore.liveEvaluation) {
     return designStore.liveEvaluation.evaluation
   }
-  if (isProjectMode.value) {
-    return projectRecord.value?.data?.evaluation ?? null
-  }
-  return pack.value?.evaluation?.evaluation ?? null
+  return projectRecord.value?.data?.evaluation ?? null
 })
 
 const hasEvaluationResult = computed(() => evaluation.value !== null)
@@ -82,7 +59,6 @@ const saveError = ref<string | null>(null)
 const savedEvalId = ref<string | null>(null)
 
 const canSave = computed(() =>
-  isProjectMode.value &&
   isLive.value &&
   projectStore.activeProject !== null,
 )
@@ -150,11 +126,6 @@ async function saveToProject() {
 }
 
 async function handleRunValidation() {
-  if (!isProjectMode.value) {
-    await runLiveValidation()
-    return
-  }
-
   if (!projectStore.activeRequirementsId || (!projectStore.activeProposalId && !projectStore.activeShapeId) || !projectScenario.value) {
     designStore.validationError = 'Choose a requirements set, scenario, and shape or approach before evaluating.'
     return
@@ -206,7 +177,6 @@ const assistantError = ref<string | null>(null)
 const assistantExplanation = ref<AssistantExplanation | null>(null)
 
 const isStoredStale = computed(() =>
-  isProjectMode.value &&
   !isLive.value &&
   projectRecord.value?.is_stale === true,
 )
@@ -299,7 +269,7 @@ function categoryColor(cat: string): string {
 }
 
 async function handleExplainEvaluation(question: string) {
-  if (!isProjectMode.value || !projectRecord.value || !projectId.value) return
+  if (!projectRecord.value || !projectId.value) return
   assistantLoading.value = true
   assistantError.value = null
   try {
@@ -319,8 +289,7 @@ async function handleExplainEvaluation(question: string) {
       <div class="header-actions">
         <span class="source-badge live" v-if="hasEvaluationResult && isLive && !savedEvalId">Live</span>
         <span class="source-badge stale" v-else-if="hasEvaluationResult && isStoredStale">Stale</span>
-        <span class="source-badge stored" v-else-if="hasEvaluationResult && (savedEvalId || (isProjectMode && !isLive))">Stored</span>
-        <span class="source-badge precomputed" v-else-if="hasEvaluationResult">Pre-computed</span>
+        <span class="source-badge stored" v-else-if="hasEvaluationResult && (savedEvalId || !isLive)">Stored</span>
         <button
           v-if="designStore.apiAvailable && !designStore.validating"
           class="run-btn"
@@ -387,7 +356,7 @@ async function handleExplainEvaluation(question: string) {
 
     <template v-if="evaluation">
       <StudioAssistantPanel
-        v-if="isProjectMode && projectRecord"
+        v-if="projectRecord"
         title="Explain This Evaluation"
         description="Ask Studio to explain the result in plain terms, highlight the main support gaps, and point to the next design moves."
         button-label="Explain This Evaluation"
@@ -462,7 +431,7 @@ async function handleExplainEvaluation(question: string) {
       </div>
     </template>
   </div>
-  <div v-else class="not-found">{{ isProjectMode ? 'Evaluation not found.' : 'Pack not found.' }}</div>
+  <div v-else class="not-found">Evaluation not found.</div>
 </template>
 
 <style scoped>
