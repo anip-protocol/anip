@@ -363,17 +363,17 @@ function categoryColor(cat: string): string {
         </div>
       </div>
 
-      <!-- Handled by ANIP -->
+      <!-- Supported by Design -->
       <div class="section">
-        <h2>Handled by ANIP</h2>
+        <h2>Supported by Design</h2>
         <ul>
           <li v-for="(item, i) in evaluation.handled_by_anip" :key="i">{{ item }}</li>
         </ul>
       </div>
 
-      <!-- Glue You Will Still Write -->
+      <!-- Requires Custom Integration -->
       <div class="section" v-if="evaluation.glue_you_will_still_write && evaluation.glue_you_will_still_write.length">
-        <h2>Glue You Will Still Write</h2>
+        <h2>Requires Custom Integration</h2>
         <ul class="glue-list">
           <li v-for="(item, i) in evaluation.glue_you_will_still_write" :key="i">{{ item }}</li>
         </ul>
@@ -387,9 +387,9 @@ function categoryColor(cat: string): string {
         </ul>
       </div>
 
-      <!-- What Would Improve -->
+      <!-- Design Changes Needed -->
       <div class="section" v-if="evaluation.what_would_improve && evaluation.what_would_improve.length">
-        <h2>What Would Improve</h2>
+        <h2>Design Changes Needed</h2>
         <ul>
           <li v-for="(item, i) in evaluation.what_would_improve" :key="i">{{ item }}</li>
         </ul>
