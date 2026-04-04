@@ -3,144 +3,168 @@
     "category": "context_key",
     "value": "capability",
     "origin": "canonical",
-    "description": "The capability being invoked (e.g. book_flight, deploy_service)"
+    "description": "The capability being invoked (e.g. book_flight, deploy_service)",
+    "evaluator_recognized": true
   },
   {
     "category": "context_key",
     "value": "side_effect",
     "origin": "canonical",
-    "description": "Side-effect posture of the capability (none, reversible, irreversible)"
+    "description": "Side-effect posture of the capability (none, reversible, irreversible)",
+    "evaluator_recognized": true
   },
   {
     "category": "context_key",
     "value": "expected_cost",
     "origin": "canonical",
-    "description": "Estimated monetary or resource cost of the invocation"
+    "description": "Estimated monetary or resource cost of the invocation",
+    "evaluator_recognized": true
   },
   {
     "category": "context_key",
     "value": "budget_limit",
     "origin": "canonical",
-    "description": "Maximum budget the delegating principal has authorized"
+    "description": "Maximum budget the delegating principal has authorized",
+    "evaluator_recognized": true
   },
   {
     "category": "context_key",
     "value": "permissions_state",
     "origin": "canonical",
-    "description": "Whether required permissions are available, restricted, or denied"
+    "description": "Whether required permissions are available, restricted, or denied",
+    "evaluator_recognized": true
   },
   {
     "category": "context_key",
     "value": "task_id",
     "origin": "canonical",
-    "description": "Stable identifier for the logical task spanning multiple invocations"
+    "description": "Stable identifier for the logical task spanning multiple invocations",
+    "evaluator_recognized": true
   },
   {
     "category": "context_key",
     "value": "risk",
     "origin": "canonical",
-    "description": "Risk classification for the operation (low, medium, high)"
+    "description": "Risk classification for the operation (low, medium, high)",
+    "evaluator_recognized": true
   },
   {
     "category": "context_key",
     "value": "token_scope",
     "origin": "canonical",
-    "description": "OAuth-style scopes carried by the delegation token"
+    "description": "OAuth-style scopes carried by the delegation token",
+    "evaluator_recognized": true
   },
   {
     "category": "behavior",
     "value": "do_not_execute",
     "origin": "canonical",
-    "description": "The action must not proceed under the given constraints"
+    "description": "The action must not proceed under the given constraints",
+    "evaluator_recognized": false
   },
   {
     "category": "behavior",
     "value": "preserve_task_identity",
     "origin": "canonical",
-    "description": "The task_id must be preserved across the invocation chain"
+    "description": "The task_id must be preserved across the invocation chain",
+    "evaluator_recognized": false
   },
   {
     "category": "behavior",
     "value": "preserve_parent_invocation_lineage",
     "origin": "canonical",
-    "description": "Parent invocation ID must be propagated for lineage reconstruction"
+    "description": "Parent invocation ID must be propagated for lineage reconstruction",
+    "evaluator_recognized": false
   },
   {
     "category": "behavior",
     "value": "produce_audit_entry",
     "origin": "canonical",
-    "description": "A durable audit record must be emitted for the invocation"
+    "description": "A durable audit record must be emitted for the invocation",
+    "evaluator_recognized": false
   },
   {
     "category": "behavior",
     "value": "explain_budget_conflict",
     "origin": "canonical",
-    "description": "The failure response must explain why the budget was exceeded"
+    "description": "The failure response must explain why the budget was exceeded",
+    "evaluator_recognized": false
   },
   {
     "category": "behavior",
     "value": "explain_authority_gap",
     "origin": "canonical",
-    "description": "The failure response must explain which authority or permission is missing"
+    "description": "The failure response must explain which authority or permission is missing",
+    "evaluator_recognized": false
   },
   {
     "category": "behavior",
     "value": "prefer_escalation_or_replan_over_blind_retry",
     "origin": "canonical",
-    "description": "On failure, escalate to a principal or replan rather than retrying blindly"
+    "description": "On failure, escalate to a principal or replan rather than retrying blindly",
+    "evaluator_recognized": false
   },
   {
     "category": "anip_support",
     "value": "cost_visibility",
     "origin": "canonical",
-    "description": "ANIP exposes cost metadata before invocation so agents can reason about budget"
+    "description": "ANIP exposes cost metadata before invocation so agents can reason about budget",
+    "evaluator_recognized": true
   },
   {
     "category": "anip_support",
     "value": "side_effect_visibility",
     "origin": "canonical",
-    "description": "ANIP exposes side-effect posture so agents can assess risk before acting"
+    "description": "ANIP exposes side-effect posture so agents can assess risk before acting",
+    "evaluator_recognized": true
   },
   {
     "category": "anip_support",
     "value": "structured_failure",
     "origin": "canonical",
-    "description": "ANIP returns machine-readable failure details with recovery guidance"
+    "description": "ANIP returns machine-readable failure details with recovery guidance",
+    "evaluator_recognized": true
   },
   {
     "category": "anip_support",
     "value": "permission_discovery",
     "origin": "canonical",
-    "description": "ANIP supports preflight permission checks before invocation"
+    "description": "ANIP supports preflight permission checks before invocation",
+    "evaluator_recognized": true
   },
   {
     "category": "anip_support",
     "value": "task_id_support",
     "origin": "canonical",
-    "description": "ANIP propagates task_id across invocations for correlation"
+    "description": "ANIP propagates task_id across invocations for correlation",
+    "evaluator_recognized": true
   },
   {
     "category": "anip_support",
     "value": "parent_invocation_id_support",
     "origin": "canonical",
-    "description": "ANIP propagates parent_invocation_id for lineage reconstruction"
+    "description": "ANIP propagates parent_invocation_id for lineage reconstruction",
+    "evaluator_recognized": true
   },
   {
     "category": "anip_support",
     "value": "audit_queryability",
     "origin": "canonical",
-    "description": "Audit records are searchable and queryable after the fact"
+    "description": "Audit records are searchable and queryable after the fact",
+    "evaluator_recognized": true
   },
   {
     "category": "anip_support",
     "value": "resolution_guidance",
     "origin": "canonical",
-    "description": "ANIP provides actionable guidance on how to resolve failures"
+    "description": "ANIP provides actionable guidance on how to resolve failures",
+    "evaluator_recognized": true
   },
   {
     "category": "anip_support",
     "value": "cross_service_verification_guidance",
     "origin": "canonical",
-    "description": "ANIP provides machine-readable pointers for cross-service verification"
+    "description": "ANIP provides machine-readable pointers for cross-service verification",
+    "evaluator_recognized": false
   }
 ]

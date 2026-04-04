@@ -2,6 +2,7 @@ import type {
   ProjectSummary,
   ProjectDetail,
   ArtifactRecord,
+  RequirementsRecord,
   ProposalRecord,
   EvaluationRecord,
   VocabularyEntry,
@@ -71,19 +72,19 @@ export function deleteProject(id: string): Promise<void> {
 // Requirements
 // ---------------------------------------------------------------------------
 
-export function listRequirements(projectId: string): Promise<ArtifactRecord[]> {
-  return api<ArtifactRecord[]>(`/api/projects/${projectId}/requirements`)
+export function listRequirements(projectId: string): Promise<RequirementsRecord[]> {
+  return api<RequirementsRecord[]>(`/api/projects/${projectId}/requirements`)
 }
 
-export function getRequirements(projectId: string, id: string): Promise<ArtifactRecord> {
-  return api<ArtifactRecord>(`/api/projects/${projectId}/requirements/${id}`)
+export function getRequirements(projectId: string, id: string): Promise<RequirementsRecord> {
+  return api<RequirementsRecord>(`/api/projects/${projectId}/requirements/${id}`)
 }
 
 export function createRequirements(
   projectId: string,
   payload: { id: string; title: string; data: Record<string, any> },
-): Promise<ArtifactRecord> {
-  return api<ArtifactRecord>(`/api/projects/${projectId}/requirements`, {
+): Promise<RequirementsRecord> {
+  return api<RequirementsRecord>(`/api/projects/${projectId}/requirements`, {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -93,8 +94,8 @@ export function updateRequirements(
   projectId: string,
   id: string,
   payload: Partial<{ title: string; status: string; data: Record<string, any> }>,
-): Promise<ArtifactRecord> {
-  return api<ArtifactRecord>(`/api/projects/${projectId}/requirements/${id}`, {
+): Promise<RequirementsRecord> {
+  return api<RequirementsRecord>(`/api/projects/${projectId}/requirements/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   })
@@ -102,6 +103,17 @@ export function updateRequirements(
 
 export function deleteRequirements(projectId: string, id: string): Promise<void> {
   return api<void>(`/api/projects/${projectId}/requirements/${id}`, { method: 'DELETE' })
+}
+
+export function setRequirementsRole(
+  pid: string,
+  rid: string,
+  role: 'primary' | 'alternative',
+): Promise<RequirementsRecord> {
+  return api<RequirementsRecord>(`/api/projects/${pid}/requirements/${rid}/role`, {
+    method: 'PUT',
+    body: JSON.stringify({ role }),
+  })
 }
 
 // ---------------------------------------------------------------------------

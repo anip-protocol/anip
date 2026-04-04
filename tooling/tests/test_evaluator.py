@@ -201,6 +201,89 @@ class TestSafetyBudgetOverrun:
         assert "safety" in ev["glue_category"]
         assert any("budget" in g.lower() for g in ev["glue_you_will_still_write"])
 
+    def test_budget_overrun_with_declared_budget_enforcement_is_handled(self):
+        req = _make_requirements(
+            business_constraints={
+                "booking_budget_limit_required": True,
+                "over_budget_actions_must_not_execute": True,
+            },
+        )
+        proposal = _make_proposal(
+            declared_surfaces={
+                "budget_enforcement": True,
+                "authority_posture": True,
+                "recovery_class": True,
+            },
+        )
+        scenario = _make_scenario(
+            name="book_flight_over_budget",
+            category="safety",
+            context={
+                "capability": "book_flight",
+                "side_effect": "irreversible",
+                "expected_cost": 800,
+                "budget_limit": 500,
+                "permissions_state": "available",
+                "task_id": "trip-planning-q2",
+            },
+            expected_anip_support=[
+                "cost_visibility",
+                "side_effect_visibility",
+                "structured_failure",
+                "task_id_support",
+                "parent_invocation_id_support",
+                "audit_queryability",
+            ],
+        )
+
+        result = evaluate(req, proposal, scenario)
+        ev = result["evaluation"]
+        assert ev["result"] == "HANDLED"
+        assert "budget enforcement for over-budget action blocking" in ev["handled_by_anip"]
+        assert not any(
+            "budget-control enforcement" in g.lower() or "budget-enforcement logic" in g.lower()
+            for g in ev["glue_you_will_still_write"]
+        )
+        assert not any(
+            "approval or escalation routing" in g.lower() or "comparison or replanning" in g.lower()
+            for g in ev["glue_you_will_still_write"]
+        )
+
+    def test_budget_overrun_escalation_requirement_missing_support_is_partial(self):
+        req = _make_requirements(
+            business_constraints={
+                "booking_budget_limit_required": True,
+                "over_budget_actions_must_not_execute": True,
+                "blocked_actions_should_escalate_cleanly": True,
+            },
+        )
+        proposal = _make_proposal(
+            declared_surfaces={
+                "budget_enforcement": True,
+            },
+        )
+        scenario = _make_scenario(
+            name="book_flight_over_budget",
+            category="safety",
+            context={
+                "capability": "book_flight",
+                "side_effect": "irreversible",
+                "expected_cost": 800,
+                "budget_limit": 500,
+                "permissions_state": "available",
+                "task_id": "trip-planning-q2",
+            },
+            expected_anip_support=[
+                "structured_failure",
+            ],
+        )
+
+        result = evaluate(req, proposal, scenario)
+        ev = result["evaluation"]
+        assert ev["result"] == "PARTIAL"
+        assert any("escalation routing" in g.lower() for g in ev["glue_you_will_still_write"])
+        assert "budget enforcement for over-budget action blocking" in ev["handled_by_anip"]
+
     def test_budget_overrun_multi_service(self):
         req = _make_requirements(
             services=[
@@ -758,3 +841,127 @@ class TestDeclaredSurfaces:
         # Should NOT have any "approach does not declare" glue
         missing_glue = [g for g in ev["glue_you_will_still_write"] if "approach does not declare" in g]
         assert len(missing_glue) == 0, f"All-true should not have missing-surface glue: {missing_glue}"
+
+
+class TestBusinessConstraintsAlignment:
+    """Tests for business_constraints field consumption in evaluate_safety and evaluate_recovery."""
+
+    # --- safety: spending_possible ---
+
+    def test_spending_possible_with_budget_enforcement_surface_in_handled(self):
+        """spending_possible=true + budget_enforcement surface declared -> handled."""
+        req = _make_requirements(
+            business_constraints={"spending_possible": True},
+        )
+        proposal = _make_proposal(
+            declared_surfaces={"budget_enforcement": True},
+        )
+        scenario = _make_scenario(
+            category="safety",
+            context={"expected_cost": 200, "budget_limit": 500},
+        )
+
+        result = evaluate(req, proposal, scenario)
+        ev = result["evaluation"]
+        assert "budget enforcement for spending-possible system" in ev["handled_by_anip"], (
+            f"Expected budget enforcement entry in handled_by_anip: {ev['handled_by_anip']}"
+        )
+
+    def test_spending_possible_without_budget_enforcement_in_improve(self):
+        """spending_possible=true without budget_enforcement -> what_would_improve."""
+        req = _make_requirements(
+            business_constraints={"spending_possible": True},
+        )
+        proposal = _make_proposal()  # no declared_surfaces
+        scenario = _make_scenario(
+            category="safety",
+            context={"expected_cost": 200, "budget_limit": 500},
+        )
+
+        result = evaluate(req, proposal, scenario)
+        ev = result["evaluation"]
+        assert any(
+            "declare budget_enforcement surface for spending-possible system" in item
+            for item in ev["what_would_improve"]
+        ), f"Expected improve hint in what_would_improve: {ev['what_would_improve']}"
+
+    # --- safety: approval_expected_for_high_risk ---
+
+    def test_approval_expected_with_authority_posture_surface_in_handled(self):
+        """approval_expected_for_high_risk=true + authority_posture surface -> handled."""
+        req = _make_requirements(
+            business_constraints={"approval_expected_for_high_risk": True},
+        )
+        proposal = _make_proposal(
+            declared_surfaces={"authority_posture": True},
+        )
+        scenario = _make_scenario(
+            category="safety",
+            context={"risk": "high", "permissions_state": "available"},
+        )
+
+        result = evaluate(req, proposal, scenario)
+        ev = result["evaluation"]
+        assert "authority posture for high-risk approval expectations" in ev["handled_by_anip"], (
+            f"Expected authority posture entry in handled_by_anip: {ev['handled_by_anip']}"
+        )
+
+    # --- recovery: recovery_sensitive ---
+
+    def test_recovery_sensitive_with_recovery_class_surface_in_handled(self):
+        """recovery_sensitive=true + recovery_class surface declared -> handled."""
+        req = _make_requirements(
+            business_constraints={"recovery_sensitive": True},
+        )
+        proposal = _make_proposal(
+            declared_surfaces={"recovery_class": True},
+        )
+        scenario = _make_scenario(
+            category="recovery",
+            context={"task_id": "rec-test"},
+        )
+
+        result = evaluate(req, proposal, scenario)
+        ev = result["evaluation"]
+        assert "recovery class guidance for recovery-sensitive system" in ev["handled_by_anip"], (
+            f"Expected recovery class entry in handled_by_anip: {ev['handled_by_anip']}"
+        )
+
+    def test_recovery_sensitive_without_recovery_class_in_improve(self):
+        """recovery_sensitive=true without recovery_class -> what_would_improve."""
+        req = _make_requirements(
+            business_constraints={"recovery_sensitive": True},
+        )
+        proposal = _make_proposal()  # no declared_surfaces
+        scenario = _make_scenario(
+            category="recovery",
+            context={"task_id": "rec-test"},
+        )
+
+        result = evaluate(req, proposal, scenario)
+        ev = result["evaluation"]
+        assert any(
+            "declare recovery_class surface for recovery-sensitive system" in item
+            for item in ev["what_would_improve"]
+        ), f"Expected improve hint in what_would_improve: {ev['what_would_improve']}"
+
+    # --- recovery: blocked_failure_posture ---
+
+    def test_blocked_failure_posture_with_recovery_class_surface_in_handled(self):
+        """blocked_failure_posture='escalate_to_human' + recovery_class -> handled."""
+        req = _make_requirements(
+            business_constraints={"blocked_failure_posture": "escalate_to_human"},
+        )
+        proposal = _make_proposal(
+            declared_surfaces={"recovery_class": True},
+        )
+        scenario = _make_scenario(
+            category="recovery",
+            context={"task_id": "posture-test"},
+        )
+
+        result = evaluate(req, proposal, scenario)
+        ev = result["evaluation"]
+        assert "recovery class aligns with declared failure posture (escalate_to_human)" in ev["handled_by_anip"], (
+            f"Expected posture entry in handled_by_anip: {ev['handled_by_anip']}"
+        )

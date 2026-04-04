@@ -23,8 +23,13 @@ export interface ArtifactRecord {
   title: string
   status: string
   data: Record<string, any>
+  content_hash: string
   created_at: string
   updated_at: string
+}
+
+export interface RequirementsRecord extends ArtifactRecord {
+  role: 'primary' | 'alternative'
 }
 
 export interface ProposalRecord extends ArtifactRecord {
@@ -41,6 +46,11 @@ export interface EvaluationRecord {
   source: string
   data: Record<string, any>
   input_snapshot: Record<string, any>
+  requirements_hash: string
+  proposal_hash: string
+  scenario_hash: string
+  is_stale: boolean
+  stale_artifacts: string[]
   created_at: string
 }
 
@@ -50,6 +60,7 @@ export interface VocabularyEntry {
   category: string
   value: string
   origin: 'canonical' | 'project' | 'custom'
+  evaluator_recognized: boolean
   description: string
 }
 

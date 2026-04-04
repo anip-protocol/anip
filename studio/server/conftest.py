@@ -29,6 +29,7 @@ def client():
         # Lifespan has now executed — tables exist.
         # Wipe everything in dependency order, including vocabulary.
         with get_pool().connection() as conn:
+            # Truncate in dependency order (children before parents)
             conn.execute("DELETE FROM evaluations")
             conn.execute("DELETE FROM proposals")
             conn.execute("DELETE FROM scenarios")
@@ -38,4 +39,5 @@ def client():
             conn.commit()
             # Re-seed canonical vocabulary entries from the defaults file.
             load_vocabulary_defaults(conn, str(VOCAB_DEFAULTS_PATH))
+            conn.commit()
         yield c

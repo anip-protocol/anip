@@ -15,6 +15,7 @@ import {
   createScenario,
   exportProject,
   importArtifacts,
+  setRequirementsRole,
 } from '../design/project-api'
 
 const route = useRoute()
@@ -36,6 +37,27 @@ const activeProposalId = computed(() => projectStore.activeProposalId)
 const importing = ref(false)
 const exporting = ref(false)
 const creating = ref<'requirements' | 'scenario' | 'proposal' | null>(null)
+const promotingId = ref<string | null>(null)
+const showAlternatives = ref(false)
+
+const primaryRequirements = computed(() =>
+  requirements.value.filter(r => r.role === 'primary'),
+)
+
+const alternativeRequirements = computed(() =>
+  requirements.value.filter(r => r.role === 'alternative'),
+)
+
+async function handlePromote(rid: string) {
+  if (!projectId.value) return
+  promotingId.value = rid
+  try {
+    await setRequirementsRole(projectId.value, rid, 'primary')
+    await loadProject(projectId.value)
+  } finally {
+    promotingId.value = null
+  }
+}
 
 onMounted(() => {
   if (projectId.value) {
@@ -376,16 +398,50 @@ async function handleCreateProposal() {
       <section class="artifact-section">
         <h2 class="section-title">Requirements ({{ requirements.length }})</h2>
         <div v-if="requirements.length === 0" class="empty-row">No requirements sets yet.</div>
+
+        <!-- Primary requirements -->
         <div
-          v-for="r in requirements"
+          v-for="r in primaryRequirements"
           :key="r.id"
           class="artifact-row"
           @click="navigateRequirements(r.id)"
         >
           <span class="artifact-title">{{ r.title || r.id }}</span>
+          <span class="role-badge primary-badge">Primary</span>
           <span class="artifact-status" :class="'status-' + r.status">{{ r.status }}</span>
           <span class="artifact-date">{{ formatDate(r.updated_at) }}</span>
         </div>
+
+        <!-- Alternatives collapsible -->
+        <template v-if="alternativeRequirements.length > 0">
+          <button
+            class="alternatives-toggle"
+            type="button"
+            @click="showAlternatives = !showAlternatives"
+          >
+            {{ showAlternatives ? '▾' : '▸' }} Alternatives ({{ alternativeRequirements.length }})
+          </button>
+          <template v-if="showAlternatives">
+            <div
+              v-for="r in alternativeRequirements"
+              :key="r.id"
+              class="artifact-row artifact-row-alt"
+              @click="navigateRequirements(r.id)"
+            >
+              <span class="artifact-title">{{ r.title || r.id }}</span>
+              <span class="role-badge alt-badge">Alternative</span>
+              <span class="artifact-status" :class="'status-' + r.status">{{ r.status }}</span>
+              <button
+                class="artifact-action promote-btn"
+                :disabled="promotingId !== null"
+                @click.stop="handlePromote(r.id)"
+              >
+                {{ promotingId === r.id ? 'Promoting...' : 'Promote to Primary' }}
+              </button>
+              <span class="artifact-date">{{ formatDate(r.updated_at) }}</span>
+            </div>
+          </template>
+        </template>
       </section>
 
       <section class="artifact-section">
@@ -437,6 +493,7 @@ async function handleCreateProposal() {
         >
           <span class="artifact-title">{{ e.id }}</span>
           <span class="artifact-status" :class="'status-' + e.result.toLowerCase()">{{ e.result }}</span>
+          <span v-if="e.is_stale" class="stale-badge">Stale</span>
           <span class="artifact-date">{{ formatDate(e.created_at) }}</span>
         </div>
       </section>
@@ -744,5 +801,68 @@ async function handleCreateProposal() {
 .artifact-action:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* Role badges */
+.role-badge {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 7px;
+  border-radius: 8px;
+}
+
+.primary-badge {
+  background: rgba(52, 211, 153, 0.12);
+  color: #34d399;
+}
+
+.alt-badge {
+  background: rgba(156, 163, 175, 0.12);
+  color: var(--text-muted);
+}
+
+/* Alternatives toggle */
+.alternatives-toggle {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 0;
+  margin: 4px 0 2px;
+  transition: color var(--transition);
+}
+
+.alternatives-toggle:hover {
+  color: var(--text-primary);
+}
+
+.artifact-row-alt {
+  margin-left: 12px;
+  opacity: 0.85;
+}
+
+/* Promote button */
+.promote-btn {
+  border-color: rgba(96, 165, 250, 0.35);
+  background: rgba(96, 165, 250, 0.08);
+  color: #60a5fa;
+}
+
+.promote-btn:hover:not(:disabled) {
+  background: rgba(96, 165, 250, 0.16);
+}
+
+/* Stale evaluation badge */
+.stale-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
 }
 </style>

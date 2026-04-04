@@ -66,6 +66,8 @@ class ArtifactOut(BaseModel):
     title: str
     status: str
     data: dict
+    content_hash: str = ""
+    role: str = ""
     created_at: datetime
     updated_at: datetime
 
@@ -109,6 +111,11 @@ class EvaluationOut(BaseModel):
     source: str
     data: dict
     input_snapshot: dict
+    requirements_hash: str = ""
+    proposal_hash: str = ""
+    scenario_hash: str = ""
+    is_stale: bool = False
+    stale_artifacts: list[str] = Field(default_factory=list)
     created_at: datetime
 
 
@@ -131,6 +138,19 @@ class VocabularyOut(BaseModel):
     value: str
     origin: str
     description: str
+    evaluator_recognized: bool = False
+
+
+# ---------------------------------------------------------------------------
+# Requirements Role
+# ---------------------------------------------------------------------------
+
+class SetRoleRequest(BaseModel):
+    role: str
+
+
+# Alias used by the router endpoint
+SetRequirementsRole = SetRoleRequest
 
 
 # ---------------------------------------------------------------------------
