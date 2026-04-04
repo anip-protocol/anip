@@ -4,11 +4,13 @@ import type {
   ArtifactRecord,
   RequirementsRecord,
   ProposalRecord,
+  ShapeRecord,
   EvaluationRecord,
   VocabularyEntry,
   CreateProject,
   ImportResult,
 } from './project-types'
+import type { DerivedExpectation } from './shape-types'
 
 // ---------------------------------------------------------------------------
 // Core fetch wrapper
@@ -212,9 +214,10 @@ export function createEvaluation(
   projectId: string,
   payload: {
     id: string
-    proposal_id: string
+    proposal_id?: string | null
     scenario_id: string
     requirements_id: string
+    shape_id?: string | null
     source?: string
     data: Record<string, any>
     input_snapshot: Record<string, any>
@@ -228,6 +231,50 @@ export function createEvaluation(
 
 export function deleteEvaluation(projectId: string, id: string): Promise<void> {
   return api<void>(`/api/projects/${projectId}/evaluations/${id}`, { method: 'DELETE' })
+}
+
+// ---------------------------------------------------------------------------
+// Shapes
+// ---------------------------------------------------------------------------
+
+export function listShapes(projectId: string): Promise<ShapeRecord[]> {
+  return api<ShapeRecord[]>(`/api/projects/${projectId}/shapes`)
+}
+
+export function getShape(projectId: string, id: string): Promise<ShapeRecord> {
+  return api<ShapeRecord>(`/api/projects/${projectId}/shapes/${id}`)
+}
+
+export function createShape(
+  projectId: string,
+  payload: { id: string; title: string; requirements_id: string; data: Record<string, any> },
+): Promise<ShapeRecord> {
+  return api<ShapeRecord>(`/api/projects/${projectId}/shapes`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateShape(
+  projectId: string,
+  id: string,
+  payload: Partial<{ title: string; status: string; data: Record<string, any> }>,
+): Promise<ShapeRecord> {
+  return api<ShapeRecord>(`/api/projects/${projectId}/shapes/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteShape(projectId: string, id: string): Promise<void> {
+  return api<void>(`/api/projects/${projectId}/shapes/${id}`, { method: 'DELETE' })
+}
+
+export function getShapeExpectations(
+  projectId: string,
+  id: string,
+): Promise<DerivedExpectation[]> {
+  return api<DerivedExpectation[]>(`/api/projects/${projectId}/shapes/${id}/expectations`)
 }
 
 // ---------------------------------------------------------------------------

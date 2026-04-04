@@ -5,6 +5,7 @@ import type {
   ArtifactRecord,
   RequirementsRecord,
   ProposalRecord,
+  ShapeRecord,
   EvaluationRecord,
   VocabularyEntry,
 } from './project-types'
@@ -13,6 +14,7 @@ import {
   listRequirements,
   listScenarios,
   listProposals,
+  listShapes,
   listEvaluations,
   listVocabulary,
   seedDatabase,
@@ -34,11 +36,13 @@ interface ProjectState {
     requirements: RequirementsRecord[]
     scenarios: ArtifactRecord[]
     proposals: ProposalRecord[]
+    shapes: ShapeRecord[]
     evaluations: EvaluationRecord[]
   }
   vocabulary: VocabularyEntry[]
   activeRequirementsId: string | null
   activeProposalId: string | null
+  activeShapeId: string | null
   loading: boolean
   error: string | null
   dbAvailable: boolean
@@ -51,11 +55,13 @@ export const projectStore = reactive<ProjectState>({
     requirements: [],
     scenarios: [],
     proposals: [],
+    shapes: [],
     evaluations: [],
   },
   vocabulary: [],
   activeRequirementsId: null,
   activeProposalId: null,
+  activeShapeId: null,
   loading: false,
   error: null,
   dbAvailable: false,
@@ -96,17 +102,36 @@ function revalidateActiveIds(): void {
   ) {
     projectStore.activeProposalId = null
   }
+
+  if (
+    projectStore.activeShapeId !== null &&
+    !projectStore.artifacts.shapes.some(s => s.id === projectStore.activeShapeId)
+  ) {
+    projectStore.activeShapeId = null
+  }
 }
 
 /**
  * Auto-select active IDs when exactly one record of each type exists.
  * Called after loadProject() finishes populating artifact lists.
  */
+/**
+ * Auto-select active IDs when exactly one record of each type exists.
+ * Shape-first: if shapes exist, auto-select shape; only auto-select
+ * proposal if no shapes exist (legacy project).
+ */
 function autoSelectActiveIds(): void {
   if (projectStore.artifacts.requirements.length === 1) {
     projectStore.activeRequirementsId = projectStore.artifacts.requirements[0].id
   }
-  if (projectStore.artifacts.proposals.length === 1) {
+
+  // Shape-first: prefer shapes over proposals
+  if (projectStore.artifacts.shapes.length > 0) {
+    if (projectStore.artifacts.shapes.length === 1) {
+      projectStore.activeShapeId = projectStore.artifacts.shapes[0].id
+    }
+    // Do not auto-select proposal when shapes exist
+  } else if (projectStore.artifacts.proposals.length === 1) {
     projectStore.activeProposalId = projectStore.artifacts.proposals[0].id
   }
 }
@@ -149,11 +174,12 @@ export async function loadProject(id: string): Promise<void> {
   // Clear context immediately before any async work (switching projects)
   projectStore.activeRequirementsId = null
   projectStore.activeProposalId = null
+  projectStore.activeShapeId = null
 
   setLoading(true)
   clearError()
   try {
-    const [detail, requirements, scenarios, proposals, evaluations] = await Promise.all([
+    const [detail, requirements, scenarios, proposals, shapes, evaluations] = await Promise.all([
       // getProject returns ProjectDetail with counts — import lazily to avoid circular dep
       fetch(`/api/projects/${id}`).then(r => {
         if (!r.ok) throw new Error(`Failed to load project ${id}: ${r.status}`)
@@ -162,6 +188,7 @@ export async function loadProject(id: string): Promise<void> {
       listRequirements(id),
       listScenarios(id),
       listProposals(id),
+      listShapes(id),
       listEvaluations(id),
     ])
 
@@ -169,6 +196,7 @@ export async function loadProject(id: string): Promise<void> {
     projectStore.artifacts.requirements = requirements
     projectStore.artifacts.scenarios = scenarios
     projectStore.artifacts.proposals = proposals
+    projectStore.artifacts.shapes = shapes
     projectStore.artifacts.evaluations = evaluations
 
     // Auto-select if exactly one record of each type exists
@@ -200,6 +228,11 @@ export function setActiveRequirements(id: string | null): void {
 /** Set the active proposal for evaluation context. */
 export function setActiveProposal(id: string | null): void {
   projectStore.activeProposalId = id
+}
+
+/** Set the active shape for evaluation context. */
+export function setActiveShape(id: string | null): void {
+  projectStore.activeShapeId = id
 }
 
 /**
@@ -293,10 +326,12 @@ export function clearProject(): void {
   projectStore.artifacts.requirements = []
   projectStore.artifacts.scenarios = []
   projectStore.artifacts.proposals = []
+  projectStore.artifacts.shapes = []
   projectStore.artifacts.evaluations = []
   projectStore.vocabulary = []
   projectStore.activeRequirementsId = null
   projectStore.activeProposalId = null
+  projectStore.activeShapeId = null
 }
 
 // ---------------------------------------------------------------------------
@@ -328,6 +363,17 @@ export function onProposalDeleted(id: string): void {
 }
 
 /**
+ * Call after deleting a shape record.
+ * Resets activeShapeId if the deleted record was active.
+ */
+export function onShapeDeleted(id: string): void {
+  projectStore.artifacts.shapes = projectStore.artifacts.shapes.filter(s => s.id !== id)
+  if (projectStore.activeShapeId === id) {
+    projectStore.activeShapeId = null
+  }
+}
+
+/**
  * Call after deleting a scenario record.
  */
 export function onScenarioDeleted(id: string): void {
@@ -351,15 +397,17 @@ export async function refreshArtifacts(): Promise<void> {
   const project = projectStore.activeProject
   if (!project) return
   try {
-    const [requirements, scenarios, proposals, evaluations] = await Promise.all([
+    const [requirements, scenarios, proposals, shapes, evaluations] = await Promise.all([
       listRequirements(project.id),
       listScenarios(project.id),
       listProposals(project.id),
+      listShapes(project.id),
       listEvaluations(project.id),
     ])
     projectStore.artifacts.requirements = requirements
     projectStore.artifacts.scenarios = scenarios
     projectStore.artifacts.proposals = proposals
+    projectStore.artifacts.shapes = shapes
     projectStore.artifacts.evaluations = evaluations
     // Revalidate per Active Context Reset Rules
     revalidateActiveIds()

@@ -15,6 +15,7 @@ export interface ProjectDetail extends ProjectSummary {
   scenarios_count: number
   proposals_count: number
   evaluations_count: number
+  shapes_count: number
 }
 
 export interface ArtifactRecord {
@@ -36,12 +37,17 @@ export interface ProposalRecord extends ArtifactRecord {
   requirements_id: string
 }
 
+export interface ShapeRecord extends ArtifactRecord {
+  requirements_id: string
+}
+
 export interface EvaluationRecord {
   id: string
   project_id: string
-  proposal_id: string
+  proposal_id: string | null
   scenario_id: string
   requirements_id: string
+  shape_id: string | null
   result: string
   source: string
   data: Record<string, any>
@@ -49,6 +55,8 @@ export interface EvaluationRecord {
   requirements_hash: string
   proposal_hash: string
   scenario_hash: string
+  shape_hash: string
+  derived_expectations: Record<string, any> | null
   is_stale: boolean
   stale_artifacts: string[]
   created_at: string

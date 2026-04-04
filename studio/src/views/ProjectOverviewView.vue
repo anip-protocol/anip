@@ -7,12 +7,14 @@ import {
   loadVocabulary,
   setActiveRequirements,
   setActiveProposal,
+  setActiveShape,
   refreshArtifacts,
 } from '../design/project-store'
 import {
   createProposal,
   createRequirements,
   createScenario,
+  createShape,
   exportProject,
   importArtifacts,
   setRequirementsRole,
@@ -29,14 +31,21 @@ const error = computed(() => projectStore.error)
 const requirements = computed(() => projectStore.artifacts.requirements)
 const scenarios = computed(() => projectStore.artifacts.scenarios)
 const proposals = computed(() => projectStore.artifacts.proposals)
+const shapes = computed(() => projectStore.artifacts.shapes)
 const evaluations = computed(() => projectStore.artifacts.evaluations)
 
 const activeRequirementsId = computed(() => projectStore.activeRequirementsId)
 const activeProposalId = computed(() => projectStore.activeProposalId)
+const activeShapeId = computed(() => projectStore.activeShapeId)
+
+/** Shape-first: project has shapes */
+const hasShapes = computed(() => shapes.value.length > 0)
+/** Legacy: project has proposals but no shapes */
+const isLegacyProposalProject = computed(() => proposals.value.length > 0 && !hasShapes.value)
 
 const importing = ref(false)
 const exporting = ref(false)
-const creating = ref<'requirements' | 'scenario' | 'proposal' | null>(null)
+const creating = ref<'requirements' | 'scenario' | 'proposal' | 'shape' | null>(null)
 const promotingId = ref<string | null>(null)
 const showAlternatives = ref(false)
 
@@ -81,6 +90,11 @@ function onRequirementsChange(event: Event) {
 function onProposalChange(event: Event) {
   const value = (event.target as HTMLSelectElement).value
   setActiveProposal(value || null)
+}
+
+function onShapeChange(event: Event) {
+  const value = (event.target as HTMLSelectElement).value
+  setActiveShape(value || null)
 }
 
 function navigateRequirements(id: string) {
@@ -303,6 +317,56 @@ async function handleCreateProposal() {
     creating.value = null
   }
 }
+
+function navigateShape(id: string) {
+  router.push(`/design/projects/${projectId.value}/shapes/${id}`)
+}
+
+function makeShapeTemplate() {
+  const name = project.value?.name || 'new-service'
+  return {
+    shape: {
+      id: 'shape-1',
+      name: name,
+      type: 'single_service',
+      notes: [],
+      services: [
+        {
+          id: 'svc-1',
+          name: name,
+          role: 'primary service',
+          responsibilities: [],
+          capabilities: [],
+          owns_concepts: [],
+        },
+      ],
+      coordination: [],
+      domain_concepts: [],
+    },
+  }
+}
+
+async function handleCreateShape() {
+  if (!projectId.value) return
+  const requirementsId = activeRequirementsId.value || requirements.value[0]?.id || null
+  if (!requirementsId) return
+
+  creating.value = 'shape'
+  try {
+    const nextIndex = shapes.value.length + 1
+    const created = await createShape(projectId.value, {
+      id: `shape-${crypto.randomUUID()}`,
+      title: nextIndex === 1 ? 'Shape' : `Shape ${nextIndex}`,
+      requirements_id: requirementsId,
+      data: makeShapeTemplate(),
+    })
+    await refreshArtifacts()
+    setActiveShape(created.id)
+    router.push(`/design/projects/${projectId.value}/shapes/${created.id}`)
+  } finally {
+    creating.value = null
+  }
+}
 </script>
 
 <template>
@@ -326,7 +390,7 @@ async function handleCreateProposal() {
       <!-- Active design context -->
       <section class="context-section">
         <h2 class="section-title">Active Design Context</h2>
-        <p class="section-desc">Select the requirements set and approach for evaluation.</p>
+        <p class="section-desc">Select the requirements set and {{ hasShapes ? 'shape' : 'approach' }} for evaluation.</p>
         <div class="context-selects">
           <div class="context-field">
             <label class="field-label">Requirements Set</label>
@@ -343,7 +407,22 @@ async function handleCreateProposal() {
               >{{ r.title || r.id }}</option>
             </select>
           </div>
-          <div class="context-field">
+          <div v-if="hasShapes" class="context-field">
+            <label class="field-label">Shape</label>
+            <select
+              class="field-select"
+              :value="activeShapeId ?? ''"
+              @change="onShapeChange"
+            >
+              <option value="">-- Select --</option>
+              <option
+                v-for="s in shapes"
+                :key="s.id"
+                :value="s.id"
+              >{{ s.title || s.id }}</option>
+            </select>
+          </div>
+          <div v-else class="context-field">
             <label class="field-label">Approach</label>
             <select
               class="field-select"
@@ -373,11 +452,20 @@ async function handleCreateProposal() {
           </button>
           <button
             class="btn btn-primary"
+            @click="handleCreateShape"
+            :disabled="creating !== null || requirements.length === 0"
+            :title="requirements.length === 0 ? 'Create a requirements set first' : ''"
+          >
+            {{ creating === 'shape' ? 'Creating shape...' : 'New Shape' }}
+          </button>
+          <button
+            v-if="isLegacyProposalProject"
+            class="btn btn-secondary"
             @click="handleCreateProposal"
             :disabled="creating !== null || requirements.length === 0"
             :title="requirements.length === 0 ? 'Create a requirements set first' : ''"
           >
-            {{ creating === 'proposal' ? 'Creating approach...' : 'New Approach' }}
+            {{ creating === 'proposal' ? 'Creating approach...' : 'New Approach (Legacy)' }}
           </button>
         </div>
       </section>
@@ -457,8 +545,8 @@ async function handleCreateProposal() {
           <span class="artifact-status" :class="'status-' + s.status">{{ s.status }}</span>
           <button
             class="artifact-action"
-            :disabled="!activeRequirementsId || !activeProposalId"
-            :title="!activeRequirementsId || !activeProposalId ? 'Select requirements and approach first' : 'Run validation for this scenario'"
+            :disabled="!activeRequirementsId || (!activeProposalId && !activeShapeId)"
+            :title="!activeRequirementsId || (!activeProposalId && !activeShapeId) ? 'Select requirements and a shape or approach first' : 'Run validation for this scenario'"
             @click="navigateScenarioValidation(s.id, $event)"
           >
             Validate
@@ -467,9 +555,26 @@ async function handleCreateProposal() {
         </div>
       </section>
 
-      <section class="artifact-section">
-        <h2 class="section-title">Approaches ({{ proposals.length }})</h2>
-        <div v-if="proposals.length === 0" class="empty-row">No approaches yet.</div>
+      <!-- Shapes section (primary design artifact) -->
+      <section class="artifact-section" v-if="hasShapes || !isLegacyProposalProject">
+        <h2 class="section-title">Shapes ({{ shapes.length }})</h2>
+        <div v-if="shapes.length === 0" class="empty-row">No shapes yet. Create one to define your service design.</div>
+        <div
+          v-for="s in shapes"
+          :key="s.id"
+          class="artifact-row"
+          @click="navigateShape(s.id)"
+        >
+          <span class="artifact-title">{{ s.title || s.id }}</span>
+          <span class="artifact-status" :class="'status-' + s.status">{{ s.status }}</span>
+          <span class="artifact-date">{{ formatDate(s.updated_at) }}</span>
+        </div>
+      </section>
+
+      <!-- Approaches section (legacy projects only) -->
+      <section class="artifact-section" v-if="isLegacyProposalProject">
+        <h2 class="section-title">Approaches (Legacy) ({{ proposals.length }})</h2>
+        <p class="section-desc legacy-note">This project uses the legacy approach model. Create a Shape to use the new design workflow.</p>
         <div
           v-for="p in proposals"
           :key="p.id"
@@ -864,5 +969,10 @@ async function handleCreateProposal() {
   border-radius: 10px;
   background: rgba(251, 191, 36, 0.15);
   color: #fbbf24;
+}
+
+.legacy-note {
+  font-style: italic;
+  color: var(--text-muted);
 }
 </style>

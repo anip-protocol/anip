@@ -36,6 +36,11 @@ const designRoutes = inspectOnly ? [] : [
     component: () => import('./views/ProposalView.vue'),
   },
   {
+    path: '/design/projects/:projectId/shapes/:id',
+    name: 'shape',
+    component: () => import('./views/ShapeView.vue'),
+  },
+  {
     path: '/design/projects/:projectId/evaluations/:id',
     name: 'evaluation',
     component: () => import('./views/EvaluationView.vue'),

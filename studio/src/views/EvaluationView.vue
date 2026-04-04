@@ -89,7 +89,7 @@ const missingContext = computed(() => {
   if (!canSave.value) return null
   const missing: string[] = []
   if (!projectStore.activeRequirementsId) missing.push('requirements set')
-  if (!projectStore.activeProposalId) missing.push('approach')
+  if (!projectStore.activeShapeId && !projectStore.activeProposalId) missing.push('shape or approach')
   return missing.length > 0 ? missing : null
 })
 
@@ -119,11 +119,15 @@ async function saveToProject() {
     const scenarioId = route.params.id as string
     const evalId = crypto.randomUUID()
 
+    // Shape-first: use shape_id when available, fall back to proposal_id
+    const useShape = !!projectStore.activeShapeId
+
     await createEvaluation(projectStore.activeProject.id, {
       id: evalId,
-      proposal_id: projectStore.activeProposalId!,
+      proposal_id: useShape ? null : projectStore.activeProposalId!,
       scenario_id: scenarioId,
       requirements_id: projectStore.activeRequirementsId!,
+      shape_id: useShape ? projectStore.activeShapeId : null,
       source: 'live_validation',
       data: JSON.parse(JSON.stringify(designStore.liveEvaluation)),
       input_snapshot: inputSnapshot,
@@ -144,20 +148,20 @@ async function handleRunValidation() {
     return
   }
 
-  if (!projectStore.activeRequirementsId || !projectStore.activeProposalId || !projectScenario.value) {
-    designStore.validationError = 'Select a requirements set, approach, and scenario before validation.'
+  if (!projectStore.activeRequirementsId || (!projectStore.activeProposalId && !projectStore.activeShapeId) || !projectScenario.value) {
+    designStore.validationError = 'Select a requirements set, shape or approach, and scenario before validation.'
     return
   }
 
   const requirementsRecord = projectStore.artifacts.requirements.find(
     r => r.id === projectStore.activeRequirementsId,
   )
-  const proposalRecord = projectStore.artifacts.proposals.find(
-    p => p.id === projectStore.activeProposalId,
-  )
+  const proposalRecord = projectStore.activeProposalId
+    ? projectStore.artifacts.proposals.find(p => p.id === projectStore.activeProposalId)
+    : null
   const scenarioRecord = projectScenario.value
 
-  if (!requirementsRecord || !proposalRecord) {
+  if (!requirementsRecord) {
     designStore.validationError = 'Active design context is incomplete.'
     return
   }
@@ -167,7 +171,7 @@ async function handleRunValidation() {
   try {
     const requirements = designStore.draftRequirements ?? requirementsRecord.data
     const scenario = designStore.draftScenario ?? scenarioRecord.data
-    const proposal = composeDraftProposal() ?? proposalRecord.data
+    const proposal = composeDraftProposal() ?? proposalRecord?.data ?? {}
     const result = await runValidation(requirements, proposal, scenario)
     designStore.liveEvaluation = result
   } catch (err: any) {
@@ -199,6 +203,7 @@ const staleArtifactLabels = computed<string[]>(() => {
     if (a === 'requirements') return 'Requirements changed'
     if (a === 'scenario') return 'Scenario changed'
     if (a === 'proposal') return 'Approach changed'
+    if (a === 'shape') return 'Shape changed'
     return `${a} changed`
   })
 })
@@ -211,11 +216,19 @@ async function handleReEvaluate() {
 
   // Resolve the linked artifacts from the store
   const reqRecord = projectStore.artifacts.requirements.find(r => r.id === stored.requirements_id)
-  const propRecord = projectStore.artifacts.proposals.find(p => p.id === stored.proposal_id)
+  const propRecord = stored.proposal_id
+    ? projectStore.artifacts.proposals.find(p => p.id === stored.proposal_id)
+    : null
   const scnRecord = projectStore.artifacts.scenarios.find(s => s.id === stored.scenario_id)
 
-  if (!reqRecord || !propRecord || !scnRecord) {
+  if (!reqRecord || !scnRecord) {
     reEvaluateError.value = 'Could not find linked artifacts for re-evaluation.'
+    return
+  }
+
+  // Must have either proposal or shape
+  if (!propRecord && !stored.shape_id) {
+    reEvaluateError.value = 'Could not find linked approach or shape for re-evaluation.'
     return
   }
 
@@ -224,7 +237,7 @@ async function handleReEvaluate() {
   try {
     const requirements = reqRecord.data
     const scenario = scnRecord.data
-    const proposal = propRecord.data
+    const proposal = propRecord?.data ?? {}
 
     const result = await runValidation(requirements, proposal, scenario)
 
@@ -240,6 +253,7 @@ async function handleReEvaluate() {
       proposal_id: stored.proposal_id,
       scenario_id: stored.scenario_id,
       requirements_id: stored.requirements_id,
+      shape_id: stored.shape_id,
       source: 'live_validation',
       data: JSON.parse(JSON.stringify(result)),
       input_snapshot: inputSnapshot,

@@ -45,7 +45,11 @@ const designNavItems = computed(() => {
     if (projectStore.activeRequirementsId) {
       items.push({ name: 'requirements', label: 'Requirements', icon: '\u{1F4CB}', path: `/design/projects/${pid}/requirements/${projectStore.activeRequirementsId}` })
     }
-    if (projectStore.activeProposalId) {
+    // Shape-first: show Shape nav if shapes exist, otherwise show Proposal for legacy projects
+    const hasShapes = projectStore.artifacts.shapes.length > 0
+    if (hasShapes && projectStore.activeShapeId) {
+      items.push({ name: 'shape', label: 'Shape', icon: '\u{1F3D7}', path: `/design/projects/${pid}/shapes/${projectStore.activeShapeId}` })
+    } else if (!hasShapes && projectStore.activeProposalId) {
       items.push({ name: 'proposal', label: 'Approach', icon: '\u{1F4A1}', path: `/design/projects/${pid}/proposals/${projectStore.activeProposalId}` })
     }
   }
