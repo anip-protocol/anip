@@ -14,7 +14,7 @@ from anip_design_validate import evaluate, validate_payload  # noqa: E402
 
 from .db import get_pool, init_db  # noqa: E402
 from .repository import load_vocabulary_defaults  # noqa: E402
-from .routers import projects, artifacts, vocabulary, import_export  # noqa: E402
+from .routers import projects, artifacts, shapes, vocabulary, import_export  # noqa: E402
 
 SCHEMA_DIR = Path(__file__).resolve().parents[2] / "tooling" / "schemas"
 VOCAB_DEFAULTS_PATH = Path(__file__).parent / "vocabulary_defaults.json"
@@ -45,6 +45,7 @@ app.add_middleware(
 # --- Include routers ---
 app.include_router(projects.router)
 app.include_router(artifacts.router)
+app.include_router(shapes.router)
 app.include_router(vocabulary.router)
 app.include_router(import_export.router)
 

@@ -16,6 +16,7 @@ from typing import Any, Optional
 from psycopg.types.json import Json
 
 from .hashing import content_hash
+from .shape_integrity import ShapeIntegrityError, validate_shape_integrity
 
 
 # ---------------------------------------------------------------------------
@@ -62,6 +63,7 @@ _REF_TABLE_MAP: dict[str, str] = {
     "requirements_id": "requirements_sets",
     "scenario_id": "scenarios",
     "proposal_id": "proposals",
+    "shape_id": "shapes",
 }
 
 
@@ -113,7 +115,8 @@ def get_project_detail(conn: Any, project_id: str) -> dict:
         "  (SELECT count(*) FROM requirements_sets WHERE project_id = p.id) AS requirements_count,"
         "  (SELECT count(*) FROM scenarios WHERE project_id = p.id) AS scenarios_count,"
         "  (SELECT count(*) FROM proposals WHERE project_id = p.id) AS proposals_count,"
-        "  (SELECT count(*) FROM evaluations WHERE project_id = p.id) AS evaluations_count"
+        "  (SELECT count(*) FROM evaluations WHERE project_id = p.id) AS evaluations_count,"
+        "  (SELECT count(*) FROM shapes WHERE project_id = p.id) AS shapes_count"
         " FROM projects p WHERE p.id = %s",
         (project_id,),
     ).fetchone()
@@ -300,6 +303,16 @@ def update_requirements(conn: Any, project_id: str, req_id: str,
 
 
 def delete_requirements(conn: Any, project_id: str, req_id: str) -> None:
+    # Also blocked by shapes referencing this requirements set
+    shape_refs = conn.execute(
+        "SELECT id FROM shapes WHERE requirements_id = %s",
+        (req_id,),
+    ).fetchall()
+    if shape_refs:
+        raise ReferentialIntegrityError(
+            "requirements_sets", req_id, "shapes",
+            [r["id"] for r in shape_refs],
+        )
     _delete_artifact(conn, "requirements_sets", project_id, req_id,
                      blocked_by_table="proposals",
                      blocked_by_fk="requirements_id")
@@ -454,12 +467,102 @@ def delete_proposal(conn: Any, project_id: str, proposal_id: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Shapes
+# ---------------------------------------------------------------------------
+
+def list_shapes(conn: Any, project_id: str) -> list[dict]:
+    return conn.execute(
+        "SELECT * FROM shapes WHERE project_id = %s ORDER BY created_at DESC",
+        (project_id,),
+    ).fetchall()
+
+
+def get_shape(conn: Any, project_id: str, shape_id: str) -> dict:
+    row = conn.execute(
+        "SELECT * FROM shapes WHERE id = %s AND project_id = %s",
+        (shape_id, project_id),
+    ).fetchone()
+    if row is None:
+        raise NotFoundError("shapes", shape_id)
+    return row
+
+
+def create_shape(conn: Any, project_id: str, shape_id: str,
+                 title: str, requirements_id: str, data: dict) -> dict:
+    get_project(conn, project_id)
+    assert_same_project(conn, project_id, requirements_id=requirements_id)
+    validate_shape_integrity(data)
+    row = conn.execute(
+        "INSERT INTO shapes (id, project_id, requirements_id, title, data, content_hash)"
+        " VALUES (%s, %s, %s, %s, %s, %s) RETURNING *",
+        (shape_id, project_id, requirements_id, title, Json(data),
+         content_hash(data)),
+    ).fetchone()
+    conn.commit()
+    return row
+
+
+def update_shape(conn: Any, project_id: str, shape_id: str,
+                 **fields: Any) -> dict:
+    allowed = {"title", "status", "data"}
+    sets: list[str] = []
+    params: list[Any] = []
+    for key, value in fields.items():
+        if key not in allowed or value is None:
+            continue
+        if key == "data":
+            # Revalidate integrity when data changes
+            validate_shape_integrity(value)
+            sets.append(f"{key} = %s")
+            params.append(Json(value))
+            sets.append("content_hash = %s")
+            params.append(content_hash(value))
+        else:
+            sets.append(f"{key} = %s")
+            params.append(value)
+    if not sets:
+        return get_shape(conn, project_id, shape_id)
+    sets.append("updated_at = now()")
+    params.extend([shape_id, project_id])
+    row = conn.execute(
+        f"UPDATE shapes SET {', '.join(sets)}"
+        " WHERE id = %s AND project_id = %s RETURNING *",
+        params,
+    ).fetchone()
+    if row is None:
+        raise NotFoundError("shapes", shape_id)
+    conn.commit()
+    return row
+
+
+def delete_shape(conn: Any, project_id: str, shape_id: str) -> None:
+    # Blocked by evaluations
+    refs = conn.execute(
+        "SELECT id FROM evaluations WHERE shape_id = %s",
+        (shape_id,),
+    ).fetchall()
+    if refs:
+        raise ReferentialIntegrityError(
+            "shapes", shape_id, "evaluations",
+            [r["id"] for r in refs],
+        )
+    cur = conn.execute(
+        "DELETE FROM shapes WHERE id = %s AND project_id = %s",
+        (shape_id, project_id),
+    )
+    if cur.rowcount == 0:
+        raise NotFoundError("shapes", shape_id)
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
 # Evaluations
 # ---------------------------------------------------------------------------
 
 def _compute_staleness(eval_row: dict, current_req_hash: str,
                        current_prop_hash: str,
-                       current_scn_hash: str) -> tuple[bool, list[str]]:
+                       current_scn_hash: str,
+                       current_shape_hash: str = "") -> tuple[bool, list[str]]:
     """Compare stored per-artifact hashes against current hashes."""
     stale: list[str] = []
     if eval_row["requirements_hash"] != current_req_hash:
@@ -468,6 +571,9 @@ def _compute_staleness(eval_row: dict, current_req_hash: str,
         stale.append("proposal")
     if eval_row["scenario_hash"] != current_scn_hash:
         stale.append("scenario")
+    # Shape staleness (only for shape-backed evaluations)
+    if eval_row.get("shape_id") and eval_row.get("shape_hash", "") != current_shape_hash:
+        stale.append("shape")
     return len(stale) > 0, stale
 
 
@@ -476,15 +582,24 @@ def _enrich_evaluation_staleness(conn: Any, eval_dict: dict) -> dict:
     try:
         req_row = get_requirements(conn, eval_dict["project_id"],
                                    eval_dict["requirements_id"])
-        prop_row = get_proposal(conn, eval_dict["project_id"],
-                                eval_dict["proposal_id"])
+        current_prop_hash = ""
+        if eval_dict.get("proposal_id"):
+            prop_row = get_proposal(conn, eval_dict["project_id"],
+                                    eval_dict["proposal_id"])
+            current_prop_hash = prop_row["content_hash"]
         scn_row = get_scenario(conn, eval_dict["project_id"],
                                eval_dict["scenario_id"])
+        current_shape_hash = ""
+        if eval_dict.get("shape_id"):
+            shape_row = get_shape(conn, eval_dict["project_id"],
+                                  eval_dict["shape_id"])
+            current_shape_hash = shape_row["content_hash"]
         is_stale, stale_artifacts = _compute_staleness(
             eval_dict,
             req_row["content_hash"],
-            prop_row["content_hash"],
+            current_prop_hash,
             scn_row["content_hash"],
+            current_shape_hash,
         )
     except NotFoundError:
         # If a linked artifact has been deleted, mark as stale
@@ -497,17 +612,21 @@ def _enrich_evaluation_staleness(conn: Any, eval_dict: dict) -> dict:
 
 def list_evaluations(conn: Any, project_id: str, *,
                      scenario_id: Optional[str] = None,
-                     proposal_id: Optional[str] = None) -> list[dict]:
-    # Use a JOIN to avoid N+1 queries for staleness computation
+                     proposal_id: Optional[str] = None,
+                     shape_id: Optional[str] = None) -> list[dict]:
+    # Use JOINs to avoid N+1 queries for staleness computation
+    # LEFT JOIN proposals since proposal_id is now optional (shape-backed evals)
     query = (
         "SELECT e.*,"
         "  rs.content_hash AS current_req_hash,"
-        "  p.content_hash AS current_prop_hash,"
-        "  s.content_hash AS current_scn_hash"
+        "  COALESCE(p.content_hash, '') AS current_prop_hash,"
+        "  s.content_hash AS current_scn_hash,"
+        "  COALESCE(sh.content_hash, '') AS current_shape_hash"
         " FROM evaluations e"
         " JOIN requirements_sets rs ON e.requirements_id = rs.id"
-        " JOIN proposals p ON e.proposal_id = p.id"
+        " LEFT JOIN proposals p ON e.proposal_id = p.id"
         " JOIN scenarios s ON e.scenario_id = s.id"
+        " LEFT JOIN shapes sh ON e.shape_id = sh.id"
         " WHERE e.project_id = %s"
     )
     params: list[Any] = [project_id]
@@ -517,6 +636,9 @@ def list_evaluations(conn: Any, project_id: str, *,
     if proposal_id is not None:
         query += " AND e.proposal_id = %s"
         params.append(proposal_id)
+    if shape_id is not None:
+        query += " AND e.shape_id = %s"
+        params.append(shape_id)
     query += " ORDER BY e.created_at DESC"
     rows = conn.execute(query, params).fetchall()
     result = []
@@ -526,6 +648,7 @@ def list_evaluations(conn: Any, project_id: str, *,
             row.pop("current_req_hash", ""),
             row.pop("current_prop_hash", ""),
             row.pop("current_scn_hash", ""),
+            row.pop("current_shape_hash", ""),
         )
         row["is_stale"] = is_stale
         row["stale_artifacts"] = stale_artifacts
@@ -544,23 +667,44 @@ def get_evaluation(conn: Any, project_id: str, eval_id: str) -> dict:
 
 
 def create_evaluation(conn: Any, project_id: str, eval_id: str,
-                      proposal_id: str, scenario_id: str,
+                      proposal_id: Optional[str], scenario_id: str,
                       requirements_id: str, source: str,
-                      data: dict, input_snapshot: dict) -> dict:
+                      data: dict, input_snapshot: dict,
+                      shape_id: Optional[str] = None) -> dict:
     get_project(conn, project_id)
-    assert_same_project(
-        conn, project_id,
-        proposal_id=proposal_id,
-        scenario_id=scenario_id,
-        requirements_id=requirements_id,
-    )
+    # Build coherence checks dynamically (proposal_id and shape_id are optional)
+    coherence_refs: dict[str, str] = {
+        "scenario_id": scenario_id,
+        "requirements_id": requirements_id,
+    }
+    if proposal_id:
+        coherence_refs["proposal_id"] = proposal_id
+    if shape_id:
+        coherence_refs["shape_id"] = shape_id
+    assert_same_project(conn, project_id, **coherence_refs)
+
     # Capture current content_hash of each linked artifact
     req_row = get_requirements(conn, project_id, requirements_id)
-    prop_row = get_proposal(conn, project_id, proposal_id)
-    scn_row = get_scenario(conn, project_id, scenario_id)
     requirements_hash = req_row["content_hash"]
-    proposal_hash = prop_row["content_hash"]
+
+    proposal_hash = ""
+    if proposal_id:
+        prop_row = get_proposal(conn, project_id, proposal_id)
+        proposal_hash = prop_row["content_hash"]
+
+    scn_row = get_scenario(conn, project_id, scenario_id)
     scenario_hash = scn_row["content_hash"]
+
+    shape_hash = ""
+    derived_expectations_snapshot = None
+    if shape_id:
+        shape_row = get_shape(conn, project_id, shape_id)
+        shape_hash = shape_row["content_hash"]
+        # Derive and snapshot contract expectations
+        from .derivation import derive_contract_expectations
+        derived_expectations_snapshot = derive_contract_expectations(
+            shape_row["data"], req_row["data"],
+        )
 
     # Extract result from the evaluation data
     result = data.get("evaluation", {}).get("result", "REQUIRES_GLUE")
@@ -568,11 +712,15 @@ def create_evaluation(conn: Any, project_id: str, eval_id: str,
         "INSERT INTO evaluations"
         " (id, project_id, proposal_id, scenario_id, requirements_id,"
         "  result, source, data, input_snapshot,"
-        "  requirements_hash, proposal_hash, scenario_hash)"
-        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *",
+        "  requirements_hash, proposal_hash, scenario_hash,"
+        "  shape_id, shape_hash, derived_expectations)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+        " RETURNING *",
         (eval_id, project_id, proposal_id, scenario_id, requirements_id,
          result, source, Json(data), Json(input_snapshot),
-         requirements_hash, proposal_hash, scenario_hash),
+         requirements_hash, proposal_hash, scenario_hash,
+         shape_id, shape_hash,
+         Json(derived_expectations_snapshot) if derived_expectations_snapshot is not None else None),
     ).fetchone()
     conn.commit()
     return row

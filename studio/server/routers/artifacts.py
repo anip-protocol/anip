@@ -23,6 +23,7 @@ from ..repository import (
     ProjectCoherenceError,
     ReferentialIntegrityError,
 )
+from ..shape_integrity import ShapeIntegrityError
 from .. import repository
 
 router = APIRouter(prefix="/api/projects/{pid}", tags=["artifacts"])
@@ -53,6 +54,11 @@ def _handle_errors(fn):
             )
         except ProjectCoherenceError as e:
             raise HTTPException(status_code=422, detail=str(e))
+        except ShapeIntegrityError as e:
+            raise HTTPException(
+                status_code=422,
+                detail={"message": str(e), "errors": e.errors},
+            )
         except UniqueViolation:
             raise HTTPException(status_code=409, detail="Duplicate ID")
 
@@ -210,10 +216,12 @@ def list_evaluations(
     pid: str,
     scenario_id: Optional[str] = Query(None),
     proposal_id: Optional[str] = Query(None),
+    shape_id: Optional[str] = Query(None),
 ):
     with get_pool().connection() as conn:
         return repository.list_evaluations(
             conn, pid, scenario_id=scenario_id, proposal_id=proposal_id,
+            shape_id=shape_id,
         )
 
 
@@ -231,6 +239,7 @@ def create_evaluation(pid: str, body: CreateEvaluation):
             source=body.source,
             data=body.data,
             input_snapshot=body.input_snapshot,
+            shape_id=body.shape_id,
         )
 
 
