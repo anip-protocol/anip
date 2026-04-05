@@ -34,6 +34,11 @@ import {
   makeScenarioTemplatesFromIntent,
   makeShapeTemplateFromIntent,
 } from '../design/intent-drafts'
+import {
+  buildBusinessBrief,
+  buildEngineeringContract,
+  downloadTextDocument,
+} from '../design/shared-artifacts'
 
 const route = useRoute()
 const router = useRouter()
@@ -71,6 +76,8 @@ const intentInterpretation = computed(() => projectStore.pendingIntentDraft?.int
 const lastInterpretedIntent = computed(() => projectStore.pendingIntentDraft?.source_intent ?? '')
 const draftStatus = ref<string | null>(null)
 const loopView = ref<LoopView>('current')
+const businessBriefCopied = ref(false)
+const engineeringContractCopied = ref(false)
 
 const primaryRequirements = computed(() =>
   requirements.value.filter(r => r.role === 'primary'),
@@ -123,6 +130,23 @@ const latestEvaluationSummary = computed(() => {
   if (result === 'PARTIAL') return 'The current design is promising, but there are still important gaps to close.'
   return 'The current design still needs meaningful changes before it can support this scenario cleanly.'
 })
+
+const businessBriefContent = computed(() => buildBusinessBrief({
+  project: project.value,
+  sourceIntent: lastInterpretedIntent.value,
+  requirements: activeRequirementsRecord.value,
+  scenario: activeScenarioRecord.value,
+  shape: activeShapeRecord.value,
+  evaluation: latestEvaluationRecord.value,
+}))
+
+const engineeringContractContent = computed(() => buildEngineeringContract({
+  project: project.value,
+  requirements: activeRequirementsRecord.value,
+  scenario: activeScenarioRecord.value,
+  shape: activeShapeRecord.value,
+  evaluation: latestEvaluationRecord.value,
+}))
 
 const activeRequirementsRecord = computed(() =>
   requirements.value.find(item => item.id === activeRequirementsId.value) ??
@@ -665,6 +689,40 @@ function openLoopView(view: LoopView) {
   scrollToSection('design-loop')
 }
 
+function openFirstDraftReview() {
+  router.push(`/design/projects/${projectId.value}/first-draft`)
+}
+
+function discardPendingIntent() {
+  setPendingIntentDraft(null)
+  draftStatus.value = 'Discarded the pending suggested first design.'
+}
+
+async function copyShareableDocument(kind: 'business' | 'engineering') {
+  const content = kind === 'business' ? businessBriefContent.value : engineeringContractContent.value
+  try {
+    await navigator.clipboard.writeText(content)
+    if (kind === 'business') {
+      businessBriefCopied.value = true
+      setTimeout(() => { businessBriefCopied.value = false }, 1500)
+    } else {
+      engineeringContractCopied.value = true
+      setTimeout(() => { engineeringContractCopied.value = false }, 1500)
+    }
+  } catch {
+    // clipboard may be unavailable in some environments
+  }
+}
+
+function downloadShareableDocument(kind: 'business' | 'engineering') {
+  const slug = slugify(project.value?.name || 'project')
+  if (kind === 'business') {
+    downloadTextDocument(`${slug}-business-brief.md`, businessBriefContent.value)
+    return
+  }
+  downloadTextDocument(`${slug}-engineering-contract.md`, engineeringContractContent.value)
+}
+
 async function runHomePrimaryAction() {
   switch (homePrimaryAction.value.action) {
     case 'review_first_draft':
@@ -916,79 +974,6 @@ async function handleInterpretIntent(intent: string) {
   }
 }
 
-async function handleCreateScenarioStarters(result: IntentInterpretation) {
-  if (!projectId.value) return
-  creating.value = 'scenario'
-  draftStatus.value = null
-  try {
-    const templates = makeScenarioTemplatesFromIntent(result)
-    const createdIds: string[] = []
-    for (const template of templates) {
-      const created = await createScenario(projectId.value, {
-        id: `scn-${crypto.randomUUID()}`,
-        title: template.title,
-        data: template.data,
-      })
-      createdIds.push(created.id)
-    }
-    await refreshArtifacts()
-    setActiveScenario(createdIds[0] || null)
-    draftStatus.value = `Created ${createdIds.length} starter scenario${createdIds.length === 1 ? '' : 's'} from your plain-language brief.`
-    if (createdIds[0]) {
-      router.push(`/design/projects/${projectId.value}/scenarios/${createdIds[0]}`)
-    }
-  } finally {
-    creating.value = null
-  }
-}
-
-async function handleCreateDraftSet(result: IntentInterpretation) {
-  if (!projectId.value) return
-  creating.value = 'requirements'
-  draftStatus.value = null
-  try {
-    const requirementsCreated = await createRequirements(projectId.value, {
-      id: `req-${crypto.randomUUID()}`,
-      title: requirements.value.length === 0 ? 'Requirements' : `Requirements ${requirements.value.length + 1}`,
-      data: makeRequirementsTemplateFromIntent(
-        result,
-        lastInterpretedIntent.value,
-        project.value?.name || 'new-service',
-        project.value?.domain || 'general',
-      ),
-    })
-
-    const scenarioTemplates = makeScenarioTemplatesFromIntent(result)
-    const createdScenarioIds: string[] = []
-    for (const template of scenarioTemplates) {
-      const createdScenario = await createScenario(projectId.value, {
-        id: `scn-${crypto.randomUUID()}`,
-        title: template.title,
-        data: template.data,
-      })
-      createdScenarioIds.push(createdScenario.id)
-    }
-
-    creating.value = 'shape'
-    const shapeCreated = await createShape(projectId.value, {
-      id: `shape-${crypto.randomUUID()}`,
-      title: shapes.value.length === 0 ? 'Service Shape' : `Service Shape ${shapes.value.length + 1}`,
-      requirements_id: requirementsCreated.id,
-      data: makeShapeTemplateFromIntent(result, project.value?.name || 'new-service'),
-    })
-
-    await refreshArtifacts()
-    setActiveRequirements(requirementsCreated.id)
-    setActiveScenario(createdScenarioIds[0] || null)
-    setActiveShape(shapeCreated.id)
-    setPendingIntentDraft(null)
-    draftStatus.value = `Created the first draft set: requirements, ${createdScenarioIds.length} scenario starter${createdScenarioIds.length === 1 ? '' : 's'}, and a service shape.`
-    router.push(`/design/projects/${projectId.value}/shapes/${shapeCreated.id}`)
-  } finally {
-    creating.value = null
-  }
-}
-
 function handleCreateRequirementsManual() {
   return handleCreateRequirements()
 }
@@ -1166,13 +1151,12 @@ async function handleDraftChange(item: string) {
           title="What Are We Building?"
           description="Describe what you want to build in normal language. Studio will suggest the first requirements pressure, scenario starters, domain concepts, and service-shape direction."
           :result="intentInterpretation"
+          :pending-intent="lastInterpretedIntent"
           :loading="intentLoading"
           :error="intentError"
           @run="handleInterpretIntent"
-          @create-draft-set="handleCreateDraftSet"
-          @create-requirements="handleCreateRequirements"
-          @create-scenarios="handleCreateScenarioStarters"
-          @create-shape="handleCreateShape"
+          @review-result="openFirstDraftReview"
+          @discard-result="discardPendingIntent"
         />
 
         <div v-if="draftStatus" class="banner banner-success">{{ draftStatus }}</div>
@@ -1389,6 +1373,53 @@ async function handleDraftChange(item: string) {
               </div>
             </div>
           </template>
+        </div>
+      </section>
+
+      <section class="share-section">
+        <div class="share-head">
+          <div>
+            <h2 class="section-title">Shareable Outputs</h2>
+            <p class="section-desc">Generate one brief for product conversations and one contract for engineering follow-through from the current design loop.</p>
+          </div>
+        </div>
+
+        <div class="share-grid">
+          <section class="share-card">
+            <div class="share-card-head">
+              <div>
+                <h3 class="loop-panel-title">Business Brief</h3>
+                <p class="section-desc">PM-facing summary of the current design, the key situation under review, and what should change next.</p>
+              </div>
+              <div class="share-actions">
+                <button class="btn btn-secondary" @click="copyShareableDocument('business')">
+                  {{ businessBriefCopied ? 'Copied!' : 'Copy' }}
+                </button>
+                <button class="btn btn-secondary" @click="downloadShareableDocument('business')">
+                  Download
+                </button>
+              </div>
+            </div>
+            <textarea class="share-preview" readonly :value="businessBriefContent"></textarea>
+          </section>
+
+          <section class="share-card">
+            <div class="share-card-head">
+              <div>
+                <h3 class="loop-panel-title">Engineering Contract</h3>
+                <p class="section-desc">Engineering-facing summary of the active context, design structure, expected behavior, and current gaps.</p>
+              </div>
+              <div class="share-actions">
+                <button class="btn btn-secondary" @click="copyShareableDocument('engineering')">
+                  {{ engineeringContractCopied ? 'Copied!' : 'Copy' }}
+                </button>
+                <button class="btn btn-secondary" @click="downloadShareableDocument('engineering')">
+                  Download
+                </button>
+              </div>
+            </div>
+            <textarea class="share-preview" readonly :value="engineeringContractContent"></textarea>
+          </section>
         </div>
       </section>
 
@@ -1905,6 +1936,60 @@ async function handleDraftChange(item: string) {
   border-radius: var(--radius);
   padding: 1.25rem;
   margin-bottom: 1.5rem;
+}
+
+.share-section {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.share-head {
+  margin-bottom: 0.9rem;
+}
+
+.share-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.share-card {
+  padding: 1rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.share-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 0.8rem;
+}
+
+.share-actions {
+  display: flex;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.share-preview {
+  width: 100%;
+  min-height: 280px;
+  box-sizing: border-box;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.55;
+  resize: vertical;
 }
 
 .section-title {

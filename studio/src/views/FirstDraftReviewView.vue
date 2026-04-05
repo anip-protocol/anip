@@ -58,6 +58,16 @@ const projectSummary = computed(() =>
   project.value?.summary || 'Studio shaped this first design from your plain-language brief.',
 )
 
+function returnToBrief() {
+  router.push(`/design/projects/${projectId.value}`)
+}
+
+function discardSuggestion() {
+  setPendingIntentDraft(null)
+  draftStatus.value = null
+  router.push(`/design/projects/${projectId.value}`)
+}
+
 async function createRequirementsDraft() {
   if (!projectId.value || !interpretation.value || !project.value) return
   creating.value = 'requirements'
@@ -196,13 +206,27 @@ async function createFirstDraftSet() {
           <div class="hero-kicker">From your plain-language brief</div>
           <h2 class="hero-title">{{ interpretation.title }}</h2>
           <p class="hero-description">{{ interpretation.summary }}</p>
+          <div class="proposal-note">
+            This is a proposed starting point only. Nothing is persisted until you accept the whole recommendation or accept a section below.
+          </div>
         </div>
         <div class="hero-actions">
           <button class="btn btn-primary hero-btn" :disabled="creating !== null" @click="createFirstDraftSet">
-            {{ creating === 'all' ? 'Creating first draft set...' : 'Create First Draft Set' }}
+            {{ creating === 'all' ? 'Accepting proposal...' : 'Accept Entire Recommendation' }}
           </button>
-          <p class="hero-detail">Create what matters, real situations, and a service design in one move.</p>
+          <button class="btn btn-secondary hero-btn-secondary" :disabled="creating !== null" @click="returnToBrief">
+            Keep Editing Brief
+          </button>
+          <button class="btn btn-secondary hero-btn-secondary" :disabled="creating !== null" @click="discardSuggestion">
+            Discard Suggestion
+          </button>
+          <p class="hero-detail">Accept everything in one move, or accept each section separately below.</p>
         </div>
+      </section>
+
+      <section class="brief-card">
+        <div class="section-title">Original Plain-Language Brief</div>
+        <p class="brief-text">{{ sourceIntent }}</p>
       </section>
 
       <div v-if="draftStatus" class="banner banner-success">{{ draftStatus }}</div>
@@ -215,7 +239,7 @@ async function createFirstDraftSet() {
             <li v-for="(item, i) in interpretation.requirements_focus" :key="`req-${i}`">{{ item }}</li>
           </ul>
           <button class="btn btn-secondary" :disabled="creating !== null" @click="createRequirementsDraft">
-            {{ creating === 'requirements' ? 'Creating draft...' : 'Create What Matters Draft' }}
+            {{ creating === 'requirements' ? 'Accepting...' : 'Accept What Matters Draft' }}
           </button>
         </section>
 
@@ -226,7 +250,7 @@ async function createFirstDraftSet() {
             <li v-for="(item, i) in interpretation.scenario_starters" :key="`scenario-${i}`">{{ item }}</li>
           </ul>
           <button class="btn btn-secondary" :disabled="creating !== null" @click="createScenarioStarters">
-            {{ creating === 'scenarios' ? 'Creating starters...' : 'Create Real Situation Starters' }}
+            {{ creating === 'scenarios' ? 'Accepting...' : 'Accept Real Situation Starters' }}
           </button>
         </section>
 
@@ -241,7 +265,7 @@ async function createFirstDraftSet() {
             <li v-for="(item, i) in interpretation.service_suggestions" :key="`service-${i}`">{{ item }}</li>
           </ul>
           <button class="btn btn-secondary" :disabled="creating !== null" @click="createServiceDesignDraft">
-            {{ creating === 'shape' ? 'Creating design...' : 'Create Service Design Draft' }}
+            {{ creating === 'shape' ? 'Accepting...' : 'Accept Service Design Draft' }}
           </button>
         </section>
 
@@ -313,6 +337,15 @@ async function createFirstDraftSet() {
   flex: 1;
 }
 
+.proposal-note,
+.brief-card {
+  margin-top: 0.9rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.52);
+}
+
 .hero-kicker,
 .section-title {
   font-size: 11px;
@@ -347,9 +380,25 @@ async function createFirstDraftSet() {
   width: 100%;
 }
 
+.hero-btn-secondary {
+  width: 100%;
+  margin-top: 0.55rem;
+}
+
 .hero-detail {
   margin-top: 0.6rem;
   font-size: 12px;
+}
+
+.brief-card {
+  margin-bottom: 1rem;
+}
+
+.brief-text {
+  margin: 0.35rem 0 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  white-space: pre-wrap;
 }
 
 .review-grid {

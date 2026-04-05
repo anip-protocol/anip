@@ -1,24 +1,31 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import type { IntentInterpretation } from '../project-types'
 
-defineProps<{
+const props = defineProps<{
   title: string
   description: string
   result: IntentInterpretation | null
   loading: boolean
   error: string | null
+  pendingIntent?: string
 }>()
 
 const emit = defineEmits<{
   run: [intent: string]
-  createDraftSet: [result: IntentInterpretation]
-  createRequirements: [result: IntentInterpretation]
-  createScenarios: [result: IntentInterpretation]
-  createShape: [result: IntentInterpretation]
+  reviewResult: []
+  discardResult: []
 }>()
 
 const intent = ref('')
+
+watch(
+  () => props.pendingIntent,
+  (value) => {
+    if (value) intent.value = value
+  },
+  { immediate: true },
+)
 
 function handleRun() {
   emit('run', intent.value.trim())
@@ -53,65 +60,24 @@ function handleRun() {
     <div v-if="error" class="intent-error">{{ error }}</div>
 
     <div v-if="result" class="intent-result">
-      <h3 class="result-title">{{ result.title }}</h3>
-      <p class="result-summary">{{ result.summary }}</p>
-
-      <div class="draft-actions">
-        <button class="intent-btn intent-btn-primary" :disabled="loading" @click="emit('createDraftSet', result)">
-          Create First Draft Set
-        </button>
-        <button class="intent-btn" :disabled="loading" @click="emit('createRequirements', result)">
-          What Matters Draft
-        </button>
-        <button class="intent-btn" :disabled="loading" @click="emit('createScenarios', result)">
-          Real Situation Starters
-        </button>
-        <button class="intent-btn" :disabled="loading" @click="emit('createShape', result)">
-          Service Design Draft
-        </button>
-      </div>
-
-      <div class="shape-recommendation">
-        <div class="section-title">Suggested Starting Shape</div>
-        <div class="shape-pill" :class="result.recommended_shape_type">
-          {{ result.recommended_shape_type === 'multi_service' ? 'Multi Service' : 'Single Service' }}
+      <div class="proposal-banner">
+        <div>
+          <div class="section-title">Suggested First Design Ready</div>
+          <h3 class="result-title">{{ result.title }}</h3>
+          <p class="result-summary">{{ result.summary }}</p>
         </div>
-        <p>{{ result.recommended_shape_reason }}</p>
-      </div>
-
-      <div v-if="result.requirements_focus?.length" class="result-section">
-        <div class="section-title">What Matters</div>
-        <ul>
-          <li v-for="(item, i) in result.requirements_focus" :key="`req-${i}`">{{ item }}</li>
-        </ul>
-      </div>
-
-      <div v-if="result.scenario_starters?.length" class="result-section">
-        <div class="section-title">Real Situations</div>
-        <ul>
-          <li v-for="(item, i) in result.scenario_starters" :key="`scn-${i}`">{{ item }}</li>
-        </ul>
-      </div>
-
-      <div v-if="result.domain_concepts?.length" class="result-section">
-        <div class="section-title">Candidate Domain Concepts</div>
-        <div class="chip-row">
-          <span v-for="(item, i) in result.domain_concepts" :key="`concept-${i}`" class="chip">{{ item }}</span>
+        <div class="draft-actions">
+          <button class="intent-btn intent-btn-primary" :disabled="loading" @click="emit('reviewResult')">
+            Review Suggested First Design
+          </button>
+          <button class="intent-btn" :disabled="loading" @click="emit('discardResult')">
+            Discard Suggestion
+          </button>
         </div>
       </div>
 
-      <div v-if="result.service_suggestions?.length" class="result-section">
-        <div class="section-title">Service Design Direction</div>
-        <ul>
-          <li v-for="(item, i) in result.service_suggestions" :key="`svc-${i}`">{{ item }}</li>
-        </ul>
-      </div>
-
-      <div v-if="result.next_steps?.length" class="result-section">
-        <div class="section-title">Suggested Next Steps</div>
-        <ul>
-          <li v-for="(item, i) in result.next_steps" :key="`next-${i}`">{{ item }}</li>
-        </ul>
+      <div class="proposal-note">
+        Nothing has been saved yet. Review the proposed first design, then accept the parts you want to turn into real Studio artifacts.
       </div>
     </div>
   </section>
@@ -227,7 +193,6 @@ function handleRun() {
   display: flex;
   flex-wrap: wrap;
   gap: 0.65rem;
-  margin-top: 1rem;
 }
 
 .result-title {
@@ -235,6 +200,23 @@ function handleRun() {
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.proposal-banner {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.proposal-note {
+  margin-top: 0.9rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.52);
+  color: var(--text-secondary);
+  line-height: 1.55;
 }
 
 .shape-recommendation {
