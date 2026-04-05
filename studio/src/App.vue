@@ -59,10 +59,10 @@ const designNavItems = computed<DesignNavItem[]>(() => {
     const pid = project.id
     items.push(
       { name: 'project-overview', label: project.name, icon: '\u{1F4C1}', path: `/design/projects/${pid}` },
-      { name: 'project-overview:overview', label: 'Overview', icon: '\u2022', path: `/design/projects/${pid}`, child: true },
+      { name: 'project-overview:overview', label: '1. Intent', icon: '\u2022', path: `/design/projects/${pid}`, child: true },
       {
         name: 'project-overview:requirements',
-        label: 'Requirements',
+        label: '2. Requirements',
         icon: '\u2022',
         path: projectStore.activeRequirementsId
           ? `/design/projects/${pid}/requirements/${projectStore.activeRequirementsId}`
@@ -71,7 +71,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
       },
       {
         name: 'project-overview:scenarios',
-        label: 'Scenarios',
+        label: '3. Scenarios',
         icon: '\u2022',
         path: projectStore.activeScenarioId
           ? `/design/projects/${pid}/scenarios/${projectStore.activeScenarioId}`
@@ -81,45 +81,52 @@ const designNavItems = computed<DesignNavItem[]>(() => {
     )
     const hasShapes = projectStore.artifacts.shapes.length > 0
     if (hasShapes && projectStore.activeShapeId) {
-      items.push({
-        name: 'shape',
-        label: 'Service Shape',
-        icon: '\u2022',
-        path: `/design/projects/${pid}/shapes/${projectStore.activeShapeId}`,
-        child: true,
+        items.push({
+          name: 'shape',
+          label: '4. Service Shape',
+          icon: '\u2022',
+          path: `/design/projects/${pid}/shapes/${projectStore.activeShapeId}`,
+          child: true,
       })
     } else if (hasShapes) {
-      items.push({
-        name: 'project-overview:shape',
-        label: 'Service Shape',
-        icon: '\u2022',
-        path: `/design/projects/${pid}#shape`,
-        child: true,
+        items.push({
+          name: 'project-overview:shape',
+          label: '4. Service Shape',
+          icon: '\u2022',
+          path: `/design/projects/${pid}#shape`,
+          child: true,
       })
     } else if (projectStore.artifacts.proposals.length === 0) {
-      items.push({
-        name: 'project-overview:shape',
-        label: 'Service Shape',
-        icon: '\u2022',
-        path: `/design/projects/${pid}#shape`,
-        child: true,
+        items.push({
+          name: 'project-overview:shape',
+          label: '4. Service Shape',
+          icon: '\u2022',
+          path: `/design/projects/${pid}#shape`,
+          child: true,
       })
     } else if (!hasShapes && projectStore.activeProposalId) {
-      items.push({
-        name: 'proposal',
-        label: 'Legacy Approach',
-        icon: '\u2022',
-        path: `/design/projects/${pid}/proposals/${projectStore.activeProposalId}`,
-        child: true,
+        items.push({
+          name: 'proposal',
+          label: '4. Legacy Approach',
+          icon: '\u2022',
+          path: `/design/projects/${pid}/proposals/${projectStore.activeProposalId}`,
+          child: true,
       })
     }
     items.push({
       name: 'project-overview:evaluate',
-      label: 'Evaluate',
+      label: '5. Evaluate',
       icon: '\u2022',
       path: projectStore.activeScenarioId
         ? `/design/projects/${pid}/evaluations/${projectStore.activeScenarioId}`
         : `/design/projects/${pid}#evaluate`,
+      child: true,
+    })
+    items.push({
+      name: 'project-overview:changes',
+      label: '6. Changes Needed',
+      icon: '\u2022',
+      path: `/design/projects/${pid}#changes`,
       child: true,
     })
   }

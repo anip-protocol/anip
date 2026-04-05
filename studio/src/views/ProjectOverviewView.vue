@@ -57,6 +57,8 @@ const showAlternatives = ref(false)
 const intentLoading = ref(false)
 const intentError = ref<string | null>(null)
 const intentInterpretation = ref<IntentInterpretation | null>(null)
+const lastInterpretedIntent = ref('')
+const draftStatus = ref<string | null>(null)
 
 const primaryRequirements = computed(() =>
   requirements.value.filter(r => r.role === 'primary'),
@@ -74,6 +76,271 @@ const canEvaluate = computed(() =>
   !!activeScenarioId.value &&
   (!!activeShapeId.value || !!activeProposalId.value),
 )
+
+const latestEvaluationRecord = computed(() => {
+  const items = [...evaluations.value]
+  items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  return items[0] ?? null
+})
+
+const latestEvaluation = computed<Record<string, any> | null>(() => {
+  return latestEvaluationRecord.value?.data?.evaluation ?? null
+})
+
+const latestHandled = computed<string[]>(() => {
+  const handled = latestEvaluation.value?.handled_by_anip
+  return Array.isArray(handled) ? handled.slice(0, 4) : []
+})
+
+const latestChangesNeeded = computed<string[]>(() => {
+  const improve = latestEvaluation.value?.what_would_improve
+  if (Array.isArray(improve) && improve.length > 0) return improve.slice(0, 5)
+  const glue = latestEvaluation.value?.glue_you_will_still_write
+  return Array.isArray(glue) ? glue.slice(0, 5) : []
+})
+
+const latestWhy = computed<string[]>(() => {
+  const why = latestEvaluation.value?.why
+  return Array.isArray(why) ? why.slice(0, 3) : []
+})
+
+const latestEvaluationSummary = computed(() => {
+  const result = latestEvaluation.value?.result
+  if (!result) return null
+  if (result === 'HANDLED') return 'The current design is covering the scenario pressure well.'
+  if (result === 'PARTIAL') return 'The current design is promising, but there are still important gaps to close.'
+  return 'The current design still needs meaningful changes before it can support this scenario cleanly.'
+})
+
+const activeRequirementsRecord = computed(() =>
+  requirements.value.find(item => item.id === activeRequirementsId.value) ??
+  primaryRequirements.value[0] ??
+  requirements.value[0] ??
+  null,
+)
+
+const activeScenarioRecord = computed(() =>
+  scenarios.value.find(item => item.id === activeScenarioId.value) ??
+  scenarios.value[0] ??
+  null,
+)
+
+const activeShapeRecord = computed(() =>
+  shapes.value.find(item => item.id === activeShapeId.value) ??
+  shapes.value[0] ??
+  null,
+)
+
+function deepClone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value))
+}
+
+type ChangeAction =
+  | 'open_requirements'
+  | 'open_shape'
+  | 'open_scenarios'
+  | 'open_evaluation'
+  | 'evaluate'
+
+function classifyChangeAction(text: string): { label: string; action: ChangeAction } {
+  const words = normalizedWords(text)
+
+  if (
+    words.has('requirement') ||
+    words.has('requirements') ||
+    words.has('budget') ||
+    words.has('approval') ||
+    words.has('audit') ||
+    words.has('lineage') ||
+    words.has('constraint') ||
+    words.has('authority')
+  ) {
+    return { label: hasRequirements.value ? 'Open Requirements' : 'Create Requirements', action: 'open_requirements' }
+  }
+
+  if (
+    words.has('shape') ||
+    words.has('service') ||
+    words.has('boundary') ||
+    words.has('coordination') ||
+    words.has('capability') ||
+    words.has('concept')
+  ) {
+    return { label: hasServiceShape.value ? 'Open Service Shape' : 'Create Service Shape', action: 'open_shape' }
+  }
+
+  if (
+    words.has('scenario') ||
+    words.has('followup') ||
+    words.has('follow') ||
+    words.has('handoff') ||
+    words.has('verification') ||
+    words.has('refresh') ||
+    words.has('revalidate')
+  ) {
+    return { label: hasScenarios.value ? 'Open Scenarios' : 'Add Scenario', action: 'open_scenarios' }
+  }
+
+  if (canEvaluate.value) {
+    return { label: 'Re-evaluate', action: 'evaluate' }
+  }
+
+  return { label: 'Open Evaluation', action: 'open_evaluation' }
+}
+
+function makeRequirementsFixTemplate(change: string) {
+  const base = activeRequirementsRecord.value
+    ? deepClone(baseData(activeRequirementsRecord.value.data))
+    : makeRequirementsTemplate()
+  const words = normalizedWords(change)
+  const constraints = (base.business_constraints ??= {}) as Record<string, any>
+  const audit = (base.audit ??= {}) as Record<string, any>
+  const lineage = (base.lineage ??= {}) as Record<string, any>
+
+  if (words.has('budget') || words.has('cost') || words.has('spend')) {
+    constraints.spending_possible = true
+    constraints.cost_visibility_required = true
+    constraints.blocked_failure_posture = 'structured_blocked'
+  }
+  if (words.has('approval') || words.has('authority') || words.has('escalate')) {
+    constraints.approval_expected_for_high_risk = true
+    constraints.blocked_failure_posture = 'structured_blocked'
+  }
+  if (words.has('recovery') || words.has('refresh') || words.has('revalidate') || words.has('stale')) {
+    constraints.recovery_sensitive = true
+    constraints.blocked_failure_posture = 'structured_blocked'
+  }
+  if (words.has('audit') || words.has('trace')) {
+    audit.durable = true
+    audit.searchable = true
+  }
+  if (words.has('lineage') || words.has('continuity') || words.has('cross')) {
+    lineage.task_id = true
+    lineage.parent_invocation_id = true
+    lineage.cross_service_continuity_required = true
+    audit.cross_service_reconstruction_required = true
+  }
+
+  return base
+}
+
+function baseData(data: Record<string, any>) {
+  return (data?.requirements ?? data?.shape ?? data) as Record<string, any>
+}
+
+function makeScenarioFixTemplate(change: string) {
+  const category = inferScenarioCategory(change)
+  const baseScenario = activeScenarioRecord.value?.data?.scenario
+  const title = scenarioTitleFromStarter(change, scenarios.value.length + 1)
+  return {
+    scenario: {
+      name: title,
+      category,
+      narrative: cleanSentence(change),
+      context: {
+        capability: baseScenario?.context?.capability || 'handle_the_primary_action',
+      },
+      expected_behavior: [
+        cleanSentence(change),
+        category === 'cross_service'
+          ? 'The cross-service responsibility should stay explicit instead of hiding inside glue.'
+          : 'The system should make the intended decision and next step explicit.',
+      ],
+      expected_anip_support: [
+        category === 'cross_service'
+          ? 'The contract should preserve cross-service continuity and handoff meaning.'
+          : category === 'recovery'
+            ? 'The contract should make refresh or recovery guidance explicit.'
+            : 'The contract should make purpose, blocked-action meaning, and next steps explicit.',
+      ],
+    },
+  }
+}
+
+function makeShapeFixTemplate(change: string) {
+  const base = activeShapeRecord.value
+    ? deepClone(baseData(activeShapeRecord.value.data))
+    : baseData(makeShapeTemplate())
+  const shape = base as Record<string, any>
+  const words = normalizedWords(change)
+
+  shape.notes = [...(Array.isArray(shape.notes) ? shape.notes : []), cleanSentence(change)]
+  shape.services = Array.isArray(shape.services) ? shape.services : []
+  shape.coordination = Array.isArray(shape.coordination) ? shape.coordination : []
+  shape.domain_concepts = Array.isArray(shape.domain_concepts) ? shape.domain_concepts : []
+
+  const primaryService = shape.services[0]
+
+  if (primaryService) {
+    primaryService.responsibilities = Array.isArray(primaryService.responsibilities) ? primaryService.responsibilities : []
+    primaryService.capabilities = Array.isArray(primaryService.capabilities) ? primaryService.capabilities : []
+  }
+
+  if (primaryService && (words.has('budget') || words.has('approval') || words.has('authority'))) {
+    primaryService.responsibilities.push('Make high-risk control checks explicit before the main action proceeds.')
+    primaryService.capabilities.push('enforce_control_decision')
+  }
+
+  if (primaryService && (words.has('refresh') || words.has('revalidate') || words.has('stale'))) {
+    primaryService.capabilities.push('refresh_or_revalidate_input')
+  }
+
+  if (words.has('verification') || words.has('verify')) {
+    const existing = shape.services.find((item: Record<string, any>) => item.id === 'verification-service')
+    if (!existing) {
+      shape.services.push({
+        id: 'verification-service',
+        name: 'Verification Service',
+        role: 'verification boundary',
+        responsibilities: ['Verify the outcome after the main action completes.'],
+        capabilities: ['verify_outcome'],
+        owns_concepts: [],
+      })
+    }
+    if (!shape.coordination.some((edge: Record<string, any>) => edge.to === 'verification-service')) {
+      shape.coordination.push({
+        from: primaryService?.id || 'primary-service',
+        to: 'verification-service',
+        relationship: 'verification',
+        description: cleanSentence(change),
+      })
+    }
+  }
+
+  if (words.has('handoff') || words.has('cross') || words.has('coordination') || words.has('followup')) {
+    const existing = shape.services.find((item: Record<string, any>) => item.id === 'followup-service')
+    if (!existing) {
+      shape.services.push({
+        id: 'followup-service',
+        name: 'Follow-up Service',
+        role: 'handoff boundary',
+        responsibilities: ['Handle the follow-up or secondary service responsibility explicitly.'],
+        capabilities: ['handle_followup'],
+        owns_concepts: [],
+      })
+    }
+    if (!shape.coordination.some((edge: Record<string, any>) => edge.to === 'followup-service')) {
+      shape.coordination.push({
+        from: primaryService?.id || 'primary-service',
+        to: 'followup-service',
+        relationship: 'handoff',
+        description: cleanSentence(change),
+      })
+    }
+  }
+
+  if (words.has('concept') || words.has('entity') || words.has('domain')) {
+    shape.domain_concepts.push({
+      id: `concept-${crypto.randomUUID()}`,
+      name: 'New Domain Concept',
+      meaning: cleanSentence(change),
+      owner: primaryService?.id || 'shared',
+      sensitivity: 'none',
+    })
+  }
+
+  return { shape }
+}
 
 const nextStepTitle = computed(() => {
   if (!hasRequirements.value) return 'Start with requirements'
@@ -113,6 +380,10 @@ watch(projectId, (id) => {
   if (id) {
     loadProject(id)
     loadVocabulary(id)
+    intentInterpretation.value = null
+    intentError.value = null
+    draftStatus.value = null
+    lastInterpretedIntent.value = ''
   }
 })
 
@@ -222,6 +493,272 @@ function slugify(input: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
+function normalizedWords(...parts: string[]): Set<string> {
+  return new Set(
+    parts
+      .join(' ')
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .map(item => item.trim())
+      .filter(Boolean),
+  )
+}
+
+function titleize(input: string): string {
+  return input
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (match) => match.toUpperCase())
+}
+
+function cleanSentence(input: string): string {
+  return input.replace(/\s+/g, ' ').trim()
+}
+
+function scenarioTitleFromStarter(text: string, index: number): string {
+  const cleaned = cleanSentence(text).replace(/^add a scenario where\s+/i, '').replace(/^describe\s+/i, '')
+  const compact = cleaned.replace(/\.$/, '')
+  if (!compact) return `Scenario ${index}`
+  const shortened = compact.length > 72 ? `${compact.slice(0, 69).trim()}...` : compact
+  return titleize(shortened)
+}
+
+function inferScenarioCategory(text: string): 'safety' | 'recovery' | 'orchestration' | 'cross_service' | 'observability' {
+  const words = normalizedWords(text)
+  if (
+    words.has('handoff') ||
+    words.has('handoffs') ||
+    words.has('cross') ||
+    words.has('services') ||
+    words.has('service')
+  ) {
+    return 'cross_service'
+  }
+  if (words.has('verify') || words.has('verification') || words.has('confirm') || words.has('reconcile')) {
+    return 'observability'
+  }
+  if (words.has('refresh') || words.has('stale') || words.has('expired') || words.has('revalidate')) {
+    return 'recovery'
+  }
+  if (words.has('follow') || words.has('followup') || words.has('async') || words.has('approval')) {
+    return 'orchestration'
+  }
+  return 'safety'
+}
+
+function makeRequirementsTemplateFromIntent(result: IntentInterpretation, intent: string) {
+  const data = makeRequirementsTemplate()
+  const words = normalizedWords(
+    intent,
+    result.summary,
+    result.recommended_shape_reason,
+    ...result.requirements_focus,
+    ...result.scenario_starters,
+    ...result.next_steps,
+  )
+
+  data.system.name = slugify(project.value?.name || result.title || 'new-service') || 'new-service'
+  data.scale.shape_preference =
+    result.recommended_shape_type === 'multi_service'
+      ? 'production_multi_service'
+      : 'production_single_service'
+
+  const constraints = data.business_constraints as Record<string, any>
+  const mentionsBudget =
+    words.has('budget') || words.has('cost') || words.has('spend') || words.has('price') || words.has('pricing')
+  const mentionsApproval =
+    words.has('approval') || words.has('approve') || words.has('approver') || words.has('escalate') || words.has('escalation')
+  const mentionsRecovery =
+    words.has('refresh') || words.has('stale') || words.has('expired') || words.has('revalidate') || words.has('recovery')
+  const mentionsRisk =
+    words.has('risk') || words.has('danger') || words.has('dangerous') || words.has('destructive') || words.has('delete')
+
+  constraints.spending_possible = mentionsBudget
+  constraints.cost_visibility_required = mentionsBudget
+  constraints.approval_expected_for_high_risk = mentionsApproval || mentionsRisk
+  constraints.recovery_sensitive = mentionsRecovery
+  constraints.blocked_failure_posture = mentionsBudget || mentionsApproval || mentionsRecovery || mentionsRisk
+    ? 'structured_blocked'
+    : 'basic_failure_surface'
+
+  return data
+}
+
+function makeScenarioTemplatesFromIntent(result: IntentInterpretation) {
+  const starters = result.scenario_starters.length
+    ? result.scenario_starters.slice(0, 3)
+    : ['Describe the normal success path that the service should handle cleanly.']
+
+  return starters.map((starter, index) => {
+    const category = inferScenarioCategory(starter)
+    const title = scenarioTitleFromStarter(starter, index + 1)
+    const words = normalizedWords(starter)
+    const actionCapability =
+      words.has('book') || words.has('booking')
+        ? 'book_the_primary_action'
+        : words.has('verify') || words.has('verification')
+          ? 'verify_the_outcome'
+          : words.has('refresh') || words.has('stale')
+            ? 'refresh_or_revalidate_before_acting'
+            : words.has('approval') || words.has('approve')
+              ? 'request_or_record_approval'
+              : 'handle_the_primary_action'
+
+    const expectedBehavior = [
+      starter,
+      category === 'cross_service'
+        ? 'The service boundary should remain clear across the handoff.'
+        : 'The system should make the intended control decision explicit.',
+    ]
+
+    const expectedSupport = [
+      category === 'recovery'
+        ? 'The contract should make refresh or recovery guidance explicit.'
+        : category === 'observability'
+          ? 'The contract should expose enough context to verify and explain the outcome.'
+          : category === 'cross_service'
+            ? 'The contract should preserve continuity and handoff meaning across services.'
+            : 'The contract should make purpose, constraints, and blocked-action meaning explicit.',
+    ]
+
+    return {
+      scenario: {
+        name: title,
+        category,
+        narrative: starter,
+        context: {
+          capability: actionCapability,
+        },
+        expected_behavior: expectedBehavior,
+        expected_anip_support: expectedSupport,
+      },
+    }
+  })
+}
+
+function makeShapeTemplateFromIntent(result: IntentInterpretation) {
+  const rootName = project.value?.name || 'new-service'
+  const shapeName = titleize(rootName)
+  const primaryServiceId = slugify(rootName) || 'primary-service'
+  const conceptIds = result.domain_concepts.map((concept) => ({
+    id: slugify(concept) || `concept-${crypto.randomUUID()}`,
+    name: concept,
+  }))
+
+  const primaryService = {
+    id: primaryServiceId,
+    name: shapeName,
+    role: 'primary service',
+    responsibilities: [
+      'Own the main action and the core control checks around it.',
+      ...result.requirements_focus.slice(0, 2),
+    ],
+    capabilities: [
+      'handle_primary_action',
+      ...result.scenario_starters.slice(0, 2).map((item) => slugify(item) || 'support_scenario'),
+    ],
+    owns_concepts: conceptIds.slice(0, Math.max(1, conceptIds.length - 1)).map((concept) => concept.id),
+  }
+
+  const services: Array<Record<string, any>> = [primaryService]
+  const coordination: Array<Record<string, any>> = []
+
+  if (result.recommended_shape_type === 'multi_service') {
+    const lowerSuggestions = result.service_suggestions.map((item) => item.toLowerCase())
+
+    if (lowerSuggestions.some((item) => item.includes('approval'))) {
+      services.push({
+        id: 'approval-service',
+        name: 'Approval Service',
+        role: 'approval boundary',
+        responsibilities: ['Track approvals and decisions that should not be hidden inside the main action.'],
+        capabilities: ['request_approval', 'record_approval_decision'],
+        owns_concepts: conceptIds.filter((concept) => concept.name.toLowerCase().includes('approval')).map((concept) => concept.id),
+      })
+      coordination.push({
+        from: primaryServiceId,
+        to: 'approval-service',
+        relationship: 'handoff',
+        description: 'Send blocked or exceptional work for approval before the main action proceeds.',
+      })
+    }
+
+    if (lowerSuggestions.some((item) => item.includes('verification'))) {
+      services.push({
+        id: 'verification-service',
+        name: 'Verification Service',
+        role: 'verification boundary',
+        responsibilities: ['Verify the outcome after the initial action completes.'],
+        capabilities: ['verify_outcome', 'record_verification_result'],
+        owns_concepts: conceptIds.filter((concept) => concept.name.toLowerCase().includes('outcome')).map((concept) => concept.id),
+      })
+      coordination.push({
+        from: primaryServiceId,
+        to: 'verification-service',
+        relationship: 'verification',
+        description: 'Verify that the completed action actually reached the intended end state.',
+      })
+    }
+
+    if (lowerSuggestions.some((item) => item.includes('refresh') || item.includes('revalidation'))) {
+      services.push({
+        id: 'revalidation-service',
+        name: 'Revalidation Service',
+        role: 'refresh boundary',
+        responsibilities: ['Refresh stale or expired inputs before the main action continues.'],
+        capabilities: ['refresh_input', 'revalidate_input'],
+        owns_concepts: conceptIds.filter((concept) => concept.name.toLowerCase().includes('quote')).map((concept) => concept.id),
+      })
+      coordination.push({
+        from: primaryServiceId,
+        to: 'revalidation-service',
+        relationship: 'verification',
+        description: 'Refresh or revalidate inputs before the main action proceeds.',
+      })
+    }
+  }
+
+  if (result.recommended_shape_type === 'multi_service' && services.length === 1) {
+    services.push({
+      id: 'support-service',
+      name: 'Support Service',
+      role: 'supporting responsibility',
+      responsibilities: ['Handle the secondary follow-up, coordination, or verification responsibility implied by the brief.'],
+      capabilities: ['handle_followup_or_coordination'],
+      owns_concepts: [],
+    })
+    coordination.push({
+      from: primaryServiceId,
+      to: 'support-service',
+      relationship: 'handoff',
+      description: 'Separate the secondary responsibility instead of hiding it inside one oversized service.',
+    })
+  }
+
+  return {
+    shape: {
+      id: slugify(`${shapeName}-shape`) || 'service-shape',
+      name: shapeName,
+      type: result.recommended_shape_type === 'multi_service' ? 'multi_service' : 'single_service',
+      notes: [result.recommended_shape_reason, ...result.service_suggestions.slice(0, 2)],
+      services,
+      coordination,
+      domain_concepts: conceptIds.map((concept, index) => ({
+        id: concept.id,
+        name: concept.name,
+        meaning: `Business concept: ${concept.name}`,
+        owner: services.length > 1 && concept.name.toLowerCase().includes('approval')
+          ? 'approval-service'
+          : index === conceptIds.length - 1 && services.length > 1
+            ? 'shared'
+            : primaryServiceId,
+        sensitivity: concept.name.toLowerCase().includes('approval') || concept.name.toLowerCase().includes('budget') ? 'medium' : 'none',
+      })),
+    },
+  }
+}
+
 function makeRequirementsTemplate() {
   const name = project.value?.name || 'new-service'
   const domain = project.value?.domain || 'general'
@@ -299,30 +836,38 @@ function makeProposalTemplate() {
   }
 }
 
-async function handleCreateRequirements() {
+async function handleCreateRequirements(intentResult?: IntentInterpretation) {
   if (!projectId.value) return
   creating.value = 'requirements'
+  draftStatus.value = null
   try {
     const nextIndex = requirements.value.length + 1
+    const data = intentResult
+      ? makeRequirementsTemplateFromIntent(intentResult, lastInterpretedIntent.value)
+      : makeRequirementsTemplate()
     const created = await createRequirements(projectId.value, {
       id: `req-${crypto.randomUUID()}`,
       title: nextIndex === 1 ? 'Requirements' : `Requirements ${nextIndex}`,
-      data: makeRequirementsTemplate(),
+      data,
     })
     await refreshArtifacts()
     setActiveRequirements(created.id)
+    draftStatus.value = intentResult ? 'Created a first requirements draft from your plain-language brief.' : null
     router.push(`/design/projects/${projectId.value}/requirements/${created.id}`)
   } finally {
     creating.value = null
   }
 }
 
-async function handleCreateScenario() {
+async function handleCreateScenario(intentResult?: IntentInterpretation) {
   if (!projectId.value) return
   creating.value = 'scenario'
+  draftStatus.value = null
   try {
     const nextIndex = scenarios.value.length + 1
-    const data = makeScenarioTemplate(nextIndex)
+    const templates = intentResult ? makeScenarioTemplatesFromIntent(intentResult) : [makeScenarioTemplate(nextIndex)]
+    const firstTemplate = templates[0]
+    const data = firstTemplate
     const created = await createScenario(projectId.value, {
       id: `scn-${crypto.randomUUID()}`,
       title: data.scenario.name,
@@ -330,6 +875,7 @@ async function handleCreateScenario() {
     })
     await refreshArtifacts()
     setActiveScenario(created.id)
+    draftStatus.value = intentResult ? 'Created a starter scenario from your plain-language brief.' : null
     router.push(`/design/projects/${projectId.value}/scenarios/${created.id}`)
   } finally {
     creating.value = null
@@ -386,22 +932,25 @@ function makeShapeTemplate() {
   }
 }
 
-async function handleCreateShape() {
+async function handleCreateShape(intentResult?: IntentInterpretation) {
   if (!projectId.value) return
   const requirementsId = activeRequirementsId.value || requirements.value[0]?.id || null
   if (!requirementsId) return
 
   creating.value = 'shape'
+  draftStatus.value = null
   try {
     const nextIndex = shapes.value.length + 1
+    const data = intentResult ? makeShapeTemplateFromIntent(intentResult) : makeShapeTemplate()
     const created = await createShape(projectId.value, {
       id: `shape-${crypto.randomUUID()}`,
       title: nextIndex === 1 ? 'Service Shape' : `Service Shape ${nextIndex}`,
       requirements_id: requirementsId,
-      data: makeShapeTemplate(),
+      data,
     })
     await refreshArtifacts()
     setActiveShape(created.id)
+    draftStatus.value = intentResult ? 'Created a first service-shape draft from your plain-language brief.' : null
     router.push(`/design/projects/${projectId.value}/shapes/${created.id}`)
   } finally {
     creating.value = null
@@ -412,6 +961,8 @@ async function handleInterpretIntent(intent: string) {
   if (!projectId.value || !intent) return
   intentLoading.value = true
   intentError.value = null
+  draftStatus.value = null
+  lastInterpretedIntent.value = intent
   try {
     intentInterpretation.value = await interpretProjectIntentWithAssistant(projectId.value, intent)
   } catch (err) {
@@ -419,6 +970,193 @@ async function handleInterpretIntent(intent: string) {
   } finally {
     intentLoading.value = false
   }
+}
+
+async function handleCreateScenarioStarters(result: IntentInterpretation) {
+  if (!projectId.value) return
+  creating.value = 'scenario'
+  draftStatus.value = null
+  try {
+    const templates = makeScenarioTemplatesFromIntent(result)
+    const createdIds: string[] = []
+    for (const template of templates) {
+      const created = await createScenario(projectId.value, {
+        id: `scn-${crypto.randomUUID()}`,
+        title: template.scenario.name,
+        data: template,
+      })
+      createdIds.push(created.id)
+    }
+    await refreshArtifacts()
+    setActiveScenario(createdIds[0] || null)
+    draftStatus.value = `Created ${createdIds.length} starter scenario${createdIds.length === 1 ? '' : 's'} from your plain-language brief.`
+    if (createdIds[0]) {
+      router.push(`/design/projects/${projectId.value}/scenarios/${createdIds[0]}`)
+    }
+  } finally {
+    creating.value = null
+  }
+}
+
+async function handleCreateDraftSet(result: IntentInterpretation) {
+  if (!projectId.value) return
+  creating.value = 'requirements'
+  draftStatus.value = null
+  try {
+    const requirementsCreated = await createRequirements(projectId.value, {
+      id: `req-${crypto.randomUUID()}`,
+      title: requirements.value.length === 0 ? 'Requirements' : `Requirements ${requirements.value.length + 1}`,
+      data: makeRequirementsTemplateFromIntent(result, lastInterpretedIntent.value),
+    })
+
+    const scenarioTemplates = makeScenarioTemplatesFromIntent(result)
+    const createdScenarioIds: string[] = []
+    for (const template of scenarioTemplates) {
+      const createdScenario = await createScenario(projectId.value, {
+        id: `scn-${crypto.randomUUID()}`,
+        title: template.scenario.name,
+        data: template,
+      })
+      createdScenarioIds.push(createdScenario.id)
+    }
+
+    creating.value = 'shape'
+    const shapeCreated = await createShape(projectId.value, {
+      id: `shape-${crypto.randomUUID()}`,
+      title: shapes.value.length === 0 ? 'Service Shape' : `Service Shape ${shapes.value.length + 1}`,
+      requirements_id: requirementsCreated.id,
+      data: makeShapeTemplateFromIntent(result),
+    })
+
+    await refreshArtifacts()
+    setActiveRequirements(requirementsCreated.id)
+    setActiveScenario(createdScenarioIds[0] || null)
+    setActiveShape(shapeCreated.id)
+    draftStatus.value = `Created the first draft set: requirements, ${createdScenarioIds.length} scenario starter${createdScenarioIds.length === 1 ? '' : 's'}, and a service shape.`
+    router.push(`/design/projects/${projectId.value}/shapes/${shapeCreated.id}`)
+  } finally {
+    creating.value = null
+  }
+}
+
+function handleCreateRequirementsManual() {
+  return handleCreateRequirements()
+}
+
+function handleCreateScenarioManual() {
+  return handleCreateScenario()
+}
+
+function handleCreateShapeManual() {
+  return handleCreateShape()
+}
+
+async function handleFollowChange(item: string) {
+  const target = classifyChangeAction(item)
+
+  if (target.action === 'open_requirements') {
+    if (activeRequirementsId.value) {
+      navigateRequirements(activeRequirementsId.value)
+      return
+    }
+    await handleCreateRequirementsManual()
+    return
+  }
+
+  if (target.action === 'open_shape') {
+    if (activeShapeId.value) {
+      navigateShape(activeShapeId.value)
+      return
+    }
+    await handleCreateShapeManual()
+    return
+  }
+
+  if (target.action === 'open_scenarios') {
+    if (activeScenarioId.value) {
+      navigateScenario(activeScenarioId.value)
+      return
+    }
+    await handleCreateScenarioManual()
+    return
+  }
+
+  if (target.action === 'evaluate') {
+    goToEvaluation()
+    return
+  }
+
+  if (latestEvaluationRecord.value) {
+    navigateEvaluation(latestEvaluationRecord.value.id)
+  }
+}
+
+async function handleDraftChange(item: string) {
+  if (!projectId.value) return
+  const target = classifyChangeAction(item)
+  draftStatus.value = null
+
+  if (target.action === 'open_requirements') {
+    creating.value = 'requirements'
+    try {
+      const created = await createRequirements(projectId.value, {
+        id: `req-${crypto.randomUUID()}`,
+        title: `Requirements Fix ${requirements.value.length + 1}`,
+        data: makeRequirementsFixTemplate(item),
+      })
+      await refreshArtifacts()
+      setActiveRequirements(created.id)
+      draftStatus.value = 'Created a requirements draft fix from the latest evaluation guidance.'
+      navigateRequirements(created.id)
+    } finally {
+      creating.value = null
+    }
+    return
+  }
+
+  if (target.action === 'open_scenarios') {
+    creating.value = 'scenario'
+    try {
+      const created = await createScenario(projectId.value, {
+        id: `scn-${crypto.randomUUID()}`,
+        title: makeScenarioFixTemplate(item).scenario.name,
+        data: makeScenarioFixTemplate(item),
+      })
+      await refreshArtifacts()
+      setActiveScenario(created.id)
+      draftStatus.value = 'Created a scenario draft from the latest evaluation guidance.'
+      navigateScenario(created.id)
+    } finally {
+      creating.value = null
+    }
+    return
+  }
+
+  if (target.action === 'open_shape') {
+    const requirementsId = activeRequirementsRecord.value?.id || null
+    if (!requirementsId) {
+      draftStatus.value = 'Create or select a requirements set before drafting a shape fix.'
+      return
+    }
+    creating.value = 'shape'
+    try {
+      const created = await createShape(projectId.value, {
+        id: `shape-${crypto.randomUUID()}`,
+        title: `Service Shape Fix ${shapes.value.length + 1}`,
+        requirements_id: requirementsId,
+        data: makeShapeFixTemplate(item),
+      })
+      await refreshArtifacts()
+      setActiveShape(created.id)
+      draftStatus.value = 'Created a service-shape draft fix from the latest evaluation guidance.'
+      navigateShape(created.id)
+    } finally {
+      creating.value = null
+    }
+    return
+  }
+
+  await handleFollowChange(item)
 }
 </script>
 
@@ -448,7 +1186,13 @@ async function handleInterpretIntent(intent: string) {
           :loading="intentLoading"
           :error="intentError"
           @run="handleInterpretIntent"
+          @create-draft-set="handleCreateDraftSet"
+          @create-requirements="handleCreateRequirements"
+          @create-scenarios="handleCreateScenarioStarters"
+          @create-shape="handleCreateShape"
         />
+
+        <div v-if="draftStatus" class="banner banner-success">{{ draftStatus }}</div>
 
         <div class="flow-intro">
           <h2 class="section-title">Design Flow</h2>
@@ -568,19 +1312,79 @@ async function handleInterpretIntent(intent: string) {
         </div>
       </section>
 
+      <section class="readout-section" id="changes">
+        <div class="readout-head">
+          <div>
+            <h2 class="section-title">Changes Needed</h2>
+            <p class="section-desc">Use the latest evaluation as the current design readout. This should tell you what already works and what you should change next.</p>
+          </div>
+          <button
+            v-if="latestEvaluationRecord"
+            class="btn btn-secondary"
+            @click="navigateEvaluation(latestEvaluationRecord.id)"
+          >
+            Open Full Evaluation
+          </button>
+        </div>
+
+        <div v-if="!latestEvaluationRecord" class="changes-empty">
+          No evaluation yet. Run the current design once, then Studio will turn the result into a clearer “what works” and “what should change” readout here.
+        </div>
+
+        <template v-else>
+          <div class="readout-summary-card">
+            <div class="readout-badges">
+              <span class="artifact-status" :class="'status-' + latestEvaluationRecord.result.toLowerCase()">{{ latestEvaluationRecord.result }}</span>
+              <span v-if="latestEvaluationRecord.is_stale" class="stale-badge">Stale</span>
+            </div>
+            <h3 class="readout-title">Latest Evaluation Readout</h3>
+            <p class="readout-summary">{{ latestEvaluationSummary }}</p>
+            <p v-if="latestWhy.length" class="readout-why">{{ latestWhy[0] }}</p>
+          </div>
+
+          <div class="changes-grid">
+            <div class="changes-card">
+              <div class="changes-card-title">Working Well</div>
+              <ul v-if="latestHandled.length" class="changes-list">
+                <li v-for="(item, index) in latestHandled" :key="`handled-${index}`">{{ item }}</li>
+              </ul>
+              <p v-else class="changes-empty-note">No strong support areas are called out yet.</p>
+            </div>
+
+            <div class="changes-card changes-card-primary">
+              <div class="changes-card-title">Change Next</div>
+              <ul v-if="latestChangesNeeded.length" class="changes-list">
+                <li v-for="(item, index) in latestChangesNeeded" :key="`change-${index}`" class="changes-list-item">
+                  <div class="change-copy">{{ item }}</div>
+                  <div class="change-actions">
+                    <button class="change-action-btn" @click="handleFollowChange(item)">
+                      {{ classifyChangeAction(item).label }}
+                    </button>
+                    <button class="change-action-btn change-action-btn-primary" @click="handleDraftChange(item)">
+                      Draft Fix
+                    </button>
+                  </div>
+                </li>
+              </ul>
+              <p v-else class="changes-empty-note">No concrete design changes are suggested from the latest evaluation.</p>
+            </div>
+          </div>
+        </template>
+      </section>
+
       <section class="creation-section">
         <h2 class="section-title">Build the Design</h2>
         <p class="section-desc">Build the project directly in Studio. Define what matters, capture the key scenarios, shape the service, then evaluate whether it will work.</p>
         <div class="creation-actions">
-          <button class="btn btn-primary" @click="handleCreateRequirements" :disabled="creating !== null">
+          <button class="btn btn-primary" @click="handleCreateRequirementsManual" :disabled="creating !== null">
             {{ creating === 'requirements' ? 'Creating requirements...' : 'New Requirements' }}
           </button>
-          <button class="btn btn-primary" @click="handleCreateScenario" :disabled="creating !== null">
+          <button class="btn btn-primary" @click="handleCreateScenarioManual" :disabled="creating !== null">
             {{ creating === 'scenario' ? 'Creating scenario...' : 'New Scenario' }}
           </button>
           <button
             class="btn btn-primary"
-            @click="handleCreateShape"
+            @click="handleCreateShapeManual"
             :disabled="creating !== null || requirements.length === 0"
             :title="requirements.length === 0 ? 'Create a requirements set first' : ''"
           >
@@ -609,6 +1413,11 @@ async function handleInterpretIntent(intent: string) {
       </div>
 
       <div v-if="error" class="banner banner-error">{{ error }}</div>
+
+      <section class="artifact-summary-section">
+        <h2 class="section-title">Working Material</h2>
+        <p class="section-desc">These are the project artifacts behind the current design. Use them when you need to inspect or refine the underlying details.</p>
+      </section>
 
       <!-- Artifact lists -->
       <section class="artifact-section" id="requirements">
@@ -708,7 +1517,7 @@ async function handleInterpretIntent(intent: string) {
       </section>
 
       <section class="artifact-section">
-        <h2 class="section-title">Evaluations ({{ evaluations.length }})</h2>
+        <h2 class="section-title">Evaluation History ({{ evaluations.length }})</h2>
         <div v-if="evaluations.length === 0" class="empty-row">No evaluations yet. Use the evaluation context above to test whether this design will work and what still needs to change.</div>
         <div
           v-for="e in evaluations"
@@ -1179,5 +1988,139 @@ async function handleInterpretIntent(intent: string) {
 .legacy-note {
   font-style: italic;
   color: var(--text-muted);
+}
+
+.readout-section,
+.artifact-summary-section {
+  margin-bottom: 1.5rem;
+  padding: 1.1rem 1.15rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.readout-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 0.9rem;
+}
+
+.changes-empty,
+.changes-empty-note,
+.readout-summary,
+.readout-why {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.readout-summary-card {
+  padding: 1rem 1rem 0.95rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.04));
+}
+
+.readout-badges {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  margin-bottom: 0.65rem;
+}
+
+.readout-title {
+  margin: 0 0 0.35rem;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.readout-why {
+  margin-top: 0.45rem;
+}
+
+.changes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.changes-card {
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.changes-card-primary {
+  border-color: rgba(59, 130, 246, 0.18);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.changes-card-title {
+  margin-bottom: 0.55rem;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.changes-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--text-secondary);
+}
+
+.changes-list li + li {
+  margin-top: 0.35rem;
+}
+
+.changes-list-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.change-copy {
+  flex: 1;
+}
+
+.change-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.45rem;
+}
+
+.change-action-btn {
+  flex-shrink: 0;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: var(--radius-sm);
+  background: rgba(59, 130, 246, 0.08);
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.change-action-btn:hover {
+  background: rgba(59, 130, 246, 0.14);
+}
+
+.change-action-btn-primary {
+  border-color: rgba(15, 23, 42, 0.12);
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--text-primary);
+}
+
+.change-action-btn-primary:hover {
+  background: rgba(15, 23, 42, 0.1);
 }
 </style>

@@ -12,6 +12,10 @@ defineProps<{
 
 const emit = defineEmits<{
   run: [intent: string]
+  createDraftSet: [result: IntentInterpretation]
+  createRequirements: [result: IntentInterpretation]
+  createScenarios: [result: IntentInterpretation]
+  createShape: [result: IntentInterpretation]
 }>()
 
 const intent = ref('')
@@ -51,6 +55,21 @@ function handleRun() {
     <div v-if="result" class="intent-result">
       <h3 class="result-title">{{ result.title }}</h3>
       <p class="result-summary">{{ result.summary }}</p>
+
+      <div class="draft-actions">
+        <button class="intent-btn intent-btn-primary" :disabled="loading" @click="emit('createDraftSet', result)">
+          Create First Draft Set
+        </button>
+        <button class="intent-btn" :disabled="loading" @click="emit('createRequirements', result)">
+          Requirements Draft
+        </button>
+        <button class="intent-btn" :disabled="loading" @click="emit('createScenarios', result)">
+          Scenario Starters
+        </button>
+        <button class="intent-btn" :disabled="loading" @click="emit('createShape', result)">
+          Service Shape Draft
+        </button>
+      </div>
 
       <div class="shape-recommendation">
         <div class="section-title">Suggested Starting Shape</div>
@@ -204,6 +223,13 @@ function handleRun() {
   border-top: 1px solid rgba(15, 23, 42, 0.08);
 }
 
+.draft-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
 .result-title {
   margin: 0 0 0.4rem;
   font-size: 16px;
@@ -266,5 +292,11 @@ function handleRun() {
   color: var(--text-primary);
   font-size: 12px;
   font-weight: 600;
+}
+
+.intent-btn-primary {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
 }
 </style>
