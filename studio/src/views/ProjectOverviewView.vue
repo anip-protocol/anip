@@ -561,7 +561,7 @@ function makeRequirementsTemplateFromIntent(result: IntentInterpretation, intent
   data.system.name = slugify(project.value?.name || result.title || 'new-service') || 'new-service'
   data.scale.shape_preference =
     result.recommended_shape_type === 'multi_service'
-      ? 'production_multi_service'
+      ? 'multi_service_estate'
       : 'production_single_service'
 
   const constraints = data.business_constraints as Record<string, any>
@@ -593,6 +593,7 @@ function makeScenarioTemplatesFromIntent(result: IntentInterpretation) {
   return starters.map((starter, index) => {
     const category = inferScenarioCategory(starter)
     const title = scenarioTitleFromStarter(starter, index + 1)
+    const scenarioName = slugify(title) || `scenario-${index + 1}`
     const words = normalizedWords(starter)
     const actionCapability =
       words.has('book') || words.has('booking')
@@ -623,15 +624,18 @@ function makeScenarioTemplatesFromIntent(result: IntentInterpretation) {
     ]
 
     return {
-      scenario: {
-        name: title,
-        category,
-        narrative: starter,
-        context: {
-          capability: actionCapability,
+      title,
+      data: {
+        scenario: {
+          name: scenarioName,
+          category,
+          narrative: starter,
+          context: {
+            capability: actionCapability,
+          },
+          expected_behavior: expectedBehavior,
+          expected_anip_support: expectedSupport,
         },
-        expected_behavior: expectedBehavior,
-        expected_anip_support: expectedSupport,
       },
     }
   })
@@ -865,14 +869,17 @@ async function handleCreateScenario(intentResult?: IntentInterpretation) {
   draftStatus.value = null
   try {
     const nextIndex = scenarios.value.length + 1
-    const templates = intentResult ? makeScenarioTemplatesFromIntent(intentResult) : [makeScenarioTemplate(nextIndex)]
-    const firstTemplate = templates[0]
-    const data = firstTemplate
-    const created = await createScenario(projectId.value, {
-      id: `scn-${crypto.randomUUID()}`,
-      title: data.scenario.name,
-      data,
-    })
+    const created = intentResult
+      ? await createScenario(projectId.value, {
+          id: `scn-${crypto.randomUUID()}`,
+          title: makeScenarioTemplatesFromIntent(intentResult)[0].title,
+          data: makeScenarioTemplatesFromIntent(intentResult)[0].data,
+        })
+      : await createScenario(projectId.value, {
+          id: `scn-${crypto.randomUUID()}`,
+          title: makeScenarioTemplate(nextIndex).scenario.name,
+          data: makeScenarioTemplate(nextIndex),
+        })
     await refreshArtifacts()
     setActiveScenario(created.id)
     draftStatus.value = intentResult ? 'Created a starter scenario from your plain-language brief.' : null
@@ -982,8 +989,8 @@ async function handleCreateScenarioStarters(result: IntentInterpretation) {
     for (const template of templates) {
       const created = await createScenario(projectId.value, {
         id: `scn-${crypto.randomUUID()}`,
-        title: template.scenario.name,
-        data: template,
+        title: template.title,
+        data: template.data,
       })
       createdIds.push(created.id)
     }
@@ -1014,8 +1021,8 @@ async function handleCreateDraftSet(result: IntentInterpretation) {
     for (const template of scenarioTemplates) {
       const createdScenario = await createScenario(projectId.value, {
         id: `scn-${crypto.randomUUID()}`,
-        title: template.scenario.name,
-        data: template,
+        title: template.title,
+        data: template.data,
       })
       createdScenarioIds.push(createdScenario.id)
     }
@@ -1119,7 +1126,7 @@ async function handleDraftChange(item: string) {
     try {
       const created = await createScenario(projectId.value, {
         id: `scn-${crypto.randomUUID()}`,
-        title: makeScenarioFixTemplate(item).scenario.name,
+        title: scenarioTitleFromStarter(item, scenarios.value.length + 1),
         data: makeScenarioFixTemplate(item),
       })
       await refreshArtifacts()
