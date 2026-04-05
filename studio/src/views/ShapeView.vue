@@ -172,9 +172,9 @@ async function handleExplainShape(question: string) {
       </div>
 
       <StudioAssistantPanel
-        title="Explain This Shape"
+        title="Explain This Design"
         description="Ask Studio to explain what this shape is optimizing for, which ANIP semantics it expects to expose, and what looks weak or incomplete."
-        button-label="Explain This Shape"
+        button-label="Explain This Design"
         :explanation="assistantExplanation"
         :loading="assistantLoading"
         :error="assistantError"
@@ -191,7 +191,7 @@ async function handleExplainShape(question: string) {
 
       <!-- Notes -->
       <section class="shape-section">
-        <h2 class="section-title">Why This Shape</h2>
+        <h2 class="section-title">Why This Design</h2>
         <div v-if="shapeData.notes && shapeData.notes.length > 0" class="notes-list">
           <div v-for="(note, i) in shapeData.notes" :key="i" class="note-item">
             <template v-if="isEditing">

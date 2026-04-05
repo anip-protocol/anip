@@ -9,6 +9,7 @@ import {
   setActiveScenario,
   setActiveProposal,
   setActiveShape,
+  setPendingIntentDraft,
   refreshArtifacts,
 } from '../design/project-store'
 import {
@@ -23,6 +24,16 @@ import {
 } from '../design/project-api'
 import type { IntentInterpretation } from '../design/project-types'
 import StudioIntentPanel from '../design/components/StudioIntentPanel.vue'
+import {
+  slugify,
+  normalizedWords,
+  cleanSentence,
+  scenarioTitleFromStarter,
+  inferScenarioCategory,
+  makeRequirementsTemplateFromIntent,
+  makeScenarioTemplatesFromIntent,
+  makeShapeTemplateFromIntent,
+} from '../design/intent-drafts'
 
 const route = useRoute()
 const router = useRouter()
@@ -56,9 +67,10 @@ const promotingId = ref<string | null>(null)
 const showAlternatives = ref(false)
 const intentLoading = ref(false)
 const intentError = ref<string | null>(null)
-const intentInterpretation = ref<IntentInterpretation | null>(null)
-const lastInterpretedIntent = ref('')
+const intentInterpretation = computed(() => projectStore.pendingIntentDraft?.interpretation ?? null)
+const lastInterpretedIntent = computed(() => projectStore.pendingIntentDraft?.source_intent ?? '')
 const draftStatus = ref<string | null>(null)
+const loopView = ref<LoopView>('current')
 
 const primaryRequirements = computed(() =>
   requirements.value.filter(r => r.role === 'primary'),
@@ -130,6 +142,75 @@ const activeShapeRecord = computed(() =>
   shapes.value[0] ??
   null,
 )
+
+const activeServiceDesignTitle = computed(() => {
+  if (isLegacyProposalProject.value) {
+    return proposals.value.find(item => item.id === activeProposalId.value)?.title ??
+      proposals.value[0]?.title ??
+      'Nothing selected yet'
+  }
+  return activeShapeRecord.value?.title ?? shapes.value[0]?.title ?? 'Nothing selected yet'
+})
+
+const currentDesignCards = computed(() => [
+  {
+    label: 'What Matters',
+    title: activeRequirementsRecord.value?.title ?? 'Nothing selected yet',
+    description: activeRequirementsRecord.value
+      ? 'These are the active constraints and pressures shaping the design.'
+      : 'Define what must be true before the design hardens.',
+    actionLabel: activeRequirementsRecord.value ? 'Open What Matters' : 'Create What Matters',
+    onClick: () => {
+      if (activeRequirementsRecord.value) {
+        navigateRequirements(activeRequirementsRecord.value.id)
+      } else {
+        void handleCreateRequirementsManual()
+      }
+    },
+  },
+  {
+    label: 'Real Situation',
+    title: activeScenarioRecord.value?.title ?? 'Nothing selected yet',
+    description: activeScenarioRecord.value
+      ? 'This is the active situation currently pressuring the design.'
+      : 'Add the first real situation the design should handle.',
+    actionLabel: activeScenarioRecord.value ? 'Open Real Situation' : 'Add Real Situation',
+    onClick: () => {
+      if (activeScenarioRecord.value) {
+        navigateScenario(activeScenarioRecord.value.id)
+      } else {
+        void handleCreateScenarioManual()
+      }
+    },
+  },
+  {
+    label: isLegacyProposalProject.value ? 'Legacy Approach' : 'Service Design',
+    title: activeServiceDesignTitle.value,
+    description: isLegacyProposalProject.value
+      ? 'This project is still using the legacy approach model.'
+      : activeShapeRecord.value
+        ? 'This is the active service design Studio will use in the next test.'
+        : 'Turn the current pressures and situations into a service design.',
+    actionLabel: (isLegacyProposalProject.value
+      ? activeProposalId.value
+      : activeShapeRecord.value)
+      ? 'Open Service Design'
+      : 'Create Service Design',
+    onClick: () => {
+      if (isLegacyProposalProject.value) {
+        if (activeProposalId.value) {
+          navigateProposal(activeProposalId.value)
+        }
+        return
+      }
+      if (activeShapeRecord.value) {
+        navigateShape(activeShapeRecord.value.id)
+      } else {
+        void handleCreateShapeManual()
+      }
+    },
+  },
+])
 
 function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value))
@@ -358,6 +439,97 @@ const nextStepDescription = computed(() => {
   return 'You have enough context to evaluate whether this design will work and what still needs to change.'
 })
 
+type HomePrimaryAction =
+  | 'review_first_draft'
+  | 'create_requirements'
+  | 'create_scenario'
+  | 'create_shape'
+  | 'choose_context'
+  | 'evaluate'
+  | 'review_changes'
+
+type LoopView = 'current' | 'test' | 'changes'
+
+const currentStateTitle = computed(() => {
+  if (projectStore.pendingIntentDraft) {
+    return 'Studio has a suggested first design ready to review.'
+  }
+  if (!hasRequirements.value && !hasScenarios.value && !hasServiceShape.value) {
+    return 'This project is still blank.'
+  }
+  if (!hasRequirements.value) return 'The project still needs what matters.'
+  if (!hasScenarios.value) return 'The project still needs real situations.'
+  if (!hasServiceShape.value) return 'The project still needs a service design.'
+  if (!canEvaluate.value) return 'The design exists, but the test context is incomplete.'
+  if (evaluations.value.length === 0) return 'The design is ready for its first test.'
+  return 'The project has a current design loop in progress.'
+})
+
+const currentStateDescription = computed(() => {
+  if (projectStore.pendingIntentDraft) {
+    return 'Review the suggested first design, then decide what to turn into real project artifacts.'
+  }
+  if (!hasRequirements.value && !hasScenarios.value && !hasServiceShape.value) {
+    return 'Start by describing the problem in plain language, then let Studio shape the first draft.'
+  }
+  if (!hasRequirements.value) return 'Define what must be true before the service design hardens around the wrong assumptions.'
+  if (!hasScenarios.value) return 'Add the situations that should pressure and validate the design.'
+  if (!hasServiceShape.value) return 'Turn the requirements and situations into a concrete service design.'
+  if (!canEvaluate.value) return 'Choose the active requirements, scenario, and service shape you want to test together.'
+  if (evaluations.value.length === 0) return 'You have enough structure to test whether the current design will really work.'
+  return 'Review what changed, test the current design again, or turn the latest result into something you can share.'
+})
+
+const homePrimaryAction = computed<{ label: string; detail: string; action: HomePrimaryAction }>(() => {
+  if (projectStore.pendingIntentDraft) {
+    return {
+      label: 'Review Suggested First Design',
+      detail: 'See Studio’s proposed starting point before creating artifacts.',
+      action: 'review_first_draft',
+    }
+  }
+  if (!hasRequirements.value) {
+    return {
+      label: 'Create Requirements',
+      detail: 'Start by capturing what must be true.',
+      action: 'create_requirements',
+    }
+  }
+  if (!hasScenarios.value) {
+    return {
+      label: 'Add Scenario',
+      detail: 'Add the first real situation this design should handle.',
+      action: 'create_scenario',
+    }
+  }
+  if (!hasServiceShape.value) {
+    return {
+      label: 'Create Service Shape',
+      detail: 'Turn the current inputs into a concrete service design.',
+      action: 'create_shape',
+    }
+  }
+  if (!canEvaluate.value) {
+    return {
+      label: 'Choose What To Test',
+      detail: 'Pick the requirements, scenario, and service shape for the next test.',
+      action: 'choose_context',
+    }
+  }
+  if (evaluations.value.length === 0) {
+    return {
+      label: 'Test This Design',
+      detail: 'Run the first evaluation on the current design.',
+      action: 'evaluate',
+    }
+  }
+  return {
+    label: 'Review What Needs To Change',
+    detail: 'Use the latest evaluation to decide the next design move.',
+    action: 'review_changes',
+  }
+})
+
 async function handlePromote(rid: string) {
   if (!projectId.value) return
   promotingId.value = rid
@@ -380,10 +552,9 @@ watch(projectId, (id) => {
   if (id) {
     loadProject(id)
     loadVocabulary(id)
-    intentInterpretation.value = null
+    setPendingIntentDraft(null)
     intentError.value = null
     draftStatus.value = null
-    lastInterpretedIntent.value = ''
   }
 })
 
@@ -485,281 +656,38 @@ function formatDate(iso: string): string {
   })
 }
 
-function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+function scrollToSection(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-function normalizedWords(...parts: string[]): Set<string> {
-  return new Set(
-    parts
-      .join(' ')
-      .toLowerCase()
-      .split(/[^a-z0-9]+/)
-      .map(item => item.trim())
-      .filter(Boolean),
-  )
+function openLoopView(view: LoopView) {
+  loopView.value = view
+  scrollToSection('design-loop')
 }
 
-function titleize(input: string): string {
-  return input
-    .replace(/[_-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/\b\w/g, (match) => match.toUpperCase())
-}
-
-function cleanSentence(input: string): string {
-  return input.replace(/\s+/g, ' ').trim()
-}
-
-function scenarioTitleFromStarter(text: string, index: number): string {
-  const cleaned = cleanSentence(text).replace(/^add a scenario where\s+/i, '').replace(/^describe\s+/i, '')
-  const compact = cleaned.replace(/\.$/, '')
-  if (!compact) return `Scenario ${index}`
-  const shortened = compact.length > 72 ? `${compact.slice(0, 69).trim()}...` : compact
-  return titleize(shortened)
-}
-
-function inferScenarioCategory(text: string): 'safety' | 'recovery' | 'orchestration' | 'cross_service' | 'observability' {
-  const words = normalizedWords(text)
-  if (
-    words.has('handoff') ||
-    words.has('handoffs') ||
-    words.has('cross') ||
-    words.has('services') ||
-    words.has('service')
-  ) {
-    return 'cross_service'
-  }
-  if (words.has('verify') || words.has('verification') || words.has('confirm') || words.has('reconcile')) {
-    return 'observability'
-  }
-  if (words.has('refresh') || words.has('stale') || words.has('expired') || words.has('revalidate')) {
-    return 'recovery'
-  }
-  if (words.has('follow') || words.has('followup') || words.has('async') || words.has('approval')) {
-    return 'orchestration'
-  }
-  return 'safety'
-}
-
-function makeRequirementsTemplateFromIntent(result: IntentInterpretation, intent: string) {
-  const data = makeRequirementsTemplate()
-  const words = normalizedWords(
-    intent,
-    result.summary,
-    result.recommended_shape_reason,
-    ...result.requirements_focus,
-    ...result.scenario_starters,
-    ...result.next_steps,
-  )
-
-  data.system.name = slugify(project.value?.name || result.title || 'new-service') || 'new-service'
-  data.scale.shape_preference =
-    result.recommended_shape_type === 'multi_service'
-      ? 'multi_service_estate'
-      : 'production_single_service'
-
-  const constraints = data.business_constraints as Record<string, any>
-  const mentionsBudget =
-    words.has('budget') || words.has('cost') || words.has('spend') || words.has('price') || words.has('pricing')
-  const mentionsApproval =
-    words.has('approval') || words.has('approve') || words.has('approver') || words.has('escalate') || words.has('escalation')
-  const mentionsRecovery =
-    words.has('refresh') || words.has('stale') || words.has('expired') || words.has('revalidate') || words.has('recovery')
-  const mentionsRisk =
-    words.has('risk') || words.has('danger') || words.has('dangerous') || words.has('destructive') || words.has('delete')
-
-  constraints.spending_possible = mentionsBudget
-  constraints.cost_visibility_required = mentionsBudget
-  constraints.approval_expected_for_high_risk = mentionsApproval || mentionsRisk
-  constraints.recovery_sensitive = mentionsRecovery
-  constraints.blocked_failure_posture = mentionsBudget || mentionsApproval || mentionsRecovery || mentionsRisk
-    ? 'structured_blocked'
-    : 'basic_failure_surface'
-
-  return data
-}
-
-function makeScenarioTemplatesFromIntent(result: IntentInterpretation) {
-  const starters = result.scenario_starters.length
-    ? result.scenario_starters.slice(0, 3)
-    : ['Describe the normal success path that the service should handle cleanly.']
-
-  return starters.map((starter, index) => {
-    const category = inferScenarioCategory(starter)
-    const title = scenarioTitleFromStarter(starter, index + 1)
-    const scenarioName = slugify(title) || `scenario-${index + 1}`
-    const words = normalizedWords(starter)
-    const actionCapability =
-      words.has('book') || words.has('booking')
-        ? 'book_the_primary_action'
-        : words.has('verify') || words.has('verification')
-          ? 'verify_the_outcome'
-          : words.has('refresh') || words.has('stale')
-            ? 'refresh_or_revalidate_before_acting'
-            : words.has('approval') || words.has('approve')
-              ? 'request_or_record_approval'
-              : 'handle_the_primary_action'
-
-    const expectedBehavior = [
-      starter,
-      category === 'cross_service'
-        ? 'The service boundary should remain clear across the handoff.'
-        : 'The system should make the intended control decision explicit.',
-    ]
-
-    const expectedSupport = [
-      category === 'recovery'
-        ? 'The contract should make refresh or recovery guidance explicit.'
-        : category === 'observability'
-          ? 'The contract should expose enough context to verify and explain the outcome.'
-          : category === 'cross_service'
-            ? 'The contract should preserve continuity and handoff meaning across services.'
-            : 'The contract should make purpose, constraints, and blocked-action meaning explicit.',
-    ]
-
-    return {
-      title,
-      data: {
-        scenario: {
-          name: scenarioName,
-          category,
-          narrative: starter,
-          context: {
-            capability: actionCapability,
-          },
-          expected_behavior: expectedBehavior,
-          expected_anip_support: expectedSupport,
-        },
-      },
-    }
-  })
-}
-
-function makeShapeTemplateFromIntent(result: IntentInterpretation) {
-  const rootName = project.value?.name || 'new-service'
-  const shapeName = titleize(rootName)
-  const primaryServiceId = slugify(rootName) || 'primary-service'
-  const conceptIds = result.domain_concepts.map((concept) => ({
-    id: slugify(concept) || `concept-${crypto.randomUUID()}`,
-    name: concept,
-  }))
-
-  const primaryService = {
-    id: primaryServiceId,
-    name: shapeName,
-    role: 'primary service',
-    responsibilities: [
-      'Own the main action and the core control checks around it.',
-      ...result.requirements_focus.slice(0, 2),
-    ],
-    capabilities: [
-      'handle_primary_action',
-      ...result.scenario_starters.slice(0, 2).map((item) => slugify(item) || 'support_scenario'),
-    ],
-    owns_concepts: conceptIds.slice(0, Math.max(1, conceptIds.length - 1)).map((concept) => concept.id),
-  }
-
-  const services: Array<Record<string, any>> = [primaryService]
-  const coordination: Array<Record<string, any>> = []
-
-  if (result.recommended_shape_type === 'multi_service') {
-    const lowerSuggestions = result.service_suggestions.map((item) => item.toLowerCase())
-
-    if (lowerSuggestions.some((item) => item.includes('approval'))) {
-      services.push({
-        id: 'approval-service',
-        name: 'Approval Service',
-        role: 'approval boundary',
-        responsibilities: ['Track approvals and decisions that should not be hidden inside the main action.'],
-        capabilities: ['request_approval', 'record_approval_decision'],
-        owns_concepts: conceptIds.filter((concept) => concept.name.toLowerCase().includes('approval')).map((concept) => concept.id),
-      })
-      coordination.push({
-        from: primaryServiceId,
-        to: 'approval-service',
-        relationship: 'handoff',
-        description: 'Send blocked or exceptional work for approval before the main action proceeds.',
-      })
-    }
-
-    if (lowerSuggestions.some((item) => item.includes('verification'))) {
-      services.push({
-        id: 'verification-service',
-        name: 'Verification Service',
-        role: 'verification boundary',
-        responsibilities: ['Verify the outcome after the initial action completes.'],
-        capabilities: ['verify_outcome', 'record_verification_result'],
-        owns_concepts: conceptIds.filter((concept) => concept.name.toLowerCase().includes('outcome')).map((concept) => concept.id),
-      })
-      coordination.push({
-        from: primaryServiceId,
-        to: 'verification-service',
-        relationship: 'verification',
-        description: 'Verify that the completed action actually reached the intended end state.',
-      })
-    }
-
-    if (lowerSuggestions.some((item) => item.includes('refresh') || item.includes('revalidation'))) {
-      services.push({
-        id: 'revalidation-service',
-        name: 'Revalidation Service',
-        role: 'refresh boundary',
-        responsibilities: ['Refresh stale or expired inputs before the main action continues.'],
-        capabilities: ['refresh_input', 'revalidate_input'],
-        owns_concepts: conceptIds.filter((concept) => concept.name.toLowerCase().includes('quote')).map((concept) => concept.id),
-      })
-      coordination.push({
-        from: primaryServiceId,
-        to: 'revalidation-service',
-        relationship: 'verification',
-        description: 'Refresh or revalidate inputs before the main action proceeds.',
-      })
-    }
-  }
-
-  if (result.recommended_shape_type === 'multi_service' && services.length === 1) {
-    services.push({
-      id: 'support-service',
-      name: 'Support Service',
-      role: 'supporting responsibility',
-      responsibilities: ['Handle the secondary follow-up, coordination, or verification responsibility implied by the brief.'],
-      capabilities: ['handle_followup_or_coordination'],
-      owns_concepts: [],
-    })
-    coordination.push({
-      from: primaryServiceId,
-      to: 'support-service',
-      relationship: 'handoff',
-      description: 'Separate the secondary responsibility instead of hiding it inside one oversized service.',
-    })
-  }
-
-  return {
-    shape: {
-      id: slugify(`${shapeName}-shape`) || 'service-shape',
-      name: shapeName,
-      type: result.recommended_shape_type === 'multi_service' ? 'multi_service' : 'single_service',
-      notes: [result.recommended_shape_reason, ...result.service_suggestions.slice(0, 2)],
-      services,
-      coordination,
-      domain_concepts: conceptIds.map((concept, index) => ({
-        id: concept.id,
-        name: concept.name,
-        meaning: `Business concept: ${concept.name}`,
-        owner: services.length > 1 && concept.name.toLowerCase().includes('approval')
-          ? 'approval-service'
-          : index === conceptIds.length - 1 && services.length > 1
-            ? 'shared'
-            : primaryServiceId,
-        sensitivity: concept.name.toLowerCase().includes('approval') || concept.name.toLowerCase().includes('budget') ? 'medium' : 'none',
-      })),
-    },
+async function runHomePrimaryAction() {
+  switch (homePrimaryAction.value.action) {
+    case 'review_first_draft':
+      router.push(`/design/projects/${projectId.value}/first-draft`)
+      break
+    case 'create_requirements':
+      await handleCreateRequirementsManual()
+      break
+    case 'create_scenario':
+      await handleCreateScenarioManual()
+      break
+    case 'create_shape':
+      await handleCreateShapeManual()
+      break
+    case 'choose_context':
+      openLoopView('test')
+      break
+    case 'evaluate':
+      openLoopView('test')
+      break
+    case 'review_changes':
+      openLoopView('changes')
+      break
   }
 }
 
@@ -847,7 +775,12 @@ async function handleCreateRequirements(intentResult?: IntentInterpretation) {
   try {
     const nextIndex = requirements.value.length + 1
     const data = intentResult
-      ? makeRequirementsTemplateFromIntent(intentResult, lastInterpretedIntent.value)
+      ? makeRequirementsTemplateFromIntent(
+          intentResult,
+          lastInterpretedIntent.value,
+          project.value?.name || 'new-service',
+          project.value?.domain || 'general',
+        )
       : makeRequirementsTemplate()
     const created = await createRequirements(projectId.value, {
       id: `req-${crypto.randomUUID()}`,
@@ -948,7 +881,7 @@ async function handleCreateShape(intentResult?: IntentInterpretation) {
   draftStatus.value = null
   try {
     const nextIndex = shapes.value.length + 1
-    const data = intentResult ? makeShapeTemplateFromIntent(intentResult) : makeShapeTemplate()
+    const data = intentResult ? makeShapeTemplateFromIntent(intentResult, project.value?.name || 'new-service') : makeShapeTemplate()
     const created = await createShape(projectId.value, {
       id: `shape-${crypto.randomUUID()}`,
       title: nextIndex === 1 ? 'Service Shape' : `Service Shape ${nextIndex}`,
@@ -969,9 +902,13 @@ async function handleInterpretIntent(intent: string) {
   intentLoading.value = true
   intentError.value = null
   draftStatus.value = null
-  lastInterpretedIntent.value = intent
   try {
-    intentInterpretation.value = await interpretProjectIntentWithAssistant(projectId.value, intent)
+    const interpretation = await interpretProjectIntentWithAssistant(projectId.value, intent)
+    setPendingIntentDraft({
+      source_intent: intent,
+      interpretation,
+    })
+    router.push(`/design/projects/${projectId.value}/first-draft`)
   } catch (err) {
     intentError.value = err instanceof Error ? err.message : String(err)
   } finally {
@@ -1013,7 +950,12 @@ async function handleCreateDraftSet(result: IntentInterpretation) {
     const requirementsCreated = await createRequirements(projectId.value, {
       id: `req-${crypto.randomUUID()}`,
       title: requirements.value.length === 0 ? 'Requirements' : `Requirements ${requirements.value.length + 1}`,
-      data: makeRequirementsTemplateFromIntent(result, lastInterpretedIntent.value),
+      data: makeRequirementsTemplateFromIntent(
+        result,
+        lastInterpretedIntent.value,
+        project.value?.name || 'new-service',
+        project.value?.domain || 'general',
+      ),
     })
 
     const scenarioTemplates = makeScenarioTemplatesFromIntent(result)
@@ -1032,13 +974,14 @@ async function handleCreateDraftSet(result: IntentInterpretation) {
       id: `shape-${crypto.randomUUID()}`,
       title: shapes.value.length === 0 ? 'Service Shape' : `Service Shape ${shapes.value.length + 1}`,
       requirements_id: requirementsCreated.id,
-      data: makeShapeTemplateFromIntent(result),
+      data: makeShapeTemplateFromIntent(result, project.value?.name || 'new-service'),
     })
 
     await refreshArtifacts()
     setActiveRequirements(requirementsCreated.id)
     setActiveScenario(createdScenarioIds[0] || null)
     setActiveShape(shapeCreated.id)
+    setPendingIntentDraft(null)
     draftStatus.value = `Created the first draft set: requirements, ${createdScenarioIds.length} scenario starter${createdScenarioIds.length === 1 ? '' : 's'}, and a service shape.`
     router.push(`/design/projects/${projectId.value}/shapes/${shapeCreated.id}`)
   } finally {
@@ -1186,8 +1129,41 @@ async function handleDraftChange(item: string) {
       </div>
 
       <section class="flow-section" id="overview">
+        <div class="home-summary-card">
+          <div class="home-summary-copy">
+            <div class="summary-kicker">Current State</div>
+            <h2 class="home-summary-title">{{ currentStateTitle }}</h2>
+            <p class="home-summary-description">{{ currentStateDescription }}</p>
+          </div>
+          <div class="home-summary-action">
+            <button class="btn btn-primary home-primary-btn" @click="runHomePrimaryAction">
+              {{ homePrimaryAction.label }}
+            </button>
+            <p class="home-primary-detail">{{ homePrimaryAction.detail }}</p>
+          </div>
+        </div>
+
+        <div class="home-state-metrics" aria-label="Current design state">
+          <div class="state-metric">
+            <span class="state-metric-label">Requirements</span>
+            <span class="state-metric-value">{{ requirements.length }}</span>
+          </div>
+          <div class="state-metric">
+            <span class="state-metric-label">Scenarios</span>
+            <span class="state-metric-value">{{ scenarios.length }}</span>
+          </div>
+          <div class="state-metric">
+            <span class="state-metric-label">{{ isLegacyProposalProject ? 'Approaches' : 'Service Shapes' }}</span>
+            <span class="state-metric-value">{{ isLegacyProposalProject ? proposals.length : shapes.length }}</span>
+          </div>
+          <div class="state-metric">
+            <span class="state-metric-label">Evaluations</span>
+            <span class="state-metric-value">{{ evaluations.length }}</span>
+          </div>
+        </div>
+
         <StudioIntentPanel
-          title="Start from Plain Language"
+          title="What Are We Building?"
           description="Describe what you want to build in normal language. Studio will suggest the first requirements pressure, scenario starters, domain concepts, and service-shape direction."
           :result="intentInterpretation"
           :loading="intentLoading"
@@ -1200,37 +1176,39 @@ async function handleDraftChange(item: string) {
         />
 
         <div v-if="draftStatus" class="banner banner-success">{{ draftStatus }}</div>
+      </section>
 
+      <section class="flow-map-section">
         <div class="flow-intro">
-          <h2 class="section-title">Design Flow</h2>
-          <p class="section-desc">Shape the service in one clear loop: define what matters, model the service, then evaluate whether it will work.</p>
+          <h2 class="section-title">How This Design Comes Together</h2>
+          <p class="section-desc">Use the working loop below to define what matters, capture real situations, shape the service, and test whether it will work.</p>
         </div>
         <div class="flow-cards">
           <div class="flow-card" :class="{ ready: hasRequirements }">
             <span class="flow-step">1</span>
             <div>
-              <div class="flow-label">Requirements</div>
+              <div class="flow-label">What Matters</div>
               <div class="flow-meta">{{ requirements.length }} set{{ requirements.length === 1 ? '' : 's' }}</div>
             </div>
           </div>
           <div class="flow-card" :class="{ ready: hasScenarios }">
             <span class="flow-step">2</span>
             <div>
-              <div class="flow-label">Scenarios</div>
+              <div class="flow-label">Real Situations</div>
               <div class="flow-meta">{{ scenarios.length }} scenario{{ scenarios.length === 1 ? '' : 's' }}</div>
             </div>
           </div>
           <div class="flow-card" :class="{ ready: hasServiceShape }">
             <span class="flow-step">3</span>
             <div>
-              <div class="flow-label">{{ isLegacyProposalProject ? 'Legacy Approach' : 'Service Shape' }}</div>
+              <div class="flow-label">{{ isLegacyProposalProject ? 'Legacy Approach' : 'Service Design' }}</div>
               <div class="flow-meta">{{ isLegacyProposalProject ? proposals.length : shapes.length }} defined</div>
             </div>
           </div>
           <div class="flow-card" :class="{ ready: evaluations.length > 0 }">
             <span class="flow-step">4</span>
             <div>
-              <div class="flow-label">Evaluation</div>
+              <div class="flow-label">Design Test</div>
               <div class="flow-meta">{{ evaluations.length }} run{{ evaluations.length === 1 ? '' : 's' }}</div>
             </div>
           </div>
@@ -1241,142 +1219,177 @@ async function handleDraftChange(item: string) {
         </div>
       </section>
 
-      <!-- Active design context -->
-      <section class="context-section" id="evaluate">
-        <h2 class="section-title">Evaluate the Current Design</h2>
-        <p class="section-desc">Choose the requirements, scenario, and {{ isLegacyProposalProject ? 'legacy approach' : 'service shape' }} you want to test together.</p>
-        <div class="context-selects">
-          <div class="context-field">
-            <label class="field-label">Requirements</label>
-            <select
-              class="field-select"
-              :value="activeRequirementsId ?? ''"
-              @change="onRequirementsChange"
-            >
-              <option value="">-- Select --</option>
-              <option
-                v-for="r in requirements"
-                :key="r.id"
-                :value="r.id"
-              >{{ r.title || r.id }}</option>
-            </select>
-          </div>
-          <div class="context-field">
-            <label class="field-label">Scenario</label>
-            <select
-              class="field-select"
-              :value="activeScenarioId ?? ''"
-              @change="onScenarioChange"
-            >
-              <option value="">-- Select --</option>
-              <option
-                v-for="s in scenarios"
-                :key="s.id"
-                :value="s.id"
-              >{{ s.title || s.id }}</option>
-            </select>
-          </div>
-          <div v-if="isShapeFirstProject" class="context-field">
-            <label class="field-label">Service Shape</label>
-            <select
-              class="field-select"
-              :value="activeShapeId ?? ''"
-              @change="onShapeChange"
-            >
-              <option value="">-- Select --</option>
-              <option
-                v-for="s in shapes"
-                :key="s.id"
-                :value="s.id"
-              >{{ s.title || s.id }}</option>
-            </select>
-          </div>
-          <div v-else class="context-field">
-            <label class="field-label">Approach</label>
-            <select
-              class="field-select"
-              :value="activeProposalId ?? ''"
-              @change="onProposalChange"
-            >
-              <option value="">-- Select --</option>
-              <option
-                v-for="p in proposals"
-                :key="p.id"
-                :value="p.id"
-              >{{ p.title || p.id }}</option>
-            </select>
-          </div>
-        </div>
-        <div class="context-actions">
-          <button
-            class="btn btn-primary"
-            :disabled="!canEvaluate"
-            :title="canEvaluate ? 'Evaluate this design context' : 'Select requirements, a scenario, and a service shape first'"
-            @click="goToEvaluation"
-          >
-            Evaluate This Design
-          </button>
-        </div>
-      </section>
-
-      <section class="readout-section" id="changes">
-        <div class="readout-head">
+      <section class="loop-section" id="design-loop">
+        <div class="loop-header">
           <div>
-            <h2 class="section-title">Changes Needed</h2>
-            <p class="section-desc">Use the latest evaluation as the current design readout. This should tell you what already works and what you should change next.</p>
+            <h2 class="section-title">Design Loop</h2>
+            <p class="section-desc">Keep the current design, the next test, and the resulting changes in one working loop instead of treating them as separate destinations.</p>
           </div>
-          <button
-            v-if="latestEvaluationRecord"
-            class="btn btn-secondary"
-            @click="navigateEvaluation(latestEvaluationRecord.id)"
-          >
-            Open Full Evaluation
-          </button>
         </div>
 
-        <div v-if="!latestEvaluationRecord" class="changes-empty">
-          No evaluation yet. Run the current design once, then Studio will turn the result into a clearer “what works” and “what should change” readout here.
+        <div class="loop-tabs" role="tablist" aria-label="Design loop">
+          <button class="loop-tab" :class="{ active: loopView === 'current' }" @click="loopView = 'current'">Current Design</button>
+          <button class="loop-tab" :class="{ active: loopView === 'test' }" @click="loopView = 'test'">Test This Design</button>
+          <button class="loop-tab" :class="{ active: loopView === 'changes' }" @click="loopView = 'changes'">What Needs to Change</button>
         </div>
 
-        <template v-else>
-          <div class="readout-summary-card">
-            <div class="readout-badges">
-              <span class="artifact-status" :class="'status-' + latestEvaluationRecord.result.toLowerCase()">{{ latestEvaluationRecord.result }}</span>
-              <span v-if="latestEvaluationRecord.is_stale" class="stale-badge">Stale</span>
-            </div>
-            <h3 class="readout-title">Latest Evaluation Readout</h3>
-            <p class="readout-summary">{{ latestEvaluationSummary }}</p>
-            <p v-if="latestWhy.length" class="readout-why">{{ latestWhy[0] }}</p>
+        <div v-if="loopView === 'current'" class="loop-panel">
+          <div class="loop-panel-head">
+            <h3 class="loop-panel-title">Current Design</h3>
+            <p class="section-desc">This is the current design context Studio is working from right now.</p>
           </div>
 
-          <div class="changes-grid">
-            <div class="changes-card">
-              <div class="changes-card-title">Working Well</div>
-              <ul v-if="latestHandled.length" class="changes-list">
-                <li v-for="(item, index) in latestHandled" :key="`handled-${index}`">{{ item }}</li>
-              </ul>
-              <p v-else class="changes-empty-note">No strong support areas are called out yet.</p>
-            </div>
-
-            <div class="changes-card changes-card-primary">
-              <div class="changes-card-title">Change Next</div>
-              <ul v-if="latestChangesNeeded.length" class="changes-list">
-                <li v-for="(item, index) in latestChangesNeeded" :key="`change-${index}`" class="changes-list-item">
-                  <div class="change-copy">{{ item }}</div>
-                  <div class="change-actions">
-                    <button class="change-action-btn" @click="handleFollowChange(item)">
-                      {{ classifyChangeAction(item).label }}
-                    </button>
-                    <button class="change-action-btn change-action-btn-primary" @click="handleDraftChange(item)">
-                      Draft Fix
-                    </button>
-                  </div>
-                </li>
-              </ul>
-              <p v-else class="changes-empty-note">No concrete design changes are suggested from the latest evaluation.</p>
+          <div class="current-design-grid">
+            <div v-for="card in currentDesignCards" :key="card.label" class="current-design-card">
+              <div class="current-design-label">{{ card.label }}</div>
+              <h4 class="current-design-title">{{ card.title }}</h4>
+              <p class="current-design-description">{{ card.description }}</p>
+              <button class="btn btn-secondary current-design-btn" @click="card.onClick()">
+                {{ card.actionLabel }}
+              </button>
             </div>
           </div>
-        </template>
+        </div>
+
+        <div v-else-if="loopView === 'test'" class="loop-panel">
+          <div class="loop-panel-head">
+            <h3 class="loop-panel-title">Test This Design</h3>
+            <p class="section-desc">Choose what matters, the real situation, and the {{ isLegacyProposalProject ? 'legacy approach' : 'service design' }} you want to test together.</p>
+          </div>
+
+          <div class="context-selects">
+            <div class="context-field">
+              <label class="field-label">What Matters</label>
+              <select
+                class="field-select"
+                :value="activeRequirementsId ?? ''"
+                @change="onRequirementsChange"
+              >
+                <option value="">-- Select --</option>
+                <option
+                  v-for="r in requirements"
+                  :key="r.id"
+                  :value="r.id"
+                >{{ r.title || r.id }}</option>
+              </select>
+            </div>
+            <div class="context-field">
+              <label class="field-label">Real Situation</label>
+              <select
+                class="field-select"
+                :value="activeScenarioId ?? ''"
+                @change="onScenarioChange"
+              >
+                <option value="">-- Select --</option>
+                <option
+                  v-for="s in scenarios"
+                  :key="s.id"
+                  :value="s.id"
+                >{{ s.title || s.id }}</option>
+              </select>
+            </div>
+            <div v-if="isShapeFirstProject" class="context-field">
+              <label class="field-label">Service Design</label>
+              <select
+                class="field-select"
+                :value="activeShapeId ?? ''"
+                @change="onShapeChange"
+              >
+                <option value="">-- Select --</option>
+                <option
+                  v-for="s in shapes"
+                  :key="s.id"
+                  :value="s.id"
+                >{{ s.title || s.id }}</option>
+              </select>
+            </div>
+            <div v-else class="context-field">
+              <label class="field-label">Approach</label>
+              <select
+                class="field-select"
+                :value="activeProposalId ?? ''"
+                @change="onProposalChange"
+              >
+                <option value="">-- Select --</option>
+                <option
+                  v-for="p in proposals"
+                  :key="p.id"
+                  :value="p.id"
+                >{{ p.title || p.id }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="context-actions">
+            <button
+              class="btn btn-primary"
+              :disabled="!canEvaluate"
+              :title="canEvaluate ? 'Test this design context' : 'Select what matters, a real situation, and a service design first'"
+              @click="goToEvaluation"
+            >
+              Test This Design
+            </button>
+          </div>
+        </div>
+
+        <div v-else class="loop-panel">
+          <div class="readout-head">
+            <div>
+              <h3 class="loop-panel-title">What Needs to Change</h3>
+              <p class="section-desc">Use the latest evaluation as the current design readout. This should tell you what already works and what you should change next.</p>
+            </div>
+            <button
+              v-if="latestEvaluationRecord"
+              class="btn btn-secondary"
+              @click="navigateEvaluation(latestEvaluationRecord.id)"
+            >
+              Open Full Evaluation
+            </button>
+          </div>
+
+          <div v-if="!latestEvaluationRecord" class="changes-empty">
+            No evaluation yet. Run the current design once, then Studio will turn the result into a clearer “what works” and “what should change” readout here.
+          </div>
+
+          <template v-else>
+            <div class="readout-summary-card">
+              <div class="readout-badges">
+                <span class="artifact-status" :class="'status-' + latestEvaluationRecord.result.toLowerCase()">{{ latestEvaluationRecord.result }}</span>
+                <span v-if="latestEvaluationRecord.is_stale" class="stale-badge">Stale</span>
+              </div>
+              <h4 class="readout-title">Latest Evaluation Readout</h4>
+              <p class="readout-summary">{{ latestEvaluationSummary }}</p>
+              <p v-if="latestWhy.length" class="readout-why">{{ latestWhy[0] }}</p>
+            </div>
+
+            <div class="changes-grid">
+              <div class="changes-card">
+                <div class="changes-card-title">Working Well</div>
+                <ul v-if="latestHandled.length" class="changes-list">
+                  <li v-for="(item, index) in latestHandled" :key="`handled-${index}`">{{ item }}</li>
+                </ul>
+                <p v-else class="changes-empty-note">No strong support areas are called out yet.</p>
+              </div>
+
+              <div class="changes-card changes-card-primary">
+                <div class="changes-card-title">Change Next</div>
+                <ul v-if="latestChangesNeeded.length" class="changes-list">
+                  <li v-for="(item, index) in latestChangesNeeded" :key="`change-${index}`" class="changes-list-item">
+                    <div class="change-copy">{{ item }}</div>
+                    <div class="change-actions">
+                      <button class="change-action-btn" @click="handleFollowChange(item)">
+                        {{ classifyChangeAction(item).label }}
+                      </button>
+                      <button class="change-action-btn change-action-btn-primary" @click="handleDraftChange(item)">
+                        Draft Fix
+                      </button>
+                    </div>
+                  </li>
+                </ul>
+                <p v-else class="changes-empty-note">No concrete design changes are suggested from the latest evaluation.</p>
+              </div>
+            </div>
+          </template>
+        </div>
       </section>
 
       <section class="creation-section">
@@ -1620,6 +1633,99 @@ async function handleDraftChange(item: string) {
   margin-bottom: 1.5rem;
 }
 
+.home-summary-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.55);
+  margin-bottom: 1rem;
+}
+
+.home-summary-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.summary-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.45rem;
+}
+
+.home-summary-title {
+  margin: 0 0 0.4rem;
+  font-size: 20px;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.home-summary-description {
+  margin: 0;
+  max-width: 58ch;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.home-summary-action {
+  width: 240px;
+  max-width: 100%;
+  flex-shrink: 0;
+}
+
+.home-primary-btn {
+  width: 100%;
+}
+
+.home-primary-detail {
+  margin: 0.55rem 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.home-state-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 1rem;
+}
+
+.state-metric {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.state-metric-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.state-metric-value {
+  display: block;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.flow-map-section {
+  margin-bottom: 1.5rem;
+}
+
 .flow-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -1690,13 +1796,107 @@ async function handleDraftChange(item: string) {
   line-height: 1.5;
 }
 
-/* Active design context */
-.context-section {
+/* Design loop */
+.loop-section,
+.artifact-summary-section {
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.25rem;
   margin-bottom: 1.5rem;
+}
+
+.loop-header {
+  margin-bottom: 0.9rem;
+}
+
+.loop-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.loop-tab {
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.loop-tab.active {
+  border-color: rgba(59, 130, 246, 0.28);
+  background: rgba(59, 130, 246, 0.08);
+  color: #2563eb;
+}
+
+.loop-panel {
+  padding: 1rem 1rem 0.95rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.loop-panel-head,
+.readout-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 0.9rem;
+}
+
+.loop-panel-title {
+  margin: 0 0 0.35rem;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.current-design-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.85rem;
+}
+
+.current-design-card {
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.04));
+}
+
+.current-design-label {
+  margin-bottom: 0.45rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.current-design-title {
+  margin: 0 0 0.4rem;
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+
+.current-design-description {
+  margin: 0 0 0.8rem;
+  min-height: 3.3em;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.current-design-btn {
+  width: 100%;
 }
 
 .creation-section {
@@ -1757,6 +1957,16 @@ async function handleDraftChange(item: string) {
   font-size: 13px;
   outline: none;
   transition: border-color var(--transition);
+}
+
+@media (max-width: 720px) {
+  .home-summary-card {
+    flex-direction: column;
+  }
+
+  .home-summary-action {
+    width: 100%;
+  }
 }
 
 .field-select:focus {
@@ -1995,23 +2205,6 @@ async function handleDraftChange(item: string) {
 .legacy-note {
   font-style: italic;
   color: var(--text-muted);
-}
-
-.readout-section,
-.artifact-summary-section {
-  margin-bottom: 1.5rem;
-  padding: 1.1rem 1.15rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.55);
-}
-
-.readout-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: flex-start;
-  margin-bottom: 0.9rem;
 }
 
 .changes-empty,

@@ -18,6 +18,7 @@ from anip_core import (
 )
 from anip_service import ANIPError, ANIPService, Capability
 
+from .assistant_provider import try_model_assistant_response
 from .db import get_pool
 from .derivation import derive_contract_expectations
 from .repository import (
@@ -252,6 +253,82 @@ def _unique(items: list[str]) -> list[str]:
     return result
 
 
+def _string_value(value: Any, default: str) -> str:
+    if isinstance(value, str):
+        cleaned = value.strip()
+        if cleaned:
+            return cleaned
+    return default
+
+
+def _merged_string_list(value: Any, fallback: list[str], *, limit: int) -> list[str]:
+    if not isinstance(value, list):
+        return fallback[:limit]
+    merged = [str(item).strip() for item in value if str(item).strip()]
+    return merged[:limit] or fallback[:limit]
+
+
+def _merge_intent_interpretation(
+    fallback: dict[str, Any],
+    candidate: dict[str, Any],
+) -> dict[str, Any]:
+    shape_type = str(candidate.get("recommended_shape_type", "")).strip().lower()
+    if shape_type not in {"single_service", "multi_service"}:
+        shape_type = fallback["recommended_shape_type"]
+
+    return {
+        "title": _string_value(candidate.get("title"), fallback["title"]),
+        "summary": _string_value(candidate.get("summary"), fallback["summary"]),
+        "recommended_shape_type": shape_type,
+        "recommended_shape_reason": _string_value(
+            candidate.get("recommended_shape_reason"),
+            fallback["recommended_shape_reason"],
+        ),
+        "requirements_focus": _merged_string_list(
+            candidate.get("requirements_focus"),
+            fallback["requirements_focus"],
+            limit=5,
+        ),
+        "scenario_starters": _merged_string_list(
+            candidate.get("scenario_starters"),
+            fallback["scenario_starters"],
+            limit=5,
+        ),
+        "domain_concepts": _merged_string_list(
+            candidate.get("domain_concepts"),
+            fallback["domain_concepts"],
+            limit=6,
+        ),
+        "service_suggestions": _merged_string_list(
+            candidate.get("service_suggestions"),
+            fallback["service_suggestions"],
+            limit=5,
+        ),
+        "next_steps": _merged_string_list(
+            candidate.get("next_steps"),
+            fallback["next_steps"],
+            limit=5,
+        ),
+    }
+
+
+def _merge_explanation(
+    fallback: dict[str, Any],
+    candidate: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "title": _string_value(candidate.get("title"), fallback["title"]),
+        "summary": _string_value(candidate.get("summary"), fallback["summary"]),
+        "focused_answer": _string_value(
+            candidate.get("focused_answer"),
+            fallback.get("focused_answer") or fallback["summary"],
+        ),
+        "highlights": _merged_string_list(candidate.get("highlights"), fallback["highlights"], limit=4),
+        "watchouts": _merged_string_list(candidate.get("watchouts"), fallback["watchouts"], limit=4),
+        "next_steps": _merged_string_list(candidate.get("next_steps"), fallback["next_steps"], limit=4),
+    }
+
+
 async def _interpret_project_intent(_: Any, params: dict[str, Any]) -> dict[str, Any]:
     project_id = _required_param(params, "project_id")
     intent = _required_param(params, "intent")
@@ -361,7 +438,7 @@ async def _interpret_project_intent(_: Any, params: dict[str, Any]) -> dict[str,
         f"The main pressure points are {', '.join(item.split(' ')[0].lower() for item in requirements_focus[:3])}."
     )
 
-    return {
+    deterministic = {
         "title": f"Intent Interpretation: {project_name}",
         "summary": summary,
         "recommended_shape_type": recommended_shape_type,
@@ -372,6 +449,23 @@ async def _interpret_project_intent(_: Any, params: dict[str, Any]) -> dict[str,
         "service_suggestions": service_suggestions[:5],
         "next_steps": next_steps,
     }
+
+    model_result = await try_model_assistant_response(
+        "interpret_project_intent",
+        {
+            "project": {
+                "id": project_id,
+                "name": project_name,
+                "domain": project.get("domain"),
+                "summary": project.get("summary"),
+            },
+            "intent": intent,
+            "deterministic_draft": deterministic,
+        },
+    )
+    if model_result:
+        return _merge_intent_interpretation(deterministic, model_result)
+    return deterministic
 
 
 def _focus_answer_from_question(question: str, *, summary: str, mappings: list[tuple[tuple[str, ...], list[str] | str]]) -> str | None:
@@ -467,7 +561,7 @@ async def _explain_shape(_: Any, params: dict[str, Any]) -> dict[str, Any]:
         ],
     )
 
-    return {
+    deterministic = {
         "title": f"Shape Explanation: {shape_name}",
         "summary": summary,
         "focused_answer": focused_answer,
@@ -475,6 +569,32 @@ async def _explain_shape(_: Any, params: dict[str, Any]) -> dict[str, Any]:
         "watchouts": watchouts,
         "next_steps": next_steps[:4],
     }
+
+    model_result = await try_model_assistant_response(
+        "explain_shape",
+        {
+            "project": {
+                "id": project_id,
+                "name": project_name,
+            },
+            "question": question,
+            "shape": {
+                "id": shape_id,
+                "name": shape_name,
+                "type": shape_data.get("type"),
+                "services": services,
+                "coordination": coordination,
+                "domain_concepts": concepts,
+                "notes": notes,
+            },
+            "requirements": requirements["data"],
+            "derived_expectations": expectations,
+            "deterministic_draft": deterministic,
+        },
+    )
+    if model_result:
+        return _merge_explanation(deterministic, model_result)
+    return deterministic
 
 
 def _evaluation_summary(result: str, handled: list[str], glue: list[str]) -> str:
@@ -552,7 +672,7 @@ async def _explain_evaluation(_: Any, params: dict[str, Any]) -> dict[str, Any]:
         ],
     )
 
-    return {
+    deterministic = {
         "title": f"Evaluation Explanation: {scenario_name}",
         "summary": summary,
         "focused_answer": focused_answer,
@@ -560,3 +680,34 @@ async def _explain_evaluation(_: Any, params: dict[str, Any]) -> dict[str, Any]:
         "watchouts": watchouts,
         "next_steps": next_steps,
     }
+
+    model_result = await try_model_assistant_response(
+        "explain_evaluation",
+        {
+            "project": {
+                "id": project_id,
+                "name": project_name,
+            },
+            "question": question,
+            "scenario": {
+                "id": scenario["id"],
+                "title": scenario["title"],
+                "data": scenario["data"],
+            },
+            "evaluation": {
+                "id": evaluation_id,
+                "result": result,
+                "handled_by_anip": handled,
+                "glue_you_will_still_write": glue,
+                "why": why,
+                "what_would_improve": improve,
+                "notes": notes,
+                "is_stale": evaluation_row.get("is_stale", False),
+                "stale_artifacts": evaluation_row.get("stale_artifacts", []),
+            },
+            "deterministic_draft": deterministic,
+        },
+    )
+    if model_result:
+        return _merge_explanation(deterministic, model_result)
+    return deterministic

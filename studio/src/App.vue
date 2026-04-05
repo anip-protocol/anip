@@ -60,9 +60,20 @@ const designNavItems = computed<DesignNavItem[]>(() => {
     items.push(
       { name: 'project-overview', label: project.name, icon: '\u{1F4C1}', path: `/design/projects/${pid}` },
       { name: 'project-overview:overview', label: '1. Intent', icon: '\u2022', path: `/design/projects/${pid}`, child: true },
+    )
+    if (projectStore.pendingIntentDraft) {
+      items.push({
+        name: 'first-draft-review',
+        label: '2. First Draft Review',
+        icon: '\u2022',
+        path: `/design/projects/${pid}/first-draft`,
+        child: true,
+      })
+    }
+    items.push(
       {
         name: 'project-overview:requirements',
-        label: '2. Requirements',
+        label: projectStore.pendingIntentDraft ? '3. What Matters' : '2. What Matters',
         icon: '\u2022',
         path: projectStore.activeRequirementsId
           ? `/design/projects/${pid}/requirements/${projectStore.activeRequirementsId}`
@@ -71,7 +82,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
       },
       {
         name: 'project-overview:scenarios',
-        label: '3. Scenarios',
+        label: projectStore.pendingIntentDraft ? '4. Real Situations' : '3. Real Situations',
         icon: '\u2022',
         path: projectStore.activeScenarioId
           ? `/design/projects/${pid}/scenarios/${projectStore.activeScenarioId}`
@@ -83,7 +94,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
     if (hasShapes && projectStore.activeShapeId) {
         items.push({
           name: 'shape',
-          label: '4. Service Shape',
+          label: projectStore.pendingIntentDraft ? '5. Service Design' : '4. Service Design',
           icon: '\u2022',
           path: `/design/projects/${pid}/shapes/${projectStore.activeShapeId}`,
           child: true,
@@ -91,7 +102,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
     } else if (hasShapes) {
         items.push({
           name: 'project-overview:shape',
-          label: '4. Service Shape',
+          label: projectStore.pendingIntentDraft ? '5. Service Design' : '4. Service Design',
           icon: '\u2022',
           path: `/design/projects/${pid}#shape`,
           child: true,
@@ -99,7 +110,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
     } else if (projectStore.artifacts.proposals.length === 0) {
         items.push({
           name: 'project-overview:shape',
-          label: '4. Service Shape',
+          label: projectStore.pendingIntentDraft ? '5. Service Design' : '4. Service Design',
           icon: '\u2022',
           path: `/design/projects/${pid}#shape`,
           child: true,
@@ -107,7 +118,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
     } else if (!hasShapes && projectStore.activeProposalId) {
         items.push({
           name: 'proposal',
-          label: '4. Legacy Approach',
+          label: projectStore.pendingIntentDraft ? '5. Legacy Approach' : '4. Legacy Approach',
           icon: '\u2022',
           path: `/design/projects/${pid}/proposals/${projectStore.activeProposalId}`,
           child: true,
@@ -115,7 +126,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
     }
     items.push({
       name: 'project-overview:evaluate',
-      label: '5. Evaluate',
+      label: projectStore.pendingIntentDraft ? '6. Test This Design' : '5. Test This Design',
       icon: '\u2022',
       path: projectStore.activeScenarioId
         ? `/design/projects/${pid}/evaluations/${projectStore.activeScenarioId}`
@@ -124,7 +135,7 @@ const designNavItems = computed<DesignNavItem[]>(() => {
     })
     items.push({
       name: 'project-overview:changes',
-      label: '6. Changes Needed',
+      label: projectStore.pendingIntentDraft ? '7. What Needs To Change' : '6. What Needs To Change',
       icon: '\u2022',
       path: `/design/projects/${pid}#changes`,
       child: true,

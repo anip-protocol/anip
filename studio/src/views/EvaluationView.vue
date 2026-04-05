@@ -294,7 +294,7 @@ async function handleExplainEvaluation(question: string) {
           v-if="designStore.apiAvailable && !designStore.validating"
           class="run-btn"
           @click="handleRunValidation"
-        >Evaluate This Design</button>
+        >Test This Design</button>
         <span v-if="designStore.validating" class="spinner"></span>
         <button
           v-if="isLive"
@@ -351,7 +351,7 @@ async function handleExplainEvaluation(question: string) {
     </div>
 
     <div v-if="!hasEvaluationResult" class="empty-evaluation">
-      No evaluation yet. Use Evaluate This Design to see what this shape supports, what still needs custom work, and what should change next.
+      No evaluation yet. Use Test This Design to see what this design supports, what still needs custom work, and what should change next.
     </div>
 
     <template v-if="evaluation">
@@ -416,7 +416,7 @@ async function handleExplainEvaluation(question: string) {
 
       <!-- Design Changes Needed -->
       <div class="section" v-if="evaluation.what_would_improve && evaluation.what_would_improve.length">
-        <h2>Design Changes Needed</h2>
+        <h2>What Needs to Change</h2>
         <ul>
           <li v-for="(item, i) in evaluation.what_would_improve" :key="i">{{ item }}</li>
         </ul>

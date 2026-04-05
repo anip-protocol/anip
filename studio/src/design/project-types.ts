@@ -119,3 +119,8 @@ export interface IntentInterpretation {
   service_suggestions: string[]
   next_steps: string[]
 }
+
+export interface PendingIntentDraft {
+  source_intent: string
+  interpretation: IntentInterpretation
+}

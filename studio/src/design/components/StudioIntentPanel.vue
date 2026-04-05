@@ -46,7 +46,7 @@ function handleRun() {
 
     <div class="intent-actions">
       <button class="intent-btn" :disabled="loading || !intent.trim()" @click="handleRun">
-        {{ loading ? 'Interpreting...' : 'Interpret This Intent' }}
+        {{ loading ? 'Shaping...' : 'Help Me Shape This' }}
       </button>
     </div>
 
@@ -61,13 +61,13 @@ function handleRun() {
           Create First Draft Set
         </button>
         <button class="intent-btn" :disabled="loading" @click="emit('createRequirements', result)">
-          Requirements Draft
+          What Matters Draft
         </button>
         <button class="intent-btn" :disabled="loading" @click="emit('createScenarios', result)">
-          Scenario Starters
+          Real Situation Starters
         </button>
         <button class="intent-btn" :disabled="loading" @click="emit('createShape', result)">
-          Service Shape Draft
+          Service Design Draft
         </button>
       </div>
 
@@ -80,14 +80,14 @@ function handleRun() {
       </div>
 
       <div v-if="result.requirements_focus?.length" class="result-section">
-        <div class="section-title">Requirements Focus</div>
+        <div class="section-title">What Matters</div>
         <ul>
           <li v-for="(item, i) in result.requirements_focus" :key="`req-${i}`">{{ item }}</li>
         </ul>
       </div>
 
       <div v-if="result.scenario_starters?.length" class="result-section">
-        <div class="section-title">Scenario Starters</div>
+        <div class="section-title">Real Situations</div>
         <ul>
           <li v-for="(item, i) in result.scenario_starters" :key="`scn-${i}`">{{ item }}</li>
         </ul>
@@ -101,7 +101,7 @@ function handleRun() {
       </div>
 
       <div v-if="result.service_suggestions?.length" class="result-section">
-        <div class="section-title">Service Shape Direction</div>
+        <div class="section-title">Service Design Direction</div>
         <ul>
           <li v-for="(item, i) in result.service_suggestions" :key="`svc-${i}`">{{ item }}</li>
         </ul>

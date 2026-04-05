@@ -257,3 +257,94 @@ def test_assistant_can_interpret_project_intent(
     assert result["recommended_shape_type"] in {"single_service", "multi_service"}
     assert any("budget" in item.lower() for item in result["requirements_focus"])
     assert any("approval" in item.lower() for item in result["scenario_starters"] + result["service_suggestions"])
+
+
+def test_assistant_can_use_configured_model_result_for_intent(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        assistant_service,
+        "get_project_detail",
+        lambda _conn, pid: {"id": pid, "name": "Travel Project", "domain": "travel"},
+    )
+
+    async def _fake_model_response(capability: str, payload: dict):
+        assert capability == "interpret_project_intent"
+        assert payload["project"]["name"] == "Travel Project"
+        return {
+            "title": "AI Draft: Travel Booking",
+            "summary": "A concise AI-backed draft for the travel booking brief.",
+            "recommended_shape_type": "multi_service",
+            "recommended_shape_reason": "Approval and booking lifecycles are distinct enough to separate.",
+            "requirements_focus": ["Make approval policy explicit."],
+            "scenario_starters": ["Add a scenario where approval is required before booking."],
+            "domain_concepts": ["Booking", "Approval"],
+            "service_suggestions": ["Split booking and approval into separate responsibilities."],
+            "next_steps": ["Review the first draft before accepting it."],
+        }
+
+    monkeypatch.setattr(assistant_service, "try_model_assistant_response", _fake_model_response)
+
+    token = _issue_token(client, "interpret_project_intent")
+    resp = client.post(
+        "/studio-assistant/anip/invoke/interpret_project_intent",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "parameters": {
+                "project_id": "proj-assistant-intent",
+                "intent": "We need a travel booking service with approvals.",
+            }
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["success"] is True
+    result = body["result"]
+    assert result["title"] == "AI Draft: Travel Booking"
+    assert result["recommended_shape_type"] == "multi_service"
+    assert result["domain_concepts"] == ["Booking", "Approval"]
+
+
+def test_assistant_falls_back_when_model_result_is_missing_fields(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        assistant_service,
+        "get_project_detail",
+        lambda _conn, pid: {"id": pid, "name": "Travel Project"},
+    )
+
+    async def _partial_model_response(capability: str, payload: dict):
+        assert capability == "interpret_project_intent"
+        return {
+            "title": "AI Draft: Travel Booking",
+            "recommended_shape_type": "not-a-valid-shape",
+            "requirements_focus": [],
+        }
+
+    monkeypatch.setattr(assistant_service, "try_model_assistant_response", _partial_model_response)
+
+    token = _issue_token(client, "interpret_project_intent")
+    resp = client.post(
+        "/studio-assistant/anip/invoke/interpret_project_intent",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "parameters": {
+                "project_id": "proj-assistant-intent",
+                "intent": (
+                    "We need a travel booking service that can search flights, "
+                    "book travel, and escalate exceptions for approval."
+                ),
+            }
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["success"] is True
+    result = body["result"]
+    assert result["title"] == "AI Draft: Travel Booking"
+    assert result["recommended_shape_type"] in {"single_service", "multi_service"}
+    assert len(result["requirements_focus"]) > 0
+    assert len(result["scenario_starters"]) > 0

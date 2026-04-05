@@ -9,6 +9,7 @@ import type {
   ShapeRecord,
   EvaluationRecord,
   VocabularyEntry,
+  PendingIntentDraft,
 } from './project-types'
 import {
   listWorkspaces,
@@ -48,6 +49,7 @@ interface ProjectState {
   activeScenarioId: string | null
   activeProposalId: string | null
   activeShapeId: string | null
+  pendingIntentDraft: PendingIntentDraft | null
   loading: boolean
   error: string | null
   dbAvailable: boolean
@@ -70,6 +72,7 @@ export const projectStore = reactive<ProjectState>({
   activeScenarioId: null,
   activeProposalId: null,
   activeShapeId: null,
+  pendingIntentDraft: null,
   loading: false,
   error: null,
   dbAvailable: false,
@@ -290,6 +293,10 @@ export function setActiveShape(id: string | null): void {
   projectStore.activeShapeId = id
 }
 
+export function setPendingIntentDraft(draft: PendingIntentDraft | null): void {
+  projectStore.pendingIntentDraft = draft
+}
+
 /**
  * Handoff: hydrate the design store's draft state from a project artifact record.
  *
@@ -379,6 +386,7 @@ export function clearProject(): void {
   projectStore.activeScenarioId = null
   projectStore.activeProposalId = null
   projectStore.activeShapeId = null
+  projectStore.pendingIntentDraft = null
 }
 
 export function setActiveWorkspace(workspace: WorkspaceDetail | null): void {
