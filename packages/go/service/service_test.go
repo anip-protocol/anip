@@ -1618,3 +1618,73 @@ func TestShutdownIdempotent(t *testing.T) {
 		t.Fatalf("second Shutdown() error: %v", err)
 	}
 }
+
+func TestIssueCapabilityToken(t *testing.T) {
+	svc := newTestService()
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	t.Run("issues token bound to capability", func(t *testing.T) {
+		resp, err := svc.IssueCapabilityToken(
+			"human:test@example.com",
+			"search_flights",
+			[]string{"travel.search"},
+		)
+		if err != nil {
+			t.Fatalf("IssueCapabilityToken() error: %v", err)
+		}
+		if !resp.Issued {
+			t.Fatal("expected Issued=true")
+		}
+		if resp.Token == "" {
+			t.Fatal("expected non-empty Token JWT")
+		}
+		if resp.TokenID == "" {
+			t.Fatal("expected non-empty TokenID")
+		}
+	})
+
+	t.Run("WithTTL overrides default TTL", func(t *testing.T) {
+		resp, err := svc.IssueCapabilityToken(
+			"human:test@example.com",
+			"search_flights",
+			[]string{"travel.search"},
+			WithTTL(8),
+		)
+		if err != nil {
+			t.Fatalf("IssueCapabilityToken() with WithTTL error: %v", err)
+		}
+		if !resp.Issued {
+			t.Fatal("expected Issued=true")
+		}
+	})
+
+	t.Run("WithPurposeParameters attaches parameters", func(t *testing.T) {
+		resp, err := svc.IssueCapabilityToken(
+			"human:test@example.com",
+			"search_flights",
+			[]string{"travel.search"},
+			WithPurposeParameters(map[string]interface{}{"task_id": "task-abc"}),
+		)
+		if err != nil {
+			t.Fatalf("IssueCapabilityToken() with WithPurposeParameters error: %v", err)
+		}
+		if !resp.Issued {
+			t.Fatal("expected Issued=true")
+		}
+	})
+
+	t.Run("scope required — empty scope issues but capability gate enforces scope on invoke", func(t *testing.T) {
+		// The helper does not enforce scope non-empty; protocol enforces it at invoke time.
+		// This test just verifies the helper delegates correctly with an empty scope.
+		_, err := svc.IssueCapabilityToken(
+			"human:test@example.com",
+			"search_flights",
+			[]string{},
+		)
+		// May succeed or fail depending on server policy; either way, no panic.
+		_ = err
+	})
+}

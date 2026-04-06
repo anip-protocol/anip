@@ -20,6 +20,10 @@ type Config struct {
 	Storage      string // "sqlite:///path" or ":memory:"
 	Trust        string // "signed" or "anchored"
 	KeyPath      string
+	// Authenticate is called to verify a bearer token and return the principal.
+	// This hook is synchronous — it is called directly in the request path.
+	// If your authentication requires I/O, perform it before registering the hook
+	// or use a caching wrapper.
 	Authenticate func(bearer string) (principal string, ok bool)
 
 	// Observability hooks (optional). Nil means no hooks.
@@ -303,6 +307,42 @@ func (s *Service) IssueToken(principal string, req core.TokenRequest) (core.Toke
 		callHook(func() { s.hooks.OnTokenIssued(resp.TokenID, principal, req.Capability) })
 	}
 	return resp, nil
+}
+
+// TokenOption is a functional option for IssueCapabilityToken.
+type TokenOption func(*core.TokenRequest)
+
+// WithTTL overrides the token TTL (in hours). Default is 2 hours.
+func WithTTL(hours int) TokenOption {
+	return func(r *core.TokenRequest) { r.TTLHours = hours }
+}
+
+// WithBudget sets a cost budget on the token request.
+func WithBudget(budget *core.Budget) TokenOption {
+	return func(r *core.TokenRequest) { r.Budget = budget }
+}
+
+// WithPurposeParameters sets purpose parameters on the token request.
+func WithPurposeParameters(params map[string]interface{}) TokenOption {
+	return func(r *core.TokenRequest) { r.PurposeParameters = params }
+}
+
+// IssueCapabilityToken issues a root token pre-bound to a specific capability.
+// scope must be explicitly provided — capability names and scope strings are
+// different things (e.g. capability "evaluate_service_design" may need scope
+// "studio.workbench.evaluate_service_design").
+// For delegation flows (parent_token, subject), use IssueToken directly.
+func (s *Service) IssueCapabilityToken(principal, capability string, scope []string, opts ...TokenOption) (core.TokenResponse, error) {
+	req := core.TokenRequest{
+		Subject:    principal,
+		Capability: capability,
+		Scope:      scope,
+		TTLHours:   2,
+	}
+	for _, opt := range opts {
+		opt(&req)
+	}
+	return s.IssueToken(principal, req)
 }
 
 // GetDiscovery builds the full discovery document per SPEC.md section 6.1.
