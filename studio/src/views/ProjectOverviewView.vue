@@ -1116,8 +1116,8 @@ async function handleDraftChange(item: string) {
       <section class="flow-section" id="overview">
         <div class="home-summary-card">
           <div class="home-summary-copy">
-            <div class="summary-kicker">Current State</div>
-            <h2 class="home-summary-title">{{ currentStateTitle }}</h2>
+            <h2 class="section-title home-summary-heading">Current State</h2>
+            <h3 class="home-summary-title">{{ currentStateTitle }}</h3>
             <p class="home-summary-description">{{ currentStateDescription }}</p>
           </div>
           <div class="home-summary-action">
@@ -1657,7 +1657,7 @@ async function handleDraftChange(item: string) {
 }
 
 .flow-section {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.04));
+  background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.25rem;
@@ -1669,10 +1669,10 @@ async function handleDraftChange(item: string) {
   justify-content: space-between;
   gap: 1rem;
   align-items: flex-start;
-  padding: 1rem 1.1rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 1rem;
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--bg-app);
   margin-bottom: 1rem;
 }
 
@@ -1681,32 +1681,28 @@ async function handleDraftChange(item: string) {
   min-width: 0;
 }
 
-.summary-kicker {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 0.45rem;
+.home-summary-heading {
+  margin-bottom: 0.55rem;
 }
 
 .home-summary-title {
-  margin: 0 0 0.4rem;
-  font-size: 20px;
-  line-height: 1.2;
+  margin: 0 0 0.45rem;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
   color: var(--text-primary);
 }
 
 .home-summary-description {
   margin: 0;
-  max-width: 58ch;
+  max-width: 56ch;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.55;
   color: var(--text-secondary);
 }
 
 .home-summary-action {
-  width: 240px;
+  width: 220px;
   max-width: 100%;
   flex-shrink: 0;
 }
@@ -1717,7 +1713,7 @@ async function handleDraftChange(item: string) {
 
 .home-primary-detail {
   margin: 0.55rem 0 0;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--text-muted);
 }
@@ -1731,9 +1727,9 @@ async function handleDraftChange(item: string) {
 
 .state-metric {
   padding: 0.75rem 0.85rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.42);
+  background: var(--bg-app);
 }
 
 .state-metric-label {
@@ -1849,28 +1845,33 @@ async function handleDraftChange(item: string) {
 }
 
 .loop-tab {
-  height: 34px;
-  padding: 0 14px;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.7);
+  min-height: 36px;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-app);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+}
+
+.loop-tab:hover {
+  background: var(--bg-hover);
 }
 
 .loop-tab.active {
-  border-color: rgba(59, 130, 246, 0.28);
-  background: rgba(59, 130, 246, 0.08);
-  color: #2563eb;
+  border-color: var(--border-focus);
+  background: var(--bg-input);
+  color: var(--text-primary);
 }
 
 .loop-panel {
   padding: 1rem 1rem 0.95rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--bg-app);
 }
 
 .loop-panel-head,
@@ -1897,17 +1898,16 @@ async function handleDraftChange(item: string) {
 
 .current-design-card {
   padding: 0.95rem 1rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.04));
+  background: var(--bg-input);
 }
 
 .current-design-label {
   margin-bottom: 0.45rem;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
   color: var(--text-muted);
 }
 
@@ -1960,7 +1960,7 @@ async function handleDraftChange(item: string) {
   padding: 1rem;
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.55);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.04));
 }
 
 .share-card-head {
@@ -1990,6 +1990,11 @@ async function handleDraftChange(item: string) {
   font-size: 12px;
   line-height: 1.55;
   resize: vertical;
+}
+
+.share-preview:focus {
+  outline: none;
+  border-color: var(--border-focus);
 }
 
 .section-title {
@@ -2051,6 +2056,20 @@ async function handleDraftChange(item: string) {
 
   .home-summary-action {
     width: 100%;
+  }
+
+  .share-card-head,
+  .loop-panel-head,
+  .readout-head {
+    flex-direction: column;
+  }
+
+  .share-actions {
+    width: 100%;
+  }
+
+  .share-actions .btn {
+    flex: 1;
   }
 }
 

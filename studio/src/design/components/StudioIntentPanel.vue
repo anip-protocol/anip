@@ -62,7 +62,7 @@ function handleRun() {
     <div v-if="result" class="intent-result">
       <div class="proposal-banner">
         <div>
-          <div class="section-title">Suggested First Design Ready</div>
+          <div class="proposal-kicker">Suggested First Design Ready</div>
           <h3 class="result-title">{{ result.title }}</h3>
           <p class="result-summary">{{ result.summary }}</p>
         </div>
@@ -87,9 +87,9 @@ function handleRun() {
 .intent-panel {
   margin: 0 0 1.5rem;
   padding: 1.25rem;
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.03), rgba(15, 23, 42, 0.05));
+  background: var(--bg-input);
 }
 
 .intent-head {
@@ -101,7 +101,7 @@ function handleRun() {
 }
 
 .intent-kicker,
-.section-title {
+.proposal-kicker {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -112,12 +112,12 @@ function handleRun() {
 .intent-title {
   margin: 0.2rem 0 0.35rem;
   font-size: 20px;
+  line-height: 1.25;
   color: var(--text-primary);
 }
 
 .intent-desc,
-.result-summary,
-.shape-recommendation p {
+.result-summary {
   margin: 0;
   color: var(--text-secondary);
   line-height: 1.55;
@@ -157,24 +157,35 @@ function handleRun() {
   resize: vertical;
 }
 
+.intent-input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
 .intent-actions {
   margin-top: 0.85rem;
 }
 
 .intent-btn {
-  padding: 0.65rem 1rem;
-  border: 1px solid rgba(59, 130, 246, 0.35);
-  border-radius: 8px;
-  background: rgba(59, 130, 246, 0.1);
-  color: #2563eb;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-app);
+  color: var(--text-primary);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
 }
 
 .intent-btn:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+.intent-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
 }
 
 .intent-error {
@@ -207,6 +218,10 @@ function handleRun() {
   justify-content: space-between;
   gap: 1rem;
   align-items: flex-start;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.55);
 }
 
 .proposal-note {
@@ -219,66 +234,28 @@ function handleRun() {
   line-height: 1.55;
 }
 
-.shape-recommendation {
-  margin-top: 1rem;
-  padding: 0.9rem 1rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.45);
-}
-
-.shape-pill {
-  display: inline-block;
-  margin: 0.5rem 0 0.65rem;
-  padding: 0.3rem 0.6rem;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.shape-pill.single_service {
-  background: rgba(16, 185, 129, 0.14);
-  color: #047857;
-}
-
-.shape-pill.multi_service {
-  background: rgba(234, 179, 8, 0.16);
-  color: #a16207;
-}
-
-.result-section {
-  margin-top: 1rem;
-}
-
-.result-section ul {
-  margin: 0.45rem 0 0;
-  padding-left: 1.1rem;
-  color: var(--text-secondary);
-}
-
-.result-section li + li {
-  margin-top: 0.35rem;
-}
-
-.chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  margin-top: 0.55rem;
-}
-
-.chip {
-  padding: 0.35rem 0.6rem;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.06);
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 600;
-}
-
 .intent-btn-primary {
-  border-color: #2563eb;
-  background: #2563eb;
-  color: #fff;
+  border-color: rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+.intent-btn-primary:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.16);
+}
+
+@media (max-width: 720px) {
+  .intent-head,
+  .proposal-banner {
+    flex-direction: column;
+  }
+
+  .draft-actions {
+    width: 100%;
+  }
+
+  .draft-actions .intent-btn {
+    width: 100%;
+  }
 }
 </style>

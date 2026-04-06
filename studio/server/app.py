@@ -27,6 +27,7 @@ from anip_fastapi import mount_anip  # noqa: E402
 from anip_design_validate import evaluate, validate_payload  # noqa: E402
 from .derivation import build_shape_backed_proposal  # noqa: E402
 from .assistant_service import create_studio_assistant_service  # noqa: E402
+from .workbench_service import create_studio_workbench_service  # noqa: E402
 
 from .db import get_pool, init_db  # noqa: E402
 from .repository import load_vocabulary_defaults  # noqa: E402
@@ -72,6 +73,7 @@ app.include_router(shapes.router)
 app.include_router(vocabulary.router)
 app.include_router(import_export.router)
 mount_anip(app, create_studio_assistant_service(), prefix="/studio-assistant")
+mount_anip(app, create_studio_workbench_service(), prefix="/studio-workbench")
 
 
 # --- Existing endpoints (unchanged) ---

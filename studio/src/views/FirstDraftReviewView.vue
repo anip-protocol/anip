@@ -327,9 +327,9 @@ async function createFirstDraftSet() {
   justify-content: space-between;
   gap: 1rem;
   padding: 1.25rem;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius);
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.03), rgba(15, 23, 42, 0.05));
+  background: rgba(255, 255, 255, 0.55);
   margin-bottom: 1rem;
 }
 
@@ -346,8 +346,7 @@ async function createFirstDraftSet() {
   background: rgba(255, 255, 255, 0.52);
 }
 
-.hero-kicker,
-.section-title {
+.hero-kicker {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -371,6 +370,9 @@ async function createFirstDraftSet() {
 }
 
 .hero-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
   width: 250px;
   max-width: 100%;
   flex-shrink: 0;
@@ -382,7 +384,6 @@ async function createFirstDraftSet() {
 
 .hero-btn-secondary {
   width: 100%;
-  margin-top: 0.55rem;
 }
 
 .hero-detail {
@@ -409,12 +410,15 @@ async function createFirstDraftSet() {
 
 .review-card {
   padding: 1rem;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius);
-  background: var(--bg-input);
+  background: rgba(255, 255, 255, 0.55);
 }
 
 .section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
   margin-bottom: 0.35rem;
 }
 
@@ -431,6 +435,10 @@ async function createFirstDraftSet() {
 
 .bullet-list li + li {
   margin-top: 0.35rem;
+}
+
+.review-card .btn {
+  width: 100%;
 }
 
 .shape-pill {
@@ -462,8 +470,8 @@ async function createFirstDraftSet() {
 .chip {
   padding: 0.3rem 0.65rem;
   border-radius: 999px;
-  background: rgba(59, 130, 246, 0.1);
-  color: #2563eb;
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--text-primary);
   font-size: 12px;
   font-weight: 600;
 }
