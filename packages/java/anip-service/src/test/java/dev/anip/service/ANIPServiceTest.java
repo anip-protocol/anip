@@ -705,6 +705,35 @@ class ANIPServiceTest {
         assertFalse(listResp.getCheckpoints().isEmpty());
     }
 
+    // --- issueCapabilityToken tests ---
+
+    @Test
+    void testIssueCapabilityTokenFullSignature() throws Exception {
+        TokenResponse resp = service.issueCapabilityToken(
+                "user@test.com", "search_flights", List.of("travel"),
+                null, 4, null);
+        assertTrue(resp.isIssued());
+        assertNotNull(resp.getToken());
+        assertNotNull(resp.getTokenId());
+
+        DelegationToken token = service.resolveBearerToken(resp.getToken());
+        assertNotNull(token.getPurpose());
+        assertEquals("search_flights", token.getPurpose().getCapability());
+        assertEquals("user@test.com", token.getSubject());
+    }
+
+    @Test
+    void testIssueCapabilityTokenDefaultOverload() throws Exception {
+        TokenResponse resp = service.issueCapabilityToken(
+                "user@test.com", "book_flight", List.of("travel", "finance"));
+        assertTrue(resp.isIssued());
+
+        DelegationToken token = service.resolveBearerToken(resp.getToken());
+        assertNotNull(token.getPurpose());
+        assertEquals("book_flight", token.getPurpose().getCapability());
+        assertEquals(List.of("travel", "finance"), token.getScope());
+    }
+
     // --- Helper methods ---
 
     private DelegationToken issueTestToken(List<String> scopes) throws Exception {

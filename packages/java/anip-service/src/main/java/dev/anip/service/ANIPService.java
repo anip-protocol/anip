@@ -73,6 +73,12 @@ public class ANIPService {
     private final Map<String, CapabilityDef> capabilities;
     private final String storageDSN;
     private final String keyPath;
+    /**
+     * Bootstrap authentication hook. Called synchronously in the request path
+     * to verify a bearer token and return the principal identity.
+     * This hook is intentionally synchronous. If your authentication requires
+     * async I/O, perform it before registering the hook or use a caching wrapper.
+     */
     private final Function<String, Optional<String>> authenticate;
     private final ObservabilityHooks hooks;
     private final CheckpointPolicy checkpointPolicy;
@@ -259,6 +265,25 @@ public class ANIPService {
         TokenResponse resp = DelegationEngine.issueDelegationToken(keys, storage, serviceId, principal, req);
         fireTokenIssued(resp.getTokenId(), principal, req.getCapability());
         return resp;
+    }
+
+    /**
+     * Issue a root token pre-bound to a specific capability.
+     * scope must be explicitly provided.
+     * For delegation flows (parentToken, subject), use issueToken() directly.
+     */
+    public TokenResponse issueCapabilityToken(
+            String principal, String capability, List<String> scope,
+            Map<String, Object> purposeParameters, int ttlHours, Budget budget) throws Exception {
+        TokenRequest request = new TokenRequest(
+                principal, scope, capability, purposeParameters,
+                null, ttlHours, null, budget);
+        return issueToken(principal, request);
+    }
+
+    /** Overload with defaults: ttlHours=2, no purposeParameters, no budget. */
+    public TokenResponse issueCapabilityToken(String principal, String capability, List<String> scope) throws Exception {
+        return issueCapabilityToken(principal, capability, scope, null, 2, null);
     }
 
     // --- Invocation ---
