@@ -82,6 +82,25 @@ export interface ANIPService {
     authenticatedPrincipal: string,
     request: Record<string, unknown>,
   ): Promise<Record<string, unknown>>;
+  /**
+   * Issue a root token pre-bound to a specific capability.
+   *
+   * `scope` must be explicitly provided -- capability names and scope strings
+   * are different things.
+   *
+   * This helper covers root issuance only. For delegation flows
+   * (parent_token, subject, caller_class), use `issueToken()` directly.
+   */
+  issueCapabilityToken(
+    principal: string,
+    capability: string,
+    scope: string[],
+    opts?: {
+      purposeParameters?: Record<string, unknown>;
+      ttlHours?: number;
+      budget?: Record<string, unknown>;
+    },
+  ): Promise<Record<string, unknown>>;
   discoverPermissions(token: DelegationToken): Record<string, unknown>;
   invoke(
     capabilityName: string,
@@ -969,6 +988,34 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         token: jwtStr,
         expires: new Date(exp * 1000).toISOString(),
       };
+    },
+
+    async issueCapabilityToken(
+      principal: string,
+      capability: string,
+      scope: string[],
+      opts?: {
+        purposeParameters?: Record<string, unknown>;
+        ttlHours?: number;
+        budget?: Record<string, unknown>;
+      },
+    ): Promise<Record<string, unknown>> {
+      // Root issuance only.  scope must be explicitly provided —
+      // capability names and scope strings are different things.
+      // For delegation flows, use issueToken() directly.
+      const request: Record<string, unknown> = {
+        subject: principal,
+        capability,
+        scope,
+        ttl_hours: opts?.ttlHours ?? 2,
+      };
+      if (opts?.purposeParameters !== undefined) {
+        request.purpose_parameters = opts.purposeParameters;
+      }
+      if (opts?.budget !== undefined) {
+        request.budget = opts.budget;
+      }
+      return service.issueToken(principal, request);
     },
 
     discoverPermissions(token: DelegationToken): Record<string, unknown> {

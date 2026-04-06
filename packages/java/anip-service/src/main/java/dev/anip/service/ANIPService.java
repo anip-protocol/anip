@@ -226,6 +226,11 @@ public class ANIPService {
     /**
      * Tries bootstrap authentication only (API keys, external auth).
      * Returns the principal if authenticated, or empty otherwise.
+     *
+     * <p>The authentication hook is intentionally synchronous — it is called
+     * directly in the request path.  If your authentication requires async I/O,
+     * perform it before registering the hook or use a caching wrapper.
+     * Java does not support async hooks.</p>
      */
     public Optional<String> authenticateBearer(String bearer) {
         if (authenticate != null) {
@@ -259,6 +264,40 @@ public class ANIPService {
         TokenResponse resp = DelegationEngine.issueDelegationToken(keys, storage, serviceId, principal, req);
         fireTokenIssued(resp.getTokenId(), principal, req.getCapability());
         return resp;
+    }
+
+    /**
+     * Issue a root token pre-bound to a specific capability.
+     *
+     * <p>{@code scope} must be explicitly provided — capability names and scope
+     * strings are different things (e.g. capability {@code evaluate_service_design}
+     * may need scope {@code studio.workbench.evaluate_service_design}).</p>
+     *
+     * <p>This helper covers <b>root issuance only</b>.  For delegation flows
+     * ({@code parentToken}, non-default {@code subject}, {@code callerClass}),
+     * use {@link #issueToken} directly until {@code parentToken} semantics are
+     * resolved across runtimes (deferred to v0.21).</p>
+     */
+    public TokenResponse issueCapabilityToken(
+            String principal,
+            String capability,
+            List<String> scope,
+            Map<String, Object> purposeParameters,
+            int ttlHours,
+            Budget budget) throws Exception {
+        TokenRequest request = new TokenRequest(
+                principal, scope, capability, purposeParameters,
+                null, ttlHours, null, budget);
+        return issueToken(principal, request);
+    }
+
+    /**
+     * Issue a root token pre-bound to a specific capability, with default TTL
+     * and no budget or purpose parameters.
+     */
+    public TokenResponse issueCapabilityToken(
+            String principal, String capability, List<String> scope) throws Exception {
+        return issueCapabilityToken(principal, capability, scope, null, 2, null);
     }
 
     // --- Invocation ---
