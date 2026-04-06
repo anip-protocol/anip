@@ -82,6 +82,16 @@ export interface ANIPService {
     authenticatedPrincipal: string,
     request: Record<string, unknown>,
   ): Promise<Record<string, unknown>>;
+  issueCapabilityToken(
+    principal: string,
+    capability: string,
+    scope: string[],
+    opts?: {
+      purposeParameters?: Record<string, unknown>;
+      ttlHours?: number;
+      budget?: { currency: string; max_amount: number };
+    },
+  ): Promise<Record<string, unknown>>;
   discoverPermissions(token: DelegationToken): Record<string, unknown>;
   invoke(
     capabilityName: string,
@@ -969,6 +979,31 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         token: jwtStr,
         expires: new Date(exp * 1000).toISOString(),
       };
+    },
+
+    async issueCapabilityToken(
+      principal: string,
+      capability: string,
+      scope: string[],
+      opts?: {
+        purposeParameters?: Record<string, unknown>;
+        ttlHours?: number;
+        budget?: { currency: string; max_amount: number };
+      },
+    ): Promise<Record<string, unknown>> {
+      // Root issuance only. scope must be explicitly provided —
+      // capability names and scope strings are different things
+      // (e.g. capability 'evaluate_service_design' may need scope
+      // 'studio.workbench.evaluate_service_design').
+      // For delegation flows, use issueToken() directly.
+      return this.issueToken(principal, {
+        subject: principal,
+        capability,
+        scope,
+        ttl_hours: opts?.ttlHours ?? 2,
+        purpose_parameters: opts?.purposeParameters,
+        budget: opts?.budget,
+      });
     },
 
     discoverPermissions(token: DelegationToken): Record<string, unknown> {

@@ -447,6 +447,40 @@ describe("ANIPService token lifecycle", () => {
       }),
     ).rejects.toThrow("insufficient_authority");
   });
+
+  it("issueCapabilityToken issues a root token bound to the capability", async () => {
+    const { service } = makeService();
+    const result = (await service.issueCapabilityToken(
+      "human:test@example.com",
+      "greet",
+      ["greet"],
+    )) as Record<string, any>;
+
+    expect(result.issued).toBe(true);
+    expect(result.token).toBeDefined();
+    expect(result.token_id).toBeDefined();
+
+    // Resolve and verify the token is bound to the capability
+    const resolved = await service.resolveBearerToken(result.token as string);
+    expect(resolved.subject).toBe("human:test@example.com");
+    expect(resolved.purpose?.capability).toBe("greet");
+    expect(resolved.scope).toContain("greet");
+  });
+
+  it("issueCapabilityToken respects ttlHours and purposeParameters opts", async () => {
+    const { service } = makeService();
+    const result = (await service.issueCapabilityToken(
+      "human:test@example.com",
+      "greet",
+      ["greet"],
+      { ttlHours: 1, purposeParameters: { task_id: "task-123" } },
+    )) as Record<string, any>;
+
+    expect(result.issued).toBe(true);
+    // task_id is extracted from purposeParameters into purpose.task_id by the engine
+    const resolved = await service.resolveBearerToken(result.token as string);
+    expect(resolved.purpose?.task_id).toBe("task-123");
+  });
 });
 
 // ---------------------------------------------------------------------------
