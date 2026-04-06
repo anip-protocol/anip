@@ -163,6 +163,97 @@ class TestCategoryDispatch:
         }
 
 
+class TestV021StructuredSemantics:
+    def test_cross_service_contract_reduces_cross_service_glue(self):
+        req = _make_requirements(
+            cross_service_continuity=True,
+            cross_service_reconstruction=True,
+            services=[
+                {"name": "order-service", "role": "primary"},
+                {"name": "fulfillment-service", "role": "follow-up"},
+                {"name": "verification-service", "role": "verification"},
+            ],
+        )
+        proposal = _make_proposal(
+            shape="multi_service_estate",
+            declared_surfaces={
+                "cross_service_handoff": True,
+                "cross_service_continuity": True,
+                "cross_service_reconstruction": True,
+            },
+        )
+        proposal["proposal"]["cross_service_contract"] = {
+            "handoff": [
+                {
+                    "target": {"service": "fulfillment-service", "capability": "accept_fulfillment"},
+                    "required_for_task_completion": True,
+                    "continuity": "same_task",
+                    "completion_mode": "downstream_acceptance",
+                }
+            ],
+            "verification": [
+                {
+                    "target": {"service": "verification-service", "capability": "verify_delivery"},
+                    "required_for_task_completion": True,
+                    "continuity": "same_task",
+                    "completion_mode": "verification_result",
+                }
+            ],
+        }
+        scenario = _make_scenario(
+            name="order_followup_contract",
+            category="cross_service",
+            context={"upstream_service": "order-service"},
+            expected_anip_support=[
+                "cross_service_handoff_guidance",
+                "cross_service_verification_guidance",
+                "The contract should preserve continuity and handoff meaning across services.",
+            ],
+        )
+
+        result = evaluate(req, proposal, scenario)
+        ev = result["evaluation"]
+        assert ev["result"] == "HANDLED"
+        assert "structured cross-service handoff contract" in ev["handled_by_anip"]
+        assert not any("advisory" in item.lower() for item in ev["glue_you_will_still_write"])
+
+    def test_recovery_target_reduces_recovery_glue(self):
+        req = _make_requirements(
+            business_constraints={
+                "recovery_sensitive": True,
+                "blocked_failure_posture": "structured_blocked",
+            }
+        )
+        proposal = _make_proposal(
+            declared_surfaces={
+                "recovery_class": True,
+                "refresh_via": True,
+            }
+        )
+        proposal["proposal"]["recovery_target"] = {
+            "kind": "refresh",
+            "target": {"service": "binding-service", "capability": "refresh_quote"},
+            "continuity": "same_task",
+            "retry_after_target": True,
+        }
+        scenario = _make_scenario(
+            name="refresh_stale_quote",
+            category="recovery",
+            narrative="The quote is stale and must be refreshed before retry.",
+            expected_anip_support=[
+                "refresh_path_guidance",
+                "resolution_guidance",
+                "The contract should make refresh or recovery guidance explicit.",
+            ],
+        )
+
+        result = evaluate(req, proposal, scenario)
+        ev = result["evaluation"]
+        assert ev["result"] == "HANDLED"
+        assert "structured recovery target" in ev["handled_by_anip"]
+        assert not any("wrapper logic" in item.lower() for item in ev["glue_you_will_still_write"])
+
+
 class TestSafetyBudgetOverrun:
     """test_safety_scenario_budget_overrun -> PARTIAL"""
 

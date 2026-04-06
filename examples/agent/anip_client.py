@@ -70,6 +70,38 @@ class ANIPClient:
             headers={"Authorization": f"Bearer {api_key}"},
         )
 
+    def request_capability_token(
+        self,
+        principal: str,
+        capability: str,
+        scope: list[str],
+        api_key: str,
+        purpose_parameters: dict[str, Any] | None = None,
+        ttl_hours: int = 2,
+        budget: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Request a root token pre-bound to a specific capability.
+
+        This mirrors the v0.20 runtime helper semantics at the protocol-client
+        edge: scope stays explicit, and delegation fields are intentionally
+        absent from this convenience path.
+        """
+        body: dict[str, Any] = {
+            "subject": principal,
+            "scope": scope,
+            "capability": capability,
+            "ttl_hours": ttl_hours,
+        }
+        if purpose_parameters is not None:
+            body["purpose_parameters"] = purpose_parameters
+        if budget is not None:
+            body["budget"] = budget
+        return self._post(
+            "/anip/tokens",
+            body,
+            headers={"Authorization": f"Bearer {api_key}"},
+        )
+
     def check_permissions(self, token_jwt: str) -> dict[str, Any]:
         """Query what the agent can do given its delegation token JWT."""
         return self._post(

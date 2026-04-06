@@ -13,6 +13,9 @@ from anip_core import (
     CapabilityDeclaration,
     CapabilityInput,
     CapabilityOutput,
+    CrossServiceContract,
+    CrossServiceContractEntry,
+    ServiceCapabilityRef,
     SideEffect,
     SideEffectType,
 )
@@ -79,6 +82,19 @@ def create_studio_assistant_service() -> ANIPService:
                         rollback_window="not_applicable",
                     ),
                     minimum_scope=["studio.assistant.interpret_project_intent"],
+                    cross_service_contract=CrossServiceContract(
+                        handoff=[
+                            CrossServiceContractEntry(
+                                target=ServiceCapabilityRef(
+                                    service="studio-workbench",
+                                    capability="accept_first_design",
+                                ),
+                                required_for_task_completion=False,
+                                continuity="same_task",
+                                completion_mode="downstream_acceptance",
+                            )
+                        ]
+                    ),
                 ),
                 handler=_interpret_project_intent,
             ),
@@ -165,6 +181,19 @@ def create_studio_assistant_service() -> ANIPService:
                         rollback_window="not_applicable",
                     ),
                     minimum_scope=["studio.assistant.explain_evaluation"],
+                    cross_service_contract=CrossServiceContract(
+                        followup=[
+                            CrossServiceContractEntry(
+                                target=ServiceCapabilityRef(
+                                    service="studio-workbench",
+                                    capability="draft_fix_from_change",
+                                ),
+                                required_for_task_completion=False,
+                                continuity="same_task",
+                                completion_mode="downstream_acceptance",
+                            )
+                        ]
+                    ),
                 ),
                 handler=_explain_evaluation,
             ),
@@ -205,6 +234,15 @@ def _not_found(detail: str) -> ANIPError:
             "requires": detail,
             "grantable_by": None,
             "estimated_availability": None,
+            "recovery_target": {
+                "kind": "revalidation",
+                "target": {
+                    "service": "studio-workbench",
+                    "capability": "read_project_state",
+                },
+                "continuity": "same_task",
+                "retry_after_target": True,
+            },
         },
         retry=False,
     )

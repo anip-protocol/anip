@@ -206,6 +206,7 @@ def make_shape_template_from_intent(interpretation: dict[str, Any], project_name
     services: list[dict[str, Any]] = [primary_service]
     coordination: list[dict[str, Any]] = []
     suggestions = [str(item).lower() for item in interpretation.get("service_suggestions", [])]
+    starter_words = normalized_words(*[str(item) for item in interpretation.get("scenario_starters", [])])
     if interpretation.get("recommended_shape_type") == "multi_service":
         if any("approval" in item for item in suggestions):
             services.append(
@@ -260,8 +261,28 @@ def make_shape_template_from_intent(interpretation: dict[str, Any], project_name
                 {
                     "from": primary_service_id,
                     "to": "revalidation-service",
-                    "relationship": "verification",
+                    "relationship": "refresh",
                     "description": "Refresh or revalidate inputs before the main action proceeds.",
+                }
+            )
+        followup_signals = {"followup", "fulfillment", "notification", "notify", "webhook", "async", "later"}
+        if starter_words & followup_signals:
+            services.append(
+                {
+                    "id": "followup-service",
+                    "name": "Follow-up Service",
+                    "role": "follow-up boundary",
+                    "responsibilities": ["Track follow-up status after the primary action is accepted."],
+                    "capabilities": ["report_followup_status", "handle_followup"],
+                    "owns_concepts": [concept["id"] for concept in concept_ids if "notification" in concept["name"].lower()],
+                }
+            )
+            coordination.append(
+                {
+                    "from": primary_service_id,
+                    "to": "followup-service",
+                    "relationship": "async_followup",
+                    "description": "Keep delayed follow-up work explicit instead of hiding it in retries or wrapper glue.",
                 }
             )
         if len(services) == 1:
@@ -450,7 +471,27 @@ def make_shape_fix_template(change: str, current: dict[str, Any] | None) -> dict
             {
                 "from": primary_service.get("id", "primary-service") if primary_service else "primary-service",
                 "to": "followup-service",
-                "relationship": "handoff",
+                "relationship": "async_followup" if "followup" in words else "handoff",
+                "description": clean_sentence(change),
+            }
+        )
+    if {"refresh", "revalidate", "stale"} & words and not any(item.get("id") == "revalidation-service" for item in shape["services"]):
+        shape["services"].append(
+            {
+                "id": "revalidation-service",
+                "name": "Revalidation Service",
+                "role": "refresh boundary",
+                "responsibilities": ["Refresh stale or expired inputs before the main action continues."],
+                "capabilities": ["refresh_input", "revalidate_input"],
+                "owns_concepts": [],
+            }
+        )
+    if {"refresh", "revalidate", "stale"} & words and not any(item.get("to") == "revalidation-service" for item in shape["coordination"]):
+        shape["coordination"].append(
+            {
+                "from": primary_service.get("id", "primary-service") if primary_service else "primary-service",
+                "to": "revalidation-service",
+                "relationship": "refresh",
                 "description": clean_sentence(change),
             }
         )

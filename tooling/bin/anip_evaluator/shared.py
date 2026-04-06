@@ -36,6 +36,66 @@ def append_unique(items: list[str], value: str) -> None:
         items.append(value)
 
 
+def normalize_expected_support(items: list[str] | None) -> set[str]:
+    """Normalize PM-friendly support phrases into evaluator semantics."""
+    normalized: set[str] = set()
+    for raw in items or []:
+        if not isinstance(raw, str):
+            continue
+        text = raw.strip()
+        if not text:
+            continue
+        normalized.add(text)
+        lower = text.lower()
+
+        if "cross_service_handoff_guidance" in lower:
+            normalized.add("cross_service_handoff_guidance")
+        if "cross_service_refresh_guidance" in lower:
+            normalized.add("cross_service_refresh_guidance")
+        if "cross_service_verification_guidance" in lower:
+            normalized.add("cross_service_verification_guidance")
+        if "cross_service_reconstruction_guidance" in lower:
+            normalized.add("cross_service_reconstruction_guidance")
+        if "follow_up_guidance" in lower:
+            normalized.add("follow_up_guidance")
+        if "resolution_guidance" in lower:
+            normalized.add("resolution_guidance")
+        if "recovery_class" in lower:
+            normalized.add("recovery_class")
+
+        if "cost visibility" in lower:
+            normalized.add("cost_visibility")
+        if "structured failure" in lower or "blocked-action meaning" in lower or "blocked action" in lower:
+            normalized.add("structured_failure")
+        if "verify" in lower or "verification" in lower or ("outcome" in lower and "explain" in lower):
+            normalized.add("verification_path_guidance")
+        if "refresh" in lower or "stale" in lower or "expired" in lower:
+            normalized.add("refresh_path_guidance")
+            normalized.add("recovery_target")
+        if "revalidate" in lower or "revalidation" in lower:
+            normalized.add("refresh_path_guidance")
+            normalized.add("revalidation_guidance")
+            normalized.add("recovery_target")
+        if "recovery guidance" in lower:
+            normalized.add("recovery_target")
+            normalized.add("resolution_guidance")
+        if "follow-up" in lower or "follow up" in lower or "followup" in lower:
+            normalized.add("follow_up_guidance")
+        if "handoff" in lower:
+            normalized.add("cross_service_handoff_guidance")
+        if "continuity" in lower and ("service" in lower or "services" in lower):
+            normalized.add("cross_service_contract")
+        if "cross-service" in lower or "cross service" in lower or "service boundary" in lower:
+            normalized.add("cross_service_contract")
+            if "refresh" in lower or "revalidate" in lower:
+                normalized.add("cross_service_refresh_guidance")
+            if "verify" in lower or "verification" in lower:
+                normalized.add("cross_service_verification_guidance")
+            if "reconstruct" in lower or "audit" in lower:
+                normalized.add("cross_service_reconstruction_guidance")
+    return normalized
+
+
 def _is_multi_service(req: dict[str, Any], proposal: dict[str, Any]) -> bool:
     if req.get("services") and isinstance(req["services"], list) and len(req["services"]) > 1:
         return True
@@ -79,21 +139,34 @@ def _common_lineage_surfaces(
 def _extract_proposal_surfaces(proposal: dict[str, Any]) -> dict[str, bool]:
     """Extract which advisory surfaces the proposal actually declares."""
     ds = proposal.get("declared_surfaces")
+    contract = proposal.get("cross_service_contract") if isinstance(proposal.get("cross_service_contract"), dict) else {}
+    recovery_target = proposal.get("recovery_target") if isinstance(proposal.get("recovery_target"), dict) else None
+    handoff_contract = bool(contract.get("handoff"))
+    followup_contract = bool(contract.get("followup"))
+    verification_contract = bool(contract.get("verification"))
+    has_cross_service_contract = handoff_contract or followup_contract or verification_contract
+    has_recovery_target = isinstance(recovery_target, dict)
+    recovery_kind = str(recovery_target.get("kind", "")).strip().lower() if has_recovery_target else ""
     if isinstance(ds, dict):
         return {
             "budget_enforcement": bool(ds.get("budget_enforcement", False)),
             "binding": bool(ds.get("binding_requirements", False)),
             "authority_posture": bool(ds.get("authority_posture", False)),
             "recovery_class": bool(ds.get("recovery_class", False)),
-            "refresh_via": bool(ds.get("refresh_via", False)),
-            "verify_via": bool(ds.get("verify_via", False)),
-            "followup": bool(ds.get("followup_via", False)),
-            "cross_service_hints": bool(ds.get("cross_service_handoff", False)),
-            "upstream_service": bool(ds.get("cross_service_continuity", False)),
+            "refresh_via": bool(ds.get("refresh_via", False)) or recovery_kind in {"refresh", "revalidation"},
+            "verify_via": bool(ds.get("verify_via", False)) or verification_contract,
+            "followup": bool(ds.get("followup_via", False)) or followup_contract,
+            "cross_service_hints": bool(ds.get("cross_service_handoff", False)) or handoff_contract,
+            "upstream_service": bool(ds.get("cross_service_continuity", False)) or has_cross_service_contract,
             "cross_service_reconstruction": bool(ds.get("cross_service_reconstruction", False)),
+            "cross_service_contract": has_cross_service_contract,
+            "handoff_contract": handoff_contract,
+            "followup_contract": followup_contract,
+            "verification_contract": verification_contract,
+            "recovery_target": has_recovery_target,
             "audit": False,
             "lineage": False,
-            "revalidation": False,
+            "revalidation": recovery_kind == "revalidation",
             "availability": False,
         }
 
@@ -108,15 +181,15 @@ def _extract_proposal_surfaces(proposal: dict[str, Any]) -> dict[str, bool]:
     all_text = key_req_text + " " + rationale_text + " " + component_text
 
     return {
-        "refresh_via": (
+        "refresh_via": has_recovery_target and recovery_kind in {"refresh", "revalidation"} or (
             "refresh_via" in all_text
             or "refresh" in all_text
         ),
-        "verify_via": (
+        "verify_via": verification_contract or (
             "verify_via" in all_text
             or "verif" in all_text
         ),
-        "cross_service_hints": (
+        "cross_service_hints": handoff_contract or (
             "cross_service" in all_text
             or "cross-service" in all_text
             or "handoff" in all_text
@@ -139,23 +212,26 @@ def _extract_proposal_surfaces(proposal: dict[str, Any]) -> dict[str, bool]:
         "lineage": (
             "lineage" in all_text
         ),
-        "upstream_service": (
+        "upstream_service": has_cross_service_contract or (
             "upstream" in all_text
             or "task_id" in all_text
             or "task identity" in all_text
         ),
-        "followup": (
+        "followup": followup_contract or (
             "followup" in all_text
             or "follow-up" in all_text
             or "follow_up" in all_text
         ),
-        "revalidation": (
-            "revalidat" in all_text
-        ),
+        "revalidation": recovery_kind == "revalidation" or ("revalidat" in all_text),
         "availability": (
             "availability" in all_text
             or "unavailab" in all_text
         ),
+        "cross_service_contract": has_cross_service_contract,
+        "handoff_contract": handoff_contract,
+        "followup_contract": followup_contract,
+        "verification_contract": verification_contract,
+        "recovery_target": has_recovery_target,
     }
 
 
@@ -171,13 +247,17 @@ def _common_multi_service_surfaces(
 
     surfaces = _extract_proposal_surfaces(proposal)
 
+    if surfaces["cross_service_contract"]:
+        append_unique(handled, "structured cross-service continuation contract")
     if surfaces["upstream_service"] or surfaces["lineage"]:
         append_unique(handled, "cross-service task identity continuity")
 
     if surfaces["audit"]:
         append_unique(handled, "independent but linkable audit records")
 
-    if surfaces["cross_service_hints"]:
+    if surfaces["handoff_contract"]:
+        append_unique(handled, "task-local handoff completion semantics")
+    elif surfaces["cross_service_hints"]:
         append_unique(handled, "cleaner service handoff")
 
     credited = [h for h in [

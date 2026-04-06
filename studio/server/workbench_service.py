@@ -17,7 +17,16 @@ for path in [
     if path_str not in sys.path:
         sys.path.insert(0, path_str)
 
-from anip_core import CapabilityDeclaration, CapabilityInput, CapabilityOutput, SideEffect, SideEffectType
+from anip_core import (
+    CapabilityDeclaration,
+    CapabilityInput,
+    CapabilityOutput,
+    CrossServiceContract,
+    CrossServiceContractEntry,
+    ServiceCapabilityRef,
+    SideEffect,
+    SideEffectType,
+)
 from anip_service import ANIPError, ANIPService, Capability
 from anip_design_validate import evaluate, validate_payload
 
@@ -204,6 +213,23 @@ def _capability(
             output=CapabilityOutput(type="object", fields=fields),
             side_effect=SideEffect(type=side_effect_type, rollback_window=rollback_window),
             minimum_scope=[f"studio.workbench.{name}"],
+            cross_service_contract=(
+                CrossServiceContract(
+                    followup=[
+                        CrossServiceContractEntry(
+                            target=ServiceCapabilityRef(
+                                service="studio-assistant",
+                                capability="explain_evaluation",
+                            ),
+                            required_for_task_completion=False,
+                            continuity="same_task",
+                            completion_mode="downstream_acceptance",
+                        )
+                    ]
+                )
+                if name == "evaluate_service_design"
+                else None
+            ),
         ),
         handler=handler,
     )
@@ -238,6 +264,15 @@ def _not_found(detail: str) -> ANIPError:
             "requires": detail,
             "grantable_by": None,
             "estimated_availability": None,
+            "recovery_target": {
+                "kind": "revalidation",
+                "target": {
+                    "service": "studio-workbench",
+                    "capability": "read_project_state",
+                },
+                "continuity": "same_task",
+                "retry_after_target": True,
+            },
         },
         retry=False,
     )

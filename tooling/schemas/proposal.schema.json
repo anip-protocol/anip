@@ -126,6 +126,12 @@
             "cross_service_reconstruction": { "type": "boolean", "default": false }
           }
         },
+        "cross_service_contract": {
+          "$ref": "#/$defs/crossServiceContract"
+        },
+        "recovery_target": {
+          "$ref": "#/$defs/recoveryTarget"
+        },
         "expected_glue_reduction": {
           "type": "object",
           "additionalProperties": false,
@@ -145,6 +151,69 @@
     }
   },
   "$defs": {
+    "serviceCapabilityRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["service", "capability"],
+      "properties": {
+        "service": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "capability": { "type": "string", "minLength": 1, "maxLength": 128 }
+      }
+    },
+    "crossServiceContractEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "completion_mode"],
+      "properties": {
+        "target": { "$ref": "#/$defs/serviceCapabilityRef" },
+        "required_for_task_completion": { "type": "boolean", "default": false },
+        "continuity": {
+          "type": "string",
+          "enum": ["same_task"],
+          "default": "same_task"
+        },
+        "completion_mode": {
+          "type": "string",
+          "enum": ["downstream_acceptance", "followup_status", "verification_result"]
+        }
+      }
+    },
+    "crossServiceContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "handoff": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/crossServiceContractEntry" }
+        },
+        "followup": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/crossServiceContractEntry" }
+        },
+        "verification": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/crossServiceContractEntry" }
+        }
+      }
+    },
+    "recoveryTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["refresh", "redelegation", "revalidation", "escalation"]
+        },
+        "target": { "$ref": "#/$defs/serviceCapabilityRef" },
+        "continuity": {
+          "type": "string",
+          "enum": ["same_task"],
+          "default": "same_task"
+        },
+        "retry_after_target": { "type": "boolean", "default": false }
+      }
+    },
     "stringArray": {
       "type": "array",
       "items": {

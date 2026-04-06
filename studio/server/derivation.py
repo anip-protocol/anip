@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 DECLARED_SURFACE_KEYS = [
     'budget_enforcement',
     'binding_requirements',
@@ -24,6 +26,128 @@ _ALLOWED_RECOMMENDED_SHAPES = {
 }
 
 
+def _service_lookup(shape: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    services = shape.get('services', [])
+    return {
+        service.get('id'): service
+        for service in services
+        if isinstance(service, dict) and service.get('id')
+    }
+
+
+def _pick_target_capability(service: dict[str, Any], relationship: str) -> str:
+    capabilities = [
+        str(capability).strip()
+        for capability in service.get('capabilities', [])
+        if str(capability).strip()
+    ]
+    if not capabilities:
+        return "handle_primary_action"
+
+    keyword_sets = {
+        'handoff': ('approval', 'handoff', 'followup', 'follow_up', 'request', 'accept'),
+        'async_followup': ('followup', 'follow_up', 'status', 'fulfillment', 'notify'),
+        'verification': ('verify', 'verification', 'confirm', 'reconcile'),
+        'refresh': ('refresh', 'revalidate', 'renew'),
+        'revalidation': ('revalidate', 'refresh', 'renew'),
+    }
+    keywords = keyword_sets.get(relationship, ())
+    for capability in capabilities:
+        lowered = capability.lower()
+        if any(keyword in lowered for keyword in keywords):
+            return capability
+    return capabilities[0]
+
+
+def derive_cross_service_contract(shape_data: dict, requirements_data: dict | None = None) -> dict[str, Any] | None:
+    """Derive v0.21 cross-service continuation semantics from shape coordination."""
+    shape = shape_data.get('shape', shape_data)
+    services = _service_lookup(shape)
+    contract = {
+        'handoff': [],
+        'followup': [],
+        'verification': [],
+    }
+
+    for edge in shape.get('coordination', []):
+        if not isinstance(edge, dict):
+            continue
+        relationship = str(edge.get('relationship') or 'handoff').strip().lower()
+        target_service_id = edge.get('to')
+        target_service = services.get(target_service_id)
+        if not target_service:
+            continue
+
+        if relationship == 'handoff':
+            bucket = 'handoff'
+            completion_mode = 'downstream_acceptance'
+        elif relationship == 'async_followup':
+            bucket = 'followup'
+            completion_mode = 'followup_status'
+        elif relationship == 'verification':
+            bucket = 'verification'
+            completion_mode = 'verification_result'
+        else:
+            continue
+
+        contract[bucket].append(
+            {
+                'target': {
+                    'service': target_service_id,
+                    'capability': _pick_target_capability(target_service, relationship),
+                },
+                'required_for_task_completion': True,
+                'continuity': 'same_task',
+                'completion_mode': completion_mode,
+            }
+        )
+
+    if any(contract.values()):
+        return contract
+    return None
+
+
+def derive_recovery_target(shape_data: dict, requirements_data: dict) -> dict[str, Any] | None:
+    """Derive a representative v0.21 recovery target from shape + requirements."""
+    shape = shape_data.get('shape', shape_data)
+    services = _service_lookup(shape)
+
+    for edge in shape.get('coordination', []):
+        if not isinstance(edge, dict):
+            continue
+        relationship = str(edge.get('relationship') or '').strip().lower()
+        target_service_id = edge.get('to')
+        target_service = services.get(target_service_id)
+        if not target_service:
+            continue
+        if relationship in {'refresh', 'revalidation'}:
+            kind = 'revalidation' if relationship == 'revalidation' else 'refresh'
+            return {
+                'kind': kind,
+                'target': {
+                    'service': target_service_id,
+                    'capability': _pick_target_capability(target_service, relationship),
+                },
+                'continuity': 'same_task',
+                'retry_after_target': True,
+            }
+
+    constraints = requirements_data.get('business_constraints', {})
+    approval_expected = constraints.get('approval_expected_for_high_risk')
+    if approval_expected and 'approval-service' in services:
+        return {
+            'kind': 'escalation',
+            'target': {
+                'service': 'approval-service',
+                'capability': _pick_target_capability(services['approval-service'], 'handoff'),
+            },
+            'continuity': 'same_task',
+            'retry_after_target': False,
+        }
+
+    return None
+
+
 def derive_contract_expectations(
     shape_data: dict,
     requirements_data: dict,
@@ -38,6 +162,8 @@ def derive_contract_expectations(
     expectations: list[dict] = []
 
     coordination = shape.get('coordination', [])
+    cross_service_contract = derive_cross_service_contract(shape_data, requirements_data)
+    recovery_target = derive_recovery_target(shape_data, requirements_data)
     if coordination:
         expectations.append({
             'surface': 'cross_service_handoff',
@@ -46,6 +172,11 @@ def derive_contract_expectations(
         expectations.append({
             'surface': 'cross_service_continuity',
             'reason': 'cross-service coordination requires continuity',
+        })
+    if cross_service_contract:
+        expectations.append({
+            'surface': 'cross_service_contract',
+            'reason': 'shape exposes structured cross-service continuation contracts',
         })
 
     if any(e.get('relationship') == 'verification' for e in coordination):
@@ -58,6 +189,17 @@ def derive_contract_expectations(
         expectations.append({
             'surface': 'followup_via',
             'reason': 'shape has an async followup coordination edge',
+        })
+
+    if any(e.get('relationship') in {'refresh', 'revalidation'} for e in coordination):
+        expectations.append({
+            'surface': 'refresh_via',
+            'reason': 'shape has a refresh or revalidation coordination edge',
+        })
+    if recovery_target:
+        expectations.append({
+            'surface': 'recovery_target',
+            'reason': 'shape exposes a structured recovery target for a stale, blocked, or escalation-sensitive path',
         })
 
     all_capabilities: list[str] = []
@@ -144,6 +286,8 @@ def build_shape_backed_proposal(shape_data: dict, requirements_data: dict) -> di
     """
     shape = shape_data.get('shape', shape_data)
     expectations = derive_contract_expectations(shape_data, requirements_data)
+    cross_service_contract = derive_cross_service_contract(shape_data, requirements_data)
+    recovery_target = derive_recovery_target(shape_data, requirements_data)
 
     declared_surfaces = {key: False for key in DECLARED_SURFACE_KEYS}
     for expectation in expectations:
@@ -172,15 +316,18 @@ def build_shape_backed_proposal(shape_data: dict, requirements_data: dict) -> di
     if not required_components:
         required_components = ['service:primary']
 
-    return {
-        'proposal': {
-            'recommended_shape': _recommended_shape_for_validation(shape, requirements_data),
-            'rationale': rationale,
-            'required_components': required_components,
-            'optional_components': [],
-            'key_runtime_requirements': [],
-            'anti_pattern_warnings': [],
-            'expected_glue_reduction': {},
-            'declared_surfaces': declared_surfaces,
-        },
+    proposal = {
+        'recommended_shape': _recommended_shape_for_validation(shape, requirements_data),
+        'rationale': rationale,
+        'required_components': required_components,
+        'optional_components': [],
+        'key_runtime_requirements': [],
+        'anti_pattern_warnings': [],
+        'expected_glue_reduction': {},
+        'declared_surfaces': declared_surfaces,
     }
+    if cross_service_contract:
+        proposal['cross_service_contract'] = cross_service_contract
+    if recovery_target:
+        proposal['recovery_target'] = recovery_target
+    return {'proposal': proposal}

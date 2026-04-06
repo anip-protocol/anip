@@ -65,6 +65,8 @@ def test_assistant_manifest_exposes_explanation_capabilities(client: TestClient)
     assert "explain_shape" in caps
     assert "explain_evaluation" in caps
     assert "interpret_project_intent" in caps
+    assert caps["interpret_project_intent"]["cross_service_contract"] is not None
+    assert caps["explain_evaluation"]["cross_service_contract"] is not None
 
 
 def test_assistant_can_explain_shape(

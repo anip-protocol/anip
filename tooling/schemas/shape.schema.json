@@ -34,7 +34,7 @@
             "properties": {
               "from": { "type": "string" },
               "to": { "type": "string" },
-              "relationship": { "type": "string", "enum": ["handoff", "verification", "async_followup"] },
+              "relationship": { "type": "string", "enum": ["handoff", "verification", "async_followup", "refresh", "revalidation"] },
               "description": { "type": "string" }
             }
           }
