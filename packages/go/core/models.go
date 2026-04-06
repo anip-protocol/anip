@@ -62,6 +62,33 @@ type CrossServiceHints struct {
 	FollowupVia []ServiceCapabilityRef `json:"followup_via,omitempty"`
 }
 
+// --- Cross-Service Contract (v0.21) ---
+
+// CrossServiceContractEntry describes a single cross-service step with stronger semantics.
+type CrossServiceContractEntry struct {
+	Target                     ServiceCapabilityRef `json:"target"`
+	RequiredForTaskCompletion  bool                 `json:"required_for_task_completion,omitempty"`
+	Continuity                 string               `json:"continuity"`                // "same_task"
+	CompletionMode             string               `json:"completion_mode"`            // "downstream_acceptance", "followup_status", "verification_result"
+}
+
+// CrossServiceContract declares bounded cross-service step meaning for a capability.
+type CrossServiceContract struct {
+	Handoff      []CrossServiceContractEntry `json:"handoff,omitempty"`
+	Followup     []CrossServiceContractEntry `json:"followup,omitempty"`
+	Verification []CrossServiceContractEntry `json:"verification,omitempty"`
+}
+
+// --- Recovery Target (v0.21) ---
+
+// RecoveryTarget describes a structured recovery step for failure handling.
+type RecoveryTarget struct {
+	Kind             string               `json:"kind"`               // "refresh", "redelegation", "revalidation", "escalation"
+	Target           *ServiceCapabilityRef `json:"target,omitempty"`
+	Continuity       string               `json:"continuity"`         // "same_task"
+	RetryAfterTarget bool                 `json:"retry_after_target,omitempty"`
+}
+
 // --- Side-effect Typing ---
 
 // SideEffect describes the side-effect characteristics of a capability.
@@ -148,6 +175,7 @@ type CapabilityDeclaration struct {
 	RefreshVia          []string                `json:"refresh_via,omitempty"`
 	VerifyVia           []string                `json:"verify_via,omitempty"`
 	CrossService        *CrossServiceHints      `json:"cross_service,omitempty"`
+	CrossServiceContract *CrossServiceContract  `json:"cross_service_contract,omitempty"`
 }
 
 // --- Delegation Chain ---

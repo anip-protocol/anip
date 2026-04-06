@@ -22,6 +22,7 @@ public class CapabilityDeclaration {
     private final List<String> refreshVia;
     private final List<String> verifyVia;
     private final CrossServiceHints crossService;
+    private final CrossServiceContract crossServiceContract;
 
     public CapabilityDeclaration(String name, String description, String contractVersion,
                                   List<CapabilityInput> inputs, CapabilityOutput output,
@@ -67,6 +68,22 @@ public class CapabilityDeclaration {
                                   List<String> refreshVia,
                                   List<String> verifyVia,
                                   CrossServiceHints crossService) {
+        this(name, description, contractVersion, inputs, output, sideEffect,
+             minimumScope, cost, requires, responseModes, requiresBinding, controlRequirements,
+             refreshVia, verifyVia, crossService, null);
+    }
+
+    public CapabilityDeclaration(String name, String description, String contractVersion,
+                                  List<CapabilityInput> inputs, CapabilityOutput output,
+                                  SideEffect sideEffect, List<String> minimumScope,
+                                  Cost cost, List<CapabilityRequirement> requires,
+                                  List<String> responseModes,
+                                  List<BindingRequirement> requiresBinding,
+                                  List<ControlRequirement> controlRequirements,
+                                  List<String> refreshVia,
+                                  List<String> verifyVia,
+                                  CrossServiceHints crossService,
+                                  CrossServiceContract crossServiceContract) {
         this.name = name;
         this.description = description;
         this.contractVersion = contractVersion;
@@ -82,6 +99,7 @@ public class CapabilityDeclaration {
         this.refreshVia = refreshVia != null ? refreshVia : java.util.Collections.emptyList();
         this.verifyVia = verifyVia != null ? verifyVia : java.util.Collections.emptyList();
         this.crossService = crossService;
+        this.crossServiceContract = crossServiceContract;
     }
 
     public String getName() {
@@ -142,5 +160,9 @@ public class CapabilityDeclaration {
 
     public CrossServiceHints getCrossService() {
         return crossService;
+    }
+
+    public CrossServiceContract getCrossServiceContract() {
+        return crossServiceContract;
     }
 }

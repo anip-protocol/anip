@@ -57,4 +57,7 @@ public class CapabilityDeclaration
 
     [JsonPropertyName("cross_service")]
     public CrossServiceHints? CrossService { get; set; }
+
+    [JsonPropertyName("cross_service_contract")]
+    public CrossServiceContract? CrossServiceContract { get; set; }
 }
