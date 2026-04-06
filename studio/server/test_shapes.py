@@ -3,6 +3,8 @@
 import os
 os.environ.setdefault("DATABASE_URL", "postgresql://anip:anip@localhost:5432/anip_studio")
 
+from studio.server.derivation import build_shape_backed_proposal
+
 
 # ---------------------------------------------------------------------------
 # Helpers / fixtures
@@ -488,6 +490,59 @@ def test_derivation_multi_service_coordination_implies_cross_service_handoff(cli
     surfaces = [e["surface"] for e in body["expectations"]]
     assert "cross_service_handoff" in surfaces
     assert "cross_service_continuity" in surfaces
+
+
+def test_build_shape_backed_proposal_includes_v021_contracts():
+    requirements = {
+        "audit": {"durable": True, "searchable": True},
+        "lineage": {"task_id": True, "parent_invocation_id": True},
+        "business_constraints": {"approval_expected_for_high_risk": True},
+        "scale": {"shape_preference": "multi_service_estate"},
+    }
+    shape_data = {
+        "shape": {
+            "id": "shp-v021",
+            "name": "Checkout Flow",
+            "type": "multi_service",
+            "services": [
+                {
+                    "id": "svc-cart",
+                    "name": "Cart Service",
+                    "role": "cart",
+                    "capabilities": ["handle_checkout"],
+                },
+                {
+                    "id": "approval-service",
+                    "name": "Approval Service",
+                    "role": "approval",
+                    "capabilities": ["request_approval"],
+                },
+                {
+                    "id": "verification-service",
+                    "name": "Verification Service",
+                    "role": "verify",
+                    "capabilities": ["verify_outcome"],
+                },
+                {
+                    "id": "revalidation-service",
+                    "name": "Revalidation Service",
+                    "role": "refresh",
+                    "capabilities": ["refresh_input"],
+                },
+            ],
+            "coordination": [
+                {"from": "svc-cart", "to": "approval-service", "relationship": "handoff"},
+                {"from": "svc-cart", "to": "verification-service", "relationship": "verification"},
+                {"from": "svc-cart", "to": "revalidation-service", "relationship": "refresh"},
+            ],
+        }
+    }
+
+    proposal = build_shape_backed_proposal(shape_data, requirements)["proposal"]
+    assert proposal["cross_service_contract"]["handoff"][0]["target"]["service"] == "approval-service"
+    assert proposal["cross_service_contract"]["verification"][0]["completion_mode"] == "verification_result"
+    assert proposal["recovery_target"]["kind"] == "refresh"
+    assert proposal["recovery_target"]["target"]["service"] == "revalidation-service"
 
 
 # ---------------------------------------------------------------------------

@@ -15,7 +15,7 @@ import type {
   IntentInterpretation,
 } from './project-types'
 import type { DerivedExpectation } from './shape-types'
-import { issueToken, invokeCapability } from '../api'
+import { issueCapabilityToken, invokeCapability } from '../api'
 
 // ---------------------------------------------------------------------------
 // Core fetch wrapper
@@ -58,12 +58,14 @@ async function ensureAssistantToken(capability: string, forceRefresh = false): P
   if (!scope) {
     throw new Error(`Unsupported Studio assistant capability: ${capability}`)
   }
-  const issued = await issueToken(STUDIO_ASSISTANT_BASE_URL, STUDIO_ASSISTANT_BOOTSTRAP, {
-    subject: 'studio-ui',
+  const issued = await issueCapabilityToken(
+    STUDIO_ASSISTANT_BASE_URL,
+    STUDIO_ASSISTANT_BOOTSTRAP,
+    'studio-ui',
     capability,
-    scope: [scope],
-    ttl_hours: 8,
-  })
+    [scope],
+    { ttl_hours: 8 },
+  )
   if (!issued?.issued || !issued?.token) {
     const detail = issued?.failure?.detail || 'Failed to issue Studio assistant token'
     throw new Error(detail)

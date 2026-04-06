@@ -10,6 +10,7 @@ from .shared import (
     _is_multi_service,
     append_unique,
     get_path,
+    normalize_expected_support,
 )
 
 
@@ -128,7 +129,7 @@ def evaluate_safety(
     scenario: dict[str, Any],
 ) -> EvalResult:
     context = scenario["context"]
-    expected_support = set(scenario.get("expected_anip_support", []))
+    expected_support = normalize_expected_support(scenario.get("expected_anip_support", []))
 
     handled: list[str] = []
     glue: list[str] = []
@@ -235,14 +236,14 @@ def evaluate_orchestration(
     scenario: dict[str, Any],
 ) -> EvalResult:
     context = scenario["context"]
-    expected_support = set(scenario.get("expected_anip_support", []))
+    expected_support = normalize_expected_support(scenario.get("expected_anip_support", []))
 
     handled: list[str] = []
     glue: list[str] = []
     glue_category: list[str] = []
     why: list[str] = []
     improve: list[str] = []
-    result = "PARTIAL"
+    result = "HANDLED"
 
     _common_lineage_surfaces(req, handled, why, expected_support)
     _common_multi_service_surfaces(req, proposal, handled, why)
@@ -251,36 +252,46 @@ def evaluate_orchestration(
     advisory_surfaces: list[str] = []
     missing_surfaces: list[str] = []
 
-    if "refresh_path_guidance" in expected_support or "cross_service_refresh_guidance" in expected_support:
-        if psurfaces["refresh_via"]:
+    if "refresh_path_guidance" in expected_support or "cross_service_refresh_guidance" in expected_support or "recovery_target" in expected_support:
+        if psurfaces["recovery_target"]:
+            append_unique(handled, "structured refresh or recovery target")
+        elif psurfaces["refresh_via"]:
             advisory_surfaces.append("refresh_via hint")
             append_unique(handled, "refresh path guidance (protocol-assisted, advisory, not enforced)")
         else:
             missing_surfaces.append("refresh advisory hint")
 
     if "verification_path_guidance" in expected_support or "cross_service_verification_guidance" in expected_support:
-        if psurfaces["verify_via"]:
+        if psurfaces["verification_contract"]:
+            append_unique(handled, "structured verification continuation contract")
+        elif psurfaces["verify_via"]:
             advisory_surfaces.append("verify_via hint")
             append_unique(handled, "verification path guidance (protocol-assisted, advisory, not enforced)")
         else:
             missing_surfaces.append("verify advisory hint")
 
     if "follow_up_guidance" in expected_support:
-        if psurfaces["followup"]:
+        if psurfaces["followup_contract"]:
+            append_unique(handled, "structured follow-up continuation contract")
+        elif psurfaces["followup"]:
             advisory_surfaces.append("followup_via hint")
             append_unique(handled, "follow-up path guidance (protocol-assisted, advisory, not enforced)")
         else:
             missing_surfaces.append("follow-up advisory hint")
 
-    if "cross_service_handoff_guidance" in expected_support:
-        if psurfaces["cross_service_hints"]:
+    if "cross_service_handoff_guidance" in expected_support or "cross_service_contract" in expected_support:
+        if psurfaces["handoff_contract"] or psurfaces["cross_service_contract"]:
+            append_unique(handled, "structured cross-service handoff contract")
+        elif psurfaces["cross_service_hints"]:
             advisory_surfaces.append("cross-service handoff hint")
             append_unique(handled, "cross-service handoff guidance (protocol-assisted, advisory, not enforced)")
         else:
             missing_surfaces.append("cross-service handoff hint")
 
     if "recovery_class" in expected_support:
-        if psurfaces["recovery_class"]:
+        if psurfaces["recovery_target"]:
+            append_unique(handled, "structured recovery routing target")
+        elif psurfaces["recovery_class"]:
             advisory_surfaces.append("recovery_class")
             append_unique(handled, "recovery class guidance (protocol-assisted, advisory, not enforced)")
         else:
@@ -335,13 +346,15 @@ def evaluate_orchestration(
             "paths through docs or wrapper logic"
         )
         append_unique(glue_category, "orchestration")
+        result = "PARTIAL"
 
-    if _is_multi_service(req, proposal):
+    if _is_multi_service(req, proposal) and not psurfaces["cross_service_contract"]:
         glue.append(
             "you will still write cross-service handoff orchestration logic "
             "to act on advisory hints"
         )
         append_unique(glue_category, "orchestration")
+        result = "PARTIAL"
 
     numeric_cost = context.get("selected_cost", context.get("expected_cost"))
     numeric_budget = context.get("budget_limit", context.get("caller_budget"))
@@ -365,16 +378,13 @@ def evaluate_orchestration(
             "represent budget as enforceable authority or policy in the booking path"
         )
 
-    if not glue:
-        glue.append(
-            "you will still write some orchestration wrapper logic here"
+    if result == "HANDLED":
+        why.append(
+            "the current design exposes structured next-step semantics instead of only advisory hints"
         )
-        append_unique(glue_category, "orchestration")
 
     if not improve:
-        improve.append(
-            "promote advisory orchestration hints to enforceable protocol surfaces"
-        )
+        improve.append("no major protocol changes are required for this scenario")
 
     return handled, glue, glue_category, why, improve, result
 
@@ -385,14 +395,14 @@ def evaluate_cross_service(
     scenario: dict[str, Any],
 ) -> EvalResult:
     context = scenario["context"]
-    expected_support = set(scenario.get("expected_anip_support", []))
+    expected_support = normalize_expected_support(scenario.get("expected_anip_support", []))
 
     handled: list[str] = []
     glue: list[str] = []
     glue_category: list[str] = []
     why: list[str] = []
     improve: list[str] = []
-    result = "PARTIAL"
+    result = "HANDLED"
 
     _common_lineage_surfaces(req, handled, why, expected_support)
     _common_multi_service_surfaces(req, proposal, handled, why)
@@ -409,22 +419,28 @@ def evaluate_cross_service(
     advisory_surfaces: list[str] = []
     missing_surfaces: list[str] = []
 
-    if "cross_service_handoff_guidance" in expected_support:
-        if psurfaces["cross_service_hints"]:
+    if "cross_service_handoff_guidance" in expected_support or "cross_service_contract" in expected_support:
+        if psurfaces["handoff_contract"] or psurfaces["cross_service_contract"]:
+            append_unique(handled, "structured cross-service handoff contract")
+        elif psurfaces["cross_service_hints"]:
             advisory_surfaces.append("handoff_to hint")
             append_unique(handled, "cross-service handoff guidance (protocol-assisted, advisory, not enforced)")
         else:
             missing_surfaces.append("cross-service handoff hint")
 
     if "cross_service_refresh_guidance" in expected_support:
-        if psurfaces["refresh_via"]:
+        if psurfaces["recovery_target"]:
+            append_unique(handled, "structured cross-service refresh target")
+        elif psurfaces["refresh_via"]:
             advisory_surfaces.append("refresh_via hint")
             append_unique(handled, "cross-service refresh guidance (protocol-assisted, advisory, not enforced)")
         else:
             missing_surfaces.append("cross-service refresh hint")
 
     if "cross_service_verification_guidance" in expected_support:
-        if psurfaces["verify_via"]:
+        if psurfaces["verification_contract"]:
+            append_unique(handled, "structured cross-service verification contract")
+        elif psurfaces["verify_via"]:
             advisory_surfaces.append("verify_via hint")
             append_unique(handled, "cross-service verification guidance (protocol-assisted, advisory, not enforced)")
         else:
@@ -438,7 +454,9 @@ def evaluate_cross_service(
             missing_surfaces.append("cross-service reconstruction hint")
 
     if "follow_up_guidance" in expected_support:
-        if psurfaces["followup"]:
+        if psurfaces["followup_contract"]:
+            append_unique(handled, "structured follow-up continuation contract")
+        elif psurfaces["followup"]:
             advisory_surfaces.append("followup_via hint")
             append_unique(handled, "follow-up guidance (protocol-assisted, advisory, not enforced)")
         else:
@@ -476,20 +494,30 @@ def evaluate_cross_service(
             "paths through docs or wrapper logic"
         )
         append_unique(glue_category, "cross_service")
+        result = "PARTIAL"
 
-    glue.append(
-        "you will still write cross-service orchestration and handoff "
-        "logic to act on advisory protocol hints"
-    )
-    append_unique(glue_category, "orchestration")
+    if _is_multi_service(req, proposal) and not psurfaces["cross_service_contract"]:
+        glue.append(
+            "you will still write cross-service orchestration and handoff "
+            "logic to act on advisory protocol hints"
+        )
+        append_unique(glue_category, "orchestration")
+        result = "PARTIAL"
 
-    if not improve:
+    if result == "HANDLED":
+        why.append(
+            "the design exposes structured cross-service completion semantics instead of only advisory hints"
+        )
+
+    if not improve and result != "HANDLED":
         improve.append(
             "promote cross-service advisory hints to enforceable protocol surfaces"
         )
         improve.append(
             "add structured cross-service handoff semantics beyond lineage propagation"
         )
+    elif not improve:
+        improve.append("no major protocol changes are required for this scenario")
 
     return handled, glue, glue_category, why, improve, result
 
@@ -499,7 +527,7 @@ def evaluate_observability(
     proposal: dict[str, Any],
     scenario: dict[str, Any],
 ) -> EvalResult:
-    expected_support = set(scenario.get("expected_anip_support", []))
+    expected_support = normalize_expected_support(scenario.get("expected_anip_support", []))
 
     handled: list[str] = []
     glue: list[str] = []
@@ -581,39 +609,58 @@ def evaluate_recovery(
     proposal: dict[str, Any],
     scenario: dict[str, Any],
 ) -> EvalResult:
-    expected_support = set(scenario.get("expected_anip_support", []))
+    expected_support = normalize_expected_support(scenario.get("expected_anip_support", []))
 
     handled: list[str] = []
     glue: list[str] = []
     glue_category: list[str] = []
     why: list[str] = []
     improve: list[str] = []
-    result = "PARTIAL"
+    result = "HANDLED"
 
     _common_lineage_surfaces(req, handled, why, expected_support)
     _common_multi_service_surfaces(req, proposal, handled, why)
 
+    psurfaces = _extract_proposal_surfaces(proposal)
     advisory_surfaces: list[str] = []
 
+    if psurfaces["recovery_target"]:
+        append_unique(handled, "structured recovery target")
+
     if "recovery_class" in expected_support:
-        advisory_surfaces.append("recovery_class")
-        append_unique(handled, "recovery class guidance (protocol-assisted, advisory, not enforced)")
+        if psurfaces["recovery_target"]:
+            append_unique(handled, "structured recovery target")
+        else:
+            advisory_surfaces.append("recovery_class")
+            append_unique(handled, "recovery class guidance (protocol-assisted, advisory, not enforced)")
 
     if "resolution_guidance" in expected_support:
-        advisory_surfaces.append("resolution guidance")
-        append_unique(handled, "resolution guidance (protocol-assisted, advisory, not enforced)")
+        if psurfaces["recovery_target"]:
+            append_unique(handled, "structured recovery resolution target")
+        else:
+            advisory_surfaces.append("resolution guidance")
+            append_unique(handled, "resolution guidance (protocol-assisted, advisory, not enforced)")
 
-    if "refresh_path_guidance" in expected_support or "cross_service_refresh_guidance" in expected_support:
-        advisory_surfaces.append("refresh_via hint")
-        append_unique(handled, "refresh path guidance (protocol-assisted, advisory, not enforced)")
+    if "refresh_path_guidance" in expected_support or "cross_service_refresh_guidance" in expected_support or "recovery_target" in expected_support:
+        if psurfaces["recovery_target"]:
+            append_unique(handled, "structured refresh or revalidation target")
+        else:
+            advisory_surfaces.append("refresh_via hint")
+            append_unique(handled, "refresh path guidance (protocol-assisted, advisory, not enforced)")
 
     if "verification_path_guidance" in expected_support or "cross_service_verification_guidance" in expected_support:
-        advisory_surfaces.append("verify_via hint")
-        append_unique(handled, "verification path guidance (protocol-assisted, advisory, not enforced)")
+        if psurfaces["verification_contract"]:
+            append_unique(handled, "structured verification contract")
+        else:
+            advisory_surfaces.append("verify_via hint")
+            append_unique(handled, "verification path guidance (protocol-assisted, advisory, not enforced)")
 
     if "revalidation_guidance" in expected_support:
-        advisory_surfaces.append("revalidation guidance")
-        append_unique(handled, "revalidation guidance (protocol-assisted, advisory, not enforced)")
+        if psurfaces["recovery_target"] and psurfaces["revalidation"]:
+            append_unique(handled, "structured revalidation target")
+        else:
+            advisory_surfaces.append("revalidation guidance")
+            append_unique(handled, "revalidation guidance (protocol-assisted, advisory, not enforced)")
 
     if "estimated_availability_support" in expected_support:
         advisory_surfaces.append("estimated availability hint")
@@ -638,31 +685,40 @@ def evaluate_recovery(
         )
 
     bc = req.get("business_constraints", {})
-    psurfaces = proposal.get("declared_surfaces", {})
+    proposal_surfaces = proposal.get("declared_surfaces", {})
 
     if bc.get("recovery_sensitive"):
-        if psurfaces.get("recovery_class"):
+        if psurfaces["recovery_target"] or proposal_surfaces.get("recovery_class"):
             append_unique(handled, "recovery class guidance for recovery-sensitive system")
         else:
             improve.append("the current design should expose recovery class for a recovery-sensitive system")
+            improve.append("prefer a structured recovery target for a recovery-sensitive system when the next recovery step is known")
 
     posture = bc.get("blocked_failure_posture")
     if posture and posture != "not_specified":
-        if psurfaces.get("recovery_class"):
+        if psurfaces["recovery_target"] or proposal_surfaces.get("recovery_class"):
             append_unique(handled, f"recovery class aligns with declared failure posture ({posture})")
         else:
             improve.append(f"the current design should expose recovery class for a system with {posture} failure posture")
+            improve.append(f"prefer a structured recovery target for a system with {posture} failure posture when the next recovery step is known")
 
-    if not glue:
+    if result == "HANDLED":
+        why.append(
+            "the design identifies the recovery step structurally instead of leaving recovery in wrapper logic"
+        )
+    elif not glue:
         glue.append(
             "you will still write recovery orchestration logic here"
         )
         append_unique(glue_category, "orchestration")
 
     if not improve:
-        improve.append(
-            "promote recovery advisory hints to enforceable protocol surfaces"
-        )
+        if result == "HANDLED":
+            improve.append("no major protocol changes are required for this scenario")
+        else:
+            improve.append(
+                "promote recovery advisory hints to enforceable protocol surfaces"
+            )
 
     return handled, glue, glue_category, why, improve, result
 
@@ -672,7 +728,7 @@ def evaluate_generic(
     proposal: dict[str, Any],
     scenario: dict[str, Any],
 ) -> EvalResult:
-    expected_support = set(scenario.get("expected_anip_support", []))
+    expected_support = normalize_expected_support(scenario.get("expected_anip_support", []))
 
     handled: list[str] = []
     glue: list[str] = []

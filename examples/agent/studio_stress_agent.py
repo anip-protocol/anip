@@ -39,15 +39,12 @@ DEFAULT_BRIEFS = [
 
 
 def issue_token(client: ANIPClient, bootstrap: str, capability: str, scope: str) -> str:
-    response = client._post(  # noqa: SLF001 - thin demo client
-        "/anip/tokens",
-        json={
-            "subject": "agent:studio-stress",
-            "scope": [scope],
-            "capability": capability,
-            "ttl_hours": 1,
-        },
-        headers={"Authorization": f"Bearer {bootstrap}"},
+    response = client.request_capability_token(
+        principal="agent:studio-stress",
+        capability=capability,
+        scope=[scope],
+        api_key=bootstrap,
+        ttl_hours=1,
     )
     return response["token"]
 

@@ -56,6 +56,7 @@ def test_workbench_manifest_exposes_core_capabilities(client: TestClient):
     assert "accept_first_design" in caps
     assert "evaluate_service_design" in caps
     assert "generate_business_brief" in caps
+    assert caps["evaluate_service_design"]["cross_service_contract"] is not None
 
 
 def test_workbench_can_accept_first_design(

@@ -35,6 +35,33 @@ export async function issueToken(
   throw new Error(`Issue token: ${res.status} (non-JSON response)`)
 }
 
+export async function issueCapabilityToken(
+  baseUrl: string,
+  bearer: string,
+  principal: string,
+  capability: string,
+  scope: string[],
+  opts?: {
+    purpose_parameters?: Record<string, any>
+    ttl_hours?: number
+    budget?: Record<string, any>
+  },
+): Promise<any> {
+  const payload: Record<string, any> = {
+    subject: principal,
+    capability,
+    scope,
+    ttl_hours: opts?.ttl_hours ?? 2,
+  }
+  if (opts?.purpose_parameters !== undefined) {
+    payload.purpose_parameters = opts.purpose_parameters
+  }
+  if (opts?.budget !== undefined) {
+    payload.budget = opts.budget
+  }
+  return issueToken(baseUrl, bearer, payload)
+}
+
 export async function fetchJwks(baseUrl: string) {
   const res = await fetch(`${baseUrl}/.well-known/jwks.json`)
   if (!res.ok) throw new Error(`JWKS: ${res.status}`)
