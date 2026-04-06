@@ -1,4 +1,4 @@
-# ANIP Specification v0.20
+# ANIP Specification v0.21
 
 > Agent-Native Interface Protocol — Draft
 
@@ -262,6 +262,105 @@ capability:
   side_effect:
     type: write
     rollback_window: "PT15M"
+```
+
+#### Cross-Service Contracts (v0.21)
+
+A capability MAY declare a `cross_service_contract` block — structured task-local semantics that are stronger than the advisory `cross_service` hints from v0.19.
+
+While `cross_service` hints are purely advisory and unenforceable, `cross_service_contract` entries carry explicit task-completion semantics that agents and evaluators can reason about structurally.
+
+**`cross_service_contract` contains three optional arrays:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `handoff` | array of `CrossServiceContractEntry` | No | Adjacent capabilities that receive this capability's output for downstream processing |
+| `followup` | array of `CrossServiceContractEntry` | No | Adjacent capabilities for delayed or async status checking |
+| `verification` | array of `CrossServiceContractEntry` | No | Adjacent capabilities that verify this capability's side effects |
+
+**`CrossServiceContractEntry` fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `target` | `ServiceCapabilityRef` | Yes | The target capability on another service |
+| `required_for_task_completion` | boolean | No | Whether this step is required for the logical task to be considered complete. Default `false`. |
+| `continuity` | string | Yes | Continuity expectation. Initial vocabulary: `same_task`. |
+| `completion_mode` | string | Yes | How completion is established. Initial vocabulary: `downstream_acceptance`, `followup_status`, `verification_result`. |
+
+**Continuity vocabulary (v0.21):**
+
+| Value | Meaning |
+|-------|---------|
+| `same_task` | The adjacent step belongs to the same logical task. Task identity (task_id, invocation lineage) SHOULD be preserved across the boundary. |
+
+**Completion mode vocabulary (v0.21):**
+
+| Value | Meaning |
+|-------|---------|
+| `downstream_acceptance` | Completion is established when the downstream service accepts the handoff (e.g., confirms receipt, reserves inventory). |
+| `followup_status` | Completion is established by polling the follow-up capability for status (e.g., order fulfillment status). |
+| `verification_result` | Completion is established by invoking the verification capability and receiving a positive result (e.g., deployment health check passes). |
+
+> **Relationship to advisory hints:** `cross_service_contract` is additive. A capability MAY declare both `cross_service` (advisory hints) and `cross_service_contract` (structured contracts). The contract entries carry stronger semantics — agents and evaluators SHOULD prefer contract entries over advisory hints when both exist for the same relationship.
+
+> **Not a workflow engine:** `cross_service_contract` describes task-local adjacent-step meaning. It does NOT define execution ordering, automatic chaining, or distributed process graphs. The agent remains responsible for orchestration decisions.
+
+**E-commerce order example** (`submit_order` with `cross_service_contract`):
+
+```yaml
+capability:
+  name: submit_order
+  description: "Submit a customer order for fulfillment"
+  cross_service:                     # advisory hints (v0.19) — retained for lighter consumers
+    handoff_to:
+      - service: fulfillment-service
+        capability: reserve_inventory
+    followup_via:
+      - service: fulfillment-service
+        capability: get_order_status
+  cross_service_contract:            # structured contracts (v0.21) — stronger semantics
+    handoff:
+      - target:
+          service: fulfillment-service
+          capability: reserve_inventory
+        required_for_task_completion: true
+        continuity: same_task
+        completion_mode: downstream_acceptance
+    followup:
+      - target:
+          service: fulfillment-service
+          capability: get_order_status
+        continuity: same_task
+        completion_mode: followup_status
+    verification:
+      - target:
+          service: fulfillment-service
+          capability: verify_delivery
+        continuity: same_task
+        completion_mode: verification_result
+  side_effect:
+    type: write
+    rollback_window: "PT15M"
+```
+
+**Deployment pipeline example** (`deploy` with `cross_service_contract`):
+
+```yaml
+capability:
+  name: deploy
+  description: "Deploy a service to production"
+  verify_via: [health_check]         # same-manifest verify (v0.17)
+  cross_service_contract:
+    verification:
+      - target:
+          service: monitoring-service
+          capability: check_alerts
+        required_for_task_completion: true
+        continuity: same_task
+        completion_mode: verification_result
+  side_effect:
+    type: write
+    rollback_window: "PT1H"
 ```
 
 ANIP uses JSON Schema (draft 2020-12) for capability declarations. Canonical schemas are defined in Section 9 and validated across the Python/Pydantic and TypeScript/Zod reference implementations. The Go, Java, and C# runtimes validate protocol conformance via the HTTP conformance suite.
@@ -604,12 +703,50 @@ failure:
   retry: false
 ```
 
+#### Structured Recovery Target (v0.21)
+
+The Resolution object MAY include a `recovery_target` — a structured description of where and how recovery should proceed. This replaces prose-only recovery guidance with machine-readable targets.
+
+**`recovery_target` fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `kind` | string | Yes | What kind of recovery step this is. Values: `refresh`, `redelegation`, `revalidation`, `escalation`. |
+| `target` | `ServiceCapabilityRef` | No | The specific capability to invoke for recovery (if applicable). Omitted when recovery is local (e.g., token re-delegation). |
+| `continuity` | string | Yes | Continuity expectation. Uses the same vocabulary as `cross_service_contract`: `same_task`. |
+| `retry_after_target` | boolean | Yes | Whether the original failed action should be retried after the recovery target succeeds. |
+
+> **Relationship to `recovery_class`:** `recovery_target` is additive. The existing `recovery_class` field remains mandatory and provides coarse routing. `recovery_target` provides the specific structural target — where to go and what to do. Agents SHOULD use `recovery_class` for routing decisions and `recovery_target` for execution.
+
+> **Not workflow planning:** `recovery_target` describes a single recovery step. It does NOT chain recoveries, define retry policies, or encode multi-step recovery plans.
+
+**Stale binding recovery example** (`refresh_binding` with `recovery_target`):
+
+```yaml
+failure:
+  type: binding_stale
+  detail: "Binding 'quote_id' has exceeded max_age of 15 minutes"
+  resolution:
+    action: "refresh_binding"
+    recovery_class: "refresh_then_retry"
+    recovery_target:
+      kind: refresh
+      target:
+        service: travel-search
+        capability: search_flights
+      continuity: same_task
+      retry_after_target: true
+    requires: "invoke search_flights again for a fresh quote_id"
+  retry: false
+```
+
 **Failure object fields:**
 
 - **type** — machine-readable failure category
 - **detail** — human-readable explanation (for debugging and logging)
 - **resolution** — what needs to happen to fix this, who can do it, and what action to take
 - **resolution.recovery_class** — coarse recovery strategy (see vocabulary above); advisory, does not override `retry`
+- **resolution.recovery_target** — structured recovery target (v0.21, optional); specifies where and how recovery should proceed
 - **retry** — whether the same request could succeed after the resolution is applied
 
 Failure semantics are only meaningful because Delegation Chain is core. Without structured identity, failures collapse to "access denied." With it, failures become "here's exactly what's missing in the chain and who needs to grant it."
@@ -2193,9 +2330,11 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Control requirements (§4.1)** | MAY — v0.14 | Implemented: `control_requirements` on capability declarations, all requirements are token-evaluable and surfaced in `/anip/permissions` | — |
 | **Bootstrap auth contract (§6.3)** | MUST — v0.20 | Implemented: explicit sync/async hook contract, Python async bug fix | — |
 | **Capability-targeted root issuance (§6.3)** | SHOULD — v0.20 | Implemented: `issueCapabilityToken()` root-only helper in all runtimes | Delegation-aware convenience helpers |
+| **Cross-service contracts (§4.1)** | MAY — v0.21 | Implemented: `cross_service_contract` with handoff/followup/verification, task-local continuity, completion modes | Stronger cross-service completion semantics |
+| **Structured recovery targets (§4.5)** | MAY — v0.21 | Implemented: `recovery_target` with kind/target/continuity/retry_after_target in resolution objects | Multi-step recovery chains |
 | **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation across services, federated trust |
 
-The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. v0.9 completes the audit story — aggregation collapses noise, storage-side redaction strips low-value parameters at write time, caller-class-aware redaction resolves disclosure per-caller, and proof expiration guidance closes the client-side gap. v0.10 adds horizontal scaling — storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, and leader-elected background job coordination enable multi-replica deployments without protocol invariant violations. v0.11 adds observability hooks — callback-based logging, metrics, tracing, and diagnostics injection points let adopters plug in their observability stack without hard dependencies, plus a `getHealth()` runtime snapshot and optional health endpoint. v0.14 adds pre-execution control surfaces — structured budget constraints in delegation tokens with pre-execution enforcement, execution-time binding requirements (`requires_binding`) for quote-based workflows, and explicit control requirement declarations (`control_requirements`) that let capabilities declare what must be true before invocation. v0.20 hardens runtime ergonomics — an explicit bootstrap authentication contract (sync minimum, optional async), a capability-targeted root token issuance helper that prevents `purpose_mismatch` errors, and a clear deferral of delegation convenience helpers pending `parent_token` semantic resolution. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
+The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. v0.9 completes the audit story — aggregation collapses noise, storage-side redaction strips low-value parameters at write time, caller-class-aware redaction resolves disclosure per-caller, and proof expiration guidance closes the client-side gap. v0.10 adds horizontal scaling — storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, and leader-elected background job coordination enable multi-replica deployments without protocol invariant violations. v0.11 adds observability hooks — callback-based logging, metrics, tracing, and diagnostics injection points let adopters plug in their observability stack without hard dependencies, plus a `getHealth()` runtime snapshot and optional health endpoint. v0.14 adds pre-execution control surfaces — structured budget constraints in delegation tokens with pre-execution enforcement, execution-time binding requirements (`requires_binding`) for quote-based workflows, and explicit control requirement declarations (`control_requirements`) that let capabilities declare what must be true before invocation. v0.20 hardens runtime ergonomics — an explicit bootstrap authentication contract (sync minimum, optional async), a capability-targeted root token issuance helper that prevents `purpose_mismatch` errors, and a clear deferral of delegation convenience helpers pending `parent_token` semantic resolution. v0.21 hardens cross-service continuation and recovery semantics — `cross_service_contract` adds structured task-local adjacent-step meaning (handoff, followup, verification) that is stronger than advisory hints, and `recovery_target` adds machine-readable recovery targets to failure resolution objects. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
 
 **What solving these gaps unlocks.** When trust and verification become real — not declarative — agents can evaluate risk before acting. Delegated authority becomes expressible in ways current tool layers can't handle. Failures become operationally useful, not just descriptive. High-stakes actions — travel, procurement, finance ops, approvals, multi-step orchestration — become automatable with real control surfaces. At that point, ANIP solves one of the central coordination problems of agent deployment: how an agent knows what it's allowed to do, what will happen if it does it, and how to recover when something blocks it.
 
@@ -2231,7 +2370,7 @@ These are unresolved design questions where community input is needed:
 
 ---
 
-*ANIP is an open specification under active development. This is v0.20 — bootstrap authentication contracts and capability-targeted root token issuance harden runtime ergonomics exposed during Studio dogfooding. This builds on v0.14's pre-execution control surfaces, v0.11's observability hooks, v0.10's horizontal scaling, v0.9's audit aggregation and redaction, v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, v0.3's anchored trust, v0.4's invocation lineage, and v0.5's async storage. Delegation convenience helpers and cross-service trust remain future goals. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
+*ANIP is an open specification under active development. This is v0.21 — cross-service contracts (`cross_service_contract`) and structured recovery targets (`recovery_target`) harden continuation and recovery semantics exposed during Studio stress testing. This builds on v0.20's bootstrap auth and capability-targeted issuance, v0.14's pre-execution control surfaces, v0.11's observability hooks, v0.10's horizontal scaling, v0.9's audit aggregation and redaction, v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, v0.3's anchored trust, v0.4's invocation lineage, and v0.5's async storage. Delegation convenience helpers and cross-service trust remain future goals. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
 
 ---
 
