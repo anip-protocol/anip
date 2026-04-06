@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anip.dev/schema/v0.10/discovery.schema.json",
+  "$id": "https://anip.dev/schema/v0.20/discovery.schema.json",
   "title": "ANIP Discovery Document",
   "description": "Schema for the /.well-known/anip discovery endpoint response. See SPEC.md §6.1.",
   "type": "object",
