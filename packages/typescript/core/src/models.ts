@@ -180,6 +180,37 @@ export const CrossServiceHints = z.object({
 });
 export type CrossServiceHints = z.infer<typeof CrossServiceHints>;
 
+// ---------------------------------------------------------------------------
+// Cross-Service Contract (v0.21)
+// ---------------------------------------------------------------------------
+
+export const CrossServiceContractEntry = z.object({
+  target: ServiceCapabilityRef,
+  required_for_task_completion: z.boolean().default(false),
+  continuity: z.literal("same_task").default("same_task"),
+  completion_mode: z.enum(["downstream_acceptance", "followup_status", "verification_result"]),
+});
+export type CrossServiceContractEntry = z.infer<typeof CrossServiceContractEntry>;
+
+export const CrossServiceContract = z.object({
+  handoff: z.array(CrossServiceContractEntry).default([]),
+  followup: z.array(CrossServiceContractEntry).default([]),
+  verification: z.array(CrossServiceContractEntry).default([]),
+});
+export type CrossServiceContract = z.infer<typeof CrossServiceContract>;
+
+// ---------------------------------------------------------------------------
+// Recovery Target (v0.21)
+// ---------------------------------------------------------------------------
+
+export const RecoveryTarget = z.object({
+  kind: z.enum(["refresh", "redelegation", "revalidation", "escalation"]),
+  target: ServiceCapabilityRef.nullable().default(null),
+  continuity: z.literal("same_task").default("same_task"),
+  retry_after_target: z.boolean().default(false),
+});
+export type RecoveryTarget = z.infer<typeof RecoveryTarget>;
+
 export const BudgetContext = z.object({
   budget_max: z.number(),
   budget_currency: z.string(),
@@ -209,6 +240,7 @@ export const CapabilityDeclaration = z.object({
   refresh_via: z.array(z.string()).default([]),
   verify_via: z.array(z.string()).default([]),
   cross_service: CrossServiceHints.nullable().default(null),
+  cross_service_contract: CrossServiceContract.nullable().optional(),
 });
 export type CapabilityDeclaration = z.infer<typeof CapabilityDeclaration>;
 
@@ -257,6 +289,7 @@ export const Resolution = z.object({
   requires: z.string().nullable().default(null),
   grantable_by: z.string().nullable().default(null),
   estimated_availability: z.string().nullable().default(null),
+  recovery_target: RecoveryTarget.nullable().optional(),
 });
 export type Resolution = z.infer<typeof Resolution>;
 
@@ -406,7 +439,7 @@ export const ServiceIdentity = z.object({
 export type ServiceIdentity = z.infer<typeof ServiceIdentity>;
 
 export const ANIPManifest = z.object({
-  protocol: z.string().default("anip/0.20"),
+  protocol: z.string().default("anip/0.21"),
   profile: ProfileVersions,
   capabilities: z.record(CapabilityDeclaration),
   manifest_metadata: ManifestMetadata.nullable().default(null),

@@ -10,11 +10,12 @@ type ANIPError struct {
 
 // Resolution describes how a failure can be resolved.
 type Resolution struct {
-	Action                string `json:"action"`
-	RecoveryClass         string `json:"recovery_class"`
-	Requires              string `json:"requires,omitempty"`
-	GrantableBy           string `json:"grantable_by,omitempty"`
-	EstimatedAvailability string `json:"estimated_availability,omitempty"`
+	Action                string          `json:"action"`
+	RecoveryClass         string          `json:"recovery_class"`
+	Requires              string          `json:"requires,omitempty"`
+	GrantableBy           string          `json:"grantable_by,omitempty"`
+	EstimatedAvailability string          `json:"estimated_availability,omitempty"`
+	RecoveryTarget        *RecoveryTarget `json:"recovery_target,omitempty"`
 }
 
 // Error implements the error interface.

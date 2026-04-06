@@ -18,13 +18,15 @@ from anip_core import (
     EventClass, RetentionTier, DisclosureLevel,
     Purpose, DelegationConstraints, CapabilityOutput,
     SideEffect, Resolution, ProfileVersions,
+    CrossServiceContract, CrossServiceContractEntry,
+    RecoveryTarget, ServiceCapabilityRef,
 )
 
 
 def test_protocol_version():
     # Intentionally hardcoded — this is the one place that verifies the constant value.
     # Update this when bumping the protocol version.
-    assert PROTOCOL_VERSION == "anip/0.20"
+    assert PROTOCOL_VERSION == "anip/0.21"
 
 
 def test_delegation_token_roundtrip():
@@ -434,3 +436,209 @@ def test_checkpoint_detail_response_expires_hint_set():
         expires_hint="2026-04-01T00:00:00Z",
     )
     assert resp.expires_hint == "2026-04-01T00:00:00Z"
+
+
+# --- CrossServiceContract model round-trip (v0.21) ---
+
+
+def test_cross_service_contract_entry_roundtrip():
+    """CrossServiceContractEntry serializes and deserializes correctly."""
+    ref = ServiceCapabilityRef(service="booking-service", capability="confirm_booking")
+    entry = CrossServiceContractEntry(
+        target=ref,
+        required_for_task_completion=True,
+        continuity="same_task",
+        completion_mode="downstream_acceptance",
+    )
+    d = entry.model_dump()
+    assert d["target"]["service"] == "booking-service"
+    assert d["target"]["capability"] == "confirm_booking"
+    assert d["required_for_task_completion"] is True
+    assert d["continuity"] == "same_task"
+    assert d["completion_mode"] == "downstream_acceptance"
+
+    restored = CrossServiceContractEntry.model_validate(d)
+    assert restored.target.service == "booking-service"
+    assert restored.target.capability == "confirm_booking"
+    assert restored.required_for_task_completion is True
+    assert restored.continuity == "same_task"
+    assert restored.completion_mode == "downstream_acceptance"
+
+
+def test_cross_service_contract_roundtrip():
+    """CrossServiceContract serializes and deserializes correctly."""
+    ref = ServiceCapabilityRef(service="notify-service", capability="send_notification")
+    entry = CrossServiceContractEntry(
+        target=ref,
+        required_for_task_completion=False,
+        continuity="same_task",
+        completion_mode="followup_status",
+    )
+    contract = CrossServiceContract(
+        handoff=[entry],
+        followup=[],
+        verification=[],
+    )
+    d = contract.model_dump()
+    assert len(d["handoff"]) == 1
+    assert d["handoff"][0]["completion_mode"] == "followup_status"
+    assert d["followup"] == []
+    assert d["verification"] == []
+
+    restored = CrossServiceContract.model_validate(d)
+    assert len(restored.handoff) == 1
+    assert restored.handoff[0].target.service == "notify-service"
+    assert restored.handoff[0].completion_mode == "followup_status"
+
+
+def test_cross_service_contract_defaults():
+    """CrossServiceContract defaults to empty lists."""
+    contract = CrossServiceContract()
+    assert contract.handoff == []
+    assert contract.followup == []
+    assert contract.verification == []
+
+
+# --- RecoveryTarget model round-trip (v0.21) ---
+
+
+def test_recovery_target_roundtrip():
+    """RecoveryTarget serializes and deserializes correctly."""
+    ref = ServiceCapabilityRef(service="auth-service", capability="refresh_token")
+    rt = RecoveryTarget(
+        kind="refresh",
+        target=ref,
+        continuity="same_task",
+        retry_after_target=True,
+    )
+    d = rt.model_dump()
+    assert d["kind"] == "refresh"
+    assert d["target"]["service"] == "auth-service"
+    assert d["target"]["capability"] == "refresh_token"
+    assert d["continuity"] == "same_task"
+    assert d["retry_after_target"] is True
+
+    restored = RecoveryTarget.model_validate(d)
+    assert restored.kind == "refresh"
+    assert restored.target is not None
+    assert restored.target.service == "auth-service"
+    assert restored.retry_after_target is True
+
+
+def test_recovery_target_no_target():
+    """RecoveryTarget can have a null target (escalation without specific service)."""
+    rt = RecoveryTarget(kind="escalation", continuity="same_task", retry_after_target=False)
+    d = rt.model_dump()
+    assert d["kind"] == "escalation"
+    assert d["target"] is None
+
+    restored = RecoveryTarget.model_validate(d)
+    assert restored.target is None
+    assert restored.kind == "escalation"
+
+
+def test_recovery_target_all_kinds():
+    """All valid kind values are accepted."""
+    for kind in ("refresh", "redelegation", "revalidation", "escalation"):
+        rt = RecoveryTarget(kind=kind, continuity="same_task")  # type: ignore[arg-type]
+        assert rt.kind == kind
+
+
+# --- capability with cross_service_contract (v0.21) ---
+
+
+def test_capability_declaration_with_cross_service_contract():
+    """cross_service_contract field appears in capability declaration output."""
+    ref = ServiceCapabilityRef(service="booking-service", capability="confirm_booking")
+    entry = CrossServiceContractEntry(
+        target=ref,
+        required_for_task_completion=True,
+        continuity="same_task",
+        completion_mode="downstream_acceptance",
+    )
+    contract = CrossServiceContract(handoff=[entry])
+    decl = CapabilityDeclaration(
+        name="search_flights",
+        description="Search for available flights",
+        contract_version="1.0",
+        inputs=[],
+        output=CapabilityOutput(type="object", fields=["flights"]),
+        side_effect=SideEffect(type=SideEffectType.READ),
+        minimum_scope=["travel.search"],
+        cross_service_contract=contract,
+    )
+    d = decl.model_dump()
+    assert d["cross_service_contract"] is not None
+    assert len(d["cross_service_contract"]["handoff"]) == 1
+    assert d["cross_service_contract"]["handoff"][0]["target"]["service"] == "booking-service"
+    assert d["cross_service_contract"]["handoff"][0]["required_for_task_completion"] is True
+
+    restored = CapabilityDeclaration.model_validate(d)
+    assert restored.cross_service_contract is not None
+    assert restored.cross_service_contract.handoff[0].target.service == "booking-service"
+
+
+def test_capability_declaration_cross_service_contract_none_by_default():
+    """cross_service_contract defaults to None."""
+    decl = CapabilityDeclaration(
+        name="test", description="Test", contract_version="1.0",
+        inputs=[], output=CapabilityOutput(type="object", fields=[]),
+        side_effect=SideEffect(type=SideEffectType.READ), minimum_scope=["test"],
+    )
+    assert decl.cross_service_contract is None
+
+
+# --- Resolution with recovery_target (v0.21) ---
+
+
+def test_resolution_with_recovery_target():
+    """recovery_target field appears in resolution output."""
+    ref = ServiceCapabilityRef(service="auth-service", capability="refresh_token")
+    rt = RecoveryTarget(
+        kind="refresh",
+        target=ref,
+        continuity="same_task",
+        retry_after_target=True,
+    )
+    resolution = Resolution(
+        action="refresh_token",
+        recovery_class="refresh_then_retry",
+        recovery_target=rt,
+    )
+    d = resolution.model_dump()
+    assert d["recovery_target"] is not None
+    assert d["recovery_target"]["kind"] == "refresh"
+    assert d["recovery_target"]["target"]["service"] == "auth-service"
+    assert d["recovery_target"]["retry_after_target"] is True
+
+    restored = Resolution.model_validate(d)
+    assert restored.recovery_target is not None
+    assert restored.recovery_target.kind == "refresh"
+    assert restored.recovery_target.retry_after_target is True
+
+
+def test_resolution_recovery_target_none_by_default():
+    """recovery_target defaults to None on Resolution."""
+    resolution = Resolution(action="request_broader_scope", recovery_class="redelegation_then_retry")
+    assert resolution.recovery_target is None
+
+
+def test_anip_failure_with_recovery_target_in_resolution():
+    """ANIPFailure carries recovery_target through resolution."""
+    ref = ServiceCapabilityRef(service="auth-service", capability="refresh_token")
+    rt = RecoveryTarget(kind="refresh", target=ref, continuity="same_task", retry_after_target=True)
+    resolution = Resolution(
+        action="refresh_token",
+        recovery_class="refresh_then_retry",
+        recovery_target=rt,
+    )
+    failure = ANIPFailure(
+        type="token_expired",
+        detail="Token has expired",
+        resolution=resolution,
+        retry=False,
+    )
+    d = failure.model_dump()
+    assert d["resolution"]["recovery_target"] is not None
+    assert d["resolution"]["recovery_target"]["kind"] == "refresh"
+    assert d["resolution"]["recovery_target"]["target"]["service"] == "auth-service"

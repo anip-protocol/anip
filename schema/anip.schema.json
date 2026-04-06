@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anip.dev/schema/v0.20/anip.schema.json",
+  "$id": "https://anip.dev/schema/v0.21/anip.schema.json",
   "title": "ANIP \u2014 Agent-Native Interface Protocol",
-  "description": "Canonical JSON Schema for all ANIP v0.20 types as defined in SPEC.md. Use these schemas to validate ANIP documents, responses, and delegation tokens.",
+  "description": "Canonical JSON Schema for all ANIP v0.21 types as defined in SPEC.md. Use these schemas to validate ANIP documents, responses, and delegation tokens.",
   "$defs": {
     "ServiceCapabilityRef": {
       "type": "object",
@@ -14,6 +14,110 @@
       "additionalProperties": false,
       "title": "ServiceCapabilityRef",
       "description": "A reference to a capability on another service. Advisory only — not resolvable by the protocol. See SPEC.md §4.1."
+    },
+    "Continuity": {
+      "enum": ["same_task"],
+      "title": "Continuity",
+      "type": "string",
+      "description": "Continuity expectation for cross-service or recovery steps. v0.21 vocabulary: same_task. See SPEC.md §4.1."
+    },
+    "CompletionMode": {
+      "enum": ["downstream_acceptance", "followup_status", "verification_result"],
+      "title": "CompletionMode",
+      "type": "string",
+      "description": "How completion is established for a cross-service contract entry. See SPEC.md §4.1."
+    },
+    "CrossServiceContractEntry": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/ServiceCapabilityRef",
+          "description": "The target capability on another service"
+        },
+        "required_for_task_completion": {
+          "type": "boolean",
+          "default": false,
+          "title": "Required For Task Completion",
+          "description": "Whether this step is required for the logical task to be considered complete"
+        },
+        "continuity": {
+          "$ref": "#/$defs/Continuity",
+          "description": "Continuity expectation for this adjacent step"
+        },
+        "completion_mode": {
+          "$ref": "#/$defs/CompletionMode",
+          "description": "How completion is established for this adjacent step"
+        }
+      },
+      "required": ["target", "continuity", "completion_mode"],
+      "additionalProperties": false,
+      "title": "CrossServiceContractEntry",
+      "description": "A single entry in a cross-service contract — describes an adjacent step with task-local semantics. See SPEC.md §4.1."
+    },
+    "CrossServiceContract": {
+      "type": "object",
+      "properties": {
+        "handoff": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/CrossServiceContractEntry"},
+          "default": [],
+          "title": "Handoff",
+          "description": "Adjacent capabilities that receive this capability's output for downstream processing"
+        },
+        "followup": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/CrossServiceContractEntry"},
+          "default": [],
+          "title": "Followup",
+          "description": "Adjacent capabilities for delayed or async status checking"
+        },
+        "verification": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/CrossServiceContractEntry"},
+          "default": [],
+          "title": "Verification",
+          "description": "Adjacent capabilities that verify this capability's side effects"
+        }
+      },
+      "additionalProperties": false,
+      "title": "CrossServiceContract",
+      "description": "Structured cross-service contract with task-local adjacent-step semantics. Stronger than advisory cross_service hints. See SPEC.md §4.1."
+    },
+    "RecoveryTargetKind": {
+      "enum": ["refresh", "redelegation", "revalidation", "escalation"],
+      "title": "RecoveryTargetKind",
+      "type": "string",
+      "description": "Kind of recovery step. See SPEC.md §4.5."
+    },
+    "RecoveryTarget": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/RecoveryTargetKind",
+          "description": "What kind of recovery step this is"
+        },
+        "target": {
+          "anyOf": [
+            {"$ref": "#/$defs/ServiceCapabilityRef"},
+            {"type": "null"}
+          ],
+          "default": null,
+          "description": "The specific capability to invoke for recovery. Omitted when recovery is local."
+        },
+        "continuity": {
+          "$ref": "#/$defs/Continuity",
+          "description": "Continuity expectation for this recovery step"
+        },
+        "retry_after_target": {
+          "type": "boolean",
+          "title": "Retry After Target",
+          "description": "Whether the original failed action should be retried after the recovery target succeeds"
+        }
+      },
+      "required": ["kind", "continuity", "retry_after_target"],
+      "additionalProperties": false,
+      "title": "RecoveryTarget",
+      "description": "Structured recovery target describing where and how recovery should proceed. See SPEC.md §4.5."
     },
     "ConcurrentBranches": {
       "enum": [
@@ -638,6 +742,15 @@
           "title": "Recovery Class",
           "description": "Coarse recovery strategy implied by the action. Advisory — does not override retry. See SPEC.md §4.5."
         },
+        "recovery_target": {
+          "anyOf": [
+            {"$ref": "#/$defs/RecoveryTarget"},
+            {"type": "null"}
+          ],
+          "default": null,
+          "title": "Recovery Target",
+          "description": "Structured recovery target (v0.21). Describes where and how recovery should proceed. Optional — additive to recovery_class. See SPEC.md §4.5."
+        },
         "requires": {
           "anyOf": [
             {
@@ -959,6 +1072,15 @@
           "default": null,
           "title": "Cross Service",
           "description": "Advisory cross-service capability hints. Not enforced by the protocol. See SPEC.md §4.1."
+        },
+        "cross_service_contract": {
+          "anyOf": [
+            {"$ref": "#/$defs/CrossServiceContract"},
+            {"type": "null"}
+          ],
+          "default": null,
+          "title": "Cross Service Contract",
+          "description": "Structured cross-service contract with task-local adjacent-step semantics (v0.21). Stronger than advisory cross_service hints. See SPEC.md §4.1."
         }
       },
       "required": [

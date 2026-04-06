@@ -54,4 +54,7 @@ public class Resolution
 
     [JsonPropertyName("estimated_availability")]
     public string? EstimatedAvailability { get; set; }
+
+    [JsonPropertyName("recovery_target")]
+    public RecoveryTarget? RecoveryTarget { get; set; }
 }

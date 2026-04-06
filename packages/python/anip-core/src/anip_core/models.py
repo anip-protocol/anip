@@ -93,6 +93,34 @@ class CrossServiceHints(BaseModel):
     followup_via: list[ServiceCapabilityRef] = Field(default_factory=list)
 
 
+# --- Cross-Service Contract (v0.21) ---
+
+
+class CrossServiceContractEntry(BaseModel):
+    target: ServiceCapabilityRef
+    required_for_task_completion: bool = False
+    continuity: Literal["same_task"] = "same_task"
+    completion_mode: Literal[
+        "downstream_acceptance", "followup_status", "verification_result"
+    ]
+
+
+class CrossServiceContract(BaseModel):
+    handoff: list[CrossServiceContractEntry] = Field(default_factory=list)
+    followup: list[CrossServiceContractEntry] = Field(default_factory=list)
+    verification: list[CrossServiceContractEntry] = Field(default_factory=list)
+
+
+# --- Recovery Target (v0.21) ---
+
+
+class RecoveryTarget(BaseModel):
+    kind: Literal["refresh", "redelegation", "revalidation", "escalation"]
+    target: ServiceCapabilityRef | None = None
+    continuity: Literal["same_task"] = "same_task"
+    retry_after_target: bool = False
+
+
 # --- Capability Declaration ---
 
 
@@ -196,6 +224,7 @@ class CapabilityDeclaration(BaseModel):
     refresh_via: list[str] = Field(default_factory=list)
     verify_via: list[str] = Field(default_factory=list)
     cross_service: CrossServiceHints | None = None
+    cross_service_contract: CrossServiceContract | None = None
 
 
 # --- Permission Discovery ---
@@ -237,6 +266,7 @@ class Resolution(BaseModel):
     requires: str | None = None
     grantable_by: str | None = None
     estimated_availability: str | None = None
+    recovery_target: RecoveryTarget | None = None
 
 
 class ANIPFailure(BaseModel):
@@ -365,7 +395,7 @@ class DiscoveryPosture(BaseModel):
 
 
 class ANIPManifest(BaseModel):
-    protocol: str = "anip/0.20"
+    protocol: str = "anip/0.21"
     profile: ProfileVersions
     capabilities: dict[str, CapabilityDeclaration]
     manifest_metadata: ManifestMetadata | None = None

@@ -23,13 +23,18 @@ import {
   RetentionTier,
   DisclosureLevel,
   CheckpointDetailResponse,
+  CrossServiceContract,
+  CrossServiceContractEntry,
+  RecoveryTarget,
+  Resolution,
+  ServiceCapabilityRef,
 } from "../src/index.js";
 
 describe("Protocol constants", () => {
   it("exports correct protocol version", () => {
     // Intentionally hardcoded — this is the one place that verifies the constant value.
     // Update this when bumping the protocol version.
-    expect(PROTOCOL_VERSION).toBe("anip/0.20");
+    expect(PROTOCOL_VERSION).toBe("anip/0.21");
   });
 });
 
@@ -488,5 +493,216 @@ describe("CheckpointDetailResponse", () => {
       expires_hint: "2026-04-01T00:00:00Z",
     });
     expect(resp.expires_hint).toBe("2026-04-01T00:00:00Z");
+  });
+});
+
+// --- CrossServiceContract model round-trip (v0.21) ---
+
+describe("CrossServiceContractEntry", () => {
+  it("parses a valid entry with all fields", () => {
+    const result = CrossServiceContractEntry.safeParse({
+      target: { service: "booking-service", capability: "confirm_booking" },
+      required_for_task_completion: true,
+      continuity: "same_task",
+      completion_mode: "downstream_acceptance",
+    });
+    expect(result.success).toBe(true);
+    expect(result.data!.target.service).toBe("booking-service");
+    expect(result.data!.required_for_task_completion).toBe(true);
+    expect(result.data!.completion_mode).toBe("downstream_acceptance");
+  });
+
+  it("defaults required_for_task_completion to false", () => {
+    const result = CrossServiceContractEntry.parse({
+      target: { service: "svc", capability: "cap" },
+      completion_mode: "followup_status",
+    });
+    expect(result.required_for_task_completion).toBe(false);
+  });
+
+  it("defaults continuity to same_task", () => {
+    const result = CrossServiceContractEntry.parse({
+      target: { service: "svc", capability: "cap" },
+      completion_mode: "verification_result",
+    });
+    expect(result.continuity).toBe("same_task");
+  });
+
+  it("rejects invalid completion_mode", () => {
+    const result = CrossServiceContractEntry.safeParse({
+      target: { service: "svc", capability: "cap" },
+      completion_mode: "invalid_mode",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("CrossServiceContract", () => {
+  it("defaults to empty arrays", () => {
+    const contract = CrossServiceContract.parse({});
+    expect(contract.handoff).toEqual([]);
+    expect(contract.followup).toEqual([]);
+    expect(contract.verification).toEqual([]);
+  });
+
+  it("roundtrips with handoff entry", () => {
+    const input = {
+      handoff: [
+        {
+          target: { service: "booking-service", capability: "confirm_booking" },
+          required_for_task_completion: true,
+          completion_mode: "downstream_acceptance",
+        },
+      ],
+    };
+    const contract = CrossServiceContract.parse(input);
+    expect(contract.handoff).toHaveLength(1);
+    expect(contract.handoff[0].target.service).toBe("booking-service");
+    expect(contract.handoff[0].required_for_task_completion).toBe(true);
+  });
+
+  it("roundtrips with verification entry", () => {
+    const contract = CrossServiceContract.parse({
+      verification: [
+        {
+          target: { service: "verify-svc", capability: "verify_identity" },
+          completion_mode: "verification_result",
+        },
+      ],
+    });
+    expect(contract.verification[0].completion_mode).toBe("verification_result");
+  });
+});
+
+// --- RecoveryTarget model round-trip (v0.21) ---
+
+describe("RecoveryTarget", () => {
+  it("parses all valid kind values", () => {
+    for (const kind of ["refresh", "redelegation", "revalidation", "escalation"] as const) {
+      const rt = RecoveryTarget.parse({ kind });
+      expect(rt.kind).toBe(kind);
+    }
+  });
+
+  it("rejects invalid kind", () => {
+    const result = RecoveryTarget.safeParse({ kind: "invalid_kind" });
+    expect(result.success).toBe(false);
+  });
+
+  it("defaults continuity to same_task", () => {
+    const rt = RecoveryTarget.parse({ kind: "refresh" });
+    expect(rt.continuity).toBe("same_task");
+  });
+
+  it("defaults retry_after_target to false", () => {
+    const rt = RecoveryTarget.parse({ kind: "refresh" });
+    expect(rt.retry_after_target).toBe(false);
+  });
+
+  it("defaults target to null", () => {
+    const rt = RecoveryTarget.parse({ kind: "escalation" });
+    expect(rt.target).toBeNull();
+  });
+
+  it("roundtrips with target service ref", () => {
+    const input = {
+      kind: "refresh",
+      target: { service: "auth-service", capability: "refresh_token" },
+      continuity: "same_task",
+      retry_after_target: true,
+    };
+    const rt = RecoveryTarget.parse(input);
+    expect(rt.target?.service).toBe("auth-service");
+    expect(rt.target?.capability).toBe("refresh_token");
+    expect(rt.retry_after_target).toBe(true);
+  });
+});
+
+// --- CapabilityDeclaration with cross_service_contract (v0.21) ---
+
+describe("CapabilityDeclaration with cross_service_contract", () => {
+  const baseDecl = {
+    name: "search_flights",
+    description: "Search for flights",
+    inputs: [],
+    output: { type: "object", fields: ["flights"] },
+    side_effect: { type: "read" },
+    minimum_scope: ["travel.search"],
+  };
+
+  it("defaults cross_service_contract to undefined when omitted", () => {
+    const decl = CapabilityDeclaration.parse(baseDecl);
+    expect(decl.cross_service_contract).toBeUndefined();
+  });
+
+  it("accepts cross_service_contract with handoff entries", () => {
+    const decl = CapabilityDeclaration.parse({
+      ...baseDecl,
+      cross_service_contract: {
+        handoff: [
+          {
+            target: { service: "booking-service", capability: "confirm_booking" },
+            required_for_task_completion: true,
+            completion_mode: "downstream_acceptance",
+          },
+        ],
+      },
+    });
+    expect(decl.cross_service_contract).not.toBeNull();
+    expect(decl.cross_service_contract!.handoff).toHaveLength(1);
+    expect(decl.cross_service_contract!.handoff[0].target.service).toBe("booking-service");
+    expect(decl.cross_service_contract!.handoff[0].required_for_task_completion).toBe(true);
+  });
+});
+
+// --- Resolution with recovery_target (v0.21) ---
+
+describe("Resolution with recovery_target", () => {
+  it("defaults recovery_target to undefined when omitted", () => {
+    const res = Resolution.parse({
+      action: "request_broader_scope",
+      recovery_class: "redelegation_then_retry",
+    });
+    expect(res.recovery_target).toBeUndefined();
+  });
+
+  it("roundtrips recovery_target", () => {
+    const res = Resolution.parse({
+      action: "refresh_token",
+      recovery_class: "refresh_then_retry",
+      recovery_target: {
+        kind: "refresh",
+        target: { service: "auth-service", capability: "refresh_token" },
+        retry_after_target: true,
+      },
+    });
+    expect(res.recovery_target).not.toBeNull();
+    expect(res.recovery_target!.kind).toBe("refresh");
+    expect(res.recovery_target!.target?.service).toBe("auth-service");
+    expect(res.recovery_target!.retry_after_target).toBe(true);
+  });
+});
+
+// --- ANIPFailure carries recovery_target through resolution (v0.21) ---
+
+describe("ANIPFailure with recovery_target in resolution", () => {
+  it("carries recovery_target end-to-end", () => {
+    const failure = ANIPFailure.parse({
+      type: "token_expired",
+      detail: "Token has expired",
+      resolution: {
+        action: "refresh_token",
+        recovery_class: "refresh_then_retry",
+        recovery_target: {
+          kind: "refresh",
+          target: { service: "auth-service", capability: "refresh_token" },
+          retry_after_target: true,
+        },
+      },
+      retry: false,
+    });
+    expect(failure.resolution.recovery_target).not.toBeNull();
+    expect(failure.resolution.recovery_target!.kind).toBe("refresh");
+    expect(failure.resolution.recovery_target!.target?.service).toBe("auth-service");
   });
 });

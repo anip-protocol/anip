@@ -286,8 +286,8 @@ func TestANIPErrorJSON(t *testing.T) {
 func TestProtocolVersion(t *testing.T) {
 	// Intentionally hardcoded — this is the one place that verifies the constant value.
 	// Update this when bumping the protocol version.
-	if ProtocolVersion != "anip/0.20" {
-		t.Errorf("expected protocol version %q, got %q", "anip/0.20", ProtocolVersion)
+	if ProtocolVersion != "anip/0.21" {
+		t.Errorf("expected protocol version %q, got %q", "anip/0.21", ProtocolVersion)
 	}
 }
 
@@ -360,5 +360,239 @@ func TestTokenResponseJSON(t *testing.T) {
 	}
 	if _, ok := raw["token_id"]; !ok {
 		t.Error("expected JSON field 'token_id'")
+	}
+}
+
+// --- CrossServiceContract model round-trip (v0.21) ---
+
+func TestCrossServiceContractJSON(t *testing.T) {
+	target := ServiceCapabilityRef{Service: "booking-service", Capability: "confirm_booking"}
+	entry := CrossServiceContractEntry{
+		Target:                    target,
+		RequiredForTaskCompletion: true,
+		Continuity:                "same_task",
+		CompletionMode:            "downstream_acceptance",
+	}
+	contract := CrossServiceContract{
+		Handoff: []CrossServiceContractEntry{entry},
+	}
+
+	data, err := json.Marshal(contract)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var decoded CrossServiceContract
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(decoded.Handoff) != 1 {
+		t.Fatalf("expected 1 handoff entry, got %d", len(decoded.Handoff))
+	}
+	if decoded.Handoff[0].Target.Service != "booking-service" {
+		t.Errorf("expected target.service %q, got %q", "booking-service", decoded.Handoff[0].Target.Service)
+	}
+	if decoded.Handoff[0].Target.Capability != "confirm_booking" {
+		t.Errorf("expected target.capability %q, got %q", "confirm_booking", decoded.Handoff[0].Target.Capability)
+	}
+	if !decoded.Handoff[0].RequiredForTaskCompletion {
+		t.Error("expected required_for_task_completion to be true")
+	}
+	if decoded.Handoff[0].Continuity != "same_task" {
+		t.Errorf("expected continuity %q, got %q", "same_task", decoded.Handoff[0].Continuity)
+	}
+	if decoded.Handoff[0].CompletionMode != "downstream_acceptance" {
+		t.Errorf("expected completion_mode %q, got %q", "downstream_acceptance", decoded.Handoff[0].CompletionMode)
+	}
+
+	// Verify JSON field names are snake_case.
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := raw["handoff"]; !ok {
+		t.Error("expected JSON field 'handoff'")
+	}
+}
+
+// --- RecoveryTarget model round-trip (v0.21) ---
+
+func TestRecoveryTargetJSON(t *testing.T) {
+	target := &ServiceCapabilityRef{Service: "auth-service", Capability: "refresh_token"}
+	rt := RecoveryTarget{
+		Kind:             "refresh",
+		Target:           target,
+		Continuity:       "same_task",
+		RetryAfterTarget: true,
+	}
+
+	data, err := json.Marshal(rt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var decoded RecoveryTarget
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatal(err)
+	}
+
+	if decoded.Kind != "refresh" {
+		t.Errorf("expected kind %q, got %q", "refresh", decoded.Kind)
+	}
+	if decoded.Target == nil {
+		t.Fatal("expected target to be non-nil")
+	}
+	if decoded.Target.Service != "auth-service" {
+		t.Errorf("expected target.service %q, got %q", "auth-service", decoded.Target.Service)
+	}
+	if decoded.Continuity != "same_task" {
+		t.Errorf("expected continuity %q, got %q", "same_task", decoded.Continuity)
+	}
+	if !decoded.RetryAfterTarget {
+		t.Error("expected retry_after_target to be true")
+	}
+
+	// Verify JSON field names.
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := raw["kind"]; !ok {
+		t.Error("expected JSON field 'kind'")
+	}
+	if _, ok := raw["retry_after_target"]; !ok {
+		t.Error("expected JSON field 'retry_after_target'")
+	}
+}
+
+func TestRecoveryTargetNullTarget(t *testing.T) {
+	rt := RecoveryTarget{
+		Kind:       "escalation",
+		Continuity: "same_task",
+	}
+
+	data, err := json.Marshal(rt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var decoded RecoveryTarget
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatal(err)
+	}
+
+	if decoded.Kind != "escalation" {
+		t.Errorf("expected kind %q, got %q", "escalation", decoded.Kind)
+	}
+	if decoded.Target != nil {
+		t.Error("expected target to be nil")
+	}
+}
+
+// --- CapabilityDeclaration with cross_service_contract (v0.21) ---
+
+func TestCapabilityDeclarationWithCrossServiceContract(t *testing.T) {
+	target := ServiceCapabilityRef{Service: "booking-service", Capability: "confirm_booking"}
+	entry := CrossServiceContractEntry{
+		Target:                    target,
+		RequiredForTaskCompletion: true,
+		Continuity:                "same_task",
+		CompletionMode:            "downstream_acceptance",
+	}
+	contract := &CrossServiceContract{
+		Handoff: []CrossServiceContractEntry{entry},
+	}
+	cap := CapabilityDeclaration{
+		Name:                 "search_flights",
+		Description:          "Search for flights",
+		ContractVersion:      "1.0",
+		Inputs:               []CapabilityInput{},
+		Output:               CapabilityOutput{Type: "object", Fields: []string{"flights"}},
+		SideEffect:           SideEffect{Type: "read", RollbackWindow: "not_applicable"},
+		MinimumScope:         []string{"travel.search"},
+		ResponseModes:        []string{"unary"},
+		CrossServiceContract: contract,
+	}
+
+	data, err := json.Marshal(cap)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var decoded CapabilityDeclaration
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatal(err)
+	}
+
+	if decoded.CrossServiceContract == nil {
+		t.Fatal("expected cross_service_contract to be non-nil")
+	}
+	if len(decoded.CrossServiceContract.Handoff) != 1 {
+		t.Fatalf("expected 1 handoff entry, got %d", len(decoded.CrossServiceContract.Handoff))
+	}
+	if decoded.CrossServiceContract.Handoff[0].Target.Service != "booking-service" {
+		t.Errorf("expected target.service %q, got %q", "booking-service", decoded.CrossServiceContract.Handoff[0].Target.Service)
+	}
+
+	// Verify cross_service_contract appears in JSON.
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := raw["cross_service_contract"]; !ok {
+		t.Error("expected JSON field 'cross_service_contract'")
+	}
+}
+
+// --- Resolution with recovery_target (v0.21) ---
+
+func TestResolutionWithRecoveryTargetJSON(t *testing.T) {
+	target := &ServiceCapabilityRef{Service: "auth-service", Capability: "refresh_token"}
+	rt := &RecoveryTarget{
+		Kind:             "refresh",
+		Target:           target,
+		Continuity:       "same_task",
+		RetryAfterTarget: true,
+	}
+	res := Resolution{
+		Action:         "refresh_token",
+		RecoveryClass:  "refresh_then_retry",
+		RecoveryTarget: rt,
+	}
+
+	data, err := json.Marshal(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var decoded Resolution
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatal(err)
+	}
+
+	if decoded.RecoveryTarget == nil {
+		t.Fatal("expected recovery_target to be non-nil")
+	}
+	if decoded.RecoveryTarget.Kind != "refresh" {
+		t.Errorf("expected recovery_target.kind %q, got %q", "refresh", decoded.RecoveryTarget.Kind)
+	}
+	if decoded.RecoveryTarget.Target == nil {
+		t.Fatal("expected recovery_target.target to be non-nil")
+	}
+	if decoded.RecoveryTarget.Target.Service != "auth-service" {
+		t.Errorf("expected recovery_target.target.service %q, got %q", "auth-service", decoded.RecoveryTarget.Target.Service)
+	}
+	if !decoded.RecoveryTarget.RetryAfterTarget {
+		t.Error("expected retry_after_target to be true")
+	}
+
+	// Verify JSON field names.
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := raw["recovery_target"]; !ok {
+		t.Error("expected JSON field 'recovery_target'")
 	}
 }
