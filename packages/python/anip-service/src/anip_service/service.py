@@ -10,7 +10,7 @@ import socket
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Awaitable, Callable, Literal
+from typing import Any, Awaitable, Callable, Literal, cast
 
 from anip_core import (
     ANIPFailure,
@@ -355,9 +355,9 @@ class ANIPService:
         if self._authenticate:
             result = self._authenticate(bearer_value)
             if inspect.isawaitable(result):
-                principal = await result
+                principal: str | None = await result
             else:
-                principal = result
+                principal = cast("str | None", result)
             if principal is not None:
                 return principal
 
