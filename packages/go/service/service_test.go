@@ -1618,3 +1618,71 @@ func TestShutdownIdempotent(t *testing.T) {
 		t.Fatalf("second Shutdown() error: %v", err)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// IssueCapabilityToken
+// ---------------------------------------------------------------------------
+
+func TestIssueCapabilityToken(t *testing.T) {
+	svc := newTestService()
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	resp, err := svc.IssueCapabilityToken(
+		"human:test@example.com",
+		"search_flights",
+		[]string{"travel.search"},
+	)
+	if err != nil {
+		t.Fatalf("IssueCapabilityToken() error: %v", err)
+	}
+	if !resp.Issued {
+		t.Fatal("expected issued=true")
+	}
+	if resp.Token == "" {
+		t.Fatal("expected non-empty token")
+	}
+	if resp.TokenID == "" {
+		t.Fatal("expected non-empty token_id")
+	}
+
+	// Resolve and verify capability binding.
+	token, err := svc.ResolveBearerToken(resp.Token)
+	if err != nil {
+		t.Fatalf("ResolveBearerToken() error: %v", err)
+	}
+	if token.Subject != "human:test@example.com" {
+		t.Fatalf("expected subject 'human:test@example.com', got %q", token.Subject)
+	}
+	if token.Purpose.Capability != "search_flights" {
+		t.Fatalf("expected capability 'search_flights', got %q", token.Purpose.Capability)
+	}
+}
+
+func TestIssueCapabilityTokenWithOptions(t *testing.T) {
+	svc := newTestService()
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	resp, err := svc.IssueCapabilityToken(
+		"human:test@example.com",
+		"search_flights",
+		[]string{"travel.search"},
+		WithTTL(4),
+		WithPurposeParameters(map[string]any{"task_id": "task-123"}),
+		WithBudget(&core.Budget{Currency: "USD", MaxAmount: 100}),
+	)
+	if err != nil {
+		t.Fatalf("IssueCapabilityToken() error: %v", err)
+	}
+	if !resp.Issued {
+		t.Fatal("expected issued=true")
+	}
+	if resp.Budget == nil {
+		t.Fatal("expected budget to be echoed")
+	}
+}

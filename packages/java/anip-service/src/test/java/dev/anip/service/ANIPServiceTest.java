@@ -2,6 +2,7 @@ package dev.anip.service;
 
 import dev.anip.core.ANIPError;
 import dev.anip.core.AuditFilters;
+import dev.anip.core.Budget;
 import dev.anip.core.AuditResponse;
 import dev.anip.core.CapabilityDeclaration;
 import dev.anip.core.CapabilityInput;
@@ -718,5 +719,39 @@ class ANIPServiceTest {
         );
         TokenResponse resp = svc.issueToken("user@test.com", req);
         return svc.resolveBearerToken(resp.getToken());
+    }
+
+    // --- issueCapabilityToken ---
+
+    @Test
+    void testIssueCapabilityToken() throws Exception {
+        TokenResponse resp = service.issueCapabilityToken(
+                "user@test.com", "search_flights", List.of("travel"));
+        assertTrue(resp.isIssued());
+        assertNotNull(resp.getTokenId());
+        assertNotNull(resp.getToken());
+
+        // Resolve and verify capability binding.
+        DelegationToken token = service.resolveBearerToken(resp.getToken());
+        assertEquals("user@test.com", token.getSubject());
+        assertEquals("search_flights", token.getPurpose().getCapability());
+    }
+
+    @Test
+    void testIssueCapabilityTokenFull() throws Exception {
+        TokenResponse resp = service.issueCapabilityToken(
+                "user@test.com", "search_flights", List.of("travel"),
+                Map.of("task_id", "task-123"), 4,
+                new Budget("USD", 100.0));
+        assertTrue(resp.isIssued());
+        assertNotNull(resp.getTokenId());
+    }
+
+    @Test
+    void testIssueCapabilityTokenScopeIsExplicit() throws Exception {
+        // Scope that differs from capability name — should still work.
+        TokenResponse resp = service.issueCapabilityToken(
+                "user@test.com", "search_flights", List.of("custom.scope"));
+        assertTrue(resp.isIssued());
     }
 }

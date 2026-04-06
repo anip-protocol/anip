@@ -611,3 +611,63 @@ describe("ANIPService async handler", () => {
     expect((result.result as Record<string, any>).ok).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// issueCapabilityToken
+// ---------------------------------------------------------------------------
+
+describe("ANIPService issueCapabilityToken", () => {
+  it("issues a root token bound to a capability", async () => {
+    const { service } = makeService();
+    await service.start();
+
+    const resp = (await service.issueCapabilityToken(
+      "human:alice@example.com",
+      "greet",
+      ["greet"],
+    )) as Record<string, any>;
+
+    expect(resp.issued).toBe(true);
+    expect(resp.token_id).toBeDefined();
+    expect(resp.token).toBeDefined();
+    expect(resp.expires).toBeDefined();
+
+    // Resolve the token and check capability binding.
+    const resolved = await service.resolveBearerToken(resp.token);
+    expect(resolved.subject).toBe("human:alice@example.com");
+    expect(resolved.purpose?.capability).toBe("greet");
+  });
+
+  it("passes optional parameters through", async () => {
+    const { service } = makeService();
+    await service.start();
+
+    const resp = (await service.issueCapabilityToken(
+      "human:bob@example.com",
+      "greet",
+      ["greet"],
+      {
+        purposeParameters: { task_id: "task-123" },
+        ttlHours: 4,
+        budget: { currency: "USD", max_amount: 50 },
+      },
+    )) as Record<string, any>;
+
+    expect(resp.issued).toBe(true);
+    expect(resp.token_id).toBeDefined();
+  });
+
+  it("scope must be explicit (not derived from capability)", async () => {
+    const { service } = makeService();
+    await service.start();
+
+    // Use a scope that differs from the capability name.
+    const resp = (await service.issueCapabilityToken(
+      "human:carol@example.com",
+      "greet",
+      ["custom.scope"],
+    )) as Record<string, any>;
+
+    expect(resp.issued).toBe(true);
+  });
+});

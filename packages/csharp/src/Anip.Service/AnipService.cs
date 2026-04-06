@@ -171,6 +171,12 @@ public class AnipService : IDisposable
     /// Tries bootstrap authentication only (API keys, external auth).
     /// Returns the principal string or null.
     /// </summary>
+    /// <remarks>
+    /// The authentication hook is intentionally synchronous — it is called
+    /// directly in the request path.  If your authentication requires async I/O,
+    /// perform it before registering the hook or use a caching wrapper.
+    /// C# does not support async hooks in this path.
+    /// </remarks>
     public string? AuthenticateBearer(string bearer)
     {
         return _authenticate?.Invoke(bearer);
@@ -216,6 +222,36 @@ public class AnipService : IDisposable
         }
 
         return resp;
+    }
+
+    /// <summary>
+    /// Issue a root token pre-bound to a specific capability.
+    /// For delegation flows (parentToken, subject, callerClass), use
+    /// <see cref="IssueToken"/> directly.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="scope"/> must be explicitly provided — capability names
+    /// and scope strings are different things.
+    /// Delegation helper ergonomics are deferred to v0.21.
+    /// </remarks>
+    public TokenResponse IssueCapabilityToken(
+        string principal,
+        string capability,
+        List<string> scope,
+        Dictionary<string, object>? purposeParameters = null,
+        int ttlHours = 2,
+        Budget? budget = null)
+    {
+        var request = new TokenRequest
+        {
+            Subject = principal,
+            Capability = capability,
+            Scope = scope,
+            PurposeParameters = purposeParameters,
+            TtlHours = ttlHours,
+            Budget = budget,
+        };
+        return IssueToken(principal, request);
     }
 
     // --- Discovery ---

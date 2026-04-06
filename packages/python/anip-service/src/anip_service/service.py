@@ -122,7 +122,7 @@ class ANIPService:
         trust: str | dict[str, Any] = "signed",
         checkpoint_policy: CheckpointPolicy | None = None,
         audit_signer: Any | None = None,
-        authenticate: Callable[[str], str | None] | None = None,
+        authenticate: Callable[[str], str | None | Awaitable[str | None]] | None = None,
         retention_policy: RetentionPolicy | None = None,
         disclosure_level: Literal["full", "reduced", "redacted", "policy"] = "full",
         disclosure_policy: dict[str, str] | None = None,
@@ -351,9 +351,16 @@ class ANIPService:
 
         Returns the principal string, or None if unauthenticated.
         """
-        # Try bootstrap auth (API keys, external auth)
+        # Try bootstrap auth (API keys, external auth).
+        # Supports both sync and async hooks: if the hook returns a coroutine,
+        # we await it; otherwise we use the value directly.
         if self._authenticate:
-            principal = self._authenticate(bearer_value)
+            result = self._authenticate(bearer_value)
+            if inspect.isawaitable(result):
+                principal = await result
+            else:
+                from typing import cast
+                principal = cast("str | None", result)
             if principal is not None:
                 return principal
 
@@ -540,6 +547,39 @@ class ANIPService:
             response["budget"] = token.constraints.budget.model_dump()
 
         return response
+
+    async def issue_capability_token(
+        self,
+        principal: str,
+        capability: str,
+        scope: list[str],
+        *,
+        purpose_parameters: dict[str, Any] | None = None,
+        ttl_hours: int = 2,
+        budget: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Issue a root token pre-bound to a specific capability.
+
+        ``scope`` must be explicitly provided -- capability names and scope
+        strings are different things (e.g. capability ``evaluate_service_design``
+        may need scope ``studio.workbench.evaluate_service_design``).
+
+        This helper covers **root issuance only**.  For delegation flows
+        (``parent_token``, non-default ``subject``, ``caller_class``), use
+        :meth:`issue_token` directly until ``parent_token`` semantics are
+        resolved across runtimes (deferred to v0.21).
+        """
+        request: dict[str, Any] = {
+            "subject": principal,
+            "capability": capability,
+            "scope": scope,
+            "ttl_hours": ttl_hours,
+        }
+        if purpose_parameters is not None:
+            request["purpose_parameters"] = purpose_parameters
+        if budget is not None:
+            request["budget"] = budget
+        return await self.issue_token(principal, request)
 
     def discover_permissions(self, token: DelegationToken) -> PermissionResponse:
         """Return the permissions granted by a token."""

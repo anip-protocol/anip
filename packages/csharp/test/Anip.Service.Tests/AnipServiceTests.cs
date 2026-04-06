@@ -348,6 +348,48 @@ public class AnipServiceTests : IDisposable
         Assert.Null(decl);
     }
 
+    // --- IssueCapabilityToken ---
+
+    [Fact]
+    public void IssueCapabilityToken_IssuesRootToken()
+    {
+        var resp = _service.IssueCapabilityToken(
+            _principal, "echo", new List<string> { "data" });
+
+        Assert.True(resp.Issued);
+        Assert.NotEmpty(resp.TokenId);
+        Assert.NotEmpty(resp.Token);
+        Assert.NotEmpty(resp.Expires);
+
+        // Resolve and verify capability binding.
+        var resolved = _service.ResolveBearerToken(resp.Token);
+        Assert.Equal(_principal, resolved.Subject);
+        Assert.Equal("echo", resolved.Purpose?.Capability);
+    }
+
+    [Fact]
+    public void IssueCapabilityToken_WithOptionalParams()
+    {
+        var resp = _service.IssueCapabilityToken(
+            _principal, "echo", new List<string> { "data" },
+            purposeParameters: new Dictionary<string, object> { ["task_id"] = "task-123" },
+            ttlHours: 4,
+            budget: new Budget { Currency = "USD", MaxAmount = 100 });
+
+        Assert.True(resp.Issued);
+        Assert.NotEmpty(resp.TokenId);
+    }
+
+    [Fact]
+    public void IssueCapabilityToken_ScopeIsExplicit()
+    {
+        // Scope that differs from capability name should still work.
+        var resp = _service.IssueCapabilityToken(
+            _principal, "echo", new List<string> { "custom.scope" });
+
+        Assert.True(resp.Issued);
+    }
+
     // --- Helpers ---
 
     private string IssueTestToken(params string[] scopes)
