@@ -630,9 +630,9 @@ describe("CapabilityDeclaration with cross_service_contract", () => {
     minimum_scope: ["travel.search"],
   };
 
-  it("defaults cross_service_contract to null", () => {
+  it("defaults cross_service_contract to undefined when omitted", () => {
     const decl = CapabilityDeclaration.parse(baseDecl);
-    expect(decl.cross_service_contract).toBeNull();
+    expect(decl.cross_service_contract).toBeUndefined();
   });
 
   it("accepts cross_service_contract with handoff entries", () => {
@@ -658,12 +658,12 @@ describe("CapabilityDeclaration with cross_service_contract", () => {
 // --- Resolution with recovery_target (v0.21) ---
 
 describe("Resolution with recovery_target", () => {
-  it("defaults recovery_target to null", () => {
+  it("defaults recovery_target to undefined when omitted", () => {
     const res = Resolution.parse({
       action: "request_broader_scope",
       recovery_class: "redelegation_then_retry",
     });
-    expect(res.recovery_target).toBeNull();
+    expect(res.recovery_target).toBeUndefined();
   });
 
   it("roundtrips recovery_target", () => {

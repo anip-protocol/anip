@@ -240,7 +240,7 @@ export const CapabilityDeclaration = z.object({
   refresh_via: z.array(z.string()).default([]),
   verify_via: z.array(z.string()).default([]),
   cross_service: CrossServiceHints.nullable().default(null),
-  cross_service_contract: CrossServiceContract.nullable().default(null),
+  cross_service_contract: CrossServiceContract.nullable().optional(),
 });
 export type CapabilityDeclaration = z.infer<typeof CapabilityDeclaration>;
 
@@ -289,7 +289,7 @@ export const Resolution = z.object({
   requires: z.string().nullable().default(null),
   grantable_by: z.string().nullable().default(null),
   estimated_availability: z.string().nullable().default(null),
-  recovery_target: RecoveryTarget.nullable().default(null),
+  recovery_target: RecoveryTarget.nullable().optional(),
 });
 export type Resolution = z.infer<typeof Resolution>;
 
