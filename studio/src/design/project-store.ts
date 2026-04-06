@@ -9,6 +9,7 @@ import type {
   ShapeRecord,
   EvaluationRecord,
   VocabularyEntry,
+  PendingIntentDraft,
 } from './project-types'
 import {
   listWorkspaces,
@@ -20,7 +21,6 @@ import {
   listShapes,
   listEvaluations,
   listVocabulary,
-  seedDatabase,
 } from './project-api'
 import { designStore } from './store'
 import { hydrateAnswersFromArtifact } from './guided/mappings'
@@ -49,6 +49,7 @@ interface ProjectState {
   activeScenarioId: string | null
   activeProposalId: string | null
   activeShapeId: string | null
+  pendingIntentDraft: PendingIntentDraft | null
   loading: boolean
   error: string | null
   dbAvailable: boolean
@@ -71,6 +72,7 @@ export const projectStore = reactive<ProjectState>({
   activeScenarioId: null,
   activeProposalId: null,
   activeShapeId: null,
+  pendingIntentDraft: null,
   loading: false,
   error: null,
   dbAvailable: false,
@@ -291,6 +293,10 @@ export function setActiveShape(id: string | null): void {
   projectStore.activeShapeId = id
 }
 
+export function setPendingIntentDraft(draft: PendingIntentDraft | null): void {
+  projectStore.pendingIntentDraft = draft
+}
+
 /**
  * Handoff: hydrate the design store's draft state from a project artifact record.
  *
@@ -308,6 +314,7 @@ export function openArtifactForEditing(
   const data = record.data ?? {}
 
   if (artifactType === 'requirements') {
+    designStore.activeArtifact = 'requirements'
     designStore.draftScenario = null
     designStore.originalScenario = null
     designStore.draftDeclaredSurfaces = null
@@ -322,6 +329,7 @@ export function openArtifactForEditing(
     // Update active context
     projectStore.activeRequirementsId = record.id
   } else if (artifactType === 'scenario') {
+    designStore.activeArtifact = 'scenario'
     designStore.draftRequirements = null
     designStore.originalRequirements = null
     designStore.draftDeclaredSurfaces = null
@@ -335,6 +343,7 @@ export function openArtifactForEditing(
     designStore.editState = 'draft'
     projectStore.activeScenarioId = record.id
   } else if (artifactType === 'proposal') {
+    designStore.activeArtifact = 'proposal'
     designStore.draftRequirements = null
     designStore.originalRequirements = null
     designStore.draftScenario = null
@@ -359,20 +368,6 @@ export function openArtifactForEditing(
   designStore.liveEvaluation = null
 }
 
-/** Seed the database from example packs, then reload the project list. */
-export async function seedDb(): Promise<void> {
-  setLoading(true)
-  clearError()
-  try {
-    await seedDatabase()
-    await loadProjects()
-  } catch (err) {
-    setError(err)
-  } finally {
-    setLoading(false)
-  }
-}
-
 /**
  * Reset all project-scoped state.
  *
@@ -391,6 +386,7 @@ export function clearProject(): void {
   projectStore.activeScenarioId = null
   projectStore.activeProposalId = null
   projectStore.activeShapeId = null
+  projectStore.pendingIntentDraft = null
 }
 
 export function setActiveWorkspace(workspace: WorkspaceDetail | null): void {

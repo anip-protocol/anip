@@ -1,5 +1,5 @@
 import { reactive, watch } from 'vue'
-import type { DesignPack, PackMeta, Evaluation, DeclaredSurfaces, EditState, ValidationError } from './types'
+import type { Evaluation, DeclaredSurfaces, EditState, ValidationError } from './types'
 import type { RequirementsMode } from './types'
 import type { ScenarioMode } from './types'
 import type { CompletenessHint } from './guided/types'
@@ -7,13 +7,10 @@ import { hydrateAnswersFromArtifact, applyAnswerToArtifact } from './guided/mapp
 import { evaluateCompleteness } from './guided/hints'
 import { hydrateScenarioAnswers, applyScenarioAnswer } from './guided/scenario-mappings'
 import { evaluateScenarioCompleteness } from './guided/scenario-hints'
-import { PACKS } from './data/packs.generated'
-import { runValidation, checkHealth } from './api'
+import { checkHealth } from './api'
 import { validateProposal, validateRequirements, validateScenario } from './schemas'
 
 interface DesignState {
-  packs: DesignPack[]
-  activePackId: string | null
   liveEvaluation: Evaluation | null
   validating: boolean
   validationError: string | null
@@ -33,11 +30,10 @@ interface DesignState {
   scenarioMode: ScenarioMode
   guidedScenarioAnswers: Record<string, any>
   scenarioHints: CompletenessHint[]
+  activeArtifact: 'requirements' | 'scenario' | 'proposal' | null
 }
 
 export const designStore = reactive<DesignState>({
-  packs: PACKS,
-  activePackId: null,
   liveEvaluation: null,
   validating: false,
   validationError: null,
@@ -57,45 +53,8 @@ export const designStore = reactive<DesignState>({
   scenarioMode: 'guided',
   guidedScenarioAnswers: {},
   scenarioHints: [],
+  activeArtifact: null,
 })
-
-export function getActivePack(): DesignPack | null {
-  if (!designStore.activePackId) return null
-  return designStore.packs.find(p => p.meta.id === designStore.activePackId) ?? null
-}
-
-export function setActivePack(id: string) {
-  designStore.activePackId = id
-  // Clear live evaluation when switching packs
-  designStore.liveEvaluation = null
-  designStore.validationError = null
-}
-
-export function getPackMetas(): PackMeta[] {
-  return designStore.packs.map(p => p.meta)
-}
-
-export async function runLiveValidation(): Promise<void> {
-  const pack = getActivePack()
-  if (!pack) return
-
-  designStore.validating = true
-  designStore.validationError = null
-  try {
-    // Use draft state when editing, otherwise use original pack data
-    const requirements = designStore.draftRequirements ?? pack.requirements
-    const scenario = designStore.draftScenario ?? pack.scenario
-    const proposal = composeDraftProposal() ?? pack.proposal
-    if (!proposal) return
-
-    const result = await runValidation(requirements, proposal, scenario)
-    designStore.liveEvaluation = result
-  } catch (err: any) {
-    designStore.validationError = err.message ?? 'Unknown error'
-  } finally {
-    designStore.validating = false
-  }
-}
 
 export async function checkApiAvailability(): Promise<void> {
   designStore.apiAvailable = await checkHealth()
@@ -122,30 +81,26 @@ function deepClone<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj))
 }
 
-/** Enter draft mode — snapshot current pack data for editing. */
 export function startEditing(): void {
-  const pack = getActivePack()
-  if (!pack) return
-
-  designStore.draftRequirements = deepClone(pack.requirements)
-  designStore.originalRequirements = deepClone(pack.requirements)
-  designStore.draftScenario = deepClone(pack.scenario)
-  designStore.originalScenario = deepClone(pack.scenario)
-
-  // Extract declared_surfaces from proposal if present
-  const surfaces = pack.proposal?.proposal?.declared_surfaces
-  designStore.draftDeclaredSurfaces = surfaces
-    ? deepClone({ ...DEFAULT_SURFACES, ...surfaces })
-    : deepClone(DEFAULT_SURFACES)
-  designStore.originalProposal = pack.proposal ? deepClone(pack.proposal) : null
+  if (designStore.activeArtifact === 'requirements' && designStore.originalRequirements) {
+    designStore.draftRequirements = deepClone(designStore.originalRequirements)
+    designStore.guidedAnswers = hydrateAnswersFromArtifact(designStore.draftRequirements)
+    designStore.completenessHints = evaluateCompleteness(designStore.draftRequirements)
+  } else if (designStore.activeArtifact === 'scenario' && designStore.originalScenario) {
+    designStore.draftScenario = deepClone(designStore.originalScenario)
+    designStore.guidedScenarioAnswers = hydrateScenarioAnswers(designStore.draftScenario)
+    designStore.scenarioHints = evaluateScenarioCompleteness(designStore.draftScenario)
+  } else if (designStore.activeArtifact === 'proposal' && designStore.originalProposal) {
+    const surfaces = designStore.originalProposal?.proposal?.declared_surfaces
+    designStore.draftDeclaredSurfaces = surfaces
+      ? deepClone({ ...DEFAULT_SURFACES, ...surfaces })
+      : deepClone(DEFAULT_SURFACES)
+  } else {
+    return
+  }
 
   designStore.editState = 'draft'
   designStore.validationErrors = []
-  // Hydrate guided answers from the draft artifact
-  designStore.guidedAnswers = hydrateAnswersFromArtifact(designStore.draftRequirements!)
-  designStore.completenessHints = evaluateCompleteness(designStore.draftRequirements!)
-  designStore.guidedScenarioAnswers = hydrateScenarioAnswers(designStore.draftScenario!)
-  designStore.scenarioHints = evaluateScenarioCompleteness(designStore.draftScenario!)
 }
 
 /** Discard all draft edits and return to read mode. */
@@ -153,9 +108,6 @@ export function discardEdits(): void {
   designStore.draftRequirements = null
   designStore.draftScenario = null
   designStore.draftDeclaredSurfaces = null
-  designStore.originalRequirements = null
-  designStore.originalScenario = null
-  designStore.originalProposal = null
   designStore.editState = 'read'
   designStore.validationErrors = []
   designStore.guidedAnswers = {}
@@ -253,11 +205,11 @@ export function updateDeclaredSurface(key: string, value: boolean): void {
 }
 
 /**
- * Merge draftDeclaredSurfaces into the pack proposal, returning a complete proposal object.
+ * Merge draftDeclaredSurfaces into the current proposal snapshot, returning a complete proposal object.
  * Used by live validation and export.
  */
 export function composeDraftProposal(): Record<string, any> | null {
-  const baseProposal = designStore.originalProposal ?? getActivePack()?.proposal ?? null
+  const baseProposal = designStore.originalProposal ?? null
   if (!baseProposal) return null
 
   const proposal = deepClone(baseProposal)

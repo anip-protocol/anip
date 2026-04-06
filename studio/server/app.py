@@ -8,10 +8,26 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# Add tooling to Python path
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tooling" / "bin"))
+ROOT = Path(__file__).resolve().parents[2]
+
+# Add local packages to Python path so Studio can mount real ANIP services.
+for path in [
+    ROOT / "tooling" / "bin",
+    ROOT / "packages" / "python" / "anip-core" / "src",
+    ROOT / "packages" / "python" / "anip-crypto" / "src",
+    ROOT / "packages" / "python" / "anip-server" / "src",
+    ROOT / "packages" / "python" / "anip-service" / "src",
+    ROOT / "packages" / "python" / "anip-fastapi" / "src",
+]:
+    path_str = str(path)
+    if path_str not in sys.path:
+        sys.path.insert(0, path_str)
+
+from anip_fastapi import mount_anip  # noqa: E402
 from anip_design_validate import evaluate, validate_payload  # noqa: E402
 from .derivation import build_shape_backed_proposal  # noqa: E402
+from .assistant_service import create_studio_assistant_service  # noqa: E402
+from .workbench_service import create_studio_workbench_service  # noqa: E402
 
 from .db import get_pool, init_db  # noqa: E402
 from .repository import load_vocabulary_defaults  # noqa: E402
@@ -56,6 +72,8 @@ app.include_router(artifacts.router)
 app.include_router(shapes.router)
 app.include_router(vocabulary.router)
 app.include_router(import_export.router)
+mount_anip(app, create_studio_assistant_service(), prefix="/studio-assistant")
+mount_anip(app, create_studio_workbench_service(), prefix="/studio-workbench")
 
 
 # --- Existing endpoints (unchanged) ---

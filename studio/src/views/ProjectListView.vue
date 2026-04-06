@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { projectStore, checkDbAvailable, loadProjects, loadWorkspace, seedDb } from '../design/project-store'
+import { projectStore, checkDbAvailable, loadProjects, loadWorkspace } from '../design/project-store'
 import { createProject, deleteProject } from '../design/project-api'
 
 const route = useRoute()
@@ -75,11 +75,6 @@ async function handleCreate() {
   }
 }
 
-async function handleSeed() {
-  await seedDb()
-  await loadProjects(workspaceId.value)
-}
-
 async function handleDeleteProject(projectId: string, projectName: string, event: Event) {
   event.stopPropagation()
   if (!window.confirm(`Delete project "${projectName}"? This will remove its requirements, scenarios, shapes, and evaluations.`)) {
@@ -133,14 +128,6 @@ async function handleCleanJunkProjects() {
           :disabled="cleaningJunk"
         >
           {{ cleaningJunk ? 'Cleaning...' : `Clean Test Projects (${junkProjects.length})` }}
-        </button>
-        <button
-          v-if="projects.length === 0 && !loading"
-          class="btn btn-secondary"
-          @click="handleSeed"
-          :disabled="loading"
-        >
-          Seed from Examples
         </button>
       </div>
 

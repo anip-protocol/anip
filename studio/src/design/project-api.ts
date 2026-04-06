@@ -11,8 +11,11 @@ import type {
   VocabularyEntry,
   CreateProject,
   ImportResult,
+  AssistantExplanation,
+  IntentInterpretation,
 } from './project-types'
 import type { DerivedExpectation } from './shape-types'
+import { issueToken, invokeCapability } from '../api'
 
 // ---------------------------------------------------------------------------
 // Core fetch wrapper
@@ -37,6 +40,54 @@ async function api<T>(path: string, options?: RequestInit): Promise<T> {
   }
 
   return resp.json() as Promise<T>
+}
+
+const STUDIO_ASSISTANT_BASE_URL = '/studio-assistant'
+const STUDIO_ASSISTANT_BOOTSTRAP = 'studio-assistant-bootstrap'
+const STUDIO_ASSISTANT_SCOPE_BY_CAPABILITY: Record<string, string> = {
+  explain_shape: 'studio.assistant.explain_shape',
+  explain_evaluation: 'studio.assistant.explain_evaluation',
+  interpret_project_intent: 'studio.assistant.interpret_project_intent',
+}
+
+const assistantTokens: Record<string, string | undefined> = {}
+
+async function ensureAssistantToken(capability: string, forceRefresh = false): Promise<string> {
+  if (assistantTokens[capability] && !forceRefresh) return assistantTokens[capability] as string
+  const scope = STUDIO_ASSISTANT_SCOPE_BY_CAPABILITY[capability]
+  if (!scope) {
+    throw new Error(`Unsupported Studio assistant capability: ${capability}`)
+  }
+  const issued = await issueToken(STUDIO_ASSISTANT_BASE_URL, STUDIO_ASSISTANT_BOOTSTRAP, {
+    subject: 'studio-ui',
+    capability,
+    scope: [scope],
+    ttl_hours: 8,
+  })
+  if (!issued?.issued || !issued?.token) {
+    const detail = issued?.failure?.detail || 'Failed to issue Studio assistant token'
+    throw new Error(detail)
+  }
+  const token = issued.token as string
+  assistantTokens[capability] = token
+  return token
+}
+
+async function invokeAssistant<T>(capability: string, parameters: Record<string, any>): Promise<T> {
+  let token = await ensureAssistantToken(capability)
+  let result = await invokeCapability(STUDIO_ASSISTANT_BASE_URL, token, capability, parameters)
+
+  if (!result?.success && result?.failure?.type === 'invalid_token') {
+    token = await ensureAssistantToken(capability, true)
+    result = await invokeCapability(STUDIO_ASSISTANT_BASE_URL, token, capability, parameters)
+  }
+
+  if (!result?.success) {
+    const detail = result?.failure?.detail || `Assistant capability ${capability} failed`
+    throw new Error(detail)
+  }
+
+  return result.result as T
 }
 
 // ---------------------------------------------------------------------------
@@ -339,7 +390,7 @@ export function deleteVocabularyEntry(id: number): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Import / Export / Seed
+// Import / Export
 // ---------------------------------------------------------------------------
 
 export function importArtifacts(
@@ -356,6 +407,40 @@ export function exportProject(projectId: string): Promise<Record<string, any>> {
   return api<Record<string, any>>(`/api/projects/${projectId}/export`)
 }
 
-export function seedDatabase(): Promise<{ created_projects: number; skipped: number }> {
-  return api<{ created_projects: number; skipped: number }>('/api/seed', { method: 'POST' })
+// ---------------------------------------------------------------------------
+// Studio Assistant (ANIP-backed)
+// ---------------------------------------------------------------------------
+
+export function explainShapeWithAssistant(
+  projectId: string,
+  shapeId: string,
+  question = '',
+): Promise<AssistantExplanation> {
+  return invokeAssistant<AssistantExplanation>('explain_shape', {
+    project_id: projectId,
+    shape_id: shapeId,
+    question,
+  })
+}
+
+export function explainEvaluationWithAssistant(
+  projectId: string,
+  evaluationId: string,
+  question = '',
+): Promise<AssistantExplanation> {
+  return invokeAssistant<AssistantExplanation>('explain_evaluation', {
+    project_id: projectId,
+    evaluation_id: evaluationId,
+    question,
+  })
+}
+
+export function interpretProjectIntentWithAssistant(
+  projectId: string,
+  intent: string,
+): Promise<IntentInterpretation> {
+  return invokeAssistant<IntentInterpretation>('interpret_project_intent', {
+    project_id: projectId,
+    intent,
+  })
 }

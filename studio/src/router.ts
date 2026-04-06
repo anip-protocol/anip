@@ -26,6 +26,11 @@ const designRoutes = inspectOnly ? [] : [
     component: () => import('./views/ProjectOverviewView.vue'),
   },
   {
+    path: '/design/projects/:projectId/first-draft',
+    name: 'first-draft-review',
+    component: () => import('./views/FirstDraftReviewView.vue'),
+  },
+  {
     path: '/design/projects/:projectId/requirements/:id',
     name: 'requirements',
     component: () => import('./views/RequirementsView.vue'),
@@ -48,27 +53,6 @@ const designRoutes = inspectOnly ? [] : [
   {
     path: '/design/projects/:projectId/evaluations/:id',
     name: 'evaluation',
-    component: () => import('./views/EvaluationView.vue'),
-  },
-  // ── Legacy pack routes (read-only fallback) ──
-  {
-    path: '/design/packs/:packId',
-    name: 'pack-detail',
-    component: () => import('./views/ScenarioDetailView.vue'),
-  },
-  {
-    path: '/design/packs/:packId/requirements',
-    name: 'pack-requirements',
-    component: () => import('./views/RequirementsView.vue'),
-  },
-  {
-    path: '/design/packs/:packId/proposal',
-    name: 'pack-proposal',
-    component: () => import('./views/ProposalView.vue'),
-  },
-  {
-    path: '/design/packs/:packId/evaluation',
-    name: 'pack-evaluation',
     component: () => import('./views/EvaluationView.vue'),
   },
 ]

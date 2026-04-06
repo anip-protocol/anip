@@ -50,6 +50,56 @@ npm test       # Run vitest suite
 bash sync.sh   # Build for embedded mode and sync to Python package
 ```
 
+## Studio Assistant Providers
+
+The Studio assistant can stay deterministic, or it can use a configured model
+provider for interpretation and explanation while keeping validation and
+evaluation deterministic.
+
+Supported providers:
+
+- `deterministic` (default)
+- `openai`
+- `anthropic`
+- `ollama`
+
+Configuration is environment-driven:
+
+```bash
+export STUDIO_ASSISTANT_PROVIDER=openai
+export STUDIO_ASSISTANT_MODEL=gpt-5.4-mini
+export OPENAI_API_KEY=...
+
+# Optional overrides
+export STUDIO_ASSISTANT_BASE_URL=https://api.openai.com/v1
+export STUDIO_ASSISTANT_TEMPERATURE=0.2
+export STUDIO_ASSISTANT_TIMEOUT_SECONDS=20
+export STUDIO_ASSISTANT_STRICT=false
+```
+
+Examples:
+
+```bash
+# OpenAI
+export STUDIO_ASSISTANT_PROVIDER=openai
+export STUDIO_ASSISTANT_MODEL=gpt-5.4-mini
+export OPENAI_API_KEY=...
+
+# Anthropic
+export STUDIO_ASSISTANT_PROVIDER=anthropic
+export STUDIO_ASSISTANT_MODEL=claude-sonnet-4-5
+export ANTHROPIC_API_KEY=...
+
+# Ollama using the OpenAI-compatible endpoint
+export STUDIO_ASSISTANT_PROVIDER=ollama
+export STUDIO_ASSISTANT_MODEL=qwen2.5:14b
+export STUDIO_ASSISTANT_BASE_URL=http://127.0.0.1:11434/v1
+```
+
+If no provider is configured, or the configured provider fails and
+`STUDIO_ASSISTANT_STRICT` is not enabled, Studio falls back to the deterministic
+assistant path.
+
 ## Build Configuration
 
 The base path is controlled by the `VITE_BASE_PATH` environment variable:

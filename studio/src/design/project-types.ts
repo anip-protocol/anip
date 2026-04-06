@@ -98,3 +98,29 @@ export interface ImportResult {
   imported: number
   errors: string[]
 }
+
+export interface AssistantExplanation {
+  title: string
+  summary: string
+  focused_answer?: string | null
+  highlights: string[]
+  watchouts: string[]
+  next_steps: string[]
+}
+
+export interface IntentInterpretation {
+  title: string
+  summary: string
+  recommended_shape_type: 'single_service' | 'multi_service' | string
+  recommended_shape_reason: string
+  requirements_focus: string[]
+  scenario_starters: string[]
+  domain_concepts: string[]
+  service_suggestions: string[]
+  next_steps: string[]
+}
+
+export interface PendingIntentDraft {
+  source_intent: string
+  interpretation: IntentInterpretation
+}

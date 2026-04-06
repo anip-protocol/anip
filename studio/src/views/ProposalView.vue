@@ -1,42 +1,30 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { designStore, setActivePack, updateDeclaredSurface, composeDraftProposal } from '../design/store'
+import { designStore, updateDeclaredSurface, composeDraftProposal } from '../design/store'
 import { loadProject, projectStore, openArtifactForEditing, refreshArtifacts } from '../design/project-store'
 import { updateProposal } from '../design/project-api'
 import EditorToolbar from '../design/components/EditorToolbar.vue'
 
 const route = useRoute()
 
-// --- Dual-route detection ---
-const isProjectMode = computed(() => !!route.params.projectId)
-const projectId = computed(() => route.params.projectId as string | undefined)
+const projectId = computed(() => route.params.projectId as string)
 
 onMounted(() => {
-  if (isProjectMode.value && projectId.value && projectStore.activeProject?.id !== projectId.value) {
+  if (projectId.value && projectStore.activeProject?.id !== projectId.value) {
     loadProject(projectId.value)
   }
 })
 
 watch(projectId, (id) => {
-  if (isProjectMode.value && id && projectStore.activeProject?.id !== id) {
+  if (id && projectStore.activeProject?.id !== id) {
     loadProject(id)
   }
 })
 
-// Project mode: look up record from projectStore.artifacts.proposals
 const projectRecord = computed(() => {
-  if (!isProjectMode.value) return null
   const id = route.params.id as string
   return projectStore.artifacts.proposals.find(p => p.id === id) ?? null
-})
-
-// Legacy mode: look up pack from designStore.packs
-const pack = computed(() => {
-  if (isProjectMode.value) return null
-  const id = route.params.packId as string
-  if (id) setActivePack(id)
-  return designStore.packs.find(p => p.meta.id === id) ?? null
 })
 
 // Hydrate design store when project record changes
@@ -47,29 +35,16 @@ watch(projectRecord, (record) => {
 }, { immediate: true })
 
 const proposal = computed(() => {
-  if (isProjectMode.value) {
-    return projectRecord.value?.data?.proposal ?? null
-  }
-  return pack.value?.proposal?.proposal ?? null
+  return projectRecord.value?.data?.proposal ?? null
 })
 
-const isEditing = computed(() => {
-  if (!isProjectMode.value) return false // Legacy mode is read-only
-  return designStore.editState === 'draft'
-})
+const isEditing = computed(() => designStore.editState === 'draft')
 
-// Whether we have data to display
-const hasData = computed(() => {
-  if (isProjectMode.value) return !!projectRecord.value
-  return !!pack.value
-})
+const hasData = computed(() => !!projectRecord.value)
 
 // Display name for the title
 const artifactName = computed(() => {
-  if (isProjectMode.value) {
-    return projectRecord.value?.title ?? 'Approach'
-  }
-  return pack.value?.meta.name ?? 'Approach'
+  return projectRecord.value?.title ?? 'Approach'
 })
 
 const glueCategories = computed(() => {
@@ -103,7 +78,7 @@ function toggleSurface(key: string) {
 }
 
 async function handleSave() {
-  if (!isProjectMode.value || !projectRecord.value) return
+  if (!projectRecord.value) return
   const proposalData = composeDraftProposal()
   if (!proposalData) return
 
@@ -131,7 +106,7 @@ async function handleSave() {
 
     <EditorToolbar
       artifact="proposal"
-      :canSave="isProjectMode"
+      :canSave="true"
       :saving="saving"
       :saveError="saveError"
       @save="handleSave"
@@ -252,7 +227,7 @@ async function handleSave() {
     </div>
   </div>
   <div v-else-if="hasData" class="not-found">No approach data available.</div>
-  <div v-else class="not-found">{{ isProjectMode ? 'Approach not found.' : 'Pack not found.' }}</div>
+  <div v-else class="not-found">Approach not found.</div>
 </template>
 
 <style scoped>

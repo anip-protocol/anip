@@ -1,13 +1,3 @@
-export interface PackMeta {
-  id: string            // directory name, e.g. "travel-single"
-  name: string          // from requirements.system.name or scenario.scenario.name
-  domain: string        // from requirements.system.domain
-  category: string      // from scenario.scenario.category
-  narrative: string     // from scenario.scenario.narrative (truncated for cards)
-  result: string | null // from evaluation.evaluation.result, or null when missing
-  isMultiService: boolean // from requirements or directory name heuristic
-}
-
 export interface Requirements {
   system: { name: string; domain: string; deployment_intent: string }
   services?: Array<Record<string, any>>
@@ -59,14 +49,6 @@ export interface Evaluation {
     confidence?: string
     notes?: string[]
   }
-}
-
-export interface DesignPack {
-  meta: PackMeta
-  requirements: Requirements
-  proposal: Proposal | null
-  scenario: Scenario
-  evaluation: Evaluation | null
 }
 
 export interface DeclaredSurfaces {
