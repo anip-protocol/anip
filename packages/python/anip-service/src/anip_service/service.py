@@ -1198,9 +1198,12 @@ class ANIPService:
                     })
                 if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
                     self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _anip_err_duration_ms, "success": False})
+                _fail_dict: dict[str, Any] = {"type": e.error_type, "detail": e.detail}
+                if e.resolution is not None:
+                    _fail_dict["resolution"] = e.resolution
                 fail_response: dict[str, Any] = {
                     "success": False,
-                    "failure": redact_failure({"type": e.error_type, "detail": e.detail}, effective_level),
+                    "failure": redact_failure(_fail_dict, effective_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
                     "task_id": effective_task_id,

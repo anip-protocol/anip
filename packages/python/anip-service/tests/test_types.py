@@ -1,7 +1,7 @@
 import asyncio
 
 from anip_service import Capability, InvocationContext, ANIPError
-from anip_core import CapabilityDeclaration, CapabilityInput, CapabilityOutput, SideEffect, SideEffectType
+from anip_core import CapabilityDeclaration, CapabilityInput, CapabilityOutput, SideEffect, SideEffectType, CrossServiceContract, CrossServiceContractEntry, RecoveryTarget, ServiceCapabilityRef, Resolution
 
 
 def _minimal_declaration(name: str = "test_cap") -> CapabilityDeclaration:
@@ -75,3 +75,45 @@ def test_emit_progress_calls_sink():
     )
     asyncio.run(ctx.emit_progress({"percent": 50}))
     assert received == [{"percent": 50}]
+
+
+# --- Capability with cross_service_contract (Phase 5) ---
+
+
+def test_capability_with_cross_service_contract():
+    """cross_service_contract field is preserved in Capability declaration."""
+    ref = ServiceCapabilityRef(service="booking-service", capability="confirm_booking")
+    entry = CrossServiceContractEntry(
+        target=ref,
+        required_for_task_completion=True,
+        continuity="same_task",
+        completion_mode="downstream_acceptance",
+    )
+    contract = CrossServiceContract(handoff=[entry])
+    decl = _minimal_declaration()
+    decl.cross_service_contract = contract
+    cap = Capability(declaration=decl, handler=lambda ctx, params: {"ok": True})
+    assert cap.declaration.cross_service_contract is not None
+    assert len(cap.declaration.cross_service_contract.handoff) == 1
+    assert cap.declaration.cross_service_contract.handoff[0].target.service == "booking-service"
+    d = cap.declaration.model_dump()
+    assert d["cross_service_contract"]["handoff"][0]["required_for_task_completion"] is True
+
+
+def test_anip_error_with_recovery_target_in_resolution():
+    """ANIPError carries recovery_target through its resolution dict."""
+    rt = {
+        "kind": "refresh",
+        "target": {"service": "auth-svc", "capability": "refresh_token"},
+        "continuity": "same_task",
+        "retry_after_target": True,
+    }
+    resolution = {
+        "action": "refresh_token",
+        "recovery_class": "refresh_then_retry",
+        "recovery_target": rt,
+    }
+    err = ANIPError("token_expired", "Token has expired", resolution=resolution, retry=False)
+    assert err.resolution is not None
+    assert err.resolution["recovery_target"]["kind"] == "refresh"
+    assert err.resolution["recovery_target"]["target"]["service"] == "auth-svc"
