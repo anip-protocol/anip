@@ -19,6 +19,12 @@ public class AnipService : IDisposable
     private readonly string _serviceId;
     private readonly string _trustLevel;
     private readonly Dictionary<string, CapabilityDef> _capabilities;
+    /// <summary>
+    /// Bootstrap authentication hook. Called synchronously in the request path
+    /// to verify a bearer token and return the principal identity.
+    /// This hook is intentionally synchronous. If your authentication requires
+    /// async I/O, perform it before registering the hook or use a caching wrapper.
+    /// </summary>
     private readonly Func<string, string?>? _authenticate;
     private readonly string _storageDsn;
     private readonly string? _keyPath;
@@ -216,6 +222,30 @@ public class AnipService : IDisposable
         }
 
         return resp;
+    }
+
+    /// <summary>
+    /// Issue a root token pre-bound to a specific capability.
+    /// For delegation flows (parentToken, subject), use IssueToken() directly.
+    /// </summary>
+    /// <remarks>
+    /// scope must be explicitly provided — capability names and scope strings
+    /// are different things.
+    /// </remarks>
+    public TokenResponse IssueCapabilityToken(
+        string principal, string capability, string[] scope,
+        Dictionary<string, object>? purposeParameters = null,
+        int ttlHours = 2, Budget? budget = null)
+    {
+        var request = new TokenRequest {
+            Subject = principal,
+            Capability = capability,
+            Scope = new List<string>(scope),
+            PurposeParameters = purposeParameters,
+            TtlHours = ttlHours,
+            Budget = budget,
+        };
+        return IssueToken(principal, request);
     }
 
     // --- Discovery ---

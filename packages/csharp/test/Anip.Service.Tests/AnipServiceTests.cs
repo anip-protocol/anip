@@ -348,6 +348,35 @@ public class AnipServiceTests : IDisposable
         Assert.Null(decl);
     }
 
+    // --- IssueCapabilityToken ---
+
+    [Fact]
+    public void IssueCapabilityToken_IssuesResolvableToken()
+    {
+        var resp = _service.IssueCapabilityToken(_principal, "echo", new[] { "data" });
+
+        Assert.True(resp.Issued);
+        Assert.NotEmpty(resp.TokenId);
+        Assert.NotEmpty(resp.Token);
+
+        var resolved = _service.ResolveBearerToken(resp.Token);
+        Assert.Equal(resp.TokenId, resolved.TokenId);
+        Assert.Equal(_principal, resolved.Subject);
+    }
+
+    [Fact]
+    public void IssueCapabilityToken_DefaultTtlIsTwo()
+    {
+        var resp = _service.IssueCapabilityToken(_principal, "echo", new[] { "data" });
+        Assert.True(resp.Issued);
+
+        // TTL is visible through expiry being ~2 hours out (within a minute tolerance).
+        var expires = DateTime.Parse(resp.Expires, null, System.Globalization.DateTimeStyles.RoundtripKind);
+        var diff = expires - DateTime.UtcNow;
+        Assert.True(diff.TotalHours > 1.9 && diff.TotalHours < 2.1,
+            $"Expected ~2h TTL, got {diff.TotalHours:F2}h");
+    }
+
     // --- Helpers ---
 
     private string IssueTestToken(params string[] scopes)
