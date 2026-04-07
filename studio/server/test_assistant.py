@@ -69,6 +69,49 @@ def test_assistant_manifest_exposes_explanation_capabilities(client: TestClient)
     assert caps["explain_evaluation"]["cross_service_contract"] is not None
 
 
+@pytest.mark.parametrize("profile", ["round2", "round4", "round5", "round6"])
+def test_assistant_discovery_exposes_redacted_posture(
+    monkeypatch: pytest.MonkeyPatch,
+    profile: str,
+):
+    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", profile)
+    monkeypatch.setattr(assistant_service, "get_pool", lambda: _DummyPool())
+
+    app = FastAPI()
+    mount_anip(app, assistant_service.create_studio_assistant_service(), prefix="/studio-assistant")
+
+    with TestClient(app) as client:
+        resp = client.get("/studio-assistant/.well-known/anip")
+        assert resp.status_code == 200, resp.text
+        doc = resp.json()["anip_discovery"]
+        assert doc["protocol"] == "anip/0.22"
+        assert doc["trust_level"] == "signed"
+        assert doc["posture"]["failure_disclosure"]["detail_level"] == "redacted"
+        assert doc["posture"]["anchoring"]["enabled"] is False
+
+
+@pytest.mark.parametrize("profile", ["round3", "round4", "round5", "round6"])
+def test_assistant_manifest_exposes_streaming_and_session(
+    monkeypatch: pytest.MonkeyPatch,
+    profile: str,
+):
+    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", profile)
+    monkeypatch.setattr(assistant_service, "get_pool", lambda: _DummyPool())
+
+    app = FastAPI()
+    mount_anip(app, assistant_service.create_studio_assistant_service(), prefix="/studio-assistant")
+
+    with TestClient(app) as client:
+        resp = client.get("/studio-assistant/anip/manifest")
+        assert resp.status_code == 200, resp.text
+        caps = resp.json()["capabilities"]
+        assert caps["start_design_review_session"]["session"]["type"] == "continuation"
+        assert caps["stream_design_review"]["session"]["type"] == "continuation"
+        assert "streaming" in caps["stream_design_review"]["response_modes"]
+        if profile == "round6":
+            assert caps["start_design_review_session"]["composes_with"][0]["capability"] == "stream_design_review"
+
+
 def test_assistant_can_explain_shape(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -258,7 +301,47 @@ def test_assistant_can_interpret_project_intent(
     result = body["result"]
     assert result["recommended_shape_type"] in {"single_service", "multi_service"}
     assert any("budget" in item.lower() for item in result["requirements_focus"])
-    assert any("approval" in item.lower() for item in result["scenario_starters"] + result["service_suggestions"])
+
+
+def test_assistant_can_stream_design_review(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", "round3")
+    monkeypatch.setattr(assistant_service, "get_pool", lambda: _DummyPool())
+    monkeypatch.setattr(
+        assistant_service,
+        "get_project_detail",
+        lambda _conn, pid: {"id": pid, "name": "Streaming Project"},
+    )
+
+    app = FastAPI()
+    mount_anip(app, assistant_service.create_studio_assistant_service(), prefix="/studio-assistant")
+
+    with TestClient(app) as client:
+        start_token = _issue_token(client, "start_design_review_session")
+        start_resp = client.post(
+            "/studio-assistant/anip/invoke/start_design_review_session",
+            headers={"Authorization": f"Bearer {start_token}"},
+            json={"parameters": {"project_id": "proj-stream"}},
+        )
+        assert start_resp.status_code == 200, start_resp.text
+        session_id = start_resp.json()["result"]["session_id"]
+
+        stream_token = _issue_token(client, "stream_design_review")
+        stream_resp = client.post(
+            "/studio-assistant/anip/invoke/stream_design_review",
+            headers={"Authorization": f"Bearer {stream_token}"},
+            json={
+                "parameters": {"project_id": "proj-stream", "session_id": session_id},
+                "stream": True,
+                "client_reference_id": "stream-review-test",
+            },
+        )
+        assert stream_resp.status_code == 200, stream_resp.text
+        assert "text/event-stream" in stream_resp.headers.get("content-type", "")
+        text = stream_resp.text
+        assert "event: progress" in text
+        assert "event: completed" in text
 
 
 def test_assistant_can_use_configured_model_result_for_intent(

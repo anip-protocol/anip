@@ -227,6 +227,7 @@ class ANIPService:
         # --- Checkpoint scheduling (anchored mode only) ---
         self._checkpoint_policy = checkpoint_policy
         self._scheduler: CheckpointScheduler | None = None
+        self._started = False
         self._last_checkpoint_at: str | None = None  # Updated only when a checkpoint is actually published
 
         if trust_level == "anchored" and checkpoint_policy:
@@ -307,6 +308,7 @@ class ANIPService:
             "posture": posture.model_dump(),
             "endpoints": {
                 "manifest": "/anip/manifest",
+                "graph": "/anip/graph/{capability}",
                 "permissions": "/anip/permissions",
                 "invoke": "/anip/invoke/{capability}",
                 "tokens": "/anip/tokens",
@@ -471,6 +473,14 @@ class ANIPService:
             elif isinstance(budget_data, dict):
                 budget = Budget(**budget_data)
 
+        concurrent_branches_data = request.get("concurrent_branches")
+        concurrent_branches: ConcurrentBranches | None = None
+        if concurrent_branches_data is not None:
+            if isinstance(concurrent_branches_data, ConcurrentBranches):
+                concurrent_branches = concurrent_branches_data
+            else:
+                concurrent_branches = ConcurrentBranches(str(concurrent_branches_data))
+
         if parent_token_id:
             # Delegation from existing token
             parent = await self._engine.get_token(parent_token_id)
@@ -506,6 +516,7 @@ class ANIPService:
                 purpose_parameters=request.get("purpose_parameters"),
                 ttl_hours=ttl_hours,
                 budget=budget,
+                concurrent_branches=concurrent_branches or ConcurrentBranches.ALLOWED,
             )
 
         # Check for delegation failure (ANIPFailure is a Pydantic model)
@@ -574,6 +585,7 @@ class ANIPService:
         purpose_parameters: dict[str, Any] | None = None,
         ttl_hours: int = 2,
         budget: dict[str, Any] | None = None,
+        concurrent_branches: str | None = None,
     ) -> dict[str, Any]:
         """Issue a root token pre-bound to a specific capability.
 
@@ -594,6 +606,8 @@ class ANIPService:
             request["purpose_parameters"] = purpose_parameters
         if budget is not None:
             request["budget"] = budget
+        if concurrent_branches is not None:
+            request["concurrent_branches"] = concurrent_branches
         return await self.issue_token(principal, request)
 
     async def issue_delegated_capability_token(
@@ -638,6 +652,29 @@ class ANIPService:
         """Return the capability declaration or None. Used by HTTP bindings for pre-validation."""
         cap = self._capabilities.get(capability_name)
         return cap.declaration if cap else None
+
+    def get_graph(self, capability_name: str) -> dict[str, Any] | None:
+        """Return capability graph relationships for a capability."""
+        decl = self.get_capability_declaration(capability_name)
+        if decl is None:
+            return None
+        return {
+            "capability": decl.name,
+            "requires": [
+                item.model_dump() if hasattr(item, "model_dump") else item
+                for item in decl.requires
+            ],
+            "composes_with": [
+                item.model_dump() if hasattr(item, "model_dump") else item
+                for item in decl.composes_with
+            ],
+            "depends_on": [],
+            "cross_service_contract": (
+                decl.cross_service_contract.model_dump()
+                if decl.cross_service_contract is not None and hasattr(decl.cross_service_contract, "model_dump")
+                else decl.cross_service_contract
+            ),
+        }
 
 
     async def invoke(
@@ -1053,15 +1090,27 @@ class ANIPService:
                     and resolved_token.purpose
                     and resolved_token.purpose.capability == decl.name
                 )
+            elif req.type == "non_delegable":
+                satisfied = (
+                    resolved_token.parent is None
+                    and hasattr(resolved_token, "purpose")
+                    and resolved_token.purpose
+                    and resolved_token.purpose.capability == decl.name
+                )
 
             if not satisfied:
+                resolution_action = "request_capability_binding"
+                recovery_class = "redelegation_then_retry"
+                if req.type == "non_delegable":
+                    resolution_action = "request_root_capability_token"
+                    recovery_class = "terminal"
                 return {
                     "success": False,
                     "failure": redact_failure({
                         "type": "control_requirement_unsatisfied",
                         "detail": f"Capability {decl.name} requires {req.type}",
                         "unsatisfied_requirements": [req.type],
-                        "resolution": {"action": "request_capability_binding", "recovery_class": "redelegation_then_retry"},
+                        "resolution": {"action": resolution_action, "recovery_class": recovery_class},
                     }, effective_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,
@@ -1138,7 +1187,10 @@ class ANIPService:
         # 4. Acquire lock if configured
         locked = False
         if cap.exclusive_lock:
-            lock_result = await self._engine.acquire_exclusive_lock(resolved_token)
+            lock_result = await self._engine.acquire_exclusive_lock(
+                resolved_token,
+                holder_id=f"{self._get_holder_id()}:{invocation_id}",
+            )
             if lock_result is not None:
                 _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
                 _event_class = classify_event(_side_effect_type, False, "concurrent_lock")
@@ -1190,7 +1242,9 @@ class ANIPService:
 
                 async def _handler_with_heartbeat():
                     return await self._run_with_exclusive_heartbeat(
-                        resolved_token, _run_handler()
+                        resolved_token,
+                        _run_handler(),
+                        holder_id=f"{self._get_holder_id()}:{invocation_id}",
                     )
 
                 result = await self._with_span(
@@ -1431,7 +1485,10 @@ class ANIPService:
 
         finally:
             if locked:
-                await self._engine.release_exclusive_lock(resolved_token)
+                await self._engine.release_exclusive_lock(
+                    resolved_token,
+                    holder_id=f"{self._get_holder_id()}:{invocation_id}",
+                )
 
     async def query_audit(
         self,
@@ -1573,7 +1630,10 @@ class ANIPService:
                                 "new_size": new_tree.leaf_count,
                                 "old_root": old_tree.root,
                                 "new_root": new_tree.root,
-                                "path": path,
+                                "path": [
+                                    f"sha256:{node.hex()}" if isinstance(node, (bytes, bytearray)) else node
+                                    for node in path
+                                ],
                             }
                             if self._metrics_hooks and self._metrics_hooks.on_proof_generated:
                                 self._safe_hook(self._metrics_hooks.on_proof_generated, {"duration_ms": int((time.monotonic() - _cons_proof_start) * 1000)})
@@ -1639,6 +1699,8 @@ class ANIPService:
         Must be called from within a running event loop.  For PostgresStorage
         this also initialises the connection pool and schema.
         """
+        if self._started:
+            return
         initializer = getattr(self._storage, 'initialize', None)
         if initializer:
             await initializer()
@@ -1668,18 +1730,24 @@ class ANIPService:
                     pass
 
             self._flush_task = asyncio.get_event_loop().create_task(_periodic_flush())
+        self._started = True
 
     def stop(self) -> None:
         """Stop background services (sync, no persistence)."""
+        if not self._started:
+            return
         if self._scheduler:
             self._scheduler.stop()
         self._retention_enforcer.stop()
         if self._flush_task is not None:
             self._flush_task.cancel()
             self._flush_task = None
+        self._started = False
 
     async def shutdown(self) -> None:
         """Flush remaining aggregated events, stop background services, close storage."""
+        if not self._started:
+            return
         if self._aggregator is not None:
             await self._flush_aggregator()
         closer = getattr(self._storage, 'close', None)
@@ -1925,6 +1993,8 @@ class ANIPService:
         self,
         token: DelegationToken,
         handler_coro: Any,
+        *,
+        holder_id: str | None = None,
     ) -> Any:
         """Run a handler coroutine while periodically renewing the exclusive lease.
 
@@ -1940,7 +2010,7 @@ class ANIPService:
 
         root = await self._engine.get_root_principal(token)
         key = f"exclusive:{self._service_id}:{root}"
-        holder = self._get_holder_id()
+        holder = holder_id or self._get_holder_id()
         interval = self._exclusive_ttl / 2
 
         async def renew_loop() -> None:

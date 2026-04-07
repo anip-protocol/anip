@@ -210,8 +210,10 @@ class InMemoryStorage:
         self._checkpoints.append(record)
 
     async def get_checkpoints(self, limit: int = 10) -> list[dict[str, Any]]:
-        """Return checkpoints in insertion order, limited."""
-        return [dict(ckpt) for ckpt in self._checkpoints[:limit]]
+        """Return the most recent checkpoints in chronological order."""
+        if limit <= 0:
+            return []
+        return [dict(ckpt) for ckpt in self._checkpoints[-limit:]]
 
     async def get_checkpoint_by_id(
         self, checkpoint_id: str
@@ -702,10 +704,13 @@ class SQLiteStorage:
             self._conn.commit()
 
     def _sync_get_checkpoints(self, limit: int = 10) -> list[dict[str, Any]]:
+        if limit <= 0:
+            return []
         with self._lock:
             rows = self._conn.execute(
-                "SELECT * FROM checkpoints ORDER BY id ASC LIMIT ?", (limit,)
+                "SELECT * FROM checkpoints ORDER BY id DESC LIMIT ?", (limit,)
             ).fetchall()
+        rows = list(reversed(rows))
         results = []
         for row in rows:
             results.append({
@@ -813,7 +818,7 @@ class SQLiteStorage:
         await asyncio.to_thread(self._sync_store_checkpoint, body, signature)
 
     async def get_checkpoints(self, limit: int = 10) -> list[dict[str, Any]]:
-        """Return checkpoints ordered by id ascending."""
+        """Return the most recent checkpoints in chronological order."""
         return await asyncio.to_thread(self._sync_get_checkpoints, limit)
 
     async def get_checkpoint_by_id(

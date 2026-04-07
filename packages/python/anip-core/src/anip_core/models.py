@@ -76,6 +76,7 @@ class TokenRequest(BaseModel):
     purpose_parameters: dict[str, Any] = Field(default_factory=dict)
     ttl_hours: int = 2
     caller_class: str | None = None
+    concurrent_branches: ConcurrentBranches | None = None
 
 
 # --- Cross-Service Handoff ---

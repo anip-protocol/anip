@@ -7,7 +7,9 @@ back to raw Studio REST.
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import json
+import time
 from pathlib import Path
 from uuid import uuid4
 
@@ -16,6 +18,7 @@ from anip_client import ANIPClient
 ASSISTANT_BOOTSTRAP = "studio-assistant-bootstrap"
 WORKBENCH_BOOTSTRAP = "studio-workbench-bootstrap"
 AGENT_SUBJECT = "agent:studio-stress"
+DOGFOOD_EVAL_BUDGET = {"currency": "USD", "max_amount": 8.0}
 
 WORKBENCH_SCOPES = [
     "studio.workbench.create_workspace",
@@ -25,10 +28,14 @@ WORKBENCH_SCOPES = [
     "studio.workbench.draft_fix_from_change",
     "studio.workbench.generate_business_brief",
     "studio.workbench.generate_engineering_contract",
+    "studio.workbench.hold_exclusive_probe",
+    "studio.workbench.read_runtime_observability",
 ]
 
 ASSISTANT_SCOPES = [
     "studio.assistant.interpret_project_intent",
+    "studio.assistant.start_design_review_session",
+    "studio.assistant.stream_design_review",
 ]
 
 DEFAULT_BRIEFS = [
@@ -53,15 +60,65 @@ DEFAULT_BRIEFS = [
 ]
 
 
-def issue_token(client: ANIPClient, bootstrap: str, capability: str, scope: str) -> str:
-    response = client.request_capability_token(
-        principal=AGENT_SUBJECT,
-        capability=capability,
-        scope=[scope],
-        api_key=bootstrap,
-        ttl_hours=1,
-    )
-    return response["token"]
+def posture_summary(discovery: dict) -> dict:
+    doc = discovery.get("anip_discovery", {})
+    posture = doc.get("posture", {})
+    audit = posture.get("audit", {})
+    failure = posture.get("failure_disclosure", {})
+    anchoring = posture.get("anchoring", {})
+    return {
+        "trust_level": doc.get("trust_level"),
+        "audit_queryable": audit.get("queryable", False),
+        "audit_retention": audit.get("retention"),
+        "audit_retention_enforced": audit.get("retention_enforced", False),
+        "failure_disclosure": failure.get("detail_level"),
+        "anchoring_enabled": anchoring.get("enabled", False),
+        "proofs_available": anchoring.get("proofs_available", False),
+    }
+
+
+def audit_mode(posture: dict) -> str:
+    if posture.get("audit_queryable") and posture.get("trust_level") == "anchored":
+        return "strict"
+    if posture.get("audit_queryable"):
+        return "basic"
+    return "skip"
+
+
+def require_graph_next(
+    client: ANIPClient,
+    capability: str,
+    expected: str,
+) -> dict:
+    graph = client.get_graph(capability)
+    next_capabilities = [item["capability"] for item in graph.get("composes_with", [])]
+    if expected not in next_capabilities:
+        raise RuntimeError(
+            f"Graph for {capability} did not expose expected next capability {expected}: {json.dumps(graph, sort_keys=True)}"
+        )
+    return {
+        "capability": capability,
+        "graph": graph,
+        "selected_next": expected,
+    }
+
+
+def require_graph_requirement(
+    client: ANIPClient,
+    capability: str,
+    expected: str,
+) -> dict:
+    graph = client.get_graph(capability)
+    required = [item["capability"] for item in graph.get("requires", [])]
+    if expected not in required:
+        raise RuntimeError(
+            f"Graph for {capability} did not expose expected requirement {expected}: {json.dumps(graph, sort_keys=True)}"
+        )
+    return {
+        "capability": capability,
+        "graph": graph,
+        "required_capability": expected,
+    }
 
 
 def issue_parent_token(
@@ -70,38 +127,400 @@ def issue_parent_token(
     capability: str,
     scopes: list[str],
 ) -> dict:
-    return client.request_capability_token(
+    token = client.request_capability_token(
         principal=AGENT_SUBJECT,
         capability=capability,
         scope=scopes,
         api_key=bootstrap,
         ttl_hours=1,
     )
+    token["capability"] = capability
+    return token
 
 
-def issue_delegated_token(
+def issue_root_capability_token(
     client: ANIPClient,
-    parent_token_jwt: str,
-    parent_token_id: str,
+    bootstrap: str,
     capability: str,
     scope: str,
-) -> str:
-    response = client.request_delegated_capability_token(
+    *,
+    budget: dict | None = None,
+    concurrent_branches: str | None = None,
+) -> dict:
+    response = client.request_capability_token(
         principal=AGENT_SUBJECT,
-        parent_token=parent_token_id,
+        capability=capability,
+        scope=[scope],
+        api_key=bootstrap,
+        ttl_hours=1,
+        budget=budget,
+        concurrent_branches=concurrent_branches,
+    )
+    response["capability"] = capability
+    return response
+
+
+def permission_snapshot(client: ANIPClient, token_jwt: str, capability: str) -> dict:
+    permissions = client.check_permissions(token_jwt)
+    return {
+        "permissions": permissions,
+        "entry": ANIPClient.match_permission(permissions, capability),
+    }
+
+
+def resolve_capability_token(
+    client: ANIPClient,
+    parent_token: dict,
+    bootstrap: str,
+    capability: str,
+    scope: str,
+    *,
+    report: list[dict],
+    budget: dict | None = None,
+) -> dict:
+    parent_state = permission_snapshot(client, parent_token["token"], capability)
+    parent_entry = parent_state["entry"]
+    parent_capability = parent_token.get("capability")
+    purpose_mismatch = parent_capability is not None and parent_capability != capability
+    decision = {
+        "capability": capability,
+        "scope": scope,
+        "parent": parent_entry,
+        "used": None,
+        "budget_requested": budget,
+        "purpose_mismatch": purpose_mismatch,
+    }
+
+    if parent_entry["status"] == "available" and not purpose_mismatch:
+        decision["used"] = "parent"
+        report.append(decision)
+        return parent_token
+
+    if parent_entry["status"] == "denied":
+        decision["used"] = "root"
+        report.append(decision)
+        return issue_root_capability_token(
+            client,
+            bootstrap,
+            capability,
+            scope,
+            budget=budget,
+        )
+
+    child = client.request_delegated_capability_token(
+        principal=AGENT_SUBJECT,
+        parent_token=parent_token["token_id"],
         capability=capability,
         scope=[scope],
         subject=AGENT_SUBJECT,
-        auth_bearer=parent_token_jwt,
+        auth_bearer=parent_token["token"],
         caller_class="agent",
         ttl_hours=1,
+        budget=budget,
     )
-    return response["token"]
+    child_state = permission_snapshot(client, child["token"], capability)
+    child_entry = child_state["entry"]
+    decision["used"] = "delegated"
+    decision["child"] = child_entry
+    decision["child_token_id"] = child["token_id"]
+    child["capability"] = capability
+    report.append(decision)
+
+    if child_entry["status"] != "available":
+        raise RuntimeError(
+            f"Delegated token for {capability} is still not available: {json.dumps(child_entry, sort_keys=True)}"
+        )
+    return child
 
 
-def invoke(client: ANIPClient, token: str, capability: str, parameters: dict) -> dict:
-    response = client.invoke(capability, token, parameters)
-    return response["result"] if response.get("success") else response
+def invoke(
+    client: ANIPClient,
+    token_info: dict,
+    capability: str,
+    parameters: dict,
+    *,
+    client_reference_id: str,
+    task_id: str | None = None,
+    parent_invocation_id: str | None = None,
+    upstream_service: str | None = None,
+) -> dict:
+    return client.invoke(
+        capability,
+        token_info["token"],
+        parameters,
+        client_reference_id=client_reference_id,
+        task_id=task_id or token_info.get("task_id"),
+        parent_invocation_id=parent_invocation_id,
+        upstream_service=upstream_service,
+    )
+
+
+def verify_audit(
+    client: ANIPClient,
+    token_info: dict,
+    capability: str,
+    *,
+    client_reference_id: str,
+    task_id: str | None,
+    invocation_id: str,
+    mode: str,
+) -> dict:
+    resolved_task_id = task_id or token_info.get("task_id")
+    audit = client.query_audit(
+        token_info["token"],
+        capability=capability,
+        client_reference_id=client_reference_id,
+        task_id=resolved_task_id,
+        limit=20,
+    )
+    entries = audit.get("entries", [])
+    verification = {
+        "mode": mode,
+        "count": len(entries),
+        "matched_client_reference_id": any(entry.get("client_reference_id") == client_reference_id for entry in entries),
+        "matched_invocation_id": any(entry.get("invocation_id") == invocation_id for entry in entries),
+        "matched_task_id": resolved_task_id is not None
+        and any(entry.get("task_id") == resolved_task_id for entry in entries),
+        "event_classes": sorted({entry.get("event_class") for entry in entries if entry.get("event_class")}),
+    }
+    if mode == "skip":
+        return {"audit": audit, "verification": verification}
+    if not verification["matched_client_reference_id"]:
+        raise RuntimeError(f"Audit did not return client_reference_id {client_reference_id} for {capability}")
+    if mode == "strict":
+        if not verification["matched_invocation_id"]:
+            raise RuntimeError(f"Audit did not return invocation_id {invocation_id} for {capability}")
+        if resolved_task_id is not None and not verification["matched_task_id"]:
+            raise RuntimeError(f"Audit did not return task_id {resolved_task_id} for {capability}")
+    return {"audit": audit, "verification": verification}
+
+
+def verify_stream_audit(
+    client: ANIPClient,
+    token_info: dict,
+    capability: str,
+    *,
+    client_reference_id: str,
+    invocation_id: str,
+    mode: str,
+) -> dict:
+    resolved_task_id = token_info.get("task_id")
+    audit = client.query_audit(
+        token_info["token"],
+        capability=capability,
+        client_reference_id=client_reference_id,
+        task_id=resolved_task_id,
+        limit=20,
+    )
+    entries = audit.get("entries", [])
+    entry = next((item for item in entries if item.get("invocation_id") == invocation_id), None)
+    if entry is None:
+        raise RuntimeError(f"Streaming audit did not return invocation_id {invocation_id} for {capability}")
+    stream_summary = entry.get("stream_summary")
+    if not isinstance(stream_summary, dict):
+        raise RuntimeError(f"Streaming audit did not persist stream_summary for {capability}")
+    verification = {
+        "mode": mode,
+        "matched_client_reference_id": entry.get("client_reference_id") == client_reference_id,
+        "matched_invocation_id": entry.get("invocation_id") == invocation_id,
+        "matched_task_id": resolved_task_id is not None and entry.get("task_id") == resolved_task_id,
+        "events_emitted": stream_summary.get("events_emitted"),
+        "response_mode": stream_summary.get("response_mode"),
+    }
+    if not verification["matched_client_reference_id"]:
+        raise RuntimeError(f"Streaming audit did not return client_reference_id {client_reference_id} for {capability}")
+    if verification["response_mode"] != "streaming":
+        raise RuntimeError(f"Streaming audit recorded wrong response mode for {capability}: {verification['response_mode']}")
+    if not isinstance(verification["events_emitted"], int) or verification["events_emitted"] < 1:
+        raise RuntimeError(f"Streaming audit did not record emitted events for {capability}")
+    if mode == "strict" and resolved_task_id is not None and not verification["matched_task_id"]:
+        raise RuntimeError(f"Streaming audit did not return task_id {resolved_task_id} for {capability}")
+    return {"audit": audit, "verification": verification}
+
+
+def verify_checkpoints(
+    client: ANIPClient,
+    posture: dict,
+) -> dict:
+    """Verify anchored checkpoint/proof surfaces when the service advertises them."""
+    if not posture.get("anchoring_enabled"):
+        return {"mode": "skip", "reason": "anchoring_disabled"}
+
+    listing = {"checkpoints": []}
+    checkpoints: list[dict] = []
+    for _ in range(5):
+        listing = client.list_checkpoints(limit=10)
+        checkpoints = listing.get("checkpoints", [])
+        if checkpoints:
+            break
+        time.sleep(1)
+    if not checkpoints:
+        raise RuntimeError("Anchored service returned no checkpoints")
+
+    ordered = sorted(
+        checkpoints,
+        key=lambda item: item.get("range", {}).get("last_sequence", 0),
+    )
+    latest = ordered[-1]
+    latest_detail = client.get_checkpoint(
+        latest["checkpoint_id"],
+        include_proof=True,
+        leaf_index=0,
+    )
+    checkpoint = latest_detail.get("checkpoint", {})
+    inclusion_proof = latest_detail.get("inclusion_proof")
+    if not isinstance(inclusion_proof, dict):
+        raise RuntimeError(f"Checkpoint {latest['checkpoint_id']} did not return inclusion_proof")
+
+    verification: dict = {
+        "mode": "strict" if posture.get("proofs_available") else "basic",
+        "checkpoint_count": len(ordered),
+        "latest_checkpoint_id": latest["checkpoint_id"],
+        "latest_entry_count": checkpoint.get("entry_count"),
+        "latest_last_sequence": checkpoint.get("range", {}).get("last_sequence"),
+        "inclusion_proof_present": True,
+        "inclusion_path_length": len(inclusion_proof.get("path") or []),
+        "proof_unavailable": latest_detail.get("proof_unavailable"),
+    }
+
+    if len(ordered) >= 2:
+        previous = ordered[-2]
+        latest_with_consistency = client.get_checkpoint(
+            latest["checkpoint_id"],
+            consistency_from=previous["checkpoint_id"],
+        )
+        consistency_proof = latest_with_consistency.get("consistency_proof")
+        if not isinstance(consistency_proof, dict):
+            raise RuntimeError(
+                "Anchored service advertised proofs but did not return consistency_proof "
+                f"from {previous['checkpoint_id']} to {latest['checkpoint_id']}"
+            )
+        verification.update(
+            {
+                "consistency_proof_present": True,
+                "consistency_from": previous["checkpoint_id"],
+                "consistency_path_length": len(consistency_proof.get("path") or []),
+            }
+        )
+        return {
+            "listing": listing,
+            "latest": latest_detail,
+            "consistency": latest_with_consistency,
+            "verification": verification,
+        }
+
+    verification["consistency_proof_present"] = False
+    return {
+        "listing": listing,
+        "latest": latest_detail,
+        "consistency": None,
+        "verification": verification,
+    }
+
+
+def verify_round5_observability(
+    client: ANIPClient,
+    root_token: dict,
+    bootstrap: str,
+    report: list[dict],
+) -> dict:
+    """Pressure exclusive-lock contention and runtime observability hooks."""
+    hold_parent_state = permission_snapshot(
+        client,
+        root_token["token"],
+        "hold_exclusive_probe",
+    )
+    report.append(
+        {
+            "capability": "hold_exclusive_probe",
+            "scope": "studio.workbench.hold_exclusive_probe",
+            "parent": hold_parent_state["entry"],
+            "used": "root-exclusive",
+            "reason": "round5_exclusive_probe",
+        }
+    )
+    hold_token = issue_root_capability_token(
+        client,
+        bootstrap,
+        "hold_exclusive_probe",
+        "studio.workbench.hold_exclusive_probe",
+        concurrent_branches="exclusive",
+    )
+    read_token = resolve_capability_token(
+        client,
+        root_token,
+        bootstrap,
+        "read_runtime_observability",
+        "studio.workbench.read_runtime_observability",
+        report=report,
+    )
+
+    hold_ref = f"round5-hold-{uuid4().hex[:8]}"
+    contend_ref = f"round5-contend-{uuid4().hex[:8]}"
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        first = executor.submit(
+            invoke,
+            client,
+            hold_token,
+            "hold_exclusive_probe",
+            {"hold_seconds": 2, "label": "primary"},
+            client_reference_id=hold_ref,
+        )
+        time.sleep(0.25)
+        second = invoke(
+            client,
+            hold_token,
+            "hold_exclusive_probe",
+            {"hold_seconds": 0.1, "label": "contender"},
+            client_reference_id=contend_ref,
+        )
+        first_result = first.result(timeout=10)
+
+    if not first_result.get("success", False):
+        raise RuntimeError(f"Primary exclusive probe failed unexpectedly: {json.dumps(first_result, sort_keys=True)}")
+    if second.get("success", True):
+        raise RuntimeError(f"Contending exclusive probe unexpectedly succeeded: {json.dumps(second, sort_keys=True)}")
+    if second.get("failure", {}).get("type") != "concurrent_request_rejected":
+        raise RuntimeError(f"Contending exclusive probe returned wrong failure: {json.dumps(second, sort_keys=True)}")
+
+    observability = invoke(
+        client,
+        read_token,
+        "read_runtime_observability",
+        {},
+        client_reference_id=f"round5-observability-{uuid4().hex[:8]}",
+    )
+    if not observability.get("success", False):
+        raise RuntimeError(f"Runtime observability read failed: {json.dumps(observability, sort_keys=True)}")
+    result = observability["result"]
+    hook_counts = result.get("hooks", {}).get("counts", {})
+    health = result.get("health", {})
+    checkpoints = result.get("recent_checkpoints", [])
+
+    if hook_counts.get("logging.invocation_start", 0) < 1:
+        raise RuntimeError("Round 5 did not capture logging.invocation_start hook events")
+    if hook_counts.get("logging.invocation_end", 0) < 1:
+        raise RuntimeError("Round 5 did not capture logging.invocation_end hook events")
+    if hook_counts.get("metrics.invocation_duration", 0) < 1:
+        raise RuntimeError("Round 5 did not capture metrics.invocation_duration hook events")
+    if hook_counts.get("logging.checkpoint_created", 0) < 1:
+        raise RuntimeError("Round 5 did not capture logging.checkpoint_created hook events")
+    if health.get("status") != "healthy":
+        raise RuntimeError(f"Runtime health is not healthy in Round 5: {json.dumps(health, sort_keys=True)}")
+    if not checkpoints:
+        raise RuntimeError("Round 5 observability read did not return recent checkpoints")
+
+    return {
+        "exclusive_hold": first_result,
+        "exclusive_contention": second,
+        "observability": result,
+        "verification": {
+            "hook_counts": hook_counts,
+            "health_status": health.get("status"),
+            "checkpoint_count": len(checkpoints),
+            "contention_failure_type": second.get("failure", {}).get("type"),
+        },
+    }
 
 
 def main() -> None:
@@ -115,6 +534,10 @@ def main() -> None:
 
     assistant_client = ANIPClient(f"{args.studio_base_url.rstrip('/')}/studio-assistant")
     workbench_client = ANIPClient(f"{args.studio_base_url.rstrip('/')}/studio-workbench")
+    assistant_discovery = assistant_client.discover()
+    workbench_discovery = workbench_client.discover()
+    assistant_posture = posture_summary(assistant_discovery)
+    workbench_posture = posture_summary(workbench_discovery)
 
     workbench_parent = issue_parent_token(
         workbench_client,
@@ -129,36 +552,53 @@ def main() -> None:
         ASSISTANT_SCOPES,
     )
 
-    workspace_token = issue_delegated_token(
+    bootstrap_decisions: list[dict] = []
+    workspace_ref = f"workspace-{uuid4().hex[:8]}"
+    workspace_token = resolve_capability_token(
         workbench_client,
-        workbench_parent["token"],
-        workbench_parent["token_id"],
+        workbench_parent,
+        WORKBENCH_BOOTSTRAP,
         "create_workspace",
         "studio.workbench.create_workspace",
+        report=bootstrap_decisions,
     )
     workspace = invoke(
         workbench_client,
         workspace_token,
         "create_workspace",
         {"name": f"Stress Workspace {uuid4().hex[:8]}", "summary": "ANIP stress-testing workspace"},
-    )["workspace"]
+        client_reference_id=workspace_ref,
+    )["result"]["workspace"]
 
     report = {
         "workspace": workspace,
+        "assistant_discovery": assistant_discovery,
+        "workbench_discovery": workbench_discovery,
+        "assistant_posture": assistant_posture,
+        "workbench_posture": workbench_posture,
         "assistant_manifest": assistant_client.get_manifest(),
         "workbench_manifest": workbench_client.get_manifest(),
+        "bootstrap_permission_decisions": bootstrap_decisions,
+        "checkpoint_checks": None,
+        "round5_checks": None,
         "runs": [],
     }
 
     for brief in DEFAULT_BRIEFS:
-        create_project_token = issue_delegated_token(
+        permission_decisions: list[dict] = []
+        graph_checks: list[dict] = []
+        audit_checks: list[dict] = []
+        run_id = f"run-{slug(brief['name'])}-{uuid4().hex[:8]}"
+        create_project_token = resolve_capability_token(
             workbench_client,
-            workbench_parent["token"],
-            workbench_parent["token_id"],
+            workbench_parent,
+            WORKBENCH_BOOTSTRAP,
             "create_project",
             "studio.workbench.create_project",
+            report=permission_decisions,
         )
-        project = invoke(
+        create_project_ref = f"{slug(brief['name'])}-create-project-{uuid4().hex[:8]}"
+        project_resp = invoke(
             workbench_client,
             create_project_token,
             "create_project",
@@ -168,64 +608,252 @@ def main() -> None:
                 "summary": brief["summary"],
                 "domain": brief["domain"],
             },
-        )["project"]
+            client_reference_id=create_project_ref,
+        )
+        project = project_resp["result"]["project"]
+        audit_checks.append(
+            {
+                "service": "studio-workbench",
+                "capability": "create_project",
+                "client_reference_id": create_project_ref,
+                **verify_audit(
+                    workbench_client,
+                    create_project_token,
+                    "create_project",
+                    client_reference_id=create_project_ref,
+                    task_id=create_project_token.get("task_id"),
+                    invocation_id=project_resp["invocation_id"],
+                    mode=audit_mode(workbench_posture),
+                ),
+            }
+        )
 
-        interpret_token = issue_delegated_token(
+        interpret_token = resolve_capability_token(
             assistant_client,
-            assistant_parent["token"],
-            assistant_parent["token_id"],
+            assistant_parent,
+            ASSISTANT_BOOTSTRAP,
             "interpret_project_intent",
             "studio.assistant.interpret_project_intent",
+            report=permission_decisions,
         )
-        interpretation = invoke(
+        interpret_ref = f"{slug(brief['name'])}-interpret-{uuid4().hex[:8]}"
+        interpretation_resp = invoke(
             assistant_client,
             interpret_token,
             "interpret_project_intent",
             {"project_id": project["id"], "intent": brief["intent"]},
+            client_reference_id=interpret_ref,
+        )
+        interpretation = interpretation_resp["result"]
+        audit_checks.append(
+            {
+                "service": "studio-assistant",
+                "capability": "interpret_project_intent",
+                "client_reference_id": interpret_ref,
+                **verify_audit(
+                    assistant_client,
+                    interpret_token,
+                    "interpret_project_intent",
+                    client_reference_id=interpret_ref,
+                    task_id=interpret_token.get("task_id"),
+                    invocation_id=interpretation_resp["invocation_id"],
+                    mode=audit_mode(assistant_posture),
+                ),
+            }
         )
 
-        accept_token = issue_delegated_token(
+        create_project_graph = require_graph_next(
             workbench_client,
-            workbench_parent["token"],
-            workbench_parent["token_id"],
+            "create_project",
             "accept_first_design",
-            "studio.workbench.accept_first_design",
         )
-        accepted = invoke(
+        graph_checks.append(create_project_graph)
+        accept_capability = create_project_graph["selected_next"]
+        accept_token = resolve_capability_token(
+            workbench_client,
+            workbench_parent,
+            WORKBENCH_BOOTSTRAP,
+            accept_capability,
+            f"studio.workbench.{accept_capability}",
+            report=permission_decisions,
+        )
+        accept_ref = f"{slug(brief['name'])}-accept-{uuid4().hex[:8]}"
+        accepted_resp = invoke(
             workbench_client,
             accept_token,
-            "accept_first_design",
+            accept_capability,
             {
                 "project_id": project["id"],
                 "source_intent": brief["intent"],
                 "interpretation": interpretation,
             },
+            client_reference_id=accept_ref,
+        )
+        accepted = accepted_resp["result"]
+        audit_checks.append(
+            {
+                "service": "studio-workbench",
+                "capability": accept_capability,
+                "client_reference_id": accept_ref,
+                **verify_audit(
+                    workbench_client,
+                    accept_token,
+                    accept_capability,
+                    client_reference_id=accept_ref,
+                    task_id=accept_token.get("task_id"),
+                    invocation_id=accepted_resp["invocation_id"],
+                    mode=audit_mode(workbench_posture),
+                ),
+            }
         )
 
         req_id = accepted["requirements"]["id"]
         shape_id = accepted["shape"]["id"]
         scenario_ids = [item["id"] for item in accepted["scenarios"]]
 
-        eval_token = issue_delegated_token(
+        review_session = None
+        review_stream = None
+        if "start_design_review_session" in report["assistant_manifest"]["capabilities"]:
+            review_start_child = assistant_client.request_delegated_capability_token(
+                principal=AGENT_SUBJECT,
+                parent_token=assistant_parent["token_id"],
+                capability="start_design_review_session",
+                scope=["studio.assistant.start_design_review_session"],
+                subject=AGENT_SUBJECT,
+                auth_bearer=assistant_parent["token"],
+                caller_class="agent",
+                ttl_hours=1,
+            )
+            review_start_child["capability"] = "start_design_review_session"
+            review_start_token = review_start_child
+            permission_decisions.append(
+                {
+                    "capability": "start_design_review_session",
+                    "scope": "studio.assistant.start_design_review_session",
+                    "parent": permission_snapshot(assistant_client, assistant_parent["token"], "start_design_review_session")["entry"],
+                    "used": "delegated",
+                    "budget_requested": None,
+                    "child": permission_snapshot(assistant_client, review_start_token["token"], "start_design_review_session")["entry"],
+                    "child_token_id": review_start_child["token_id"],
+                }
+            )
+            review_start_ref = f"{slug(brief['name'])}-review-start-{uuid4().hex[:8]}"
+            review_start_resp = invoke(
+                assistant_client,
+                review_start_token,
+                "start_design_review_session",
+                {
+                    "project_id": project["id"],
+                    "shape_id": shape_id,
+                    "scenario_id": scenario_ids[0],
+                },
+                client_reference_id=review_start_ref,
+            )
+            review_session = review_start_resp["result"]
+            audit_checks.append(
+                {
+                    "service": "studio-assistant",
+                    "capability": "start_design_review_session",
+                    "client_reference_id": review_start_ref,
+                **verify_audit(
+                    assistant_client,
+                    review_start_token,
+                    "start_design_review_session",
+                    client_reference_id=review_start_ref,
+                    task_id=review_start_token.get("task_id"),
+                    invocation_id=review_start_resp["invocation_id"],
+                    mode=audit_mode(assistant_posture),
+                ),
+                }
+            )
+
+            review_graph = require_graph_next(
+                assistant_client,
+                "start_design_review_session",
+                "stream_design_review",
+            )
+            graph_checks.append(review_graph)
+            review_stream_capability = review_graph["selected_next"]
+            review_stream_child = assistant_client.request_delegated_capability_token(
+                principal=AGENT_SUBJECT,
+                parent_token=assistant_parent["token_id"],
+                capability=review_stream_capability,
+                scope=[f"studio.assistant.{review_stream_capability}"],
+                subject=AGENT_SUBJECT,
+                auth_bearer=assistant_parent["token"],
+                caller_class="agent",
+                ttl_hours=1,
+            )
+            review_stream_child["capability"] = review_stream_capability
+            review_stream_token = review_stream_child
+            permission_decisions.append(
+                {
+                    "capability": review_stream_capability,
+                    "scope": f"studio.assistant.{review_stream_capability}",
+                    "parent": permission_snapshot(assistant_client, assistant_parent["token"], review_stream_capability)["entry"],
+                    "used": "delegated",
+                    "budget_requested": None,
+                    "child": permission_snapshot(assistant_client, review_stream_token["token"], review_stream_capability)["entry"],
+                    "child_token_id": review_stream_child["token_id"],
+                }
+            )
+            review_stream_ref = f"{slug(brief['name'])}-review-stream-{uuid4().hex[:8]}"
+            review_stream_events = assistant_client.invoke_stream(
+                review_stream_capability,
+                review_stream_token["token"],
+                {
+                    "project_id": project["id"],
+                    "session_id": review_session["session_id"],
+                    "question": "What should the PM pressure next?",
+                },
+                client_reference_id=review_stream_ref,
+                task_id=review_stream_token.get("task_id"),
+            )
+            completed_event = next((event for event in review_stream_events if event["event"] == "completed"), None)
+            if completed_event is None:
+                raise RuntimeError("Streaming review did not produce a completed event")
+            review_stream = completed_event["data"]
+            audit_checks.append(
+                {
+                    "service": "studio-assistant",
+                    "capability": review_stream_capability,
+                    "client_reference_id": review_stream_ref,
+                    "events": review_stream_events,
+                    **verify_stream_audit(
+                        assistant_client,
+                        review_stream_token,
+                        review_stream_capability,
+                        client_reference_id=review_stream_ref,
+                        invocation_id=review_stream["invocation_id"],
+                        mode=audit_mode(assistant_posture),
+                    ),
+                }
+            )
+
+        eval_token = resolve_capability_token(
             workbench_client,
-            workbench_parent["token"],
-            workbench_parent["token_id"],
+            workbench_parent,
+            WORKBENCH_BOOTSTRAP,
             "evaluate_service_design",
             "studio.workbench.evaluate_service_design",
+            report=permission_decisions,
+            budget=DOGFOOD_EVAL_BUDGET,
         )
-        draft_fix_token = issue_delegated_token(
+        draft_fix_token = resolve_capability_token(
             workbench_client,
-            workbench_parent["token"],
-            workbench_parent["token_id"],
+            workbench_parent,
+            WORKBENCH_BOOTSTRAP,
             "draft_fix_from_change",
             "studio.workbench.draft_fix_from_change",
+            report=permission_decisions,
         )
 
         scenario_runs = []
         current_req_id = req_id
         current_shape_id = shape_id
         for scenario_id in scenario_ids:
-            first_eval = invoke(
+            eval_ref = f"{slug(brief['name'])}-eval-{uuid4().hex[:8]}"
+            first_eval_resp = invoke(
                 workbench_client,
                 eval_token,
                 "evaluate_service_design",
@@ -235,11 +863,30 @@ def main() -> None:
                     "scenario_id": scenario_id,
                     "shape_id": current_shape_id,
                 },
+                client_reference_id=eval_ref,
+            )
+            first_eval = first_eval_resp["result"]
+            audit_checks.append(
+                {
+                    "service": "studio-workbench",
+                    "capability": "evaluate_service_design",
+                    "client_reference_id": eval_ref,
+                **verify_audit(
+                    workbench_client,
+                    eval_token,
+                    "evaluate_service_design",
+                    client_reference_id=eval_ref,
+                    task_id=eval_token.get("task_id"),
+                    invocation_id=first_eval_resp["invocation_id"],
+                    mode=audit_mode(workbench_posture),
+                ),
+                }
             )
             followup = None
             changes = first_eval["evaluation"].get("what_would_improve") or first_eval["evaluation"].get("glue_you_will_still_write") or []
             if changes:
-                fix = invoke(
+                fix_ref = f"{slug(brief['name'])}-fix-{uuid4().hex[:8]}"
+                fix_resp = invoke(
                     workbench_client,
                     draft_fix_token,
                     "draft_fix_from_change",
@@ -250,39 +897,100 @@ def main() -> None:
                         "scenario_id": scenario_id,
                         "shape_id": current_shape_id,
                     },
+                    client_reference_id=fix_ref,
+                )
+                fix = fix_resp["result"]
+                audit_checks.append(
+                    {
+                        "service": "studio-workbench",
+                        "capability": "draft_fix_from_change",
+                        "client_reference_id": fix_ref,
+                        **verify_audit(
+                            workbench_client,
+                            draft_fix_token,
+                            "draft_fix_from_change",
+                            client_reference_id=fix_ref,
+                            task_id=draft_fix_token.get("task_id"),
+                            invocation_id=fix_resp["invocation_id"],
+                            mode=audit_mode(workbench_posture),
+                        ),
+                    }
                 )
                 selection = fix["selection"]
                 current_req_id = selection.get("requirements_id") or current_req_id
                 scenario_id = selection.get("scenario_id") or scenario_id
                 current_shape_id = selection.get("shape_id") or current_shape_id
-                followup = invoke(
+                draft_fix_graph = require_graph_next(
+                    workbench_client,
+                    "draft_fix_from_change",
+                    "evaluate_service_design",
+                )
+                graph_checks.append(draft_fix_graph)
+                followup_capability = draft_fix_graph["selected_next"]
+                follow_ref = f"{slug(brief['name'])}-follow-{uuid4().hex[:8]}"
+                followup_resp = invoke(
                     workbench_client,
                     eval_token,
-                    "evaluate_service_design",
+                    followup_capability,
                     {
                         "project_id": project["id"],
                         "requirements_id": current_req_id,
                         "scenario_id": scenario_id,
                         "shape_id": current_shape_id,
                     },
+                    client_reference_id=follow_ref,
+                )
+                followup = followup_resp["result"]
+                audit_checks.append(
+                    {
+                        "service": "studio-workbench",
+                        "capability": followup_capability,
+                        "client_reference_id": follow_ref,
+                        **verify_audit(
+                            workbench_client,
+                            eval_token,
+                            followup_capability,
+                            client_reference_id=follow_ref,
+                            task_id=eval_token.get("task_id"),
+                            invocation_id=followup_resp["invocation_id"],
+                            mode=audit_mode(workbench_posture),
+                        ),
+                    }
                 )
             scenario_runs.append({"initial": first_eval, "followup": followup})
 
-        business_token = issue_delegated_token(
+        graph_checks.append(
+            require_graph_requirement(
+                workbench_client,
+                "generate_business_brief",
+                "evaluate_service_design",
+            )
+        )
+        graph_checks.append(
+            require_graph_requirement(
+                workbench_client,
+                "generate_engineering_contract",
+                "evaluate_service_design",
+            )
+        )
+        business_token = resolve_capability_token(
             workbench_client,
-            workbench_parent["token"],
-            workbench_parent["token_id"],
+            workbench_parent,
+            WORKBENCH_BOOTSTRAP,
             "generate_business_brief",
             "studio.workbench.generate_business_brief",
+            report=permission_decisions,
         )
-        engineering_token = issue_delegated_token(
+        engineering_token = resolve_capability_token(
             workbench_client,
-            workbench_parent["token"],
-            workbench_parent["token_id"],
+            workbench_parent,
+            WORKBENCH_BOOTSTRAP,
             "generate_engineering_contract",
             "studio.workbench.generate_engineering_contract",
+            report=permission_decisions,
         )
-        business_brief = invoke(
+        business_ref = f"{slug(brief['name'])}-business-{uuid4().hex[:8]}"
+        business_resp = invoke(
             workbench_client,
             business_token,
             "generate_business_brief",
@@ -293,8 +1001,27 @@ def main() -> None:
                 "scenario_id": scenario_ids[0],
                 "shape_id": current_shape_id,
             },
-        )["document"]
-        engineering_contract = invoke(
+            client_reference_id=business_ref,
+        )
+        business_brief = business_resp["result"]["document"]
+        audit_checks.append(
+            {
+                "service": "studio-workbench",
+                "capability": "generate_business_brief",
+                "client_reference_id": business_ref,
+                **verify_audit(
+                    workbench_client,
+                    business_token,
+                    "generate_business_brief",
+                    client_reference_id=business_ref,
+                    task_id=business_token.get("task_id"),
+                    invocation_id=business_resp["invocation_id"],
+                    mode=audit_mode(workbench_posture),
+                ),
+            }
+        )
+        engineering_ref = f"{slug(brief['name'])}-engineering-{uuid4().hex[:8]}"
+        engineering_resp = invoke(
             workbench_client,
             engineering_token,
             "generate_engineering_contract",
@@ -304,7 +1031,25 @@ def main() -> None:
                 "scenario_id": scenario_ids[0],
                 "shape_id": current_shape_id,
             },
-        )["document"]
+            client_reference_id=engineering_ref,
+        )
+        engineering_contract = engineering_resp["result"]["document"]
+        audit_checks.append(
+            {
+                "service": "studio-workbench",
+                "capability": "generate_engineering_contract",
+                "client_reference_id": engineering_ref,
+                **verify_audit(
+                    workbench_client,
+                    engineering_token,
+                    "generate_engineering_contract",
+                    client_reference_id=engineering_ref,
+                    task_id=engineering_token.get("task_id"),
+                    invocation_id=engineering_resp["invocation_id"],
+                    mode=audit_mode(workbench_posture),
+                ),
+            }
+        )
 
         project_dir = output_dir / slug(brief["name"])
         project_dir.mkdir(parents=True, exist_ok=True)
@@ -317,9 +1062,28 @@ def main() -> None:
                 "project": project,
                 "interpretation": interpretation,
                 "accepted": accepted,
+                "review_session": review_session,
+                "review_stream": review_stream,
                 "scenario_runs": scenario_runs,
+                "permission_decisions": permission_decisions,
+                "graph_checks": graph_checks,
+                "audit_checks": audit_checks,
+                "run_id": run_id,
                 "artifacts_dir": str(project_dir),
             }
+        )
+
+    report["checkpoint_checks"] = verify_checkpoints(
+        workbench_client,
+        workbench_posture,
+    )
+
+    if "hold_exclusive_probe" in report["workbench_manifest"]["capabilities"]:
+        report["round5_checks"] = verify_round5_observability(
+            workbench_client,
+            workbench_parent,
+            WORKBENCH_BOOTSTRAP,
+            bootstrap_decisions,
         )
 
     print(json.dumps(report, indent=2))

@@ -7,15 +7,21 @@ without turning the product into a generic chat surface.
 
 from __future__ import annotations
 
+import asyncio
+import os
 from typing import Any
 
 from anip_core import (
     CapabilityDeclaration,
+    CapabilityComposition,
     CapabilityInput,
     CapabilityOutput,
     CrossServiceContract,
     CrossServiceContractEntry,
+    ResponseMode,
     ServiceCapabilityRef,
+    SessionInfo,
+    SessionType,
     SideEffect,
     SideEffectType,
 )
@@ -38,13 +44,30 @@ ASSISTANT_SCOPES = [
     "studio.assistant.explain_shape",
     "studio.assistant.explain_evaluation",
     "studio.assistant.interpret_project_intent",
+    "studio.assistant.start_design_review_session",
+    "studio.assistant.stream_design_review",
 ]
+DOGFOOD_ROUND2_PROFILES = {"round2", "audit-posture", "round2-audit-posture"}
+DOGFOOD_ROUND3_PROFILES = {"round3", "streaming-session", "round3-streaming-session"}
+DOGFOOD_ROUND4_PROFILES = {"round4", "checkpoints-proofs", "round4-checkpoints-proofs"}
+DOGFOOD_ROUND5_PROFILES = {"round5", "observability-scaling", "round5-observability-scaling"}
+DOGFOOD_ROUND6_PROFILES = {"round6", "capability-graph", "round6-capability-graph"}
+
+
+def _dogfood_profile() -> str:
+    return os.getenv("STUDIO_DOGFOOD_PROFILE", "").strip().lower()
+
+
+def _round2_dogfood_enabled() -> bool:
+    return _dogfood_profile() in (DOGFOOD_ROUND2_PROFILES | DOGFOOD_ROUND3_PROFILES | DOGFOOD_ROUND4_PROFILES | DOGFOOD_ROUND5_PROFILES | DOGFOOD_ROUND6_PROFILES)
+
+
+def _round3_dogfood_enabled() -> bool:
+    return _dogfood_profile() in (DOGFOOD_ROUND3_PROFILES | DOGFOOD_ROUND4_PROFILES | DOGFOOD_ROUND5_PROFILES | DOGFOOD_ROUND6_PROFILES)
 
 
 def create_studio_assistant_service() -> ANIPService:
-    return ANIPService(
-        service_id="studio-assistant",
-        capabilities=[
+    capabilities: list[Capability] = [
             Capability(
                 declaration=CapabilityDeclaration(
                     name="interpret_project_intent",
@@ -197,9 +220,65 @@ def create_studio_assistant_service() -> ANIPService:
                 ),
                 handler=_explain_evaluation,
             ),
-        ],
+        ]
+
+    if _round3_dogfood_enabled():
+        capabilities.extend(
+            [
+                Capability(
+                    declaration=CapabilityDeclaration(
+                        name="start_design_review_session",
+                        description="Start a bounded review session for the current Studio design.",
+                        inputs=[
+                            CapabilityInput(name="project_id", type="string", required=True, description="Project to review."),
+                            CapabilityInput(name="shape_id", type="string", required=False, description="Optional active shape."),
+                            CapabilityInput(name="scenario_id", type="string", required=False, description="Optional active scenario."),
+                        ],
+                        output=CapabilityOutput(
+                            type="object",
+                            fields=["session_id", "title", "summary", "review_focus", "next_step"],
+                        ),
+                        side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+                        minimum_scope=["studio.assistant.start_design_review_session"],
+                        composes_with=(
+                            [CapabilityComposition(capability="stream_design_review", optional=False)]
+                            if _dogfood_profile() in DOGFOOD_ROUND6_PROFILES
+                            else []
+                        ),
+                        session=SessionInfo(type=SessionType.CONTINUATION),
+                    ),
+                    handler=_start_design_review_session,
+                ),
+                Capability(
+                    declaration=CapabilityDeclaration(
+                        name="stream_design_review",
+                        description="Stream a bounded review walkthrough for the current Studio design session.",
+                        inputs=[
+                            CapabilityInput(name="project_id", type="string", required=True, description="Project being reviewed."),
+                            CapabilityInput(name="session_id", type="string", required=True, description="Review session to continue."),
+                            CapabilityInput(name="question", type="string", required=False, description="Optional focus question."),
+                        ],
+                        output=CapabilityOutput(
+                            type="object",
+                            fields=["session_id", "summary", "highlights", "next_steps"],
+                        ),
+                        side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+                        minimum_scope=["studio.assistant.stream_design_review"],
+                        response_modes=[ResponseMode.UNARY, ResponseMode.STREAMING],
+                        session=SessionInfo(type=SessionType.CONTINUATION),
+                    ),
+                    handler=_stream_design_review,
+                ),
+            ]
+        )
+
+    return ANIPService(
+        service_id="studio-assistant",
+        capabilities=capabilities,
         storage=":memory:",
         authenticate=_authenticate_bootstrap_bearer,
+        trust="signed",
+        disclosure_level="redacted" if _round2_dogfood_enabled() else "full",
     )
 
 
@@ -749,3 +828,93 @@ async def _explain_evaluation(_: Any, params: dict[str, Any]) -> dict[str, Any]:
     if model_result:
         return _merge_explanation(deterministic, model_result)
     return deterministic
+
+
+def _review_session_id(project_id: str, shape_id: str | None, scenario_id: str | None) -> str:
+    shape_part = shape_id or "current-shape"
+    scenario_part = scenario_id or "default-scenario"
+    return f"review::{project_id}::{shape_part}::{scenario_part}"
+
+
+async def _start_design_review_session(_: Any, params: dict[str, Any]) -> dict[str, Any]:
+    project_id = _required_param(params, "project_id")
+    shape_id = str(params.get("shape_id", "") or "").strip() or None
+    scenario_id = str(params.get("scenario_id", "") or "").strip() or None
+
+    try:
+        with get_pool().connection() as conn:
+            project = get_project_detail(conn, project_id)
+    except NotFoundError as exc:
+        raise _not_found(f"{exc.entity} {exc.entity_id} does not exist") from exc
+
+    project_name = project.get("name", project_id)
+    session_id = _review_session_id(project_id, shape_id, scenario_id)
+    review_focus = [
+        "Explain the service boundary in PM-friendly language.",
+        "Call out the most important handoff or verification point.",
+        "Highlight one thing the PM should pressure next.",
+    ]
+    if scenario_id:
+        review_focus.append("Keep the active scenario in view while reviewing the design.")
+
+    return {
+        "session_id": session_id,
+        "title": f"Design Review Session: {project_name}",
+        "summary": "A bounded continuation-style review session is ready. Use the session id to stream the walkthrough.",
+        "review_focus": review_focus,
+        "next_step": "Call stream_design_review with this session id to walk the design progressively.",
+    }
+
+
+async def _stream_design_review(ctx: Any, params: dict[str, Any]) -> dict[str, Any]:
+    project_id = _required_param(params, "project_id")
+    session_id = _required_param(params, "session_id")
+    question = str(params.get("question", "") or "").strip()
+
+    parts = session_id.split("::")
+    if len(parts) != 4 or parts[0] != "review":
+        raise _invalid_request("session_id must come from start_design_review_session")
+    _, session_project_id, shape_part, scenario_part = parts
+    if session_project_id != project_id:
+        raise _invalid_request("session_id does not belong to the provided project_id")
+
+    try:
+        with get_pool().connection() as conn:
+            project = get_project_detail(conn, project_id)
+    except NotFoundError as exc:
+        raise _not_found(f"{exc.entity} {exc.entity_id} does not exist") from exc
+
+    project_name = project.get("name", project_id)
+    highlights = [
+        "The review keeps the current design bounded to one clear PM-facing walkthrough.",
+        "Cross-service boundaries remain explicit instead of being hidden in assistant prose.",
+        "The next step should come out of evaluation pressure, not from ad hoc guesswork.",
+    ]
+    if shape_part != "current-shape":
+        highlights.insert(0, f"The walkthrough is anchored to shape {shape_part}.")
+    if scenario_part != "default-scenario":
+        highlights.append(f"The walkthrough keeps scenario {scenario_part} in view.")
+
+    next_steps = [
+        "Test the current design against a real scenario after this review.",
+        "Capture what needs to change before widening the service boundary.",
+        "Keep the shared business and engineering artifacts aligned with the reviewed design.",
+    ]
+    if question:
+        next_steps.insert(0, f"Address the focus question directly: {question}")
+
+    progress_events = [
+        {"stage": "context", "message": f"Loading review context for {project_name}."},
+        {"stage": "boundary", "message": "Explaining the current service boundary and why it exists."},
+        {"stage": "next", "message": "Summarizing the next product decision to pressure."},
+    ]
+    for payload in progress_events:
+        await ctx.emit_progress(payload)
+        await asyncio.sleep(0.01)
+
+    return {
+        "session_id": session_id,
+        "summary": f"Review complete for {project_name}. The design is ready for scenario pressure with a continuation-style review trail.",
+        "highlights": highlights,
+        "next_steps": next_steps,
+    }

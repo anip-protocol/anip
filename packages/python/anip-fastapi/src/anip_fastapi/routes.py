@@ -357,6 +357,7 @@ def _failure_status(failure_type: str | None) -> int:
         "not_found": 404,
         "unavailable": 409,
         "concurrent_lock": 409,
+        "concurrent_request_rejected": 409,
         "internal_error": 500,
     }
     return mapping.get(failure_type or "", 400)

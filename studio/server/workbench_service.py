@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+from collections import deque
+from dataclasses import dataclass, field
 from pathlib import Path
+import asyncio
+import os
 import sys
 from typing import Any
 from uuid import uuid4
@@ -11,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 for path in [
     ROOT / "tooling" / "bin",
     ROOT / "packages" / "python" / "anip-core" / "src",
+    ROOT / "packages" / "python" / "anip-server" / "src",
     ROOT / "packages" / "python" / "anip-service" / "src",
 ]:
     path_str = str(path)
@@ -19,15 +24,31 @@ for path in [
 
 from anip_core import (
     CapabilityDeclaration,
+    CapabilityComposition,
     CapabilityInput,
     CapabilityOutput,
+    CapabilityRequirement,
+    ControlRequirement,
+    Cost,
+    CostCertainty,
     CrossServiceContract,
     CrossServiceContractEntry,
+    FinancialCost,
     ServiceCapabilityRef,
     SideEffect,
     SideEffectType,
 )
-from anip_service import ANIPError, ANIPService, Capability
+from anip_service import (
+    ANIPError,
+    ANIPHooks,
+    ANIPService,
+    Capability,
+    DiagnosticsHooks,
+    LoggingHooks,
+    MetricsHooks,
+    TracingHooks,
+)
+from anip_server.checkpoint import CheckpointPolicy
 from anip_design_validate import evaluate, validate_payload
 
 from .db import get_pool
@@ -74,13 +95,165 @@ WORKBENCH_SCOPES = [
     "studio.workbench.draft_fix_from_change",
     "studio.workbench.generate_business_brief",
     "studio.workbench.generate_engineering_contract",
+    "studio.workbench.hold_exclusive_probe",
+    "studio.workbench.read_runtime_observability",
 ]
+
+DOGFOOD_ROUND1_PROFILES = {"round1", "permissions-budget", "round1-permissions-budget"}
+DOGFOOD_ROUND2_PROFILES = {"round2", "audit-posture", "round2-audit-posture"}
+DOGFOOD_ROUND3_PROFILES = {"round3", "streaming-session", "round3-streaming-session"}
+DOGFOOD_ROUND4_PROFILES = {"round4", "checkpoints-proofs", "round4-checkpoints-proofs"}
+DOGFOOD_ROUND5_PROFILES = {"round5", "observability-scaling", "round5-observability-scaling"}
+DOGFOOD_ROUND6_PROFILES = {"round6", "capability-graph", "round6-capability-graph"}
+DOGFOOD_EVALUATION_COST_AMOUNT = 5.0
+DOGFOOD_EVALUATION_CURRENCY = "USD"
+
+
+@dataclass
+class _DogfoodObservabilityRecorder:
+    events: deque[dict[str, Any]] = field(default_factory=lambda: deque(maxlen=200))
+    counters: dict[str, int] = field(default_factory=dict)
+
+    def record(self, event_type: str, payload: dict[str, Any]) -> None:
+        self.counters[event_type] = self.counters.get(event_type, 0) + 1
+        self.events.append({"event_type": event_type, "payload": dict(payload)})
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "counts": dict(self.counters),
+            "recent_events": list(self.events),
+        }
+
+
+_DOGFOOD_OBSERVABILITY = _DogfoodObservabilityRecorder()
+_DOGFOOD_WORKBENCH_SERVICE: ANIPService | None = None
+
+
+def _dogfood_profile() -> str:
+    return os.getenv("STUDIO_DOGFOOD_PROFILE", "").strip().lower()
+
+
+def _round1_dogfood_enabled() -> bool:
+    return _dogfood_profile() in (
+        DOGFOOD_ROUND1_PROFILES | DOGFOOD_ROUND2_PROFILES | DOGFOOD_ROUND3_PROFILES | DOGFOOD_ROUND4_PROFILES | DOGFOOD_ROUND5_PROFILES | DOGFOOD_ROUND6_PROFILES
+    )
+
+
+def _round2_dogfood_enabled() -> bool:
+    return _dogfood_profile() in (DOGFOOD_ROUND2_PROFILES | DOGFOOD_ROUND3_PROFILES | DOGFOOD_ROUND4_PROFILES | DOGFOOD_ROUND5_PROFILES | DOGFOOD_ROUND6_PROFILES)
+
+
+def _round5_dogfood_enabled() -> bool:
+    return _dogfood_profile() in (DOGFOOD_ROUND5_PROFILES | DOGFOOD_ROUND6_PROFILES)
+
+
+def _dogfood_control_requirements(name: str) -> list[ControlRequirement]:
+    if not _round1_dogfood_enabled():
+        return []
+    requirements: list[ControlRequirement] = []
+    if name in {
+        "create_project",
+        "accept_first_design",
+        "draft_fix_from_change",
+        "generate_business_brief",
+        "evaluate_service_design",
+    }:
+        requirements.append(ControlRequirement(type="stronger_delegation_required"))
+    if name == "evaluate_service_design":
+        requirements.append(ControlRequirement(type="cost_ceiling"))
+    if name == "generate_engineering_contract":
+        requirements.append(ControlRequirement(type="non_delegable"))
+    return requirements
+
+
+def _dogfood_cost(name: str) -> Cost | None:
+    if not _round1_dogfood_enabled() or name != "evaluate_service_design":
+        return None
+    return Cost(
+        certainty=CostCertainty.FIXED,
+        financial=FinancialCost(currency=DOGFOOD_EVALUATION_CURRENCY, amount=DOGFOOD_EVALUATION_COST_AMOUNT),
+        compute={"latency_p50": "250ms", "tokens": 1200},
+    )
+
+
+def _dogfood_trust() -> str | dict[str, Any]:
+    if not _round2_dogfood_enabled():
+        return "signed"
+    return {
+        "level": "anchored",
+        "anchoring": {
+            "cadence": "PT5M",
+            "max_lag": 300,
+        },
+    }
+
+
+def _dogfood_checkpoint_policy() -> CheckpointPolicy | None:
+    if not _round2_dogfood_enabled():
+        return None
+    if _dogfood_profile() in (DOGFOOD_ROUND4_PROFILES | DOGFOOD_ROUND5_PROFILES | DOGFOOD_ROUND6_PROFILES):
+        return CheckpointPolicy(entry_count=1, interval_seconds=1)
+    return CheckpointPolicy(entry_count=1)
+
+
+def _dogfood_disclosure_level() -> str:
+    if not _round2_dogfood_enabled():
+        return "full"
+    return "full"
+
+
+def _dogfood_hooks() -> ANIPHooks | None:
+    if not _round5_dogfood_enabled():
+        return None
+
+    _DOGFOOD_OBSERVABILITY.events.clear()
+    _DOGFOOD_OBSERVABILITY.counters.clear()
+
+    def _record(event_type: str):
+        return lambda payload: _DOGFOOD_OBSERVABILITY.record(event_type, payload)
+
+    def _start_span(payload: dict[str, Any]) -> dict[str, Any]:
+        span = {"name": payload.get("name"), "attributes": payload.get("attributes", {})}
+        _DOGFOOD_OBSERVABILITY.record("tracing.start_span", span)
+        return span
+
+    def _end_span(payload: dict[str, Any]) -> None:
+        span = payload.get("span")
+        _DOGFOOD_OBSERVABILITY.record(
+            "tracing.end_span",
+            {
+                "name": span.get("name") if isinstance(span, dict) else None,
+                "status": payload.get("status"),
+                "error_type": payload.get("error_type"),
+            },
+        )
+
+    return ANIPHooks(
+        logging=LoggingHooks(
+            on_invocation_start=_record("logging.invocation_start"),
+            on_invocation_end=_record("logging.invocation_end"),
+            on_checkpoint_created=_record("logging.checkpoint_created"),
+            on_streaming_summary=_record("logging.streaming_summary"),
+        ),
+        metrics=MetricsHooks(
+            on_invocation_duration=_record("metrics.invocation_duration"),
+            on_checkpoint_created=_record("metrics.checkpoint_created"),
+            on_checkpoint_failed=_record("metrics.checkpoint_failed"),
+            on_proof_generated=_record("metrics.proof_generated"),
+            on_proof_unavailable=_record("metrics.proof_unavailable"),
+        ),
+        tracing=TracingHooks(
+            start_span=_start_span,
+            end_span=_end_span,
+        ),
+        diagnostics=DiagnosticsHooks(
+            on_background_error=_record("diagnostics.background_error"),
+        ),
+    )
 
 
 def create_studio_workbench_service() -> ANIPService:
-    return ANIPService(
-        service_id="studio-workbench",
-        capabilities=[
+    capabilities = [
             _capability(
                 "create_workspace",
                 "Create a Studio workspace for a stress run or new design effort.",
@@ -187,10 +360,45 @@ def create_studio_workbench_service() -> ANIPService:
                 "not_applicable",
                 _generate_engineering_contract,
             ),
-        ],
+        ]
+    if _round5_dogfood_enabled():
+        capabilities.extend(
+            [
+                _capability(
+                    "hold_exclusive_probe",
+                    "Hold an exclusive workbench probe briefly so a second invocation must contend for the lease.",
+                    [("hold_seconds", "number", False), ("label", "string", False)],
+                    ["status", "held_for_seconds", "label"],
+                    SideEffectType.WRITE,
+                    "PT5M",
+                    _hold_exclusive_probe,
+                    exclusive_lock=True,
+                ),
+                _capability(
+                    "read_runtime_observability",
+                    "Read dogfood-only runtime observability and lease state from the workbench service.",
+                    [],
+                    ["profile", "health", "hooks", "recent_checkpoints"],
+                    SideEffectType.READ,
+                    "not_applicable",
+                    _read_runtime_observability,
+                ),
+            ]
+        )
+
+    service = ANIPService(
+        service_id="studio-workbench",
+        capabilities=capabilities,
         storage=":memory:",
         authenticate=_authenticate_bootstrap_bearer,
+        trust=_dogfood_trust(),
+        checkpoint_policy=_dogfood_checkpoint_policy(),
+        disclosure_level=_dogfood_disclosure_level(),
+        hooks=_dogfood_hooks(),
     )
+    global _DOGFOOD_WORKBENCH_SERVICE
+    _DOGFOOD_WORKBENCH_SERVICE = service
+    return service
 
 
 def _capability(
@@ -201,6 +409,8 @@ def _capability(
     side_effect_type: SideEffectType,
     rollback_window: str,
     handler,
+    *,
+    exclusive_lock: bool = False,
 ) -> Capability:
     return Capability(
         declaration=CapabilityDeclaration(
@@ -213,6 +423,10 @@ def _capability(
             output=CapabilityOutput(type="object", fields=fields),
             side_effect=SideEffect(type=side_effect_type, rollback_window=rollback_window),
             minimum_scope=[f"studio.workbench.{name}"],
+            cost=_dogfood_cost(name),
+            control_requirements=_dogfood_control_requirements(name),
+            requires=_dogfood_graph_requires(name),
+            composes_with=_dogfood_graph_composes_with(name),
             cross_service_contract=(
                 CrossServiceContract(
                     followup=[
@@ -232,7 +446,40 @@ def _capability(
             ),
         ),
         handler=handler,
+        exclusive_lock=exclusive_lock,
     )
+
+
+def _dogfood_graph_requires(name: str) -> list[CapabilityRequirement]:
+    if _dogfood_profile() not in DOGFOOD_ROUND6_PROFILES:
+        return []
+    if name in {"generate_business_brief", "generate_engineering_contract"}:
+        return [
+            CapabilityRequirement(
+                capability="evaluate_service_design",
+                reason="shareable outputs should follow a design evaluation readout",
+            )
+        ]
+    return []
+
+
+def _dogfood_graph_composes_with(name: str) -> list[CapabilityComposition]:
+    if _dogfood_profile() not in DOGFOOD_ROUND6_PROFILES:
+        return []
+    mapping: dict[str, list[tuple[str, bool]]] = {
+        "create_project": [("accept_first_design", False)],
+        "accept_first_design": [("evaluate_service_design", False)],
+        "draft_fix_from_change": [("evaluate_service_design", False)],
+        "evaluate_service_design": [
+            ("draft_fix_from_change", True),
+            ("generate_business_brief", True),
+            ("generate_engineering_contract", True),
+        ],
+    }
+    return [
+        CapabilityComposition(capability=capability, optional=optional)
+        for capability, optional in mapping.get(name, [])
+    ]
 
 
 def _authenticate_bootstrap_bearer(bearer: str) -> str | None:
@@ -566,3 +813,30 @@ async def _generate_engineering_contract(_: Any, params: dict[str, Any]) -> dict
     except NotFoundError as exc:
         raise _not_found(f"{exc.entity} {exc.entity_id} does not exist") from exc
     return {"document": build_engineering_contract(context)}
+
+
+async def _hold_exclusive_probe(_: Any, params: dict[str, Any]) -> dict[str, Any]:
+    hold_seconds = float(params.get("hold_seconds", 2))
+    label = _optional_string(params, "label") or "exclusive-probe"
+    if hold_seconds < 0:
+        raise ANIPError("invalid_input", "hold_seconds must be non-negative")
+    await asyncio.sleep(hold_seconds)
+    return {
+        "status": "completed",
+        "held_for_seconds": hold_seconds,
+        "label": label,
+    }
+
+
+async def _read_runtime_observability(_: Any, params: dict[str, Any]) -> dict[str, Any]:
+    del params
+    service = _DOGFOOD_WORKBENCH_SERVICE
+    if service is None:
+        raise ANIPError("runtime_unavailable", "dogfood observability service is not initialized")
+    checkpoints = await service.get_checkpoints(limit=5)
+    return {
+        "profile": _dogfood_profile(),
+        "health": service.get_health().__dict__,
+        "hooks": _DOGFOOD_OBSERVABILITY.snapshot(),
+        "recent_checkpoints": checkpoints.get("checkpoints", []),
+    }
