@@ -1206,7 +1206,7 @@ The handshake is the first substantive interaction. The agent declares what prof
 scope:
   - "travel.search"
   - "travel.book"
-subject: "agent-007"                  # required: who the token is for
+subject: "agent-007"                  # optional: defaults to authenticated principal if omitted
 capability: "book_flight"             # v0.20: optional, pre-binds token to this capability
 purpose_parameters:                    # optional: additional purpose metadata
   task_id: "booking-task-42"
@@ -1234,14 +1234,14 @@ budget:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `scope` | array of strings | Yes | Authorization scopes for the token. Must narrow (never widen) relative to parent. |
-| `subject` | string | Yes | Principal identity the token is issued for. |
+| `subject` | string | No | Principal identity the token is issued for. Defaults to the authenticated principal if omitted. |
 | `parent_token` | string | No | Token ID string of the parent token for delegated issuance (v0.22). Absent for root issuance. NOT a JWT — the service looks it up by ID in storage. |
 | `capability` | string | No | Target capability this token is pre-bound to (v0.20). Prevents `purpose_mismatch` errors. |
 | `purpose_parameters` | object | No | Additional purpose metadata (e.g., `task_id`). Stored in the token's purpose claims. |
 | `ttl_hours` | integer | No | Token lifetime in hours. Default: 2. |
 | `caller_class` | string | No | Issuer-supplied classification for disclosure policy (v0.22). |
 | `budget` | object | No | Budget constraint with `currency` (ISO 4217) and `max_amount` (v0.14). Must narrow relative to parent. |
-| `concurrent_branches` | string | No | Concurrency posture for the token tree. Values: `"exclusive"` (single active branch), `"concurrent"` (default, multiple branches allowed). |
+| `concurrent_branches` | string | No | Concurrency posture for the token tree. Values: `"allowed"` (default, multiple branches permitted), `"exclusive"` (single active branch). Same vocabulary as delegation constraints (§4.3). |
 
 > **Root vs delegated issuance:** The same endpoint serves both. Root issuance authenticates via bootstrap credential and omits `parent_token`. Delegated issuance authenticates via existing JWT and includes `parent_token` (a token ID string). The runtime convenience helpers (`issueCapabilityToken` for root, `issueDelegatedCapabilityToken` for delegated) correctly assemble these requests.
 

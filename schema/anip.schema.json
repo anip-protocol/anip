@@ -150,7 +150,7 @@
     "TokenRequest": {
       "type": "object",
       "description": "Token issuance request. Root issuance omits parent_token; delegated issuance includes it.",
-      "required": ["scope", "subject"],
+      "required": ["scope"],
       "properties": {
         "scope": {
           "type": "array",
@@ -189,9 +189,8 @@
           "description": "Budget constraint (v0.14). Must narrow relative to parent."
         },
         "concurrent_branches": {
-          "type": "string",
-          "enum": ["exclusive", "concurrent"],
-          "description": "Concurrency posture for the token tree."
+          "$ref": "#/$defs/ConcurrentBranches",
+          "description": "Concurrency posture for the token tree. Uses the same vocabulary as delegation constraints."
         }
       }
     },
