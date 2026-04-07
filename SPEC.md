@@ -1599,7 +1599,6 @@ Services SHOULD include an `expires_hint` field on checkpoint detail responses:
 2. `proof_unavailable: "audit_entries_expired"` is **permanent**. The live audit entries needed for proof regeneration are no longer available. Retries will not produce the proof unless the deployment has an out-of-band archival path.
 3. The **checkpoint remains valid**. `proof_unavailable` means the proof cannot be regenerated from live storage, not that the checkpoint is invalid or the audit trail is compromised.
 4. **No retry semantics.** Unlike transient errors, `proof_unavailable` SHOULD NOT trigger retry loops. Clients SHOULD handle it as a terminal state for that proof request.
-```
 
 ### 6.6 Streaming Invocations (v0.6)
 
