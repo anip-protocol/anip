@@ -1,6 +1,6 @@
 # ANIP JSON Schema
 
-> Canonical JSON Schema for all ANIP v0.10 types. Use these to validate any ANIP implementation.
+> Canonical JSON Schema for all ANIP v0.22 types. Use these to validate any ANIP implementation.
 
 ## Files
 
