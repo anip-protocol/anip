@@ -147,6 +147,15 @@ class ANIPClient:
             headers={"Authorization": f"Bearer {token_jwt}"},
         )
 
+    @staticmethod
+    def match_permission(permissions: dict[str, Any], capability: str) -> dict[str, Any]:
+        """Return the available/restricted/denied entry for a capability."""
+        for bucket in ("available", "restricted", "denied"):
+            for item in permissions.get(bucket, []):
+                if item.get("capability") == capability:
+                    return {"status": bucket, **item}
+        return {"status": "unknown", "capability": capability}
+
     def get_graph(self, capability: str) -> dict[str, Any]:
         """Get prerequisite and composition graph for a capability."""
         return self._get(f"/anip/graph/{capability}")

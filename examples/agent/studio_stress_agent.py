@@ -16,6 +16,7 @@ from anip_client import ANIPClient
 ASSISTANT_BOOTSTRAP = "studio-assistant-bootstrap"
 WORKBENCH_BOOTSTRAP = "studio-workbench-bootstrap"
 AGENT_SUBJECT = "agent:studio-stress"
+DOGFOOD_EVAL_BUDGET = {"currency": "USD", "max_amount": 8.0}
 
 WORKBENCH_SCOPES = [
     "studio.workbench.create_workspace",
@@ -53,17 +54,6 @@ DEFAULT_BRIEFS = [
 ]
 
 
-def issue_token(client: ANIPClient, bootstrap: str, capability: str, scope: str) -> str:
-    response = client.request_capability_token(
-        principal=AGENT_SUBJECT,
-        capability=capability,
-        scope=[scope],
-        api_key=bootstrap,
-        ttl_hours=1,
-    )
-    return response["token"]
-
-
 def issue_parent_token(
     client: ANIPClient,
     bootstrap: str,
@@ -79,24 +69,92 @@ def issue_parent_token(
     )
 
 
-def issue_delegated_token(
+def issue_root_capability_token(
     client: ANIPClient,
-    parent_token_jwt: str,
-    parent_token_id: str,
+    bootstrap: str,
     capability: str,
     scope: str,
+    *,
+    budget: dict | None = None,
 ) -> str:
-    response = client.request_delegated_capability_token(
+    response = client.request_capability_token(
         principal=AGENT_SUBJECT,
-        parent_token=parent_token_id,
+        capability=capability,
+        scope=[scope],
+        api_key=bootstrap,
+        ttl_hours=1,
+        budget=budget,
+    )
+    return response["token"]
+
+
+def permission_snapshot(client: ANIPClient, token_jwt: str, capability: str) -> dict:
+    permissions = client.check_permissions(token_jwt)
+    return {
+        "permissions": permissions,
+        "entry": ANIPClient.match_permission(permissions, capability),
+    }
+
+
+def resolve_capability_token(
+    client: ANIPClient,
+    parent_token: dict,
+    bootstrap: str,
+    capability: str,
+    scope: str,
+    *,
+    report: list[dict],
+    budget: dict | None = None,
+) -> str:
+    parent_state = permission_snapshot(client, parent_token["token"], capability)
+    parent_entry = parent_state["entry"]
+    decision = {
+        "capability": capability,
+        "scope": scope,
+        "parent": parent_entry,
+        "used": None,
+        "budget_requested": budget,
+    }
+
+    if parent_entry["status"] == "available":
+        decision["used"] = "parent"
+        report.append(decision)
+        return parent_token["token"]
+
+    if parent_entry["status"] == "denied":
+        decision["used"] = "root"
+        report.append(decision)
+        return issue_root_capability_token(
+            client,
+            bootstrap,
+            capability,
+            scope,
+            budget=budget,
+        )
+
+    child = client.request_delegated_capability_token(
+        principal=AGENT_SUBJECT,
+        parent_token=parent_token["token_id"],
         capability=capability,
         scope=[scope],
         subject=AGENT_SUBJECT,
-        auth_bearer=parent_token_jwt,
+        auth_bearer=parent_token["token"],
         caller_class="agent",
         ttl_hours=1,
+        budget=budget,
     )
-    return response["token"]
+    child_state = permission_snapshot(client, child["token"], capability)
+    child_entry = child_state["entry"]
+    decision["used"] = "delegated"
+    decision["child"] = child_entry
+    decision["child_token_id"] = child["token_id"]
+    report.append(decision)
+
+    if child_entry["status"] != "available":
+        raise RuntimeError(
+            f"Delegated token for {capability} is still not available: {json.dumps(child_entry, sort_keys=True)}"
+        )
+    return child["token"]
 
 
 def invoke(client: ANIPClient, token: str, capability: str, parameters: dict) -> dict:
@@ -129,12 +187,14 @@ def main() -> None:
         ASSISTANT_SCOPES,
     )
 
-    workspace_token = issue_delegated_token(
+    bootstrap_decisions: list[dict] = []
+    workspace_token = resolve_capability_token(
         workbench_client,
-        workbench_parent["token"],
-        workbench_parent["token_id"],
+        workbench_parent,
+        WORKBENCH_BOOTSTRAP,
         "create_workspace",
         "studio.workbench.create_workspace",
+        report=bootstrap_decisions,
     )
     workspace = invoke(
         workbench_client,
@@ -147,16 +207,19 @@ def main() -> None:
         "workspace": workspace,
         "assistant_manifest": assistant_client.get_manifest(),
         "workbench_manifest": workbench_client.get_manifest(),
+        "bootstrap_permission_decisions": bootstrap_decisions,
         "runs": [],
     }
 
     for brief in DEFAULT_BRIEFS:
-        create_project_token = issue_delegated_token(
+        permission_decisions: list[dict] = []
+        create_project_token = resolve_capability_token(
             workbench_client,
-            workbench_parent["token"],
-            workbench_parent["token_id"],
+            workbench_parent,
+            WORKBENCH_BOOTSTRAP,
             "create_project",
             "studio.workbench.create_project",
+            report=permission_decisions,
         )
         project = invoke(
             workbench_client,
@@ -170,12 +233,13 @@ def main() -> None:
             },
         )["project"]
 
-        interpret_token = issue_delegated_token(
+        interpret_token = resolve_capability_token(
             assistant_client,
-            assistant_parent["token"],
-            assistant_parent["token_id"],
+            assistant_parent,
+            ASSISTANT_BOOTSTRAP,
             "interpret_project_intent",
             "studio.assistant.interpret_project_intent",
+            report=permission_decisions,
         )
         interpretation = invoke(
             assistant_client,
@@ -184,12 +248,13 @@ def main() -> None:
             {"project_id": project["id"], "intent": brief["intent"]},
         )
 
-        accept_token = issue_delegated_token(
+        accept_token = resolve_capability_token(
             workbench_client,
-            workbench_parent["token"],
-            workbench_parent["token_id"],
+            workbench_parent,
+            WORKBENCH_BOOTSTRAP,
             "accept_first_design",
             "studio.workbench.accept_first_design",
+            report=permission_decisions,
         )
         accepted = invoke(
             workbench_client,
@@ -206,19 +271,22 @@ def main() -> None:
         shape_id = accepted["shape"]["id"]
         scenario_ids = [item["id"] for item in accepted["scenarios"]]
 
-        eval_token = issue_delegated_token(
+        eval_token = resolve_capability_token(
             workbench_client,
-            workbench_parent["token"],
-            workbench_parent["token_id"],
+            workbench_parent,
+            WORKBENCH_BOOTSTRAP,
             "evaluate_service_design",
             "studio.workbench.evaluate_service_design",
+            report=permission_decisions,
+            budget=DOGFOOD_EVAL_BUDGET,
         )
-        draft_fix_token = issue_delegated_token(
+        draft_fix_token = resolve_capability_token(
             workbench_client,
-            workbench_parent["token"],
-            workbench_parent["token_id"],
+            workbench_parent,
+            WORKBENCH_BOOTSTRAP,
             "draft_fix_from_change",
             "studio.workbench.draft_fix_from_change",
+            report=permission_decisions,
         )
 
         scenario_runs = []
@@ -268,19 +336,21 @@ def main() -> None:
                 )
             scenario_runs.append({"initial": first_eval, "followup": followup})
 
-        business_token = issue_delegated_token(
+        business_token = resolve_capability_token(
             workbench_client,
-            workbench_parent["token"],
-            workbench_parent["token_id"],
+            workbench_parent,
+            WORKBENCH_BOOTSTRAP,
             "generate_business_brief",
             "studio.workbench.generate_business_brief",
+            report=permission_decisions,
         )
-        engineering_token = issue_delegated_token(
+        engineering_token = resolve_capability_token(
             workbench_client,
-            workbench_parent["token"],
-            workbench_parent["token_id"],
+            workbench_parent,
+            WORKBENCH_BOOTSTRAP,
             "generate_engineering_contract",
             "studio.workbench.generate_engineering_contract",
+            report=permission_decisions,
         )
         business_brief = invoke(
             workbench_client,
@@ -318,6 +388,7 @@ def main() -> None:
                 "interpretation": interpretation,
                 "accepted": accepted,
                 "scenario_runs": scenario_runs,
+                "permission_decisions": permission_decisions,
                 "artifacts_dir": str(project_dir),
             }
         )

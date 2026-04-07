@@ -1036,15 +1036,27 @@ class ANIPService:
                     and resolved_token.purpose
                     and resolved_token.purpose.capability == decl.name
                 )
+            elif req.type == "non_delegable":
+                satisfied = (
+                    resolved_token.parent is None
+                    and hasattr(resolved_token, "purpose")
+                    and resolved_token.purpose
+                    and resolved_token.purpose.capability == decl.name
+                )
 
             if not satisfied:
+                resolution_action = "request_capability_binding"
+                recovery_class = "redelegation_then_retry"
+                if req.type == "non_delegable":
+                    resolution_action = "request_root_capability_token"
+                    recovery_class = "terminal"
                 return {
                     "success": False,
                     "failure": redact_failure({
                         "type": "control_requirement_unsatisfied",
                         "detail": f"Capability {decl.name} requires {req.type}",
                         "unsatisfied_requirements": [req.type],
-                        "resolution": {"action": "request_capability_binding", "recovery_class": "redelegation_then_retry"},
+                        "resolution": {"action": resolution_action, "recovery_class": recovery_class},
                     }, effective_level),
                     "invocation_id": invocation_id,
                     "client_reference_id": client_reference_id,

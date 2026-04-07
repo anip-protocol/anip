@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import sys
 from typing import Any
 from uuid import uuid4
@@ -21,8 +22,12 @@ from anip_core import (
     CapabilityDeclaration,
     CapabilityInput,
     CapabilityOutput,
+    ControlRequirement,
+    Cost,
+    CostCertainty,
     CrossServiceContract,
     CrossServiceContractEntry,
+    FinancialCost,
     ServiceCapabilityRef,
     SideEffect,
     SideEffectType,
@@ -75,6 +80,47 @@ WORKBENCH_SCOPES = [
     "studio.workbench.generate_business_brief",
     "studio.workbench.generate_engineering_contract",
 ]
+
+DOGFOOD_ROUND1_PROFILES = {"round1", "permissions-budget", "round1-permissions-budget"}
+DOGFOOD_EVALUATION_COST_AMOUNT = 5.0
+DOGFOOD_EVALUATION_CURRENCY = "USD"
+
+
+def _dogfood_profile() -> str:
+    return os.getenv("STUDIO_DOGFOOD_PROFILE", "").strip().lower()
+
+
+def _round1_dogfood_enabled() -> bool:
+    return _dogfood_profile() in DOGFOOD_ROUND1_PROFILES
+
+
+def _dogfood_control_requirements(name: str) -> list[ControlRequirement]:
+    if not _round1_dogfood_enabled():
+        return []
+    requirements: list[ControlRequirement] = []
+    if name in {
+        "create_project",
+        "accept_first_design",
+        "draft_fix_from_change",
+        "generate_business_brief",
+        "evaluate_service_design",
+    }:
+        requirements.append(ControlRequirement(type="stronger_delegation_required"))
+    if name == "evaluate_service_design":
+        requirements.append(ControlRequirement(type="cost_ceiling"))
+    if name == "generate_engineering_contract":
+        requirements.append(ControlRequirement(type="non_delegable"))
+    return requirements
+
+
+def _dogfood_cost(name: str) -> Cost | None:
+    if not _round1_dogfood_enabled() or name != "evaluate_service_design":
+        return None
+    return Cost(
+        certainty=CostCertainty.FIXED,
+        financial=FinancialCost(currency=DOGFOOD_EVALUATION_CURRENCY, amount=DOGFOOD_EVALUATION_COST_AMOUNT),
+        compute={"latency_p50": "250ms", "tokens": 1200},
+    )
 
 
 def create_studio_workbench_service() -> ANIPService:
@@ -213,6 +259,8 @@ def _capability(
             output=CapabilityOutput(type="object", fields=fields),
             side_effect=SideEffect(type=side_effect_type, rollback_window=rollback_window),
             minimum_scope=[f"studio.workbench.{name}"],
+            cost=_dogfood_cost(name),
+            control_requirements=_dogfood_control_requirements(name),
             cross_service_contract=(
                 CrossServiceContract(
                     followup=[
