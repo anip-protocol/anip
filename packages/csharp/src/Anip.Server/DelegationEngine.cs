@@ -51,10 +51,12 @@ public static class DelegationEngine
         };
 
         // Build constraints.
+        var concurrent = !string.IsNullOrEmpty(request.ConcurrentBranches)
+            ? request.ConcurrentBranches : "allowed";
         var constraints = new DelegationConstraints
         {
             MaxDelegationDepth = 3,
-            ConcurrentBranches = "allowed",
+            ConcurrentBranches = concurrent,
             Budget = request.Budget
         };
 

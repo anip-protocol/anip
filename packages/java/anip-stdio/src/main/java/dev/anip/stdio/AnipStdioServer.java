@@ -88,7 +88,8 @@ public class AnipStdioServer {
             "anip.invoke",
             "anip.audit.query",
             "anip.checkpoints.list",
-            "anip.checkpoints.get"
+            "anip.checkpoints.get",
+            "anip.graph"
     );
 
     private static final ObjectMapper MAPPER = new ObjectMapper()
@@ -227,6 +228,7 @@ public class AnipStdioServer {
             case "anip.audit.query" -> handleAuditQuery(params);
             case "anip.checkpoints.list" -> handleCheckpointsList(params);
             case "anip.checkpoints.get" -> handleCheckpointsGet(params);
+            case "anip.graph" -> handleGraph(params);
             default -> throw new IllegalStateException("Unhandled method: " + method);
         };
     }
@@ -410,6 +412,18 @@ public class AnipStdioServer {
         @SuppressWarnings("unchecked")
         Map<String, Object> result = MAPPER.convertValue(resp, Map.class);
         return result;
+    }
+
+    private Map<String, Object> handleGraph(Map<String, Object> params) throws Exception {
+        String capability = (String) params.get("capability");
+        if (capability == null || capability.isEmpty()) {
+            throw new ANIPError("not_found", "Missing 'capability' in params");
+        }
+        Map<String, Object> graph = service.getCapabilityGraph(capability);
+        if (graph == null) {
+            throw new ANIPError("not_found", "Capability '" + capability + "' not found");
+        }
+        return graph;
     }
 
     // --- Internal helpers ---

@@ -1174,6 +1174,7 @@ public class ANIPService {
                 "tokens", "/anip/tokens",
                 "audit", "/anip/audit",
                 "checkpoints", "/anip/checkpoints",
+                "graph", "/anip/graph/{capability}",
                 "jwks", "/.well-known/jwks.json"
         ));
 
@@ -1251,6 +1252,21 @@ public class ANIPService {
     public CapabilityDeclaration getCapabilityDeclaration(String name) {
         CapabilityDef cap = capabilities.get(name);
         return cap != null ? cap.getDeclaration() : null;
+    }
+
+    /**
+     * Returns the graph relationships (requires, composes_with) for a capability.
+     * Returns null if the capability does not exist.
+     */
+    public Map<String, Object> getCapabilityGraph(String name) {
+        CapabilityDef cap = capabilities.get(name);
+        if (cap == null) return null;
+        CapabilityDeclaration decl = cap.getDeclaration();
+        Map<String, Object> graph = new LinkedHashMap<>();
+        graph.put("capability", name);
+        graph.put("requires", decl.getRequires() != null ? decl.getRequires() : java.util.Collections.emptyList());
+        graph.put("composes_with", java.util.Collections.emptyList());
+        return graph;
     }
 
     // --- Audit ---

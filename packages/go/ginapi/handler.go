@@ -29,6 +29,7 @@ func MountANIPGin(router *gin.Engine, svc *service.Service, opts ...MountANIPGin
 	router.GET("/anip/manifest", handleManifest(svc))
 	router.GET("/anip/checkpoints", handleListCheckpoints(svc))
 	router.GET("/anip/checkpoints/:id", handleGetCheckpoint(svc))
+	router.GET("/anip/graph/:capability", handleGraph(svc))
 
 	// Bootstrap auth route (API key).
 	router.POST("/anip/tokens", handleTokens(svc))
@@ -121,6 +122,23 @@ func handleGetCheckpoint(svc *service.Service) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, resp)
+	}
+}
+
+func handleGraph(svc *service.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		capability := c.Param("capability")
+		graph := svc.GetCapabilityGraph(capability)
+		if graph == nil {
+			status, body := httputil.SimpleFailureResponse(
+				"not_found",
+				fmt.Sprintf("Capability '%s' not found", capability),
+				nil,
+			)
+			c.JSON(status, body)
+			return
+		}
+		c.JSON(http.StatusOK, graph)
 	}
 }
 

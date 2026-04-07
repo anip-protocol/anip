@@ -57,6 +57,32 @@ def mount_anip(
             headers={"X-ANIP-Signature": signature},
         )
 
+    # --- Graph ---
+
+    @app.get(f"{prefix}/anip/graph/{{capability}}")
+    async def get_graph(capability: str):
+        graph = service.get_capability_graph(capability)
+        if graph is None:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "success": False,
+                    "failure": {
+                        "type": "not_found",
+                        "detail": f"Capability '{capability}' not found",
+                        "resolution": {
+                            "action": "check_manifest",
+                            "recovery_class": "revalidate_then_retry",
+                            "requires": "Valid capability name from GET /anip/manifest",
+                            "grantable_by": None,
+                            "estimated_availability": None,
+                        },
+                        "retry": False,
+                    },
+                },
+            )
+        return graph
+
     # --- Tokens ---
 
     @app.post(f"{prefix}/anip/tokens")

@@ -28,6 +28,7 @@ func MountANIP(mux *http.ServeMux, svc *service.Service, opts ...MountANIPOpts) 
 	mux.HandleFunc("GET /anip/manifest", handleManifest(svc))
 	mux.HandleFunc("GET /anip/checkpoints", handleListCheckpoints(svc))
 	mux.HandleFunc("GET /anip/checkpoints/{id}", handleGetCheckpoint(svc))
+	mux.HandleFunc("GET /anip/graph/{capability}", handleGraph(svc))
 
 	// Bootstrap auth route (API key).
 	mux.HandleFunc("POST /anip/tokens", handleTokens(svc))
@@ -122,6 +123,23 @@ func handleGetCheckpoint(svc *service.Service) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+func handleGraph(svc *service.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		capability := r.PathValue("capability")
+		graph := svc.GetCapabilityGraph(capability)
+		if graph == nil {
+			status, body := httputil.SimpleFailureResponse(
+				"not_found",
+				fmt.Sprintf("Capability '%s' not found", capability),
+				nil,
+			)
+			writeJSON(w, status, body)
+			return
+		}
+		writeJSON(w, http.StatusOK, graph)
 	}
 }
 

@@ -136,6 +136,7 @@ export interface ANIPService {
     },
   ): Promise<Record<string, unknown>>;
   getCapabilityDeclaration(capabilityName: string): Record<string, unknown> | null;
+  getCapabilityGraph(capabilityName: string): Record<string, unknown> | null;
   queryAudit(
     token: DelegationToken,
     filters?: Record<string, unknown>,
@@ -428,8 +429,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
   let scheduler: CheckpointScheduler | null = null;
   let lastCheckpointAt: string | null = null; // Updated only when a checkpoint is actually published
 
+  let holderSeq = 0;
   function getHolderId(): string {
-    return `${hostname()}:${process.pid}`;
+    return `${hostname()}:${process.pid}:${Date.now()}-${++holderSeq}`;
   }
 
   async function leaderCheckpointTick(): Promise<void> {
@@ -744,6 +746,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           tokens: "/anip/tokens",
           audit: "/anip/audit",
           checkpoints: "/anip/checkpoints",
+          graph: "/anip/graph/{capability}",
           jwks: "/.well-known/jwks.json",
         },
       };
@@ -1081,6 +1084,17 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     getCapabilityDeclaration(capabilityName: string): Record<string, unknown> | null {
       const cap = capabilities.get(capabilityName);
       return cap ? (cap.declaration as Record<string, unknown>) : null;
+    },
+
+    getCapabilityGraph(capabilityName: string): Record<string, unknown> | null {
+      const cap = capabilities.get(capabilityName);
+      if (!cap) return null;
+      const decl = cap.declaration as Record<string, unknown>;
+      return {
+        capability: capabilityName,
+        requires: decl.requires ?? [],
+        composes_with: decl.composes_with ?? [],
+      };
     },
 
     async invoke(

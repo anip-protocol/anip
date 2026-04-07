@@ -137,10 +137,11 @@ public class AnipResource {
             int ttlHours = body.get("ttl_hours") != null
                     ? ((Number) body.get("ttl_hours")).intValue() : 0;
             String callerClass = (String) body.get("caller_class");
+            String concurrentBranches = (String) body.get("concurrent_branches");
 
             dev.anip.core.Budget tokenBudget = extractBudget(body);
             TokenRequest req = new TokenRequest(subject, scope, capability,
-                    purposeParams, parentToken, ttlHours, callerClass, tokenBudget);
+                    purposeParams, parentToken, ttlHours, callerClass, tokenBudget, concurrentBranches);
 
             TokenResponse resp = service.issueToken(principal.get(), req);
 
@@ -325,6 +326,20 @@ public class AnipResource {
             return failureResponse(500,
                     Constants.FAILURE_INTERNAL_ERROR, "Failed to get checkpoint", false);
         }
+    }
+
+    // --- Graph (no auth) ---
+
+    @GET
+    @Path("anip/graph/{capability}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response graph(@PathParam("capability") String capability) {
+        Map<String, Object> graph = service.getCapabilityGraph(capability);
+        if (graph == null) {
+            return failureResponse(404,
+                    Constants.FAILURE_NOT_FOUND, "Capability '" + capability + "' not found", false);
+        }
+        return Response.ok(graph).build();
     }
 
     // --- 9. Health (optional) ---
