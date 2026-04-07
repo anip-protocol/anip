@@ -353,6 +353,7 @@ public class AnipService : IDisposable
             ["tokens"] = "/anip/tokens",
             ["audit"] = "/anip/audit",
             ["checkpoints"] = "/anip/checkpoints",
+            ["graph"] = "/anip/graph/{capability}",
             ["jwks"] = "/.well-known/jwks.json",
         };
 
@@ -430,6 +431,22 @@ public class AnipService : IDisposable
     public CapabilityDeclaration? GetCapabilityDeclaration(string name)
     {
         return _capabilities.TryGetValue(name, out var cap) ? cap.Declaration : null;
+    }
+
+    /// <summary>
+    /// Returns the graph relationships (requires, composes_with) for a capability.
+    /// Returns null if the capability does not exist.
+    /// </summary>
+    public Dictionary<string, object?>? GetCapabilityGraph(string name)
+    {
+        if (!_capabilities.TryGetValue(name, out var cap)) return null;
+        var decl = cap.Declaration;
+        return new Dictionary<string, object?>
+        {
+            ["capability"] = name,
+            ["requires"] = decl.Requires ?? new List<CapabilityRequirement>(),
+            ["composes_with"] = decl.ComposesWith ?? new List<CapabilityComposition>(),
+        };
     }
 
     // --- Invocation ---
@@ -1695,13 +1712,14 @@ public class AnipService : IDisposable
 
     private async Task RunRetentionLoop(CancellationToken ct)
     {
-        var holderId = $"retention-{_serviceId}-{DateTime.UtcNow.Ticks}";
+        string? holderId = null;
         try
         {
             while (!ct.IsCancellationRequested)
             {
                 await Task.Delay(TimeSpan.FromSeconds(_retentionIntervalSeconds), ct);
 
+                holderId = $"retention-{_serviceId}-{DateTime.UtcNow.Ticks}";
                 var acquired = _storage!.TryAcquireLeader("retention", holderId, _retentionIntervalSeconds * 2);
                 if (!acquired)
                     continue;
@@ -1716,8 +1734,9 @@ public class AnipService : IDisposable
         }
         finally
         {
-            try { _storage?.ReleaseLeader("retention", holderId); }
-            catch { /* best effort */ }
+            if (holderId != null)
+                try { _storage?.ReleaseLeader("retention", holderId); }
+                catch { /* best effort */ }
         }
     }
 
@@ -1728,7 +1747,7 @@ public class AnipService : IDisposable
         var minEntries = _checkpointPolicy.MinEntries;
         if (minEntries <= 0) minEntries = 1;
 
-        var holderId = $"checkpoint-{_serviceId}-{DateTime.UtcNow.Ticks}";
+        string? holderId = null;
 
         try
         {
@@ -1736,6 +1755,7 @@ public class AnipService : IDisposable
             {
                 await Task.Delay(TimeSpan.FromSeconds(interval), ct);
 
+                holderId = $"checkpoint-{_serviceId}-{DateTime.UtcNow.Ticks}";
                 var acquired = _storage!.TryAcquireLeader("checkpoint", holderId, interval * 2);
                 if (!acquired)
                     continue;
@@ -1770,8 +1790,9 @@ public class AnipService : IDisposable
         }
         finally
         {
-            try { _storage?.ReleaseLeader("checkpoint", holderId); }
-            catch { /* best effort */ }
+            if (holderId != null)
+                try { _storage?.ReleaseLeader("checkpoint", holderId); }
+                catch { /* best effort */ }
         }
     }
 

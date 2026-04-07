@@ -131,6 +131,32 @@ export async function mountAnip(
     },
   );
 
+  // --- Graph ---
+  app.get<{ Params: { capability: string } }>(
+    `${p}/anip/graph/:capability`,
+    async (req, reply) => {
+      const graph = service.getCapabilityGraph(req.params.capability);
+      if (!graph) {
+        return reply.status(404).send({
+          success: false,
+          failure: {
+            type: "not_found",
+            detail: `Capability '${req.params.capability}' not found`,
+            resolution: {
+              action: "check_manifest",
+              recovery_class: "revalidate_then_retry",
+              requires: "Valid capability name from GET /anip/manifest",
+              grantable_by: null,
+              estimated_availability: null,
+            },
+            retry: false,
+          },
+        });
+      }
+      return graph;
+    },
+  );
+
   // --- Audit ---
   app.post(`${p}/anip/audit`, async (req, reply) => {
     const result = await resolveToken(req, service);

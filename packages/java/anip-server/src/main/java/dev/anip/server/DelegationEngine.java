@@ -70,7 +70,9 @@ public final class DelegationEngine {
         );
 
         // Build constraints.
-        DelegationConstraints constraints = new DelegationConstraints(3, "allowed",
+        String concurrent = req.getConcurrentBranches() != null
+                ? req.getConcurrentBranches() : "allowed";
+        DelegationConstraints constraints = new DelegationConstraints(3, concurrent,
                 req.getBudget());
 
         // Determine issuer and root_principal.

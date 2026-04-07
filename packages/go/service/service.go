@@ -439,6 +439,7 @@ func (s *Service) GetDiscovery(baseURL string) map[string]any {
 		"tokens":      "/anip/tokens",
 		"audit":       "/anip/audit",
 		"checkpoints": "/anip/checkpoints",
+		"graph":       "/anip/graph/{capability}",
 		"jwks":        "/.well-known/jwks.json",
 	}
 
@@ -511,6 +512,21 @@ func (s *Service) GetCapabilityDeclaration(name string) *core.CapabilityDeclarat
 	}
 	decl := cap.Declaration
 	return &decl
+}
+
+// GetCapabilityGraph returns the graph relationships (requires, composes_with) for a capability.
+// Returns nil if the capability does not exist.
+func (s *Service) GetCapabilityGraph(name string) map[string]any {
+	cap, ok := s.capabilities[name]
+	if !ok {
+		return nil
+	}
+	decl := cap.Declaration
+	return map[string]any{
+		"capability":    name,
+		"requires":      decl.Requires,
+		"composes_with": decl.ComposesWith,
+	}
 }
 
 // QueryAudit queries audit entries scoped to the token's root principal.

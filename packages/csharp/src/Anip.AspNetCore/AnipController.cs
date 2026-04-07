@@ -344,6 +344,20 @@ public class AnipController : ControllerBase
         }
     }
 
+    // --- Graph (no auth) ---
+
+    [HttpGet("/anip/graph/{capability}")]
+    public IActionResult Graph(string capability)
+    {
+        var graph = _service.GetCapabilityGraph(capability);
+        if (graph == null)
+        {
+            return FailureResponse(404, Constants.FailureNotFound,
+                $"Capability '{capability}' not found", false);
+        }
+        return Ok(graph);
+    }
+
     // --- 8. List Checkpoints (no auth) ---
 
     [HttpGet("/anip/checkpoints")]

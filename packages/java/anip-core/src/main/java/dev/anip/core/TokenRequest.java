@@ -16,16 +16,24 @@ public class TokenRequest {
     private final int ttlHours;
     private final String callerClass;
     private final Budget budget;
+    private final String concurrentBranches;
 
     public TokenRequest(String subject, List<String> scope, String capability,
                         Map<String, Object> purposeParameters, String parentToken,
                         int ttlHours, String callerClass) {
-        this(subject, scope, capability, purposeParameters, parentToken, ttlHours, callerClass, null);
+        this(subject, scope, capability, purposeParameters, parentToken, ttlHours, callerClass, null, null);
     }
 
     public TokenRequest(String subject, List<String> scope, String capability,
                         Map<String, Object> purposeParameters, String parentToken,
                         int ttlHours, String callerClass, Budget budget) {
+        this(subject, scope, capability, purposeParameters, parentToken, ttlHours, callerClass, budget, null);
+    }
+
+    public TokenRequest(String subject, List<String> scope, String capability,
+                        Map<String, Object> purposeParameters, String parentToken,
+                        int ttlHours, String callerClass, Budget budget,
+                        String concurrentBranches) {
         this.subject = subject;
         this.scope = scope;
         this.capability = capability;
@@ -34,6 +42,7 @@ public class TokenRequest {
         this.ttlHours = ttlHours;
         this.callerClass = callerClass;
         this.budget = budget;
+        this.concurrentBranches = concurrentBranches;
     }
 
     public String getSubject() {
@@ -67,5 +76,10 @@ public class TokenRequest {
 
     public Budget getBudget() {
         return budget;
+    }
+
+    /** Returns "allowed" or "exclusive"; null means default ("allowed"). */
+    public String getConcurrentBranches() {
+        return concurrentBranches;
     }
 }

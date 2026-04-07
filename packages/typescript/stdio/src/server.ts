@@ -20,6 +20,7 @@ const VALID_METHODS = new Set([
   "anip.audit.query",
   "anip.checkpoints.list",
   "anip.checkpoints.get",
+  "anip.graph",
 ]);
 
 const PARSE_ERROR = -32700;
@@ -394,6 +395,20 @@ export class AnipStdioServer {
     return await this.service.resolveBearerToken(bearer);
   }
 
+  private async handleGraph(
+    params: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    const capability = params.capability;
+    if (!capability || typeof capability !== "string") {
+      throw new ANIPError("not_found", "Missing 'capability' in params");
+    }
+    const graph = this.service.getCapabilityGraph(capability);
+    if (graph === null) {
+      throw new ANIPError("not_found", `Capability '${capability}' not found`);
+    }
+    return graph;
+  }
+
   // -------------------------------------------------------------------------
   // Dispatch table
   // -------------------------------------------------------------------------
@@ -411,6 +426,7 @@ export class AnipStdioServer {
     "anip.audit.query": this.handleAuditQuery,
     "anip.checkpoints.list": this.handleCheckpointsList,
     "anip.checkpoints.get": this.handleCheckpointsGet,
+    "anip.graph": this.handleGraph,
   };
 }
 

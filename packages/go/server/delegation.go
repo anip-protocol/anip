@@ -46,9 +46,13 @@ func IssueDelegationToken(
 	}
 
 	// Build constraints.
+	concurrent := req.ConcurrentBranches
+	if concurrent == "" {
+		concurrent = "allowed"
+	}
 	constraints := core.DelegationConstraints{
 		MaxDelegationDepth: 3,
-		ConcurrentBranches: "allowed",
+		ConcurrentBranches: concurrent,
 		Budget:             req.Budget,
 	}
 

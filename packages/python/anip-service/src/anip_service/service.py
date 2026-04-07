@@ -312,6 +312,7 @@ class ANIPService:
                 "tokens": "/anip/tokens",
                 "audit": "/anip/audit",
                 "checkpoints": "/anip/checkpoints",
+                "graph": "/anip/graph/{capability}",
                 "jwks": "/.well-known/jwks.json",
             },
         }
@@ -324,6 +325,18 @@ class ANIPService:
     def get_manifest(self) -> ANIPManifest:
         """Return the full capability manifest."""
         return self._manifest
+
+    def get_capability_graph(self, capability: str) -> dict[str, Any] | None:
+        """Return graph relationships for a capability, or None if not found."""
+        cap = self._capabilities.get(capability)
+        if cap is None:
+            return None
+        decl = cap.declaration
+        return {
+            "capability": capability,
+            "requires": [r.model_dump() for r in decl.requires] if decl.requires else [],
+            "composes_with": [c.model_dump() for c in decl.composes_with] if decl.composes_with else [],
+        }
 
     def get_signed_manifest(self) -> tuple[bytes, str]:
         """Return the manifest body bytes and its detached JWS signature.

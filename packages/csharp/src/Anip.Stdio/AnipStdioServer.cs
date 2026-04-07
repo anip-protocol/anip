@@ -37,6 +37,7 @@ public class AnipStdioServer
         "anip.audit.query",
         "anip.checkpoints.list",
         "anip.checkpoints.get",
+        "anip.graph",
     };
 
     // --- JSON-RPC 2.0 error codes ---
@@ -212,6 +213,7 @@ public class AnipStdioServer
             "anip.audit.query" => HandleAuditQuery(parameters),
             "anip.checkpoints.list" => HandleCheckpointsList(parameters),
             "anip.checkpoints.get" => HandleCheckpointsGet(parameters),
+            "anip.graph" => HandleGraph(parameters),
             _ => throw new InvalidOperationException($"No handler for {method}"),
         };
     }
@@ -380,6 +382,21 @@ public class AnipStdioServer
 
         var resp = _service.GetCheckpoint(checkpointId, includeProof, leafIndex);
         return SerializeToDict(resp);
+    }
+
+    private object HandleGraph(Dictionary<string, object?> parameters)
+    {
+        var capability = GetString(parameters, "capability");
+        if (string.IsNullOrEmpty(capability))
+        {
+            throw new AnipError("not_found", "Missing 'capability' in params");
+        }
+        var graph = _service.GetCapabilityGraph(capability);
+        if (graph == null)
+        {
+            throw new AnipError("not_found", $"Capability '{capability}' not found");
+        }
+        return graph;
     }
 
     // --- Internal helpers ---

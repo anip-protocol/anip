@@ -28,4 +28,8 @@ public class TokenRequest
 
     [JsonPropertyName("budget")]
     public Budget? Budget { get; set; }
+
+    /// <summary>"allowed" or "exclusive"; defaults to "allowed" if null.</summary>
+    [JsonPropertyName("concurrent_branches")]
+    public string? ConcurrentBranches { get; set; }
 }

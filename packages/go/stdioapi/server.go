@@ -59,6 +59,7 @@ var validMethods = map[string]bool{
 	"anip.audit.query":     true,
 	"anip.checkpoints.list": true,
 	"anip.checkpoints.get":  true,
+	"anip.graph":            true,
 }
 
 // --- JSON-RPC types ---
@@ -545,6 +546,18 @@ func handleCheckpointsGet(s *Server, params map[string]any) (any, error) {
 	return result, nil
 }
 
+func handleGraphRPC(s *Server, params map[string]any) (any, error) {
+	capability, _ := params["capability"].(string)
+	if capability == "" {
+		return nil, core.NewANIPError("not_found", "capability parameter is required")
+	}
+	graph := s.svc.GetCapabilityGraph(capability)
+	if graph == nil {
+		return nil, core.NewANIPError("not_found", fmt.Sprintf("Capability '%s' not found", capability))
+	}
+	return graph, nil
+}
+
 // --- Dispatch table ---
 
 type handlerFunc func(s *Server, params map[string]any) (any, error)
@@ -559,4 +572,5 @@ var dispatchTable = map[string]handlerFunc{
 	"anip.audit.query":      handleAuditQuery,
 	"anip.checkpoints.list": handleCheckpointsList,
 	"anip.checkpoints.get":  handleCheckpointsGet,
+	"anip.graph":            handleGraphRPC,
 }

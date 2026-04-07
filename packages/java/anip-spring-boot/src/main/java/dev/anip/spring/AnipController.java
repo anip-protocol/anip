@@ -123,10 +123,11 @@ public class AnipController {
             int ttlHours = body.get("ttl_hours") != null
                     ? ((Number) body.get("ttl_hours")).intValue() : 0;
             String callerClass = (String) body.get("caller_class");
+            String concurrentBranches = (String) body.get("concurrent_branches");
 
             dev.anip.core.Budget tokenBudget = extractBudget(body);
             TokenRequest req = new TokenRequest(subject, scope, capability,
-                    purposeParams, parentToken, ttlHours, callerClass, tokenBudget);
+                    purposeParams, parentToken, ttlHours, callerClass, tokenBudget, concurrentBranches);
 
             TokenResponse resp = service.issueToken(principal.get(), req);
 
@@ -276,6 +277,18 @@ public class AnipController {
             return failureResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                     Constants.FAILURE_INTERNAL_ERROR, "Audit query failed", false);
         }
+    }
+
+    // --- Graph (no auth) ---
+
+    @GetMapping(value = "/anip/graph/{capability}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Object> graph(@PathVariable String capability) {
+        Map<String, Object> graph = service.getCapabilityGraph(capability);
+        if (graph == null) {
+            return failureResponse(HttpStatus.NOT_FOUND, Constants.FAILURE_NOT_FOUND,
+                    "Capability '" + capability + "' not found", false);
+        }
+        return ResponseEntity.ok(graph);
     }
 
     // --- 8. Checkpoints (no auth) ---
