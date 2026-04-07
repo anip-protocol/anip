@@ -226,13 +226,11 @@ public class AnipService : IDisposable
 
     /// <summary>
     /// Issue a root token pre-bound to a specific capability.
-    /// For delegation flows (parentToken, subject, callerClass), use
-    /// <see cref="IssueToken"/> directly.
+    /// For delegated issuance, use <see cref="IssueDelegatedCapabilityToken"/> (v0.22).
     /// </summary>
     /// <remarks>
     /// <paramref name="scope"/> must be explicitly provided — capability names
     /// and scope strings are different things.
-    /// For delegated issuance, use <see cref="IssueDelegatedCapabilityToken"/> (v0.22).
     /// </remarks>
     public TokenResponse IssueCapabilityToken(
         string principal,

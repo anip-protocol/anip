@@ -88,8 +88,8 @@ export interface ANIPService {
    * `scope` must be explicitly provided -- capability names and scope strings
    * are different things.
    *
-   * This helper covers root issuance only. For delegation flows
-   * (parent_token, subject, caller_class), use `issueToken()` directly.
+   * This helper covers root issuance only. For delegated issuance,
+   * use `issueDelegatedCapabilityToken()` (v0.22).
    */
   issueCapabilityToken(
     principal: string,
