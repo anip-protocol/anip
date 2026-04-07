@@ -1,4 +1,4 @@
-# ANIP Specification v0.21
+# ANIP Specification v0.22
 
 > Agent-Native Interface Protocol — Draft
 
@@ -1246,7 +1246,41 @@ Runtimes SHOULD expose a convenience helper for issuing root tokens pre-bound to
 
 This convenience path prevents `purpose_mismatch` errors that occur when callers manually assemble token requests without correctly binding the capability.
 
-Delegation-aware convenience helpers (accepting `parent_token` and non-default `subject`) are deferred to a future version. The `parent_token` field has inconsistent semantics across current implementations that must be resolved before wrapping it in a first-class convenience API.
+##### Canonical `parent_token` Semantics (v0.22)
+
+The `parent_token` field in a token issuance request is a **token ID string** (e.g., `"anip-abc123def456"` or `"tok_root_001"`), NOT a JWT. The service looks up the parent token by ID in its token storage to retrieve the full parent token object for delegation validation.
+
+Runtimes MUST:
+- accept `parent_token` as a token ID string
+- look up the parent token by ID in storage
+- validate that the parent token exists, is not expired, and that the requested scope/budget/capability narrowing is valid relative to the parent
+
+Runtimes MUST NOT:
+- parse `parent_token` as a JWT
+- accept raw JWT material in the `parent_token` field
+
+This distinction matters because the token ID is the stable reference returned in the `token_id` field of a successful issuance response. Callers use this ID, not the JWT material, when requesting child tokens.
+
+##### Delegated Capability-Targeted Issuance (v0.22)
+
+Runtimes SHOULD expose a convenience helper for issuing delegated tokens pre-bound to a specific capability. This helper:
+
+- accepts a `parent_token` (token ID string of the parent token)
+- pre-binds the `capability` field on the issued child token
+- requires explicit `scope` — same rule as root issuance: scope must not be inferred from capability name
+- accepts explicit `subject` — the principal the delegated token is for
+- accepts optional `caller_class` — issuer-supplied classification for disclosure
+
+This is the delegated counterpart to the root issuance helper from v0.20. Together, they provide two explicit paths:
+
+| Path | Helper | Parent | Subject |
+|------|--------|--------|---------|
+| Root issuance | `issueCapabilityToken()` | None (bootstrap auth) | Authenticated principal |
+| Delegated issuance | `issueDelegatedCapabilityToken()` | Token ID of parent | Explicit subject |
+
+Both paths require explicit scope and capability. Neither infers scope from capability name.
+
+The existing `POST {tokens}` endpoint serves both paths. Root issuance omits `parent_token`; delegated issuance includes it. The helpers are runtime convenience that correctly assemble the request — they do not add new transport endpoints.
 
 #### Permission Discovery — `POST {permissions}`
 
@@ -2329,12 +2363,14 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Binding requirements (§4.1)** | MAY — v0.14 | Implemented: `requires_binding` on capability declarations, `binding_missing` and `binding_stale` enforcement at invoke time | — |
 | **Control requirements (§4.1)** | MAY — v0.14 | Implemented: `control_requirements` on capability declarations, all requirements are token-evaluable and surfaced in `/anip/permissions` | — |
 | **Bootstrap auth contract (§6.3)** | MUST — v0.20 | Implemented: explicit sync/async hook contract, Python async bug fix | — |
-| **Capability-targeted root issuance (§6.3)** | SHOULD — v0.20 | Implemented: `issueCapabilityToken()` root-only helper in all runtimes | Delegation-aware convenience helpers |
+| **Capability-targeted root issuance (§6.3)** | SHOULD — v0.20 | Implemented: `issueCapabilityToken()` root-only helper in all runtimes | — |
 | **Cross-service contracts (§4.1)** | MAY — v0.21 | Implemented: `cross_service_contract` with handoff/followup/verification, task-local continuity, completion modes | Stronger cross-service completion semantics |
 | **Structured recovery targets (§4.5)** | MAY — v0.21 | Implemented: `recovery_target` with kind/target/continuity/retry_after_target in resolution objects | Multi-step recovery chains |
+| **Canonical parent_token semantics (§6.3)** | MUST — v0.22 | Implemented: parent_token is a token ID string, not JWT; consistent across all runtimes | — |
+| **Delegated capability-targeted issuance (§6.3)** | SHOULD — v0.22 | Implemented: `issueDelegatedCapabilityToken()` helper in all runtimes | — |
 | **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation across services, federated trust |
 
-The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. v0.9 completes the audit story — aggregation collapses noise, storage-side redaction strips low-value parameters at write time, caller-class-aware redaction resolves disclosure per-caller, and proof expiration guidance closes the client-side gap. v0.10 adds horizontal scaling — storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, and leader-elected background job coordination enable multi-replica deployments without protocol invariant violations. v0.11 adds observability hooks — callback-based logging, metrics, tracing, and diagnostics injection points let adopters plug in their observability stack without hard dependencies, plus a `getHealth()` runtime snapshot and optional health endpoint. v0.14 adds pre-execution control surfaces — structured budget constraints in delegation tokens with pre-execution enforcement, execution-time binding requirements (`requires_binding`) for quote-based workflows, and explicit control requirement declarations (`control_requirements`) that let capabilities declare what must be true before invocation. v0.20 hardens runtime ergonomics — an explicit bootstrap authentication contract (sync minimum, optional async), a capability-targeted root token issuance helper that prevents `purpose_mismatch` errors, and a clear deferral of delegation convenience helpers pending `parent_token` semantic resolution. v0.21 hardens cross-service continuation and recovery semantics — `cross_service_contract` adds structured task-local adjacent-step meaning (handoff, followup, verification) that is stronger than advisory hints, and `recovery_target` adds machine-readable recovery targets to failure resolution objects. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
+The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. v0.9 completes the audit story — aggregation collapses noise, storage-side redaction strips low-value parameters at write time, caller-class-aware redaction resolves disclosure per-caller, and proof expiration guidance closes the client-side gap. v0.10 adds horizontal scaling — storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, and leader-elected background job coordination enable multi-replica deployments without protocol invariant violations. v0.11 adds observability hooks — callback-based logging, metrics, tracing, and diagnostics injection points let adopters plug in their observability stack without hard dependencies, plus a `getHealth()` runtime snapshot and optional health endpoint. v0.14 adds pre-execution control surfaces — structured budget constraints in delegation tokens with pre-execution enforcement, execution-time binding requirements (`requires_binding`) for quote-based workflows, and explicit control requirement declarations (`control_requirements`) that let capabilities declare what must be true before invocation. v0.20 hardens runtime ergonomics — an explicit bootstrap authentication contract (sync minimum, optional async), a capability-targeted root token issuance helper that prevents `purpose_mismatch` errors, and a clear deferral of delegation convenience helpers pending `parent_token` semantic resolution. v0.21 hardens cross-service continuation and recovery semantics — `cross_service_contract` adds structured task-local adjacent-step meaning (handoff, followup, verification) that is stronger than advisory hints, and `recovery_target` adds machine-readable recovery targets to failure resolution objects. v0.22 clarifies `parent_token` semantics (token ID string, not JWT) and adds delegated capability-targeted issuance (`issueDelegatedCapabilityToken()`) as the delegation counterpart to v0.20's root issuance helper. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
 
 **What solving these gaps unlocks.** When trust and verification become real — not declarative — agents can evaluate risk before acting. Delegated authority becomes expressible in ways current tool layers can't handle. Failures become operationally useful, not just descriptive. High-stakes actions — travel, procurement, finance ops, approvals, multi-step orchestration — become automatable with real control surfaces. At that point, ANIP solves one of the central coordination problems of agent deployment: how an agent knows what it's allowed to do, what will happen if it does it, and how to recover when something blocks it.
 
@@ -2370,7 +2406,7 @@ These are unresolved design questions where community input is needed:
 
 ---
 
-*ANIP is an open specification under active development. This is v0.21 — cross-service contracts (`cross_service_contract`) and structured recovery targets (`recovery_target`) harden continuation and recovery semantics exposed during Studio stress testing. This builds on v0.20's bootstrap auth and capability-targeted issuance, v0.14's pre-execution control surfaces, v0.11's observability hooks, v0.10's horizontal scaling, v0.9's audit aggregation and redaction, v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, v0.3's anchored trust, v0.4's invocation lineage, and v0.5's async storage. Delegation convenience helpers and cross-service trust remain future goals. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
+*ANIP is an open specification under active development. This is v0.22 — canonical `parent_token` semantics (token ID string, not JWT) and delegated capability-targeted issuance (`issueDelegatedCapabilityToken()`) complete the delegation convenience story started in v0.20. This builds on v0.21's cross-service contracts and structured recovery targets, v0.20's bootstrap auth and capability-targeted issuance, v0.14's pre-execution control surfaces, v0.11's observability hooks, v0.10's horizontal scaling, v0.9's audit aggregation and redaction, v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, v0.3's anchored trust, v0.4's invocation lineage, and v0.5's async storage. Cross-service trust remains a future goal. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
 
 ---
 
