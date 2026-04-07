@@ -390,6 +390,65 @@ public class AnipServiceTests : IDisposable
         Assert.True(resp.Issued);
     }
 
+    // --- IssueDelegatedCapabilityToken ---
+
+    [Fact]
+    public void IssueDelegatedCapabilityToken_IssuesDelegatedToken()
+    {
+        // Issue root token first.
+        var rootResp = _service.IssueCapabilityToken(
+            _principal, "echo", new List<string> { "data" });
+        Assert.True(rootResp.Issued);
+
+        // Delegate.
+        var resp = _service.IssueDelegatedCapabilityToken(
+            _principal, rootResp.TokenId, "echo",
+            new List<string> { "data" }, "agent:helper");
+
+        Assert.True(resp.Issued);
+        Assert.NotEmpty(resp.TokenId);
+        Assert.NotEmpty(resp.Token);
+
+        // Resolve and verify delegation.
+        var resolved = _service.ResolveBearerToken(resp.Token);
+        Assert.Equal("agent:helper", resolved.Subject);
+        Assert.Equal("echo", resolved.Purpose?.Capability);
+        Assert.Equal(rootResp.TokenId, resolved.Parent);
+    }
+
+    [Fact]
+    public void IssueDelegatedCapabilityToken_ScopeIsExplicit()
+    {
+        // Root token with broader scope.
+        var rootResp = _service.IssueCapabilityToken(
+            _principal, "echo", new List<string> { "data", "data.read" });
+
+        // Delegate with a subset scope — scope is explicit, not derived from capability.
+        var resp = _service.IssueDelegatedCapabilityToken(
+            _principal, rootResp.TokenId, "echo",
+            new List<string> { "data" }, "agent:worker");
+
+        Assert.True(resp.Issued);
+    }
+
+    [Fact]
+    public void IssueDelegatedCapabilityToken_WithOptionalParams()
+    {
+        var rootResp = _service.IssueCapabilityToken(
+            _principal, "echo", new List<string> { "data" });
+
+        var resp = _service.IssueDelegatedCapabilityToken(
+            _principal, rootResp.TokenId, "echo",
+            new List<string> { "data" }, "agent:delegate",
+            callerClass: "automated",
+            purposeParameters: new Dictionary<string, object> { ["task_id"] = "task-456" },
+            ttlHours: 1,
+            budget: new Budget { Currency = "USD", MaxAmount = 50 });
+
+        Assert.True(resp.Issued);
+        Assert.NotEmpty(resp.TokenId);
+    }
+
     // --- Helpers ---
 
     private string IssueTestToken(params string[] scopes)

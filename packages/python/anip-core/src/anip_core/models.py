@@ -72,7 +72,7 @@ class TokenRequest(BaseModel):
     subject: str
     scope: list[str]
     capability: str
-    parent_token: str | None = None  # JWT string of parent (for child issuance)
+    parent_token: str | None = None  # Token ID string of the parent token (not a JWT). The service looks up the parent by ID in storage.
     purpose_parameters: dict[str, Any] = Field(default_factory=dict)
     ttl_hours: int = 2
     caller_class: str | None = None
@@ -395,7 +395,7 @@ class DiscoveryPosture(BaseModel):
 
 
 class ANIPManifest(BaseModel):
-    protocol: str = "anip/0.21"
+    protocol: str = "anip/0.22"
     profile: ProfileVersions
     capabilities: dict[str, CapabilityDeclaration]
     manifest_metadata: ManifestMetadata | None = None

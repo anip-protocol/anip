@@ -439,7 +439,7 @@ export const ServiceIdentity = z.object({
 export type ServiceIdentity = z.infer<typeof ServiceIdentity>;
 
 export const ANIPManifest = z.object({
-  protocol: z.string().default("anip/0.21"),
+  protocol: z.string().default("anip/0.22"),
   profile: ProfileVersions,
   capabilities: z.record(CapabilityDeclaration),
   manifest_metadata: ManifestMetadata.nullable().default(null),
@@ -491,6 +491,7 @@ export const TokenRequest = z.object({
   subject: z.string(),
   scope: z.array(z.string()),
   capability: z.string(),
+  /** Token ID string of the parent token (not a JWT). Used for delegated issuance. */
   parent_token: z.string().nullable().optional(),
   purpose_parameters: z.record(z.any()).default({}),
   ttl_hours: z.number().default(2),

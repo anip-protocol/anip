@@ -1686,3 +1686,126 @@ func TestIssueCapabilityTokenWithOptions(t *testing.T) {
 		t.Fatal("expected budget to be echoed")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// IssueDelegatedCapabilityToken
+// ---------------------------------------------------------------------------
+
+func TestIssueDelegatedCapabilityToken(t *testing.T) {
+	svc := newTestService()
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	// Issue root token first.
+	rootResp, err := svc.IssueCapabilityToken(
+		"human:test@example.com",
+		"search_flights",
+		[]string{"travel.search"},
+	)
+	if err != nil {
+		t.Fatalf("IssueCapabilityToken() error: %v", err)
+	}
+
+	// Delegate.
+	resp, err := svc.IssueDelegatedCapabilityToken(
+		"human:test@example.com",
+		rootResp.TokenID,
+		"search_flights",
+		[]string{"travel.search"},
+		"agent:helper",
+	)
+	if err != nil {
+		t.Fatalf("IssueDelegatedCapabilityToken() error: %v", err)
+	}
+	if !resp.Issued {
+		t.Fatal("expected issued=true")
+	}
+	if resp.Token == "" {
+		t.Fatal("expected non-empty token")
+	}
+
+	// Resolve and verify delegation.
+	token, err := svc.ResolveBearerToken(resp.Token)
+	if err != nil {
+		t.Fatalf("ResolveBearerToken() error: %v", err)
+	}
+	if token.Subject != "agent:helper" {
+		t.Errorf("expected subject %q, got %q", "agent:helper", token.Subject)
+	}
+	if token.Purpose.Capability != "search_flights" {
+		t.Errorf("expected capability %q, got %q", "search_flights", token.Purpose.Capability)
+	}
+	if token.Parent != rootResp.TokenID {
+		t.Errorf("expected parent %q, got %q", rootResp.TokenID, token.Parent)
+	}
+}
+
+func TestIssueDelegatedCapabilityTokenScopeIsExplicit(t *testing.T) {
+	svc := newTestService()
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	// Root token with broader scope.
+	rootResp, err := svc.IssueCapabilityToken(
+		"human:test@example.com",
+		"search_flights",
+		[]string{"travel.search", "travel.search.read"},
+	)
+	if err != nil {
+		t.Fatalf("IssueCapabilityToken() error: %v", err)
+	}
+
+	// Delegate with a subset scope — scope is explicit, not derived from capability.
+	resp, err := svc.IssueDelegatedCapabilityToken(
+		"human:test@example.com",
+		rootResp.TokenID,
+		"search_flights",
+		[]string{"travel.search"},
+		"agent:worker",
+	)
+	if err != nil {
+		t.Fatalf("IssueDelegatedCapabilityToken() error: %v", err)
+	}
+	if !resp.Issued {
+		t.Fatal("expected issued=true")
+	}
+}
+
+func TestIssueDelegatedCapabilityTokenWithOptions(t *testing.T) {
+	svc := newTestService()
+	if err := svc.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	defer svc.Shutdown()
+
+	rootResp, err := svc.IssueCapabilityToken(
+		"human:test@example.com",
+		"search_flights",
+		[]string{"travel.search"},
+	)
+	if err != nil {
+		t.Fatalf("IssueCapabilityToken() error: %v", err)
+	}
+
+	resp, err := svc.IssueDelegatedCapabilityToken(
+		"human:test@example.com",
+		rootResp.TokenID,
+		"search_flights",
+		[]string{"travel.search"},
+		"agent:delegate",
+		WithCallerClass("automated"),
+		WithTTL(1),
+		WithPurposeParameters(map[string]any{"task_id": "task-456"}),
+		WithBudget(&core.Budget{Currency: "USD", MaxAmount: 50}),
+	)
+	if err != nil {
+		t.Fatalf("IssueDelegatedCapabilityToken() error: %v", err)
+	}
+	if !resp.Issued {
+		t.Fatal("expected issued=true")
+	}
+}

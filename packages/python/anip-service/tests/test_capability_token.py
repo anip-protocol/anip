@@ -147,3 +147,83 @@ class TestIssueCapabilityToken:
         token = await service.resolve_bearer_token(resp["token"])
         assert token.subject == "human:dave@example.com"
         assert token.purpose.capability == "evaluate"
+
+
+# ---------------------------------------------------------------------------
+# issue_delegated_capability_token
+# ---------------------------------------------------------------------------
+
+
+class TestIssueDelegatedCapabilityToken:
+    @pytest.mark.asyncio
+    async def test_issues_delegated_token(self):
+        """issue_delegated_capability_token should produce a valid delegated token."""
+        service = _make_service()
+        # First issue a root token
+        root_resp = await service.issue_capability_token(
+            principal="human:alice@example.com",
+            capability="evaluate",
+            scope=["studio.evaluate"],
+        )
+        root_token_id = root_resp["token_id"]
+
+        # Now delegate
+        resp = await service.issue_delegated_capability_token(
+            principal="human:alice@example.com",
+            parent_token=root_token_id,
+            capability="evaluate",
+            scope=["studio.evaluate"],
+            subject="agent:helper",
+        )
+        assert resp["issued"] is True
+        assert resp["token_id"]
+        assert resp["token"]  # JWT string
+
+        # Resolve and verify delegation
+        token = await service.resolve_bearer_token(resp["token"])
+        assert token.subject == "agent:helper"
+        assert token.purpose.capability == "evaluate"
+        assert token.parent == root_token_id
+
+    @pytest.mark.asyncio
+    async def test_scope_is_required_and_explicit(self):
+        """Scope must be explicitly provided, not inferred from capability."""
+        service = _make_service()
+        # Root token with broader scope
+        root_resp = await service.issue_capability_token(
+            principal="human:bob@example.com",
+            capability="evaluate",
+            scope=["studio.evaluate", "studio.evaluate.read"],
+        )
+        # Delegate with a subset scope -- scope is explicit, not derived from capability.
+        resp = await service.issue_delegated_capability_token(
+            principal="human:bob@example.com",
+            parent_token=root_resp["token_id"],
+            capability="evaluate",
+            scope=["studio.evaluate"],
+            subject="agent:worker",
+        )
+        assert resp["issued"] is True
+
+    @pytest.mark.asyncio
+    async def test_optional_parameters(self):
+        """caller_class, purpose_parameters, ttl_hours, and budget should flow through."""
+        service = _make_service()
+        root_resp = await service.issue_capability_token(
+            principal="human:carol@example.com",
+            capability="evaluate",
+            scope=["studio.evaluate"],
+        )
+        resp = await service.issue_delegated_capability_token(
+            principal="human:carol@example.com",
+            parent_token=root_resp["token_id"],
+            capability="evaluate",
+            scope=["studio.evaluate"],
+            subject="agent:delegate",
+            caller_class="automated",
+            purpose_parameters={"task_id": "task-456"},
+            ttl_hours=1,
+            budget={"currency": "USD", "max_amount": 50},
+        )
+        assert resp["issued"] is True
+        assert resp["token_id"]

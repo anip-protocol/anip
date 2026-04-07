@@ -754,4 +754,53 @@ class ANIPServiceTest {
                 "user@test.com", "search_flights", List.of("custom.scope"));
         assertTrue(resp.isIssued());
     }
+
+    // --- issueDelegatedCapabilityToken ---
+
+    @Test
+    void testIssueDelegatedCapabilityToken() throws Exception {
+        // Issue root token first
+        TokenResponse rootResp = service.issueCapabilityToken(
+                "user@test.com", "search_flights", List.of("travel"));
+        assertTrue(rootResp.isIssued());
+
+        // Delegate
+        TokenResponse resp = service.issueDelegatedCapabilityToken(
+                "user@test.com", rootResp.getTokenId(),
+                "search_flights", List.of("travel"), "agent:helper");
+        assertTrue(resp.isIssued());
+        assertNotNull(resp.getTokenId());
+        assertNotNull(resp.getToken());
+
+        // Resolve and verify delegation
+        DelegationToken token = service.resolveBearerToken(resp.getToken());
+        assertEquals("agent:helper", token.getSubject());
+        assertEquals("search_flights", token.getPurpose().getCapability());
+        assertEquals(rootResp.getTokenId(), token.getParent());
+    }
+
+    @Test
+    void testIssueDelegatedCapabilityTokenScopeIsExplicit() throws Exception {
+        // Root token with broader scope.
+        TokenResponse rootResp = service.issueCapabilityToken(
+                "user@test.com", "search_flights", List.of("travel", "travel.read"));
+        // Delegate with a subset scope — scope is explicit, not derived from capability.
+        TokenResponse resp = service.issueDelegatedCapabilityToken(
+                "user@test.com", rootResp.getTokenId(),
+                "search_flights", List.of("travel"), "agent:worker");
+        assertTrue(resp.isIssued());
+    }
+
+    @Test
+    void testIssueDelegatedCapabilityTokenWithOptionalParams() throws Exception {
+        TokenResponse rootResp = service.issueCapabilityToken(
+                "user@test.com", "search_flights", List.of("travel"));
+        TokenResponse resp = service.issueDelegatedCapabilityToken(
+                "user@test.com", rootResp.getTokenId(),
+                "search_flights", List.of("travel"), "agent:delegate",
+                "automated", Map.of("task_id", "task-456"), 1,
+                new Budget("USD", 50.0));
+        assertTrue(resp.isIssued());
+        assertNotNull(resp.getTokenId());
+    }
 }

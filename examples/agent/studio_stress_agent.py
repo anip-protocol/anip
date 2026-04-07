@@ -15,6 +15,21 @@ from anip_client import ANIPClient
 
 ASSISTANT_BOOTSTRAP = "studio-assistant-bootstrap"
 WORKBENCH_BOOTSTRAP = "studio-workbench-bootstrap"
+AGENT_SUBJECT = "agent:studio-stress"
+
+WORKBENCH_SCOPES = [
+    "studio.workbench.create_workspace",
+    "studio.workbench.create_project",
+    "studio.workbench.accept_first_design",
+    "studio.workbench.evaluate_service_design",
+    "studio.workbench.draft_fix_from_change",
+    "studio.workbench.generate_business_brief",
+    "studio.workbench.generate_engineering_contract",
+]
+
+ASSISTANT_SCOPES = [
+    "studio.assistant.interpret_project_intent",
+]
 
 DEFAULT_BRIEFS = [
     {
@@ -40,10 +55,45 @@ DEFAULT_BRIEFS = [
 
 def issue_token(client: ANIPClient, bootstrap: str, capability: str, scope: str) -> str:
     response = client.request_capability_token(
-        principal="agent:studio-stress",
+        principal=AGENT_SUBJECT,
         capability=capability,
         scope=[scope],
         api_key=bootstrap,
+        ttl_hours=1,
+    )
+    return response["token"]
+
+
+def issue_parent_token(
+    client: ANIPClient,
+    bootstrap: str,
+    capability: str,
+    scopes: list[str],
+) -> dict:
+    return client.request_capability_token(
+        principal=AGENT_SUBJECT,
+        capability=capability,
+        scope=scopes,
+        api_key=bootstrap,
+        ttl_hours=1,
+    )
+
+
+def issue_delegated_token(
+    client: ANIPClient,
+    parent_token_jwt: str,
+    parent_token_id: str,
+    capability: str,
+    scope: str,
+) -> str:
+    response = client.request_delegated_capability_token(
+        principal=AGENT_SUBJECT,
+        parent_token=parent_token_id,
+        capability=capability,
+        scope=[scope],
+        subject=AGENT_SUBJECT,
+        auth_bearer=parent_token_jwt,
+        caller_class="agent",
         ttl_hours=1,
     )
     return response["token"]
@@ -66,9 +116,23 @@ def main() -> None:
     assistant_client = ANIPClient(f"{args.studio_base_url.rstrip('/')}/studio-assistant")
     workbench_client = ANIPClient(f"{args.studio_base_url.rstrip('/')}/studio-workbench")
 
-    workspace_token = issue_token(
+    workbench_parent = issue_parent_token(
         workbench_client,
         WORKBENCH_BOOTSTRAP,
+        "create_workspace",
+        WORKBENCH_SCOPES,
+    )
+    assistant_parent = issue_parent_token(
+        assistant_client,
+        ASSISTANT_BOOTSTRAP,
+        "interpret_project_intent",
+        ASSISTANT_SCOPES,
+    )
+
+    workspace_token = issue_delegated_token(
+        workbench_client,
+        workbench_parent["token"],
+        workbench_parent["token_id"],
         "create_workspace",
         "studio.workbench.create_workspace",
     )
@@ -87,9 +151,10 @@ def main() -> None:
     }
 
     for brief in DEFAULT_BRIEFS:
-        create_project_token = issue_token(
+        create_project_token = issue_delegated_token(
             workbench_client,
-            WORKBENCH_BOOTSTRAP,
+            workbench_parent["token"],
+            workbench_parent["token_id"],
             "create_project",
             "studio.workbench.create_project",
         )
@@ -105,9 +170,10 @@ def main() -> None:
             },
         )["project"]
 
-        interpret_token = issue_token(
+        interpret_token = issue_delegated_token(
             assistant_client,
-            ASSISTANT_BOOTSTRAP,
+            assistant_parent["token"],
+            assistant_parent["token_id"],
             "interpret_project_intent",
             "studio.assistant.interpret_project_intent",
         )
@@ -118,9 +184,10 @@ def main() -> None:
             {"project_id": project["id"], "intent": brief["intent"]},
         )
 
-        accept_token = issue_token(
+        accept_token = issue_delegated_token(
             workbench_client,
-            WORKBENCH_BOOTSTRAP,
+            workbench_parent["token"],
+            workbench_parent["token_id"],
             "accept_first_design",
             "studio.workbench.accept_first_design",
         )
@@ -139,15 +206,17 @@ def main() -> None:
         shape_id = accepted["shape"]["id"]
         scenario_ids = [item["id"] for item in accepted["scenarios"]]
 
-        eval_token = issue_token(
+        eval_token = issue_delegated_token(
             workbench_client,
-            WORKBENCH_BOOTSTRAP,
+            workbench_parent["token"],
+            workbench_parent["token_id"],
             "evaluate_service_design",
             "studio.workbench.evaluate_service_design",
         )
-        draft_fix_token = issue_token(
+        draft_fix_token = issue_delegated_token(
             workbench_client,
-            WORKBENCH_BOOTSTRAP,
+            workbench_parent["token"],
+            workbench_parent["token_id"],
             "draft_fix_from_change",
             "studio.workbench.draft_fix_from_change",
         )
@@ -199,15 +268,17 @@ def main() -> None:
                 )
             scenario_runs.append({"initial": first_eval, "followup": followup})
 
-        business_token = issue_token(
+        business_token = issue_delegated_token(
             workbench_client,
-            WORKBENCH_BOOTSTRAP,
+            workbench_parent["token"],
+            workbench_parent["token_id"],
             "generate_business_brief",
             "studio.workbench.generate_business_brief",
         )
-        engineering_token = issue_token(
+        engineering_token = issue_delegated_token(
             workbench_client,
-            WORKBENCH_BOOTSTRAP,
+            workbench_parent["token"],
+            workbench_parent["token_id"],
             "generate_engineering_contract",
             "studio.workbench.generate_engineering_contract",
         )

@@ -330,14 +330,43 @@ func WithPurposeParameters(params map[string]any) TokenOption {
 // IssueCapabilityToken issues a root token pre-bound to a specific capability.
 // scope must be explicitly provided — capability names and scope strings
 // are different things.
-// For delegation flows (parent_token, subject, caller_class), use IssueToken directly
-// until parent_token semantics are resolved across runtimes (deferred to v0.21).
+// For delegated issuance, use IssueDelegatedCapabilityToken (v0.22).
 func (s *Service) IssueCapabilityToken(principal, capability string, scope []string, opts ...TokenOption) (core.TokenResponse, error) {
 	req := core.TokenRequest{
 		Subject:    principal,
 		Capability: capability,
 		Scope:      scope,
 		TTLHours:   2,
+	}
+	for _, opt := range opts {
+		opt(&req)
+	}
+	return s.IssueToken(principal, req)
+}
+
+// WithCallerClass sets the caller class for the token.
+func WithCallerClass(callerClass string) TokenOption {
+	return func(r *core.TokenRequest) { r.CallerClass = callerClass }
+}
+
+// WithSubject sets the subject for the token (who the token is for).
+func WithSubject(subject string) TokenOption {
+	return func(r *core.TokenRequest) { r.Subject = subject }
+}
+
+// IssueDelegatedCapabilityToken issues a delegated token from an existing parent token.
+// parentToken is a token ID (not a JWT) -- the service looks up the parent by ID in storage.
+// scope must be explicitly provided.
+func (s *Service) IssueDelegatedCapabilityToken(
+	principal, parentToken, capability string, scope []string, subject string,
+	opts ...TokenOption,
+) (core.TokenResponse, error) {
+	req := core.TokenRequest{
+		Subject:     subject,
+		Capability:  capability,
+		Scope:       scope,
+		ParentToken: parentToken,
+		TTLHours:    2,
 	}
 	for _, opt := range opts {
 		opt(&req)

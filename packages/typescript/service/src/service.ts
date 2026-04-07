@@ -88,14 +88,33 @@ export interface ANIPService {
    * `scope` must be explicitly provided -- capability names and scope strings
    * are different things.
    *
-   * This helper covers root issuance only. For delegation flows
-   * (parent_token, subject, caller_class), use `issueToken()` directly.
+   * This helper covers root issuance only. For delegated issuance,
+   * use `issueDelegatedCapabilityToken()` (v0.22).
    */
   issueCapabilityToken(
     principal: string,
     capability: string,
     scope: string[],
     opts?: {
+      purposeParameters?: Record<string, unknown>;
+      ttlHours?: number;
+      budget?: Record<string, unknown>;
+    },
+  ): Promise<Record<string, unknown>>;
+  /**
+   * Issue a delegated token from an existing parent token.
+   *
+   * `parentToken` is a token ID (not a JWT) -- the service looks up the parent
+   * by ID in storage. `scope` must be explicitly provided.
+   */
+  issueDelegatedCapabilityToken(
+    principal: string,
+    parentToken: string,
+    capability: string,
+    scope: string[],
+    subject: string,
+    opts?: {
+      callerClass?: string;
       purposeParameters?: Record<string, unknown>;
       ttlHours?: number;
       budget?: Record<string, unknown>;
@@ -1002,13 +1021,47 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     ): Promise<Record<string, unknown>> {
       // Root issuance only.  scope must be explicitly provided —
       // capability names and scope strings are different things.
-      // For delegation flows, use issueToken() directly.
+      // For delegated issuance, use issueDelegatedCapabilityToken() (v0.22).
       const request: Record<string, unknown> = {
         subject: principal,
         capability,
         scope,
         ttl_hours: opts?.ttlHours ?? 2,
       };
+      if (opts?.purposeParameters !== undefined) {
+        request.purpose_parameters = opts.purposeParameters;
+      }
+      if (opts?.budget !== undefined) {
+        request.budget = opts.budget;
+      }
+      return service.issueToken(principal, request);
+    },
+
+    async issueDelegatedCapabilityToken(
+      principal: string,
+      parentToken: string,
+      capability: string,
+      scope: string[],
+      subject: string,
+      opts?: {
+        callerClass?: string;
+        purposeParameters?: Record<string, unknown>;
+        ttlHours?: number;
+        budget?: Record<string, unknown>;
+      },
+    ): Promise<Record<string, unknown>> {
+      // Delegated issuance — parentToken is a token ID (not a JWT).
+      // scope must be explicitly provided.
+      const request: Record<string, unknown> = {
+        subject,
+        capability,
+        scope,
+        parent_token: parentToken,
+        ttl_hours: opts?.ttlHours ?? 2,
+      };
+      if (opts?.callerClass !== undefined) {
+        request.caller_class = opts.callerClass;
+      }
       if (opts?.purposeParameters !== undefined) {
         request.purpose_parameters = opts.purposeParameters;
       }

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anip.dev/schema/v0.21/anip.schema.json",
+  "$id": "https://anip.dev/schema/v0.22/anip.schema.json",
   "title": "ANIP \u2014 Agent-Native Interface Protocol",
-  "description": "Canonical JSON Schema for all ANIP v0.21 types as defined in SPEC.md. Use these schemas to validate ANIP documents, responses, and delegation tokens.",
+  "description": "Canonical JSON Schema for all ANIP v0.22 types as defined in SPEC.md. Use these schemas to validate ANIP documents, responses, and delegation tokens.",
   "$defs": {
     "ServiceCapabilityRef": {
       "type": "object",
@@ -19,7 +19,7 @@
       "enum": ["same_task"],
       "title": "Continuity",
       "type": "string",
-      "description": "Continuity expectation for cross-service or recovery steps. v0.21 vocabulary: same_task. See SPEC.md §4.1."
+      "description": "Continuity expectation for cross-service or recovery steps. v0.22 vocabulary: same_task. See SPEC.md §4.1."
     },
     "CompletionMode": {
       "enum": ["downstream_acceptance", "followup_status", "verification_result"],
@@ -749,7 +749,7 @@
           ],
           "default": null,
           "title": "Recovery Target",
-          "description": "Structured recovery target (v0.21). Describes where and how recovery should proceed. Optional — additive to recovery_class. See SPEC.md §4.5."
+          "description": "Structured recovery target (v0.22). Describes where and how recovery should proceed. Optional — additive to recovery_class. See SPEC.md §4.5."
         },
         "requires": {
           "anyOf": [
@@ -1080,7 +1080,7 @@
           ],
           "default": null,
           "title": "Cross Service Contract",
-          "description": "Structured cross-service contract with task-local adjacent-step semantics (v0.21). Stronger than advisory cross_service hints. See SPEC.md §4.1."
+          "description": "Structured cross-service contract with task-local adjacent-step semantics (v0.22). Stronger than advisory cross_service hints. See SPEC.md §4.1."
         }
       },
       "required": [

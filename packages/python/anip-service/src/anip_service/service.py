@@ -564,10 +564,8 @@ class ANIPService:
         strings are different things (e.g. capability ``evaluate_service_design``
         may need scope ``studio.workbench.evaluate_service_design``).
 
-        This helper covers **root issuance only**.  For delegation flows
-        (``parent_token``, non-default ``subject``, ``caller_class``), use
-        :meth:`issue_token` directly until ``parent_token`` semantics are
-        resolved across runtimes (deferred to v0.21).
+        This helper covers **root issuance only**.  For delegated issuance,
+        use :meth:`issue_delegated_capability_token` (v0.22).
         """
         request: dict[str, Any] = {
             "subject": principal,
@@ -575,6 +573,40 @@ class ANIPService:
             "scope": scope,
             "ttl_hours": ttl_hours,
         }
+        if purpose_parameters is not None:
+            request["purpose_parameters"] = purpose_parameters
+        if budget is not None:
+            request["budget"] = budget
+        return await self.issue_token(principal, request)
+
+    async def issue_delegated_capability_token(
+        self,
+        principal: str,
+        parent_token: str,
+        capability: str,
+        scope: list[str],
+        subject: str,
+        *,
+        caller_class: str | None = None,
+        purpose_parameters: dict[str, Any] | None = None,
+        ttl_hours: int = 2,
+        budget: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Issue a delegated token from an existing parent token.
+
+        This is the delegated counterpart to :meth:`issue_capability_token`.
+        ``parent_token`` is a token ID (not a JWT) -- the service looks up
+        the parent by ID in storage.  ``scope`` must be explicitly provided.
+        """
+        request: dict[str, Any] = {
+            "subject": subject,
+            "capability": capability,
+            "scope": scope,
+            "parent_token": parent_token,
+            "ttl_hours": ttl_hours,
+        }
+        if caller_class is not None:
+            request["caller_class"] = caller_class
         if purpose_parameters is not None:
             request["purpose_parameters"] = purpose_parameters
         if budget is not None:

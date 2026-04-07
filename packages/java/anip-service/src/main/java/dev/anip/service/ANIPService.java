@@ -273,10 +273,8 @@ public class ANIPService {
      * strings are different things (e.g. capability {@code evaluate_service_design}
      * may need scope {@code studio.workbench.evaluate_service_design}).</p>
      *
-     * <p>This helper covers <b>root issuance only</b>.  For delegation flows
-     * ({@code parentToken}, non-default {@code subject}, {@code callerClass}),
-     * use {@link #issueToken} directly until {@code parentToken} semantics are
-     * resolved across runtimes (deferred to v0.21).</p>
+     * <p>This helper covers <b>root issuance only</b>.  For delegated issuance,
+     * use {@link #issueDelegatedCapabilityToken} (v0.22).</p>
      */
     public TokenResponse issueCapabilityToken(
             String principal,
@@ -298,6 +296,41 @@ public class ANIPService {
     public TokenResponse issueCapabilityToken(
             String principal, String capability, List<String> scope) throws Exception {
         return issueCapabilityToken(principal, capability, scope, null, 2, null);
+    }
+
+    /**
+     * Issue a delegated token from an existing parent token.
+     *
+     * <p>{@code parentToken} is a token ID (not a JWT) — the service looks up
+     * the parent by ID in storage. {@code scope} must be explicitly provided.</p>
+     */
+    public TokenResponse issueDelegatedCapabilityToken(
+            String principal,
+            String parentToken,
+            String capability,
+            List<String> scope,
+            String subject,
+            String callerClass,
+            Map<String, Object> purposeParameters,
+            int ttlHours,
+            Budget budget) throws Exception {
+        TokenRequest request = new TokenRequest(
+                subject, scope, capability, purposeParameters,
+                parentToken, ttlHours, callerClass, budget);
+        return issueToken(principal, request);
+    }
+
+    /**
+     * Issue a delegated token with default TTL and no optional parameters.
+     */
+    public TokenResponse issueDelegatedCapabilityToken(
+            String principal,
+            String parentToken,
+            String capability,
+            List<String> scope,
+            String subject) throws Exception {
+        return issueDelegatedCapabilityToken(
+                principal, parentToken, capability, scope, subject, null, null, 2, null);
     }
 
     // --- Invocation ---

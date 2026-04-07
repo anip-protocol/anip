@@ -52,7 +52,7 @@ public class TokenRequest {
         return purposeParameters;
     }
 
-    /** JWT string of parent token. */
+    /** Token ID string of the parent token (not a JWT). The service looks up the parent by ID in storage. */
     public String getParentToken() {
         return parentToken;
     }
