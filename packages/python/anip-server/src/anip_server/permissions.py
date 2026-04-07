@@ -25,6 +25,25 @@ def discover_permissions(
     constraints_obj = token.constraints
 
     for name, cap in capabilities.items():
+        token_has_explicit_binding = (
+            token.purpose is not None
+            and token.purpose.capability == name
+        )
+
+        # Non-delegable capabilities are denied unless the caller already holds
+        # a direct root-bound token for that exact capability.
+        if any(req.type == "non_delegable" and req.enforcement == "reject" for req in cap.control_requirements):
+            non_delegable_satisfied = token.parent is None and token_has_explicit_binding
+            if not non_delegable_satisfied:
+                denied.append(
+                    DeniedCapability(
+                        capability=name,
+                        reason="capability requires a direct root-bound token and cannot be granted through this delegation path",
+                        reason_type="non_delegable",
+                    )
+                )
+                continue
+
         required_scopes = cap.minimum_scope
         matched_scope_strs: list[str] = []
         missing: list[str] = []
@@ -58,11 +77,6 @@ def discover_permissions(
             if req.type == "cost_ceiling" and (not constraints_obj or not constraints_obj.budget):
                 unmet.append("cost_ceiling")
             elif req.type == "stronger_delegation_required":
-                # Check if token has explicit capability binding via purpose
-                token_has_explicit_binding = (
-                    token.purpose is not None
-                    and token.purpose.capability == name
-                )
                 if not token_has_explicit_binding:
                     unmet.append("stronger_delegation_required")
 

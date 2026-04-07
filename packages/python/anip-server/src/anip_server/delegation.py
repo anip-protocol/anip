@@ -64,6 +64,7 @@ class DelegationEngine:
         ttl_hours: int = 2,
         max_delegation_depth: int = 3,
         budget: Budget | None = None,
+        concurrent_branches: ConcurrentBranches = ConcurrentBranches.ALLOWED,
     ) -> tuple[DelegationToken, str]:
         """Issue a root delegation token.
 
@@ -83,6 +84,7 @@ class DelegationEngine:
             ttl_hours=ttl_hours,
             max_delegation_depth=max_delegation_depth,
             budget=budget,
+            concurrent_branches=concurrent_branches,
         )
 
     async def delegate(
@@ -533,7 +535,10 @@ class DelegationEngine:
         return f"{socket.gethostname()}:{os.getpid()}"
 
     async def acquire_exclusive_lock(
-        self, token: DelegationToken
+        self,
+        token: DelegationToken,
+        *,
+        holder_id: str | None = None,
     ) -> ANIPFailure | None:
         """Atomically acquire the exclusive lock for a root principal.
 
@@ -545,7 +550,7 @@ class DelegationEngine:
             return None
         root = await self.get_root_principal(token)
         key = f"exclusive:{self._service_id}:{root}"
-        holder = self._get_holder_id()
+        holder = holder_id or self._get_holder_id()
         acquired = await self._storage.try_acquire_exclusive(key, holder, self._exclusive_ttl)
         if not acquired:
             return ANIPFailure(
@@ -560,12 +565,17 @@ class DelegationEngine:
             )
         return None
 
-    async def release_exclusive_lock(self, token: DelegationToken) -> None:
+    async def release_exclusive_lock(
+        self,
+        token: DelegationToken,
+        *,
+        holder_id: str | None = None,
+    ) -> None:
         """Release the storage-backed exclusive lease for a root principal."""
         if token.constraints.concurrent_branches == ConcurrentBranches.EXCLUSIVE:
             root = await self.get_root_principal(token)
             key = f"exclusive:{self._service_id}:{root}"
-            holder = self._get_holder_id()
+            holder = holder_id or self._get_holder_id()
             await self._storage.release_exclusive(key, holder)
 
     # ------------------------------------------------------------------
@@ -637,13 +647,14 @@ class DelegationEngine:
         ttl_hours: int,
         max_delegation_depth: int,
         budget: Budget | None = None,
+        concurrent_branches: ConcurrentBranches = ConcurrentBranches.ALLOWED,
     ) -> tuple[DelegationToken, str]:
         """Internal token creation shared by ``issue_root_token`` and ``delegate``."""
         token_id = f"anip-{uuid.uuid4().hex[:12]}"
         now = datetime.now(timezone.utc)
         expires = now + timedelta(hours=ttl_hours)
 
-        concurrent = ConcurrentBranches.ALLOWED
+        concurrent = concurrent_branches
         if parent_token is not None:
             max_delegation_depth = min(
                 max_delegation_depth,

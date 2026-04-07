@@ -35,6 +35,8 @@ from .routers import projects, artifacts, shapes, vocabulary, import_export, wor
 
 SCHEMA_DIR = Path(__file__).resolve().parents[2] / "tooling" / "schemas"
 VOCAB_DEFAULTS_PATH = Path(__file__).parent / "vocabulary_defaults.json"
+ASSISTANT_SERVICE = create_studio_assistant_service()
+WORKBENCH_SERVICE = create_studio_workbench_service()
 
 
 class ValidateRequest(BaseModel):
@@ -54,7 +56,15 @@ async def lifespan(app: FastAPI):
     init_db()
     with get_pool().connection() as conn:
         load_vocabulary_defaults(conn, str(VOCAB_DEFAULTS_PATH))
-    yield
+    await ASSISTANT_SERVICE.start()
+    await WORKBENCH_SERVICE.start()
+    try:
+        yield
+    finally:
+        await ASSISTANT_SERVICE.shutdown()
+        await WORKBENCH_SERVICE.shutdown()
+        ASSISTANT_SERVICE.stop()
+        WORKBENCH_SERVICE.stop()
 
 
 app = FastAPI(title="ANIP Studio Validation API", lifespan=lifespan)
@@ -72,8 +82,8 @@ app.include_router(artifacts.router)
 app.include_router(shapes.router)
 app.include_router(vocabulary.router)
 app.include_router(import_export.router)
-mount_anip(app, create_studio_assistant_service(), prefix="/studio-assistant")
-mount_anip(app, create_studio_workbench_service(), prefix="/studio-workbench")
+mount_anip(app, ASSISTANT_SERVICE, prefix="/studio-assistant")
+mount_anip(app, WORKBENCH_SERVICE, prefix="/studio-workbench")
 
 
 # --- Existing endpoints (unchanged) ---
