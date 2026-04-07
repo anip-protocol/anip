@@ -16,6 +16,7 @@ public class CapabilityDeclaration {
     private final List<String> minimumScope;
     private final Cost cost;
     private final List<CapabilityRequirement> requires;
+    private final List<CapabilityComposition> composesWith;
     private final List<String> responseModes;
     private final List<BindingRequirement> requiresBinding;
     private final List<ControlRequirement> controlRequirements;
@@ -93,6 +94,7 @@ public class CapabilityDeclaration {
         this.minimumScope = minimumScope;
         this.cost = cost;
         this.requires = requires;
+        this.composesWith = null;
         this.responseModes = responseModes;
         this.requiresBinding = requiresBinding;
         this.controlRequirements = controlRequirements;
@@ -136,6 +138,10 @@ public class CapabilityDeclaration {
 
     public List<CapabilityRequirement> getRequires() {
         return requires;
+    }
+
+    public List<CapabilityComposition> getComposesWith() {
+        return composesWith;
     }
 
     public List<String> getResponseModes() {

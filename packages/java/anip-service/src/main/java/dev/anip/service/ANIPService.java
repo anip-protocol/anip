@@ -1265,7 +1265,7 @@ public class ANIPService {
         Map<String, Object> graph = new LinkedHashMap<>();
         graph.put("capability", name);
         graph.put("requires", decl.getRequires() != null ? decl.getRequires() : java.util.Collections.emptyList());
-        graph.put("composes_with", java.util.Collections.emptyList());
+        graph.put("composes_with", decl.getComposesWith() != null ? decl.getComposesWith() : java.util.Collections.emptyList());
         return graph;
     }
 
