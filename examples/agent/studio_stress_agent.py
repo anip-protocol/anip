@@ -7,6 +7,7 @@ back to raw Studio REST.
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import json
 import time
 from pathlib import Path
@@ -27,6 +28,8 @@ WORKBENCH_SCOPES = [
     "studio.workbench.draft_fix_from_change",
     "studio.workbench.generate_business_brief",
     "studio.workbench.generate_engineering_contract",
+    "studio.workbench.hold_exclusive_probe",
+    "studio.workbench.read_runtime_observability",
 ]
 
 ASSISTANT_SCOPES = [
@@ -88,13 +91,15 @@ def issue_parent_token(
     capability: str,
     scopes: list[str],
 ) -> dict:
-    return client.request_capability_token(
+    token = client.request_capability_token(
         principal=AGENT_SUBJECT,
         capability=capability,
         scope=scopes,
         api_key=bootstrap,
         ttl_hours=1,
     )
+    token["capability"] = capability
+    return token
 
 
 def issue_root_capability_token(
@@ -104,6 +109,7 @@ def issue_root_capability_token(
     scope: str,
     *,
     budget: dict | None = None,
+    concurrent_branches: str | None = None,
 ) -> str:
     response = client.request_capability_token(
         principal=AGENT_SUBJECT,
@@ -112,6 +118,7 @@ def issue_root_capability_token(
         api_key=bootstrap,
         ttl_hours=1,
         budget=budget,
+        concurrent_branches=concurrent_branches,
     )
     return response["token"]
 
@@ -136,15 +143,18 @@ def resolve_capability_token(
 ) -> str:
     parent_state = permission_snapshot(client, parent_token["token"], capability)
     parent_entry = parent_state["entry"]
+    parent_capability = parent_token.get("capability")
+    purpose_mismatch = parent_capability is not None and parent_capability != capability
     decision = {
         "capability": capability,
         "scope": scope,
         "parent": parent_entry,
         "used": None,
         "budget_requested": budget,
+        "purpose_mismatch": purpose_mismatch,
     }
 
-    if parent_entry["status"] == "available":
+    if parent_entry["status"] == "available" and not purpose_mismatch:
         decision["used"] = "parent"
         report.append(decision)
         return parent_token["token"]
@@ -363,6 +373,108 @@ def verify_checkpoints(
     }
 
 
+def verify_round5_observability(
+    client: ANIPClient,
+    root_token: dict,
+    bootstrap: str,
+    report: list[dict],
+) -> dict:
+    """Pressure exclusive-lock contention and runtime observability hooks."""
+    hold_parent_state = permission_snapshot(
+        client,
+        root_token["token"],
+        "hold_exclusive_probe",
+    )
+    report.append(
+        {
+            "capability": "hold_exclusive_probe",
+            "scope": "studio.workbench.hold_exclusive_probe",
+            "parent": hold_parent_state["entry"],
+            "used": "root-exclusive",
+            "reason": "round5_exclusive_probe",
+        }
+    )
+    hold_token = issue_root_capability_token(
+        client,
+        bootstrap,
+        "hold_exclusive_probe",
+        "studio.workbench.hold_exclusive_probe",
+        concurrent_branches="exclusive",
+    )
+    read_token = resolve_capability_token(
+        client,
+        root_token,
+        bootstrap,
+        "read_runtime_observability",
+        "studio.workbench.read_runtime_observability",
+        report=report,
+    )
+
+    hold_ref = f"round5-hold-{uuid4().hex[:8]}"
+    contend_ref = f"round5-contend-{uuid4().hex[:8]}"
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        first = executor.submit(
+            client.invoke,
+            "hold_exclusive_probe",
+            hold_token,
+            {"hold_seconds": 2, "label": "primary"},
+            hold_ref,
+        )
+        time.sleep(0.25)
+        second = client.invoke(
+            "hold_exclusive_probe",
+            hold_token,
+            {"hold_seconds": 0.1, "label": "contender"},
+            client_reference_id=contend_ref,
+        )
+        first_result = first.result(timeout=10)
+
+    if not first_result.get("success", False):
+        raise RuntimeError(f"Primary exclusive probe failed unexpectedly: {json.dumps(first_result, sort_keys=True)}")
+    if second.get("success", True):
+        raise RuntimeError(f"Contending exclusive probe unexpectedly succeeded: {json.dumps(second, sort_keys=True)}")
+    if second.get("failure", {}).get("type") != "concurrent_request_rejected":
+        raise RuntimeError(f"Contending exclusive probe returned wrong failure: {json.dumps(second, sort_keys=True)}")
+
+    observability = client.invoke(
+        "read_runtime_observability",
+        read_token,
+        {},
+        client_reference_id=f"round5-observability-{uuid4().hex[:8]}",
+    )
+    if not observability.get("success", False):
+        raise RuntimeError(f"Runtime observability read failed: {json.dumps(observability, sort_keys=True)}")
+    result = observability["result"]
+    hook_counts = result.get("hooks", {}).get("counts", {})
+    health = result.get("health", {})
+    checkpoints = result.get("recent_checkpoints", [])
+
+    if hook_counts.get("logging.invocation_start", 0) < 1:
+        raise RuntimeError("Round 5 did not capture logging.invocation_start hook events")
+    if hook_counts.get("logging.invocation_end", 0) < 1:
+        raise RuntimeError("Round 5 did not capture logging.invocation_end hook events")
+    if hook_counts.get("metrics.invocation_duration", 0) < 1:
+        raise RuntimeError("Round 5 did not capture metrics.invocation_duration hook events")
+    if hook_counts.get("logging.checkpoint_created", 0) < 1:
+        raise RuntimeError("Round 5 did not capture logging.checkpoint_created hook events")
+    if health.get("status") != "healthy":
+        raise RuntimeError(f"Runtime health is not healthy in Round 5: {json.dumps(health, sort_keys=True)}")
+    if not checkpoints:
+        raise RuntimeError("Round 5 observability read did not return recent checkpoints")
+
+    return {
+        "exclusive_hold": first_result,
+        "exclusive_contention": second,
+        "observability": result,
+        "verification": {
+            "hook_counts": hook_counts,
+            "health_status": health.get("status"),
+            "checkpoint_count": len(checkpoints),
+            "contention_failure_type": second.get("failure", {}).get("type"),
+        },
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--studio-base-url", default="http://127.0.0.1:8100")
@@ -420,6 +532,7 @@ def main() -> None:
         "workbench_manifest": workbench_client.get_manifest(),
         "bootstrap_permission_decisions": bootstrap_decisions,
         "checkpoint_checks": None,
+        "round5_checks": None,
         "runs": [],
     }
 
@@ -876,6 +989,14 @@ def main() -> None:
         workbench_client,
         workbench_posture,
     )
+
+    if "hold_exclusive_probe" in report["workbench_manifest"]["capabilities"]:
+        report["round5_checks"] = verify_round5_observability(
+            workbench_client,
+            workbench_parent,
+            WORKBENCH_BOOTSTRAP,
+            bootstrap_decisions,
+        )
 
     print(json.dumps(report, indent=2))
 

@@ -27,10 +27,13 @@ class ANIPClient:
         json: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
+        *,
+        raise_for_status: bool = True,
     ) -> dict[str, Any]:
         with httpx.Client(base_url=self.base_url, timeout=self.timeout) as client:
             resp = client.post(path, json=json, headers=headers, params=params)
-            resp.raise_for_status()
+            if raise_for_status:
+                resp.raise_for_status()
             return resp.json()
 
     def discover(self) -> dict[str, Any]:
@@ -80,6 +83,7 @@ class ANIPClient:
         purpose_parameters: dict[str, Any] | None = None,
         ttl_hours: int = 2,
         budget: dict[str, Any] | None = None,
+        concurrent_branches: str | None = None,
     ) -> dict[str, Any]:
         """Request a root token pre-bound to a specific capability.
 
@@ -97,6 +101,8 @@ class ANIPClient:
             body["purpose_parameters"] = purpose_parameters
         if budget is not None:
             body["budget"] = budget
+        if concurrent_branches is not None:
+            body["concurrent_branches"] = concurrent_branches
         return self._post(
             "/anip/tokens",
             body,
@@ -185,6 +191,7 @@ class ANIPClient:
             f"/anip/invoke/{capability}",
             json=body,
             headers={"Authorization": f"Bearer {token_jwt}"},
+            raise_for_status=False,
         )
 
     def invoke_stream(

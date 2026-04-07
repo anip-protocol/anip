@@ -69,7 +69,7 @@ def test_assistant_manifest_exposes_explanation_capabilities(client: TestClient)
     assert caps["explain_evaluation"]["cross_service_contract"] is not None
 
 
-@pytest.mark.parametrize("profile", ["round2", "round4"])
+@pytest.mark.parametrize("profile", ["round2", "round4", "round5"])
 def test_assistant_discovery_exposes_redacted_posture(
     monkeypatch: pytest.MonkeyPatch,
     profile: str,
@@ -90,7 +90,7 @@ def test_assistant_discovery_exposes_redacted_posture(
         assert doc["posture"]["anchoring"]["enabled"] is False
 
 
-@pytest.mark.parametrize("profile", ["round3", "round4"])
+@pytest.mark.parametrize("profile", ["round3", "round4", "round5"])
 def test_assistant_manifest_exposes_streaming_and_session(
     monkeypatch: pytest.MonkeyPatch,
     profile: str,

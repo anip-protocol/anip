@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
+import time
 
 import pytest
 from fastapi import FastAPI
@@ -47,6 +49,7 @@ def _issue_token(
     auth_bearer: str = BOOTSTRAP,
     parent_token: str | None = None,
     budget: dict | None = None,
+    concurrent_branches: str | None = None,
 ) -> dict:
     payload = {
         "subject": "studio-agent",
@@ -58,6 +61,8 @@ def _issue_token(
         payload["parent_token"] = parent_token
     if budget is not None:
         payload["budget"] = budget
+    if concurrent_branches is not None:
+        payload["concurrent_branches"] = concurrent_branches
     resp = client.post(
         "/studio-workbench/anip/tokens",
         headers={"Authorization": f"Bearer {auth_bearer}"},
@@ -102,7 +107,7 @@ def test_workbench_manifest_exposes_round1_dogfood_controls(monkeypatch: pytest.
         assert evaluate["cost"]["financial"]["currency"] == workbench_service.DOGFOOD_EVALUATION_CURRENCY
 
 
-@pytest.mark.parametrize("profile", ["round2", "round4"])
+@pytest.mark.parametrize("profile", ["round2", "round4", "round5"])
 def test_workbench_discovery_exposes_anchored_posture(
     monkeypatch: pytest.MonkeyPatch,
     profile: str,
@@ -117,6 +122,67 @@ def test_workbench_discovery_exposes_anchored_posture(
         assert doc["posture"]["anchoring"]["enabled"] is True
         assert doc["posture"]["anchoring"]["proofs_available"] is True
         assert doc["posture"]["failure_disclosure"]["detail_level"] == "full"
+
+
+def test_workbench_manifest_exposes_round5_observability_controls(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", "round5")
+    with _mounted_client(monkeypatch) as client:
+        resp = client.get("/studio-workbench/anip/manifest")
+        assert resp.status_code == 200, resp.text
+        caps = resp.json()["capabilities"]
+        assert "hold_exclusive_probe" in caps
+        assert "read_runtime_observability" in caps
+
+
+def test_workbench_round5_exercises_exclusive_contention_and_observability(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", "round5")
+    with _mounted_client(monkeypatch) as client:
+        hold_token = _issue_token(
+            client,
+            "hold_exclusive_probe",
+            concurrent_branches="exclusive",
+        )["token"]
+        read_token = _issue_token(client, "read_runtime_observability")["token"]
+
+        def _invoke_hold(client_reference_id: str, hold_seconds: float) -> dict:
+            resp = client.post(
+                "/studio-workbench/anip/invoke/hold_exclusive_probe",
+                headers={"Authorization": f"Bearer {hold_token}"},
+                json={
+                    "client_reference_id": client_reference_id,
+                    "parameters": {
+                        "hold_seconds": hold_seconds,
+                        "label": client_reference_id,
+                    },
+                },
+            )
+            assert resp.status_code in (200, 400), resp.text
+            return resp.json()
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            first = executor.submit(_invoke_hold, "hold-primary", 1.0)
+            time.sleep(0.2)
+            second = _invoke_hold("hold-contender", 0.1)
+            first_result = first.result(timeout=5)
+
+        assert first_result["success"] is True
+        assert second["success"] is False
+        assert second["failure"]["type"] == "concurrent_request_rejected"
+
+        obs_resp = client.post(
+            "/studio-workbench/anip/invoke/read_runtime_observability",
+            headers={"Authorization": f"Bearer {read_token}"},
+            json={"parameters": {}},
+        )
+        assert obs_resp.status_code == 200, obs_resp.text
+        obs = obs_resp.json()
+        assert obs["success"] is True
+        result = obs["result"]
+        assert result["health"]["status"] == "healthy"
+        counts = result["hooks"]["counts"]
+        assert counts["logging.invocation_start"] >= 1
+        assert counts["logging.invocation_end"] >= 1
+        assert counts["metrics.invocation_duration"] >= 1
 
 
 def test_workbench_permissions_support_round1_preflight_and_budget(monkeypatch: pytest.MonkeyPatch):

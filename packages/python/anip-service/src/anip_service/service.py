@@ -459,6 +459,14 @@ class ANIPService:
             elif isinstance(budget_data, dict):
                 budget = Budget(**budget_data)
 
+        concurrent_branches_data = request.get("concurrent_branches")
+        concurrent_branches: ConcurrentBranches | None = None
+        if concurrent_branches_data is not None:
+            if isinstance(concurrent_branches_data, ConcurrentBranches):
+                concurrent_branches = concurrent_branches_data
+            else:
+                concurrent_branches = ConcurrentBranches(str(concurrent_branches_data))
+
         if parent_token_id:
             # Delegation from existing token
             parent = await self._engine.get_token(parent_token_id)
@@ -494,6 +502,7 @@ class ANIPService:
                 purpose_parameters=request.get("purpose_parameters"),
                 ttl_hours=ttl_hours,
                 budget=budget,
+                concurrent_branches=concurrent_branches or ConcurrentBranches.ALLOWED,
             )
 
         # Check for delegation failure (ANIPFailure is a Pydantic model)
@@ -558,6 +567,7 @@ class ANIPService:
         purpose_parameters: dict[str, Any] | None = None,
         ttl_hours: int = 2,
         budget: dict[str, Any] | None = None,
+        concurrent_branches: str | None = None,
     ) -> dict[str, Any]:
         """Issue a root token pre-bound to a specific capability.
 
@@ -578,6 +588,8 @@ class ANIPService:
             request["purpose_parameters"] = purpose_parameters
         if budget is not None:
             request["budget"] = budget
+        if concurrent_branches is not None:
+            request["concurrent_branches"] = concurrent_branches
         return await self.issue_token(principal, request)
 
     async def issue_delegated_capability_token(
@@ -1134,7 +1146,10 @@ class ANIPService:
         # 4. Acquire lock if configured
         locked = False
         if cap.exclusive_lock:
-            lock_result = await self._engine.acquire_exclusive_lock(resolved_token)
+            lock_result = await self._engine.acquire_exclusive_lock(
+                resolved_token,
+                holder_id=f"{self._get_holder_id()}:{invocation_id}",
+            )
             if lock_result is not None:
                 _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
                 _event_class = classify_event(_side_effect_type, False, "concurrent_lock")
@@ -1186,7 +1201,9 @@ class ANIPService:
 
                 async def _handler_with_heartbeat():
                     return await self._run_with_exclusive_heartbeat(
-                        resolved_token, _run_handler()
+                        resolved_token,
+                        _run_handler(),
+                        holder_id=f"{self._get_holder_id()}:{invocation_id}",
                     )
 
                 result = await self._with_span(
@@ -1427,7 +1444,10 @@ class ANIPService:
 
         finally:
             if locked:
-                await self._engine.release_exclusive_lock(resolved_token)
+                await self._engine.release_exclusive_lock(
+                    resolved_token,
+                    holder_id=f"{self._get_holder_id()}:{invocation_id}",
+                )
 
     async def query_audit(
         self,
@@ -1932,6 +1952,8 @@ class ANIPService:
         self,
         token: DelegationToken,
         handler_coro: Any,
+        *,
+        holder_id: str | None = None,
     ) -> Any:
         """Run a handler coroutine while periodically renewing the exclusive lease.
 
@@ -1947,7 +1969,7 @@ class ANIPService:
 
         root = await self._engine.get_root_principal(token)
         key = f"exclusive:{self._service_id}:{root}"
-        holder = self._get_holder_id()
+        holder = holder_id or self._get_holder_id()
         interval = self._exclusive_ttl / 2
 
         async def renew_loop() -> None:
