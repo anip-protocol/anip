@@ -1202,16 +1202,48 @@ The handshake is the first substantive interaction. The agent declares what prof
 **Request:**
 
 ```yaml
+# Root issuance (no parent_token):
 scope:
   - "travel.search"
   - "travel.book"
-subject: "agent-007"                # required for root issuance
-parent_token: "tok_root_001"        # present for delegation, absent for root issuance
-ttl_hours: 2                        # optional, default 2
-budget:                              # v0.14: optional budget constraint
+subject: "agent-007"                  # optional: defaults to authenticated principal if omitted
+capability: "book_flight"             # v0.20: optional, pre-binds token to this capability
+purpose_parameters:                    # optional: additional purpose metadata
+  task_id: "booking-task-42"
+ttl_hours: 2                          # optional, default 2
+caller_class: "automated_agent"       # optional: issuer-supplied classification for disclosure
+budget:                               # v0.14: optional budget constraint
   currency: "USD"
   max_amount: 500
+concurrent_branches: "exclusive"      # optional: concurrency posture for the token tree
+
+# Delegated issuance (with parent_token):
+scope:
+  - "travel.book"
+subject: "sub-agent-booking"
+parent_token: "anip-abc123def456"     # v0.22: token ID string (not JWT) of the parent token
+capability: "book_flight"
+ttl_hours: 1
+budget:
+  currency: "USD"
+  max_amount: 200
 ```
+
+**Token issuance request fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `scope` | array of strings | Yes | Authorization scopes for the token. Must narrow (never widen) relative to parent. |
+| `subject` | string | No | Principal identity the token is issued for. Defaults to the authenticated principal if omitted. |
+| `parent_token` | string | No | Token ID string of the parent token for delegated issuance (v0.22). Absent for root issuance. NOT a JWT — the service looks it up by ID in storage. |
+| `capability` | string | No | Target capability this token is pre-bound to (v0.20). Prevents `purpose_mismatch` errors. |
+| `purpose_parameters` | object | No | Additional purpose metadata (e.g., `task_id`). Stored in the token's purpose claims. |
+| `ttl_hours` | integer | No | Token lifetime in hours. Default: 2. |
+| `caller_class` | string | No | Issuer-supplied classification for disclosure policy (v0.22). |
+| `budget` | object | No | Budget constraint with `currency` (ISO 4217) and `max_amount` (v0.14). Must narrow relative to parent. |
+| `concurrent_branches` | string | No | Concurrency posture for the token tree. Values: `"allowed"` (default, multiple branches permitted), `"exclusive"` (single active branch). Same vocabulary as delegation constraints (§4.3). |
+
+> **Root vs delegated issuance:** The same endpoint serves both. Root issuance authenticates via bootstrap credential and omits `parent_token`. Delegated issuance authenticates via existing JWT and includes `parent_token` (a token ID string). The runtime convenience helpers (`issueCapabilityToken` for root, `issueDelegatedCapabilityToken` for delegated) correctly assemble these requests.
 
 The `budget` field is a convenience mapping — the caller writes `budget` at the top level of the issuance request, and the service stores it in `constraints.budget` in the token's JWT claims. When `parent_token` is present, the requested budget MUST NOT exceed the parent token's budget (budget narrowing rule, §4.3).
 
