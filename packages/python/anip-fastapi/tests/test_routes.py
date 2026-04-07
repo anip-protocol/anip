@@ -270,6 +270,44 @@ class TestStreamingRoutes:
         assert data["failure"]["type"] == "streaming_not_supported"
 
 
+class TestDelegatedTokenIssuance:
+    def test_token_endpoint_supports_subdelegation_with_parent_jwt(self, client):
+        root = client.post(
+            "/anip/tokens",
+            json={
+                "subject": "agent:helper",
+                "scope": ["greet", "greet.read"],
+                "capability": "greet",
+            },
+            headers={"Authorization": f"Bearer {API_KEY}"},
+        )
+        assert root.status_code == 200
+        root_data = root.json()
+
+        child = client.post(
+            "/anip/tokens",
+            json={
+                "subject": "agent:helper",
+                "scope": ["greet"],
+                "capability": "greet",
+                "parent_token": root_data["token_id"],
+                "caller_class": "agent",
+            },
+            headers={"Authorization": f"Bearer {root_data['token']}"},
+        )
+        assert child.status_code == 200
+        child_data = child.json()
+        assert child_data["issued"] is True
+
+        invoke = client.post(
+            "/anip/invoke/greet",
+            json={"parameters": {"name": "delegated"}},
+            headers={"Authorization": f"Bearer {child_data['token']}"},
+        )
+        assert invoke.status_code == 200
+        assert invoke.json()["success"] is True
+
+
 # --- Health endpoint tests ---
 
 

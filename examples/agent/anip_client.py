@@ -102,6 +102,44 @@ class ANIPClient:
             headers={"Authorization": f"Bearer {api_key}"},
         )
 
+    def request_delegated_capability_token(
+        self,
+        principal: str,
+        parent_token: str,
+        capability: str,
+        scope: list[str],
+        subject: str,
+        auth_bearer: str,
+        caller_class: str | None = None,
+        purpose_parameters: dict[str, Any] | None = None,
+        ttl_hours: int = 2,
+        budget: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Request a delegated token pre-bound to a specific capability.
+
+        This mirrors the v0.22 delegated runtime helper semantics at the
+        protocol-client edge: ``parent_token`` is a token ID string, scope
+        remains explicit, and the delegated subject is explicit too.
+        """
+        body: dict[str, Any] = {
+            "subject": subject,
+            "scope": scope,
+            "capability": capability,
+            "parent_token": parent_token,
+            "ttl_hours": ttl_hours,
+        }
+        if caller_class is not None:
+            body["caller_class"] = caller_class
+        if purpose_parameters is not None:
+            body["purpose_parameters"] = purpose_parameters
+        if budget is not None:
+            body["budget"] = budget
+        return self._post(
+            "/anip/tokens",
+            body,
+            headers={"Authorization": f"Bearer {auth_bearer}"},
+        )
+
     def check_permissions(self, token_jwt: str) -> dict[str, Any]:
         """Query what the agent can do given its delegation token JWT."""
         return self._post(

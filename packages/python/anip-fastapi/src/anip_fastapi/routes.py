@@ -283,15 +283,24 @@ def mount_anip(
 async def _extract_principal(request: Request, service: ANIPService) -> str | None:
     """Extract authenticated principal from the request.
 
-    Uses service.authenticate_bearer() which tries bootstrap auth (API keys,
-    external auth) first, then ANIP JWT verification. This is critical for
-    first-token issuance before any ANIP tokens exist.
+    For token issuance, JWT delegation must authenticate as the *current token
+    subject*, not the chain root principal. That is what allows legitimate
+    sub-delegation via ``parent_token``.
+
+    Order:
+    1. Try ANIP JWT first and return ``token.subject``.
+    2. Fall back to bootstrap auth (API keys, external auth) for first-token
+       issuance before any ANIP tokens exist.
     """
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer "):
         return None
     bearer_value = auth[7:].strip()
-    return await service.authenticate_bearer(bearer_value)
+    try:
+        token = await service.resolve_bearer_token(bearer_value)
+        return token.subject
+    except ANIPError:
+        return await service.authenticate_bearer(bearer_value)
 
 
 async def _resolve_token(request: Request, service: ANIPService):
