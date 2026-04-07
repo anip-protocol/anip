@@ -85,6 +85,23 @@ public class CapabilityDeclaration {
                                   List<String> verifyVia,
                                   CrossServiceHints crossService,
                                   CrossServiceContract crossServiceContract) {
+        this(name, description, contractVersion, inputs, output, sideEffect,
+             minimumScope, cost, requires, responseModes, requiresBinding, controlRequirements,
+             refreshVia, verifyVia, crossService, crossServiceContract, null);
+    }
+
+    public CapabilityDeclaration(String name, String description, String contractVersion,
+                                  List<CapabilityInput> inputs, CapabilityOutput output,
+                                  SideEffect sideEffect, List<String> minimumScope,
+                                  Cost cost, List<CapabilityRequirement> requires,
+                                  List<String> responseModes,
+                                  List<BindingRequirement> requiresBinding,
+                                  List<ControlRequirement> controlRequirements,
+                                  List<String> refreshVia,
+                                  List<String> verifyVia,
+                                  CrossServiceHints crossService,
+                                  CrossServiceContract crossServiceContract,
+                                  List<CapabilityComposition> composesWith) {
         this.name = name;
         this.description = description;
         this.contractVersion = contractVersion;
@@ -94,7 +111,7 @@ public class CapabilityDeclaration {
         this.minimumScope = minimumScope;
         this.cost = cost;
         this.requires = requires;
-        this.composesWith = null;
+        this.composesWith = composesWith;
         this.responseModes = responseModes;
         this.requiresBinding = requiresBinding;
         this.controlRequirements = controlRequirements;
