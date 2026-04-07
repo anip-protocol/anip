@@ -147,6 +147,54 @@
       "type": "object",
       "description": "Enforceable financial budget constraint in delegation tokens. See SPEC.md §4.3."
     },
+    "TokenRequest": {
+      "type": "object",
+      "description": "Token issuance request. Root issuance omits parent_token; delegated issuance includes it.",
+      "required": ["scope", "subject"],
+      "properties": {
+        "scope": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Authorization scopes for the token."
+        },
+        "subject": {
+          "type": "string",
+          "description": "Principal identity the token is issued for."
+        },
+        "parent_token": {
+          "type": "string",
+          "description": "Token ID string of the parent token for delegated issuance (v0.22). NOT a JWT."
+        },
+        "capability": {
+          "type": "string",
+          "description": "Target capability this token is pre-bound to (v0.20)."
+        },
+        "purpose_parameters": {
+          "type": "object",
+          "description": "Additional purpose metadata (e.g., task_id)."
+        },
+        "ttl_hours": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 2,
+          "description": "Token lifetime in hours."
+        },
+        "caller_class": {
+          "type": "string",
+          "description": "Issuer-supplied classification for disclosure policy (v0.22)."
+        },
+        "budget": {
+          "$ref": "#/$defs/Budget",
+          "description": "Budget constraint (v0.14). Must narrow relative to parent."
+        },
+        "concurrent_branches": {
+          "type": "string",
+          "enum": ["exclusive", "concurrent"],
+          "description": "Concurrency posture for the token tree."
+        }
+      }
+    },
     "BudgetContext": {
       "properties": {
         "budget_max": {
