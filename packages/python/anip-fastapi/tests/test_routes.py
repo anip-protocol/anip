@@ -1,9 +1,11 @@
+import anyio
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from anip_service import ANIPService, Capability, ANIPError
 from anip_fastapi import mount_anip
 from anip_core import CapabilityDeclaration, CapabilityInput, CapabilityOutput, ResponseMode, SideEffect, SideEffectType
+from anip_server import CheckpointPolicy
 
 
 def _greet_cap():
@@ -67,6 +69,53 @@ class TestDiscoveryRoutes:
         data = resp.json()
         assert data["success"] is False
         assert data["failure"]["type"] == "not_found"
+
+    def test_checkpoint_consistency_proof_is_json_safe(self):
+        service = ANIPService(
+            service_id="anchored-test-service",
+            capabilities=[_greet_cap()],
+            storage=":memory:",
+            authenticate=lambda bearer: "test-agent" if bearer == API_KEY else None,
+            trust={"level": "anchored"},
+            checkpoint_policy=CheckpointPolicy(entry_count=1, interval_seconds=1),
+        )
+        app = FastAPI()
+        mount_anip(app, service)
+        client = TestClient(app)
+
+        token_resp = client.post(
+            "/anip/tokens",
+            json={"scope": ["greet"], "capability": "greet"},
+            headers={"Authorization": f"Bearer {API_KEY}"},
+        )
+        assert token_resp.status_code == 200
+        token = token_resp.json()["token"]
+
+        for name in ("one", "two"):
+            resp = client.post(
+                "/anip/invoke/greet",
+                json={"parameters": {"name": name}},
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert resp.status_code == 200
+            anyio.run(service._leader_checkpoint_tick)
+
+        listing = client.get("/anip/checkpoints")
+        assert listing.status_code == 200
+        checkpoints = listing.json()["checkpoints"]
+        assert len(checkpoints) >= 2
+
+        latest = checkpoints[-1]["checkpoint_id"]
+        previous = checkpoints[-2]["checkpoint_id"]
+        detail = client.get(
+            f"/anip/checkpoints/{latest}",
+            params={"consistency_from": previous},
+        )
+        assert detail.status_code == 200, detail.text
+        proof = detail.json()["consistency_proof"]
+        assert proof["old_checkpoint_id"] == previous
+        assert proof["new_checkpoint_id"] == latest
+        assert all(isinstance(item, str) for item in proof["path"])
 
 
 class TestInvokeRoutes:

@@ -69,10 +69,12 @@ def test_assistant_manifest_exposes_explanation_capabilities(client: TestClient)
     assert caps["explain_evaluation"]["cross_service_contract"] is not None
 
 
-def test_assistant_discovery_exposes_round2_posture(
+@pytest.mark.parametrize("profile", ["round2", "round4"])
+def test_assistant_discovery_exposes_redacted_posture(
     monkeypatch: pytest.MonkeyPatch,
+    profile: str,
 ):
-    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", "round2")
+    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", profile)
     monkeypatch.setattr(assistant_service, "get_pool", lambda: _DummyPool())
 
     app = FastAPI()
@@ -88,10 +90,12 @@ def test_assistant_discovery_exposes_round2_posture(
         assert doc["posture"]["anchoring"]["enabled"] is False
 
 
-def test_assistant_manifest_exposes_round3_streaming_and_session(
+@pytest.mark.parametrize("profile", ["round3", "round4"])
+def test_assistant_manifest_exposes_streaming_and_session(
     monkeypatch: pytest.MonkeyPatch,
+    profile: str,
 ):
-    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", "round3")
+    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", profile)
     monkeypatch.setattr(assistant_service, "get_pool", lambda: _DummyPool())
 
     app = FastAPI()

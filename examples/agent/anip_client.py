@@ -265,3 +265,26 @@ class ANIPClient:
             headers={"Authorization": f"Bearer {token_jwt}"},
             params=query_params or None,
         )
+
+    def list_checkpoints(self, limit: int = 10) -> dict[str, Any]:
+        """List recent anchored checkpoints for the service."""
+        return self._get(f"/anip/checkpoints?limit={int(limit)}")
+
+    def get_checkpoint(
+        self,
+        checkpoint_id: str,
+        *,
+        include_proof: bool = False,
+        leaf_index: int | None = None,
+        consistency_from: str | None = None,
+    ) -> dict[str, Any]:
+        """Fetch a checkpoint and optional inclusion/consistency proof data."""
+        params: list[str] = []
+        if include_proof:
+            params.append("include_proof=true")
+        if leaf_index is not None:
+            params.append(f"leaf_index={int(leaf_index)}")
+        if consistency_from is not None:
+            params.append(f"consistency_from={consistency_from}")
+        query = f"?{'&'.join(params)}" if params else ""
+        return self._get(f"/anip/checkpoints/{checkpoint_id}{query}")

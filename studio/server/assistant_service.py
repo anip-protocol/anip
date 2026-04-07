@@ -48,6 +48,7 @@ ASSISTANT_SCOPES = [
 ]
 DOGFOOD_ROUND2_PROFILES = {"round2", "audit-posture", "round2-audit-posture"}
 DOGFOOD_ROUND3_PROFILES = {"round3", "streaming-session", "round3-streaming-session"}
+DOGFOOD_ROUND4_PROFILES = {"round4", "checkpoints-proofs", "round4-checkpoints-proofs"}
 
 
 def _dogfood_profile() -> str:
@@ -55,11 +56,11 @@ def _dogfood_profile() -> str:
 
 
 def _round2_dogfood_enabled() -> bool:
-    return _dogfood_profile() in (DOGFOOD_ROUND2_PROFILES | DOGFOOD_ROUND3_PROFILES)
+    return _dogfood_profile() in (DOGFOOD_ROUND2_PROFILES | DOGFOOD_ROUND3_PROFILES | DOGFOOD_ROUND4_PROFILES)
 
 
 def _round3_dogfood_enabled() -> bool:
-    return _dogfood_profile() in DOGFOOD_ROUND3_PROFILES
+    return _dogfood_profile() in (DOGFOOD_ROUND3_PROFILES | DOGFOOD_ROUND4_PROFILES)
 
 
 def create_studio_assistant_service() -> ANIPService:

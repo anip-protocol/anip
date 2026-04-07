@@ -86,6 +86,7 @@ WORKBENCH_SCOPES = [
 DOGFOOD_ROUND1_PROFILES = {"round1", "permissions-budget", "round1-permissions-budget"}
 DOGFOOD_ROUND2_PROFILES = {"round2", "audit-posture", "round2-audit-posture"}
 DOGFOOD_ROUND3_PROFILES = {"round3", "streaming-session", "round3-streaming-session"}
+DOGFOOD_ROUND4_PROFILES = {"round4", "checkpoints-proofs", "round4-checkpoints-proofs"}
 DOGFOOD_EVALUATION_COST_AMOUNT = 5.0
 DOGFOOD_EVALUATION_CURRENCY = "USD"
 
@@ -95,11 +96,13 @@ def _dogfood_profile() -> str:
 
 
 def _round1_dogfood_enabled() -> bool:
-    return _dogfood_profile() in (DOGFOOD_ROUND1_PROFILES | DOGFOOD_ROUND2_PROFILES | DOGFOOD_ROUND3_PROFILES)
+    return _dogfood_profile() in (
+        DOGFOOD_ROUND1_PROFILES | DOGFOOD_ROUND2_PROFILES | DOGFOOD_ROUND3_PROFILES | DOGFOOD_ROUND4_PROFILES
+    )
 
 
 def _round2_dogfood_enabled() -> bool:
-    return _dogfood_profile() in (DOGFOOD_ROUND2_PROFILES | DOGFOOD_ROUND3_PROFILES)
+    return _dogfood_profile() in (DOGFOOD_ROUND2_PROFILES | DOGFOOD_ROUND3_PROFILES | DOGFOOD_ROUND4_PROFILES)
 
 
 def _dogfood_control_requirements(name: str) -> list[ControlRequirement]:
@@ -146,6 +149,8 @@ def _dogfood_trust() -> str | dict[str, Any]:
 def _dogfood_checkpoint_policy() -> CheckpointPolicy | None:
     if not _round2_dogfood_enabled():
         return None
+    if _dogfood_profile() in DOGFOOD_ROUND4_PROFILES:
+        return CheckpointPolicy(entry_count=1, interval_seconds=1)
     return CheckpointPolicy(entry_count=1)
 
 

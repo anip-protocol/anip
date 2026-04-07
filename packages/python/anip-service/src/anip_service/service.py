@@ -227,6 +227,7 @@ class ANIPService:
         # --- Checkpoint scheduling (anchored mode only) ---
         self._checkpoint_policy = checkpoint_policy
         self._scheduler: CheckpointScheduler | None = None
+        self._started = False
         self._last_checkpoint_at: str | None = None  # Updated only when a checkpoint is actually published
 
         if trust_level == "anchored" and checkpoint_policy:
@@ -1568,7 +1569,10 @@ class ANIPService:
                                 "new_size": new_tree.leaf_count,
                                 "old_root": old_tree.root,
                                 "new_root": new_tree.root,
-                                "path": path,
+                                "path": [
+                                    f"sha256:{node.hex()}" if isinstance(node, (bytes, bytearray)) else node
+                                    for node in path
+                                ],
                             }
                             if self._metrics_hooks and self._metrics_hooks.on_proof_generated:
                                 self._safe_hook(self._metrics_hooks.on_proof_generated, {"duration_ms": int((time.monotonic() - _cons_proof_start) * 1000)})
@@ -1634,6 +1638,8 @@ class ANIPService:
         Must be called from within a running event loop.  For PostgresStorage
         this also initialises the connection pool and schema.
         """
+        if self._started:
+            return
         initializer = getattr(self._storage, 'initialize', None)
         if initializer:
             await initializer()
@@ -1663,18 +1669,24 @@ class ANIPService:
                     pass
 
             self._flush_task = asyncio.get_event_loop().create_task(_periodic_flush())
+        self._started = True
 
     def stop(self) -> None:
         """Stop background services (sync, no persistence)."""
+        if not self._started:
+            return
         if self._scheduler:
             self._scheduler.stop()
         self._retention_enforcer.stop()
         if self._flush_task is not None:
             self._flush_task.cancel()
             self._flush_task = None
+        self._started = False
 
     async def shutdown(self) -> None:
         """Flush remaining aggregated events, stop background services, close storage."""
+        if not self._started:
+            return
         if self._aggregator is not None:
             await self._flush_aggregator()
         closer = getattr(self._storage, 'close', None)

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 from pathlib import Path
 from uuid import uuid4
 
@@ -282,6 +283,86 @@ def verify_stream_audit(
     return {"audit": audit, "verification": verification}
 
 
+def verify_checkpoints(
+    client: ANIPClient,
+    posture: dict,
+) -> dict:
+    """Verify anchored checkpoint/proof surfaces when the service advertises them."""
+    if not posture.get("anchoring_enabled"):
+        return {"mode": "skip", "reason": "anchoring_disabled"}
+
+    listing = {"checkpoints": []}
+    checkpoints: list[dict] = []
+    for _ in range(5):
+        listing = client.list_checkpoints(limit=10)
+        checkpoints = listing.get("checkpoints", [])
+        if checkpoints:
+            break
+        time.sleep(1)
+    if not checkpoints:
+        raise RuntimeError("Anchored service returned no checkpoints")
+
+    ordered = sorted(
+        checkpoints,
+        key=lambda item: item.get("range", {}).get("last_sequence", 0),
+    )
+    latest = ordered[-1]
+    latest_detail = client.get_checkpoint(
+        latest["checkpoint_id"],
+        include_proof=True,
+        leaf_index=0,
+    )
+    checkpoint = latest_detail.get("checkpoint", {})
+    inclusion_proof = latest_detail.get("inclusion_proof")
+    if not isinstance(inclusion_proof, dict):
+        raise RuntimeError(f"Checkpoint {latest['checkpoint_id']} did not return inclusion_proof")
+
+    verification: dict = {
+        "mode": "strict" if posture.get("proofs_available") else "basic",
+        "checkpoint_count": len(ordered),
+        "latest_checkpoint_id": latest["checkpoint_id"],
+        "latest_entry_count": checkpoint.get("entry_count"),
+        "latest_last_sequence": checkpoint.get("range", {}).get("last_sequence"),
+        "inclusion_proof_present": True,
+        "inclusion_path_length": len(inclusion_proof.get("path") or []),
+        "proof_unavailable": latest_detail.get("proof_unavailable"),
+    }
+
+    if len(ordered) >= 2:
+        previous = ordered[-2]
+        latest_with_consistency = client.get_checkpoint(
+            latest["checkpoint_id"],
+            consistency_from=previous["checkpoint_id"],
+        )
+        consistency_proof = latest_with_consistency.get("consistency_proof")
+        if not isinstance(consistency_proof, dict):
+            raise RuntimeError(
+                "Anchored service advertised proofs but did not return consistency_proof "
+                f"from {previous['checkpoint_id']} to {latest['checkpoint_id']}"
+            )
+        verification.update(
+            {
+                "consistency_proof_present": True,
+                "consistency_from": previous["checkpoint_id"],
+                "consistency_path_length": len(consistency_proof.get("path") or []),
+            }
+        )
+        return {
+            "listing": listing,
+            "latest": latest_detail,
+            "consistency": latest_with_consistency,
+            "verification": verification,
+        }
+
+    verification["consistency_proof_present"] = False
+    return {
+        "listing": listing,
+        "latest": latest_detail,
+        "consistency": None,
+        "verification": verification,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--studio-base-url", default="http://127.0.0.1:8100")
@@ -338,6 +419,7 @@ def main() -> None:
         "assistant_manifest": assistant_client.get_manifest(),
         "workbench_manifest": workbench_client.get_manifest(),
         "bootstrap_permission_decisions": bootstrap_decisions,
+        "checkpoint_checks": None,
         "runs": [],
     }
 
@@ -789,6 +871,11 @@ def main() -> None:
                 "artifacts_dir": str(project_dir),
             }
         )
+
+    report["checkpoint_checks"] = verify_checkpoints(
+        workbench_client,
+        workbench_posture,
+    )
 
     print(json.dumps(report, indent=2))
 

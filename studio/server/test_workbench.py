@@ -102,8 +102,12 @@ def test_workbench_manifest_exposes_round1_dogfood_controls(monkeypatch: pytest.
         assert evaluate["cost"]["financial"]["currency"] == workbench_service.DOGFOOD_EVALUATION_CURRENCY
 
 
-def test_workbench_discovery_exposes_round2_posture(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", "round2")
+@pytest.mark.parametrize("profile", ["round2", "round4"])
+def test_workbench_discovery_exposes_anchored_posture(
+    monkeypatch: pytest.MonkeyPatch,
+    profile: str,
+):
+    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", profile)
     with _mounted_client(monkeypatch) as client:
         resp = client.get("/studio-workbench/.well-known/anip")
         assert resp.status_code == 200, resp.text
