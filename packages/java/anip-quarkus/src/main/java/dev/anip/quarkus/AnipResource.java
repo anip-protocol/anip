@@ -150,6 +150,9 @@ public class AnipResource {
             result.put("token_id", resp.getTokenId());
             result.put("token", resp.getToken());
             result.put("expires", resp.getExpires());
+            if (resp.getTaskId() != null) {
+                result.put("task_id", resp.getTaskId());
+            }
             return Response.ok(result).build();
         } catch (ANIPError e) {
             int status = Constants.failureStatusCode(e.getErrorType());

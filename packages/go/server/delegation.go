@@ -149,6 +149,7 @@ func IssueDelegationToken(
 		TokenID: tokenID,
 		Token:   jwt,
 		Expires: expires.Format(time.RFC3339),
+		TaskID:  purpose.TaskID,
 		Budget:  constraints.Budget,
 	}, nil
 }

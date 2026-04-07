@@ -555,6 +555,10 @@ class ANIPService:
             "expires": expires.isoformat(),
         }
 
+        # Echo task_id in issuance response when resolved
+        if token.purpose and token.purpose.task_id:
+            response["task_id"] = token.purpose.task_id
+
         # Echo budget in issuance response if present
         if token.constraints and token.constraints.budget:
             response["budget"] = token.constraints.budget.model_dump()

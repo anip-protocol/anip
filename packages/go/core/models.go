@@ -227,7 +227,8 @@ type TokenResponse struct {
 	TokenID string  `json:"token_id"`
 	Token   string  `json:"token"` // JWT string
 	Expires string  `json:"expires"`
-	Budget  *Budget `json:"budget,omitempty"` // Echoed when budget was requested
+	TaskID  string  `json:"task_id,omitempty"` // Echoed when the issued token has a resolved purpose.task_id
+	Budget  *Budget `json:"budget,omitempty"`  // Echoed when budget was requested
 }
 
 // --- Permission Discovery ---

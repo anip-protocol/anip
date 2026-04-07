@@ -1253,10 +1253,13 @@ The `budget` field is a convenience mapping — the caller writes `budget` at th
 token_id: "tok_root_001"
 token: "eyJhbGciOiJFUzI1NiIs..."    # signed JWT
 expires: "2026-03-15T14:00:00Z"
+task_id: "task-tok_root_001"         # v0.22: echoed when the issued token has a resolved purpose.task_id
 budget:                              # v0.14: echoed when budget was requested
   currency: "USD"
   max_amount: 500
 ```
+
+The `task_id` field is echoed when the issued token has a resolved `purpose.task_id`. It is present when the caller supplied `task_id` in `purpose_parameters`, or when `task_id` was auto-generated from the token ID (i.e., when `purpose_parameters` was omitted entirely). It is absent or `null` when the token has no resolved task identity (i.e., when `purpose_parameters` was provided without a `task_id`). Consumers SHOULD use this echoed `task_id` for task continuity in subsequent invocations and audit queries, instead of relying on `client_reference_id` or `invocation_id` for flows that are fundamentally task-continuity problems.
 
 The service issues ES256-signed JWT tokens. Every protected endpoint resolves the caller's identity from the `Authorization: Bearer <jwt>` header — the JWT claims are verified against stored state at a trust boundary, detecting both token forgery and store tampering. The token issuance response SHOULD echo the `budget` when one was requested.
 
