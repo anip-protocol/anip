@@ -327,15 +327,15 @@ For advanced use cases that need direct access to the SDK primitives (KeyManager
 
 ## Status
 
-ANIP is under active development. The spec is at v0.11 with runtime observability — callback-based hooks for logging, metrics, tracing, and diagnostics, plus a `getHealth()` snapshot and optional health endpoint — building on v0.10's horizontal scaling, v0.9's audit aggregation, v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, and earlier foundations. Multi-agent coordination and federated trust remain open. See [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v1) for the full breakdown.
+ANIP is under active development. The spec is at v0.22 with canonical `parent_token` semantics and delegated capability-targeted issuance — building on v0.21's cross-service contracts and structured recovery targets, v0.20's bootstrap auth hardening and capability-targeted root issuance, and earlier foundations through v0.19. Multi-agent coordination and federated trust remain open. See [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v1) for the full breakdown.
 
-> **v0.11 adds runtime observability.** Callback-based hooks for logging (8 hooks), metrics (10 hooks), tracing (2 hooks, 8 stable span names), and diagnostics (1 hook) — all optional, zero-overhead when absent (§6.12). `getHealth()` returns a cached runtime snapshot covering storage, checkpoint, retention, and aggregation state. Optional `GET /-/health` endpoint in all framework bindings. Hook callbacks are isolated from correctness paths — throwing hooks never affect requests or background workers. Building on v0.10's horizontal scaling, v0.9's audit aggregation, v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, and earlier foundations.
+> **v0.22 clarifies delegated issuance.** `parent_token` is now canonically defined as a token ID string (not JWT) across all runtimes. `issueDelegatedCapabilityToken()` helpers in all 5 runtimes make delegated capability-targeted issuance as explicit as root issuance. Token issuance responses now echo `task_id` for consumer-side task continuity. Building on v0.21's `cross_service_contract` and `recovery_target`, v0.20's bootstrap auth and `issueCapabilityToken()`, and all features through v0.19.
 
 This is a community effort. We'd rather define this standard thoughtfully and in the open than let it emerge ad-hoc.
 
 **What exists today:**
 - [Manifesto](MANIFESTO.md) — why this moment matters
-- [Spec](SPEC.md) — the technical design (v0.11)
+- [Spec](SPEC.md) — the technical design (v0.22)
 - [Guide](GUIDE.md) — walkthrough of the reference implementation with design rationale
 - [Reference implementation — Python](examples/anip/) — `anip-service` + FastAPI, ~150 lines of business logic
 - [Reference implementation — TypeScript](examples/anip-ts/) — `@anip-dev/service` + Hono, same capabilities and endpoints

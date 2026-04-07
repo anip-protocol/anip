@@ -1,16 +1,19 @@
 ---
 title: Version History
-description: ANIP protocol version progression from v0.1 through v0.19.
+description: ANIP protocol version progression from v0.1 through v0.22.
 ---
 
 # Version History
 
-ANIP's version line tracks the progression of protocol capabilities. The current version is **v0.19**.
+ANIP's version line tracks the progression of protocol capabilities. The current version is **v0.22**.
 
 ## Version progression
 
 | Version | What it added | Key concepts |
 |---------|--------------|--------------|
+| **v0.22** | Delegated issuance ergonomics | Canonical `parent_token` semantics (token ID string, not JWT) aligned across all runtimes. `issueDelegatedCapabilityToken()` helper in all 5 runtimes. Token issuance responses echo `task_id` for consumer-side task continuity. |
+| **v0.21** | Cross-service contracts and recovery targets | `cross_service_contract` with structured handoff/followup/verification entries (task-local continuity, completion modes). `recovery_target` in resolution objects (kind, target, continuity, retry_after_target). Stronger than advisory hints, not a workflow engine. |
+| **v0.20** | Bootstrap auth and capability-targeted issuance | Explicit bootstrap auth hook contract (sync MUST, async MAY). `issueCapabilityToken()` root-only helper in all 5 runtimes — pre-binds capability, requires explicit scope. |
 | **v0.19** | Cross-service handoff hints | `cross_service` optional object on capability declarations with four advisory arrays: `handoff_to`, `refresh_via`, `verify_via`, `followup_via`. Each entry is a `ServiceCapabilityRef` (`service` + `capability` strings) that names a capability on another ANIP service. Extends the advisory composition model from same-manifest hints to cross-service workflow guidance. |
 | **v0.18** | Cross-service continuity | `upstream_service` optional field on invoke request, response, and audit entry — identifies the ANIP service that initiated a call as part of a cross-service workflow. Services MUST echo and record it. Services MUST NOT reject syntactically valid `parent_invocation_id` or `task_id` values from foreign services. |
 | **v0.17** | Advisory composition hints | `refresh_via` and `verify_via` on capability declarations — advisory arrays of same-manifest capability names. `refresh_via` guides agents to re-invoke a source capability when a stale artifact (binding, quote) causes failure. `verify_via` guides agents to verify side effects after executing irreversible actions. |

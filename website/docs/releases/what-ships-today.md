@@ -7,7 +7,7 @@ description: Current distribution status across all ANIP ecosystems.
 
 ANIP is not a spec waiting for implementations. Here's what's available now.
 
-## Protocol features through v0.19
+## Protocol features through v0.22
 
 Everything below is implemented in the runtimes and exercised by the conformance suite:
 
@@ -30,6 +30,9 @@ Everything below is implemented in the runtimes and exercised by the conformance
 - **Advisory composition hints (v0.17)**: `refresh_via` and `verify_via` on capability declarations; same-manifest advisory hints for refresh paths and post-action verification
 - **Cross-service continuity (v0.18)**: `upstream_service` optional field on invoke request, response, and audit — identifies the originating ANIP service in cross-service workflows; echoed in response and recorded in audit; services MUST NOT reject foreign `parent_invocation_id` or `task_id` values
 - **Cross-service handoff hints (v0.19)**: `cross_service` optional object on capability declarations — four advisory arrays (`handoff_to`, `refresh_via`, `verify_via`, `followup_via`) of `ServiceCapabilityRef` objects (`service` + `capability` strings) that guide agents across multi-service workflows without encoding hard protocol constraints
+- **Bootstrap auth and capability-targeted issuance (v0.20)**: Explicit bootstrap auth hook contract (sync MUST, async MAY); `issueCapabilityToken()` root-only helper in all 5 runtimes — pre-binds capability, requires explicit scope, prevents `purpose_mismatch` errors
+- **Cross-service contracts and recovery targets (v0.21)**: `cross_service_contract` with structured handoff/followup/verification entries carrying task-local continuity and completion modes; `recovery_target` in resolution objects with kind/target/continuity/retry_after_target — stronger than advisory hints, not a workflow engine
+- **Delegated issuance ergonomics (v0.22)**: Canonical `parent_token` semantics (token ID string, not JWT) aligned across all runtimes; `issueDelegatedCapabilityToken()` helper in all 5 runtimes; token issuance responses echo `task_id` for consumer-side task continuity
 
 ## Published to package registries
 
