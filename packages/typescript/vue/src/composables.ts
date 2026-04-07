@@ -6,7 +6,7 @@
  * lives in @anip-dev/client — these composables only add reactivity.
  */
 
-import { ref, inject, readonly } from "vue";
+import { ref, inject, readonly, watch, type Ref } from "vue";
 import { AnipClientKey } from "./plugin.js";
 import type { ANIPClient } from "@anip-dev/client";
 import type {
@@ -51,6 +51,7 @@ export function useAnipDiscovery() {
     try {
       data.value = await client.discover();
     } catch (e: any) {
+      data.value = null;
       error.value = e.message ?? "Discovery failed";
     } finally {
       loading.value = false;
@@ -81,6 +82,7 @@ export function useAnipManifest() {
     try {
       data.value = await client.getManifest();
     } catch (e: any) {
+      data.value = null;
       error.value = e.message ?? "Manifest loading failed";
     } finally {
       loading.value = false;
@@ -111,6 +113,7 @@ export function useAnipPermissions() {
     try {
       data.value = await client.queryPermissions(token);
     } catch (e: any) {
+      data.value = null;
       error.value = e.message ?? "Permissions query failed";
     } finally {
       loading.value = false;
@@ -129,7 +132,17 @@ export function useAnipPermissions() {
 // useAnipCapability — get a single capability from cached manifest
 // ---------------------------------------------------------------------------
 
-export function useAnipCapability(name: string) {
+/**
+ * Get a single capability from the cached manifest.
+ *
+ * If a manifest ref from `useAnipManifest()` is provided, the capability
+ * auto-resolves whenever the manifest updates — no manual `resolve()` needed.
+ * Without a manifest ref, call `resolve()` manually after loading the manifest.
+ */
+export function useAnipCapability(
+  name: string,
+  manifestRef?: Readonly<Ref<NormalizedManifest | null>>,
+) {
   const client = useAnipClient();
   const data = ref<NormalizedCapability | null>(null);
 
@@ -139,6 +152,11 @@ export function useAnipCapability(name: string) {
 
   // Resolve immediately in case manifest is already cached.
   resolve();
+
+  // Auto-resolve when the manifest ref changes.
+  if (manifestRef) {
+    watch(manifestRef, () => resolve());
+  }
 
   return {
     data: readonly(data),
@@ -171,6 +189,7 @@ export function useAnipInvoke() {
     try {
       result.value = await client.invoke(token, capability, params, opts);
     } catch (e: any) {
+      result.value = null;
       error.value = e.message ?? "Invocation failed";
     } finally {
       loading.value = false;
@@ -213,6 +232,7 @@ export function useAnipAudit() {
     try {
       data.value = await client.queryAudit(token, filters);
     } catch (e: any) {
+      data.value = null;
       error.value = e.message ?? "Audit query failed";
     } finally {
       loading.value = false;
