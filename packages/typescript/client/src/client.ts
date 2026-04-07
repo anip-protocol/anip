@@ -263,22 +263,38 @@ export class ANIPClient {
 
   async queryAudit(
     token: string,
-    filters?: { taskId?: string; afterId?: string; limit?: number },
+    filters?: {
+      capability?: string;
+      since?: string;
+      invocationId?: string;
+      clientReferenceId?: string;
+      taskId?: string;
+      parentInvocationId?: string;
+      eventClass?: string;
+      limit?: number;
+    },
   ): Promise<NormalizedAuditResult> {
     const basePath = this.resolveEndpoint("audit");
 
-    const body: Record<string, unknown> = {};
-    if (filters?.taskId) body.task_id = filters.taskId;
-    if (filters?.afterId) body.after_id = filters.afterId;
-    if (filters?.limit !== undefined) body.limit = filters.limit;
+    // ANIP audit is POST with optional query parameters (not body).
+    const searchParams = new URLSearchParams();
+    if (filters?.capability) searchParams.set("capability", filters.capability);
+    if (filters?.since) searchParams.set("since", filters.since);
+    if (filters?.invocationId) searchParams.set("invocation_id", filters.invocationId);
+    if (filters?.clientReferenceId) searchParams.set("client_reference_id", filters.clientReferenceId);
+    if (filters?.taskId) searchParams.set("task_id", filters.taskId);
+    if (filters?.parentInvocationId) searchParams.set("parent_invocation_id", filters.parentInvocationId);
+    if (filters?.eventClass) searchParams.set("event_class", filters.eventClass);
+    if (filters?.limit !== undefined) searchParams.set("limit", String(filters.limit));
 
-    const raw = await this.json(basePath, {
+    const qs = searchParams.toString();
+    const path = qs ? `${basePath}?${qs}` : basePath;
+
+    const raw = await this.json(path, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
     });
 
     return {
