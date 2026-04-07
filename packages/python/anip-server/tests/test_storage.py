@@ -305,9 +305,9 @@ async def test_checkpoint_listing():
 
     limited = await s.get_checkpoints(limit=2)
     assert len(limited) == 2
-    # Insertion order
-    assert limited[0]["checkpoint_id"] == "ckpt-001"
-    assert limited[1]["checkpoint_id"] == "ckpt-002"
+    # Most recent 2, in chronological order
+    assert limited[0]["checkpoint_id"] == "ckpt-004"
+    assert limited[1]["checkpoint_id"] == "ckpt-005"
 
 
 @pytest.mark.asyncio
