@@ -760,3 +760,79 @@ describe("ANIPService issueDelegatedCapabilityToken", () => {
     expect(resp.token_id).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// task_id echoed in issuance response
+// ---------------------------------------------------------------------------
+
+describe("task_id echoed in issuance response", () => {
+  it("caller-supplied task_id is echoed", async () => {
+    const { service } = makeService();
+    await service.start();
+
+    const resp = (await service.issueCapabilityToken(
+      "human:alice@example.com",
+      "greet",
+      ["greet"],
+      { purposeParameters: { task_id: "my-custom-task" } },
+    )) as Record<string, any>;
+
+    expect(resp.issued).toBe(true);
+    expect(resp.task_id).toBe("my-custom-task");
+  });
+
+  it("no task_id when purpose_parameters omitted (TS engine normalizes to empty)", async () => {
+    const { service } = makeService();
+    await service.start();
+
+    // TS engine normalizes undefined purposeParameters to {} in issueRootToken,
+    // so auto-generation does not trigger — task_id should be absent
+    const resp = (await service.issueCapabilityToken(
+      "human:bob@example.com",
+      "greet",
+      ["greet"],
+    )) as Record<string, any>;
+
+    expect(resp.issued).toBe(true);
+    expect(resp.task_id).toBeUndefined();
+  });
+
+  it("task_id omitted when purpose_parameters has no task_id", async () => {
+    const { service } = makeService();
+    await service.start();
+
+    const resp = (await service.issueCapabilityToken(
+      "human:carol@example.com",
+      "greet",
+      ["greet"],
+      { purposeParameters: { source: "test" } },
+    )) as Record<string, any>;
+
+    expect(resp.issued).toBe(true);
+    expect(resp.task_id).toBeUndefined();
+  });
+
+  it("delegated issuance echoes task_id", async () => {
+    const { service } = makeService();
+    await service.start();
+
+    const rootResp = (await service.issueCapabilityToken(
+      "human:alice@example.com",
+      "greet",
+      ["greet"],
+      { purposeParameters: { task_id: "root-task" } },
+    )) as Record<string, any>;
+
+    const resp = (await service.issueDelegatedCapabilityToken(
+      "human:alice@example.com",
+      rootResp.token_id,
+      "greet",
+      ["greet"],
+      "agent:helper",
+      { purposeParameters: { task_id: "delegated-task" } },
+    )) as Record<string, any>;
+
+    expect(resp.issued).toBe(true);
+    expect(resp.task_id).toBe("delegated-task");
+  });
+});

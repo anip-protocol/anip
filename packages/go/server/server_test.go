@@ -1277,3 +1277,61 @@ func TestTokenResponseJSON(t *testing.T) {
 		t.Errorf("token_id = %v, want anip-abc123", m["token_id"])
 	}
 }
+
+func TestTaskIdEchoedInIssuanceResponse(t *testing.T) {
+	s := newTestStorage(t)
+	km := newTestKM(t)
+	serviceID := "test-service"
+
+	// 1. Caller-supplied task_id is echoed
+	resp, err := IssueDelegationToken(km, s, serviceID, "human:alice@example.com", core.TokenRequest{
+		Subject:           "agent:demo",
+		Scope:             []string{"travel.search"},
+		Capability:        "search_flights",
+		PurposeParameters: map[string]any{"task_id": "my-custom-task"},
+	})
+	if err != nil {
+		t.Fatalf("IssueDelegationToken: %v", err)
+	}
+	if resp.TaskID != "my-custom-task" {
+		t.Errorf("TaskID = %q, want my-custom-task", resp.TaskID)
+	}
+
+	// 2. Auto-generated task_id when no purpose_parameters
+	resp2, err := IssueDelegationToken(km, s, serviceID, "human:bob@example.com", core.TokenRequest{
+		Subject:    "agent:demo",
+		Scope:      []string{"travel.search"},
+		Capability: "search_flights",
+	})
+	if err != nil {
+		t.Fatalf("IssueDelegationToken: %v", err)
+	}
+	if resp2.TaskID == "" {
+		t.Error("expected non-empty auto-generated TaskID")
+	}
+	if !strings.HasPrefix(resp2.TaskID, "task-") {
+		t.Errorf("TaskID should start with task-, got %q", resp2.TaskID)
+	}
+
+	// 3. No task_id when purpose_parameters is provided without task_id
+	resp3, err := IssueDelegationToken(km, s, serviceID, "human:carol@example.com", core.TokenRequest{
+		Subject:           "agent:demo",
+		Scope:             []string{"travel.search"},
+		Capability:        "search_flights",
+		PurposeParameters: map[string]any{"source": "test"},
+	})
+	if err != nil {
+		t.Fatalf("IssueDelegationToken: %v", err)
+	}
+	if resp3.TaskID != "" {
+		t.Errorf("TaskID should be empty when purpose_parameters has no task_id, got %q", resp3.TaskID)
+	}
+
+	// Verify JSON serialization omits task_id when empty
+	data, _ := json.Marshal(resp3)
+	var m map[string]any
+	json.Unmarshal(data, &m)
+	if _, found := m["task_id"]; found {
+		t.Error("task_id should be omitted from JSON when empty")
+	}
+}

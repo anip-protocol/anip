@@ -15,4 +15,9 @@ public class TokenResponse
 
     [JsonPropertyName("expires")]
     public string Expires { get; set; } = "";
+
+    /// <summary>Echoed when the issued token has a resolved purpose.task_id.</summary>
+    [JsonPropertyName("task_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TaskId { get; set; }
 }

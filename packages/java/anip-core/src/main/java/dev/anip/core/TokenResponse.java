@@ -9,12 +9,18 @@ public class TokenResponse {
     private final String tokenId;
     private final String token;
     private final String expires;
+    private final String taskId;
 
     public TokenResponse(boolean issued, String tokenId, String token, String expires) {
+        this(issued, tokenId, token, expires, null);
+    }
+
+    public TokenResponse(boolean issued, String tokenId, String token, String expires, String taskId) {
         this.issued = issued;
         this.tokenId = tokenId;
         this.token = token;
         this.expires = expires;
+        this.taskId = taskId;
     }
 
     public boolean isIssued() {
@@ -32,5 +38,10 @@ public class TokenResponse {
 
     public String getExpires() {
         return expires;
+    }
+
+    /** Echoed when the issued token has a resolved purpose.task_id. May be null. */
+    public String getTaskId() {
+        return taskId;
     }
 }

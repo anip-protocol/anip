@@ -136,6 +136,9 @@ public class AnipController {
             result.put("token_id", resp.getTokenId());
             result.put("token", resp.getToken());
             result.put("expires", resp.getExpires());
+            if (resp.getTaskId() != null) {
+                result.put("task_id", resp.getTaskId());
+            }
             return ResponseEntity.ok(result);
         } catch (ANIPError e) {
             int status = Constants.failureStatusCode(e.getErrorType());

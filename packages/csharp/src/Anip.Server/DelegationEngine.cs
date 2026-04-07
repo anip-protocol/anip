@@ -138,7 +138,8 @@ public static class DelegationEngine
             Issued = true,
             TokenId = tokenId,
             Token = jwt,
-            Expires = expires.ToString("o")
+            Expires = expires.ToString("o"),
+            TaskId = purpose.TaskId
         };
     }
 

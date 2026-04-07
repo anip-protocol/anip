@@ -160,7 +160,7 @@ public final class DelegationEngine {
 
         String jwt = JwtSigner.signDelegationJwt(km, claims);
 
-        return new TokenResponse(true, tokenId, jwt, expiresStr);
+        return new TokenResponse(true, tokenId, jwt, expiresStr, purpose.getTaskId());
     }
 
     /**

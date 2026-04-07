@@ -227,3 +227,72 @@ class TestIssueDelegatedCapabilityToken:
         )
         assert resp["issued"] is True
         assert resp["token_id"]
+
+
+# ---------------------------------------------------------------------------
+# task_id echoed in issuance response
+# ---------------------------------------------------------------------------
+
+
+class TestTaskIdEchoedInIssuanceResponse:
+    """task_id should be echoed in the token issuance response (v0.22)."""
+
+    @pytest.mark.asyncio
+    async def test_caller_supplied_task_id_echoed(self):
+        """When caller provides task_id in purpose_parameters, response echoes it."""
+        service = _make_service()
+        resp = await service.issue_capability_token(
+            principal="human:alice@example.com",
+            capability="evaluate",
+            scope=["studio.evaluate"],
+            purpose_parameters={"task_id": "my-custom-task"},
+        )
+        assert resp["issued"] is True
+        assert resp["task_id"] == "my-custom-task"
+
+    @pytest.mark.asyncio
+    async def test_auto_generated_task_id_echoed(self):
+        """When no purpose_parameters supplied, auto-generated task_id is echoed."""
+        service = _make_service()
+        resp = await service.issue_capability_token(
+            principal="human:bob@example.com",
+            capability="evaluate",
+            scope=["studio.evaluate"],
+        )
+        assert resp["issued"] is True
+        assert resp["task_id"] is not None
+        assert resp["task_id"].startswith("task-")
+
+    @pytest.mark.asyncio
+    async def test_no_task_id_when_purpose_params_without_task_id(self):
+        """When purpose_parameters is provided without task_id, response omits task_id."""
+        service = _make_service()
+        resp = await service.issue_capability_token(
+            principal="human:carol@example.com",
+            capability="evaluate",
+            scope=["studio.evaluate"],
+            purpose_parameters={"source": "test"},
+        )
+        assert resp["issued"] is True
+        assert "task_id" not in resp
+
+    @pytest.mark.asyncio
+    async def test_delegated_issuance_echoes_task_id(self):
+        """Delegated token issuance should also echo task_id."""
+        service = _make_service()
+        root_resp = await service.issue_capability_token(
+            principal="human:alice@example.com",
+            capability="evaluate",
+            scope=["studio.evaluate"],
+            purpose_parameters={"task_id": "task-for-delegation"},
+        )
+        resp = await service.issue_delegated_capability_token(
+            principal="human:alice@example.com",
+            parent_token=root_resp["token_id"],
+            capability="evaluate",
+            scope=["studio.evaluate"],
+            subject="agent:helper",
+            purpose_parameters={"task_id": "delegated-task"},
+        )
+        assert resp["issued"] is True
+        assert resp["task_id"] == "delegated-task"

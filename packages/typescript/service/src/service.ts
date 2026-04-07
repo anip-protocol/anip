@@ -1004,12 +1004,19 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
       const jwtStr = await keys.signJWT(claims);
 
-      return {
+      const response: Record<string, unknown> = {
         issued: true,
         token_id: tokenId,
         token: jwtStr,
         expires: new Date(exp * 1000).toISOString(),
       };
+
+      // Echo task_id in issuance response when resolved
+      if (token.purpose?.task_id) {
+        response.task_id = token.purpose.task_id;
+      }
+
+      return response;
     },
 
     async issueCapabilityToken(
