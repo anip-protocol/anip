@@ -345,6 +345,36 @@ func (s *Service) IssueCapabilityToken(principal, capability string, scope []str
 	return s.IssueToken(principal, req)
 }
 
+// WithCallerClass sets the caller class for the token.
+func WithCallerClass(callerClass string) TokenOption {
+	return func(r *core.TokenRequest) { r.CallerClass = callerClass }
+}
+
+// WithSubject sets the subject for the token (who the token is for).
+func WithSubject(subject string) TokenOption {
+	return func(r *core.TokenRequest) { r.Subject = subject }
+}
+
+// IssueDelegatedCapabilityToken issues a delegated token from an existing parent token.
+// parentToken is a token ID (not a JWT) -- the service looks up the parent by ID in storage.
+// scope must be explicitly provided.
+func (s *Service) IssueDelegatedCapabilityToken(
+	principal, parentToken, capability string, scope []string, subject string,
+	opts ...TokenOption,
+) (core.TokenResponse, error) {
+	req := core.TokenRequest{
+		Subject:     subject,
+		Capability:  capability,
+		Scope:       scope,
+		ParentToken: parentToken,
+		TTLHours:    2,
+	}
+	for _, opt := range opts {
+		opt(&req)
+	}
+	return s.IssueToken(principal, req)
+}
+
 // GetDiscovery builds the full discovery document per SPEC.md section 6.1.
 func (s *Service) GetDiscovery(baseURL string) map[string]any {
 	capsSummary := make(map[string]any)

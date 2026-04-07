@@ -671,3 +671,92 @@ describe("ANIPService issueCapabilityToken", () => {
     expect(resp.issued).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// issueDelegatedCapabilityToken
+// ---------------------------------------------------------------------------
+
+describe("ANIPService issueDelegatedCapabilityToken", () => {
+  it("issues a delegated token from a parent token", async () => {
+    const { service } = makeService();
+    await service.start();
+
+    // Issue root token first
+    const rootResp = (await service.issueCapabilityToken(
+      "human:alice@example.com",
+      "greet",
+      ["greet"],
+    )) as Record<string, any>;
+    expect(rootResp.issued).toBe(true);
+
+    // Delegate
+    const resp = (await service.issueDelegatedCapabilityToken(
+      "human:alice@example.com",
+      rootResp.token_id,
+      "greet",
+      ["greet"],
+      "agent:helper",
+    )) as Record<string, any>;
+
+    expect(resp.issued).toBe(true);
+    expect(resp.token_id).toBeDefined();
+    expect(resp.token).toBeDefined();
+
+    // Resolve and verify delegation
+    const resolved = await service.resolveBearerToken(resp.token);
+    expect(resolved.subject).toBe("agent:helper");
+    expect(resolved.purpose?.capability).toBe("greet");
+    expect(resolved.parent).toBe(rootResp.token_id);
+  });
+
+  it("scope must be explicit (not inferred from capability)", async () => {
+    const { service } = makeService();
+    await service.start();
+
+    // Root token with broader scope
+    const rootResp = (await service.issueCapabilityToken(
+      "human:bob@example.com",
+      "greet",
+      ["greet", "greet.read"],
+    )) as Record<string, any>;
+
+    // Delegate with a subset scope — scope is explicit, not derived from capability.
+    const resp = (await service.issueDelegatedCapabilityToken(
+      "human:bob@example.com",
+      rootResp.token_id,
+      "greet",
+      ["greet"],
+      "agent:worker",
+    )) as Record<string, any>;
+
+    expect(resp.issued).toBe(true);
+  });
+
+  it("passes optional parameters through", async () => {
+    const { service } = makeService();
+    await service.start();
+
+    const rootResp = (await service.issueCapabilityToken(
+      "human:carol@example.com",
+      "greet",
+      ["greet"],
+    )) as Record<string, any>;
+
+    const resp = (await service.issueDelegatedCapabilityToken(
+      "human:carol@example.com",
+      rootResp.token_id,
+      "greet",
+      ["greet"],
+      "agent:delegate",
+      {
+        callerClass: "automated",
+        purposeParameters: { task_id: "task-456" },
+        ttlHours: 1,
+        budget: { currency: "USD", max_amount: 50 },
+      },
+    )) as Record<string, any>;
+
+    expect(resp.issued).toBe(true);
+    expect(resp.token_id).toBeDefined();
+  });
+});

@@ -254,6 +254,36 @@ public class AnipService : IDisposable
         return IssueToken(principal, request);
     }
 
+    /// <summary>
+    /// Issue a delegated token from an existing parent token.
+    /// <paramref name="parentToken"/> is a token ID (not a JWT) — the service looks up
+    /// the parent by ID in storage. <paramref name="scope"/> must be explicitly provided.
+    /// </summary>
+    public TokenResponse IssueDelegatedCapabilityToken(
+        string principal,
+        string parentToken,
+        string capability,
+        List<string> scope,
+        string subject,
+        string? callerClass = null,
+        Dictionary<string, object>? purposeParameters = null,
+        int ttlHours = 2,
+        Budget? budget = null)
+    {
+        var request = new TokenRequest
+        {
+            Subject = subject,
+            Capability = capability,
+            Scope = scope,
+            ParentToken = parentToken,
+            PurposeParameters = purposeParameters,
+            TtlHours = ttlHours,
+            CallerClass = callerClass,
+            Budget = budget,
+        };
+        return IssueToken(principal, request);
+    }
+
     // --- Discovery ---
 
     /// <summary>

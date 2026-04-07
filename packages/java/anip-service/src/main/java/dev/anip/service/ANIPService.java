@@ -300,6 +300,41 @@ public class ANIPService {
         return issueCapabilityToken(principal, capability, scope, null, 2, null);
     }
 
+    /**
+     * Issue a delegated token from an existing parent token.
+     *
+     * <p>{@code parentToken} is a token ID (not a JWT) — the service looks up
+     * the parent by ID in storage. {@code scope} must be explicitly provided.</p>
+     */
+    public TokenResponse issueDelegatedCapabilityToken(
+            String principal,
+            String parentToken,
+            String capability,
+            List<String> scope,
+            String subject,
+            String callerClass,
+            Map<String, Object> purposeParameters,
+            int ttlHours,
+            Budget budget) throws Exception {
+        TokenRequest request = new TokenRequest(
+                subject, scope, capability, purposeParameters,
+                parentToken, ttlHours, callerClass, budget);
+        return issueToken(principal, request);
+    }
+
+    /**
+     * Issue a delegated token with default TTL and no optional parameters.
+     */
+    public TokenResponse issueDelegatedCapabilityToken(
+            String principal,
+            String parentToken,
+            String capability,
+            List<String> scope,
+            String subject) throws Exception {
+        return issueDelegatedCapabilityToken(
+                principal, parentToken, capability, scope, subject, null, null, 2, null);
+    }
+
     // --- Invocation ---
 
     /**

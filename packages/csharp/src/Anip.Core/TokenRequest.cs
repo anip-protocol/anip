@@ -16,6 +16,7 @@ public class TokenRequest
     [JsonPropertyName("purpose_parameters")]
     public Dictionary<string, object>? PurposeParameters { get; set; }
 
+    /// <summary>Token ID string of the parent token (not a JWT). The service looks up the parent by ID in storage.</summary>
     [JsonPropertyName("parent_token")]
     public string? ParentToken { get; set; }
 

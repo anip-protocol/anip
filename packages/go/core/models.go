@@ -213,7 +213,7 @@ type TokenRequest struct {
 	Subject           string         `json:"subject"`
 	Scope             []string       `json:"scope"`
 	Capability        string         `json:"capability"`
-	ParentToken       string         `json:"parent_token,omitempty"` // JWT string of parent
+	ParentToken       string         `json:"parent_token,omitempty"` // Token ID string of the parent token (not a JWT). The service looks up the parent by ID in storage.
 	PurposeParameters map[string]any `json:"purpose_parameters,omitempty"`
 	TTLHours          int            `json:"ttl_hours,omitempty"`
 	CallerClass       string         `json:"caller_class,omitempty"`
