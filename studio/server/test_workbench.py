@@ -102,6 +102,19 @@ def test_workbench_manifest_exposes_round1_dogfood_controls(monkeypatch: pytest.
         assert evaluate["cost"]["financial"]["currency"] == workbench_service.DOGFOOD_EVALUATION_CURRENCY
 
 
+def test_workbench_discovery_exposes_round2_posture(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", "round2")
+    with _mounted_client(monkeypatch) as client:
+        resp = client.get("/studio-workbench/.well-known/anip")
+        assert resp.status_code == 200, resp.text
+        doc = resp.json()["anip_discovery"]
+        assert doc["protocol"] == "anip/0.22"
+        assert doc["trust_level"] == "anchored"
+        assert doc["posture"]["anchoring"]["enabled"] is True
+        assert doc["posture"]["anchoring"]["proofs_available"] is True
+        assert doc["posture"]["failure_disclosure"]["detail_level"] == "full"
+
+
 def test_workbench_permissions_support_round1_preflight_and_budget(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", "round1")
     with _mounted_client(monkeypatch) as client:

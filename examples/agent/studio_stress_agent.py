@@ -54,6 +54,31 @@ DEFAULT_BRIEFS = [
 ]
 
 
+def posture_summary(discovery: dict) -> dict:
+    doc = discovery.get("anip_discovery", {})
+    posture = doc.get("posture", {})
+    audit = posture.get("audit", {})
+    failure = posture.get("failure_disclosure", {})
+    anchoring = posture.get("anchoring", {})
+    return {
+        "trust_level": doc.get("trust_level"),
+        "audit_queryable": audit.get("queryable", False),
+        "audit_retention": audit.get("retention"),
+        "audit_retention_enforced": audit.get("retention_enforced", False),
+        "failure_disclosure": failure.get("detail_level"),
+        "anchoring_enabled": anchoring.get("enabled", False),
+        "proofs_available": anchoring.get("proofs_available", False),
+    }
+
+
+def audit_mode(posture: dict) -> str:
+    if posture.get("audit_queryable") and posture.get("trust_level") == "anchored":
+        return "strict"
+    if posture.get("audit_queryable"):
+        return "basic"
+    return "skip"
+
+
 def issue_parent_token(
     client: ANIPClient,
     bootstrap: str,
@@ -157,9 +182,64 @@ def resolve_capability_token(
     return child["token"]
 
 
-def invoke(client: ANIPClient, token: str, capability: str, parameters: dict) -> dict:
-    response = client.invoke(capability, token, parameters)
-    return response["result"] if response.get("success") else response
+def invoke(
+    client: ANIPClient,
+    token: str,
+    capability: str,
+    parameters: dict,
+    *,
+    client_reference_id: str,
+    task_id: str | None = None,
+    parent_invocation_id: str | None = None,
+    upstream_service: str | None = None,
+) -> dict:
+    return client.invoke(
+        capability,
+        token,
+        parameters,
+        client_reference_id=client_reference_id,
+        task_id=task_id,
+        parent_invocation_id=parent_invocation_id,
+        upstream_service=upstream_service,
+    )
+
+
+def verify_audit(
+    client: ANIPClient,
+    token: str,
+    capability: str,
+    *,
+    client_reference_id: str,
+    task_id: str | None,
+    invocation_id: str,
+    mode: str,
+) -> dict:
+    audit = client.query_audit(
+        token,
+        capability=capability,
+        client_reference_id=client_reference_id,
+        task_id=task_id,
+        limit=20,
+    )
+    entries = audit.get("entries", [])
+    verification = {
+        "mode": mode,
+        "count": len(entries),
+        "matched_client_reference_id": any(entry.get("client_reference_id") == client_reference_id for entry in entries),
+        "matched_invocation_id": any(entry.get("invocation_id") == invocation_id for entry in entries),
+        "matched_task_id": task_id is not None and any(entry.get("task_id") == task_id for entry in entries),
+        "event_classes": sorted({entry.get("event_class") for entry in entries if entry.get("event_class")}),
+    }
+    if mode == "skip":
+        return {"audit": audit, "verification": verification}
+    if not verification["matched_client_reference_id"]:
+        raise RuntimeError(f"Audit did not return client_reference_id {client_reference_id} for {capability}")
+    if mode == "strict":
+        if not verification["matched_invocation_id"]:
+            raise RuntimeError(f"Audit did not return invocation_id {invocation_id} for {capability}")
+        if task_id is not None and not verification["matched_task_id"]:
+            raise RuntimeError(f"Audit did not return task_id {task_id} for {capability}")
+    return {"audit": audit, "verification": verification}
 
 
 def main() -> None:
@@ -173,6 +253,10 @@ def main() -> None:
 
     assistant_client = ANIPClient(f"{args.studio_base_url.rstrip('/')}/studio-assistant")
     workbench_client = ANIPClient(f"{args.studio_base_url.rstrip('/')}/studio-workbench")
+    assistant_discovery = assistant_client.discover()
+    workbench_discovery = workbench_client.discover()
+    assistant_posture = posture_summary(assistant_discovery)
+    workbench_posture = posture_summary(workbench_discovery)
 
     workbench_parent = issue_parent_token(
         workbench_client,
@@ -188,6 +272,7 @@ def main() -> None:
     )
 
     bootstrap_decisions: list[dict] = []
+    workspace_ref = f"workspace-{uuid4().hex[:8]}"
     workspace_token = resolve_capability_token(
         workbench_client,
         workbench_parent,
@@ -201,10 +286,15 @@ def main() -> None:
         workspace_token,
         "create_workspace",
         {"name": f"Stress Workspace {uuid4().hex[:8]}", "summary": "ANIP stress-testing workspace"},
-    )["workspace"]
+        client_reference_id=workspace_ref,
+    )["result"]["workspace"]
 
     report = {
         "workspace": workspace,
+        "assistant_discovery": assistant_discovery,
+        "workbench_discovery": workbench_discovery,
+        "assistant_posture": assistant_posture,
+        "workbench_posture": workbench_posture,
         "assistant_manifest": assistant_client.get_manifest(),
         "workbench_manifest": workbench_client.get_manifest(),
         "bootstrap_permission_decisions": bootstrap_decisions,
@@ -213,6 +303,8 @@ def main() -> None:
 
     for brief in DEFAULT_BRIEFS:
         permission_decisions: list[dict] = []
+        audit_checks: list[dict] = []
+        run_id = f"run-{slug(brief['name'])}-{uuid4().hex[:8]}"
         create_project_token = resolve_capability_token(
             workbench_client,
             workbench_parent,
@@ -221,7 +313,8 @@ def main() -> None:
             "studio.workbench.create_project",
             report=permission_decisions,
         )
-        project = invoke(
+        create_project_ref = f"{slug(brief['name'])}-create-project-{uuid4().hex[:8]}"
+        project_resp = invoke(
             workbench_client,
             create_project_token,
             "create_project",
@@ -231,7 +324,25 @@ def main() -> None:
                 "summary": brief["summary"],
                 "domain": brief["domain"],
             },
-        )["project"]
+            client_reference_id=create_project_ref,
+        )
+        project = project_resp["result"]["project"]
+        audit_checks.append(
+            {
+                "service": "studio-workbench",
+                "capability": "create_project",
+                "client_reference_id": create_project_ref,
+                **verify_audit(
+                    workbench_client,
+                    create_project_token,
+                    "create_project",
+                    client_reference_id=create_project_ref,
+                    task_id=None,
+                    invocation_id=project_resp["invocation_id"],
+                    mode=audit_mode(workbench_posture),
+                ),
+            }
+        )
 
         interpret_token = resolve_capability_token(
             assistant_client,
@@ -241,11 +352,30 @@ def main() -> None:
             "studio.assistant.interpret_project_intent",
             report=permission_decisions,
         )
-        interpretation = invoke(
+        interpret_ref = f"{slug(brief['name'])}-interpret-{uuid4().hex[:8]}"
+        interpretation_resp = invoke(
             assistant_client,
             interpret_token,
             "interpret_project_intent",
             {"project_id": project["id"], "intent": brief["intent"]},
+            client_reference_id=interpret_ref,
+        )
+        interpretation = interpretation_resp["result"]
+        audit_checks.append(
+            {
+                "service": "studio-assistant",
+                "capability": "interpret_project_intent",
+                "client_reference_id": interpret_ref,
+                **verify_audit(
+                    assistant_client,
+                    interpret_token,
+                    "interpret_project_intent",
+                    client_reference_id=interpret_ref,
+                    task_id=None,
+                    invocation_id=interpretation_resp["invocation_id"],
+                    mode=audit_mode(assistant_posture),
+                ),
+            }
         )
 
         accept_token = resolve_capability_token(
@@ -256,7 +386,8 @@ def main() -> None:
             "studio.workbench.accept_first_design",
             report=permission_decisions,
         )
-        accepted = invoke(
+        accept_ref = f"{slug(brief['name'])}-accept-{uuid4().hex[:8]}"
+        accepted_resp = invoke(
             workbench_client,
             accept_token,
             "accept_first_design",
@@ -265,6 +396,24 @@ def main() -> None:
                 "source_intent": brief["intent"],
                 "interpretation": interpretation,
             },
+            client_reference_id=accept_ref,
+        )
+        accepted = accepted_resp["result"]
+        audit_checks.append(
+            {
+                "service": "studio-workbench",
+                "capability": "accept_first_design",
+                "client_reference_id": accept_ref,
+                **verify_audit(
+                    workbench_client,
+                    accept_token,
+                    "accept_first_design",
+                    client_reference_id=accept_ref,
+                    task_id=None,
+                    invocation_id=accepted_resp["invocation_id"],
+                    mode=audit_mode(workbench_posture),
+                ),
+            }
         )
 
         req_id = accepted["requirements"]["id"]
@@ -293,7 +442,8 @@ def main() -> None:
         current_req_id = req_id
         current_shape_id = shape_id
         for scenario_id in scenario_ids:
-            first_eval = invoke(
+            eval_ref = f"{slug(brief['name'])}-eval-{uuid4().hex[:8]}"
+            first_eval_resp = invoke(
                 workbench_client,
                 eval_token,
                 "evaluate_service_design",
@@ -303,11 +453,30 @@ def main() -> None:
                     "scenario_id": scenario_id,
                     "shape_id": current_shape_id,
                 },
+                client_reference_id=eval_ref,
+            )
+            first_eval = first_eval_resp["result"]
+            audit_checks.append(
+                {
+                    "service": "studio-workbench",
+                    "capability": "evaluate_service_design",
+                    "client_reference_id": eval_ref,
+                    **verify_audit(
+                        workbench_client,
+                        eval_token,
+                        "evaluate_service_design",
+                        client_reference_id=eval_ref,
+                        task_id=None,
+                        invocation_id=first_eval_resp["invocation_id"],
+                        mode=audit_mode(workbench_posture),
+                    ),
+                }
             )
             followup = None
             changes = first_eval["evaluation"].get("what_would_improve") or first_eval["evaluation"].get("glue_you_will_still_write") or []
             if changes:
-                fix = invoke(
+                fix_ref = f"{slug(brief['name'])}-fix-{uuid4().hex[:8]}"
+                fix_resp = invoke(
                     workbench_client,
                     draft_fix_token,
                     "draft_fix_from_change",
@@ -318,12 +487,31 @@ def main() -> None:
                         "scenario_id": scenario_id,
                         "shape_id": current_shape_id,
                     },
+                    client_reference_id=fix_ref,
+                )
+                fix = fix_resp["result"]
+                audit_checks.append(
+                    {
+                        "service": "studio-workbench",
+                        "capability": "draft_fix_from_change",
+                        "client_reference_id": fix_ref,
+                        **verify_audit(
+                            workbench_client,
+                            draft_fix_token,
+                            "draft_fix_from_change",
+                            client_reference_id=fix_ref,
+                            task_id=None,
+                            invocation_id=fix_resp["invocation_id"],
+                            mode=audit_mode(workbench_posture),
+                        ),
+                    }
                 )
                 selection = fix["selection"]
                 current_req_id = selection.get("requirements_id") or current_req_id
                 scenario_id = selection.get("scenario_id") or scenario_id
                 current_shape_id = selection.get("shape_id") or current_shape_id
-                followup = invoke(
+                follow_ref = f"{slug(brief['name'])}-follow-{uuid4().hex[:8]}"
+                followup_resp = invoke(
                     workbench_client,
                     eval_token,
                     "evaluate_service_design",
@@ -333,6 +521,24 @@ def main() -> None:
                         "scenario_id": scenario_id,
                         "shape_id": current_shape_id,
                     },
+                    client_reference_id=follow_ref,
+                )
+                followup = followup_resp["result"]
+                audit_checks.append(
+                    {
+                        "service": "studio-workbench",
+                        "capability": "evaluate_service_design",
+                        "client_reference_id": follow_ref,
+                        **verify_audit(
+                            workbench_client,
+                            eval_token,
+                            "evaluate_service_design",
+                            client_reference_id=follow_ref,
+                            task_id=None,
+                            invocation_id=followup_resp["invocation_id"],
+                            mode=audit_mode(workbench_posture),
+                        ),
+                    }
                 )
             scenario_runs.append({"initial": first_eval, "followup": followup})
 
@@ -352,7 +558,8 @@ def main() -> None:
             "studio.workbench.generate_engineering_contract",
             report=permission_decisions,
         )
-        business_brief = invoke(
+        business_ref = f"{slug(brief['name'])}-business-{uuid4().hex[:8]}"
+        business_resp = invoke(
             workbench_client,
             business_token,
             "generate_business_brief",
@@ -363,8 +570,27 @@ def main() -> None:
                 "scenario_id": scenario_ids[0],
                 "shape_id": current_shape_id,
             },
-        )["document"]
-        engineering_contract = invoke(
+            client_reference_id=business_ref,
+        )
+        business_brief = business_resp["result"]["document"]
+        audit_checks.append(
+            {
+                "service": "studio-workbench",
+                "capability": "generate_business_brief",
+                "client_reference_id": business_ref,
+                **verify_audit(
+                    workbench_client,
+                    business_token,
+                    "generate_business_brief",
+                    client_reference_id=business_ref,
+                    task_id=None,
+                    invocation_id=business_resp["invocation_id"],
+                    mode=audit_mode(workbench_posture),
+                ),
+            }
+        )
+        engineering_ref = f"{slug(brief['name'])}-engineering-{uuid4().hex[:8]}"
+        engineering_resp = invoke(
             workbench_client,
             engineering_token,
             "generate_engineering_contract",
@@ -374,7 +600,25 @@ def main() -> None:
                 "scenario_id": scenario_ids[0],
                 "shape_id": current_shape_id,
             },
-        )["document"]
+            client_reference_id=engineering_ref,
+        )
+        engineering_contract = engineering_resp["result"]["document"]
+        audit_checks.append(
+            {
+                "service": "studio-workbench",
+                "capability": "generate_engineering_contract",
+                "client_reference_id": engineering_ref,
+                **verify_audit(
+                    workbench_client,
+                    engineering_token,
+                    "generate_engineering_contract",
+                    client_reference_id=engineering_ref,
+                    task_id=None,
+                    invocation_id=engineering_resp["invocation_id"],
+                    mode=audit_mode(workbench_posture),
+                ),
+            }
+        )
 
         project_dir = output_dir / slug(brief["name"])
         project_dir.mkdir(parents=True, exist_ok=True)
@@ -389,6 +633,8 @@ def main() -> None:
                 "accepted": accepted,
                 "scenario_runs": scenario_runs,
                 "permission_decisions": permission_decisions,
+                "audit_checks": audit_checks,
+                "run_id": run_id,
                 "artifacts_dir": str(project_dir),
             }
         )

@@ -166,11 +166,20 @@ class ANIPClient:
         token_jwt: str,
         parameters: dict[str, Any],
         client_reference_id: str | None = None,
+        task_id: str | None = None,
+        parent_invocation_id: str | None = None,
+        upstream_service: str | None = None,
     ) -> dict[str, Any]:
         """Invoke an ANIP capability."""
         body: dict[str, Any] = {"parameters": parameters}
         if client_reference_id is not None:
             body["client_reference_id"] = client_reference_id
+        if task_id is not None:
+            body["task_id"] = task_id
+        if parent_invocation_id is not None:
+            body["parent_invocation_id"] = parent_invocation_id
+        if upstream_service is not None:
+            body["upstream_service"] = upstream_service
         return self._post(
             f"/anip/invoke/{capability}",
             json=body,
@@ -183,6 +192,10 @@ class ANIPClient:
         capability: str | None = None,
         invocation_id: str | None = None,
         client_reference_id: str | None = None,
+        task_id: str | None = None,
+        parent_invocation_id: str | None = None,
+        event_class: str | None = None,
+        limit: int | None = None,
     ) -> dict[str, Any]:
         """Query the audit log."""
         query_params: dict[str, str] = {}
@@ -192,6 +205,14 @@ class ANIPClient:
             query_params["invocation_id"] = invocation_id
         if client_reference_id:
             query_params["client_reference_id"] = client_reference_id
+        if task_id:
+            query_params["task_id"] = task_id
+        if parent_invocation_id:
+            query_params["parent_invocation_id"] = parent_invocation_id
+        if event_class:
+            query_params["event_class"] = event_class
+        if limit is not None:
+            query_params["limit"] = str(limit)
         return self._post(
             "/anip/audit",
             headers={"Authorization": f"Bearer {token_jwt}"},

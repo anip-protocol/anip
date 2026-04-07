@@ -69,6 +69,25 @@ def test_assistant_manifest_exposes_explanation_capabilities(client: TestClient)
     assert caps["explain_evaluation"]["cross_service_contract"] is not None
 
 
+def test_assistant_discovery_exposes_round2_posture(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", "round2")
+    monkeypatch.setattr(assistant_service, "get_pool", lambda: _DummyPool())
+
+    app = FastAPI()
+    mount_anip(app, assistant_service.create_studio_assistant_service(), prefix="/studio-assistant")
+
+    with TestClient(app) as client:
+        resp = client.get("/studio-assistant/.well-known/anip")
+        assert resp.status_code == 200, resp.text
+        doc = resp.json()["anip_discovery"]
+        assert doc["protocol"] == "anip/0.22"
+        assert doc["trust_level"] == "signed"
+        assert doc["posture"]["failure_disclosure"]["detail_level"] == "redacted"
+        assert doc["posture"]["anchoring"]["enabled"] is False
+
+
 def test_assistant_can_explain_shape(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,

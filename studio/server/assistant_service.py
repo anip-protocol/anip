@@ -7,6 +7,7 @@ without turning the product into a generic chat surface.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from anip_core import (
@@ -39,6 +40,15 @@ ASSISTANT_SCOPES = [
     "studio.assistant.explain_evaluation",
     "studio.assistant.interpret_project_intent",
 ]
+DOGFOOD_ROUND2_PROFILES = {"round2", "audit-posture", "round2-audit-posture"}
+
+
+def _dogfood_profile() -> str:
+    return os.getenv("STUDIO_DOGFOOD_PROFILE", "").strip().lower()
+
+
+def _round2_dogfood_enabled() -> bool:
+    return _dogfood_profile() in DOGFOOD_ROUND2_PROFILES
 
 
 def create_studio_assistant_service() -> ANIPService:
@@ -200,6 +210,8 @@ def create_studio_assistant_service() -> ANIPService:
         ],
         storage=":memory:",
         authenticate=_authenticate_bootstrap_bearer,
+        trust="signed",
+        disclosure_level="redacted" if _round2_dogfood_enabled() else "full",
     )
 
 

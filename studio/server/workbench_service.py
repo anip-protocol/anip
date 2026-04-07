@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 for path in [
     ROOT / "tooling" / "bin",
     ROOT / "packages" / "python" / "anip-core" / "src",
+    ROOT / "packages" / "python" / "anip-server" / "src",
     ROOT / "packages" / "python" / "anip-service" / "src",
 ]:
     path_str = str(path)
@@ -33,6 +34,7 @@ from anip_core import (
     SideEffectType,
 )
 from anip_service import ANIPError, ANIPService, Capability
+from anip_server.checkpoint import CheckpointPolicy
 from anip_design_validate import evaluate, validate_payload
 
 from .db import get_pool
@@ -82,6 +84,7 @@ WORKBENCH_SCOPES = [
 ]
 
 DOGFOOD_ROUND1_PROFILES = {"round1", "permissions-budget", "round1-permissions-budget"}
+DOGFOOD_ROUND2_PROFILES = {"round2", "audit-posture", "round2-audit-posture"}
 DOGFOOD_EVALUATION_COST_AMOUNT = 5.0
 DOGFOOD_EVALUATION_CURRENCY = "USD"
 
@@ -91,7 +94,11 @@ def _dogfood_profile() -> str:
 
 
 def _round1_dogfood_enabled() -> bool:
-    return _dogfood_profile() in DOGFOOD_ROUND1_PROFILES
+    return _dogfood_profile() in (DOGFOOD_ROUND1_PROFILES | DOGFOOD_ROUND2_PROFILES)
+
+
+def _round2_dogfood_enabled() -> bool:
+    return _dogfood_profile() in DOGFOOD_ROUND2_PROFILES
 
 
 def _dogfood_control_requirements(name: str) -> list[ControlRequirement]:
@@ -121,6 +128,30 @@ def _dogfood_cost(name: str) -> Cost | None:
         financial=FinancialCost(currency=DOGFOOD_EVALUATION_CURRENCY, amount=DOGFOOD_EVALUATION_COST_AMOUNT),
         compute={"latency_p50": "250ms", "tokens": 1200},
     )
+
+
+def _dogfood_trust() -> str | dict[str, Any]:
+    if not _round2_dogfood_enabled():
+        return "signed"
+    return {
+        "level": "anchored",
+        "anchoring": {
+            "cadence": "PT5M",
+            "max_lag": 300,
+        },
+    }
+
+
+def _dogfood_checkpoint_policy() -> CheckpointPolicy | None:
+    if not _round2_dogfood_enabled():
+        return None
+    return CheckpointPolicy(entry_count=1)
+
+
+def _dogfood_disclosure_level() -> str:
+    if not _round2_dogfood_enabled():
+        return "full"
+    return "full"
 
 
 def create_studio_workbench_service() -> ANIPService:
@@ -236,6 +267,9 @@ def create_studio_workbench_service() -> ANIPService:
         ],
         storage=":memory:",
         authenticate=_authenticate_bootstrap_bearer,
+        trust=_dogfood_trust(),
+        checkpoint_policy=_dogfood_checkpoint_policy(),
+        disclosure_level=_dogfood_disclosure_level(),
     )
 
 
