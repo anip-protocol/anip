@@ -194,6 +194,38 @@
         }
       }
     },
+    "TokenResponse": {
+      "type": "object",
+      "description": "Token issuance response. Returned by POST {tokens}.",
+      "required": ["issued", "token_id", "token", "expires"],
+      "properties": {
+        "issued": {
+          "type": "boolean",
+          "description": "Whether the token was successfully issued."
+        },
+        "token_id": {
+          "type": "string",
+          "description": "Stable identifier for the issued token. Used as parent_token in delegated issuance."
+        },
+        "token": {
+          "type": "string",
+          "description": "Signed ES256 JWT."
+        },
+        "expires": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 expiration timestamp."
+        },
+        "task_id": {
+          "type": "string",
+          "description": "Resolved purpose.task_id of the issued token. Present when the token has a resolved task identity; absent when no task identity was resolved."
+        },
+        "budget": {
+          "$ref": "#/$defs/Budget",
+          "description": "Echoed budget constraint when one was requested (v0.14)."
+        }
+      }
+    },
     "BudgetContext": {
       "properties": {
         "budget_max": {
