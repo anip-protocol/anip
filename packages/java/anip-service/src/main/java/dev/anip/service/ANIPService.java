@@ -273,10 +273,8 @@ public class ANIPService {
      * strings are different things (e.g. capability {@code evaluate_service_design}
      * may need scope {@code studio.workbench.evaluate_service_design}).</p>
      *
-     * <p>This helper covers <b>root issuance only</b>.  For delegation flows
-     * ({@code parentToken}, non-default {@code subject}, {@code callerClass}),
-     * use {@link #issueToken} directly until {@code parentToken} semantics are
-     * resolved across runtimes (deferred to v0.21).</p>
+     * <p>This helper covers <b>root issuance only</b>.  For delegated issuance,
+     * use {@link #issueDelegatedCapabilityToken} (v0.22).</p>
      */
     public TokenResponse issueCapabilityToken(
             String principal,

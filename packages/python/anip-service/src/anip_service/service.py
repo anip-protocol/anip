@@ -564,10 +564,8 @@ class ANIPService:
         strings are different things (e.g. capability ``evaluate_service_design``
         may need scope ``studio.workbench.evaluate_service_design``).
 
-        This helper covers **root issuance only**.  For delegation flows
-        (``parent_token``, non-default ``subject``, ``caller_class``), use
-        :meth:`issue_token` directly until ``parent_token`` semantics are
-        resolved across runtimes (deferred to v0.21).
+        This helper covers **root issuance only**.  For delegated issuance,
+        use :meth:`issue_delegated_capability_token` (v0.22).
         """
         request: dict[str, Any] = {
             "subject": principal,

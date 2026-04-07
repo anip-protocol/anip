@@ -232,7 +232,7 @@ public class AnipService : IDisposable
     /// <remarks>
     /// <paramref name="scope"/> must be explicitly provided — capability names
     /// and scope strings are different things.
-    /// Delegation helper ergonomics are deferred to v0.21.
+    /// For delegated issuance, use <see cref="IssueDelegatedCapabilityToken"/> (v0.22).
     /// </remarks>
     public TokenResponse IssueCapabilityToken(
         string principal,

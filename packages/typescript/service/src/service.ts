@@ -1021,7 +1021,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     ): Promise<Record<string, unknown>> {
       // Root issuance only.  scope must be explicitly provided —
       // capability names and scope strings are different things.
-      // For delegation flows, use issueToken() directly.
+      // For delegated issuance, use issueDelegatedCapabilityToken() (v0.22).
       const request: Record<string, unknown> = {
         subject: principal,
         capability,

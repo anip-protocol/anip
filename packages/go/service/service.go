@@ -330,8 +330,7 @@ func WithPurposeParameters(params map[string]any) TokenOption {
 // IssueCapabilityToken issues a root token pre-bound to a specific capability.
 // scope must be explicitly provided — capability names and scope strings
 // are different things.
-// For delegation flows (parent_token, subject, caller_class), use IssueToken directly
-// until parent_token semantics are resolved across runtimes (deferred to v0.21).
+// For delegated issuance, use IssueDelegatedCapabilityToken (v0.22).
 func (s *Service) IssueCapabilityToken(principal, capability string, scope []string, opts ...TokenOption) (core.TokenResponse, error) {
 	req := core.TokenRequest{
 		Subject:    principal,
