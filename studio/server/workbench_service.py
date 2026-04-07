@@ -85,6 +85,7 @@ WORKBENCH_SCOPES = [
 
 DOGFOOD_ROUND1_PROFILES = {"round1", "permissions-budget", "round1-permissions-budget"}
 DOGFOOD_ROUND2_PROFILES = {"round2", "audit-posture", "round2-audit-posture"}
+DOGFOOD_ROUND3_PROFILES = {"round3", "streaming-session", "round3-streaming-session"}
 DOGFOOD_EVALUATION_COST_AMOUNT = 5.0
 DOGFOOD_EVALUATION_CURRENCY = "USD"
 
@@ -94,11 +95,11 @@ def _dogfood_profile() -> str:
 
 
 def _round1_dogfood_enabled() -> bool:
-    return _dogfood_profile() in (DOGFOOD_ROUND1_PROFILES | DOGFOOD_ROUND2_PROFILES)
+    return _dogfood_profile() in (DOGFOOD_ROUND1_PROFILES | DOGFOOD_ROUND2_PROFILES | DOGFOOD_ROUND3_PROFILES)
 
 
 def _round2_dogfood_enabled() -> bool:
-    return _dogfood_profile() in DOGFOOD_ROUND2_PROFILES
+    return _dogfood_profile() in (DOGFOOD_ROUND2_PROFILES | DOGFOOD_ROUND3_PROFILES)
 
 
 def _dogfood_control_requirements(name: str) -> list[ControlRequirement]:

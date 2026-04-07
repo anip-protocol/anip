@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import httpx
@@ -185,6 +186,52 @@ class ANIPClient:
             json=body,
             headers={"Authorization": f"Bearer {token_jwt}"},
         )
+
+    def invoke_stream(
+        self,
+        capability: str,
+        token_jwt: str,
+        parameters: dict[str, Any],
+        client_reference_id: str | None = None,
+        task_id: str | None = None,
+        parent_invocation_id: str | None = None,
+        upstream_service: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Invoke an ANIP capability in streaming mode and parse SSE events."""
+        body: dict[str, Any] = {"parameters": parameters, "stream": True}
+        if client_reference_id is not None:
+            body["client_reference_id"] = client_reference_id
+        if task_id is not None:
+            body["task_id"] = task_id
+        if parent_invocation_id is not None:
+            body["parent_invocation_id"] = parent_invocation_id
+        if upstream_service is not None:
+            body["upstream_service"] = upstream_service
+
+        events: list[dict[str, Any]] = []
+        with httpx.Client(base_url=self.base_url, timeout=self.timeout) as client:
+            with client.stream(
+                "POST",
+                f"/anip/invoke/{capability}",
+                json=body,
+                headers={"Authorization": f"Bearer {token_jwt}"},
+            ) as resp:
+                resp.raise_for_status()
+                current_event: str | None = None
+                current_data: list[str] = []
+                for line in resp.iter_lines():
+                    if line == "":
+                        if current_event is not None:
+                            payload = "\n".join(current_data) if current_data else "{}"
+                            events.append({"event": current_event, "data": json.loads(payload)})
+                        current_event = None
+                        current_data = []
+                        continue
+                    if line.startswith("event: "):
+                        current_event = line[len("event: "):]
+                    elif line.startswith("data: "):
+                        current_data.append(line[len("data: "):])
+        return events
 
     def query_audit(
         self,

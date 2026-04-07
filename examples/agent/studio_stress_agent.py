@@ -30,6 +30,8 @@ WORKBENCH_SCOPES = [
 
 ASSISTANT_SCOPES = [
     "studio.assistant.interpret_project_intent",
+    "studio.assistant.start_design_review_session",
+    "studio.assistant.stream_design_review",
 ]
 
 DEFAULT_BRIEFS = [
@@ -242,6 +244,44 @@ def verify_audit(
     return {"audit": audit, "verification": verification}
 
 
+def verify_stream_audit(
+    client: ANIPClient,
+    token: str,
+    capability: str,
+    *,
+    client_reference_id: str,
+    invocation_id: str,
+    mode: str,
+) -> dict:
+    audit = client.query_audit(
+        token,
+        capability=capability,
+        client_reference_id=client_reference_id,
+        limit=20,
+    )
+    entries = audit.get("entries", [])
+    entry = next((item for item in entries if item.get("invocation_id") == invocation_id), None)
+    if entry is None:
+        raise RuntimeError(f"Streaming audit did not return invocation_id {invocation_id} for {capability}")
+    stream_summary = entry.get("stream_summary")
+    if not isinstance(stream_summary, dict):
+        raise RuntimeError(f"Streaming audit did not persist stream_summary for {capability}")
+    verification = {
+        "mode": mode,
+        "matched_client_reference_id": entry.get("client_reference_id") == client_reference_id,
+        "matched_invocation_id": entry.get("invocation_id") == invocation_id,
+        "events_emitted": stream_summary.get("events_emitted"),
+        "response_mode": stream_summary.get("response_mode"),
+    }
+    if not verification["matched_client_reference_id"]:
+        raise RuntimeError(f"Streaming audit did not return client_reference_id {client_reference_id} for {capability}")
+    if verification["response_mode"] != "streaming":
+        raise RuntimeError(f"Streaming audit recorded wrong response mode for {capability}: {verification['response_mode']}")
+    if not isinstance(verification["events_emitted"], int) or verification["events_emitted"] < 1:
+        raise RuntimeError(f"Streaming audit did not record emitted events for {capability}")
+    return {"audit": audit, "verification": verification}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--studio-base-url", default="http://127.0.0.1:8100")
@@ -419,6 +459,115 @@ def main() -> None:
         req_id = accepted["requirements"]["id"]
         shape_id = accepted["shape"]["id"]
         scenario_ids = [item["id"] for item in accepted["scenarios"]]
+
+        review_session = None
+        review_stream = None
+        if "start_design_review_session" in report["assistant_manifest"]["capabilities"]:
+            review_start_child = assistant_client.request_delegated_capability_token(
+                principal=AGENT_SUBJECT,
+                parent_token=assistant_parent["token_id"],
+                capability="start_design_review_session",
+                scope=["studio.assistant.start_design_review_session"],
+                subject=AGENT_SUBJECT,
+                auth_bearer=assistant_parent["token"],
+                caller_class="agent",
+                ttl_hours=1,
+            )
+            review_start_token = review_start_child["token"]
+            permission_decisions.append(
+                {
+                    "capability": "start_design_review_session",
+                    "scope": "studio.assistant.start_design_review_session",
+                    "parent": permission_snapshot(assistant_client, assistant_parent["token"], "start_design_review_session")["entry"],
+                    "used": "delegated",
+                    "budget_requested": None,
+                    "child": permission_snapshot(assistant_client, review_start_token, "start_design_review_session")["entry"],
+                    "child_token_id": review_start_child["token_id"],
+                }
+            )
+            review_start_ref = f"{slug(brief['name'])}-review-start-{uuid4().hex[:8]}"
+            review_start_resp = invoke(
+                assistant_client,
+                review_start_token,
+                "start_design_review_session",
+                {
+                    "project_id": project["id"],
+                    "shape_id": shape_id,
+                    "scenario_id": scenario_ids[0],
+                },
+                client_reference_id=review_start_ref,
+            )
+            review_session = review_start_resp["result"]
+            audit_checks.append(
+                {
+                    "service": "studio-assistant",
+                    "capability": "start_design_review_session",
+                    "client_reference_id": review_start_ref,
+                    **verify_audit(
+                        assistant_client,
+                        review_start_token,
+                        "start_design_review_session",
+                        client_reference_id=review_start_ref,
+                        task_id=None,
+                        invocation_id=review_start_resp["invocation_id"],
+                        mode=audit_mode(assistant_posture),
+                    ),
+                }
+            )
+
+            review_stream_child = assistant_client.request_delegated_capability_token(
+                principal=AGENT_SUBJECT,
+                parent_token=assistant_parent["token_id"],
+                capability="stream_design_review",
+                scope=["studio.assistant.stream_design_review"],
+                subject=AGENT_SUBJECT,
+                auth_bearer=assistant_parent["token"],
+                caller_class="agent",
+                ttl_hours=1,
+            )
+            review_stream_token = review_stream_child["token"]
+            permission_decisions.append(
+                {
+                    "capability": "stream_design_review",
+                    "scope": "studio.assistant.stream_design_review",
+                    "parent": permission_snapshot(assistant_client, assistant_parent["token"], "stream_design_review")["entry"],
+                    "used": "delegated",
+                    "budget_requested": None,
+                    "child": permission_snapshot(assistant_client, review_stream_token, "stream_design_review")["entry"],
+                    "child_token_id": review_stream_child["token_id"],
+                }
+            )
+            review_stream_ref = f"{slug(brief['name'])}-review-stream-{uuid4().hex[:8]}"
+            review_stream_events = assistant_client.invoke_stream(
+                "stream_design_review",
+                review_stream_token,
+                {
+                    "project_id": project["id"],
+                    "session_id": review_session["session_id"],
+                    "question": "What should the PM pressure next?",
+                },
+                client_reference_id=review_stream_ref,
+            )
+            completed_event = next((event for event in review_stream_events if event["event"] == "completed"), None)
+            if completed_event is None:
+                raise RuntimeError("Streaming review did not produce a completed event")
+            review_stream = completed_event["data"]
+            audit_checks.append(
+                {
+                    "service": "studio-assistant",
+                    "capability": "stream_design_review",
+                    "client_reference_id": review_stream_ref,
+                    "events": review_stream_events,
+                    **verify_stream_audit(
+                        assistant_client,
+                        review_stream_token,
+                        "stream_design_review",
+                        client_reference_id=review_stream_ref,
+                        invocation_id=review_stream["invocation_id"],
+                        mode=audit_mode(assistant_posture),
+                    ),
+                }
+            )
 
         eval_token = resolve_capability_token(
             workbench_client,
@@ -631,6 +780,8 @@ def main() -> None:
                 "project": project,
                 "interpretation": interpretation,
                 "accepted": accepted,
+                "review_session": review_session,
+                "review_stream": review_stream,
                 "scenario_runs": scenario_runs,
                 "permission_decisions": permission_decisions,
                 "audit_checks": audit_checks,
