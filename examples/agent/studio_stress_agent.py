@@ -85,6 +85,42 @@ def audit_mode(posture: dict) -> str:
     return "skip"
 
 
+def require_graph_next(
+    client: ANIPClient,
+    capability: str,
+    expected: str,
+) -> dict:
+    graph = client.get_graph(capability)
+    next_capabilities = [item["capability"] for item in graph.get("composes_with", [])]
+    if expected not in next_capabilities:
+        raise RuntimeError(
+            f"Graph for {capability} did not expose expected next capability {expected}: {json.dumps(graph, sort_keys=True)}"
+        )
+    return {
+        "capability": capability,
+        "graph": graph,
+        "selected_next": expected,
+    }
+
+
+def require_graph_requirement(
+    client: ANIPClient,
+    capability: str,
+    expected: str,
+) -> dict:
+    graph = client.get_graph(capability)
+    required = [item["capability"] for item in graph.get("requires", [])]
+    if expected not in required:
+        raise RuntimeError(
+            f"Graph for {capability} did not expose expected requirement {expected}: {json.dumps(graph, sort_keys=True)}"
+        )
+    return {
+        "capability": capability,
+        "graph": graph,
+        "required_capability": expected,
+    }
+
+
 def issue_parent_token(
     client: ANIPClient,
     bootstrap: str,
@@ -538,6 +574,7 @@ def main() -> None:
 
     for brief in DEFAULT_BRIEFS:
         permission_decisions: list[dict] = []
+        graph_checks: list[dict] = []
         audit_checks: list[dict] = []
         run_id = f"run-{slug(brief['name'])}-{uuid4().hex[:8]}"
         create_project_token = resolve_capability_token(
@@ -613,19 +650,26 @@ def main() -> None:
             }
         )
 
+        create_project_graph = require_graph_next(
+            workbench_client,
+            "create_project",
+            "accept_first_design",
+        )
+        graph_checks.append(create_project_graph)
+        accept_capability = create_project_graph["selected_next"]
         accept_token = resolve_capability_token(
             workbench_client,
             workbench_parent,
             WORKBENCH_BOOTSTRAP,
-            "accept_first_design",
-            "studio.workbench.accept_first_design",
+            accept_capability,
+            f"studio.workbench.{accept_capability}",
             report=permission_decisions,
         )
         accept_ref = f"{slug(brief['name'])}-accept-{uuid4().hex[:8]}"
         accepted_resp = invoke(
             workbench_client,
             accept_token,
-            "accept_first_design",
+            accept_capability,
             {
                 "project_id": project["id"],
                 "source_intent": brief["intent"],
@@ -637,12 +681,12 @@ def main() -> None:
         audit_checks.append(
             {
                 "service": "studio-workbench",
-                "capability": "accept_first_design",
+                "capability": accept_capability,
                 "client_reference_id": accept_ref,
                 **verify_audit(
                     workbench_client,
                     accept_token,
-                    "accept_first_design",
+                    accept_capability,
                     client_reference_id=accept_ref,
                     task_id=None,
                     invocation_id=accepted_resp["invocation_id"],
@@ -710,11 +754,18 @@ def main() -> None:
                 }
             )
 
+            review_graph = require_graph_next(
+                assistant_client,
+                "start_design_review_session",
+                "stream_design_review",
+            )
+            graph_checks.append(review_graph)
+            review_stream_capability = review_graph["selected_next"]
             review_stream_child = assistant_client.request_delegated_capability_token(
                 principal=AGENT_SUBJECT,
                 parent_token=assistant_parent["token_id"],
-                capability="stream_design_review",
-                scope=["studio.assistant.stream_design_review"],
+                capability=review_stream_capability,
+                scope=[f"studio.assistant.{review_stream_capability}"],
                 subject=AGENT_SUBJECT,
                 auth_bearer=assistant_parent["token"],
                 caller_class="agent",
@@ -723,18 +774,18 @@ def main() -> None:
             review_stream_token = review_stream_child["token"]
             permission_decisions.append(
                 {
-                    "capability": "stream_design_review",
-                    "scope": "studio.assistant.stream_design_review",
-                    "parent": permission_snapshot(assistant_client, assistant_parent["token"], "stream_design_review")["entry"],
+                    "capability": review_stream_capability,
+                    "scope": f"studio.assistant.{review_stream_capability}",
+                    "parent": permission_snapshot(assistant_client, assistant_parent["token"], review_stream_capability)["entry"],
                     "used": "delegated",
                     "budget_requested": None,
-                    "child": permission_snapshot(assistant_client, review_stream_token, "stream_design_review")["entry"],
+                    "child": permission_snapshot(assistant_client, review_stream_token, review_stream_capability)["entry"],
                     "child_token_id": review_stream_child["token_id"],
                 }
             )
             review_stream_ref = f"{slug(brief['name'])}-review-stream-{uuid4().hex[:8]}"
             review_stream_events = assistant_client.invoke_stream(
-                "stream_design_review",
+                review_stream_capability,
                 review_stream_token,
                 {
                     "project_id": project["id"],
@@ -750,13 +801,13 @@ def main() -> None:
             audit_checks.append(
                 {
                     "service": "studio-assistant",
-                    "capability": "stream_design_review",
+                    "capability": review_stream_capability,
                     "client_reference_id": review_stream_ref,
                     "events": review_stream_events,
                     **verify_stream_audit(
                         assistant_client,
                         review_stream_token,
-                        "stream_design_review",
+                        review_stream_capability,
                         client_reference_id=review_stream_ref,
                         invocation_id=review_stream["invocation_id"],
                         mode=audit_mode(assistant_posture),
@@ -854,11 +905,18 @@ def main() -> None:
                 current_req_id = selection.get("requirements_id") or current_req_id
                 scenario_id = selection.get("scenario_id") or scenario_id
                 current_shape_id = selection.get("shape_id") or current_shape_id
+                draft_fix_graph = require_graph_next(
+                    workbench_client,
+                    "draft_fix_from_change",
+                    "evaluate_service_design",
+                )
+                graph_checks.append(draft_fix_graph)
+                followup_capability = draft_fix_graph["selected_next"]
                 follow_ref = f"{slug(brief['name'])}-follow-{uuid4().hex[:8]}"
                 followup_resp = invoke(
                     workbench_client,
                     eval_token,
-                    "evaluate_service_design",
+                    followup_capability,
                     {
                         "project_id": project["id"],
                         "requirements_id": current_req_id,
@@ -871,12 +929,12 @@ def main() -> None:
                 audit_checks.append(
                     {
                         "service": "studio-workbench",
-                        "capability": "evaluate_service_design",
+                        "capability": followup_capability,
                         "client_reference_id": follow_ref,
                         **verify_audit(
                             workbench_client,
                             eval_token,
-                            "evaluate_service_design",
+                            followup_capability,
                             client_reference_id=follow_ref,
                             task_id=None,
                             invocation_id=followup_resp["invocation_id"],
@@ -886,6 +944,20 @@ def main() -> None:
                 )
             scenario_runs.append({"initial": first_eval, "followup": followup})
 
+        graph_checks.append(
+            require_graph_requirement(
+                workbench_client,
+                "generate_business_brief",
+                "evaluate_service_design",
+            )
+        )
+        graph_checks.append(
+            require_graph_requirement(
+                workbench_client,
+                "generate_engineering_contract",
+                "evaluate_service_design",
+            )
+        )
         business_token = resolve_capability_token(
             workbench_client,
             workbench_parent,
@@ -979,6 +1051,7 @@ def main() -> None:
                 "review_stream": review_stream,
                 "scenario_runs": scenario_runs,
                 "permission_decisions": permission_decisions,
+                "graph_checks": graph_checks,
                 "audit_checks": audit_checks,
                 "run_id": run_id,
                 "artifacts_dir": str(project_dir),

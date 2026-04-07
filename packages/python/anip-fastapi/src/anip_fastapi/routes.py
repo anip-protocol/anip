@@ -57,6 +57,30 @@ def mount_anip(
             headers={"X-ANIP-Signature": signature},
         )
 
+    @app.get(f"{prefix}/anip/graph/{{capability}}")
+    async def graph(capability: str):
+        result = service.get_graph(capability)
+        if result is None:
+            return JSONResponse(
+                {
+                    "success": False,
+                    "failure": {
+                        "type": "not_found",
+                        "detail": f"Capability {capability} not found",
+                        "resolution": {
+                            "action": "check_manifest",
+                            "recovery_class": "revalidate_then_retry",
+                            "requires": "GET /anip/manifest to find valid capability names",
+                            "grantable_by": None,
+                            "estimated_availability": None,
+                        },
+                        "retry": False,
+                    },
+                },
+                status_code=404,
+            )
+        return result
+
     # --- Tokens ---
 
     @app.post(f"{prefix}/anip/tokens")
@@ -331,6 +355,7 @@ def _failure_status(failure_type: str | None) -> int:
         "not_found": 404,
         "unavailable": 409,
         "concurrent_lock": 409,
+        "concurrent_request_rejected": 409,
         "internal_error": 500,
     }
     return mapping.get(failure_type or "", 400)

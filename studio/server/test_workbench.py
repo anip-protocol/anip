@@ -107,7 +107,7 @@ def test_workbench_manifest_exposes_round1_dogfood_controls(monkeypatch: pytest.
         assert evaluate["cost"]["financial"]["currency"] == workbench_service.DOGFOOD_EVALUATION_CURRENCY
 
 
-@pytest.mark.parametrize("profile", ["round2", "round4", "round5"])
+@pytest.mark.parametrize("profile", ["round2", "round4", "round5", "round6"])
 def test_workbench_discovery_exposes_anchored_posture(
     monkeypatch: pytest.MonkeyPatch,
     profile: str,
@@ -134,6 +134,28 @@ def test_workbench_manifest_exposes_round5_observability_controls(monkeypatch: p
         assert "read_runtime_observability" in caps
 
 
+def test_workbench_manifest_exposes_round6_graph_relationships(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", "round6")
+    with _mounted_client(monkeypatch) as client:
+        resp = client.get("/studio-workbench/anip/manifest")
+        assert resp.status_code == 200, resp.text
+        caps = resp.json()["capabilities"]
+        assert caps["create_project"]["composes_with"][0]["capability"] == "accept_first_design"
+        assert caps["accept_first_design"]["composes_with"][0]["capability"] == "evaluate_service_design"
+        assert caps["draft_fix_from_change"]["composes_with"][0]["capability"] == "evaluate_service_design"
+        assert caps["generate_business_brief"]["requires"][0]["capability"] == "evaluate_service_design"
+
+
+def test_workbench_graph_route_exposes_round6_relationships(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", "round6")
+    with _mounted_client(monkeypatch) as client:
+        resp = client.get("/studio-workbench/anip/graph/create_project")
+        assert resp.status_code == 200, resp.text
+        graph = resp.json()
+        assert graph["capability"] == "create_project"
+        assert graph["composes_with"][0]["capability"] == "accept_first_design"
+
+
 def test_workbench_round5_exercises_exclusive_contention_and_observability(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", "round5")
     with _mounted_client(monkeypatch) as client:
@@ -156,7 +178,7 @@ def test_workbench_round5_exercises_exclusive_contention_and_observability(monke
                     },
                 },
             )
-            assert resp.status_code in (200, 400), resp.text
+            assert resp.status_code in (200, 409), resp.text
             return resp.json()
 
         with ThreadPoolExecutor(max_workers=1) as executor:

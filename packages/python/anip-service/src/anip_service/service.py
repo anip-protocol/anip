@@ -308,6 +308,7 @@ class ANIPService:
             "posture": posture.model_dump(),
             "endpoints": {
                 "manifest": "/anip/manifest",
+                "graph": "/anip/graph/{capability}",
                 "permissions": "/anip/permissions",
                 "invoke": "/anip/invoke/{capability}",
                 "tokens": "/anip/tokens",
@@ -634,6 +635,29 @@ class ANIPService:
         """Return the capability declaration or None. Used by HTTP bindings for pre-validation."""
         cap = self._capabilities.get(capability_name)
         return cap.declaration if cap else None
+
+    def get_graph(self, capability_name: str) -> dict[str, Any] | None:
+        """Return capability graph relationships for a capability."""
+        decl = self.get_capability_declaration(capability_name)
+        if decl is None:
+            return None
+        return {
+            "capability": decl.name,
+            "requires": [
+                item.model_dump() if hasattr(item, "model_dump") else item
+                for item in decl.requires
+            ],
+            "composes_with": [
+                item.model_dump() if hasattr(item, "model_dump") else item
+                for item in decl.composes_with
+            ],
+            "depends_on": [],
+            "cross_service_contract": (
+                decl.cross_service_contract.model_dump()
+                if decl.cross_service_contract is not None and hasattr(decl.cross_service_contract, "model_dump")
+                else decl.cross_service_contract
+            ),
+        }
 
 
     async def invoke(

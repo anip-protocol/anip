@@ -24,8 +24,10 @@ for path in [
 
 from anip_core import (
     CapabilityDeclaration,
+    CapabilityComposition,
     CapabilityInput,
     CapabilityOutput,
+    CapabilityRequirement,
     ControlRequirement,
     Cost,
     CostCertainty,
@@ -102,6 +104,7 @@ DOGFOOD_ROUND2_PROFILES = {"round2", "audit-posture", "round2-audit-posture"}
 DOGFOOD_ROUND3_PROFILES = {"round3", "streaming-session", "round3-streaming-session"}
 DOGFOOD_ROUND4_PROFILES = {"round4", "checkpoints-proofs", "round4-checkpoints-proofs"}
 DOGFOOD_ROUND5_PROFILES = {"round5", "observability-scaling", "round5-observability-scaling"}
+DOGFOOD_ROUND6_PROFILES = {"round6", "capability-graph", "round6-capability-graph"}
 DOGFOOD_EVALUATION_COST_AMOUNT = 5.0
 DOGFOOD_EVALUATION_CURRENCY = "USD"
 
@@ -132,16 +135,16 @@ def _dogfood_profile() -> str:
 
 def _round1_dogfood_enabled() -> bool:
     return _dogfood_profile() in (
-        DOGFOOD_ROUND1_PROFILES | DOGFOOD_ROUND2_PROFILES | DOGFOOD_ROUND3_PROFILES | DOGFOOD_ROUND4_PROFILES | DOGFOOD_ROUND5_PROFILES
+        DOGFOOD_ROUND1_PROFILES | DOGFOOD_ROUND2_PROFILES | DOGFOOD_ROUND3_PROFILES | DOGFOOD_ROUND4_PROFILES | DOGFOOD_ROUND5_PROFILES | DOGFOOD_ROUND6_PROFILES
     )
 
 
 def _round2_dogfood_enabled() -> bool:
-    return _dogfood_profile() in (DOGFOOD_ROUND2_PROFILES | DOGFOOD_ROUND3_PROFILES | DOGFOOD_ROUND4_PROFILES | DOGFOOD_ROUND5_PROFILES)
+    return _dogfood_profile() in (DOGFOOD_ROUND2_PROFILES | DOGFOOD_ROUND3_PROFILES | DOGFOOD_ROUND4_PROFILES | DOGFOOD_ROUND5_PROFILES | DOGFOOD_ROUND6_PROFILES)
 
 
 def _round5_dogfood_enabled() -> bool:
-    return _dogfood_profile() in DOGFOOD_ROUND5_PROFILES
+    return _dogfood_profile() in (DOGFOOD_ROUND5_PROFILES | DOGFOOD_ROUND6_PROFILES)
 
 
 def _dogfood_control_requirements(name: str) -> list[ControlRequirement]:
@@ -188,7 +191,7 @@ def _dogfood_trust() -> str | dict[str, Any]:
 def _dogfood_checkpoint_policy() -> CheckpointPolicy | None:
     if not _round2_dogfood_enabled():
         return None
-    if _dogfood_profile() in (DOGFOOD_ROUND4_PROFILES | DOGFOOD_ROUND5_PROFILES):
+    if _dogfood_profile() in (DOGFOOD_ROUND4_PROFILES | DOGFOOD_ROUND5_PROFILES | DOGFOOD_ROUND6_PROFILES):
         return CheckpointPolicy(entry_count=1, interval_seconds=1)
     return CheckpointPolicy(entry_count=1)
 
@@ -422,6 +425,8 @@ def _capability(
             minimum_scope=[f"studio.workbench.{name}"],
             cost=_dogfood_cost(name),
             control_requirements=_dogfood_control_requirements(name),
+            requires=_dogfood_graph_requires(name),
+            composes_with=_dogfood_graph_composes_with(name),
             cross_service_contract=(
                 CrossServiceContract(
                     followup=[
@@ -443,6 +448,38 @@ def _capability(
         handler=handler,
         exclusive_lock=exclusive_lock,
     )
+
+
+def _dogfood_graph_requires(name: str) -> list[CapabilityRequirement]:
+    if _dogfood_profile() not in DOGFOOD_ROUND6_PROFILES:
+        return []
+    if name in {"generate_business_brief", "generate_engineering_contract"}:
+        return [
+            CapabilityRequirement(
+                capability="evaluate_service_design",
+                reason="shareable outputs should follow a design evaluation readout",
+            )
+        ]
+    return []
+
+
+def _dogfood_graph_composes_with(name: str) -> list[CapabilityComposition]:
+    if _dogfood_profile() not in DOGFOOD_ROUND6_PROFILES:
+        return []
+    mapping: dict[str, list[tuple[str, bool]]] = {
+        "create_project": [("accept_first_design", False)],
+        "accept_first_design": [("evaluate_service_design", False)],
+        "draft_fix_from_change": [("evaluate_service_design", False)],
+        "evaluate_service_design": [
+            ("draft_fix_from_change", True),
+            ("generate_business_brief", True),
+            ("generate_engineering_contract", True),
+        ],
+    }
+    return [
+        CapabilityComposition(capability=capability, optional=optional)
+        for capability, optional in mapping.get(name, [])
+    ]
 
 
 def _authenticate_bootstrap_bearer(bearer: str) -> str | None:
