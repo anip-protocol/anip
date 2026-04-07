@@ -146,7 +146,7 @@ def issue_root_capability_token(
     *,
     budget: dict | None = None,
     concurrent_branches: str | None = None,
-) -> str:
+) -> dict:
     response = client.request_capability_token(
         principal=AGENT_SUBJECT,
         capability=capability,
@@ -156,7 +156,8 @@ def issue_root_capability_token(
         budget=budget,
         concurrent_branches=concurrent_branches,
     )
-    return response["token"]
+    response["capability"] = capability
+    return response
 
 
 def permission_snapshot(client: ANIPClient, token_jwt: str, capability: str) -> dict:
@@ -176,7 +177,7 @@ def resolve_capability_token(
     *,
     report: list[dict],
     budget: dict | None = None,
-) -> str:
+) -> dict:
     parent_state = permission_snapshot(client, parent_token["token"], capability)
     parent_entry = parent_state["entry"]
     parent_capability = parent_token.get("capability")
@@ -193,7 +194,7 @@ def resolve_capability_token(
     if parent_entry["status"] == "available" and not purpose_mismatch:
         decision["used"] = "parent"
         report.append(decision)
-        return parent_token["token"]
+        return parent_token
 
     if parent_entry["status"] == "denied":
         decision["used"] = "root"
@@ -222,18 +223,19 @@ def resolve_capability_token(
     decision["used"] = "delegated"
     decision["child"] = child_entry
     decision["child_token_id"] = child["token_id"]
+    child["capability"] = capability
     report.append(decision)
 
     if child_entry["status"] != "available":
         raise RuntimeError(
             f"Delegated token for {capability} is still not available: {json.dumps(child_entry, sort_keys=True)}"
         )
-    return child["token"]
+    return child
 
 
 def invoke(
     client: ANIPClient,
-    token: str,
+    token_info: dict,
     capability: str,
     parameters: dict,
     *,
@@ -244,10 +246,10 @@ def invoke(
 ) -> dict:
     return client.invoke(
         capability,
-        token,
+        token_info["token"],
         parameters,
         client_reference_id=client_reference_id,
-        task_id=task_id,
+        task_id=task_id or token_info.get("task_id"),
         parent_invocation_id=parent_invocation_id,
         upstream_service=upstream_service,
     )
@@ -255,7 +257,7 @@ def invoke(
 
 def verify_audit(
     client: ANIPClient,
-    token: str,
+    token_info: dict,
     capability: str,
     *,
     client_reference_id: str,
@@ -263,11 +265,12 @@ def verify_audit(
     invocation_id: str,
     mode: str,
 ) -> dict:
+    resolved_task_id = task_id or token_info.get("task_id")
     audit = client.query_audit(
-        token,
+        token_info["token"],
         capability=capability,
         client_reference_id=client_reference_id,
-        task_id=task_id,
+        task_id=resolved_task_id,
         limit=20,
     )
     entries = audit.get("entries", [])
@@ -276,7 +279,8 @@ def verify_audit(
         "count": len(entries),
         "matched_client_reference_id": any(entry.get("client_reference_id") == client_reference_id for entry in entries),
         "matched_invocation_id": any(entry.get("invocation_id") == invocation_id for entry in entries),
-        "matched_task_id": task_id is not None and any(entry.get("task_id") == task_id for entry in entries),
+        "matched_task_id": resolved_task_id is not None
+        and any(entry.get("task_id") == resolved_task_id for entry in entries),
         "event_classes": sorted({entry.get("event_class") for entry in entries if entry.get("event_class")}),
     }
     if mode == "skip":
@@ -286,24 +290,26 @@ def verify_audit(
     if mode == "strict":
         if not verification["matched_invocation_id"]:
             raise RuntimeError(f"Audit did not return invocation_id {invocation_id} for {capability}")
-        if task_id is not None and not verification["matched_task_id"]:
-            raise RuntimeError(f"Audit did not return task_id {task_id} for {capability}")
+        if resolved_task_id is not None and not verification["matched_task_id"]:
+            raise RuntimeError(f"Audit did not return task_id {resolved_task_id} for {capability}")
     return {"audit": audit, "verification": verification}
 
 
 def verify_stream_audit(
     client: ANIPClient,
-    token: str,
+    token_info: dict,
     capability: str,
     *,
     client_reference_id: str,
     invocation_id: str,
     mode: str,
 ) -> dict:
+    resolved_task_id = token_info.get("task_id")
     audit = client.query_audit(
-        token,
+        token_info["token"],
         capability=capability,
         client_reference_id=client_reference_id,
+        task_id=resolved_task_id,
         limit=20,
     )
     entries = audit.get("entries", [])
@@ -317,6 +323,7 @@ def verify_stream_audit(
         "mode": mode,
         "matched_client_reference_id": entry.get("client_reference_id") == client_reference_id,
         "matched_invocation_id": entry.get("invocation_id") == invocation_id,
+        "matched_task_id": resolved_task_id is not None and entry.get("task_id") == resolved_task_id,
         "events_emitted": stream_summary.get("events_emitted"),
         "response_mode": stream_summary.get("response_mode"),
     }
@@ -326,6 +333,8 @@ def verify_stream_audit(
         raise RuntimeError(f"Streaming audit recorded wrong response mode for {capability}: {verification['response_mode']}")
     if not isinstance(verification["events_emitted"], int) or verification["events_emitted"] < 1:
         raise RuntimeError(f"Streaming audit did not record emitted events for {capability}")
+    if mode == "strict" and resolved_task_id is not None and not verification["matched_task_id"]:
+        raise RuntimeError(f"Streaming audit did not return task_id {resolved_task_id} for {capability}")
     return {"audit": audit, "verification": verification}
 
 
@@ -450,16 +459,18 @@ def verify_round5_observability(
     contend_ref = f"round5-contend-{uuid4().hex[:8]}"
     with ThreadPoolExecutor(max_workers=1) as executor:
         first = executor.submit(
-            client.invoke,
-            "hold_exclusive_probe",
+            invoke,
+            client,
             hold_token,
+            "hold_exclusive_probe",
             {"hold_seconds": 2, "label": "primary"},
-            hold_ref,
+            client_reference_id=hold_ref,
         )
         time.sleep(0.25)
-        second = client.invoke(
-            "hold_exclusive_probe",
+        second = invoke(
+            client,
             hold_token,
+            "hold_exclusive_probe",
             {"hold_seconds": 0.1, "label": "contender"},
             client_reference_id=contend_ref,
         )
@@ -472,9 +483,10 @@ def verify_round5_observability(
     if second.get("failure", {}).get("type") != "concurrent_request_rejected":
         raise RuntimeError(f"Contending exclusive probe returned wrong failure: {json.dumps(second, sort_keys=True)}")
 
-    observability = client.invoke(
-        "read_runtime_observability",
+    observability = invoke(
+        client,
         read_token,
+        "read_runtime_observability",
         {},
         client_reference_id=f"round5-observability-{uuid4().hex[:8]}",
     )
@@ -609,7 +621,7 @@ def main() -> None:
                     create_project_token,
                     "create_project",
                     client_reference_id=create_project_ref,
-                    task_id=None,
+                    task_id=create_project_token.get("task_id"),
                     invocation_id=project_resp["invocation_id"],
                     mode=audit_mode(workbench_posture),
                 ),
@@ -643,7 +655,7 @@ def main() -> None:
                     interpret_token,
                     "interpret_project_intent",
                     client_reference_id=interpret_ref,
-                    task_id=None,
+                    task_id=interpret_token.get("task_id"),
                     invocation_id=interpretation_resp["invocation_id"],
                     mode=audit_mode(assistant_posture),
                 ),
@@ -688,7 +700,7 @@ def main() -> None:
                     accept_token,
                     accept_capability,
                     client_reference_id=accept_ref,
-                    task_id=None,
+                    task_id=accept_token.get("task_id"),
                     invocation_id=accepted_resp["invocation_id"],
                     mode=audit_mode(workbench_posture),
                 ),
@@ -712,7 +724,8 @@ def main() -> None:
                 caller_class="agent",
                 ttl_hours=1,
             )
-            review_start_token = review_start_child["token"]
+            review_start_child["capability"] = "start_design_review_session"
+            review_start_token = review_start_child
             permission_decisions.append(
                 {
                     "capability": "start_design_review_session",
@@ -720,7 +733,7 @@ def main() -> None:
                     "parent": permission_snapshot(assistant_client, assistant_parent["token"], "start_design_review_session")["entry"],
                     "used": "delegated",
                     "budget_requested": None,
-                    "child": permission_snapshot(assistant_client, review_start_token, "start_design_review_session")["entry"],
+                    "child": permission_snapshot(assistant_client, review_start_token["token"], "start_design_review_session")["entry"],
                     "child_token_id": review_start_child["token_id"],
                 }
             )
@@ -742,15 +755,15 @@ def main() -> None:
                     "service": "studio-assistant",
                     "capability": "start_design_review_session",
                     "client_reference_id": review_start_ref,
-                    **verify_audit(
-                        assistant_client,
-                        review_start_token,
-                        "start_design_review_session",
-                        client_reference_id=review_start_ref,
-                        task_id=None,
-                        invocation_id=review_start_resp["invocation_id"],
-                        mode=audit_mode(assistant_posture),
-                    ),
+                **verify_audit(
+                    assistant_client,
+                    review_start_token,
+                    "start_design_review_session",
+                    client_reference_id=review_start_ref,
+                    task_id=review_start_token.get("task_id"),
+                    invocation_id=review_start_resp["invocation_id"],
+                    mode=audit_mode(assistant_posture),
+                ),
                 }
             )
 
@@ -771,7 +784,8 @@ def main() -> None:
                 caller_class="agent",
                 ttl_hours=1,
             )
-            review_stream_token = review_stream_child["token"]
+            review_stream_child["capability"] = review_stream_capability
+            review_stream_token = review_stream_child
             permission_decisions.append(
                 {
                     "capability": review_stream_capability,
@@ -779,20 +793,21 @@ def main() -> None:
                     "parent": permission_snapshot(assistant_client, assistant_parent["token"], review_stream_capability)["entry"],
                     "used": "delegated",
                     "budget_requested": None,
-                    "child": permission_snapshot(assistant_client, review_stream_token, review_stream_capability)["entry"],
+                    "child": permission_snapshot(assistant_client, review_stream_token["token"], review_stream_capability)["entry"],
                     "child_token_id": review_stream_child["token_id"],
                 }
             )
             review_stream_ref = f"{slug(brief['name'])}-review-stream-{uuid4().hex[:8]}"
             review_stream_events = assistant_client.invoke_stream(
                 review_stream_capability,
-                review_stream_token,
+                review_stream_token["token"],
                 {
                     "project_id": project["id"],
                     "session_id": review_session["session_id"],
                     "question": "What should the PM pressure next?",
                 },
                 client_reference_id=review_stream_ref,
+                task_id=review_stream_token.get("task_id"),
             )
             completed_event = next((event for event in review_stream_events if event["event"] == "completed"), None)
             if completed_event is None:
@@ -856,15 +871,15 @@ def main() -> None:
                     "service": "studio-workbench",
                     "capability": "evaluate_service_design",
                     "client_reference_id": eval_ref,
-                    **verify_audit(
-                        workbench_client,
-                        eval_token,
-                        "evaluate_service_design",
-                        client_reference_id=eval_ref,
-                        task_id=None,
-                        invocation_id=first_eval_resp["invocation_id"],
-                        mode=audit_mode(workbench_posture),
-                    ),
+                **verify_audit(
+                    workbench_client,
+                    eval_token,
+                    "evaluate_service_design",
+                    client_reference_id=eval_ref,
+                    task_id=eval_token.get("task_id"),
+                    invocation_id=first_eval_resp["invocation_id"],
+                    mode=audit_mode(workbench_posture),
+                ),
                 }
             )
             followup = None
@@ -895,7 +910,7 @@ def main() -> None:
                             draft_fix_token,
                             "draft_fix_from_change",
                             client_reference_id=fix_ref,
-                            task_id=None,
+                            task_id=draft_fix_token.get("task_id"),
                             invocation_id=fix_resp["invocation_id"],
                             mode=audit_mode(workbench_posture),
                         ),
@@ -936,7 +951,7 @@ def main() -> None:
                             eval_token,
                             followup_capability,
                             client_reference_id=follow_ref,
-                            task_id=None,
+                            task_id=eval_token.get("task_id"),
                             invocation_id=followup_resp["invocation_id"],
                             mode=audit_mode(workbench_posture),
                         ),
@@ -999,7 +1014,7 @@ def main() -> None:
                     business_token,
                     "generate_business_brief",
                     client_reference_id=business_ref,
-                    task_id=None,
+                    task_id=business_token.get("task_id"),
                     invocation_id=business_resp["invocation_id"],
                     mode=audit_mode(workbench_posture),
                 ),
@@ -1029,7 +1044,7 @@ def main() -> None:
                     engineering_token,
                     "generate_engineering_contract",
                     client_reference_id=engineering_ref,
-                    task_id=None,
+                    task_id=engineering_token.get("task_id"),
                     invocation_id=engineering_resp["invocation_id"],
                     mode=audit_mode(workbench_posture),
                 ),
