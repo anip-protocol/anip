@@ -39,9 +39,12 @@ export function normalizeDiscovery(raw: any): NormalizedDiscovery {
     };
   }
 
+  // Real ANIP discovery wraps everything in `anip_discovery`.
+  const doc = raw.anip_discovery ?? raw;
+
   const endpoints: Record<string, string> = {};
-  if (raw.endpoints && typeof raw.endpoints === "object") {
-    for (const [key, value] of Object.entries(raw.endpoints)) {
+  if (doc.endpoints && typeof doc.endpoints === "object") {
+    for (const [key, value] of Object.entries(doc.endpoints)) {
       if (typeof value === "string") {
         endpoints[key] = value;
       }
@@ -49,30 +52,30 @@ export function normalizeDiscovery(raw: any): NormalizedDiscovery {
   }
 
   const profiles: Record<string, string> = {};
-  if (raw.profiles && typeof raw.profiles === "object") {
-    for (const [key, value] of Object.entries(raw.profiles)) {
-      if (typeof value === "string") {
-        profiles[key] = value;
-      }
-    }
-  }
-  // Also accept profile (singular) as some discovery docs use that key.
-  if (!Object.keys(profiles).length && raw.profile && typeof raw.profile === "object") {
-    for (const [key, value] of Object.entries(raw.profile)) {
+  // Accept both `profile` (spec) and `profiles` (common variant).
+  const profileSource = doc.profile ?? doc.profiles;
+  if (profileSource && typeof profileSource === "object") {
+    for (const [key, value] of Object.entries(profileSource)) {
       if (typeof value === "string") {
         profiles[key] = value;
       }
     }
   }
 
-  const capabilities: string[] = Array.isArray(raw.capabilities)
-    ? raw.capabilities.filter((c: unknown) => typeof c === "string")
-    : [];
+  // Capabilities can be:
+  // - an array of strings: ["search_flights", "book_flight"]
+  // - an object map: { search_flights: { contract: "1.0", ... }, ... }
+  let capabilities: string[] = [];
+  if (Array.isArray(doc.capabilities)) {
+    capabilities = doc.capabilities.filter((c: unknown) => typeof c === "string");
+  } else if (doc.capabilities && typeof doc.capabilities === "object") {
+    capabilities = Object.keys(doc.capabilities);
+  }
 
   return {
-    protocol: raw.protocol ?? "unknown",
-    compliance: raw.compliance ?? "unknown",
-    trustLevel: raw.trust?.level ?? undefined,
+    protocol: doc.protocol ?? "unknown",
+    compliance: doc.compliance ?? "unknown",
+    trustLevel: doc.trust?.level ?? undefined,
     endpoints,
     profiles,
     capabilities,

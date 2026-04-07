@@ -129,7 +129,7 @@ export class ANIPClient {
   async queryPermissions(token: string): Promise<NormalizedPermissions> {
     const path = this.resolveEndpoint("permissions");
     const raw = await this.json(path, {
-      method: "GET",
+      method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -146,7 +146,7 @@ export class ANIPClient {
     apiKeyOrToken: string,
     request: TokenIssueRequest,
   ): Promise<NormalizedTokenResponse> {
-    const path = this.resolveEndpoint("token");
+    const path = this.resolveEndpoint("tokens");
     const body: Record<string, unknown> = {
       scope: request.scope,
     };
@@ -239,21 +239,18 @@ export class ANIPClient {
     const path = this.resolveEndpoint("invoke", { capability });
 
     const body: Record<string, unknown> = {
-      token,
       parameters: params,
     };
+    if (opts?.taskId) body.task_id = opts.taskId;
+    if (opts?.parentInvocationId) body.parent_invocation_id = opts.parentInvocationId;
     if (opts?.clientReferenceId) body.client_reference_id = opts.clientReferenceId;
-
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (opts?.taskId) headers["X-ANIP-Task-Id"] = opts.taskId;
-    if (opts?.parentInvocationId)
-      headers["X-ANIP-Parent-Invocation-Id"] = opts.parentInvocationId;
 
     const raw = await this.json(path, {
       method: "POST",
-      headers,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(body),
     });
 
@@ -269,20 +266,19 @@ export class ANIPClient {
     filters?: { taskId?: string; afterId?: string; limit?: number },
   ): Promise<NormalizedAuditResult> {
     const basePath = this.resolveEndpoint("audit");
-    const searchParams = new URLSearchParams();
-    if (filters?.taskId) searchParams.set("task_id", filters.taskId);
-    if (filters?.afterId) searchParams.set("after_id", filters.afterId);
-    if (filters?.limit !== undefined)
-      searchParams.set("limit", String(filters.limit));
 
-    const qs = searchParams.toString();
-    const path = qs ? `${basePath}?${qs}` : basePath;
+    const body: Record<string, unknown> = {};
+    if (filters?.taskId) body.task_id = filters.taskId;
+    if (filters?.afterId) body.after_id = filters.afterId;
+    if (filters?.limit !== undefined) body.limit = filters.limit;
 
-    const raw = await this.json(path, {
-      method: "GET",
+    const raw = await this.json(basePath, {
+      method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify(body),
     });
 
     return {
@@ -322,7 +318,7 @@ const defaultEndpoints: Record<string, string> = {
   manifest: "/anip/manifest",
   invoke: "/anip/invoke/{capability}",
   permissions: "/anip/permissions",
-  token: "/anip/token",
+  tokens: "/anip/tokens",
   audit: "/anip/audit",
   graph: "/anip/graph/{capability}",
   checkpoints: "/anip/checkpoints",
