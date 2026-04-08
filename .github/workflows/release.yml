@@ -515,7 +515,7 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: |
-          docker build -t anipprotocol/studio:"$VERSION" -t anipprotocol/studio:latest studio/
+          docker build -t anipprotocol/studio:"$VERSION" -t anipprotocol/studio:latest -f studio/Dockerfile.standalone .
           docker push anipprotocol/studio:"$VERSION"
           docker push anipprotocol/studio:latest
 
