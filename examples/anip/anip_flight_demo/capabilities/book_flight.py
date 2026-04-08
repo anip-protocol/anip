@@ -1,9 +1,9 @@
 """book_flight capability -- irreversible, financial side effect."""
 from anip_service import Capability, InvocationContext, ANIPError
 from anip_core import (
-    CapabilityDeclaration, CapabilityInput, CapabilityOutput, CapabilityRequirement,
-    Cost, CostCertainty, CrossServiceHints, FinancialCost, ObservabilityContract,
-    ServiceCapabilityRef, SessionInfo, SideEffect, SideEffectType,
+    BindingRequirement, CapabilityDeclaration, CapabilityInput, CapabilityOutput,
+    CapabilityRequirement, Cost, CostCertainty, CrossServiceHints, FinancialCost,
+    ObservabilityContract, ServiceCapabilityRef, SessionInfo, SideEffect, SideEffectType,
 )
 from anip_flight_demo.domain.flights import create_booking, get_flight
 
@@ -17,6 +17,10 @@ DECLARATION = CapabilityDeclaration(
         CapabilityInput(
             name="passengers", type="integer", required=False, default=1,
             description="Number of passengers",
+        ),
+        CapabilityInput(
+            name="quote_id", type="object", required=False,
+            description="Priced quote from search_flights containing id, price, and issued_at",
         ),
     ],
     output=CapabilityOutput(type="booking_confirmation", fields=["booking_id", "flight_number", "departure_time", "total_cost"]),
@@ -39,6 +43,15 @@ DECLARATION = CapabilityDeclaration(
             reason="must select from available flights before booking",
         ),
     ],
+    requires_binding=[
+        BindingRequirement(
+            type="quote",
+            field="quote_id",
+            source_capability="search_flights",
+            max_age="PT15M",
+        ),
+    ],
+    refresh_via=["search_flights"],
     session=SessionInfo(),
     observability=ObservabilityContract(
         logged=True, retention="P90D",
@@ -62,7 +75,20 @@ def _handle_book(ctx: InvocationContext, params: dict) -> dict:
 
     flight = get_flight(flight_number, date)
     if flight is None:
-        raise ANIPError("capability_unavailable", f"flight {flight_number} on {date} not found")
+        raise ANIPError(
+            "capability_unavailable",
+            f"flight {flight_number} on {date} not found",
+            resolution={
+                "action": "search_flights",
+                "recovery_class": "refresh_then_retry",
+                "recovery_target": {
+                    "kind": "refresh",
+                    "target": {"service": "travel-booking", "capability": "search_flights"},
+                    "continuity": "same_task",
+                    "retry_after_target": True,
+                },
+            },
+        )
 
     booking = create_booking(
         flight=flight,

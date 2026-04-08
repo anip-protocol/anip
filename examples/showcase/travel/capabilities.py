@@ -195,12 +195,35 @@ def _handle_book(ctx: InvocationContext, params: dict) -> dict:
 
     flight = data.get_flight(flight_number)
     if flight is None:
-        raise ANIPError("capability_unavailable", f"Flight {flight_number} not found")
+        raise ANIPError(
+            "capability_unavailable",
+            f"Flight {flight_number} not found",
+            resolution={
+                "action": "search_flights",
+                "recovery_class": "refresh_then_retry",
+                "recovery_target": {
+                    "kind": "refresh",
+                    "target": {"service": "travel-booking", "capability": "search_flights"},
+                    "continuity": "same_task",
+                    "retry_after_target": True,
+                },
+            },
+        )
 
     if flight.seats_available < passengers:
         raise ANIPError(
             "capability_unavailable",
             f"Only {flight.seats_available} seats left on {flight_number}",
+            resolution={
+                "action": "check_availability",
+                "recovery_class": "refresh_then_retry",
+                "recovery_target": {
+                    "kind": "refresh",
+                    "target": {"service": "travel-booking", "capability": "check_availability"},
+                    "continuity": "same_task",
+                    "retry_after_target": True,
+                },
+            },
         )
 
     booking = data.create_booking(
@@ -259,7 +282,19 @@ def _handle_cancel(ctx: InvocationContext, params: dict) -> dict:
     try:
         booking = data.cancel_booking(booking_id)
     except KeyError:
-        raise ANIPError("capability_unavailable", f"Booking {booking_id} not found")
+        raise ANIPError(
+            "capability_unavailable",
+            f"Booking {booking_id} not found",
+            resolution={
+                "action": "revalidate_booking_id",
+                "recovery_class": "revalidation",
+                "recovery_target": {
+                    "kind": "revalidation",
+                    "continuity": "same_task",
+                    "retry_after_target": True,
+                },
+            },
+        )
     except ValueError as exc:
         raise ANIPError("invalid_parameters", str(exc))
 

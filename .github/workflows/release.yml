@@ -176,7 +176,7 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           FAILED=0
-          for pkg in core crypto server service hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql stdio; do
+          for pkg in core crypto server service hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql stdio client vue react angular studio; do
             PKG_VERSION=$(node -p "require('./$pkg/package.json').version")
             if [ "$PKG_VERSION" != "$VERSION" ]; then
               echo "FAIL: $pkg version is $PKG_VERSION, expected $VERSION"
@@ -198,7 +198,7 @@ jobs:
             done
           done
           if [ "$FAILED" -eq 1 ]; then exit 1; fi
-          echo "All 13 TypeScript packages and internal deps at version $VERSION"
+          echo "All 19 TypeScript packages and internal deps at version $VERSION"
 
       - name: Validate Python package versions and internal deps
         env:
@@ -290,7 +290,7 @@ jobs:
       - name: Dry run — verify packages
         working-directory: packages/typescript
         run: |
-          for pkg in core crypto server service hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql stdio; do
+          for pkg in core crypto server service hono express fastify mcp mcp-hono mcp-express mcp-fastify rest graphql stdio client vue react angular studio; do
             echo "=== Checking $pkg ==="
             cd $pkg && npm pack --dry-run && cd ..
           done
@@ -351,6 +351,14 @@ jobs:
           publish_or_skip graphql
           publish_or_skip stdio
           publish_or_skip studio
+
+          # Layer 9: depends on core (consumer client)
+          publish_or_skip client
+
+          # Layer 10: depends on client (consumer framework adapters)
+          publish_or_skip vue
+          publish_or_skip react
+          publish_or_skip angular
 
   publish-python:
     needs: bump-and-validate
@@ -618,6 +626,10 @@ jobs:
           | \`@anip-dev/rest\` | \`npm i @anip-dev/rest@$VERSION\` |
           | \`@anip-dev/graphql\` | \`npm i @anip-dev/graphql@$VERSION\` |
           | \`@anip-dev/stdio\` | \`npm i @anip-dev/stdio@$VERSION\` |
+          | \`@anip-dev/client\` | \`npm i @anip-dev/client@$VERSION\` |
+          | \`@anip-dev/vue\` | \`npm i @anip-dev/vue@$VERSION\` |
+          | \`@anip-dev/react\` | \`npm i @anip-dev/react@$VERSION\` |
+          | \`@anip-dev/angular\` | \`npm i @anip-dev/angular@$VERSION\` |
 
           ### Python (PyPI)
           | Package | Install |

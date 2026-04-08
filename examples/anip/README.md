@@ -92,4 +92,4 @@ When configured, the service validates external OIDC JWTs and maps claims to ANI
 | `/anip/checkpoints` | GET | List checkpoints |
 | `/anip/checkpoints/{id}` | GET | Get checkpoint with proofs |
 
-> **Note (v0.4):** Invocation responses from `/anip/invoke/{capability}` include `invocation_id` and `client_reference_id` fields for lineage tracking across delegation chains.
+> Invocation responses from `/anip/invoke/{capability}` include `invocation_id` and `client_reference_id` fields for lineage tracking across delegation chains.

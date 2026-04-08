@@ -211,7 +211,18 @@ func handleBookFlight(ctx *service.InvocationContext, params map[string]any) (ma
 
 	f := findFlight(flightNumber, date)
 	if f == nil {
-		return nil, core.NewANIPError(core.FailureUnavailable, fmt.Sprintf("flight %s on %s not found", flightNumber, date))
+		e := core.NewANIPError(core.FailureUnavailable, fmt.Sprintf("flight %s on %s not found", flightNumber, date))
+		e.Resolution = &core.Resolution{
+			Action:        "search_flights",
+			RecoveryClass: "refresh_then_retry",
+			RecoveryTarget: &core.RecoveryTarget{
+				Kind:             "refresh",
+				Target:           &core.ServiceCapabilityRef{Service: "travel-booking", Capability: "search_flights"},
+				Continuity:       "same_task",
+				RetryAfterTarget: true,
+			},
+		}
+		return nil, e
 	}
 
 	price := f.Price

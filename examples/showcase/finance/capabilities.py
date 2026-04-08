@@ -124,6 +124,7 @@ _TRADE_DECL = CapabilityDeclaration(
             reason="must check current market price before executing trade",
         ),
     ],
+    refresh_via=["get_market_data"],
     session=SessionInfo(),
     observability=ObservabilityContract(
         logged=True, retention="P365D",
@@ -152,7 +153,19 @@ def _handle_execute_trade(ctx: InvocationContext, params: dict) -> dict:
             on_behalf_of=ctx.root_principal,
         )
     except ValueError as exc:
-        raise ANIPError("invalid_parameters", str(exc))
+        raise ANIPError(
+            "invalid_parameters", str(exc),
+            resolution={
+                "action": "get_market_data",
+                "recovery_class": "refresh_then_retry",
+                "recovery_target": {
+                    "kind": "refresh",
+                    "target": {"service": "finance-ops", "capability": "get_market_data"},
+                    "continuity": "same_task",
+                    "retry_after_target": True,
+                },
+            },
+        )
 
     ctx.set_cost_actual({"financial": {"amount": trade.total_cost, "currency": trade.currency}})
 
@@ -230,7 +243,19 @@ def _handle_transfer_funds(ctx: InvocationContext, params: dict) -> dict:
             on_behalf_of=ctx.root_principal,
         )
     except ValueError as exc:
-        raise ANIPError("invalid_parameters", str(exc))
+        raise ANIPError(
+            "invalid_parameters", str(exc),
+            resolution={
+                "action": "query_portfolio",
+                "recovery_class": "refresh_then_retry",
+                "recovery_target": {
+                    "kind": "revalidation",
+                    "target": {"service": "finance-ops", "capability": "query_portfolio"},
+                    "continuity": "same_task",
+                    "retry_after_target": True,
+                },
+            },
+        )
 
     ctx.set_cost_actual({"financial": {"amount": transfer.fee, "currency": transfer.currency}})
 

@@ -516,7 +516,7 @@ def run_agent_loop(
 
     while tool_call_count < MAX_TOOL_CALLS:
         response = claude.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6-20250620",
             max_tokens=1024,
             system=system_prompt,
             tools=tools,  # type: ignore[arg-type]

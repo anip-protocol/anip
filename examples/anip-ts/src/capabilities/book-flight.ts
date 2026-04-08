@@ -67,7 +67,20 @@ export const bookFlight = defineCapability({
 
     const flight = getFlight(flightNumber, date);
     if (!flight) {
-      throw new ANIPError("capability_unavailable", `flight ${flightNumber} on ${date} not found`);
+      throw new ANIPError(
+        "capability_unavailable",
+        `flight ${flightNumber} on ${date} not found`,
+        {
+          action: "search_flights",
+          recovery_class: "refresh_then_retry",
+          recovery_target: {
+            kind: "refresh",
+            target: { service: "travel-booking", capability: "search_flights" },
+            continuity: "same_task",
+            retry_after_target: true,
+          },
+        },
+      );
     }
 
     const booking = createBooking(flight, passengers, ctx.subject, ctx.rootPrincipal);
