@@ -122,7 +122,7 @@ class TestInvoke:
                 "flight_number": "AA100",
                 "date": "2026-03-10",
                 "passengers": 1,
-                "quote_id": {"id": "qt-test-1234", "price": 420, "issued_at": 1743300000},
+                "quote_id": {"id": "qt-test-1234", "price": 420, "issued_at": int(__import__('time').time())},
             }},
         )
         assert resp.status_code == 200
