@@ -27,7 +27,7 @@ export interface ANIPClientOptions {
 }
 
 export class ANIPClient {
-  private readonly baseUrl: string;
+  private baseUrl: string;
   private readonly timeout: number;
 
   /** Cached discovery document. */
@@ -39,6 +39,18 @@ export class ANIPClient {
     // Strip trailing slash for consistent path joining.
     this.baseUrl = baseUrl.replace(/\/+$/, "");
     this.timeout = opts?.timeout ?? 30_000;
+  }
+
+  /**
+   * Update the target ANIP service URL and clear cached discovery/manifest
+   * state when switching services.
+   */
+  setBaseUrl(baseUrl: string): void {
+    const normalized = baseUrl.replace(/\/+$/, "");
+    if (normalized === this.baseUrl) return;
+    this.baseUrl = normalized;
+    this.discoveryCache = null;
+    this.manifestCache = null;
   }
 
   // -----------------------------------------------------------------------
@@ -109,8 +121,16 @@ export class ANIPClient {
 
   async getManifest(): Promise<NormalizedManifest> {
     const path = this.resolveEndpoint("manifest");
-    const raw = await this.json(path);
-    this.manifestCache = normalizeManifest(raw);
+    const response = await this.request(path);
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(
+        `ANIP request failed: ${response.status} ${response.statusText} — ${body}`,
+      );
+    }
+    const raw = await response.json();
+    const signature = response.headers?.get?.("X-ANIP-Signature") ?? undefined;
+    this.manifestCache = normalizeManifest(raw, { signature });
     return this.manifestCache;
   }
 

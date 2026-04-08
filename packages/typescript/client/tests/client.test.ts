@@ -185,13 +185,19 @@ describe("normalizePermissions", () => {
       ],
     });
 
-    expect(result.available).toEqual(["search_flights", "get_quote"]);
+    expect(result.available).toEqual([
+      { capability: "search_flights", scopeMatch: "travel.search" },
+      { capability: "get_quote", scopeMatch: "travel.quote" },
+    ]);
     expect(result.restricted).toHaveLength(1);
     expect(result.restricted[0].capability).toBe("book_flight");
+    expect(result.restricted[0].reason).toBe("Scope insufficient");
     expect(result.restricted[0].reasonType).toBe("scope_insufficient");
+    expect(result.restricted[0].grantableBy).toBe("root");
     expect(result.restricted[0].resolutionHint).toBe("Request travel.book scope");
     expect(result.denied).toHaveLength(1);
     expect(result.denied[0].capability).toBe("admin_override");
+    expect(result.denied[0].reason).toBe("Non-delegable");
     expect(result.denied[0].reasonType).toBe("non_delegable_action");
   });
 
@@ -215,7 +221,7 @@ describe("normalizePermissions", () => {
 
   it("handles missing arrays gracefully", () => {
     const result = normalizePermissions({ available: [{ capability: "cap1" }] });
-    expect(result.available).toEqual(["cap1"]);
+    expect(result.available).toEqual([{ capability: "cap1", scopeMatch: undefined }]);
     expect(result.restricted).toEqual([]);
     expect(result.denied).toEqual([]);
   });
@@ -250,7 +256,8 @@ describe("normalizeDiscovery", () => {
     expect(result.endpoints.manifest).toBe("/anip/manifest");
     expect(result.endpoints.invoke).toBe("/anip/invoke/{capability}");
     expect(result.profiles.core).toBe("1.0");
-    expect(result.capabilities).toEqual(["search_flights", "book_flight"]);
+    expect(result.capabilityNames).toEqual(["search_flights", "book_flight"]);
+    expect(Object.keys(result.capabilities)).toEqual(["search_flights", "book_flight"]);
   });
 
   it("handles missing trust level", () => {
@@ -268,7 +275,8 @@ describe("normalizeDiscovery", () => {
     expect(result.protocol).toBe("unknown");
     expect(result.compliance).toBe("unknown");
     expect(result.endpoints).toEqual({});
-    expect(result.capabilities).toEqual([]);
+    expect(result.capabilityNames).toEqual([]);
+    expect(result.capabilities).toEqual({});
   });
 
   it("accepts profile (singular) as fallback for profiles", () => {
@@ -291,6 +299,9 @@ describe("normalizeManifest", () => {
   it("normalizes a manifest with capabilities", () => {
     const result = normalizeManifest({
       protocol: "anip/0.22",
+      manifest_metadata: { version: "1", sha256: "abc" },
+      service_identity: { id: "svc", jwks_uri: "/jwks", issuer_mode: "self" },
+      trust: { level: "signed" },
       profile: { core: "1.0" },
       capabilities: {
         search_flights: {
@@ -331,6 +342,9 @@ describe("normalizeManifest", () => {
     });
 
     expect(result.protocol).toBe("anip/0.22");
+    expect(result.manifestMetadata?.version).toBe("1");
+    expect(result.serviceIdentity?.id).toBe("svc");
+    expect(result.trust?.level).toBe("signed");
     expect(Object.keys(result.capabilities)).toHaveLength(2);
 
     const search = result.capabilities.search_flights;
@@ -340,11 +354,14 @@ describe("normalizeManifest", () => {
     expect(search.responseModes).toEqual(["unary"]);
     expect(search.cost?.financial?.currency).toBe("USD");
     expect(search.cost?.financial?.estimatedAmount).toBe(0.01);
+    expect(search.raw.name).toBe("search_flights");
 
     const book = result.capabilities.book_flight;
     expect(book.sideEffect.type).toBe("write");
     expect(book.sideEffect.rollbackWindow).toBe("PT24H");
     expect(book.responseModes).toEqual(["unary", "streaming"]);
+    expect(book.contractVersion).toBeUndefined();
+    expect(book.inputs).toEqual([]);
     expect(book.controlRequirements).toHaveLength(1);
     expect(book.controlRequirements![0].type).toBe("cost_ceiling");
     expect(book.graph?.requires).toHaveLength(1);
@@ -360,6 +377,7 @@ describe("normalizeManifest", () => {
     const result = normalizeManifest(null);
     expect(result.protocol).toBe("unknown");
     expect(result.capabilities).toEqual({});
+    expect(result.raw).toEqual({});
   });
 
   it("handles empty capabilities", () => {
@@ -590,13 +608,41 @@ describe("ANIPClient discover", () => {
     const client = new ANIPClient("https://example.com");
     const disc = await client.discover();
     expect(disc.protocol).toBe("anip/0.22");
-    expect(disc.capabilities).toEqual(["search_flights"]);
+    expect(disc.capabilityNames).toEqual(["search_flights"]);
 
-    await client.getManifest();
+    const manifest = await client.getManifest();
+    expect(manifest.signature).toBeUndefined();
 
     // Verify the manifest request used the discovered custom path
     const manifestCall = fetchSpy.mock.calls[1];
     expect(manifestCall[0]).toBe("https://example.com/custom/manifest");
+  });
+
+  it("captures manifest signature headers", async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          protocol: "anip/0.22",
+          compliance: "full",
+          endpoints: { manifest: "/anip/manifest" },
+          capabilities: [],
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ "X-ANIP-Signature": "sig-123" }),
+        json: async () => ({
+          protocol: "anip/0.22",
+          capabilities: {},
+        }),
+      } as Response);
+
+    const client = new ANIPClient("https://example.com");
+    await client.discover();
+    const manifest = await client.getManifest();
+    expect(manifest.signature).toBe("sig-123");
   });
 });
 

@@ -33,9 +33,11 @@ export function normalizeDiscovery(raw: any): NormalizedDiscovery {
     return {
       protocol: "unknown",
       compliance: "unknown",
+      capabilityNames: [],
       endpoints: {},
       profiles: {},
-      capabilities: [],
+      capabilities: {},
+      raw: {},
     };
   }
 
@@ -65,19 +67,51 @@ export function normalizeDiscovery(raw: any): NormalizedDiscovery {
   // Capabilities can be:
   // - an array of strings: ["search_flights", "book_flight"]
   // - an object map: { search_flights: { contract: "1.0", ... }, ... }
-  let capabilities: string[] = [];
+  let capabilityNames: string[] = [];
+  const capabilities: NormalizedDiscovery["capabilities"] = {};
   if (Array.isArray(doc.capabilities)) {
-    capabilities = doc.capabilities.filter((c: unknown) => typeof c === "string");
+    capabilityNames = doc.capabilities.filter((c: unknown) => typeof c === "string");
+    for (const name of capabilityNames) {
+      capabilities[name] = {
+        name,
+        sideEffect: "read",
+        minimumScope: [],
+        financial: false,
+        raw: {},
+      };
+    }
   } else if (doc.capabilities && typeof doc.capabilities === "object") {
-    capabilities = Object.keys(doc.capabilities);
+    capabilityNames = Object.keys(doc.capabilities);
+    for (const [name, decl] of Object.entries(doc.capabilities)) {
+      const rawDecl = decl && typeof decl === "object" ? (decl as Record<string, unknown>) : {};
+      capabilities[name] = {
+        name,
+        sideEffect:
+          typeof rawDecl.side_effect === "object" &&
+          rawDecl.side_effect &&
+          typeof (rawDecl.side_effect as { type?: unknown }).type === "string"
+            ? ((rawDecl.side_effect as { type: string }).type)
+            : "read",
+        minimumScope: Array.isArray(rawDecl.minimum_scope)
+          ? rawDecl.minimum_scope.filter((value): value is string => typeof value === "string")
+          : [],
+        financial: Boolean(rawDecl.financial || (rawDecl.cost as any)?.financial),
+        contract: typeof rawDecl.contract === "string" ? rawDecl.contract : undefined,
+        raw: rawDecl,
+      };
+    }
   }
 
   return {
     protocol: doc.protocol ?? "unknown",
     compliance: doc.compliance ?? "unknown",
     trustLevel: doc.trust?.level ?? undefined,
+    baseUrl: doc.base_url ?? undefined,
     endpoints,
     profiles,
+    capabilityNames,
     capabilities,
+    posture: doc.posture ?? undefined,
+    raw: doc,
   };
 }

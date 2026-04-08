@@ -15,16 +15,24 @@ export function normalizeCapability(name: string, raw: any): NormalizedCapabilit
   };
 
   let cost: NormalizedCapability["cost"] | undefined;
-  if (raw.cost?.financial) {
+  if (raw.cost) {
     const fin = raw.cost.financial;
     // Derive a single estimated amount from whichever cost field is present.
     const estimatedAmount: number =
-      fin.amount ?? fin.typical ?? fin.range_max ?? fin.upper_bound ?? 0;
+      fin?.amount ?? fin?.typical ?? fin?.range_max ?? fin?.upper_bound ?? 0;
     cost = {
-      financial: {
-        currency: fin.currency ?? "USD",
-        estimatedAmount,
-      },
+      certainty: raw.cost.certainty ?? undefined,
+      determinedBy: raw.cost.determined_by ?? undefined,
+      compute: raw.cost.compute ?? undefined,
+      financial: fin
+        ? {
+            currency: fin.currency ?? "USD",
+            estimatedAmount,
+            rangeMin: fin.range_min ?? undefined,
+            rangeMax: fin.range_max ?? undefined,
+            typical: fin.typical ?? undefined,
+          }
+        : undefined,
     };
   }
 
@@ -88,9 +96,18 @@ export function normalizeCapability(name: string, raw: any): NormalizedCapabilit
     sideEffect,
     responseModes: Array.isArray(raw.response_modes) ? raw.response_modes : ["unary"],
     cost,
+    contractVersion: raw.contract_version ?? undefined,
+    inputs: Array.isArray(raw.inputs) ? raw.inputs : undefined,
+    output: raw.output ?? undefined,
+    observability: raw.observability ?? undefined,
+    requiresBinding: Array.isArray(raw.requires_binding) ? raw.requires_binding : undefined,
+    refreshVia: Array.isArray(raw.refresh_via) ? raw.refresh_via : undefined,
+    verifyVia: Array.isArray(raw.verify_via) ? raw.verify_via : undefined,
+    crossService: raw.cross_service ?? undefined,
     controlRequirements,
     crossServiceContract,
     graph,
+    raw: raw && typeof raw === "object" ? raw : {},
   };
 }
 
@@ -100,9 +117,9 @@ export function normalizeCapability(name: string, raw: any): NormalizedCapabilit
  * Expected wire format matches the ANIPManifest schema: protocol, profile,
  * capabilities record, etc.
  */
-export function normalizeManifest(raw: any): NormalizedManifest {
+export function normalizeManifest(raw: any, opts?: { signature?: string }): NormalizedManifest {
   if (!raw || typeof raw !== "object") {
-    return { protocol: "unknown", capabilities: {} };
+    return { protocol: "unknown", capabilities: {}, raw: {} };
   }
 
   const capabilities: Record<string, NormalizedCapability> = {};
@@ -114,6 +131,17 @@ export function normalizeManifest(raw: any): NormalizedManifest {
 
   return {
     protocol: raw.protocol ?? "unknown",
+    signature: opts?.signature,
+    manifestMetadata:
+      raw.manifest_metadata && typeof raw.manifest_metadata === "object"
+        ? raw.manifest_metadata
+        : undefined,
+    serviceIdentity:
+      raw.service_identity && typeof raw.service_identity === "object"
+        ? raw.service_identity
+        : undefined,
+    trust: raw.trust && typeof raw.trust === "object" ? raw.trust : undefined,
     capabilities,
+    raw,
   };
 }

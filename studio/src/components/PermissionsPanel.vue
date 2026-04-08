@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
-import { store } from '../store'
-import { fetchPermissions } from '../api'
+import { watch, computed } from 'vue'
+import { useAnipPermissions } from '@anip-dev/vue'
 import StatusBadge from './StatusBadge.vue'
 
 const props = defineProps<{
@@ -9,27 +8,19 @@ const props = defineProps<{
   capability: string | null
 }>()
 
-const loading = ref(false)
-const result = ref<any>(null)
-const error = ref('')
+const { data: result, loading, error, query } = useAnipPermissions()
 
 async function check() {
   if (!props.bearer || !props.capability) return
-  loading.value = true
-  error.value = ''
-  result.value = null
   try {
-    result.value = await fetchPermissions(store.baseUrl, props.bearer)
-  } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'Failed to check permissions'
-  } finally {
-    loading.value = false
+    await query(props.bearer)
+  } catch {
+    // useAnipPermissions already populates reactive error state
   }
 }
 
 watch(() => [props.bearer, props.capability], () => {
   if (props.bearer && props.capability) check()
-  else { result.value = null; error.value = '' }
 }, { immediate: true })
 
 // Derive the status for the selected capability from the full permissions response
@@ -55,16 +46,16 @@ const detail = computed(() => {
   if (!result.value || !props.capability) return null
   const cap = props.capability
   const available = (result.value.available || []).find((a: any) => a.capability === cap)
-  if (available) return { scope: available.scope_match }
+  if (available) return { scope: available.scopeMatch }
   const restricted = (result.value.restricted || []).find((r: any) => r.capability === cap)
   if (restricted) return {
     reason: restricted.reason,
-    reason_type: restricted.reason_type,
-    resolution_hint: restricted.resolution_hint,
-    grantable_by: restricted.grantable_by,
+    reason_type: restricted.reasonType,
+    resolution_hint: restricted.resolutionHint,
+    grantable_by: restricted.grantableBy,
   }
   const denied = (result.value.denied || []).find((d: any) => d.capability === cap)
-  if (denied) return { reason: denied.reason, reason_type: denied.reason_type }
+  if (denied) return { reason: denied.reason, reason_type: denied.reasonType }
   return null
 })
 

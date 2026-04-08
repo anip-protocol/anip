@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, computed } from 'vue'
+import { useAnipInvoke, useAnipManifest } from '@anip-dev/vue'
 import { useRoute, useRouter } from 'vue-router'
 import { store } from '../store'
-import { fetchManifest, invokeCapability } from '../api'
 import StatusBadge from '../components/StatusBadge.vue'
 import BearerInput from '../components/BearerInput.vue'
 import PermissionsPanel from '../components/PermissionsPanel.vue'
@@ -12,35 +12,38 @@ import InvokeResult from '../components/InvokeResult.vue'
 const route = useRoute()
 const router = useRouter()
 
-const manifest = ref<any>(null)
-const loading = ref(false)
-const error = ref('')
+const {
+  data: manifest,
+  loading: manifestLoading,
+  error: manifestError,
+  load: loadManifestData,
+} = useAnipManifest()
+const {
+  result: invokeResult,
+  loading: invokeLoading,
+  error: invokeError,
+  invoke: invokeCapability,
+  clear: clearInvokeResult,
+} = useAnipInvoke()
 const selectedCapability = ref<string | null>(null)
 const userInputs = ref<Record<string, Record<string, string>>>({})
-const invokeResult = ref<any>(null)
-const invoking = ref(false)
 const taskId = ref('')
 const parentInvocationId = ref('')
 
 // Load manifest
 async function loadManifest() {
   if (!store.connected) return
-  loading.value = true
-  error.value = ''
   try {
-    const result = await fetchManifest(store.baseUrl)
-    manifest.value = result.manifest
-  } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'Failed to load manifest'
-  } finally {
-    loading.value = false
+    await loadManifestData()
+  } catch {
+    // useAnipManifest already populates reactive error state
   }
 }
 
 onMounted(loadManifest)
 watch(() => store.connected, (connected) => {
   if (connected) loadManifest()
-  else { manifest.value = null }
+  else { clearInvokeResult() }
 })
 
 // Sync route param → selected capability
@@ -49,12 +52,12 @@ watch(() => route.params.capability, (cap) => {
   if (name) {
     if (name !== selectedCapability.value) {
       selectedCapability.value = name
-      invokeResult.value = null
+      clearInvokeResult()
     }
   } else {
     // Back to picker — clear selection
     selectedCapability.value = null
-    invokeResult.value = null
+    clearInvokeResult()
   }
 }, { immediate: true })
 
@@ -71,8 +74,7 @@ const invalidCapability = computed(() =>
 )
 
 const sideEffectType = computed(() => {
-  const se = declaration.value?.side_effect
-  return se?.type || 'read'
+  return declaration.value?.sideEffect?.type || 'read'
 })
 
 const sideEffectBadge = computed<{ label: string; type: 'success' | 'warning' | 'danger' | 'info' | 'neutral' }>(() => {
@@ -85,10 +87,52 @@ const sideEffectBadge = computed<{ label: string; type: 'success' | 'warning' | 
   return map[sideEffectType.value] || { label: sideEffectType.value, type: 'warning' }
 })
 
-const scope = computed(() => declaration.value?.minimum_scope || [])
+const scope = computed(() => declaration.value?.minimumScope || [])
 const cost = computed(() => declaration.value?.cost)
-const responseModes = computed(() => declaration.value?.response_modes || ['unary'])
+const responseModes = computed(() => declaration.value?.responseModes || ['unary'])
 const hasStreaming = computed(() => responseModes.value.includes('streaming'))
+const invokeBusy = computed(() => invokeLoading.value)
+
+const displayInvokeResult = computed(() => {
+  if (!invokeResult.value) return null
+  return {
+    success: invokeResult.value.success,
+    invocation_id: invokeResult.value.invocationId,
+    task_id: invokeResult.value.taskId,
+    result: invokeResult.value.result,
+    failure: invokeResult.value.failure
+      ? {
+          type: invokeResult.value.failure.type,
+          detail: invokeResult.value.failure.detail,
+          retry: invokeResult.value.failure.retryable,
+          resolution: invokeResult.value.failure.resolution
+            ? {
+                action: invokeResult.value.failure.resolution.action,
+                requires: invokeResult.value.failure.resolution.requires,
+                grantable_by: invokeResult.value.failure.resolution.grantableBy,
+                recovery_class: invokeResult.value.failure.recoveryClass,
+              }
+            : undefined,
+        }
+      : undefined,
+    budget_context: invokeResult.value.budgetContext
+      ? {
+          budget_max: invokeResult.value.budgetContext.budgetMax,
+          budget_currency: invokeResult.value.budgetContext.budgetCurrency,
+          cost_check_amount: invokeResult.value.budgetContext.costCheckAmount,
+        }
+      : undefined,
+    stream_summary: invokeResult.value.streamSummary
+      ? {
+          response_mode: invokeResult.value.streamSummary.responseMode,
+          events_emitted: invokeResult.value.streamSummary.eventsEmitted,
+          events_delivered: invokeResult.value.streamSummary.eventsDelivered,
+          duration_ms: invokeResult.value.streamSummary.durationMs,
+          client_disconnected: invokeResult.value.streamSummary.clientDisconnected,
+        }
+      : undefined,
+  }
+})
 
 function selectCapability(name: string) {
   router.push(`/invoke/${name}`)
@@ -102,28 +146,19 @@ function onFormUpdate(inputs: Record<string, string>) {
 
 async function onInvoke(inputs: Record<string, string>) {
   if (!selectedCapability.value || !store.bearer) return
-  invoking.value = true
-  invokeResult.value = null
   try {
-    const opts: Record<string, string> = {}
-    if (taskId.value.trim()) opts.task_id = taskId.value.trim()
-    if (parentInvocationId.value.trim()) opts.parent_invocation_id = parentInvocationId.value.trim()
-    invokeResult.value = await invokeCapability(
-      store.baseUrl, store.bearer, selectedCapability.value, inputs, opts
-    )
-  } catch (e: unknown) {
-    // Transport error — wrap as a failure-like object for InvokeResult
-    invokeResult.value = {
-      success: false,
-      failure: {
-        type: 'transport_error',
-        detail: e instanceof Error ? e.message : 'Network error',
-        retry: true,
-        resolution: { action: 'Check the service is running and reachable' },
+    clearInvokeResult()
+    await invokeCapability(
+      store.bearer,
+      selectedCapability.value,
+      inputs,
+      {
+        taskId: taskId.value.trim() || undefined,
+        parentInvocationId: parentInvocationId.value.trim() || undefined,
       },
-    }
-  } finally {
-    invoking.value = false
+    )
+  } catch {
+    // Transport error — wrap as a failure-like object for InvokeResult
   }
 }
 </script>
@@ -142,14 +177,14 @@ async function onInvoke(inputs: Record<string, string>) {
     </div>
 
     <!-- Loading manifest -->
-    <div v-else-if="loading" class="placeholder">
+    <div v-else-if="manifestLoading" class="placeholder">
       <div class="spinner"></div>
       <p>Loading manifest...</p>
     </div>
 
     <!-- Manifest error -->
-    <div v-else-if="error" class="placeholder">
-      <p class="error-text">{{ error }}</p>
+    <div v-else-if="manifestError" class="placeholder">
+      <p class="error-text">{{ manifestError }}</p>
       <button class="retry-btn" @click="loadManifest">Retry</button>
     </div>
 
@@ -174,8 +209,8 @@ async function onInvoke(inputs: Record<string, string>) {
             >
               <span class="picker-name">{{ name }}</span>
               <StatusBadge
-                :label="({ read: 'Read', write: 'Write', transactional: 'Transactional', irreversible: 'Irreversible' } as Record<string, string>)[capabilities[name]?.side_effect?.type || 'read'] || capabilities[name]?.side_effect?.type || 'Read'"
-                :type="(capabilities[name]?.side_effect?.type || 'read') === 'read' ? 'success' : (capabilities[name]?.side_effect?.type === 'irreversible' ? 'danger' : 'warning')"
+                :label="({ read: 'Read', write: 'Write', transactional: 'Transactional', irreversible: 'Irreversible' } as Record<string, string>)[capabilities[name]?.sideEffect?.type || 'read'] || capabilities[name]?.sideEffect?.type || 'Read'"
+                :type="(capabilities[name]?.sideEffect?.type || 'read') === 'read' ? 'success' : (capabilities[name]?.sideEffect?.type === 'irreversible' ? 'danger' : 'warning')"
               />
             </div>
           </div>
@@ -186,7 +221,7 @@ async function onInvoke(inputs: Record<string, string>) {
           <StatusBadge :label="sideEffectBadge.label" :type="sideEffectBadge.type" />
           <span v-for="s in scope" :key="s" class="scope-chip">{{ s }}</span>
           <span v-if="cost?.financial" class="cost-summary">
-            {{ cost.financial.currency }} {{ cost.financial.range_min }}&ndash;{{ cost.financial.range_max }}
+            {{ cost.financial.currency }} {{ cost.financial.estimatedAmount }}
           </span>
           <span v-if="hasStreaming" class="streaming-note">
             Streaming supported; Studio currently invokes in unary mode.
@@ -216,11 +251,11 @@ async function onInvoke(inputs: Record<string, string>) {
             :declaration="declaration"
             :capability-name="selectedCapability"
             :initial-values="userInputs[selectedCapability]"
-            :disabled="!store.bearer || invoking"
+            :disabled="!store.bearer || invokeBusy"
             @submit="onInvoke"
             @update="onFormUpdate"
           />
-          <div v-if="invoking" class="invoking-indicator">
+          <div v-if="invokeBusy" class="invoking-indicator">
             <div class="mini-spinner"></div>
             <span>Invoking...</span>
           </div>
@@ -253,7 +288,10 @@ async function onInvoke(inputs: Record<string, string>) {
 
         <!-- 6. Result panel -->
         <section class="section">
-          <InvokeResult :result="invokeResult" />
+          <div v-if="invokeError && !invokeResult" class="transport-error">
+            {{ invokeError }}
+          </div>
+          <InvokeResult :result="displayInvokeResult" />
         </section>
       </template>
     </div>
@@ -340,6 +378,14 @@ async function onInvoke(inputs: Record<string, string>) {
 .invoking-indicator {
   display: flex; align-items: center; gap: 8px;
   font-size: 12px; color: var(--text-muted);
+}
+.transport-error {
+  padding: 10px 12px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.08);
+  color: var(--error);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
 }
 .mini-spinner {
   width: 14px; height: 14px; border: 2px solid var(--border);
