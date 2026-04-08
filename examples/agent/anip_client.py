@@ -87,9 +87,9 @@ class ANIPClient:
     ) -> dict[str, Any]:
         """Request a root token pre-bound to a specific capability.
 
-        This mirrors the v0.20 runtime helper semantics at the protocol-client
-        edge: scope stays explicit, and delegation fields are intentionally
-        absent from this convenience path.
+        Mirrors the runtime helper semantics at the protocol-client edge:
+        scope stays explicit, and delegation fields are intentionally absent
+        from this convenience path.
         """
         body: dict[str, Any] = {
             "subject": principal,

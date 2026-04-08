@@ -119,7 +119,7 @@ def _live_reason(step: str, state: dict[str, Any]) -> str:
         )
 
         message = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6-20250620",
             max_tokens=300,
             system=LIVE_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_prompt}],

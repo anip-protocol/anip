@@ -1,9 +1,9 @@
 """Financial operations capabilities — ANIP capability declarations and handlers."""
 from anip_service import Capability, InvocationContext, ANIPError
 from anip_core import (
-    CapabilityDeclaration, CapabilityInput, CapabilityOutput, CapabilityRequirement,
-    Cost, CostCertainty, FinancialCost, ObservabilityContract, ResponseMode, SessionInfo,
-    SideEffect, SideEffectType,
+    BindingRequirement, CapabilityDeclaration, CapabilityInput, CapabilityOutput,
+    CapabilityRequirement, Cost, CostCertainty, FinancialCost, ObservabilityContract,
+    ResponseMode, SessionInfo, SideEffect, SideEffectType,
 )
 import data
 
@@ -124,6 +124,15 @@ _TRADE_DECL = CapabilityDeclaration(
             reason="must check current market price before executing trade",
         ),
     ],
+    requires_binding=[
+        BindingRequirement(
+            type="quote",
+            field="market_quote",
+            source_capability="get_market_data",
+            max_age="PT5M",
+        ),
+    ],
+    refresh_via=["get_market_data"],
     session=SessionInfo(),
     observability=ObservabilityContract(
         logged=True, retention="P365D",
@@ -152,7 +161,19 @@ def _handle_execute_trade(ctx: InvocationContext, params: dict) -> dict:
             on_behalf_of=ctx.root_principal,
         )
     except ValueError as exc:
-        raise ANIPError("invalid_parameters", str(exc))
+        raise ANIPError(
+            "invalid_parameters", str(exc),
+            resolution={
+                "action": "get_market_data",
+                "recovery_class": "refresh_then_retry",
+                "recovery_target": {
+                    "kind": "refresh",
+                    "target": {"service": "finance-ops", "capability": "get_market_data"},
+                    "continuity": "same_task",
+                    "retry_after_target": True,
+                },
+            },
+        )
 
     ctx.set_cost_actual({"financial": {"amount": trade.total_cost, "currency": trade.currency}})
 
@@ -230,7 +251,19 @@ def _handle_transfer_funds(ctx: InvocationContext, params: dict) -> dict:
             on_behalf_of=ctx.root_principal,
         )
     except ValueError as exc:
-        raise ANIPError("invalid_parameters", str(exc))
+        raise ANIPError(
+            "invalid_parameters", str(exc),
+            resolution={
+                "action": "query_portfolio",
+                "recovery_class": "refresh_then_retry",
+                "recovery_target": {
+                    "kind": "revalidation",
+                    "target": {"service": "finance-ops", "capability": "query_portfolio"},
+                    "continuity": "same_task",
+                    "retry_after_target": True,
+                },
+            },
+        )
 
     ctx.set_cost_actual({"financial": {"amount": transfer.fee, "currency": transfer.currency}})
 

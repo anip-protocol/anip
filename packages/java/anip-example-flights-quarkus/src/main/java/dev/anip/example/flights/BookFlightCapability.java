@@ -12,6 +12,8 @@ import dev.anip.core.Cost;
 import dev.anip.core.CostActual;
 import dev.anip.core.CrossServiceHints;
 import dev.anip.core.FinancialCost;
+import dev.anip.core.RecoveryTarget;
+import dev.anip.core.Resolution;
 import dev.anip.core.ServiceCapabilityRef;
 import dev.anip.core.SideEffect;
 import dev.anip.service.CapabilityDef;
@@ -40,7 +42,7 @@ public final class BookFlightCapability {
                         new CapabilityInput("flight_number", "string", true, "Flight to book"),
                         new CapabilityInput("date", "date", true, "Travel date (YYYY-MM-DD)"),
                         new CapabilityInput("passengers", "integer", false, 1, "Number of passengers"),
-                        new CapabilityInput("quote_id", "object", true, "Priced quote from search_flights")
+                        new CapabilityInput("quote_id", "object", false, "Priced quote from search_flights")
                 ),
                 new CapabilityOutput("booking_confirmation",
                         List.of("booking_id", "flight_number", "departure_time", "total_cost")),
@@ -88,7 +90,12 @@ public final class BookFlightCapability {
         Map<String, Object> flight = FlightData.findFlight(flightNumber, date);
         if (flight == null) {
             throw new ANIPError(Constants.FAILURE_UNAVAILABLE,
-                    "flight " + flightNumber + " on " + date + " not found");
+                    "flight " + flightNumber + " on " + date + " not found")
+                    .withResolution(new Resolution(
+                            "search_flights", "refresh_then_retry", null, null, null,
+                            new RecoveryTarget("refresh",
+                                    new ServiceCapabilityRef("travel-booking", "search_flights"),
+                                    "same_task", true)));
         }
 
         double price = ((Number) flight.get("price")).doubleValue();

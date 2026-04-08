@@ -254,7 +254,19 @@ def _handle_rollback_deployment(ctx: InvocationContext, params: dict) -> dict:
             on_behalf_of=ctx.root_principal,
         )
     except ValueError as exc:
-        raise ANIPError("invalid_parameters", str(exc))
+        raise ANIPError(
+            "invalid_parameters", str(exc),
+            resolution={
+                "action": "list_deployments",
+                "recovery_class": "refresh_then_retry",
+                "recovery_target": {
+                    "kind": "refresh",
+                    "target": {"service": "devops-infra", "capability": "list_deployments"},
+                    "continuity": "same_task",
+                    "retry_after_target": True,
+                },
+            },
+        )
 
     return {
         "rollback_id": event.rollback_id,
@@ -314,7 +326,19 @@ def _handle_delete_resource(ctx: InvocationContext, params: dict) -> dict:
             on_behalf_of=ctx.root_principal,
         )
     except ValueError as exc:
-        raise ANIPError("invalid_parameters", str(exc))
+        raise ANIPError(
+            "invalid_parameters", str(exc),
+            resolution={
+                "action": "list_deployments",
+                "recovery_class": "refresh_then_retry",
+                "recovery_target": {
+                    "kind": "revalidation",
+                    "target": {"service": "devops-infra", "capability": "list_deployments"},
+                    "continuity": "same_task",
+                    "retry_after_target": True,
+                },
+            },
+        )
 
     return {
         "deletion_id": event.deletion_id,
@@ -368,6 +392,16 @@ def _handle_destroy_environment(ctx: InvocationContext, params: dict) -> dict:
         raise ANIPError(
             "non_delegable_action",
             "destroy_environment requires direct principal action and cannot be delegated",
+            resolution={
+                "action": "escalate_to_principal",
+                "recovery_class": "redelegation",
+                "grantable_by": "delegation.root_principal",
+                "recovery_target": {
+                    "kind": "redelegation",
+                    "continuity": "same_task",
+                    "retry_after_target": True,
+                },
+            },
         )
 
     environment_name = params.get("environment_name")

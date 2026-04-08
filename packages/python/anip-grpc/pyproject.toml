@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "anip-grpc"
-version = "0.15.0"
+version = "0.22.0"
 description = "ANIP gRPC transport binding"
 requires-python = ">=3.11"
 dependencies = [
-    "anip-service==0.15.0",
+    "anip-service==0.22.0",
     "grpcio>=1.78.0",
     "protobuf>=4.25.0",
 ]
