@@ -5,6 +5,7 @@ import { store } from './store'
 import { fetchDiscovery } from './api'
 import { syncStudioAnipBaseUrl } from './anip'
 import { projectStore } from './design/project-store'
+import { STUDIO_PROTOCOL_VERSION, STUDIO_VERSION_LABEL } from './version'
 
 const router = useRouter()
 const route = useRoute()
@@ -307,7 +308,8 @@ function disconnect() {
           </li>
         </ul>
         <div class="sidebar-footer">
-          <span class="version">v0.19</span>
+          <span class="version">{{ STUDIO_VERSION_LABEL }}</span>
+          <span class="version version-protocol">{{ STUDIO_PROTOCOL_VERSION }}</span>
         </div>
       </nav>
 
@@ -703,9 +705,15 @@ function disconnect() {
 }
 
 .version {
+  display: block;
   font-size: 11px;
   color: var(--text-muted);
   font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.version-protocol {
+  margin-top: 2px;
+  opacity: 0.85;
 }
 
 .sidebar-collapsed .version {
