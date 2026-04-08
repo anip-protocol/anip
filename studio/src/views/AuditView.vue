@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, computed } from 'vue'
+import { useAnipAudit, useAnipDiscovery } from '@anip-dev/vue'
 import { store } from '../store'
-import { fetchDiscovery, fetchAudit } from '../api'
 import StatusBadge from '../components/StatusBadge.vue'
 import BearerInput from '../components/BearerInput.vue'
 import JsonPanel from '../components/JsonPanel.vue'
 
-const data = ref<any>(null)
-const loading = ref(false)
-const error = ref('')
+const { data, loading, error, query } = useAnipAudit()
+const { data: discoveryData, load: loadDiscovery } = useAnipDiscovery()
 const expandedEntry = ref<number | null>(null)
 
 // Filters
@@ -18,48 +17,38 @@ const limitFilter = ref(50)
 const taskIdFilter = ref('')
 const parentInvocationIdFilter = ref('')
 
-// Capability list from discovery (for the dropdown)
-const capabilityNames = ref<string[]>([])
+const auditData = computed<any | null>(() => data.value as any)
+const auditLoading = computed(() => loading.value)
+const auditError = computed(() => error.value)
+const capabilityNames = computed(() => discoveryData.value?.capabilityNames || Object.keys(discoveryData.value?.capabilities || {}))
 
-onMounted(async () => {
-  if (store.connected) {
-    try {
-      const disc = await fetchDiscovery(store.baseUrl)
-      const caps = disc?.anip_discovery?.capabilities || disc?.capabilities || {}
-      capabilityNames.value = Object.keys(caps)
-    } catch { /* silently skip */ }
+async function refreshDiscovery() {
+  if (!store.connected) return
+  try {
+    await loadDiscovery()
+  } catch {
+    // Audit remains usable even if discovery loading fails.
   }
-})
+}
 
-watch(() => store.connected, async (connected) => {
-  if (!connected) {
-    data.value = null
-    capabilityNames.value = []
-  } else {
-    try {
-      const disc = await fetchDiscovery(store.baseUrl)
-      const caps = disc?.anip_discovery?.capabilities || disc?.capabilities || {}
-      capabilityNames.value = Object.keys(caps)
-    } catch { /* silently skip */ }
-  }
+onMounted(refreshDiscovery)
+watch(() => store.connected, (connected) => {
+  if (connected) refreshDiscovery()
+  else expandedEntry.value = null
 })
 
 async function fetchEntries() {
   if (!store.connected || !store.bearer) return
-  loading.value = true
-  error.value = ''
   try {
-    const filters: Record<string, string> = {}
-    if (capabilityFilter.value) filters.capability = capabilityFilter.value
-    if (sinceFilter.value) filters.since = sinceFilter.value
-    if (limitFilter.value) filters.limit = String(limitFilter.value)
-    if (taskIdFilter.value) filters.task_id = taskIdFilter.value
-    if (parentInvocationIdFilter.value) filters.parent_invocation_id = parentInvocationIdFilter.value
-    data.value = await fetchAudit(store.baseUrl, store.bearer, filters)
-  } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'Failed to fetch audit entries'
-  } finally {
-    loading.value = false
+    await query(store.bearer, {
+      capability: capabilityFilter.value || undefined,
+      since: sinceFilter.value || undefined,
+      limit: limitFilter.value || undefined,
+      taskId: taskIdFilter.value || undefined,
+      parentInvocationId: parentInvocationIdFilter.value || undefined,
+    })
+  } catch {
+    // useAnipAudit already populates reactive error state
   }
 }
 
@@ -68,9 +57,9 @@ function onAuthenticated() {
 }
 
 const entries = computed(() => {
-  const raw = data.value?.entries || []
+  const raw = auditData.value?.entries || []
   // Newest first
-  return [...raw].reverse()
+  return [...raw].reverse() as any[]
 })
 
 function toggleEntry(idx: number) {
@@ -154,35 +143,27 @@ function formatTimestamp(ts: string): string {
             <label class="filter-label">Parent Invocation ID</label>
             <input v-model="parentInvocationIdFilter" type="text" class="filter-input" placeholder="Filter by parent_invocation_id" />
           </div>
-          <button class="fetch-btn" @click="fetchEntries" :disabled="loading">
-            {{ loading ? 'Loading...' : 'Fetch' }}
+          <button class="fetch-btn" @click="fetchEntries" :disabled="auditLoading">
+            {{ auditLoading ? 'Loading...' : 'Fetch' }}
           </button>
         </div>
       </section>
 
       <!-- Error -->
-      <div v-if="error" class="error-bar">{{ error }}</div>
+      <div v-if="auditError" class="error-bar">{{ auditError }}</div>
 
       <!-- Summary -->
-      <section class="section" v-if="data">
+      <section class="section" v-if="auditData">
         <div class="summary-bar">
           <div class="summary-item">
             <span class="summary-label">Entries</span>
-            <span class="summary-value">{{ data.count }}</span>
-          </div>
-          <div class="summary-item" v-if="data.root_principal">
-            <span class="summary-label">Root Principal</span>
-            <span class="summary-value mono">{{ data.root_principal }}</span>
-          </div>
-          <div class="summary-item" v-if="data.capability_filter">
-            <span class="summary-label">Capability</span>
-            <span class="summary-value mono">{{ data.capability_filter }}</span>
+            <span class="summary-value">{{ auditData.count }}</span>
           </div>
         </div>
       </section>
 
       <!-- Entries Table -->
-      <section class="section" v-if="data && entries.length">
+      <section class="section" v-if="auditData && entries.length">
         <h3 class="section-title">Entries</h3>
         <div class="table-wrapper">
           <table class="data-table">
@@ -264,7 +245,7 @@ function formatTimestamp(ts: string): string {
       </section>
 
       <!-- Empty state -->
-      <div v-else-if="data && entries.length === 0" class="empty-state">
+      <div v-else-if="auditData && entries.length === 0" class="empty-state">
         <p>No audit entries found matching the current filters.</p>
       </div>
 
@@ -274,8 +255,8 @@ function formatTimestamp(ts: string): string {
       </div>
 
       <!-- Raw JSON -->
-      <section class="section" v-if="data">
-        <JsonPanel :data="data" title="Raw Response" :collapsed="true" />
+      <section class="section" v-if="auditData">
+        <JsonPanel :data="auditData" title="Raw Response" :collapsed="true" />
       </section>
     </div>
   </div>

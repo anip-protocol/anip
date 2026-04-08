@@ -14,11 +14,9 @@ import type {
   NormalizedManifest,
   NormalizedCapability,
   NormalizedPermissions,
-  NormalizedTokenResponse,
   NormalizedInvocationResult,
   NormalizedFailure,
   NormalizedAuditResult,
-  TokenIssueRequest,
 } from "@anip-dev/client";
 
 // ---------------------------------------------------------------------------
@@ -174,6 +172,11 @@ export function useAnipInvoke() {
   const loading = ref(false);
   const error = ref<string | null>(null);
 
+  function clear() {
+    result.value = null;
+    error.value = null;
+  }
+
   async function invoke(
     token: string,
     capability: string,
@@ -200,6 +203,7 @@ export function useAnipInvoke() {
     result: readonly(result),
     loading: readonly(loading),
     error: readonly(error),
+    clear,
     invoke,
   };
 }

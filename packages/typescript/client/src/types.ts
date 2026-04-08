@@ -14,9 +14,20 @@ export interface NormalizedDiscovery {
   protocol: string;
   compliance: string;
   trustLevel?: string;
+  baseUrl?: string;
   endpoints: Record<string, string>;
   profiles: Record<string, string>;
-  capabilities: string[];
+  capabilityNames: string[];
+  capabilities: Record<string, {
+    name: string;
+    sideEffect: string;
+    minimumScope: string[];
+    financial: boolean;
+    contract?: string;
+    raw: Record<string, unknown>;
+  }>;
+  posture?: Record<string, unknown>;
+  raw: Record<string, unknown>;
 }
 
 // ---------------------------------------------------------------------------
@@ -25,7 +36,12 @@ export interface NormalizedDiscovery {
 
 export interface NormalizedManifest {
   protocol: string;
+  signature?: string;
+  manifestMetadata?: Record<string, unknown>;
+  serviceIdentity?: Record<string, unknown>;
+  trust?: Record<string, unknown>;
   capabilities: Record<string, NormalizedCapability>;
+  raw: Record<string, unknown>;
 }
 
 export interface NormalizedCapability {
@@ -34,7 +50,26 @@ export interface NormalizedCapability {
   minimumScope: string[];
   sideEffect: { type: string; rollbackWindow?: string };
   responseModes: string[];
-  cost?: { financial?: { currency: string; estimatedAmount: number } };
+  cost?: {
+    certainty?: string;
+    financial?: {
+      currency: string;
+      estimatedAmount: number;
+      rangeMin?: number;
+      rangeMax?: number;
+      typical?: number;
+    };
+    determinedBy?: string;
+    compute?: Record<string, unknown>;
+  };
+  contractVersion?: string;
+  inputs?: unknown[];
+  output?: Record<string, unknown>;
+  observability?: Record<string, unknown>;
+  requiresBinding?: unknown[];
+  refreshVia?: string[];
+  verifyVia?: string[];
+  crossService?: Record<string, unknown>;
   controlRequirements?: Array<{ type: string; enforcement: string }>;
   crossServiceContract?: {
     handoff?: Array<{ service: string; capability: string; requiredForTaskCompletion: boolean }>;
@@ -42,6 +77,7 @@ export interface NormalizedCapability {
     verification?: Array<{ service: string; capability: string }>;
   };
   graph?: { requires?: Array<{ capability: string; reason: string }>; composesWith?: Array<{ capability: string; optional: boolean }> };
+  raw: Record<string, unknown>;
 }
 
 // ---------------------------------------------------------------------------
@@ -49,9 +85,9 @@ export interface NormalizedCapability {
 // ---------------------------------------------------------------------------
 
 export interface NormalizedPermissions {
-  available: string[];
-  restricted: Array<{ capability: string; reasonType: string; resolutionHint?: string }>;
-  denied: Array<{ capability: string; reasonType: string }>;
+  available: Array<{ capability: string; scopeMatch?: string }>;
+  restricted: Array<{ capability: string; reasonType: string; reason?: string; resolutionHint?: string; grantableBy?: string }>;
+  denied: Array<{ capability: string; reasonType: string; reason?: string }>;
 }
 
 // ---------------------------------------------------------------------------

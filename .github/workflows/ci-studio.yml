@@ -20,6 +20,8 @@ jobs:
             src:
               - "studio/**"
               - "packages/python/anip-studio/**"
+              - "packages/typescript/client/**"
+              - "packages/typescript/vue/**"
               - ".github/workflows/ci-studio.yml"
 
   build:
@@ -57,7 +59,7 @@ jobs:
           echo "Studio assets are in sync."
 
       - name: Docker build smoke test
-        run: docker build -t anip-studio-test studio/
+        run: docker build -t anip-studio-test -f studio/Dockerfile.standalone .
 
   studio-ci:
     if: always()

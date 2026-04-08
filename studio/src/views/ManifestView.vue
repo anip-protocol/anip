@@ -1,39 +1,32 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, computed } from 'vue'
+import { useAnipManifest } from '@anip-dev/vue'
 import { store } from '../store'
-import { fetchManifest } from '../api'
 import StatusBadge from '../components/StatusBadge.vue'
 import JsonPanel from '../components/JsonPanel.vue'
 import CapabilityCard from '../components/CapabilityCard.vue'
 
-const data = ref<any>(null)
-const signature = ref('')
-const loading = ref(false)
-const error = ref('')
+const { data, loading, error, load: loadManifestData } = useAnipManifest()
 const sigCopied = ref(false)
+const manifestDoc = computed<any | null>(() => data.value as any)
 
 async function load() {
   if (!store.connected) return
-  loading.value = true
-  error.value = ''
   try {
-    const result = await fetchManifest(store.baseUrl)
-    data.value = result.manifest
-    signature.value = result.signature
-  } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'Failed to load manifest'
-  } finally {
-    loading.value = false
+    await loadManifestData()
+  } catch {
+    // useAnipManifest already populates reactive error state
   }
 }
 
 onMounted(load)
 watch(() => store.connected, (connected) => {
   if (connected) load()
-  else { data.value = null; signature.value = '' }
+  else { sigCopied.value = false }
 })
 
-const capabilities = computed(() => data.value?.capabilities || {})
+const capabilities = computed(() => manifestDoc.value?.capabilities || {})
+const signature = computed(() => manifestDoc.value?.signature || '')
 
 function truncatedSig(sig: string): string {
   if (sig.length <= 40) return sig
@@ -88,58 +81,58 @@ async function copySig() {
       </section>
 
       <!-- Manifest Metadata -->
-      <section class="section" v-if="data.manifest_metadata">
+      <section class="section" v-if="manifestDoc?.manifestMetadata">
         <h3 class="section-title">Metadata</h3>
         <div class="meta-grid">
           <div class="meta-item">
             <span class="meta-label">Version</span>
-            <span class="mono-value">{{ data.manifest_metadata.version }}</span>
+            <span class="mono-value">{{ manifestDoc.manifestMetadata.version }}</span>
           </div>
-          <div class="meta-item" v-if="data.manifest_metadata.sha256">
+          <div class="meta-item" v-if="manifestDoc.manifestMetadata.sha256">
             <span class="meta-label">SHA-256</span>
-            <span class="mono-value hash-value">{{ data.manifest_metadata.sha256 }}</span>
+            <span class="mono-value hash-value">{{ manifestDoc.manifestMetadata.sha256 }}</span>
           </div>
-          <div class="meta-item" v-if="data.manifest_metadata.issued_at">
+          <div class="meta-item" v-if="manifestDoc.manifestMetadata.issued_at">
             <span class="meta-label">Issued</span>
-            <span class="mono-value">{{ data.manifest_metadata.issued_at }}</span>
+            <span class="mono-value">{{ manifestDoc.manifestMetadata.issued_at }}</span>
           </div>
-          <div class="meta-item" v-if="data.manifest_metadata.expires_at">
+          <div class="meta-item" v-if="manifestDoc.manifestMetadata.expires_at">
             <span class="meta-label">Expires</span>
-            <span class="mono-value">{{ data.manifest_metadata.expires_at }}</span>
+            <span class="mono-value">{{ manifestDoc.manifestMetadata.expires_at }}</span>
           </div>
         </div>
       </section>
 
       <!-- Service Identity -->
-      <section class="section" v-if="data.service_identity">
+      <section class="section" v-if="manifestDoc?.serviceIdentity">
         <h3 class="section-title">Service Identity</h3>
         <div class="meta-grid">
           <div class="meta-item">
             <span class="meta-label">ID</span>
-            <span class="mono-value">{{ data.service_identity.id }}</span>
+            <span class="mono-value">{{ manifestDoc.serviceIdentity.id }}</span>
           </div>
           <div class="meta-item">
             <span class="meta-label">JWKS URI</span>
-            <span class="mono-value">{{ data.service_identity.jwks_uri }}</span>
+            <span class="mono-value">{{ manifestDoc.serviceIdentity.jwks_uri }}</span>
           </div>
           <div class="meta-item">
             <span class="meta-label">Issuer Mode</span>
-            <span class="mono-value">{{ data.service_identity.issuer_mode }}</span>
+            <span class="mono-value">{{ manifestDoc.serviceIdentity.issuer_mode }}</span>
           </div>
         </div>
       </section>
 
       <!-- Trust -->
-      <section class="section" v-if="data.trust">
+      <section class="section" v-if="manifestDoc?.trust">
         <h3 class="section-title">Trust</h3>
         <div class="meta-grid">
           <div class="meta-item">
             <span class="meta-label">Level</span>
-            <StatusBadge :label="data.trust.level" :type="data.trust.level === 'signed' ? 'info' : 'success'" />
+            <StatusBadge :label="manifestDoc.trust.level" :type="manifestDoc.trust.level === 'signed' ? 'info' : 'success'" />
           </div>
-          <div class="meta-item" v-if="data.trust.anchoring?.cadence">
+          <div class="meta-item" v-if="manifestDoc.trust.anchoring?.cadence">
             <span class="meta-label">Cadence</span>
-            <span class="mono-value">{{ data.trust.anchoring.cadence }}</span>
+            <span class="mono-value">{{ manifestDoc.trust.anchoring.cadence }}</span>
           </div>
         </div>
       </section>
@@ -152,14 +145,14 @@ async function copySig() {
             v-for="(cap, name) in capabilities"
             :key="name"
             :name="String(name)"
-            :capability="cap"
+            :capability="cap.raw || cap"
           />
         </div>
       </section>
 
       <!-- Raw JSON -->
       <section class="section">
-        <JsonPanel :data="data" title="Raw Manifest" :collapsed="true" />
+        <JsonPanel :data="manifestDoc?.raw || data" title="Raw Manifest" :collapsed="true" />
       </section>
     </div>
   </div>

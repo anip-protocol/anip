@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { store } from './store'
 import { fetchDiscovery } from './api'
+import { syncStudioAnipBaseUrl } from './anip'
 import { projectStore } from './design/project-store'
 
 const router = useRouter()
@@ -184,6 +185,7 @@ async function connect() {
     await fetchDiscovery(url)
     store.baseUrl = url
     store.connected = true
+    syncStudioAnipBaseUrl(url)
   } catch (e: unknown) {
     store.error = e instanceof Error ? e.message : 'Connection failed'
   } finally {
@@ -196,6 +198,7 @@ function disconnect() {
   store.connected = false
   store.error = ''
   store.serviceId = ''
+  syncStudioAnipBaseUrl('')
   urlInput.value = ''
 }
 </script>

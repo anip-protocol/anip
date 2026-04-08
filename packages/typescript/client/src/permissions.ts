@@ -22,8 +22,11 @@ export function normalizePermissions(raw: any): NormalizedPermissions {
     return { available: [], restricted: [], denied: [] };
   }
 
-  const available: string[] = Array.isArray(raw.available)
-    ? raw.available.map((a: any) => a.capability ?? a)
+  const available: NormalizedPermissions["available"] = Array.isArray(raw.available)
+    ? raw.available.map((a: any) => ({
+        capability: a.capability ?? a,
+        scopeMatch: a.scope_match ?? undefined,
+      }))
     : [];
 
   const restricted: NormalizedPermissions["restricted"] = Array.isArray(
@@ -32,7 +35,9 @@ export function normalizePermissions(raw: any): NormalizedPermissions {
     ? raw.restricted.map((r: any) => ({
         capability: r.capability,
         reasonType: r.reason_type ?? "unknown",
+        reason: r.reason ?? undefined,
         resolutionHint: r.resolution_hint ?? undefined,
+        grantableBy: r.grantable_by ?? undefined,
       }))
     : [];
 
@@ -40,6 +45,7 @@ export function normalizePermissions(raw: any): NormalizedPermissions {
     ? raw.denied.map((d: any) => ({
         capability: d.capability,
         reasonType: d.reason_type ?? "unknown",
+        reason: d.reason ?? undefined,
       }))
     : [];
 

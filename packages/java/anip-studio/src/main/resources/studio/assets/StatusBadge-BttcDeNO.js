@@ -1,1 +1,0 @@
-import{N as e,P as t,f as n,g as r,t as i,x as a}from"./_plugin-vue_export-helper-CrxtT_jF.js";var o=i(r({__name:`StatusBadge`,props:{label:{},type:{}},setup(r){return(i,o)=>(a(),n(`span`,{class:e([`status-badge`,r.type])},t(r.label),3))}}),[[`__scopeId`,`data-v-3c865407`]]);export{o as t};

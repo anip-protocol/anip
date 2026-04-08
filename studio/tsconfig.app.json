@@ -3,6 +3,11 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@anip-dev/client": ["../packages/typescript/client/src/index.ts"],
+      "@anip-dev/vue": ["../packages/typescript/vue/src/index.ts"]
+    },
 
     /* Linting */
     "strict": true,

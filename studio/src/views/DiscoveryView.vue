@@ -1,34 +1,29 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { watch, onMounted, computed } from 'vue'
+import { useAnipDiscovery } from '@anip-dev/vue'
 import { store } from '../store'
-import { fetchDiscovery } from '../api'
 import StatusBadge from '../components/StatusBadge.vue'
 import JsonPanel from '../components/JsonPanel.vue'
 
-const data = ref<any>(null)
-const loading = ref(false)
-const error = ref('')
+const { data, loading, error, load: loadDiscoveryData } = useAnipDiscovery()
 
 async function load() {
   if (!store.connected) return
-  loading.value = true
-  error.value = ''
   try {
-    data.value = await fetchDiscovery(store.baseUrl)
-  } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'Failed to load discovery'
-  } finally {
-    loading.value = false
+    await loadDiscoveryData()
+  } catch {
+    // useAnipDiscovery already populates reactive error state
   }
 }
 
 onMounted(load)
 watch(() => store.connected, (connected) => {
   if (connected) load()
-  else data.value = null
+  // disconnected state is already handled by view guards
 })
 
-const discovery = () => data.value?.anip_discovery || data.value || {}
+const discovery = computed(() => data.value)
+const discoveryDoc = computed<any | null>(() => discovery.value as any)
 
 function trustBadgeType(level: string): 'success' | 'info' | 'warning' | 'neutral' {
   const map: Record<string, 'success' | 'info' | 'warning' | 'neutral'> = {
@@ -78,31 +73,31 @@ function sideEffectType(se: string): 'success' | 'warning' | 'danger' | 'neutral
       <section class="section">
         <h3 class="section-title">Service Identity</h3>
         <div class="identity-row">
-          <StatusBadge :label="discovery().protocol || 'unknown'" type="info" />
-          <StatusBadge :label="discovery().compliance || 'unknown'" type="success" />
+          <StatusBadge :label="discoveryDoc?.protocol || 'unknown'" type="info" />
+          <StatusBadge :label="discoveryDoc?.compliance || 'unknown'" type="success" />
           <StatusBadge
-            :label="discovery().trust_level || 'unknown'"
-            :type="trustBadgeType(discovery().trust_level)"
+            :label="discoveryDoc?.trustLevel || 'unknown'"
+            :type="trustBadgeType(discoveryDoc?.trustLevel || 'unknown')"
           />
-          <span v-if="discovery().base_url" class="base-url">{{ discovery().base_url }}</span>
+          <span v-if="discoveryDoc?.baseUrl" class="base-url">{{ discoveryDoc.baseUrl }}</span>
         </div>
       </section>
 
       <!-- Posture Summary -->
-      <section class="section" v-if="discovery().posture">
+      <section class="section" v-if="discoveryDoc?.posture">
         <h3 class="section-title">Posture</h3>
         <div class="posture-bar">
           <div class="posture-card">
             <div class="posture-label">Audit</div>
             <div class="posture-values">
               <span class="posture-item">
-                Retention: <strong>{{ discovery().posture.audit?.retention || 'N/A' }}</strong>
+                Retention: <strong>{{ discoveryDoc.posture.audit?.retention || 'N/A' }}</strong>
               </span>
               <span class="posture-item">
                 Enforced:
                 <StatusBadge
-                  :label="discovery().posture.audit?.retention_enforced ? 'yes' : 'no'"
-                  :type="discovery().posture.audit?.retention_enforced ? 'success' : 'neutral'"
+                  :label="discoveryDoc.posture.audit?.retention_enforced ? 'yes' : 'no'"
+                  :type="discoveryDoc.posture.audit?.retention_enforced ? 'success' : 'neutral'"
                 />
               </span>
             </div>
@@ -113,12 +108,12 @@ function sideEffectType(se: string): 'success' | 'warning' | 'danger' | 'neutral
               <span class="posture-item">
                 Detail:
                 <StatusBadge
-                  :label="discovery().posture.failure_disclosure?.detail_level || 'redacted'"
-                  :type="discovery().posture.failure_disclosure?.detail_level === 'full' ? 'success' : discovery().posture.failure_disclosure?.detail_level === 'redacted' ? 'danger' : 'warning'"
+                  :label="discoveryDoc.posture.failure_disclosure?.detail_level || 'redacted'"
+                  :type="discoveryDoc.posture.failure_disclosure?.detail_level === 'full' ? 'success' : discoveryDoc.posture.failure_disclosure?.detail_level === 'redacted' ? 'danger' : 'warning'"
                 />
               </span>
-              <span class="posture-item" v-if="discovery().posture.failure_disclosure?.caller_classes">
-                Classes: {{ discovery().posture.failure_disclosure.caller_classes.join(', ') }}
+              <span class="posture-item" v-if="discoveryDoc.posture.failure_disclosure?.caller_classes">
+                Classes: {{ discoveryDoc.posture.failure_disclosure.caller_classes.join(', ') }}
               </span>
             </div>
           </div>
@@ -127,11 +122,11 @@ function sideEffectType(se: string): 'success' | 'warning' | 'danger' | 'neutral
             <div class="posture-values">
               <span class="posture-item">
                 <StatusBadge
-                  :label="discovery().posture.anchoring?.enabled ? 'enabled' : 'disabled'"
-                  :type="discovery().posture.anchoring?.enabled ? 'success' : 'neutral'"
+                  :label="discoveryDoc.posture.anchoring?.enabled ? 'enabled' : 'disabled'"
+                  :type="discoveryDoc.posture.anchoring?.enabled ? 'success' : 'neutral'"
                 />
               </span>
-              <span class="posture-item" v-if="discovery().posture.anchoring?.proofs_available">
+              <span class="posture-item" v-if="discoveryDoc.posture.anchoring?.proofs_available">
                 Proofs available
               </span>
             </div>
@@ -140,7 +135,7 @@ function sideEffectType(se: string): 'success' | 'warning' | 'danger' | 'neutral
       </section>
 
       <!-- Capabilities Table -->
-      <section class="section" v-if="discovery().capabilities">
+      <section class="section" v-if="discoveryDoc?.capabilities">
         <h3 class="section-title">Capabilities</h3>
         <div class="table-wrapper">
           <table class="data-table">
@@ -154,16 +149,16 @@ function sideEffectType(se: string): 'success' | 'warning' | 'danger' | 'neutral
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(cap, name) in discovery().capabilities" :key="name">
+              <tr v-for="(cap, name) in discoveryDoc.capabilities" :key="name">
                 <td class="mono-cell">{{ name }}</td>
                 <td>
                   <StatusBadge
-                    :label="cap.side_effect || 'unknown'"
-                    :type="sideEffectType(cap.side_effect)"
+                    :label="cap.sideEffect || 'unknown'"
+                    :type="sideEffectType(cap.sideEffect)"
                   />
                 </td>
                 <td>
-                  <span v-for="s in (cap.minimum_scope || [])" :key="s" class="scope-chip">{{ s }}</span>
+                  <span v-for="s in (cap.minimumScope || [])" :key="s" class="scope-chip">{{ s }}</span>
                 </td>
                 <td class="center-cell">
                   <span v-if="cap.financial" class="check-mark">&#x2713;</span>
@@ -177,10 +172,10 @@ function sideEffectType(se: string): 'success' | 'warning' | 'danger' | 'neutral
       </section>
 
       <!-- Endpoints -->
-      <section class="section" v-if="discovery().endpoints">
+      <section class="section" v-if="discoveryDoc?.endpoints">
         <h3 class="section-title">Endpoints</h3>
         <div class="endpoints-list">
-          <div v-for="(path, name) in discovery().endpoints" :key="name" class="endpoint-item">
+          <div v-for="(path, name) in discoveryDoc.endpoints" :key="name" class="endpoint-item">
             <span class="endpoint-name">{{ name }}</span>
             <span class="endpoint-path">{{ path }}</span>
           </div>
@@ -189,7 +184,7 @@ function sideEffectType(se: string): 'success' | 'warning' | 'danger' | 'neutral
 
       <!-- Raw JSON -->
       <section class="section">
-        <JsonPanel :data="data" title="Raw Response" :collapsed="true" />
+        <JsonPanel :data="discoveryDoc?.raw ?? data" title="Raw Response" :collapsed="true" />
       </section>
     </div>
   </div>
