@@ -49,8 +49,15 @@ const STUDIO_ASSISTANT_SCOPE_BY_CAPABILITY: Record<string, string> = {
   explain_evaluation: 'studio.assistant.explain_evaluation',
   interpret_project_intent: 'studio.assistant.interpret_project_intent',
 }
+const STUDIO_WORKBENCH_BASE_URL = '/studio-workbench'
+const STUDIO_WORKBENCH_BOOTSTRAP = 'studio-workbench-bootstrap'
+const STUDIO_WORKBENCH_SCOPE_BY_CAPABILITY: Record<string, string> = {
+  generate_business_brief: 'studio.workbench.generate_business_brief',
+  generate_engineering_contract: 'studio.workbench.generate_engineering_contract',
+}
 
 const assistantTokens: Record<string, string | undefined> = {}
+const workbenchTokens: Record<string, string | undefined> = {}
 
 async function ensureAssistantToken(capability: string, forceRefresh = false): Promise<string> {
   if (assistantTokens[capability] && !forceRefresh) return assistantTokens[capability] as string
@@ -86,6 +93,46 @@ async function invokeAssistant<T>(capability: string, parameters: Record<string,
 
   if (!result?.success) {
     const detail = result?.failure?.detail || `Assistant capability ${capability} failed`
+    throw new Error(detail)
+  }
+
+  return result.result as T
+}
+
+async function ensureWorkbenchToken(capability: string, forceRefresh = false): Promise<string> {
+  if (workbenchTokens[capability] && !forceRefresh) return workbenchTokens[capability] as string
+  const scope = STUDIO_WORKBENCH_SCOPE_BY_CAPABILITY[capability]
+  if (!scope) {
+    throw new Error(`Unsupported Studio workbench capability: ${capability}`)
+  }
+  const issued = await issueCapabilityToken(
+    STUDIO_WORKBENCH_BASE_URL,
+    STUDIO_WORKBENCH_BOOTSTRAP,
+    'studio-ui',
+    capability,
+    [scope],
+    { ttl_hours: 8 },
+  )
+  if (!issued?.issued || !issued?.token) {
+    const detail = issued?.failure?.detail || 'Failed to issue Studio workbench token'
+    throw new Error(detail)
+  }
+  const token = issued.token as string
+  workbenchTokens[capability] = token
+  return token
+}
+
+async function invokeWorkbench<T>(capability: string, parameters: Record<string, any>): Promise<T> {
+  let token = await ensureWorkbenchToken(capability)
+  let result = await invokeCapability(STUDIO_WORKBENCH_BASE_URL, token, capability, parameters)
+
+  if (!result?.success && result?.failure?.type === 'invalid_token') {
+    token = await ensureWorkbenchToken(capability, true)
+    result = await invokeCapability(STUDIO_WORKBENCH_BASE_URL, token, capability, parameters)
+  }
+
+  if (!result?.success) {
+    const detail = result?.failure?.detail || `Workbench capability ${capability} failed`
     throw new Error(detail)
   }
 
@@ -409,6 +456,29 @@ export function exportProject(projectId: string): Promise<Record<string, any>> {
   return api<Record<string, any>>(`/api/projects/${projectId}/export`)
 }
 
+export function generateBusinessBriefDocument(payload: {
+  project_id: string
+  source_intent?: string
+  requirements_id?: string
+  scenario_id?: string
+  shape_id?: string
+  evaluation_id?: string
+  llm_assisted?: boolean
+}): Promise<{ document: string; assisted: boolean }> {
+  return invokeWorkbench<{ document: string; assisted: boolean }>('generate_business_brief', payload)
+}
+
+export function generateEngineeringContractDocument(payload: {
+  project_id: string
+  requirements_id?: string
+  scenario_id?: string
+  shape_id?: string
+  evaluation_id?: string
+  llm_assisted?: boolean
+}): Promise<{ document: string; assisted: boolean }> {
+  return invokeWorkbench<{ document: string; assisted: boolean }>('generate_engineering_contract', payload)
+}
+
 // ---------------------------------------------------------------------------
 // Studio Assistant (ANIP-backed)
 // ---------------------------------------------------------------------------
@@ -444,5 +514,21 @@ export function interpretProjectIntentWithAssistant(
   return invokeAssistant<IntentInterpretation>('interpret_project_intent', {
     project_id: projectId,
     intent,
+  })
+}
+
+export function acceptFirstDesign(
+  projectId: string,
+  sourceIntent: string,
+  interpretation: IntentInterpretation,
+): Promise<{
+  requirements: RequirementsRecord
+  scenarios: ArtifactRecord[]
+  shape: ShapeRecord
+}> {
+  return invokeWorkbench('accept_first_design', {
+    project_id: projectId,
+    source_intent: sourceIntent,
+    interpretation,
   })
 }

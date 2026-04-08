@@ -20,6 +20,7 @@ import {
   makeScenarioTemplatesFromIntent,
   makeShapeTemplateFromIntent,
 } from '../design/intent-drafts'
+import { consumerModeFromLabels } from '../design/consumer-mode'
 
 const route = useRoute()
 const router = useRouter()
@@ -57,6 +58,7 @@ watch(pendingDraft, (draft) => {
 const projectSummary = computed(() =>
   project.value?.summary || 'Studio shaped this first design from your plain-language brief.',
 )
+const projectConsumerMode = computed(() => consumerModeFromLabels(project.value?.labels))
 
 function returnToBrief() {
   router.push(`/design/projects/${projectId.value}`)
@@ -81,6 +83,7 @@ async function createRequirementsDraft() {
         sourceIntent.value,
         project.value.name,
         project.value.domain,
+        projectConsumerMode.value,
       ),
     })
     await refreshArtifacts()
@@ -97,7 +100,7 @@ async function createScenarioStarters() {
   creating.value = 'scenarios'
   draftStatus.value = null
   try {
-    const templates = makeScenarioTemplatesFromIntent(interpretation.value)
+    const templates = makeScenarioTemplatesFromIntent(interpretation.value, projectConsumerMode.value)
     const createdIds: string[] = []
     for (const template of templates) {
       const created = await createScenario(projectId.value, {
@@ -132,7 +135,7 @@ async function createServiceDesignDraft() {
       id: `shape-${crypto.randomUUID()}`,
       title: projectStore.artifacts.shapes.length === 0 ? 'Service Shape' : `Service Shape ${projectStore.artifacts.shapes.length + 1}`,
       requirements_id: requirementsId,
-      data: makeShapeTemplateFromIntent(interpretation.value, project.value.name),
+      data: makeShapeTemplateFromIntent(interpretation.value, project.value.name, projectConsumerMode.value),
     })
     await refreshArtifacts()
     setActiveShape(created.id)
@@ -156,10 +159,11 @@ async function createFirstDraftSet() {
         sourceIntent.value,
         project.value.name,
         project.value.domain,
+        projectConsumerMode.value,
       ),
     })
 
-    const templates = makeScenarioTemplatesFromIntent(interpretation.value)
+    const templates = makeScenarioTemplatesFromIntent(interpretation.value, projectConsumerMode.value)
     const createdScenarioIds: string[] = []
     for (const template of templates) {
       const created = await createScenario(projectId.value, {
@@ -174,7 +178,7 @@ async function createFirstDraftSet() {
       id: `shape-${crypto.randomUUID()}`,
       title: projectStore.artifacts.shapes.length === 0 ? 'Service Shape' : `Service Shape ${projectStore.artifacts.shapes.length + 1}`,
       requirements_id: requirementsCreated.id,
-      data: makeShapeTemplateFromIntent(interpretation.value, project.value.name),
+      data: makeShapeTemplateFromIntent(interpretation.value, project.value.name, projectConsumerMode.value),
     })
 
     await refreshArtifacts()

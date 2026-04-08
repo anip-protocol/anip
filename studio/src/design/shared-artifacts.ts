@@ -5,6 +5,7 @@ import type {
   RequirementsRecord,
   ShapeRecord,
 } from './project-types'
+import { consumerModeFromLabels, consumerModeLabel } from './consumer-mode'
 
 interface ShareableArtifactContext {
   project: ProjectDetail | null
@@ -24,6 +25,7 @@ export function buildBusinessBrief(context: ShareableArtifactContext): string {
 
   const businessConstraints = truthyLabels(requirementData?.business_constraints ?? {})
   const designSummary = describeBusinessShape(shapeData)
+  const serviceNames = namedServices(shapeData)
   const workingWell = stringList(evaluationData?.handled_by_anip).slice(0, 4)
   const changesNext = (
     stringList(evaluationData?.what_would_improve).length
@@ -35,6 +37,9 @@ export function buildBusinessBrief(context: ShareableArtifactContext): string {
     `# Business Brief: ${project?.name || 'Unnamed Project'}`,
     '',
     `Generated: ${new Date().toLocaleString()}`,
+    '',
+    '## Traceability',
+    bulletLines(traceabilityLines(context, 'Canonical Business Brief')),
     '',
     '## What We Are Building',
     project?.summary || 'No project summary has been written yet.',
@@ -49,6 +54,9 @@ export function buildBusinessBrief(context: ShareableArtifactContext): string {
     '',
     '## Current Service Design',
     designSummary,
+    ...(serviceNames.length
+      ? ['', '### Named Services', bulletLines(serviceNames)]
+      : []),
     '',
     '## Real Situation Under Review',
     scenario?.title || 'No active real situation selected yet.',
@@ -93,10 +101,14 @@ export function buildEngineeringContract(context: ShareableArtifactContext): str
     const capabilities = stringList(service?.capabilities)
     const owns = stringList(service?.owns_concepts)
     return [
-      `- ${service?.name || service?.id || 'Unnamed service'} (${service?.id || 'no-id'})`,
-      responsibilities.length ? `  responsibilities: ${responsibilities.join('; ')}` : '  responsibilities: none listed',
-      capabilities.length ? `  capabilities: ${capabilities.join(', ')}` : '  capabilities: none listed',
-      owns.length ? `  owns concepts: ${owns.join(', ')}` : '  owns concepts: none listed',
+      `### ${service?.name || service?.id || 'Unnamed service'}`,
+      `- Service ID: ${service?.id || 'no-id'}`,
+      '- Responsibilities:',
+      indentedBulletLines(responsibilities.length ? responsibilities : ['none listed']),
+      '- Capabilities:',
+      indentedBulletLines(capabilities.length ? capabilities : ['none listed']),
+      '- Owns Concepts:',
+      indentedBulletLines(owns.length ? owns : ['none listed']),
     ].join('\n')
   })
 
@@ -120,11 +132,15 @@ export function buildEngineeringContract(context: ShareableArtifactContext): str
     '',
     `Generated: ${new Date().toLocaleString()}`,
     '',
+    '## Traceability',
+    bulletLines(traceabilityLines(context, 'Canonical Engineering Contract')),
+    '',
     '## Active Context',
     `- Project: ${project?.name || 'Unknown project'}`,
     `- Requirements: ${requirements?.title || 'None selected'}`,
     `- Scenario: ${scenario?.title || 'None selected'}`,
     `- Service Design: ${shape?.title || 'None selected'}`,
+    `- Evaluation: ${describeEvaluation(evaluation)}`,
     '',
     '## Requirements Signals',
     bulletLines(requirementSignals.length ? requirementSignals : ['No strong structured requirement signals are available yet.']),
@@ -199,6 +215,10 @@ function bulletLines(items: string[]): string {
   return items.map(item => `- ${item}`).join('\n')
 }
 
+function indentedBulletLines(items: string[]): string {
+  return items.map(item => `  - ${item}`).join('\n')
+}
+
 function describeBusinessShape(shapeData: Record<string, any>): string {
   const services = array(shapeData?.services)
   const concepts = array(shapeData?.domain_concepts)
@@ -207,4 +227,30 @@ function describeBusinessShape(shapeData: Record<string, any>): string {
     return 'The service design has not been defined yet.'
   }
   return `The current design is a ${type} starting point with ${services.length} service${services.length === 1 ? '' : 's'} and ${concepts.length} named domain concept${concepts.length === 1 ? '' : 's'}.`
+}
+
+function namedServices(shapeData: Record<string, any>): string[] {
+  return array(shapeData?.services)
+    .map((service: any) => String(service?.name || '').trim())
+    .filter(Boolean)
+}
+
+function traceabilityLines(context: ShareableArtifactContext, role: string): string[] {
+  const consumerMode = consumerModeFromLabels(context.project?.labels)
+  return [
+    `Artifact role: ${role}`,
+    `Project: ${context.project?.name || context.project?.id || 'Unknown project'}`,
+    `Primary consumer: ${consumerModeLabel(consumerMode)}`,
+    `Requirements set: ${context.requirements?.title || context.requirements?.id || 'None selected'}`,
+    `Scenario: ${context.scenario?.title || context.scenario?.id || 'None selected'}`,
+    `Service design: ${context.shape?.title || context.shape?.id || 'None selected'}`,
+    `Evaluation: ${describeEvaluation(context.evaluation)}`,
+  ]
+}
+
+function describeEvaluation(evaluation: EvaluationRecord | null): string {
+  if (!evaluation) return 'None selected'
+  return evaluation.created_at
+    ? `${evaluation.id} (${evaluation.result}, ${evaluation.created_at})`
+    : `${evaluation.id} (${evaluation.result})`
 }

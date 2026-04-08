@@ -159,6 +159,12 @@ function navigate(path: string) {
 }
 
 function isDesignItemActive(item: DesignNavItem): boolean {
+  if (item.name === 'project-overview') {
+    return false
+  }
+  if (item.name === 'project-overview:overview') {
+    return route.path === item.path && route.hash === '' && activeRoute.value === 'project-overview'
+  }
   if (item.path.includes('#')) {
     const [base, hash] = item.path.split('#')
     return route.path === base && route.hash === `#${hash}`

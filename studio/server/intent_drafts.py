@@ -7,6 +7,8 @@ from typing import Any
 from uuid import uuid4
 import re
 
+from .consumer_mode import consumer_mode_label, normalize_consumer_mode
+
 
 def slugify(value: str) -> str:
     return re.sub(r"(^-+|-+$)", "", re.sub(r"[^a-z0-9]+", "-", value.lower().strip()))
@@ -94,8 +96,10 @@ def make_requirements_template_from_intent(
     intent: str,
     project_name: str,
     project_domain: str,
+    consumer_mode: str = "hybrid",
 ) -> dict[str, Any]:
     data = make_requirements_template(project_name, project_domain)
+    consumer_mode = normalize_consumer_mode(consumer_mode)
     words = normalized_words(
         intent,
         interpretation.get("summary", ""),
@@ -119,6 +123,15 @@ def make_requirements_template_from_intent(
     constraints["cost_visibility_required"] = mentions_budget
     constraints["approval_expected_for_high_risk"] = mentions_approval or mentions_risk
     constraints["recovery_sensitive"] = mentions_recovery
+    constraints["primary_consumer"] = consumer_mode_label(consumer_mode)
+    constraints["agent_consumed_flow"] = consumer_mode in {"agent_anip", "hybrid"}
+    constraints["human_operated_flow"] = consumer_mode in {"human_app", "hybrid"}
+    if consumer_mode == "agent_anip":
+        constraints["low_glue_machine_consumption_required"] = True
+    elif consumer_mode == "human_app":
+        constraints["operator_explainability_required"] = True
+    else:
+        constraints["hybrid_handoff_expected"] = True
     constraints["blocked_failure_posture"] = (
         "structured_blocked"
         if mentions_budget or mentions_approval or mentions_recovery or mentions_risk
@@ -127,10 +140,17 @@ def make_requirements_template_from_intent(
     return data
 
 
-def make_scenario_templates_from_intent(interpretation: dict[str, Any]) -> list[dict[str, Any]]:
+def make_scenario_templates_from_intent(interpretation: dict[str, Any], consumer_mode: str = "hybrid") -> list[dict[str, Any]]:
+    consumer_mode = normalize_consumer_mode(consumer_mode)
     starters = list(interpretation.get("scenario_starters") or [])[:3]
     if not starters:
         starters = ["Describe the normal success path that the service should handle cleanly."]
+    if consumer_mode == "agent_anip":
+        starters.append("Add a scenario where an ANIP consumer must recover from a blocked action without hidden UI-only workflow knowledge.")
+    elif consumer_mode == "human_app":
+        starters.append("Add a scenario where a human operator needs a clear explanation for why work was blocked or routed elsewhere.")
+    else:
+        starters.append("Add a scenario where a person starts the flow and an agent or tool continues it through a bounded handoff.")
     result: list[dict[str, Any]] = []
     for index, starter in enumerate(starters, start=1):
         category = infer_scenario_category(starter)
@@ -181,7 +201,8 @@ def make_scenario_templates_from_intent(interpretation: dict[str, Any]) -> list[
     return result
 
 
-def make_shape_template_from_intent(interpretation: dict[str, Any], project_name: str) -> dict[str, Any]:
+def make_shape_template_from_intent(interpretation: dict[str, Any], project_name: str, consumer_mode: str = "hybrid") -> dict[str, Any]:
+    consumer_mode = normalize_consumer_mode(consumer_mode)
     root_name = project_name or "new-service"
     shape_name = titleize(root_name)
     primary_service_id = slugify(root_name) or "primary-service"
@@ -194,6 +215,13 @@ def make_shape_template_from_intent(interpretation: dict[str, Any], project_name
         "name": shape_name,
         "role": "primary service",
         "responsibilities": [
+            (
+                "Keep the human-facing workflow easy to understand and explain."
+                if consumer_mode == "human_app"
+                else "Keep the ANIP capability surface explicit so tools and agents do not need hidden local glue."
+                if consumer_mode == "agent_anip"
+                else "Own the main workflow in a way that stays understandable for people and explicit for ANIP consumers."
+            ),
             "Own the main action and the core control checks around it.",
             *list(interpretation.get("requirements_focus", []))[:2],
         ],

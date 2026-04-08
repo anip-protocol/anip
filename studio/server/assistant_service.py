@@ -28,6 +28,7 @@ from anip_core import (
 from anip_service import ANIPError, ANIPService, Capability
 
 from .assistant_provider import try_model_assistant_response
+from .consumer_mode import consumer_mode_from_labels, consumer_mode_label, normalize_consumer_mode
 from .db import get_pool
 from .derivation import derive_contract_expectations
 from .repository import (
@@ -84,6 +85,12 @@ def create_studio_assistant_service() -> ANIPService:
                             type="string",
                             required=True,
                             description="Plain-language description of what the user wants to build.",
+                        ),
+                        CapabilityInput(
+                            name="consumer_mode",
+                            type="string",
+                            required=False,
+                            description="Optional audience bias: human_app, agent_anip, or hybrid.",
                         ),
                     ],
                     output=CapabilityOutput(
@@ -458,6 +465,9 @@ async def _interpret_project_intent(_: Any, params: dict[str, Any]) -> dict[str,
 
     words = set(_normalized_words(intent))
     project_name = project.get("name", project_id)
+    consumer_mode = params.get("consumer_mode")
+    consumer_mode = normalize_consumer_mode(str(consumer_mode).strip().lower()) if consumer_mode is not None else consumer_mode_from_labels(project.get("labels"))
+    consumer_label = consumer_mode_label(consumer_mode)
 
     has_budget = _contains_any(words, "budget", "cost", "spend", "price", "pricing")
     has_approval = _contains_any(words, "approval", "approve", "approver", "escalate", "escalation")
@@ -493,6 +503,12 @@ async def _interpret_project_intent(_: Any, params: dict[str, Any]) -> dict[str,
         requirements_focus.append("Preserve lineage and explainability so later investigation does not depend on UI or prompt glue.")
     if not requirements_focus:
         requirements_focus.append("Start by defining what must always be true, what can block action, and what the system must explain afterward.")
+    if consumer_mode == "agent_anip":
+        requirements_focus.insert(0, "Bias the first design toward machine-usable capability boundaries, explicit blocked-action meaning, and low-glue ANIP consumption.")
+    elif consumer_mode == "human_app":
+        requirements_focus.insert(0, "Bias the first design toward a clear human-facing flow, understandable blocked states, and operator-friendly explanations.")
+    else:
+        requirements_focus.insert(0, "Bias the first design toward a hybrid flow where both people and ANIP consumers can follow the same bounded service logic.")
 
     scenario_starters: list[str] = [
         "Describe the normal success path that the service should handle cleanly."
@@ -507,6 +523,12 @@ async def _interpret_project_intent(_: Any, params: dict[str, Any]) -> dict[str,
         scenario_starters.append("Add a scenario where the system must verify the outcome after the initial action completes.")
     if has_async or has_handoff:
         scenario_starters.append("Add a follow-up or handoff scenario so the design is pressured across service boundaries, not only inside one request.")
+    if consumer_mode == "agent_anip":
+        scenario_starters.append("Add a scenario where an agent or tool must discover permissions, handle a blocked action, and continue without UI-only context.")
+    elif consumer_mode == "human_app":
+        scenario_starters.append("Add a scenario where a human needs the system to explain why work was blocked, delayed, or routed for review.")
+    else:
+        scenario_starters.append("Add a scenario where a person starts the work and an agent or tool continues it through a bounded handoff.")
 
     concept_map = {
         "flight": "Flight",
@@ -535,6 +557,12 @@ async def _interpret_project_intent(_: Any, params: dict[str, Any]) -> dict[str,
         service_suggestions.append("Start with one primary service that owns the main action and its control checks together.")
     else:
         service_suggestions.append("Keep the primary action in one service and separate approval, verification, or follow-up only where the brief clearly demands it.")
+    if consumer_mode == "agent_anip":
+        service_suggestions.append("Keep the machine-facing capability surface explicit so consumers do not have to recover workflow meaning from prompts or UI assumptions.")
+    elif consumer_mode == "human_app":
+        service_suggestions.append("Keep the first boundary legible for PMs, support, and operations instead of splitting the design earlier than the product needs.")
+    else:
+        service_suggestions.append("Treat the design as hybrid: keep the human workflow understandable while preserving ANIP-friendly capability and audit boundaries underneath.")
     if has_approval:
         service_suggestions.append("Consider an approval responsibility only if approvals need a distinct lifecycle or separate authority boundary.")
     if has_verification:
@@ -552,6 +580,7 @@ async def _interpret_project_intent(_: Any, params: dict[str, Any]) -> dict[str,
     summary = (
         f"This brief for {project_name} points toward a "
         f"{'multi-service' if recommended_shape_type == 'multi_service' else 'single-service'} starting shape. "
+        f"It is being shaped primarily for {consumer_label.lower()}. "
         f"The main pressure points are {', '.join(item.split(' ')[0].lower() for item in requirements_focus[:3])}."
     )
 
@@ -575,6 +604,8 @@ async def _interpret_project_intent(_: Any, params: dict[str, Any]) -> dict[str,
                 "name": project_name,
                 "domain": project.get("domain"),
                 "summary": project.get("summary"),
+                "labels": project.get("labels") or [],
+                "consumer_mode": consumer_mode,
             },
             "intent": intent,
             "deterministic_draft": deterministic,

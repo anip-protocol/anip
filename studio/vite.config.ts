@@ -7,6 +7,8 @@ function normalizeBase(base: string): string {
   return base.endsWith('/') ? base : base + '/'
 }
 
+const backendTarget = process.env.VITE_STUDIO_BACKEND_URL ?? 'http://127.0.0.1:8100'
+
 export default defineConfig({
   plugins: [vue()],
   resolve: {
@@ -19,11 +21,15 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8100',
+        target: backendTarget,
         changeOrigin: true,
       },
       '/studio-assistant': {
-        target: 'http://127.0.0.1:8100',
+        target: backendTarget,
+        changeOrigin: true,
+      },
+      '/studio-workbench': {
+        target: backendTarget,
         changeOrigin: true,
       },
     },

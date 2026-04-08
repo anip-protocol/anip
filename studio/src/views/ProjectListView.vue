@@ -2,7 +2,8 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { projectStore, checkDbAvailable, loadProjects, loadWorkspace } from '../design/project-store'
-import { createProject, deleteProject } from '../design/project-api'
+import { acceptFirstDesign, createProject, deleteProject, interpretProjectIntentWithAssistant } from '../design/project-api'
+import { CONSUMER_MODE_OPTIONS, DEFAULT_CONSUMER_MODE, labelsWithConsumerMode, type ProjectConsumerMode } from '../design/consumer-mode'
 
 const route = useRoute()
 const router = useRouter()
@@ -12,7 +13,9 @@ const showCreateForm = ref(false)
 const newName = ref('')
 const newDomain = ref('')
 const newSummary = ref('')
-const creating = ref(false)
+const newIntentBrief = ref('')
+const newConsumerMode = ref<ProjectConsumerMode>(DEFAULT_CONSUMER_MODE)
+const creating = ref<'empty' | 'brief' | null>(null)
 const deletingProjectId = ref<string | null>(null)
 const cleaningJunk = ref(false)
 
@@ -52,7 +55,7 @@ function openProject(id: string) {
 async function handleCreate() {
   const name = newName.value.trim()
   if (!name) return
-  creating.value = true
+  creating.value = 'empty'
   try {
     const id = crypto.randomUUID()
     await createProject({
@@ -61,17 +64,59 @@ async function handleCreate() {
       name,
       domain: newDomain.value.trim() || undefined,
       summary: newSummary.value.trim() || undefined,
+      labels: labelsWithConsumerMode([], newConsumerMode.value),
     })
     newName.value = ''
     newDomain.value = ''
     newSummary.value = ''
+    newIntentBrief.value = ''
+    newConsumerMode.value = DEFAULT_CONSUMER_MODE
     showCreateForm.value = false
     await loadProjects(workspaceId.value)
     router.push(`/design/projects/${id}`)
   } catch {
     // error is surfaced via projectStore.error
   } finally {
-    creating.value = false
+    creating.value = null
+  }
+}
+
+function summaryFromBrief(brief: string): string {
+  const cleaned = brief.replace(/\s+/g, ' ').trim()
+  if (!cleaned) return ''
+  if (cleaned.length <= 180) return cleaned
+  return `${cleaned.slice(0, 177).trim()}...`
+}
+
+async function handleCreateFromBrief() {
+  const name = newName.value.trim()
+  const brief = newIntentBrief.value.trim()
+  if (!name || !brief) return
+  creating.value = 'brief'
+  try {
+    const id = crypto.randomUUID()
+    await createProject({
+      id,
+      workspace_id: workspaceId.value,
+      name,
+      domain: newDomain.value.trim() || undefined,
+      summary: newSummary.value.trim() || summaryFromBrief(brief),
+      labels: labelsWithConsumerMode([], newConsumerMode.value),
+    })
+    const interpretation = await interpretProjectIntentWithAssistant(id, brief)
+    await acceptFirstDesign(id, brief, interpretation)
+    newName.value = ''
+    newDomain.value = ''
+    newSummary.value = ''
+    newIntentBrief.value = ''
+    newConsumerMode.value = DEFAULT_CONSUMER_MODE
+    showCreateForm.value = false
+    await loadProjects(workspaceId.value)
+    router.push(`/design/projects/${id}`)
+  } catch {
+    // error is surfaced via projectStore.error
+  } finally {
+    creating.value = null
   }
 }
 
@@ -151,6 +196,21 @@ async function handleCleanJunkProjects() {
           />
         </div>
         <div class="field-group">
+          <label class="field-label">Primary Consumer</label>
+          <select v-model="newConsumerMode" class="form-input">
+            <option
+              v-for="option in CONSUMER_MODE_OPTIONS"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.label }}
+            </option>
+          </select>
+          <div class="field-help">
+            {{ CONSUMER_MODE_OPTIONS.find(option => option.value === newConsumerMode)?.description }}
+          </div>
+        </div>
+        <div class="field-group">
           <label class="field-label">Summary</label>
           <textarea
             v-model="newSummary"
@@ -158,13 +218,31 @@ async function handleCleanJunkProjects() {
             placeholder="What problem should this project explore?"
           ></textarea>
         </div>
+        <div class="field-group">
+          <label class="field-label">Plain-Language Brief</label>
+          <textarea
+            v-model="newIntentBrief"
+            class="form-textarea form-textarea-brief"
+            placeholder="Describe the product or service in normal language. Studio can turn this into the first requirements set, scenarios, and service design for you."
+          ></textarea>
+          <div class="field-help">
+            Skip this if you want an empty project. Add it if you want Studio to create the first setup automatically.
+          </div>
+        </div>
         <div class="form-actions">
           <button
             class="btn btn-primary btn-create"
             @click="handleCreate"
-            :disabled="!newName.trim() || creating"
+            :disabled="!newName.trim() || creating !== null"
           >
-            {{ creating ? 'Creating...' : 'Create Project' }}
+            {{ creating === 'empty' ? 'Creating...' : 'Create Empty Project' }}
+          </button>
+          <button
+            class="btn btn-secondary btn-create"
+            @click="handleCreateFromBrief"
+            :disabled="!newName.trim() || !newIntentBrief.trim() || creating !== null"
+          >
+            {{ creating === 'brief' ? 'Shaping Project...' : 'Create Initial Project Setup' }}
           </button>
         </div>
       </div>
@@ -379,9 +457,21 @@ async function handleCleanJunkProjects() {
   color: var(--text-muted);
 }
 
+.field-help {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.form-textarea-brief {
+  min-height: 180px;
+}
+
 .form-actions {
   display: flex;
   justify-content: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .btn-create {
