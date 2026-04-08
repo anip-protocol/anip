@@ -5,9 +5,10 @@
  * that call the underlying ANIPClient. All protocol logic lives in
  * @anip-dev/client — these services only add reactive state management.
  *
- * Uses a portable signal implementation that mirrors Angular 17+ signals.
- * In a real Angular application, these can be adapted to use
- * `@angular/core`'s `signal()` directly.
+ * Uses a signal implementation matching the Angular 17+ signal API.
+ * The signal interface (read/set/update) is identical to `@angular/core`'s
+ * `signal()`, so these services work natively in Angular templates and
+ * computed/effect contexts.
  */
 
 import { ANIPClient } from "@anip-dev/client";
@@ -105,27 +106,42 @@ export class AnipManifestService {
 /**
  * Resolves a single capability from the cached manifest.
  *
- * Call `resolve(name)` to look up a capability. If you call `resolveFromManifest`
- * after a manifest load, it auto-refreshes the capability data.
+ * When constructed with a manifest service's `data` signal, capability
+ * state auto-updates whenever the manifest changes — no manual refresh needed.
+ *
+ * Usage:
+ *   const capSvc = new AnipCapabilityService(clientSvc, manifestSvc.data);
+ *   capSvc.resolve('book_flight');
+ *   // capSvc.data() auto-updates when manifest is reloaded
  */
 export class AnipCapabilityService {
   readonly data: WritableSignal<NormalizedCapability | null> = signal(null);
   private currentName: string | null = null;
+  private unsubscribe: (() => void) | null = null;
 
-  constructor(private readonly clientService: AnipClientService) {}
+  constructor(
+    private readonly clientService: AnipClientService,
+    manifestSignal?: WritableSignal<NormalizedManifest | null>,
+  ) {
+    // Auto-resolve when the manifest signal changes
+    if (manifestSignal && (manifestSignal as any).__subscribe) {
+      this.unsubscribe = (manifestSignal as any).__subscribe(() => {
+        if (this.currentName) {
+          this.data.set(this.clientService.client.getCapability(this.currentName));
+        }
+      });
+    }
+  }
 
   resolve(name: string): void {
     this.currentName = name;
     this.data.set(this.clientService.client.getCapability(name));
   }
 
-  /**
-   * Re-resolve the current capability after a manifest update.
-   * Call this after `AnipManifestService.load()` to auto-refresh.
-   */
-  resolveFromManifest(): void {
-    if (this.currentName) {
-      this.data.set(this.clientService.client.getCapability(this.currentName));
+  destroy(): void {
+    if (this.unsubscribe) {
+      this.unsubscribe();
+      this.unsubscribe = null;
     }
   }
 }

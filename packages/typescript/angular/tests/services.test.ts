@@ -19,6 +19,7 @@ import {
   AnipAuditService,
   AnipFailureService,
 } from "../src/services.js";
+import { signal } from "../src/signal.js";
 
 // ---------------------------------------------------------------------------
 // Mock client factory — patches the ANIPClient returned by the service
@@ -268,7 +269,7 @@ describe("AnipCapabilityService", () => {
     expect(service.data()).toEqual(cap);
   });
 
-  it("re-resolves after manifest load via resolveFromManifest()", () => {
+  it("auto-resolves when manifest signal changes", () => {
     let loaded = false;
     const cap: NormalizedCapability = {
       name: "search_flights",
@@ -284,13 +285,18 @@ describe("AnipCapabilityService", () => {
         .mockImplementation(() => (loaded ? cap : null)),
     });
 
-    const service = new AnipCapabilityService(clientService);
+    // Create a manifest signal and pass it to the capability service
+    const manifestSignal = signal(null);
+    const service = new AnipCapabilityService(clientService, manifestSignal);
     service.resolve("search_flights");
     expect(service.data()).toBeNull();
 
+    // Simulate manifest load — signal change should auto-resolve
     loaded = true;
-    service.resolveFromManifest();
+    manifestSignal.set({ protocol: "anip/0.22", capabilities: {}, raw: {} } as any);
     expect(service.data()).toEqual(cap);
+
+    service.destroy();
   });
 });
 

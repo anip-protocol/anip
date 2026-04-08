@@ -8,15 +8,10 @@
  *   ]
  */
 
-/**
- * Injection token for the ANIP service base URL.
- * In a real Angular app, use `new InjectionToken<string>('ANIP_BASE_URL')`.
- * This module provides the token name constant for use in tests and
- * non-Angular environments.
- */
-export const ANIP_BASE_URL = "ANIP_BASE_URL";
+import { InjectionToken } from "@angular/core";
 
-/**
- * Optional injection token for request timeout in milliseconds.
- */
-export const ANIP_TIMEOUT = "ANIP_TIMEOUT";
+/** Injection token for the ANIP service base URL. */
+export const ANIP_BASE_URL = new InjectionToken<string>("ANIP_BASE_URL");
+
+/** Optional injection token for request timeout in milliseconds. */
+export const ANIP_TIMEOUT = new InjectionToken<number>("ANIP_TIMEOUT");
