@@ -1,9 +1,9 @@
 """Financial operations capabilities — ANIP capability declarations and handlers."""
 from anip_service import Capability, InvocationContext, ANIPError
 from anip_core import (
-    BindingRequirement, CapabilityDeclaration, CapabilityInput, CapabilityOutput,
-    CapabilityRequirement, Cost, CostCertainty, FinancialCost, ObservabilityContract,
-    ResponseMode, SessionInfo, SideEffect, SideEffectType,
+    CapabilityDeclaration, CapabilityInput, CapabilityOutput, CapabilityRequirement,
+    Cost, CostCertainty, FinancialCost, ObservabilityContract, ResponseMode, SessionInfo,
+    SideEffect, SideEffectType,
 )
 import data
 
@@ -122,14 +122,6 @@ _TRADE_DECL = CapabilityDeclaration(
         CapabilityRequirement(
             capability="get_market_data",
             reason="must check current market price before executing trade",
-        ),
-    ],
-    requires_binding=[
-        BindingRequirement(
-            type="quote",
-            field="market_quote",
-            source_capability="get_market_data",
-            max_age="PT5M",
         ),
     ],
     refresh_via=["get_market_data"],
