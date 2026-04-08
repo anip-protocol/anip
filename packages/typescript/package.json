@@ -1,5 +1,5 @@
 {
   "name": "anip-sdk",
   "private": true,
-  "workspaces": ["core", "crypto", "server", "service", "stdio", "hono", "express", "fastify", "mcp", "mcp-hono", "mcp-express", "mcp-fastify", "rest", "graphql", "client", "vue"]
+  "workspaces": ["core", "crypto", "server", "service", "stdio", "hono", "express", "fastify", "mcp", "mcp-hono", "mcp-express", "mcp-fastify", "rest", "graphql", "client", "vue", "react", "angular"]
 }
