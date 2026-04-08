@@ -1,126 +1,96 @@
-"""Seed the database from example packs in tooling/examples/."""
+"""Seed Studio with curated built-in demo projects."""
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
-import yaml
-
 from . import repository
-
-EXAMPLES_DIR = Path(__file__).resolve().parents[2] / "tooling" / "examples"
-
-
-def _load_yaml(path: Path) -> dict:
-    """Load a YAML file and return its contents as a dict."""
-    with open(path) as f:
-        return yaml.safe_load(f) or {}
+from .seed_catalog import SEED_PROJECTS
 
 
 def seed_from_examples(conn: Any) -> dict:
-    """Import example packs into the database as seed projects.
+    """Create curated seed projects for local demos.
 
-    One project is created per pack directory.  Existing projects
-    (matched by ID) are silently skipped, making this function
-    idempotent.
-
-    Returns ``{"created_projects": N, "skipped": N}``.
+    Existing projects are matched by ID and skipped, making the seed
+    operation idempotent.
     """
-    if not EXAMPLES_DIR.is_dir():
-        return {"created_projects": 0, "skipped": 0}
 
     created = 0
     skipped = 0
 
-    for pack_dir in sorted(EXAMPLES_DIR.iterdir()):
-        if not pack_dir.is_dir():
-            continue
-
-        pack = pack_dir.name
-        req_path = pack_dir / "requirements.yaml"
-        if not req_path.exists():
-            continue
-
-        # Check whether the project already exists
+    for item in SEED_PROJECTS:
+        project = item["project"]
+        project_id = project["id"]
         try:
-            repository.get_project(conn, pack)
+            repository.get_project(conn, project_id)
             skipped += 1
             continue
         except repository.NotFoundError:
-            pass  # project does not exist — create it
+            pass
 
-        # Load artifacts
-        requirements_data = _load_yaml(req_path)
-        scenario_data = _load_yaml(pack_dir / "scenario.yaml") if (pack_dir / "scenario.yaml").exists() else {}
-        proposal_data = _load_yaml(pack_dir / "proposal.yaml") if (pack_dir / "proposal.yaml").exists() else {}
-        evaluation_data = _load_yaml(pack_dir / "evaluation.yaml") if (pack_dir / "evaluation.yaml").exists() else {}
-
-        # Derive project metadata from requirements
-        system = requirements_data.get("system", {})
-        project_name = system.get("name", pack)
-        project_domain = system.get("domain", "")
-
-        # Create project
         repository.create_project(
             conn,
-            project_id=pack,
-            name=project_name,
-            summary=f"Imported from example pack: {pack}",
-            domain=project_domain,
+            project_id=project_id,
+            name=project["name"],
+            summary=project["summary"],
+            domain=project["domain"],
         )
 
-        # Create requirements set
-        req_id = f"req-{pack}"
-        req_title = f"{project_name} requirements"
+        requirements = item["requirements"]
         repository.create_requirements(
             conn,
-            project_id=pack,
-            req_id=req_id,
-            title=req_title,
-            data=requirements_data,
+            project_id=project_id,
+            req_id=requirements["id"],
+            title=requirements["title"],
+            data=requirements["data"],
         )
 
-        # Create scenario
-        scn_id = f"scn-{pack}"
-        scn_name = scenario_data.get("scenario", {}).get("name", f"{pack} scenario")
+        scenario = item["scenario"]
         repository.create_scenario(
             conn,
-            project_id=pack,
-            scenario_id=scn_id,
-            title=scn_name,
-            data=scenario_data,
+            project_id=project_id,
+            scenario_id=scenario["id"],
+            title=scenario["title"],
+            data=scenario["data"],
         )
 
-        # Create approach
-        prop_id = f"prop-{pack}"
-        prop_title = f"{project_name} approach"
+        proposal = item["proposal"]
         repository.create_proposal(
             conn,
-            project_id=pack,
-            proposal_id=prop_id,
-            title=prop_title,
-            requirements_id=req_id,
-            data=proposal_data,
+            project_id=project_id,
+            proposal_id=proposal["id"],
+            title=proposal["title"],
+            requirements_id=requirements["id"],
+            data=proposal["data"],
         )
 
-        # Create evaluation with frozen input_snapshot
-        eval_id = f"eval-{pack}"
+        shape = item["shape"]
+        repository.create_shape(
+            conn,
+            project_id=project_id,
+            shape_id=shape["id"],
+            title=shape["title"],
+            requirements_id=requirements["id"],
+            data=shape["data"],
+        )
+
+        evaluation = item["evaluation"]
         input_snapshot = {
-            "requirements": requirements_data,
-            "proposal": proposal_data,
-            "scenario": scenario_data,
+            "requirements": requirements["data"],
+            "proposal": proposal["data"],
+            "scenario": scenario["data"],
         }
         repository.create_evaluation(
             conn,
-            project_id=pack,
-            eval_id=eval_id,
-            proposal_id=prop_id,
-            scenario_id=scn_id,
-            requirements_id=req_id,
-            source="imported",
-            data=evaluation_data,
+            project_id=project_id,
+            eval_id=evaluation["id"],
+            proposal_id=proposal["id"],
+            scenario_id=scenario["id"],
+            requirements_id=requirements["id"],
+            source=evaluation["source"],
+            data=evaluation["data"],
             input_snapshot=input_snapshot,
+            shape_id=shape["id"],
         )
 
         created += 1

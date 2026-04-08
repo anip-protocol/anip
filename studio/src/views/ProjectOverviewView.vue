@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   projectStore,
@@ -13,11 +13,14 @@ import {
   refreshArtifacts,
 } from '../design/project-store'
 import {
+  acceptFirstDesign,
   createProposal,
   createRequirements,
   createScenario,
   createShape,
   exportProject,
+  generateBusinessBriefDocument,
+  generateEngineeringContractDocument,
   interpretProjectIntentWithAssistant,
   importArtifacts,
   setRequirementsRole,
@@ -34,6 +37,7 @@ import {
   makeScenarioTemplatesFromIntent,
   makeShapeTemplateFromIntent,
 } from '../design/intent-drafts'
+import { consumerModeFromLabels } from '../design/consumer-mode'
 import {
   buildBusinessBrief,
   buildEngineeringContract,
@@ -58,6 +62,7 @@ const activeRequirementsId = computed(() => projectStore.activeRequirementsId)
 const activeScenarioId = computed(() => projectStore.activeScenarioId)
 const activeProposalId = computed(() => projectStore.activeProposalId)
 const activeShapeId = computed(() => projectStore.activeShapeId)
+const projectConsumerMode = computed(() => consumerModeFromLabels(project.value?.labels))
 
 /** Shape-first: project has shapes */
 const hasShapes = computed(() => shapes.value.length > 0)
@@ -78,6 +83,16 @@ const draftStatus = ref<string | null>(null)
 const loopView = ref<LoopView>('current')
 const businessBriefCopied = ref(false)
 const engineeringContractCopied = ref(false)
+const businessBriefMode = ref<'structured' | 'readable'>('structured')
+const engineeringContractMode = ref<'structured' | 'readable'>('structured')
+const businessReadableContent = ref('')
+const engineeringReadableContent = ref('')
+const businessReadableAssisted = ref(false)
+const engineeringReadableAssisted = ref(false)
+const businessReadableLoading = ref(false)
+const engineeringReadableLoading = ref(false)
+const businessReadableError = ref<string | null>(null)
+const engineeringReadableError = ref<string | null>(null)
 
 const primaryRequirements = computed(() =>
   requirements.value.filter(r => r.role === 'primary'),
@@ -147,6 +162,22 @@ const engineeringContractContent = computed(() => buildEngineeringContract({
   shape: activeShapeRecord.value,
   evaluation: latestEvaluationRecord.value,
 }))
+
+const businessBriefDisplayContent = computed(() => {
+  if (businessBriefMode.value === 'structured') return businessBriefContent.value
+  if (businessReadableLoading.value) return 'Generating a more readable business brief...'
+  if (businessReadableContent.value) return businessReadableContent.value
+  if (businessReadableError.value) return `Readable brief unavailable: ${businessReadableError.value}`
+  return businessBriefContent.value
+})
+
+const engineeringContractDisplayContent = computed(() => {
+  if (engineeringContractMode.value === 'structured') return engineeringContractContent.value
+  if (engineeringReadableLoading.value) return 'Generating a more readable engineering contract...'
+  if (engineeringReadableContent.value) return engineeringReadableContent.value
+  if (engineeringReadableError.value) return `Readable contract unavailable: ${engineeringReadableError.value}`
+  return engineeringContractContent.value
+})
 
 const activeRequirementsRecord = computed(() =>
   requirements.value.find(item => item.id === activeRequirementsId.value) ??
@@ -570,6 +601,7 @@ onMounted(() => {
     loadProject(projectId.value)
     loadVocabulary(projectId.value)
   }
+  void syncProjectHashNavigation(route.hash)
 })
 
 watch(projectId, (id) => {
@@ -579,8 +611,39 @@ watch(projectId, (id) => {
     setPendingIntentDraft(null)
     intentError.value = null
     draftStatus.value = null
+    void syncProjectHashNavigation(route.hash)
   }
 })
+
+watch(
+  () => route.hash,
+  (hash) => {
+    void syncProjectHashNavigation(hash)
+  },
+)
+
+watch(
+  () => [
+    projectId.value,
+    lastInterpretedIntent.value,
+    activeRequirementsRecord.value?.id ?? '',
+    activeRequirementsRecord.value?.updated_at ?? '',
+    activeScenarioRecord.value?.id ?? '',
+    activeScenarioRecord.value?.updated_at ?? '',
+    activeShapeRecord.value?.id ?? '',
+    activeShapeRecord.value?.updated_at ?? '',
+    latestEvaluationRecord.value?.id ?? '',
+    latestEvaluationRecord.value?.created_at ?? '',
+  ],
+  () => {
+    businessReadableContent.value = ''
+    engineeringReadableContent.value = ''
+    businessReadableAssisted.value = false
+    engineeringReadableAssisted.value = false
+    businessReadableError.value = null
+    engineeringReadableError.value = null
+  },
+)
 
 function onRequirementsChange(event: Event) {
   const value = (event.target as HTMLSelectElement).value
@@ -684,9 +747,55 @@ function scrollToSection(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-function openLoopView(view: LoopView) {
+function loopHashForView(view: LoopView): string {
+  if (view === 'test') return '#evaluate'
+  if (view === 'changes') return '#changes'
+  return ''
+}
+
+function resolveScrollTargetForHash(hash: string): string | null {
+  switch (hash) {
+    case '':
+      loopView.value = 'current'
+      return 'overview'
+    case '#requirements':
+      return 'requirements'
+    case '#scenarios':
+      return 'scenarios'
+    case '#shape':
+      return 'shape'
+    case '#evaluate':
+      loopView.value = 'test'
+      return 'evaluate'
+    case '#changes':
+      loopView.value = 'changes'
+      return 'changes'
+    case '#design-loop':
+      return 'design-loop'
+    default:
+      return null
+  }
+}
+
+async function syncProjectHashNavigation(hash: string) {
+  const targetId = resolveScrollTargetForHash(hash)
+  if (!targetId) return
+  await nextTick()
+  scrollToSection(targetId)
+}
+
+function selectLoopView(view: LoopView) {
   loopView.value = view
+  const hash = loopHashForView(view)
+  if (route.name === 'project-overview') {
+    void router.replace({ path: route.path, hash })
+    return
+  }
   scrollToSection('design-loop')
+}
+
+function openLoopView(view: LoopView) {
+  selectLoopView(view)
 }
 
 function openFirstDraftReview() {
@@ -699,7 +808,7 @@ function discardPendingIntent() {
 }
 
 async function copyShareableDocument(kind: 'business' | 'engineering') {
-  const content = kind === 'business' ? businessBriefContent.value : engineeringContractContent.value
+  const content = kind === 'business' ? businessBriefDisplayContent.value : engineeringContractDisplayContent.value
   try {
     await navigator.clipboard.writeText(content)
     if (kind === 'business') {
@@ -717,10 +826,71 @@ async function copyShareableDocument(kind: 'business' | 'engineering') {
 function downloadShareableDocument(kind: 'business' | 'engineering') {
   const slug = slugify(project.value?.name || 'project')
   if (kind === 'business') {
-    downloadTextDocument(`${slug}-business-brief.md`, businessBriefContent.value)
+    const suffix = businessBriefMode.value === 'readable' ? '-business-narrative.md' : '-business-brief.md'
+    downloadTextDocument(`${slug}${suffix}`, businessBriefDisplayContent.value)
     return
   }
-  downloadTextDocument(`${slug}-engineering-contract.md`, engineeringContractContent.value)
+  const suffix = engineeringContractMode.value === 'readable' ? '-engineering-narrative.md' : '-engineering-contract.md'
+  downloadTextDocument(`${slug}${suffix}`, engineeringContractDisplayContent.value)
+}
+
+async function loadReadableBusinessBrief() {
+  if (!projectId.value || businessReadableLoading.value || businessReadableContent.value) return
+  businessReadableLoading.value = true
+  businessReadableError.value = null
+  try {
+    const result = await generateBusinessBriefDocument({
+      project_id: projectId.value,
+      source_intent: lastInterpretedIntent.value || undefined,
+      requirements_id: activeRequirementsRecord.value?.id,
+      scenario_id: activeScenarioRecord.value?.id,
+      shape_id: activeShapeRecord.value?.id,
+      evaluation_id: latestEvaluationRecord.value?.id,
+      llm_assisted: true,
+    })
+    businessReadableContent.value = result.document
+    businessReadableAssisted.value = !!result.assisted
+  } catch (err) {
+    businessReadableError.value = err instanceof Error ? err.message : 'Failed to generate readable brief.'
+  } finally {
+    businessReadableLoading.value = false
+  }
+}
+
+async function loadReadableEngineeringContract() {
+  if (!projectId.value || engineeringReadableLoading.value || engineeringReadableContent.value) return
+  engineeringReadableLoading.value = true
+  engineeringReadableError.value = null
+  try {
+    const result = await generateEngineeringContractDocument({
+      project_id: projectId.value,
+      requirements_id: activeRequirementsRecord.value?.id,
+      scenario_id: activeScenarioRecord.value?.id,
+      shape_id: activeShapeRecord.value?.id,
+      evaluation_id: latestEvaluationRecord.value?.id,
+      llm_assisted: true,
+    })
+    engineeringReadableContent.value = result.document
+    engineeringReadableAssisted.value = !!result.assisted
+  } catch (err) {
+    engineeringReadableError.value = err instanceof Error ? err.message : 'Failed to generate readable contract.'
+  } finally {
+    engineeringReadableLoading.value = false
+  }
+}
+
+async function selectBusinessBriefMode(mode: 'structured' | 'readable') {
+  businessBriefMode.value = mode
+  if (mode === 'readable') {
+    await loadReadableBusinessBrief()
+  }
+}
+
+async function selectEngineeringContractMode(mode: 'structured' | 'readable') {
+  engineeringContractMode.value = mode
+  if (mode === 'readable') {
+    await loadReadableEngineeringContract()
+  }
 }
 
 async function runHomePrimaryAction() {
@@ -838,6 +1008,7 @@ async function handleCreateRequirements(intentResult?: IntentInterpretation) {
           lastInterpretedIntent.value,
           project.value?.name || 'new-service',
           project.value?.domain || 'general',
+          projectConsumerMode.value,
         )
       : makeRequirementsTemplate()
     const created = await createRequirements(projectId.value, {
@@ -863,8 +1034,8 @@ async function handleCreateScenario(intentResult?: IntentInterpretation) {
     const created = intentResult
       ? await createScenario(projectId.value, {
           id: `scn-${crypto.randomUUID()}`,
-          title: makeScenarioTemplatesFromIntent(intentResult)[0].title,
-          data: makeScenarioTemplatesFromIntent(intentResult)[0].data,
+          title: makeScenarioTemplatesFromIntent(intentResult, projectConsumerMode.value)[0].title,
+          data: makeScenarioTemplatesFromIntent(intentResult, projectConsumerMode.value)[0].data,
         })
       : await createScenario(projectId.value, {
           id: `scn-${crypto.randomUUID()}`,
@@ -939,7 +1110,7 @@ async function handleCreateShape(intentResult?: IntentInterpretation) {
   draftStatus.value = null
   try {
     const nextIndex = shapes.value.length + 1
-    const data = intentResult ? makeShapeTemplateFromIntent(intentResult, project.value?.name || 'new-service') : makeShapeTemplate()
+    const data = intentResult ? makeShapeTemplateFromIntent(intentResult, project.value?.name || 'new-service', projectConsumerMode.value) : makeShapeTemplate()
     const created = await createShape(projectId.value, {
       id: `shape-${crypto.randomUUID()}`,
       title: nextIndex === 1 ? 'Service Shape' : `Service Shape ${nextIndex}`,
@@ -967,6 +1138,31 @@ async function handleInterpretIntent(intent: string) {
       interpretation,
     })
     router.push(`/design/projects/${projectId.value}/first-draft`)
+  } catch (err) {
+    intentError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    intentLoading.value = false
+  }
+}
+
+async function handleApplyIntentDraft() {
+  if (!projectId.value || !projectStore.pendingIntentDraft) return
+  intentLoading.value = true
+  intentError.value = null
+  draftStatus.value = null
+  try {
+    const result = await acceptFirstDesign(
+      projectId.value,
+      projectStore.pendingIntentDraft.source_intent,
+      projectStore.pendingIntentDraft.interpretation,
+    )
+    await loadProject(projectId.value)
+    setActiveRequirements(result.requirements.id)
+    setActiveScenario(result.scenarios[0]?.id ?? null)
+    setActiveShape(result.shape.id)
+    setPendingIntentDraft(null)
+    draftStatus.value = 'Created the initial project setup from your plain-language brief.'
+    router.push(`/design/projects/${projectId.value}/shapes/${result.shape.id}`)
   } catch (err) {
     intentError.value = err instanceof Error ? err.message : String(err)
   } finally {
@@ -1155,6 +1351,7 @@ async function handleDraftChange(item: string) {
           :loading="intentLoading"
           :error="intentError"
           @run="handleInterpretIntent"
+          @apply-result="handleApplyIntentDraft"
           @review-result="openFirstDraftReview"
           @discard-result="discardPendingIntent"
         />
@@ -1212,9 +1409,9 @@ async function handleDraftChange(item: string) {
         </div>
 
         <div class="loop-tabs" role="tablist" aria-label="Design loop">
-          <button class="loop-tab" :class="{ active: loopView === 'current' }" @click="loopView = 'current'">Current Design</button>
-          <button class="loop-tab" :class="{ active: loopView === 'test' }" @click="loopView = 'test'">Test This Design</button>
-          <button class="loop-tab" :class="{ active: loopView === 'changes' }" @click="loopView = 'changes'">What Needs to Change</button>
+          <button class="loop-tab" :class="{ active: loopView === 'current' }" @click="selectLoopView('current')">Current Design</button>
+          <button class="loop-tab" :class="{ active: loopView === 'test' }" @click="selectLoopView('test')">Test This Design</button>
+          <button class="loop-tab" :class="{ active: loopView === 'changes' }" @click="selectLoopView('changes')">What Needs to Change</button>
         </div>
 
         <div v-if="loopView === 'current'" class="loop-panel">
@@ -1235,7 +1432,7 @@ async function handleDraftChange(item: string) {
           </div>
         </div>
 
-        <div v-else-if="loopView === 'test'" class="loop-panel">
+        <div v-else-if="loopView === 'test'" class="loop-panel" id="evaluate">
           <div class="loop-panel-head">
             <h3 class="loop-panel-title">Test This Design</h3>
             <p class="section-desc">Choose what matters, the real situation, and the {{ isLegacyProposalProject ? 'legacy approach' : 'service design' }} you want to test together.</p>
@@ -1315,7 +1512,7 @@ async function handleDraftChange(item: string) {
           </div>
         </div>
 
-        <div v-else class="loop-panel">
+        <div v-else class="loop-panel" id="changes">
           <div class="readout-head">
             <div>
               <h3 class="loop-panel-title">What Needs to Change</h3>
@@ -1346,7 +1543,7 @@ async function handleDraftChange(item: string) {
             </div>
 
             <div class="changes-grid">
-              <div class="changes-card">
+              <div class="changes-card changes-card-positive">
                 <div class="changes-card-title">Working Well</div>
                 <ul v-if="latestHandled.length" class="changes-list">
                   <li v-for="(item, index) in latestHandled" :key="`handled-${index}`">{{ item }}</li>
@@ -1379,8 +1576,8 @@ async function handleDraftChange(item: string) {
       <section class="share-section">
         <div class="share-head">
           <div>
-            <h2 class="section-title">Shareable Outputs</h2>
-            <p class="section-desc">Generate one brief for product conversations and one contract for engineering follow-through from the current design loop.</p>
+            <h2 class="section-title">Design Packet</h2>
+            <p class="section-desc">Studio keeps deterministic artifacts as the canonical source of truth and can optionally generate narrative overlays when an assistant provider is enabled.</p>
           </div>
         </div>
 
@@ -1389,7 +1586,14 @@ async function handleDraftChange(item: string) {
             <div class="share-card-head">
               <div>
                 <h3 class="loop-panel-title">Business Brief</h3>
-                <p class="section-desc">PM-facing summary of the current design, the key situation under review, and what should change next.</p>
+                <p class="section-desc">Canonical PM-facing summary of the current design, the key situation under review, and what should change next.</p>
+                <div class="share-mode-toggle">
+                  <button class="btn btn-secondary" :class="{ 'btn-active': businessBriefMode === 'structured' }" @click="selectBusinessBriefMode('structured')">Canonical</button>
+                  <button class="btn btn-secondary" :class="{ 'btn-active': businessBriefMode === 'readable' }" @click="selectBusinessBriefMode('readable')">Narrative</button>
+                </div>
+                <p v-if="businessBriefMode === 'readable'" class="share-mode-note">
+                  {{ businessReadableAssisted ? 'Business Narrative overlay generated from the canonical Business Brief.' : 'Narrative mode fell back to the canonical Business Brief because no assistant rewrite was available.' }}
+                </p>
               </div>
               <div class="share-actions">
                 <button class="btn btn-secondary" @click="copyShareableDocument('business')">
@@ -1400,14 +1604,21 @@ async function handleDraftChange(item: string) {
                 </button>
               </div>
             </div>
-            <textarea class="share-preview" readonly :value="businessBriefContent"></textarea>
+            <textarea class="share-preview" readonly :value="businessBriefDisplayContent"></textarea>
           </section>
 
           <section class="share-card">
             <div class="share-card-head">
               <div>
                 <h3 class="loop-panel-title">Engineering Contract</h3>
-                <p class="section-desc">Engineering-facing summary of the active context, design structure, expected behavior, and current gaps.</p>
+                <p class="section-desc">Canonical engineering-facing summary of the active context, design structure, expected behavior, and current gaps.</p>
+                <div class="share-mode-toggle">
+                  <button class="btn btn-secondary" :class="{ 'btn-active': engineeringContractMode === 'structured' }" @click="selectEngineeringContractMode('structured')">Canonical</button>
+                  <button class="btn btn-secondary" :class="{ 'btn-active': engineeringContractMode === 'readable' }" @click="selectEngineeringContractMode('readable')">Narrative</button>
+                </div>
+                <p v-if="engineeringContractMode === 'readable'" class="share-mode-note">
+                  {{ engineeringReadableAssisted ? 'Engineering Narrative overlay generated from the canonical Engineering Contract.' : 'Narrative mode fell back to the canonical Engineering Contract because no assistant rewrite was available.' }}
+                </p>
               </div>
               <div class="share-actions">
                 <button class="btn btn-secondary" @click="copyShareableDocument('engineering')">
@@ -1418,7 +1629,7 @@ async function handleDraftChange(item: string) {
                 </button>
               </div>
             </div>
-            <textarea class="share-preview" readonly :value="engineeringContractContent"></textarea>
+            <textarea class="share-preview" readonly :value="engineeringContractDisplayContent"></textarea>
           </section>
         </div>
       </section>
@@ -1977,6 +2188,23 @@ async function handleDraftChange(item: string) {
   flex-shrink: 0;
 }
 
+.share-mode-toggle {
+  display: flex;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+}
+
+.share-mode-note {
+  margin: 0.45rem 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.btn-active {
+  border-color: var(--border-focus);
+  color: var(--text-primary);
+}
+
 .share-preview {
   width: 100%;
   min-height: 280px;
@@ -2357,6 +2585,11 @@ async function handleDraftChange(item: string) {
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.55);
+}
+
+.changes-card-positive {
+  border-color: rgba(34, 197, 94, 0.18);
+  background: rgba(34, 197, 94, 0.06);
 }
 
 .changes-card-primary {

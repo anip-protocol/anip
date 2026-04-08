@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from .consumer_mode import consumer_mode_from_labels, consumer_mode_label
+
 
 def build_business_brief(context: dict[str, Any]) -> str:
     project = context.get("project") or {}
@@ -19,6 +21,7 @@ def build_business_brief(context: dict[str, Any]) -> str:
     evaluation_data = (evaluation.get("data") or {}).get("evaluation", {})
     business_constraints = truthy_labels(requirement_data.get("business_constraints", {}))
     design_summary = describe_business_shape(shape_data)
+    service_names = named_services(shape_data)
     working_well = string_list(evaluation_data.get("handled_by_anip"))[:4]
     changes_next = (
         string_list(evaluation_data.get("what_would_improve"))
@@ -28,6 +31,9 @@ def build_business_brief(context: dict[str, Any]) -> str:
         f"# Business Brief: {project.get('name') or 'Unnamed Project'}",
         "",
         f"Generated: {datetime.now().isoformat(sep=' ', timespec='seconds')}",
+        "",
+        "## Traceability",
+        bullet_lines(traceability_lines(context, role="Canonical Business Brief")),
         "",
         "## What We Are Building",
         project.get("summary") or "No project summary has been written yet.",
@@ -42,6 +48,15 @@ def build_business_brief(context: dict[str, Any]) -> str:
             "",
             "## Current Service Design",
             design_summary,
+            *(
+                [
+                    "",
+                    "### Named Services",
+                    bullet_lines(service_names),
+                ]
+                if service_names
+                else []
+            ),
             "",
             "## Real Situation Under Review",
             scenario.get("title") or "No active real situation selected yet.",
@@ -99,10 +114,14 @@ def build_engineering_contract(context: dict[str, Any]) -> str:
         service_lines.append(
             "\n".join(
                 [
-                    f"- {service.get('name') or service.get('id') or 'Unnamed service'} ({service.get('id') or 'no-id'})",
-                    f"  responsibilities: {'; '.join(responsibilities) if responsibilities else 'none listed'}",
-                    f"  capabilities: {', '.join(capabilities) if capabilities else 'none listed'}",
-                    f"  owns concepts: {', '.join(owns) if owns else 'none listed'}",
+                    f"### {service.get('name') or service.get('id') or 'Unnamed service'}",
+                    f"- Service ID: {service.get('id') or 'no-id'}",
+                    "- Responsibilities:",
+                    indented_bullet_lines(responsibilities or ["none listed"]),
+                    "- Capabilities:",
+                    indented_bullet_lines(capabilities or ["none listed"]),
+                    "- Owns Concepts:",
+                    indented_bullet_lines(owns or ["none listed"]),
                 ]
             )
         )
@@ -126,11 +145,15 @@ def build_engineering_contract(context: dict[str, Any]) -> str:
             "",
             f"Generated: {datetime.now().isoformat(sep=' ', timespec='seconds')}",
             "",
+            "## Traceability",
+            bullet_lines(traceability_lines(context, role="Canonical Engineering Contract")),
+            "",
             "## Active Context",
             f"- Project: {project.get('name') or 'Unknown project'}",
             f"- Requirements: {requirements.get('title') or 'None selected'}",
             f"- Scenario: {scenario.get('title') or 'None selected'}",
             f"- Service Design: {shape.get('title') or 'None selected'}",
+            f"- Evaluation: {describe_evaluation(evaluation)}",
             "",
             "## Requirements Signals",
             bullet_lines(requirement_signals or ["No strong structured requirement signals are available yet."]),
@@ -168,6 +191,29 @@ def build_engineering_contract(context: dict[str, Any]) -> str:
     )
 
 
+def finalize_narrative_document(document: str, context: dict[str, Any], *, role: str, canonical_name: str) -> str:
+    cleaned = document.strip()
+    if not cleaned:
+        return cleaned
+    return "\n".join(
+        [
+            cleaned,
+            "",
+            "## Narrative Status",
+            bullet_lines(
+                [
+                    f"Artifact role: {role}",
+                    f"Canonical source of truth: {canonical_name}",
+                    "This narrative is a human-readable interpretation of the current design packet. Canonical source of truth remains the deterministic artifact.",
+                ]
+            ),
+            "",
+            "## Traceability",
+            bullet_lines(traceability_lines(context, role=role)),
+        ]
+    )
+
+
 def unwrap(data: dict[str, Any] | None, key: str) -> dict[str, Any]:
     base = data or {}
     return base.get(key) or base
@@ -199,6 +245,10 @@ def bullet_lines(items: list[str]) -> str:
     return "\n".join(f"- {item}" for item in items)
 
 
+def indented_bullet_lines(items: list[str]) -> str:
+    return "\n".join(f"  - {item}" for item in items)
+
+
 def describe_business_shape(shape_data: dict[str, Any]) -> str:
     services = array(shape_data.get("services"))
     concepts = array(shape_data.get("domain_concepts"))
@@ -210,3 +260,38 @@ def describe_business_shape(shape_data: dict[str, Any]) -> str:
         f"{'' if len(services) == 1 else 's'} and {len(concepts)} named domain concept"
         f"{'' if len(concepts) == 1 else 's'}."
     )
+
+
+def named_services(shape_data: dict[str, Any]) -> list[str]:
+    return [str(service.get("name")).strip() for service in array(shape_data.get("services")) if str(service.get("name", "")).strip()]
+
+
+def traceability_lines(context: dict[str, Any], *, role: str) -> list[str]:
+    project = context.get("project") or {}
+    requirements = context.get("requirements") or {}
+    scenario = context.get("scenario") or {}
+    shape = context.get("shape") or {}
+    evaluation = context.get("evaluation") or {}
+    consumer_mode = consumer_mode_from_labels(project.get("labels"))
+    return [
+        f"Artifact role: {role}",
+        f"Project: {project.get('name') or project.get('id') or 'Unknown project'}",
+        f"Primary consumer: {consumer_mode_label(consumer_mode)}",
+        f"Requirements set: {requirements.get('title') or requirements.get('id') or 'None selected'}",
+        f"Scenario: {scenario.get('title') or scenario.get('id') or 'None selected'}",
+        f"Service design: {shape.get('title') or shape.get('id') or 'None selected'}",
+        f"Evaluation: {describe_evaluation(evaluation)}",
+    ]
+
+
+def describe_evaluation(evaluation: dict[str, Any]) -> str:
+    if not evaluation:
+        return "None selected"
+    eval_id = evaluation.get("id") or "unknown"
+    result = evaluation.get("result") or "unknown"
+    created = evaluation.get("created_at")
+    if created and hasattr(created, "isoformat"):
+        return f"{eval_id} ({result}, {created.isoformat()})"
+    if created:
+        return f"{eval_id} ({result}, {created})"
+    return f"{eval_id} ({result})"

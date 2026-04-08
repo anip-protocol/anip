@@ -342,8 +342,90 @@ def test_workbench_can_accept_first_design(
     assert resp.status_code == 200, resp.text
     result = resp.json()["result"]
     assert result["requirements"]["role"] == "primary"
-    assert len(result["scenarios"]) == 1
+    assert len(result["scenarios"]) >= 1
     assert result["shape"]["requirements_id"] == result["requirements"]["id"]
+
+
+def test_workbench_accept_first_design_uses_project_consumer_mode(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    recorded: dict[str, str] = {}
+
+    monkeypatch.setattr(
+        workbench_service,
+        "get_project_detail",
+        lambda _conn, pid: {
+            "id": pid,
+            "name": "Studio Project",
+            "summary": "PM brief",
+            "domain": "ops",
+            "labels": ["consumer:human_app"],
+            "requirements_count": 0,
+            "scenarios_count": 0,
+            "shapes_count": 0,
+        },
+    )
+
+    def _record_requirements(_interpretation, _source_intent, _project_name, _project_domain, consumer_mode):
+        recorded["requirements"] = consumer_mode
+        return {"system": {"name": "studio-project", "domain": "ops", "deployment_intent": "public_http_service"}}
+
+    def _record_scenarios(_interpretation, consumer_mode):
+        recorded["scenarios"] = consumer_mode
+        return [{"title": "Scenario", "data": {"scenario": {"name": "scenario"}}}]
+
+    def _record_shape(_interpretation, _project_name, consumer_mode):
+        recorded["shape"] = consumer_mode
+        return {"shape": {"type": "single_service", "services": [{"id": "svc-a", "name": "Service", "role": "primary service"}], "domain_concepts": []}}
+
+    monkeypatch.setattr(workbench_service, "make_requirements_template_from_intent", _record_requirements)
+    monkeypatch.setattr(workbench_service, "make_scenario_templates_from_intent", _record_scenarios)
+    monkeypatch.setattr(workbench_service, "make_shape_template_from_intent", _record_shape)
+    monkeypatch.setattr(
+        workbench_service,
+        "create_requirements",
+        lambda _conn, **kwargs: {"id": kwargs["req_id"], "title": kwargs["title"], "role": "primary"},
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "create_scenario",
+        lambda _conn, **kwargs: {"id": kwargs["scenario_id"], "title": kwargs["title"]},
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "create_shape",
+        lambda _conn, **kwargs: {"id": kwargs["shape_id"], "title": kwargs["title"], "requirements_id": kwargs["requirements_id"]},
+    )
+
+    token = _issue_token(client, "accept_first_design")["token"]
+    resp = client.post(
+        "/studio-workbench/anip/invoke/accept_first_design",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "parameters": {
+                "project_id": "proj-consumer",
+                "source_intent": "People need an internal operations workflow.",
+                "interpretation": {
+                    "title": "Intent Interpretation",
+                    "summary": "Ops needs a first design.",
+                    "recommended_shape_type": "single_service",
+                    "recommended_shape_reason": "Keep the main action together.",
+                    "requirements_focus": ["Keep the operator flow understandable."],
+                    "scenario_starters": ["Add a scenario where an operator needs a clear explanation."],
+                    "domain_concepts": ["Request"],
+                    "service_suggestions": ["Start with one primary service."],
+                    "next_steps": ["Run evaluation."],
+                },
+            }
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert recorded == {
+        "requirements": "human_app",
+        "scenarios": "human_app",
+        "shape": "human_app",
+    }
 
 
 def test_workbench_can_evaluate_service_design(
@@ -404,3 +486,117 @@ def test_workbench_can_evaluate_service_design(
     result = resp.json()["result"]
     assert result["result"] == "PARTIAL"
     assert result["evaluation"]["what_would_improve"] == ["Add explicit approval routing."]
+
+
+def test_workbench_can_generate_llm_assisted_business_brief(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        workbench_service,
+        "get_project_detail",
+        lambda _conn, pid: {
+            "id": pid,
+            "name": "Deal Desk",
+            "summary": "A realistic PM brief.",
+            "requirements_count": 1,
+            "scenarios_count": 1,
+            "shapes_count": 1,
+            "evaluations_count": 1,
+        },
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_requirements",
+        lambda _conn, _pid: [{"id": "req-1", "title": "Requirements", "data": {"requirements": {"business_constraints": {"approval_required": True}}}}],
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_scenarios",
+        lambda _conn, _pid: [{"id": "scn-1", "title": "Scenario", "data": {"scenario": {"narrative": "A risky approval flow."}}}],
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_shapes",
+        lambda _conn, _pid: [{"id": "shape-1", "title": "Shape", "data": {"shape": {"type": "multi_service", "services": [{"id": "svc-a"}], "domain_concepts": []}}}],
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_evaluations",
+        lambda _conn, _pid: [{"id": "eval-1", "result": "HANDLED", "data": {"evaluation": {"handled_by_anip": ["audit"], "what_would_improve": ["None"]}}}],
+    )
+
+    async def _fake_model_response(capability: str, payload: dict[str, object]) -> dict[str, str] | None:
+        assert capability == "rewrite_business_brief"
+        assert "deterministic_draft" in payload
+        return {"document": "# Readable Business Brief\n\nThis is the narrative version."}
+
+    monkeypatch.setattr(workbench_service, "try_model_assistant_response", _fake_model_response)
+
+    token = _issue_token(client, "generate_business_brief")["token"]
+    resp = client.post(
+        "/studio-workbench/anip/invoke/generate_business_brief",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"parameters": {"project_id": "proj-1", "llm_assisted": True}},
+    )
+    assert resp.status_code == 200, resp.text
+    result = resp.json()["result"]
+    assert result["assisted"] is True
+    assert "Readable Business Brief" in result["document"]
+    assert "Canonical source of truth: Business Brief" in result["document"]
+    assert "Artifact role: Business Narrative" in result["document"]
+
+
+def test_workbench_readable_business_brief_falls_back_when_model_unavailable(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        workbench_service,
+        "get_project_detail",
+        lambda _conn, pid: {
+            "id": pid,
+            "name": "Deal Desk",
+            "summary": "A realistic PM brief.",
+            "requirements_count": 1,
+            "scenarios_count": 1,
+            "shapes_count": 1,
+            "evaluations_count": 1,
+        },
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_requirements",
+        lambda _conn, _pid: [{"id": "req-1", "title": "Requirements", "data": {"requirements": {"business_constraints": {"approval_required": True}}}}],
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_scenarios",
+        lambda _conn, _pid: [{"id": "scn-1", "title": "Scenario", "data": {"scenario": {"narrative": "A risky approval flow."}}}],
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_shapes",
+        lambda _conn, _pid: [{"id": "shape-1", "title": "Shape", "data": {"shape": {"type": "multi_service", "services": [{"id": "svc-a"}], "domain_concepts": []}}}],
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_evaluations",
+        lambda _conn, _pid: [{"id": "eval-1", "result": "HANDLED", "data": {"evaluation": {"handled_by_anip": ["audit"], "what_would_improve": ["None"]}}}],
+    )
+    async def _no_model_response(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(workbench_service, "try_model_assistant_response", _no_model_response)
+
+    token = _issue_token(client, "generate_business_brief")["token"]
+    resp = client.post(
+        "/studio-workbench/anip/invoke/generate_business_brief",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"parameters": {"project_id": "proj-1", "llm_assisted": True}},
+    )
+    assert resp.status_code == 200, resp.text
+    result = resp.json()["result"]
+    assert result["assisted"] is False
+    assert "Business Brief: Deal Desk" in result["document"]
+    assert "Artifact role: Canonical Business Brief" in result["document"]

@@ -1,4 +1,5 @@
 import type { IntentInterpretation } from './project-types'
+import { consumerModeLabel, type ProjectConsumerMode } from './consumer-mode'
 
 export function slugify(input: string): string {
   return input
@@ -101,6 +102,7 @@ export function makeRequirementsTemplateFromIntent(
   intent: string,
   projectName: string,
   projectDomain: string,
+  consumerMode: ProjectConsumerMode = 'hybrid',
 ) {
   const data = makeRequirementsTemplate(projectName, projectDomain)
   const words = normalizedWords(
@@ -132,6 +134,16 @@ export function makeRequirementsTemplateFromIntent(
   constraints.cost_visibility_required = mentionsBudget
   constraints.approval_expected_for_high_risk = mentionsApproval || mentionsRisk
   constraints.recovery_sensitive = mentionsRecovery
+  constraints.primary_consumer = consumerModeLabel(consumerMode)
+  constraints.agent_consumed_flow = consumerMode === 'agent_anip' || consumerMode === 'hybrid'
+  constraints.human_operated_flow = consumerMode === 'human_app' || consumerMode === 'hybrid'
+  if (consumerMode === 'agent_anip') {
+    constraints.low_glue_machine_consumption_required = true
+  } else if (consumerMode === 'human_app') {
+    constraints.operator_explainability_required = true
+  } else {
+    constraints.hybrid_handoff_expected = true
+  }
   constraints.blocked_failure_posture = mentionsBudget || mentionsApproval || mentionsRecovery || mentionsRisk
     ? 'structured_blocked'
     : 'basic_failure_surface'
@@ -139,12 +151,20 @@ export function makeRequirementsTemplateFromIntent(
   return data
 }
 
-export function makeScenarioTemplatesFromIntent(result: IntentInterpretation) {
+export function makeScenarioTemplatesFromIntent(result: IntentInterpretation, consumerMode: ProjectConsumerMode = 'hybrid') {
   const starters = result.scenario_starters.length
     ? result.scenario_starters.slice(0, 3)
     : ['Describe the normal success path that the service should handle cleanly.']
+  const biasedStarters = [...starters]
+  if (consumerMode === 'agent_anip') {
+    biasedStarters.push('Add a scenario where an ANIP consumer must recover from a blocked action without hidden UI-only workflow knowledge.')
+  } else if (consumerMode === 'human_app') {
+    biasedStarters.push('Add a scenario where a human operator needs a clear explanation for why work was blocked or routed elsewhere.')
+  } else {
+    biasedStarters.push('Add a scenario where a person starts the flow and an agent or tool continues it through a bounded handoff.')
+  }
 
-  return starters.map((starter, index) => {
+  return biasedStarters.map((starter, index) => {
     const category = inferScenarioCategory(starter)
     const title = scenarioTitleFromStarter(starter, index + 1)
     const scenarioName = slugify(title) || `scenario-${index + 1}`
@@ -195,7 +215,7 @@ export function makeScenarioTemplatesFromIntent(result: IntentInterpretation) {
   })
 }
 
-export function makeShapeTemplateFromIntent(result: IntentInterpretation, projectName: string) {
+export function makeShapeTemplateFromIntent(result: IntentInterpretation, projectName: string, consumerMode: ProjectConsumerMode = 'hybrid') {
   const rootName = projectName || 'new-service'
   const shapeName = titleize(rootName)
   const primaryServiceId = slugify(rootName) || 'primary-service'
@@ -209,6 +229,11 @@ export function makeShapeTemplateFromIntent(result: IntentInterpretation, projec
     name: shapeName,
     role: 'primary service',
     responsibilities: [
+      consumerMode === 'human_app'
+        ? 'Keep the human-facing workflow easy to understand and explain.'
+        : consumerMode === 'agent_anip'
+          ? 'Keep the ANIP capability surface explicit so tools and agents do not need hidden local glue.'
+          : 'Own the main workflow in a way that stays understandable for people and explicit for ANIP consumers.',
       'Own the main action and the core control checks around it.',
       ...result.requirements_focus.slice(0, 2),
     ],

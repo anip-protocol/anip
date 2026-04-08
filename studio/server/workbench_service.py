@@ -51,6 +51,8 @@ from anip_service import (
 from anip_server.checkpoint import CheckpointPolicy
 from anip_design_validate import evaluate, validate_payload
 
+from .assistant_provider import try_model_assistant_response
+from .consumer_mode import consumer_mode_from_labels
 from .db import get_pool
 from .derivation import build_shape_backed_proposal
 from .intent_drafts import (
@@ -82,7 +84,11 @@ from .repository import (
     list_scenarios,
     list_shapes,
 )
-from .shared_artifacts import build_business_brief, build_engineering_contract
+from .shared_artifacts import (
+    build_business_brief,
+    build_engineering_contract,
+    finalize_narrative_document,
+)
 
 SCHEMA_DIR = ROOT / "tooling" / "schemas"
 BOOTSTRAP_BEARER = "studio-workbench-bootstrap"
@@ -339,8 +345,9 @@ def create_studio_workbench_service() -> ANIPService:
                     ("scenario_id", "string", False),
                     ("shape_id", "string", False),
                     ("evaluation_id", "string", False),
+                    ("llm_assisted", "boolean", False),
                 ],
-                ["document"],
+                ["document", "assisted"],
                 SideEffectType.READ,
                 "not_applicable",
                 _generate_business_brief,
@@ -354,8 +361,9 @@ def create_studio_workbench_service() -> ANIPService:
                     ("scenario_id", "string", False),
                     ("shape_id", "string", False),
                     ("evaluation_id", "string", False),
+                    ("llm_assisted", "boolean", False),
                 ],
-                ["document"],
+                ["document", "assisted"],
                 SideEffectType.READ,
                 "not_applicable",
                 _generate_engineering_contract,
@@ -539,6 +547,15 @@ def _optional_string(params: dict[str, Any], name: str) -> str | None:
     return None
 
 
+def _optional_bool(params: dict[str, Any], name: str) -> bool:
+    value = params.get(name)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return False
+
+
 def _required_object(params: dict[str, Any], name: str) -> dict[str, Any]:
     value = params.get(name)
     if not isinstance(value, dict):
@@ -634,6 +651,7 @@ async def _accept_first_design(_: Any, params: dict[str, Any]) -> dict[str, Any]
     try:
         with get_pool().connection() as conn:
             project = get_project_detail(conn, project_id)
+            consumer_mode = consumer_mode_from_labels(project.get("labels"))
             requirements = create_requirements(
                 conn,
                 project_id=project_id,
@@ -644,10 +662,11 @@ async def _accept_first_design(_: Any, params: dict[str, Any]) -> dict[str, Any]
                     source_intent,
                     project["name"],
                     project["domain"],
+                    consumer_mode,
                 ),
             )
             created_scenarios = []
-            for template in make_scenario_templates_from_intent(interpretation):
+            for template in make_scenario_templates_from_intent(interpretation, consumer_mode):
                 created = create_scenario(
                     conn,
                     project_id=project_id,
@@ -662,7 +681,7 @@ async def _accept_first_design(_: Any, params: dict[str, Any]) -> dict[str, Any]
                 shape_id=f"shape-{uuid4()}",
                 title="Service Shape",
                 requirements_id=requirements["id"],
-                data=make_shape_template_from_intent(interpretation, project["name"]),
+                data=make_shape_template_from_intent(interpretation, project["name"], consumer_mode),
             )
     except NotFoundError as exc:
         raise _not_found(f"{exc.entity} {exc.entity_id} does not exist") from exc
@@ -797,22 +816,75 @@ def _resolve_context(conn: Any, project_id: str, params: dict[str, Any]) -> dict
 async def _generate_business_brief(_: Any, params: dict[str, Any]) -> dict[str, Any]:
     project_id = _required_string(params, "project_id")
     source_intent = _optional_string(params, "source_intent") or ""
+    llm_assisted = _optional_bool(params, "llm_assisted")
     try:
         with get_pool().connection() as conn:
             context = _resolve_context(conn, project_id, params)
     except NotFoundError as exc:
         raise _not_found(f"{exc.entity} {exc.entity_id} does not exist") from exc
-    return {"document": build_business_brief(context | {"source_intent": source_intent})}
+    deterministic = build_business_brief(context | {"source_intent": source_intent})
+    if not llm_assisted:
+        return {"document": deterministic, "assisted": False}
+
+    model_result = await try_model_assistant_response(
+        "rewrite_business_brief",
+        {
+            "project": context.get("project"),
+            "requirements": context.get("requirements"),
+            "scenario": context.get("scenario"),
+            "shape": context.get("shape"),
+            "evaluation": context.get("evaluation"),
+            "source_intent": source_intent,
+            "deterministic_draft": deterministic,
+        },
+    )
+    if model_result and isinstance(model_result.get("document"), str) and model_result["document"].strip():
+        return {
+            "document": finalize_narrative_document(
+                model_result["document"],
+                context | {"source_intent": source_intent},
+                role="Business Narrative",
+                canonical_name="Business Brief",
+            ),
+            "assisted": True,
+        }
+    return {"document": deterministic, "assisted": False}
 
 
 async def _generate_engineering_contract(_: Any, params: dict[str, Any]) -> dict[str, Any]:
     project_id = _required_string(params, "project_id")
+    llm_assisted = _optional_bool(params, "llm_assisted")
     try:
         with get_pool().connection() as conn:
             context = _resolve_context(conn, project_id, params)
     except NotFoundError as exc:
         raise _not_found(f"{exc.entity} {exc.entity_id} does not exist") from exc
-    return {"document": build_engineering_contract(context)}
+    deterministic = build_engineering_contract(context)
+    if not llm_assisted:
+        return {"document": deterministic, "assisted": False}
+
+    model_result = await try_model_assistant_response(
+        "rewrite_engineering_contract",
+        {
+            "project": context.get("project"),
+            "requirements": context.get("requirements"),
+            "scenario": context.get("scenario"),
+            "shape": context.get("shape"),
+            "evaluation": context.get("evaluation"),
+            "deterministic_draft": deterministic,
+        },
+    )
+    if model_result and isinstance(model_result.get("document"), str) and model_result["document"].strip():
+        return {
+            "document": finalize_narrative_document(
+                model_result["document"],
+                context,
+                role="Engineering Narrative",
+                canonical_name="Engineering Contract",
+            ),
+            "assisted": True,
+        }
+    return {"document": deterministic, "assisted": False}
 
 
 async def _hold_exclusive_probe(_: Any, params: dict[str, Any]) -> dict[str, Any]:

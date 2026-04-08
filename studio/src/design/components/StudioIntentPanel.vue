@@ -14,6 +14,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   run: [intent: string]
   reviewResult: []
+  applyResult: []
   discardResult: []
 }>()
 
@@ -67,6 +68,9 @@ function handleRun() {
           <p class="result-summary">{{ result.summary }}</p>
         </div>
         <div class="draft-actions">
+          <button class="intent-btn intent-btn-primary" :disabled="loading" @click="emit('applyResult')">
+            Create Initial Project Setup
+          </button>
           <button class="intent-btn intent-btn-primary" :disabled="loading" @click="emit('reviewResult')">
             Review Suggested First Design
           </button>

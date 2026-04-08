@@ -1,4 +1,4 @@
-"""Routes for import, export, and seed operations."""
+"""Routes for import, export, and curated seed operations."""
 
 from __future__ import annotations
 
@@ -365,6 +365,6 @@ def export_project(pid: str):
 
 @router.post("/api/seed")
 def seed():
-    """Seed the database from example packs (dev/demo only)."""
+    """Seed the database with curated demo projects (dev/demo only)."""
     with get_pool().connection() as conn:
         return seed_from_examples(conn)

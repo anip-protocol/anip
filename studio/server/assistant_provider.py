@@ -98,6 +98,13 @@ def _system_prompt(capability: str) -> str:
             + " Prefer recommendation language over certainty. "
               "Treat your output as a proposed first draft, not as final truth."
         )
+    if capability in {"rewrite_business_brief", "rewrite_engineering_contract"}:
+        return (
+            base
+            + " Rewrite the provided deterministic draft into a more readable, polished document for humans. "
+              "Preserve the underlying facts, constraints, and conclusions. "
+              "Do not invent architecture, policy, or results that are not already present in the context."
+        )
     return base + " Explain clearly, but do not invent facts not supported by the provided context."
 
 
@@ -141,6 +148,34 @@ def _user_prompt(capability: str, payload: dict[str, Any]) -> str:
             "- highlights (array of strings)\n"
             "- watchouts (array of strings)\n"
             "- next_steps (array of strings)\n\n"
+            f"Context:\n{json.dumps(payload, indent=2)}"
+        )
+
+    if capability == "rewrite_business_brief":
+        return (
+            "Rewrite this deterministic business brief into a clearer, more readable PM-facing narrative.\n"
+            "Return JSON with exactly these fields:\n"
+            "- document\n\n"
+            "Constraints:\n"
+            "- title the document as a Business Narrative\n"
+            "- keep the same core facts and recommendations\n"
+            "- improve flow and readability\n"
+            "- use plain language, not protocol jargon unless already necessary\n"
+            "- do not add sections that depend on facts not present in the context\n\n"
+            f"Context:\n{json.dumps(payload, indent=2)}"
+        )
+
+    if capability == "rewrite_engineering_contract":
+        return (
+            "Rewrite this deterministic engineering contract into a clearer, more readable engineering-facing narrative.\n"
+            "Return JSON with exactly these fields:\n"
+            "- document\n\n"
+            "Constraints:\n"
+            "- title the document as an Engineering Narrative\n"
+            "- keep the same facts, service boundaries, expectations, and conclusions\n"
+            "- improve readability and sequencing for engineers\n"
+            "- stay concrete and avoid marketing language\n"
+            "- do not invent implementation details not present in the context\n\n"
             f"Context:\n{json.dumps(payload, indent=2)}"
         )
 

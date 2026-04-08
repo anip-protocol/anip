@@ -433,3 +433,33 @@ def test_assistant_falls_back_when_model_result_is_missing_fields(
     assert result["recommended_shape_type"] in {"single_service", "multi_service"}
     assert len(result["requirements_focus"]) > 0
     assert len(result["scenario_starters"]) > 0
+
+
+def test_assistant_biases_intent_for_project_consumer_mode(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        assistant_service,
+        "get_project_detail",
+        lambda _conn, pid: {"id": pid, "name": "Studio Project", "labels": ["consumer:agent_anip"]},
+    )
+
+    token = _issue_token(client, "interpret_project_intent")
+    resp = client.post(
+        "/studio-assistant/anip/invoke/interpret_project_intent",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "parameters": {
+                "project_id": "proj-agent",
+                "intent": "We need a system that books travel and escalates exceptions.",
+            }
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    result = resp.json()["result"]
+    assert "agents and tools through anip" in result["summary"].lower()
+    assert any(
+        "machine-usable" in item.lower() or "anip consumer" in item.lower()
+        for item in result["requirements_focus"]
+    )
