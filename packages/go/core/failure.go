@@ -2,10 +2,11 @@ package core
 
 // ANIPError is a structured protocol failure.
 type ANIPError struct {
-	ErrorType  string      `json:"type"`
-	Detail     string      `json:"detail"`
-	Resolution *Resolution `json:"resolution,omitempty"`
-	Retry      bool        `json:"retry"`
+	ErrorType        string                    `json:"type"`
+	Detail           string                    `json:"detail"`
+	Resolution       *Resolution               `json:"resolution,omitempty"`
+	Retry            bool                      `json:"retry"`
+	ApprovalRequired *ApprovalRequiredMetadata `json:"approval_required,omitempty"` // v0.23
 }
 
 // Resolution describes how a failure can be resolved.

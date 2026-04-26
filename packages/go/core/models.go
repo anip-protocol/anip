@@ -157,25 +157,29 @@ type ObservabilityContract struct {
 
 // CapabilityDeclaration is the full declaration of a service capability.
 type CapabilityDeclaration struct {
-	Name                string                  `json:"name"`
-	Description         string                  `json:"description"`
-	ContractVersion     string                  `json:"contract_version"`
-	Inputs              []CapabilityInput       `json:"inputs"`
-	Output              CapabilityOutput        `json:"output"`
-	SideEffect          SideEffect              `json:"side_effect"`
-	MinimumScope        []string                `json:"minimum_scope"`
-	Cost                *Cost                   `json:"cost,omitempty"`
-	Requires            []CapabilityRequirement `json:"requires,omitempty"`
-	ComposesWith        []CapabilityComposition `json:"composes_with,omitempty"`
-	Session             *SessionInfo            `json:"session,omitempty"`
-	Observability       *ObservabilityContract  `json:"observability,omitempty"`
-	ResponseModes       []string                `json:"response_modes,omitempty"`
-	RequiresBinding     []BindingRequirement    `json:"requires_binding,omitempty"`
-	ControlRequirements []ControlRequirement    `json:"control_requirements,omitempty"`
-	RefreshVia          []string                `json:"refresh_via,omitempty"`
-	VerifyVia           []string                `json:"verify_via,omitempty"`
-	CrossService        *CrossServiceHints      `json:"cross_service,omitempty"`
-	CrossServiceContract *CrossServiceContract  `json:"cross_service_contract,omitempty"`
+	Name                 string                  `json:"name"`
+	Description          string                  `json:"description"`
+	ContractVersion      string                  `json:"contract_version"`
+	Inputs               []CapabilityInput       `json:"inputs"`
+	Output               CapabilityOutput        `json:"output"`
+	SideEffect           SideEffect              `json:"side_effect"`
+	MinimumScope         []string                `json:"minimum_scope"`
+	Cost                 *Cost                   `json:"cost,omitempty"`
+	Requires             []CapabilityRequirement `json:"requires,omitempty"`
+	ComposesWith         []CapabilityComposition `json:"composes_with,omitempty"`
+	Session              *SessionInfo            `json:"session,omitempty"`
+	Observability        *ObservabilityContract  `json:"observability,omitempty"`
+	ResponseModes        []string                `json:"response_modes,omitempty"`
+	RequiresBinding      []BindingRequirement    `json:"requires_binding,omitempty"`
+	ControlRequirements  []ControlRequirement    `json:"control_requirements,omitempty"`
+	RefreshVia           []string                `json:"refresh_via,omitempty"`
+	VerifyVia            []string                `json:"verify_via,omitempty"`
+	CrossService         *CrossServiceHints      `json:"cross_service,omitempty"`
+	CrossServiceContract *CrossServiceContract   `json:"cross_service_contract,omitempty"`
+	// v0.23
+	Kind        string       `json:"kind,omitempty"`        // "atomic" | "composed"; default atomic when empty
+	Composition *Composition `json:"composition,omitempty"` // required when Kind=composed
+	GrantPolicy *GrantPolicy `json:"grant_policy,omitempty"`
 }
 
 // --- Delegation Chain ---
@@ -276,6 +280,7 @@ type InvokeRequest struct {
 	ParentInvocationID string         `json:"parent_invocation_id,omitempty"`
 	UpstreamService    string         `json:"upstream_service,omitempty"`
 	Stream             bool           `json:"stream,omitempty"`
+	ApprovalGrant      string         `json:"approval_grant,omitempty"` // v0.23
 }
 
 // InvokeResponse is the server's invocation response.
