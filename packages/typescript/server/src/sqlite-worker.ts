@@ -39,7 +39,6 @@ CREATE TABLE IF NOT EXISTS delegation_tokens (
     constraints TEXT,
     root_principal TEXT,
     caller_class TEXT,
-    session_id TEXT,
     registered_at TEXT NOT NULL,
     FOREIGN KEY (parent) REFERENCES delegation_tokens(token_id)
 );
@@ -203,11 +202,6 @@ try {
 } catch {
   // Column may already exist
 }
-try {
-  db.exec("ALTER TABLE delegation_tokens ADD COLUMN session_id TEXT");
-} catch {
-  // Column may already exist
-}
 
 // ---------------------------------------------------------------------------
 // Storage method implementations
@@ -217,9 +211,8 @@ function storeToken(tokenData: Record<string, unknown>): void {
   db.prepare(
     `INSERT INTO delegation_tokens
      (token_id, issuer, subject, scope, purpose, parent,
-      expires, constraints, root_principal, caller_class,
-      session_id, registered_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      expires, constraints, root_principal, caller_class, registered_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     tokenData.token_id as string,
     tokenData.issuer as string,
@@ -231,7 +224,6 @@ function storeToken(tokenData: Record<string, unknown>): void {
     JSON.stringify(tokenData.constraints ?? null),
     (tokenData.root_principal as string) ?? null,
     (tokenData.caller_class as string) ?? null,
-    (tokenData.session_id as string) ?? null,
     new Date().toISOString(),
   );
 }
@@ -254,7 +246,6 @@ function loadToken(tokenId: string): Record<string, unknown> | null {
       : null,
     root_principal: row.root_principal ?? null,
     caller_class: row.caller_class ?? null,
-    session_id: row.session_id ?? null,
   };
 }
 

@@ -45,7 +45,6 @@ CREATE TABLE IF NOT EXISTS delegation_tokens (
     constraints TEXT,
     root_principal TEXT,
     caller_class TEXT,
-    session_id TEXT,
     registered_at TEXT NOT NULL
 );
 
@@ -165,10 +164,6 @@ export class PostgresStorage implements StorageBackend {
 
   private async ensureSchema(client: PoolClient): Promise<void> {
     await client.query(SCHEMA);
-    // Idempotent migration for databases created before v0.23.
-    await client.query(
-      "ALTER TABLE delegation_tokens ADD COLUMN IF NOT EXISTS session_id TEXT",
-    );
   }
 
   private getPool(): Pool {
@@ -187,9 +182,8 @@ export class PostgresStorage implements StorageBackend {
     await pool.query(
       `INSERT INTO delegation_tokens
        (token_id, issuer, subject, scope, purpose, parent,
-        expires, constraints, root_principal, caller_class,
-        session_id, registered_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        expires, constraints, root_principal, caller_class, registered_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         tokenData.token_id as string,
         tokenData.issuer as string,
@@ -201,7 +195,6 @@ export class PostgresStorage implements StorageBackend {
         JSON.stringify(tokenData.constraints ?? null),
         (tokenData.root_principal as string) ?? null,
         (tokenData.caller_class as string) ?? null,
-        (tokenData.session_id as string) ?? null,
         new Date().toISOString(),
       ],
     );
@@ -226,7 +219,6 @@ export class PostgresStorage implements StorageBackend {
       constraints: row.constraints ? JSON.parse(row.constraints) : null,
       root_principal: row.root_principal ?? null,
       caller_class: row.caller_class ?? null,
-      session_id: row.session_id ?? null,
     };
   }
 

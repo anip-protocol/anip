@@ -35,8 +35,6 @@ export interface IssueRootTokenOpts {
   ttlHours?: number;
   maxDelegationDepth?: number;
   budget?: BudgetType | null;
-  /** v0.23: bind a session identity for session_bound ApprovalGrant validation. */
-  sessionId?: string | null;
 }
 
 export interface DelegateOpts {
@@ -140,7 +138,6 @@ export class DelegationEngine {
       ttlHours: opts.ttlHours ?? 2,
       maxDelegationDepth: opts.maxDelegationDepth ?? 3,
       budget: opts.budget ?? null,
-      sessionId: opts.sessionId ?? null,
     });
   }
 
@@ -450,8 +447,6 @@ export class DelegationEngine {
       constraints: token.constraints,
       root_principal: token.root_principal,
       caller_class: token.caller_class ?? null,
-      // v0.23: persist session identity bound to the token.
-      session_id: token.session_id ?? null,
     });
   }
 
@@ -492,7 +487,6 @@ export class DelegationEngine {
     ttlHours: number;
     maxDelegationDepth: number;
     budget?: BudgetType | null;
-    sessionId?: string | null;
   }): Promise<{ token: DelegationTokenType; tokenId: string }> {
     const tokenId = `anip-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
     const now = new Date();
@@ -542,10 +536,6 @@ export class DelegationEngine {
       },
       root_principal: opts.rootPrincipal,
       caller_class: null,
-      // v0.23: child tokens inherit parent.session_id; roots may set it via opts.
-      session_id: opts.parentToken
-        ? opts.parentToken.session_id ?? null
-        : opts.sessionId ?? null,
     };
 
     await this.registerToken(token);

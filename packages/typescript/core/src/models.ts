@@ -66,10 +66,12 @@ export const DelegationToken = z.object({
   }),
   root_principal: z.string().nullable().default(null),
   caller_class: z.string().nullable().default(null),
-  // v0.23: session identity bound at issuance, validated for session_bound
-  // ApprovalGrant continuations per SPEC.md §4.8. Trust comes from the
-  // signed token, never from caller-supplied invocation input.
-  session_id: z.string().nullable().default(null),
+  // NOTE: v0.23 session_id (SPEC.md §4.8) is intentionally NOT modeled
+  // here. The TS service runtime does not yet sign anip:session_id into
+  // JWTs or enforce the JWT/store trust check on resolve. Surfacing
+  // session_id on the Zod model would create a contract that drops the
+  // field at issuance. Add this field together with the runtime work in
+  // a future PR.
 });
 export type DelegationToken = z.infer<typeof DelegationToken>;
 
@@ -790,10 +792,7 @@ export const TokenRequest = z.object({
   purpose_parameters: z.record(z.any()).default({}),
   ttl_hours: z.number().default(2),
   caller_class: z.string().nullable().optional(),
-  /** v0.23: bind a session identity to the issued token. Required for callers
-   * that intend to redeem session_bound ApprovalGrants. Only honored at root
-   * issuance — child tokens inherit parent.session_id verbatim. See SPEC.md §4.8. */
-  session_id: z.string().nullable().optional(),
+  // NOTE: v0.23 session_id is omitted on purpose — see DelegationToken.
 });
 export type TokenRequest = z.infer<typeof TokenRequest>;
 
