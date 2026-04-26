@@ -11,7 +11,11 @@ export { createCheckpoint, reconstructAndCreateCheckpoint, CheckpointPolicy, Che
 export type { CheckpointPolicyOpts, CreateCheckpointOpts } from "./checkpoint.js";
 export type { CheckpointSink } from "./sinks.js";
 export { LocalFileSink } from "./sinks.js";
-export type { StorageBackend } from "./storage.js";
+export type {
+  StorageBackend,
+  ApprovalDecisionResult,
+  GrantReservationResult,
+} from "./storage.js";
 export { InMemoryStorage, SQLiteStorage } from "./storage.js";
 export { PostgresStorage } from "./postgres.js";
 export { RetentionEnforcer } from "./retention-enforcer.js";
