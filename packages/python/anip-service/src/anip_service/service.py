@@ -152,6 +152,15 @@ class ANIPService:
             self._capabilities[name] = cap
             cap_declarations[name] = cap.declaration
 
+        # --- v0.23: validate composed capability declarations now that the
+        # full registry is known. Cross-reference checks (step capabilities
+        # exist + are atomic, JSONPath references resolve, empty-result rules)
+        # are enforced here. Pydantic validators on CapabilityDeclaration
+        # already caught structural issues earlier. ---
+        from .v023 import validate_composition
+        for name, decl in cap_declarations.items():
+            validate_composition(name, decl, other_capabilities=cap_declarations)
+
         # --- Storage ---
         if isinstance(storage, str):
             if storage == ":memory:":
