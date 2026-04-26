@@ -210,6 +210,10 @@ type DelegationToken struct {
 	Constraints   DelegationConstraints `json:"constraints"`
 	RootPrincipal string                `json:"root_principal,omitempty"`
 	CallerClass   string                `json:"caller_class,omitempty"`
+	// SessionID (v0.23) binds a session identity to the signed token, used to
+	// validate session_bound ApprovalGrant continuations per SPEC.md §4.8.
+	// Trust comes from the signed token, never from caller-supplied input.
+	SessionID string `json:"session_id,omitempty"`
 }
 
 // TokenRequest is the client's request body for token issuance.
@@ -223,6 +227,10 @@ type TokenRequest struct {
 	CallerClass        string         `json:"caller_class,omitempty"`
 	Budget             *Budget        `json:"budget,omitempty"`
 	ConcurrentBranches string         `json:"concurrent_branches,omitempty"` // "allowed" or "exclusive"; defaults to "allowed"
+	// SessionID (v0.23) binds a session identity to the issued token. Required
+	// for callers that intend to redeem session_bound ApprovalGrants. Only
+	// honored at root issuance — child tokens inherit parent.SessionID.
+	SessionID string `json:"session_id,omitempty"`
 }
 
 // TokenResponse is the server's response to token issuance.

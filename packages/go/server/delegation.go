@@ -61,6 +61,11 @@ func IssueDelegationToken(
 	rootPrincipal := principal
 	parent := ""
 
+	// v0.23: child tokens inherit parent.SessionID verbatim. Roots may set
+	// SessionID via the request. SPEC.md §4.8: session identity is bound
+	// at issuance and never widened.
+	sessionID := req.SessionID
+
 	// If there's a parent token, look it up by ID for sub-delegation.
 	// parent_token is a stored token ID (e.g., "tok_root_001"), not a JWT.
 	if req.ParentToken != "" {
@@ -74,6 +79,8 @@ func IssueDelegationToken(
 		rootPrincipal = parentToken.RootPrincipal
 		parent = parentToken.TokenID
 		constraints = parentToken.Constraints
+		// v0.23: child inherits parent's session identity verbatim.
+		sessionID = parentToken.SessionID
 
 		// Budget narrowing: child budget must not exceed parent budget.
 		if parentToken.Constraints.Budget != nil {
@@ -114,6 +121,7 @@ func IssueDelegationToken(
 		Constraints:   constraints,
 		RootPrincipal: rootPrincipal,
 		CallerClass:   req.CallerClass,
+		SessionID:     sessionID,
 	}
 
 	// Store the token.
@@ -137,6 +145,11 @@ func IssueDelegationToken(
 	}
 	if parent != "" {
 		claims["parent_token_id"] = parent
+	}
+	if sessionID != "" {
+		// v0.23: bind session identity into the signed JWT so session_bound
+		// grant validation can trust it. SPEC.md §4.8 line 1035.
+		claims["anip:session_id"] = sessionID
 	}
 
 	jwt, err := crypto.SignDelegationJWT(km, claims)
@@ -193,6 +206,15 @@ func ResolveBearerToken(
 
 	if rp, ok := claims["root_principal"].(string); ok && rp != stored.RootPrincipal {
 		return nil, core.NewANIPError(core.FailureInvalidToken, "root_principal mismatch between JWT and stored token")
+	}
+
+	// v0.23 trust boundary: if either side carries a session_id, both must
+	// agree. SPEC.md §4.8 line 1035: session identity for session_bound
+	// grant validation MUST come from the signed token.
+	jwtSessionID, _ := claims["anip:session_id"].(string)
+	if jwtSessionID != stored.SessionID {
+		return nil, core.NewANIPError(core.FailureInvalidToken,
+			fmt.Sprintf("session_id mismatch: jwt=%q store=%q", jwtSessionID, stored.SessionID))
 	}
 
 	// 5. Return stored token.

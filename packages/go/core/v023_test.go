@@ -308,9 +308,10 @@ func TestIssueApprovalGrantRequestResponseRoundTrip(t *testing.T) {
 	if req2.GrantType != GrantTypeOneTime {
 		t.Errorf("grant_type mismatch")
 	}
-	resp := IssueApprovalGrantResponse{Grant: grant()}
+	// SPEC.md §4.9: response IS the signed grant — no wrapper.
+	resp := IssueApprovalGrantResponse(grant())
 	resp2 := roundTrip(t, resp)
-	if resp2.Grant.GrantID != "grant_test" {
+	if resp2.GrantID != "grant_test" {
 		t.Errorf("grant_id mismatch")
 	}
 }

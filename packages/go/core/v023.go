@@ -185,7 +185,6 @@ type IssueApprovalGrantRequest struct {
 }
 
 // IssueApprovalGrantResponse is the response body for POST {approval_grants}.
-// v0.23.
-type IssueApprovalGrantResponse struct {
-	Grant ApprovalGrant `json:"grant"`
-}
+// SPEC.md §4.9: 200 response IS the signed ApprovalGrant — no wrapper.
+// Aliased for parity with the request type. v0.23.
+type IssueApprovalGrantResponse = ApprovalGrant
