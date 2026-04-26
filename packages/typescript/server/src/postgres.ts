@@ -13,7 +13,11 @@
 import { Pool } from "pg";
 import type { PoolClient } from "pg";
 import { computeEntryHash } from "./hashing.js";
-import type { StorageBackend } from "./storage.js";
+import type {
+  ApprovalDecisionResult,
+  GrantReservationResult,
+  StorageBackend,
+} from "./storage.js";
 
 // ---------------------------------------------------------------------------
 // JSON audit fields that need parse/stringify round-tripping
@@ -82,7 +86,10 @@ CREATE TABLE IF NOT EXISTS audit_log (
     aggregation_count INTEGER,
     first_seen TEXT,
     last_seen TEXT,
-    representative_detail TEXT
+    representative_detail TEXT,
+    -- v0.23: approval flow linkage. See SPEC.md §4.7–§4.9.
+    approval_request_id TEXT,
+    approval_grant_id TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_audit_capability ON audit_log(capability);
@@ -128,6 +135,51 @@ CREATE TABLE IF NOT EXISTS leader_leases (
     holder TEXT NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL
 );
+
+-- v0.23: approval requests
+CREATE TABLE IF NOT EXISTS approval_requests (
+    approval_request_id TEXT PRIMARY KEY,
+    capability TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    requester TEXT NOT NULL,
+    parent_invocation_id TEXT,
+    preview TEXT NOT NULL,
+    preview_digest TEXT NOT NULL,
+    requested_parameters TEXT NOT NULL,
+    requested_parameters_digest TEXT NOT NULL,
+    grant_policy TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending','approved','denied','expired')),
+    approver TEXT,
+    decided_at TEXT,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_status ON approval_requests(status);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_expires ON approval_requests(expires_at);
+
+-- v0.23: approval grants. UNIQUE(approval_request_id) is defense-in-depth so
+-- a second insert against an already-approved request raises even if the
+-- conditional UPDATE in approve_request_and_store_grant were bypassed.
+CREATE TABLE IF NOT EXISTS approval_grants (
+    grant_id TEXT PRIMARY KEY,
+    approval_request_id TEXT NOT NULL UNIQUE,
+    grant_type TEXT NOT NULL CHECK (grant_type IN ('one_time','session_bound')),
+    capability TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    approved_parameters_digest TEXT NOT NULL,
+    preview_digest TEXT NOT NULL,
+    requester TEXT NOT NULL,
+    approver TEXT NOT NULL,
+    issued_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    max_uses INTEGER NOT NULL CHECK (max_uses >= 1),
+    use_count INTEGER NOT NULL DEFAULT 0,
+    session_id TEXT,
+    signature TEXT NOT NULL,
+    FOREIGN KEY (approval_request_id) REFERENCES approval_requests(approval_request_id)
+);
+CREATE INDEX IF NOT EXISTS idx_grants_approval_request_id ON approval_grants(approval_request_id);
+CREATE INDEX IF NOT EXISTS idx_grants_expires ON approval_grants(expires_at);
 `;
 
 // ---------------------------------------------------------------------------
@@ -168,6 +220,12 @@ export class PostgresStorage implements StorageBackend {
     // Idempotent migration for databases created before v0.23.
     await client.query(
       "ALTER TABLE delegation_tokens ADD COLUMN IF NOT EXISTS session_id TEXT",
+    );
+    await client.query(
+      "ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS approval_request_id TEXT",
+    );
+    await client.query(
+      "ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS approval_grant_id TEXT",
     );
   }
 
@@ -246,8 +304,9 @@ export class PostgresStorage implements StorageBackend {
         event_class, retention_tier, expires_at,
         storage_redacted, entry_type, grouping_key,
         aggregation_window, aggregation_count, first_seen,
-        last_seen, representative_detail)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)`,
+        last_seen, representative_detail,
+        approval_request_id, approval_grant_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)`,
       [
         entry.sequence_number as number,
         entry.timestamp as string,
@@ -281,6 +340,8 @@ export class PostgresStorage implements StorageBackend {
         (entry.first_seen as string) ?? null,
         (entry.last_seen as string) ?? null,
         (entry.representative_detail as string) ?? null,
+        (entry.approval_request_id as string) ?? null,
+        (entry.approval_grant_id as string) ?? null,
       ],
     );
   }
@@ -508,8 +569,9 @@ export class PostgresStorage implements StorageBackend {
           event_class, retention_tier, expires_at,
           storage_redacted, entry_type, grouping_key,
           aggregation_window, aggregation_count, first_seen,
-          last_seen, representative_detail)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)`,
+          last_seen, representative_detail,
+          approval_request_id, approval_grant_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)`,
         [
           sequenceNumber,
           entry.timestamp as string,
@@ -543,6 +605,8 @@ export class PostgresStorage implements StorageBackend {
           (entry.first_seen as string) ?? null,
           (entry.last_seen as string) ?? null,
           (entry.representative_detail as string) ?? null,
+          (entry.approval_request_id as string) ?? null,
+          (entry.approval_grant_id as string) ?? null,
         ],
       );
 
@@ -643,6 +707,9 @@ export class PostgresStorage implements StorageBackend {
    */
   async clearAll(): Promise<void> {
     const pool = this.getPool();
+    // Order matters: grants → approval_requests because of the FK.
+    await pool.query("DELETE FROM approval_grants");
+    await pool.query("DELETE FROM approval_requests");
     await pool.query("DELETE FROM delegation_tokens");
     await pool.query("DELETE FROM audit_log");
     await pool.query("DELETE FROM checkpoints");
@@ -650,6 +717,261 @@ export class PostgresStorage implements StorageBackend {
     await pool.query("DELETE FROM leader_leases");
     await pool.query("UPDATE audit_append_head SET last_sequence_number = 0, last_hash = 'sha256:0'");
   }
+
+  // -----------------------------------------------------------------------
+  // v0.23: approval requests + grants
+  // -----------------------------------------------------------------------
+
+  async storeApprovalRequest(request: Record<string, unknown>): Promise<void> {
+    // SPEC.md §4.7: idempotent on approval_request_id when content is identical;
+    // conflicting re-store with the same id is an error. SELECT-then-INSERT
+    // under FOR UPDATE so concurrent stores serialize on the row.
+    const reqId = request.approval_request_id as string;
+    const pool = this.getPool();
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const existing = await client.query(
+        "SELECT * FROM approval_requests WHERE approval_request_id = $1 FOR UPDATE",
+        [reqId],
+      );
+      if (existing.rows.length > 0) {
+        const parsed = parseApprovalRequestRow(existing.rows[0]);
+        if (!jsonDeepEqual(parsed, request)) {
+          await client.query("ROLLBACK");
+          throw new Error(
+            `approval_request_id ${JSON.stringify(reqId)} already stored with different content`,
+          );
+        }
+        await client.query("COMMIT");
+        return;
+      }
+      await client.query(
+        `INSERT INTO approval_requests
+         (approval_request_id, capability, scope, requester, parent_invocation_id,
+          preview, preview_digest, requested_parameters, requested_parameters_digest,
+          grant_policy, status, approver, decided_at, created_at, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+        [
+          reqId,
+          request.capability as string,
+          JSON.stringify(request.scope ?? []),
+          JSON.stringify(request.requester ?? {}),
+          (request.parent_invocation_id as string) ?? null,
+          JSON.stringify(request.preview ?? {}),
+          request.preview_digest as string,
+          JSON.stringify(request.requested_parameters ?? {}),
+          request.requested_parameters_digest as string,
+          JSON.stringify(request.grant_policy ?? {}),
+          request.status as string,
+          request.approver != null ? JSON.stringify(request.approver) : null,
+          (request.decided_at as string) ?? null,
+          request.created_at as string,
+          request.expires_at as string,
+        ],
+      );
+      await client.query("COMMIT");
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        // already rolled back
+      }
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getApprovalRequest(approvalRequestId: string): Promise<Record<string, unknown> | null> {
+    const pool = this.getPool();
+    const result = await pool.query(
+      "SELECT * FROM approval_requests WHERE approval_request_id = $1",
+      [approvalRequestId],
+    );
+    if (result.rows.length === 0) return null;
+    return parseApprovalRequestRow(result.rows[0]);
+  }
+
+  async approveRequestAndStoreGrant(
+    approvalRequestId: string,
+    grant: Record<string, unknown>,
+    approver: Record<string, unknown>,
+    decidedAtIso: string,
+    nowIso: string,
+  ): Promise<ApprovalDecisionResult> {
+    // Atomic per Decision 0.9a: BEGIN, conditional UPDATE on status='pending'
+    // AND expires_at > now, INSERT grant, COMMIT.
+    const pool = this.getPool();
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const updateResult = await client.query(
+        `UPDATE approval_requests
+            SET status = 'approved', approver = $1, decided_at = $2
+          WHERE approval_request_id = $3
+            AND status = 'pending'
+            AND expires_at > $4
+        RETURNING approval_request_id`,
+        [JSON.stringify(approver), decidedAtIso, approvalRequestId, nowIso],
+      );
+      if (updateResult.rows.length === 0) {
+        await client.query("ROLLBACK");
+        const state = await pool.query(
+          "SELECT status, expires_at FROM approval_requests WHERE approval_request_id = $1",
+          [approvalRequestId],
+        );
+        if (state.rows.length === 0) {
+          return { ok: false, reason: "approval_request_not_found" };
+        }
+        if ((state.rows[0].expires_at as string) <= nowIso) {
+          return { ok: false, reason: "approval_request_expired" };
+        }
+        return { ok: false, reason: "approval_request_already_decided" };
+      }
+      try {
+        await client.query(
+          `INSERT INTO approval_grants
+           (grant_id, approval_request_id, grant_type, capability, scope,
+            approved_parameters_digest, preview_digest, requester, approver,
+            issued_at, expires_at, max_uses, use_count, session_id, signature)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+          [
+            grant.grant_id as string,
+            grant.approval_request_id as string,
+            grant.grant_type as string,
+            grant.capability as string,
+            JSON.stringify(grant.scope ?? []),
+            grant.approved_parameters_digest as string,
+            grant.preview_digest as string,
+            JSON.stringify(grant.requester ?? {}),
+            JSON.stringify(grant.approver ?? {}),
+            grant.issued_at as string,
+            grant.expires_at as string,
+            grant.max_uses as number,
+            (grant.use_count as number) ?? 0,
+            (grant.session_id as string) ?? null,
+            grant.signature as string,
+          ],
+        );
+      } catch (err: unknown) {
+        await client.query("ROLLBACK");
+        const code = (err as { code?: string }).code;
+        // Postgres unique_violation
+        if (code === "23505") {
+          return { ok: false, reason: "approval_request_already_decided" };
+        }
+        throw err;
+      }
+      await client.query("COMMIT");
+      return { ok: true, grant: { ...grant } };
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        // already rolled back
+      }
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async storeGrant(grant: Record<string, unknown>): Promise<void> {
+    const pool = this.getPool();
+    await pool.query(
+      `INSERT INTO approval_grants
+       (grant_id, approval_request_id, grant_type, capability, scope,
+        approved_parameters_digest, preview_digest, requester, approver,
+        issued_at, expires_at, max_uses, use_count, session_id, signature)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       ON CONFLICT (grant_id) DO UPDATE SET
+         use_count = EXCLUDED.use_count,
+         session_id = EXCLUDED.session_id`,
+      [
+        grant.grant_id as string,
+        grant.approval_request_id as string,
+        grant.grant_type as string,
+        grant.capability as string,
+        JSON.stringify(grant.scope ?? []),
+        grant.approved_parameters_digest as string,
+        grant.preview_digest as string,
+        JSON.stringify(grant.requester ?? {}),
+        JSON.stringify(grant.approver ?? {}),
+        grant.issued_at as string,
+        grant.expires_at as string,
+        grant.max_uses as number,
+        (grant.use_count as number) ?? 0,
+        (grant.session_id as string) ?? null,
+        grant.signature as string,
+      ],
+    );
+  }
+
+  async getGrant(grantId: string): Promise<Record<string, unknown> | null> {
+    const pool = this.getPool();
+    const result = await pool.query(
+      "SELECT * FROM approval_grants WHERE grant_id = $1",
+      [grantId],
+    );
+    if (result.rows.length === 0) return null;
+    return parseGrantRow(result.rows[0]);
+  }
+
+  async tryReserveGrant(grantId: string, nowIso: string): Promise<GrantReservationResult> {
+    // Atomic check-and-increment per SPEC.md §4.8 Phase B.
+    const pool = this.getPool();
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const update = await client.query(
+        `UPDATE approval_grants
+            SET use_count = use_count + 1
+          WHERE grant_id = $1
+            AND use_count < max_uses
+            AND expires_at > $2
+        RETURNING use_count, max_uses, expires_at`,
+        [grantId, nowIso],
+      );
+      if (update.rows.length === 0) {
+        await client.query("ROLLBACK");
+        const state = await pool.query(
+          "SELECT use_count, max_uses, expires_at FROM approval_grants WHERE grant_id = $1",
+          [grantId],
+        );
+        if (state.rows.length === 0) {
+          return { ok: false, reason: "grant_not_found" };
+        }
+        const row = state.rows[0];
+        if ((row.expires_at as string) <= nowIso) {
+          return { ok: false, reason: "grant_expired" };
+        }
+        if ((row.use_count as number) >= (row.max_uses as number)) {
+          return { ok: false, reason: "grant_consumed" };
+        }
+        return { ok: false, reason: "grant_not_found" };
+      }
+      await client.query("COMMIT");
+      const fresh = await pool.query(
+        "SELECT * FROM approval_grants WHERE grant_id = $1",
+        [grantId],
+      );
+      return { ok: true, grant: fresh.rows.length > 0 ? parseGrantRow(fresh.rows[0]) : {} };
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        // already rolled back
+      }
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Row parsers
+  // -----------------------------------------------------------------------
 
   private parseAuditRow(row: Record<string, unknown>): Record<string, unknown> {
     const entry: Record<string, unknown> = { ...row };
@@ -667,4 +989,52 @@ export class PostgresStorage implements StorageBackend {
     }
     return entry;
   }
+}
+
+function parseApprovalRequestRow(row: Record<string, unknown>): Record<string, unknown> {
+  const d: Record<string, unknown> = { ...row };
+  for (const f of ["scope", "requester", "preview", "requested_parameters", "grant_policy"]) {
+    if (d[f] != null && typeof d[f] === "string") {
+      d[f] = JSON.parse(d[f] as string);
+    }
+  }
+  if (d.approver != null && typeof d.approver === "string") {
+    d.approver = JSON.parse(d.approver as string);
+  }
+  return d;
+}
+
+function parseGrantRow(row: Record<string, unknown>): Record<string, unknown> {
+  const d: Record<string, unknown> = { ...row };
+  for (const f of ["scope", "requester", "approver"]) {
+    if (d[f] != null && typeof d[f] === "string") {
+      d[f] = JSON.parse(d[f] as string);
+    }
+  }
+  return d;
+}
+
+function jsonDeepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a === null || b === null) return a === b;
+  if (typeof a !== typeof b) return false;
+  if (typeof a !== "object") return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!jsonDeepEqual(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  const ao = a as Record<string, unknown>;
+  const bo = b as Record<string, unknown>;
+  const ak = Object.keys(ao);
+  const bk = Object.keys(bo);
+  if (ak.length !== bk.length) return false;
+  for (const k of ak) {
+    if (!Object.prototype.hasOwnProperty.call(bo, k)) return false;
+    if (!jsonDeepEqual(ao[k], bo[k])) return false;
+  }
+  return true;
 }

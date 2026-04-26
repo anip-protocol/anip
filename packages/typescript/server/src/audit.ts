@@ -62,6 +62,9 @@ export class AuditLog {
       first_seen: entryData.first_seen ?? null,
       last_seen: entryData.last_seen ?? null,
       representative_detail: entryData.representative_detail ?? null,
+      // v0.23 — approval flow linkage. See SPEC.md §4.7–§4.9.
+      approval_request_id: entryData.approval_request_id ?? null,
+      approval_grant_id: entryData.approval_grant_id ?? null,
     };
 
     const entry = await this._storage.appendAuditEntry(entryForStorage);
