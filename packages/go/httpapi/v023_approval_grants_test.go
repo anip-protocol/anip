@@ -349,6 +349,54 @@ func TestV023ApprovalGrantsSchemaRejectsMaxUsesNegative(t *testing.T) {
 	}
 }
 
+// SPEC.md §4.9: when present, max_uses must be a positive integer.
+// Explicit 0 (distinct from omission) is invalid.
+func TestV023ApprovalGrantsSchemaRejectsMaxUsesZero(t *testing.T) {
+	ts := newApprovalTestServer(t)
+	approver := issueApprovalToken(t, ts, []string{"finance.write", "approver:*"}, "")
+	body := `{"approval_request_id": "apr_x", "grant_type": "one_time", "max_uses": 0}`
+	req, _ := http.NewRequest("POST", ts.URL+"/anip/approval_grants", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+approver)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("POST: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 400 {
+		t.Fatalf("status = %d, want 400", resp.StatusCode)
+	}
+	var data map[string]any
+	json.NewDecoder(resp.Body).Decode(&data)
+	failure, _ := data["failure"].(map[string]any)
+	if failure["type"] != core.FailureInvalidParameters {
+		t.Errorf("type = %v", failure["type"])
+	}
+}
+
+func TestV023ApprovalGrantsSchemaRejectsExpiresInSecondsZero(t *testing.T) {
+	ts := newApprovalTestServer(t)
+	approver := issueApprovalToken(t, ts, []string{"finance.write", "approver:*"}, "")
+	body := `{"approval_request_id": "apr_x", "grant_type": "one_time", "expires_in_seconds": 0}`
+	req, _ := http.NewRequest("POST", ts.URL+"/anip/approval_grants", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+approver)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("POST: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 400 {
+		t.Fatalf("status = %d, want 400", resp.StatusCode)
+	}
+	var data map[string]any
+	json.NewDecoder(resp.Body).Decode(&data)
+	failure, _ := data["failure"].(map[string]any)
+	if failure["type"] != core.FailureInvalidParameters {
+		t.Errorf("type = %v", failure["type"])
+	}
+}
+
 func TestV023ApprovalGrantsSchemaRejectsStringExpiresInSeconds(t *testing.T) {
 	ts := newApprovalTestServer(t)
 	approver := issueApprovalToken(t, ts, []string{"finance.write", "approver:*"}, "")

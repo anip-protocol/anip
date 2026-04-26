@@ -237,7 +237,7 @@ func handleInvoke(svc *service.Service) http.HandlerFunc {
 		}
 
 		if stream {
-			handleStreamInvoke(w, svc, capName, token, params, clientRefID, taskID, parentInvID, upstreamSvc, budget)
+			handleStreamInvoke(w, svc, capName, token, params, clientRefID, taskID, parentInvID, upstreamSvc, budget, approvalGrant)
 			return
 		}
 
@@ -349,14 +349,10 @@ func handleApprovalGrants(svc *service.Service) http.HandlerFunc {
 			"subject":        token.Subject,
 			"root_principal": token.RootPrincipal,
 		}
-		opts := service.IssueApprovalGrantOpts{SessionID: body.SessionID}
-		if body.ExpiresInSeconds > 0 {
-			v := body.ExpiresInSeconds
-			opts.ExpiresInSeconds = &v
-		}
-		if body.MaxUses > 0 {
-			v := body.MaxUses
-			opts.MaxUses = &v
+		opts := service.IssueApprovalGrantOpts{
+			SessionID:        body.SessionID,
+			ExpiresInSeconds: body.ExpiresInSeconds,
+			MaxUses:          body.MaxUses,
 		}
 		grant, err := svc.IssueApprovalGrant(body.ApprovalRequestID, body.GrantType, approver, opts)
 		if err != nil {
@@ -392,16 +388,18 @@ func validateIssueGrantBody(b *core.IssueApprovalGrantRequest) error {
 	if b.GrantType == core.GrantTypeOneTime && b.SessionID != "" {
 		return fmt.Errorf("session_id: must not be set when grant_type=one_time")
 	}
-	if b.ExpiresInSeconds < 0 {
+	// SPEC.md §4.9: when present, expires_in_seconds and max_uses must be
+	// positive integers. Pointers distinguish absence from explicit 0.
+	if b.ExpiresInSeconds != nil && *b.ExpiresInSeconds < 1 {
 		return fmt.Errorf("expires_in_seconds: must be a positive integer")
 	}
-	if b.MaxUses < 0 {
+	if b.MaxUses != nil && *b.MaxUses < 1 {
 		return fmt.Errorf("max_uses: must be a positive integer")
 	}
 	return nil
 }
 
-func handleStreamInvoke(w http.ResponseWriter, svc *service.Service, capName string, token *core.DelegationToken, params map[string]any, clientRefID, taskID, parentInvID, upstreamSvc string, budget *core.Budget) {
+func handleStreamInvoke(w http.ResponseWriter, svc *service.Service, capName string, token *core.DelegationToken, params map[string]any, clientRefID, taskID, parentInvID, upstreamSvc string, budget *core.Budget, approvalGrant string) {
 	sr, err := svc.InvokeStream(capName, token, params, service.InvokeOpts{
 		ClientReferenceID:  clientRefID,
 		TaskID:             taskID,
@@ -409,6 +407,7 @@ func handleStreamInvoke(w http.ResponseWriter, svc *service.Service, capName str
 		UpstreamService:    upstreamSvc,
 		Stream:             true,
 		Budget:             budget,
+		ApprovalGrant:      approvalGrant,
 	})
 	if err != nil {
 		if anipErr, ok := err.(*core.ANIPError); ok {

@@ -732,8 +732,9 @@ func (s *Service) Invoke(
 			return resp, nil
 		}
 
-		// Generic error -> internal_error.
-		s.appendAuditEntry(capName, token, false, core.FailureInternalError, nil, nil, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, opts.UpstreamService, capDef.Declaration.SideEffect.Type)
+		// Generic error -> internal_error. SPEC.md §4.9 step 11: continuation
+		// invocation audit entries reference the consumed grant.
+		s.appendAuditEntryWithApproval(capName, token, false, core.FailureInternalError, nil, nil, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, opts.UpstreamService, capDef.Declaration.SideEffect.Type, "", opts.ApprovalGrant, "")
 
 		failure := map[string]any{
 			"type":   core.FailureInternalError,
@@ -759,8 +760,9 @@ func (s *Service) Invoke(
 	// 6. Extract cost actual from context.
 	costActual := ctx.costActual
 
-	// 7. Log audit (success).
-	s.appendAuditEntry(capName, token, true, "", result, costActual, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, opts.UpstreamService, capDef.Declaration.SideEffect.Type)
+	// 7. Log audit (success). SPEC.md §4.9 step 11: continuation invocation
+	// audit entries reference the consumed grant.
+	s.appendAuditEntryWithApproval(capName, token, true, "", result, costActual, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, opts.UpstreamService, capDef.Declaration.SideEffect.Type, "", opts.ApprovalGrant, "")
 
 	// 8. Build response.
 	resp := map[string]any{
@@ -844,6 +846,38 @@ func (s *Service) InvokeStream(
 	// 3. Validate token scope.
 	if err := server.ValidateScope(token, capDef.Declaration.MinimumScope); err != nil {
 		return nil, err
+	}
+
+	// 3b. v0.23 §4.8 Phase A + Phase B: validate and atomically reserve the
+	// approval_grant BEFORE any handler / event emission. Reservation is the
+	// security boundary — once reserved, the grant is spent on this attempt.
+	// Failures surface synchronously as ANIPError (the transport adapter maps
+	// to JSON 4xx) — no SSE stream is opened.
+	if opts.ApprovalGrant != "" {
+		nowISO := utcNowISO()
+		_, failType := ValidateContinuationGrant(
+			s.storage, s.keys, opts.ApprovalGrant,
+			capName, params, token.Scope, token.SessionID, nowISO,
+		)
+		if failType != "" {
+			return nil, core.NewANIPError(failType, "approval_grant validation failed: "+failType)
+		}
+		reservation, err := s.storage.TryReserveGrant(opts.ApprovalGrant, nowISO)
+		if err != nil {
+			return nil, core.NewANIPError(core.FailureInternalError, "grant reservation failed")
+		}
+		if !reservation.OK {
+			var ftype string
+			switch reservation.Reason {
+			case "grant_consumed":
+				ftype = FailureGrantConsumed
+			case "grant_expired":
+				ftype = FailureGrantExpired
+			default:
+				ftype = FailureGrantNotFound
+			}
+			return nil, core.NewANIPError(ftype, ftype)
+		}
 	}
 
 	// 4. Build invocation context with streaming EmitProgress.
@@ -934,7 +968,7 @@ func (s *Service) InvokeStream(
 				}
 			}
 
-			s.appendAuditEntry(capName, token, false, failType, map[string]any{"detail": detail}, nil, invocationID, clientRefID, effectiveTaskID, parentInvID, upstreamSvc, capDef.Declaration.SideEffect.Type)
+			s.appendAuditEntryWithApproval(capName, token, false, failType, map[string]any{"detail": detail}, nil, invocationID, clientRefID, effectiveTaskID, parentInvID, upstreamSvc, capDef.Declaration.SideEffect.Type, "", opts.ApprovalGrant, "")
 
 			// Apply failure redaction to streaming failure.
 			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
@@ -958,7 +992,7 @@ func (s *Service) InvokeStream(
 
 		// Success — send completed event.
 		costActual := ctx.costActual
-		s.appendAuditEntry(capName, token, true, "", result, costActual, invocationID, clientRefID, effectiveTaskID, parentInvID, upstreamSvc, capDef.Declaration.SideEffect.Type)
+		s.appendAuditEntryWithApproval(capName, token, true, "", result, costActual, invocationID, clientRefID, effectiveTaskID, parentInvID, upstreamSvc, capDef.Declaration.SideEffect.Type, "", opts.ApprovalGrant, "")
 
 		payload := map[string]any{
 			"invocation_id":        invocationID,

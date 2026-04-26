@@ -298,11 +298,12 @@ func TestGrantPolicyValidate_EmptyDefault(t *testing.T) {
 }
 
 func TestIssueApprovalGrantRequestResponseRoundTrip(t *testing.T) {
+	expires, maxUses := 600, 1
 	req := IssueApprovalGrantRequest{
 		ApprovalRequestID: "apr_test",
 		GrantType:         GrantTypeOneTime,
-		ExpiresInSeconds:  600,
-		MaxUses:           1,
+		ExpiresInSeconds:  &expires,
+		MaxUses:           &maxUses,
 	}
 	req2 := roundTrip(t, req)
 	if req2.GrantType != GrantTypeOneTime {

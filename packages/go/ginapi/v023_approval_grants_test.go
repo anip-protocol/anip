@@ -336,6 +336,53 @@ func TestV023ApprovalGrantsGinSchemaRejectsMaxUsesNegative(t *testing.T) {
 	}
 }
 
+// SPEC.md §4.9: when present, max_uses must be a positive integer.
+func TestV023ApprovalGrantsGinSchemaRejectsMaxUsesZero(t *testing.T) {
+	ts := newApprovalGinServer(t)
+	approver := issueApprovalTokenGin(t, ts, []string{"finance.write", "approver:*"}, "")
+	body := `{"approval_request_id": "apr_x", "grant_type": "one_time", "max_uses": 0}`
+	req, _ := http.NewRequest("POST", ts.URL+"/anip/approval_grants", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+approver)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("POST: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 400 {
+		t.Fatalf("status = %d, want 400", resp.StatusCode)
+	}
+	var data map[string]any
+	json.NewDecoder(resp.Body).Decode(&data)
+	failure, _ := data["failure"].(map[string]any)
+	if failure["type"] != core.FailureInvalidParameters {
+		t.Errorf("type = %v", failure["type"])
+	}
+}
+
+func TestV023ApprovalGrantsGinSchemaRejectsExpiresInSecondsZero(t *testing.T) {
+	ts := newApprovalGinServer(t)
+	approver := issueApprovalTokenGin(t, ts, []string{"finance.write", "approver:*"}, "")
+	body := `{"approval_request_id": "apr_x", "grant_type": "one_time", "expires_in_seconds": 0}`
+	req, _ := http.NewRequest("POST", ts.URL+"/anip/approval_grants", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+approver)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("POST: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 400 {
+		t.Fatalf("status = %d, want 400", resp.StatusCode)
+	}
+	var data map[string]any
+	json.NewDecoder(resp.Body).Decode(&data)
+	failure, _ := data["failure"].(map[string]any)
+	if failure["type"] != core.FailureInvalidParameters {
+		t.Errorf("type = %v", failure["type"])
+	}
+}
+
 func TestV023ApprovalGrantsGinSchemaRejectsStringExpiresInSeconds(t *testing.T) {
 	ts := newApprovalGinServer(t)
 	approver := issueApprovalTokenGin(t, ts, []string{"finance.write", "approver:*"}, "")
