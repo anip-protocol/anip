@@ -278,3 +278,185 @@ class TestIssueApprovalGrant:
         resp = IssueApprovalGrantResponse(grant=_grant())
         resp2 = IssueApprovalGrantResponse.model_validate(resp.model_dump())
         assert resp2.grant.grant_id == "grant_test"
+
+    def test_session_bound_request_requires_session_id(self):
+        with pytest.raises(ValidationError):
+            IssueApprovalGrantRequest(
+                approval_request_id="apr_test",
+                grant_type="session_bound",
+            )
+
+    def test_one_time_request_rejects_session_id(self):
+        with pytest.raises(ValidationError):
+            IssueApprovalGrantRequest(
+                approval_request_id="apr_test",
+                grant_type="one_time",
+                session_id="sess_1",
+            )
+
+    def test_one_time_request_rejects_max_uses_other_than_one(self):
+        with pytest.raises(ValidationError):
+            IssueApprovalGrantRequest(
+                approval_request_id="apr_test",
+                grant_type="one_time",
+                max_uses=5,
+            )
+
+
+# --- Negative validators (security invariants) ---
+
+
+class TestApprovalGrantInvariants:
+    def _base_kwargs(self) -> dict:
+        return dict(
+            grant_id="g1",
+            approval_request_id="apr_1",
+            capability="cap",
+            scope=["s"],
+            approved_parameters_digest="d1",
+            preview_digest="d2",
+            requester={"principal": "u1"},
+            approver={"principal": "u2"},
+            issued_at="2026-01-01T00:00:00Z",
+            expires_at="2026-01-01T00:15:00Z",
+            signature="sig",
+        )
+
+    def test_one_time_rejects_max_uses_above_one(self):
+        with pytest.raises(ValidationError):
+            ApprovalGrant(grant_type="one_time", max_uses=5, **self._base_kwargs())
+
+    def test_one_time_rejects_session_id(self):
+        with pytest.raises(ValidationError):
+            ApprovalGrant(
+                grant_type="one_time",
+                max_uses=1,
+                session_id="sess_1",
+                **self._base_kwargs(),
+            )
+
+    def test_session_bound_requires_session_id(self):
+        with pytest.raises(ValidationError):
+            ApprovalGrant(
+                grant_type="session_bound",
+                max_uses=5,
+                session_id=None,
+                **self._base_kwargs(),
+            )
+
+    def test_session_bound_with_session_id_succeeds(self):
+        g = ApprovalGrant(
+            grant_type="session_bound",
+            max_uses=5,
+            session_id="sess_1",
+            **self._base_kwargs(),
+        )
+        assert g.session_id == "sess_1"
+
+
+class TestApprovalRequestInvariants:
+    def _base_kwargs(self) -> dict:
+        return dict(
+            approval_request_id="apr_1",
+            capability="cap",
+            scope=["s"],
+            requester={"principal": "u1"},
+            preview={"k": "v"},
+            preview_digest="d2",
+            requested_parameters={"k": "v"},
+            requested_parameters_digest="d1",
+            grant_policy=_grant_policy(),
+            created_at="2026-01-01T00:00:00Z",
+            expires_at="2026-01-01T00:15:00Z",
+        )
+
+    def test_pending_with_approver_rejected(self):
+        with pytest.raises(ValidationError):
+            ApprovalRequest(
+                status="pending",
+                approver={"principal": "u2"},
+                **self._base_kwargs(),
+            )
+
+    def test_pending_with_decided_at_rejected(self):
+        with pytest.raises(ValidationError):
+            ApprovalRequest(
+                status="pending",
+                decided_at="2026-01-01T00:01:00Z",
+                **self._base_kwargs(),
+            )
+
+    def test_approved_without_approver_rejected(self):
+        with pytest.raises(ValidationError):
+            ApprovalRequest(
+                status="approved",
+                decided_at="2026-01-01T00:01:00Z",
+                **self._base_kwargs(),
+            )
+
+    def test_expired_with_approver_rejected(self):
+        with pytest.raises(ValidationError):
+            ApprovalRequest(
+                status="expired",
+                approver={"principal": "u2"},
+                decided_at="2026-01-01T00:15:01Z",
+                **self._base_kwargs(),
+            )
+
+    def test_expired_without_decided_at_rejected(self):
+        with pytest.raises(ValidationError):
+            ApprovalRequest(status="expired", **self._base_kwargs())
+
+
+class TestANIPFailureApprovalInvariants:
+    def _base_resolution(self) -> Resolution:
+        return Resolution(action="contact_service_owner", recovery_class="terminal")
+
+    def test_approval_required_without_metadata_rejected(self):
+        with pytest.raises(ValidationError):
+            ANIPFailure(
+                type="approval_required",
+                detail="needs approval",
+                resolution=self._base_resolution(),
+            )
+
+    def test_non_approval_with_metadata_rejected(self):
+        with pytest.raises(ValidationError):
+            ANIPFailure(
+                type="budget_exceeded",
+                detail="too expensive",
+                resolution=self._base_resolution(),
+                approval_required=ApprovalRequiredMetadata(
+                    approval_request_id="apr_1",
+                    preview_digest="d2",
+                    requested_parameters_digest="d1",
+                    grant_policy=_grant_policy(),
+                ),
+            )
+
+
+class TestCapabilityDeclarationKindInvariants:
+    def _base_kwargs(self) -> dict:
+        return dict(
+            name="cap",
+            description="d",
+            inputs=[],
+            output=CapabilityOutput(type="x", fields=[]),
+            side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+            minimum_scope=["s"],
+        )
+
+    def test_composed_without_composition_rejected(self):
+        with pytest.raises(ValidationError):
+            CapabilityDeclaration(kind="composed", **self._base_kwargs())
+
+    def test_atomic_with_composition_rejected(self):
+        comp = _composed_decl().composition
+        with pytest.raises(ValidationError):
+            CapabilityDeclaration(kind="atomic", composition=comp, **self._base_kwargs())
+
+    def test_omitted_kind_with_composition_rejected(self):
+        # Kind defaults to "atomic"; composition non-null must therefore be rejected.
+        comp = _composed_decl().composition
+        with pytest.raises(ValidationError):
+            CapabilityDeclaration(composition=comp, **self._base_kwargs())

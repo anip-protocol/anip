@@ -252,4 +252,239 @@ describe("v0.23 — IssueApprovalGrant request/response", () => {
     const resp = IssueApprovalGrantResponse.parse({ grant: grant() });
     expect(resp.grant.grant_id).toBe("grant_test");
   });
+
+  it("session_bound issuance requires session_id", () => {
+    expect(() =>
+      IssueApprovalGrantRequest.parse({
+        approval_request_id: "apr_test",
+        grant_type: "session_bound",
+      }),
+    ).toThrow();
+  });
+
+  it("one_time issuance rejects session_id", () => {
+    expect(() =>
+      IssueApprovalGrantRequest.parse({
+        approval_request_id: "apr_test",
+        grant_type: "one_time",
+        session_id: "sess_1",
+      }),
+    ).toThrow();
+  });
+
+  it("one_time issuance rejects max_uses != 1", () => {
+    expect(() =>
+      IssueApprovalGrantRequest.parse({
+        approval_request_id: "apr_test",
+        grant_type: "one_time",
+        max_uses: 5,
+      }),
+    ).toThrow();
+  });
+});
+
+// --- Negative validators (security invariants) ---
+
+describe("v0.23 — ApprovalGrant invariants", () => {
+  const baseGrant = () => ({
+    grant_id: "g1",
+    approval_request_id: "apr_1",
+    capability: "cap",
+    scope: ["s"],
+    approved_parameters_digest: "d1",
+    preview_digest: "d2",
+    requester: { principal: "u1" },
+    approver: { principal: "u2" },
+    issued_at: "2026-01-01T00:00:00Z",
+    expires_at: "2026-01-01T00:15:00Z",
+    use_count: 0,
+    signature: "sig",
+  });
+
+  it("rejects one_time with max_uses > 1", () => {
+    expect(() =>
+      ApprovalGrant.parse({
+        ...baseGrant(),
+        grant_type: "one_time",
+        max_uses: 5,
+        session_id: null,
+      }),
+    ).toThrow();
+  });
+
+  it("rejects one_time with non-null session_id", () => {
+    expect(() =>
+      ApprovalGrant.parse({
+        ...baseGrant(),
+        grant_type: "one_time",
+        max_uses: 1,
+        session_id: "sess_1",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects session_bound without session_id", () => {
+    expect(() =>
+      ApprovalGrant.parse({
+        ...baseGrant(),
+        grant_type: "session_bound",
+        max_uses: 5,
+        session_id: null,
+      }),
+    ).toThrow();
+  });
+
+  it("accepts session_bound with non-null session_id", () => {
+    const g = ApprovalGrant.parse({
+      ...baseGrant(),
+      grant_type: "session_bound",
+      max_uses: 5,
+      session_id: "sess_1",
+    });
+    expect(g.session_id).toBe("sess_1");
+  });
+});
+
+describe("v0.23 — ApprovalRequest invariants", () => {
+  const baseFields = () => ({
+    approval_request_id: "apr_1",
+    capability: "cap",
+    scope: ["s"],
+    requester: { principal: "u1" },
+    parent_invocation_id: null,
+    preview: { k: "v" },
+    preview_digest: "d2",
+    requested_parameters: { k: "v" },
+    requested_parameters_digest: "d1",
+    grant_policy: grantPolicy(),
+    created_at: "2026-01-01T00:00:00Z",
+    expires_at: "2026-01-01T00:15:00Z",
+  });
+
+  it("rejects pending with approver", () => {
+    expect(() =>
+      ApprovalRequest.parse({
+        ...baseFields(),
+        status: "pending",
+        approver: { principal: "u2" },
+        decided_at: null,
+      }),
+    ).toThrow();
+  });
+
+  it("rejects pending with decided_at", () => {
+    expect(() =>
+      ApprovalRequest.parse({
+        ...baseFields(),
+        status: "pending",
+        approver: null,
+        decided_at: "2026-01-01T00:01:00Z",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects approved without approver", () => {
+    expect(() =>
+      ApprovalRequest.parse({
+        ...baseFields(),
+        status: "approved",
+        approver: null,
+        decided_at: "2026-01-01T00:01:00Z",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects expired with non-null approver", () => {
+    expect(() =>
+      ApprovalRequest.parse({
+        ...baseFields(),
+        status: "expired",
+        approver: { principal: "u2" },
+        decided_at: "2026-01-01T00:15:01Z",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects expired without decided_at", () => {
+    expect(() =>
+      ApprovalRequest.parse({
+        ...baseFields(),
+        status: "expired",
+        approver: null,
+        decided_at: null,
+      }),
+    ).toThrow();
+  });
+});
+
+describe("v0.23 — ANIPFailure approval_required invariants", () => {
+  const baseResolution = () =>
+    Resolution.parse({ action: "contact_service_owner", recovery_class: "terminal" });
+
+  it("rejects approval_required without metadata", () => {
+    expect(() =>
+      ANIPFailure.parse({
+        type: "approval_required",
+        detail: "needs approval",
+        resolution: baseResolution(),
+      }),
+    ).toThrow();
+  });
+
+  it("rejects non-approval failure with metadata", () => {
+    expect(() =>
+      ANIPFailure.parse({
+        type: "budget_exceeded",
+        detail: "too expensive",
+        resolution: baseResolution(),
+        approval_required: {
+          approval_request_id: "apr_1",
+          preview_digest: "d2",
+          requested_parameters_digest: "d1",
+          grant_policy: grantPolicy(),
+        },
+      }),
+    ).toThrow();
+  });
+});
+
+describe("v0.23 — CapabilityDeclaration kind/composition invariants", () => {
+  const baseFields = () => ({
+    name: "cap",
+    description: "d",
+    inputs: [],
+    output: { type: "x", fields: [] },
+    side_effect: { type: "read", rollback_window: "not_applicable" },
+    minimum_scope: ["s"],
+  });
+
+  it("rejects composed without composition", () => {
+    expect(() =>
+      CapabilityDeclaration.parse({
+        ...baseFields(),
+        kind: "composed",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects atomic with composition", () => {
+    const comp = composedDecl().composition;
+    expect(() =>
+      CapabilityDeclaration.parse({
+        ...baseFields(),
+        kind: "atomic",
+        composition: comp,
+      }),
+    ).toThrow();
+  });
+
+  it("rejects omitted-kind with composition (defaults to atomic)", () => {
+    const comp = composedDecl().composition;
+    expect(() =>
+      CapabilityDeclaration.parse({
+        ...baseFields(),
+        composition: comp,
+      }),
+    ).toThrow();
+  });
 });

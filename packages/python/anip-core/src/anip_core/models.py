@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # --- Side-effect Typing ---
@@ -290,6 +290,24 @@ class ApprovalRequest(BaseModel):
     created_at: str
     expires_at: str
 
+    @model_validator(mode="after")
+    def _validate_status_invariants(self) -> "ApprovalRequest":
+        # SPEC.md §4.7: pending -> no approver, no decided_at;
+        # approved/denied -> both required; expired -> decided_at required, approver null.
+        status = self.status
+        if status == "pending":
+            if self.approver is not None or self.decided_at is not None:
+                raise ValueError("pending requests must have approver=None and decided_at=None")
+        elif status in ("approved", "denied"):
+            if self.approver is None or self.decided_at is None:
+                raise ValueError(f"{status} requests require approver and decided_at")
+        elif status == "expired":
+            if self.approver is not None:
+                raise ValueError("expired requests must have approver=None (time-driven, no human decided)")
+            if self.decided_at is None:
+                raise ValueError("expired requests must have decided_at set")
+        return self
+
 
 class ApprovalGrant(BaseModel):
     """Signed authorization object issued after approval. v0.23. See SPEC.md §4.8."""
@@ -309,6 +327,20 @@ class ApprovalGrant(BaseModel):
     session_id: str | None = None
     signature: str
 
+    @model_validator(mode="after")
+    def _validate_grant_type_invariants(self) -> "ApprovalGrant":
+        # SPEC.md §4.8: one_time -> max_uses=1, session_id=None;
+        # session_bound -> session_id required (non-null).
+        if self.grant_type == "one_time":
+            if self.max_uses != 1:
+                raise ValueError("one_time grants must have max_uses=1")
+            if self.session_id is not None:
+                raise ValueError("one_time grants must have session_id=None")
+        elif self.grant_type == "session_bound":
+            if not self.session_id:
+                raise ValueError("session_bound grants require a non-empty session_id")
+        return self
+
 
 class IssueApprovalGrantRequest(BaseModel):
     """Request body for POST {approval_grants}. v0.23. See SPEC.md §4.9."""
@@ -317,6 +349,19 @@ class IssueApprovalGrantRequest(BaseModel):
     session_id: str | None = None
     expires_in_seconds: int | None = None
     max_uses: int | None = None
+
+    @model_validator(mode="after")
+    def _validate_grant_type_invariants(self) -> "IssueApprovalGrantRequest":
+        # SPEC.md §4.9: session_id required iff session_bound.
+        if self.grant_type == "session_bound":
+            if not self.session_id:
+                raise ValueError("session_bound grant issuance requires a non-empty session_id")
+        elif self.grant_type == "one_time":
+            if self.session_id is not None:
+                raise ValueError("one_time grant issuance must not carry session_id")
+            if self.max_uses is not None and self.max_uses != 1:
+                raise ValueError("one_time grant issuance max_uses must be 1 or omitted")
+        return self
 
 
 class IssueApprovalGrantResponse(BaseModel):
@@ -348,6 +393,17 @@ class CapabilityDeclaration(BaseModel):
     kind: CapabilityKind = "atomic"
     composition: Composition | None = None
     grant_policy: GrantPolicy | None = None
+
+    @model_validator(mode="after")
+    def _validate_kind_composition(self) -> "CapabilityDeclaration":
+        # SPEC.md §4.1, §4.6: composed requires composition; atomic forbids it.
+        # The third rule catches the omitted-kind case (defaulting to atomic):
+        # composition non-null implies kind must be "composed".
+        if self.kind == "composed" and self.composition is None:
+            raise ValueError("kind='composed' requires composition")
+        if self.kind == "atomic" and self.composition is not None:
+            raise ValueError("kind='atomic' must not carry composition")
+        return self
 
 
 # --- Permission Discovery ---
@@ -398,6 +454,19 @@ class ANIPFailure(BaseModel):
     resolution: Resolution
     retry: bool = True
     approval_required: ApprovalRequiredMetadata | None = None  # v0.23, present iff type='approval_required'
+
+    @model_validator(mode="after")
+    def _validate_approval_required_metadata(self) -> "ANIPFailure":
+        # SPEC.md §4.7: approval_required metadata is present iff type='approval_required'.
+        if self.type == "approval_required":
+            if self.approval_required is None:
+                raise ValueError("type='approval_required' failures require approval_required metadata")
+        else:
+            if self.approval_required is not None:
+                raise ValueError(
+                    "approval_required metadata may only be set when type='approval_required'"
+                )
+        return self
 
 
 # --- Manifest ---

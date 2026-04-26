@@ -964,6 +964,18 @@
         "detail",
         "resolution"
       ],
+      "allOf": [
+        {
+          "if": {"properties": {"type": {"const": "approval_required"}}, "required": ["type"]},
+          "then": {
+            "required": ["approval_required"],
+            "properties": {"approval_required": {"not": {"type": "null"}}}
+          },
+          "else": {
+            "properties": {"approval_required": {"type": "null"}}
+          }
+        }
+      ],
       "title": "ANIPFailure",
       "type": "object",
       "description": "Structured failure object with type, detail, resolution path, and retry hint. See SPEC.md §4.5."
@@ -1210,6 +1222,17 @@
         {
           "if": {"properties": {"kind": {"const": "atomic"}}, "required": ["kind"]},
           "then": {"properties": {"composition": {"type": "null"}}}
+        },
+        {
+          "// comment": "Catches the omitted-kind case: if composition is non-null, kind MUST be 'composed'. The two above only fire when kind is explicitly present.",
+          "if": {
+            "required": ["composition"],
+            "properties": {"composition": {"not": {"type": "null"}}}
+          },
+          "then": {
+            "required": ["kind"],
+            "properties": {"kind": {"const": "composed"}}
+          }
         }
       ],
       "title": "CapabilityDeclaration",
@@ -2243,6 +2266,29 @@
         }
       },
       "required": ["approval_request_id", "grant_type"],
+      "allOf": [
+        {
+          "if": {"properties": {"grant_type": {"const": "session_bound"}}, "required": ["grant_type"]},
+          "then": {
+            "properties": {"session_id": {"type": "string", "minLength": 1}},
+            "required": ["session_id"]
+          }
+        },
+        {
+          "if": {"properties": {"grant_type": {"const": "one_time"}}, "required": ["grant_type"]},
+          "then": {
+            "properties": {
+              "session_id": {"type": "null"},
+              "max_uses": {
+                "anyOf": [
+                  {"const": 1},
+                  {"type": "null"}
+                ]
+              }
+            }
+          }
+        }
+      ],
       "additionalProperties": false,
       "title": "IssueApprovalGrantRequest",
       "description": "Request body for POST {approval_grants}. v0.23. See SPEC.md §4.9."
