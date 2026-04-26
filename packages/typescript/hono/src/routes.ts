@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { ANIPService } from "@anip-dev/service";
 import { ANIPError } from "@anip-dev/service";
+import { IssueApprovalGrantRequest } from "@anip-dev/core";
 
 export async function mountAnip(
   app: Hono,
@@ -68,6 +69,9 @@ export async function mountAnip(
     const parentInvocationId = body.parent_invocation_id ?? null;
     const upstreamService = body.upstream_service ?? null;
     const budget = body.budget ?? null;
+    // v0.23: continuation invocations supply approval_grant. session_id for
+    // session_bound grants is read from the signed token, never the body.
+    const approvalGrant = body.approval_grant ?? null;
 
     if (!body.stream) {
       // Unary mode — existing behavior
@@ -77,6 +81,7 @@ export async function mountAnip(
         parentInvocationId,
         upstreamService,
         budget,
+        approvalGrant,
       });
       if (!result.success) {
         const failure = result.failure as Record<string, unknown>;
@@ -96,6 +101,7 @@ export async function mountAnip(
         upstreamService,
         stream: true,
         budget,
+        approvalGrant,
       });
       const failure = result.failure as Record<string, unknown>;
       return c.json(result, failureStatus(failure?.type as string));
@@ -115,6 +121,7 @@ export async function mountAnip(
           upstreamService,
           stream: true,
           budget,
+          approvalGrant,
           progressSink: async (event) => {
             const eventData = { ...event, timestamp: new Date().toISOString() };
             await writer.write(
@@ -183,6 +190,92 @@ export async function mountAnip(
       }, 404);
     }
     return c.json(graph);
+  });
+
+  // --- Approval Grants (v0.23 §4.9) ---
+  // Validation order is security-relevant; see SPEC.md §4.9 line 1090:
+  //   1. authn (already handled by resolveToken)
+  //   2. parse body + schema-validate via IssueApprovalGrantRequest
+  //   3. load ApprovalRequest
+  //   4. check state (decided / expired) — BEFORE approver auth
+  //   5. check approver authority against the loaded capability
+  //   6. issueApprovalGrant (steps 6–11 of the spec)
+  app.post(`${p}/anip/approval_grants`, async (c) => {
+    const result = await resolveToken(c, service);
+    if (result === null) return authFailureJwtEndpoint(c);
+    if (result instanceof ANIPError) return errorResponse(c, result);
+    const token = result;
+
+    let rawBody: unknown;
+    try {
+      rawBody = await c.req.json();
+    } catch {
+      return c.json(invalidParametersFailure("request body must be JSON"), 400);
+    }
+    const parsed = IssueApprovalGrantRequest.safeParse(rawBody);
+    if (!parsed.success) {
+      return c.json(
+        invalidParametersFailure(
+          parsed.error.issues
+            .map((i) => `${i.path.join(".")}: ${i.message}`)
+            .join("; "),
+        ),
+        400,
+      );
+    }
+    const { approval_request_id: approvalRequestId, grant_type: grantType } =
+      parsed.data;
+
+    const approvalRequest = await service.getApprovalRequest(approvalRequestId);
+    if (approvalRequest === null) {
+      return c.json(
+        approvalRequestNotFoundFailure(approvalRequestId),
+        404,
+      );
+    }
+
+    // SPEC.md §4.9 step 4: state check BEFORE approver authority. An
+    // unauthorized token aimed at a decided/expired request must surface the
+    // canonical state failure, not approver_not_authorized.
+    const status = approvalRequest.status as string;
+    const expiresAt = approvalRequest.expires_at as string | undefined;
+    if (status !== "pending") {
+      return c.json(approvalRequestAlreadyDecidedFailure(approvalRequestId, status), 409);
+    }
+    if (expiresAt && expiresAt <= new Date().toISOString()) {
+      return c.json(approvalRequestExpiredFailure(approvalRequestId), 409);
+    }
+
+    // Approver authority check: token scope must contain approver:* OR
+    // approver:<capability> for the request's capability.
+    const targetCapability = approvalRequest.capability as string;
+    const tokenScopes = token.scope ?? [];
+    const acceptedScopes = new Set(["approver:*", `approver:${targetCapability}`]);
+    if (!tokenScopes.some((s) => acceptedScopes.has(s))) {
+      return c.json(approverNotAuthorizedFailure(targetCapability), 403);
+    }
+
+    const approverPrincipal = {
+      subject: token.subject,
+      root_principal: token.root_principal,
+    };
+    try {
+      const grant = await service.issueApprovalGrant(
+        approvalRequestId,
+        grantType,
+        approverPrincipal,
+        {
+          expiresInSeconds: parsed.data.expires_in_seconds,
+          maxUses: parsed.data.max_uses,
+          sessionId: parsed.data.session_id,
+        },
+      );
+      // SPEC.md §4.9: 200 response IS the signed ApprovalGrant — no wrapper.
+      return c.json(grant);
+    } catch (e) {
+      if (e instanceof ANIPError) return errorResponse(c, e);
+      throw e;
+    }
   });
 
   // --- Audit ---
@@ -374,4 +467,99 @@ function errorResponse(c: any, error: ANIPError) {
     },
     status,
   );
+}
+
+// --- Approval-grants endpoint failure shapes (v0.23 §4.9) ---
+
+function invalidParametersFailure(detail: string) {
+  return {
+    success: false,
+    failure: {
+      type: "invalid_parameters",
+      detail,
+      resolution: {
+        action: "retry_now",
+        recovery_class: "retry_now",
+        requires: null,
+        grantable_by: null,
+        estimated_availability: null,
+      },
+      retry: false,
+    },
+  };
+}
+
+function approvalRequestNotFoundFailure(approvalRequestId: string) {
+  return {
+    success: false,
+    failure: {
+      type: "approval_request_not_found",
+      detail: `unknown approval_request_id=${JSON.stringify(approvalRequestId)}`,
+      resolution: {
+        action: "check_manifest",
+        recovery_class: "revalidate_then_retry",
+        requires: "Valid approval_request_id from a prior approval_required failure",
+        grantable_by: null,
+        estimated_availability: null,
+      },
+      retry: false,
+    },
+  };
+}
+
+function approvalRequestAlreadyDecidedFailure(
+  approvalRequestId: string,
+  status: string,
+) {
+  return {
+    success: false,
+    failure: {
+      type: "approval_request_already_decided",
+      detail: `approval_request_id=${JSON.stringify(approvalRequestId)} is in status=${JSON.stringify(status)}`,
+      resolution: {
+        action: "contact_service_owner",
+        recovery_class: "terminal",
+        requires: null,
+        grantable_by: null,
+        estimated_availability: null,
+      },
+      retry: false,
+    },
+  };
+}
+
+function approvalRequestExpiredFailure(approvalRequestId: string) {
+  return {
+    success: false,
+    failure: {
+      type: "approval_request_expired",
+      detail: `approval_request_id=${JSON.stringify(approvalRequestId)} expired before issuance`,
+      resolution: {
+        action: "contact_service_owner",
+        recovery_class: "terminal",
+        requires: null,
+        grantable_by: null,
+        estimated_availability: null,
+      },
+      retry: false,
+    },
+  };
+}
+
+function approverNotAuthorizedFailure(targetCapability: string) {
+  return {
+    success: false,
+    failure: {
+      type: "approver_not_authorized",
+      detail: `token lacks approver scope for capability ${JSON.stringify(targetCapability)}`,
+      resolution: {
+        action: "request_broader_scope",
+        recovery_class: "redelegation_then_retry",
+        requires: `scope += approver:${targetCapability}`,
+        grantable_by: null,
+        estimated_availability: null,
+      },
+      retry: false,
+    },
+  };
 }

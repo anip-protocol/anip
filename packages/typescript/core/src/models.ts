@@ -66,6 +66,10 @@ export const DelegationToken = z.object({
   }),
   root_principal: z.string().nullable().default(null),
   caller_class: z.string().nullable().default(null),
+  // v0.23: session identity bound at issuance, validated for session_bound
+  // ApprovalGrant continuations per SPEC.md §4.8. Trust comes from the
+  // signed token, never from caller-supplied invocation input.
+  session_id: z.string().nullable().default(null),
 });
 export type DelegationToken = z.infer<typeof DelegationToken>;
 
@@ -459,9 +463,10 @@ export const IssueApprovalGrantRequest = z
   });
 export type IssueApprovalGrantRequest = z.infer<typeof IssueApprovalGrantRequest>;
 
-export const IssueApprovalGrantResponse = z.object({
-  grant: ApprovalGrant,
-});
+// SPEC.md §4.9: 200 response IS the signed ApprovalGrant — no wrapper.
+// IssueApprovalGrantResponse is exposed as an alias for parity with the
+// request type and for runtimes that prefer a named response model.
+export const IssueApprovalGrantResponse = ApprovalGrant;
 export type IssueApprovalGrantResponse = z.infer<typeof IssueApprovalGrantResponse>;
 
 // ---------------------------------------------------------------------------
@@ -728,7 +733,7 @@ export const ServiceIdentity = z.object({
 export type ServiceIdentity = z.infer<typeof ServiceIdentity>;
 
 export const ANIPManifest = z.object({
-  protocol: z.string().default("anip/0.22"),
+  protocol: z.string().default("anip/0.23"),
   profile: ProfileVersions,
   capabilities: z.record(CapabilityDeclaration),
   manifest_metadata: ManifestMetadata.nullable().default(null),
@@ -786,6 +791,10 @@ export const TokenRequest = z.object({
   purpose_parameters: z.record(z.any()).default({}),
   ttl_hours: z.number().default(2),
   caller_class: z.string().nullable().optional(),
+  /** v0.23: bind a session identity to the issued token for session_bound
+   * ApprovalGrant validation. Only honored at root issuance — child tokens
+   * inherit parent.session_id verbatim. See SPEC.md §4.8. */
+  session_id: z.string().nullable().optional(),
 });
 export type TokenRequest = z.infer<typeof TokenRequest>;
 

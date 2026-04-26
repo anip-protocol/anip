@@ -41,6 +41,23 @@ import { resolveDisclosureLevel } from "./disclosure.js";
 import { redactFailure } from "./redaction.js";
 import { RetentionPolicy } from "./retention.js";
 import { storageRedactEntry } from "./storage-redaction.js";
+import {
+  FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED,
+  FAILURE_APPROVAL_REQUEST_EXPIRED,
+  FAILURE_APPROVAL_REQUEST_NOT_FOUND,
+  FAILURE_GRANT_CONSUMED,
+  FAILURE_GRANT_EXPIRED,
+  FAILURE_GRANT_NOT_FOUND,
+  FAILURE_GRANT_TYPE_NOT_ALLOWED_BY_POLICY,
+  executeComposition,
+  materializeApprovalRequest,
+  newGrantId,
+  signGrant,
+  utcInIso,
+  utcNowIso,
+  validateComposition,
+  validateContinuationGrant,
+} from "./v023.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -132,9 +149,34 @@ export interface ANIPService {
       upstreamService?: string | null;
       stream?: boolean;
       budget?: Record<string, unknown> | null;
+      approvalGrant?: string | null;
       progressSink?: (event: Record<string, unknown>) => Promise<void>;
     },
   ): Promise<Record<string, unknown>>;
+  /**
+   * Issue a signed ApprovalGrant for a pending ApprovalRequest. v0.23.
+   *
+   * Caller is responsible for approver-authority enforcement (verifying the
+   * approver has scope to approve `request.capability`). This SPI is called
+   * by the canonical HTTP endpoint and out-of-band approver workflows.
+   * SPEC.md sections 4.8, 4.9.
+   */
+  issueApprovalGrant(
+    approvalRequestId: string,
+    grantType: "one_time" | "session_bound",
+    approverPrincipal: Record<string, unknown>,
+    opts?: {
+      expiresInSeconds?: number | null;
+      maxUses?: number | null;
+      sessionId?: string | null;
+    },
+  ): Promise<Record<string, unknown>>;
+  /** v0.23: read-only lookup of an ApprovalRequest by id. Returns null if
+   * not found. Used by the canonical HTTP route to enforce approver scope
+   * before calling issueApprovalGrant. SPEC.md §4.7. */
+  getApprovalRequest(
+    approvalRequestId: string,
+  ): Promise<Record<string, unknown> | null>;
   getCapabilityDeclaration(capabilityName: string): Record<string, unknown> | null;
   getCapabilityGraph(capabilityName: string): Record<string, unknown> | null;
   queryAudit(
@@ -318,6 +360,15 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
     const name = cap.declaration.name;
     capabilities.set(name, cap);
     capDeclarations[name] = cap.declaration;
+  }
+
+  // v0.23: validate composed capability declarations now that the full
+  // registry is known. Cross-reference checks (step capabilities exist + are
+  // atomic, JSONPath references resolve, empty-result rules) are enforced
+  // here. Zod refinements on CapabilityDeclaration already caught structural
+  // issues earlier.
+  for (const [name, decl] of Object.entries(capDeclarations)) {
+    validateComposition(name, decl, { otherCapabilities: capDeclarations });
   }
 
   // --- Storage ---
@@ -535,6 +586,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       retentionTier?: string | null;
       expiresAt?: string | null;
       parentSpan?: unknown;
+      approvalRequestId?: string | null;
+      approvalGrantId?: string | null;
+      entryType?: string | null;
     },
   ): Promise<void> {
     const chain = await engine.getChain(token);
@@ -556,6 +610,9 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       event_class: auditOpts.eventClass ?? null,
       retention_tier: auditOpts.retentionTier ?? null,
       expires_at: auditOpts.expiresAt ?? null,
+      approval_request_id: auditOpts.approvalRequestId ?? null,
+      approval_grant_id: auditOpts.approvalGrantId ?? null,
+      entry_type: auditOpts.entryType ?? null,
     };
 
     // Apply storage-side redaction (after classification, before persistence)
@@ -747,6 +804,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           audit: "/anip/audit",
           checkpoints: "/anip/checkpoints",
           graph: "/anip/graph/{capability}",
+          approval_grants: "/anip/approval_grants",
           jwks: "/.well-known/jwks.json",
         },
       };
@@ -884,6 +942,16 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         }
       }
 
+      // v0.23 trust boundary for session_bound grant validation: if either
+      // side carries a session_id, both must agree. SPEC.md §4.8 line 1035.
+      const jwtSession = (claims["anip:session_id"] as string | undefined) ?? null;
+      const storedSession = stored.session_id ?? null;
+      if (jwtSession !== storedSession) {
+        mismatches.push(
+          `session_id: jwt=${String(jwtSession)} store=${String(storedSession)}`,
+        );
+      }
+
       if (mismatches.length > 0) {
         throw new ANIPError(
           "invalid_token",
@@ -955,6 +1023,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             | undefined,
           ttlHours,
           budget: requestBudget,
+          sessionId: (request.session_id as string | null | undefined) ?? null,
         });
       }
 
@@ -1000,6 +1069,11 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       }
       if (token.caller_class != null) {
         claims["anip:caller_class"] = token.caller_class;
+      }
+      if (token.session_id != null) {
+        // v0.23: bind session identity into the signed JWT so session_bound
+        // grant validation can trust it. SPEC.md §4.8 line 1035.
+        claims["anip:session_id"] = token.session_id;
       }
 
       const jwtStr = await keys.signJWT(claims);
@@ -1088,6 +1162,170 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       ) as unknown as Record<string, unknown>;
     },
 
+    async issueApprovalGrant(
+      approvalRequestId: string,
+      grantType: "one_time" | "session_bound",
+      approverPrincipal: Record<string, unknown>,
+      grantOpts?: {
+        expiresInSeconds?: number | null;
+        maxUses?: number | null;
+        sessionId?: string | null;
+      },
+    ): Promise<Record<string, unknown>> {
+      // SPEC.md sections 4.8, 4.9. Caller is responsible for approver-
+      // authority enforcement (verifying scope to approve request.capability).
+      // Atomic per Decision 0.9a: approveRequestAndStoreGrant does the
+      // conditional UPDATE + INSERT in a single transaction.
+      await ensureKeys();
+
+      const request = await storage.getApprovalRequest(approvalRequestId);
+      if (request === null) {
+        throw new ANIPError(
+          FAILURE_APPROVAL_REQUEST_NOT_FOUND,
+          `unknown approval_request_id=${approvalRequestId}`,
+        );
+      }
+      if (request.status !== "pending") {
+        throw new ANIPError(
+          FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED,
+          `approval_request_id=${approvalRequestId} status=${String(request.status)}`,
+        );
+      }
+      const nowIso = utcNowIso();
+      if ((request.expires_at as string) <= nowIso) {
+        throw new ANIPError(
+          FAILURE_APPROVAL_REQUEST_EXPIRED,
+          `approval_request_id=${approvalRequestId} expired at ${String(request.expires_at)}`,
+        );
+      }
+      const gp = request.grant_policy as Record<string, unknown>;
+      const allowed = (gp.allowed_grant_types as string[] | undefined) ?? [];
+      if (!allowed.includes(grantType)) {
+        throw new ANIPError(
+          FAILURE_GRANT_TYPE_NOT_ALLOWED_BY_POLICY,
+          `grant_type=${grantType} not in allowed_grant_types=[${allowed.join(", ")}]`,
+        );
+      }
+      const policyExpires = gp.expires_in_seconds as number;
+      const policyMaxUses = gp.max_uses as number;
+      let effExpiresIn = grantOpts?.expiresInSeconds ?? policyExpires;
+      if (effExpiresIn > policyExpires) {
+        throw new ANIPError(
+          FAILURE_GRANT_TYPE_NOT_ALLOWED_BY_POLICY,
+          `expires_in_seconds=${effExpiresIn} exceeds policy=${policyExpires}`,
+        );
+      }
+      let effMaxUses = grantOpts?.maxUses ?? policyMaxUses;
+      let effSessionId: string | null = grantOpts?.sessionId ?? null;
+      if (grantType === "one_time") {
+        effMaxUses = 1;
+        if (effSessionId !== null) {
+          throw new ANIPError(
+            FAILURE_GRANT_TYPE_NOT_ALLOWED_BY_POLICY,
+            "one_time grants must not carry session_id",
+          );
+        }
+      } else if (grantType === "session_bound") {
+        if (effSessionId === null) {
+          throw new ANIPError(
+            FAILURE_GRANT_TYPE_NOT_ALLOWED_BY_POLICY,
+            "session_bound grants require a session_id",
+          );
+        }
+      }
+      if (effMaxUses > policyMaxUses) {
+        throw new ANIPError(
+          FAILURE_GRANT_TYPE_NOT_ALLOWED_BY_POLICY,
+          `max_uses=${effMaxUses} exceeds policy=${policyMaxUses}`,
+        );
+      }
+
+      const grant: Record<string, unknown> = {
+        grant_id: newGrantId(),
+        approval_request_id: approvalRequestId,
+        grant_type: grantType,
+        capability: request.capability,
+        scope: [...(request.scope as string[])],
+        approved_parameters_digest: request.requested_parameters_digest,
+        preview_digest: request.preview_digest,
+        requester: { ...(request.requester as Record<string, unknown>) },
+        approver: { ...approverPrincipal },
+        issued_at: nowIso,
+        expires_at: utcInIso(effExpiresIn),
+        max_uses: effMaxUses,
+        use_count: 0,
+        session_id: effSessionId,
+        signature: "",
+      };
+      grant.signature = await signGrant(grant, { keyManager: keys });
+
+      const result = await storage.approveRequestAndStoreGrant(
+        approvalRequestId,
+        grant,
+        approverPrincipal,
+        nowIso,
+        nowIso,
+      );
+      if (!result.ok) {
+        const reason = result.reason;
+        if (reason === "approval_request_not_found") {
+          throw new ANIPError(FAILURE_APPROVAL_REQUEST_NOT_FOUND, "request vanished during issuance");
+        }
+        if (reason === "approval_request_expired") {
+          throw new ANIPError(FAILURE_APPROVAL_REQUEST_EXPIRED, "request expired during issuance");
+        }
+        throw new ANIPError(FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED, "request decided concurrently");
+      }
+
+      // v0.23: emit approval_grant_issued audit event linking
+      // approval_request_id <-> grant_id <-> approver. Audit must not block
+      // grant issuance because the grant is already atomically persisted.
+      try {
+        const issuedGrant = result.grant as Record<string, unknown>;
+        await audit.logEntry({
+          capability: request.capability,
+          token_id: null,
+          issuer: serviceId,
+          subject: approverPrincipal.subject ?? null,
+          root_principal:
+            approverPrincipal.root_principal ?? approverPrincipal.subject ?? null,
+          parameters: null,
+          success: true,
+          result_summary: {
+            approver: approverPrincipal,
+            requester: request.requester,
+            grant_type: grantType,
+            scope: request.scope,
+          },
+          failure_type: null,
+          cost_actual: null,
+          delegation_chain: [],
+          invocation_id: null,
+          client_reference_id: null,
+          task_id: null,
+          parent_invocation_id: null,
+          upstream_service: null,
+          stream_summary: null,
+          event_class: "high_risk_success",
+          retention_tier: "long",
+          expires_at: null,
+          approval_request_id: approvalRequestId,
+          approval_grant_id: issuedGrant.grant_id,
+          entry_type: "approval_grant_issued",
+        });
+      } catch {
+        // audit must not block grant issuance
+      }
+
+      return result.grant as Record<string, unknown>;
+    },
+
+    async getApprovalRequest(
+      approvalRequestId: string,
+    ): Promise<Record<string, unknown> | null> {
+      return await storage.getApprovalRequest(approvalRequestId);
+    },
+
     getCapabilityDeclaration(capabilityName: string): Record<string, unknown> | null {
       const cap = capabilities.get(capabilityName);
       return cap ? (cap.declaration as Record<string, unknown>) : null;
@@ -1115,6 +1353,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
         upstreamService?: string | null;
         stream?: boolean;
         budget?: Record<string, unknown> | null;
+        approvalGrant?: string | null;
         progressSink?: (event: Record<string, unknown>) => Promise<void>;
       },
     ): Promise<Record<string, unknown>> {
@@ -1124,6 +1363,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       const requestTaskId = opts?.taskId ?? null;
       const parentInvocationId = opts?.parentInvocationId ?? null;
       const upstreamService = opts?.upstreamService ?? null;
+      const approvalGrant = opts?.approvalGrant ?? null;
 
       // Resolve effective disclosure level for this caller
       const effectiveLevel = resolveDisclosureLevel(
@@ -1591,7 +1831,59 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
       // 5. Call handler (with exclusive heartbeat renewal if applicable)
       try {
-        const runHandler = async () => cap.handler(ctx, params);
+        // v0.23 SPEC.md section 4.8 Phase A+B: when an approval_grant is
+        // supplied, validate it (read-side) and atomically reserve it BEFORE
+        // the handler runs. Reservation is the security boundary; once
+        // reserved, the grant is spent on this attempt even if the handler
+        // fails. session_id used for session_bound validation MUST come from
+        // the signed token, never from caller-supplied input.
+        if (approvalGrant !== null) {
+          await ensureKeys();
+          const [, failType] = await validateContinuationGrant({
+            storage,
+            grantId: approvalGrant,
+            capability: capabilityName,
+            parameters: params,
+            tokenScope: resolvedToken.scope ?? [],
+            tokenSessionId: resolvedToken.session_id ?? null,
+            keyManager: keys,
+            nowIso: utcNowIso(),
+          });
+          if (failType !== null) {
+            throw new ANIPError(failType, `approval_grant validation failed: ${failType}`);
+          }
+          const reservation = await storage.tryReserveGrant(approvalGrant, utcNowIso());
+          if (!reservation.ok) {
+            const reason = reservation.reason;
+            if (reason === "grant_consumed") {
+              throw new ANIPError(FAILURE_GRANT_CONSUMED, "grant has reached max_uses");
+            }
+            if (reason === "grant_expired") {
+              throw new ANIPError(FAILURE_GRANT_EXPIRED, "grant has expired");
+            }
+            throw new ANIPError(FAILURE_GRANT_NOT_FOUND, "grant not found at reservation");
+          }
+        }
+
+        // v0.23: composed capabilities run executeComposition instead of the
+        // declared handler. The handler is only invoked when kind='atomic'.
+        const runHandler = async (): Promise<Record<string, unknown>> => {
+          if (decl.kind === "composed") {
+            const invokeStep = async (
+              childCap: string,
+              childParams: Record<string, unknown>,
+            ): Promise<Record<string, unknown>> => {
+              return service.invoke(childCap, resolvedToken, childParams, {
+                clientReferenceId,
+                taskId: effectiveTaskId,
+                parentInvocationId: invocationId,
+                upstreamService,
+              });
+            };
+            return executeComposition(capabilityName, decl, params, { invokeStep });
+          }
+          return cap.handler(ctx, params);
+        };
         const exclusiveKey = cap.exclusiveLock && resolvedToken.constraints?.concurrent_branches === "exclusive"
           ? `exclusive:${serviceId}:${await engine.getRootPrincipal(resolvedToken)}`
           : null;
@@ -1632,6 +1924,7 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
           retentionTier: retTierS,
           expiresAt: expiresAtS,
           parentSpan: rootSpan,
+          approvalGrantId: approvalGrant,
         });
 
         // Fire streaming summary hook
@@ -1709,12 +2002,54 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
 
         if (err instanceof ANIPError) {
           const sideEffectTypeE = (decl as any).side_effect?.type ?? null;
-          const eventClassE = classifyEvent(sideEffectTypeE, false, err.errorType);
+          // v0.23: materialize the ApprovalRequest BEFORE the audit log so
+          // the audit entry can carry approval_request_id and link the
+          // approval flow per SPEC.md section 4.7 audit invariants.
+          let materializedApproval: Record<string, unknown> | null = null;
+          let approvalPersistFailed = false;
+          let approvalPersistErr: unknown = null;
+          if (err.errorType === "approval_required") {
+            try {
+              const supplied = err.approvalRequired;
+              if (supplied && typeof supplied === "object" && "approval_request_id" in supplied) {
+                materializedApproval = supplied as Record<string, unknown>;
+              } else {
+                const preview =
+                  supplied && typeof supplied === "object" && "preview" in supplied
+                    ? ((supplied as Record<string, unknown>).preview as Record<string, unknown>) ?? {}
+                    : {};
+                materializedApproval = await materializeApprovalRequest({
+                  storage,
+                  capabilityDecl: decl,
+                  parentInvocationId: invocationId,
+                  requester: {
+                    subject: resolvedToken.subject,
+                    root_principal: await engine.getRootPrincipal(resolvedToken),
+                  },
+                  parameters: params,
+                  preview,
+                });
+              }
+            } catch (ape) {
+              approvalPersistFailed = true;
+              approvalPersistErr = ape;
+            }
+          }
+
+          // If materialization failed for approval_required, downgrade the
+          // failure type to service_unavailable per SPEC.md section 4.7
+          // persistence invariant.
+          const effectiveErrorType = approvalPersistFailed ? "service_unavailable" : err.errorType;
+          const eventClassE = classifyEvent(sideEffectTypeE, false, effectiveErrorType);
           const retTierE = retentionPolicy.resolveTier(eventClassE);
           const expiresAtE = retentionPolicy.computeExpiresAt(retTierE);
+          const auditApprovalRequestId =
+            materializedApproval !== null && !approvalPersistFailed
+              ? (materializedApproval.approval_request_id as string | undefined) ?? null
+              : null;
           await logAudit(capabilityName, resolvedToken, {
             success: false,
-            failureType: err.errorType,
+            failureType: effectiveErrorType,
             resultSummary: { detail: err.detail },
             invocationId,
             clientReferenceId,
@@ -1726,7 +2061,32 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             retentionTier: retTierE,
             expiresAt: expiresAtE,
             parentSpan: rootSpan,
+            approvalRequestId: auditApprovalRequestId,
+            approvalGrantId: approvalGrant,
           });
+
+          // v0.23: emit a dedicated approval_request_created audit event when
+          // we successfully persisted the request. This is the canonical link
+          // from the original invocation to the approval request.
+          if (auditApprovalRequestId !== null) {
+            try {
+              await logAudit(capabilityName, resolvedToken, {
+                success: true,
+                failureType: null,
+                resultSummary: null,
+                taskId: effectiveTaskId,
+                parentInvocationId: invocationId,
+                eventClass: eventClassE,
+                retentionTier: retTierE,
+                expiresAt: expiresAtE,
+                parentSpan: rootSpan,
+                approvalRequestId: auditApprovalRequestId,
+                entryType: "approval_request_created",
+              });
+            } catch {
+              // audit emit must never break the failure response path
+            }
+          }
           if (stream && failStreamSummary) {
             safeHook(logHooks?.onStreamingSummary,{
               invocationId,
@@ -1743,14 +2103,27 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
             capability: capabilityName,
             invocationId,
             success: false,
-            failureType: err.errorType,
+            failureType: effectiveErrorType,
             durationMs: anipErrDurationMs,
             timestamp: new Date().toISOString(),
           });
           safeHook(metricsHooks?.onInvocationDuration,{ capability: capabilityName, durationMs: anipErrDurationMs, success: false });
+          const failureBody: Record<string, unknown> = {
+            type: effectiveErrorType,
+            detail: approvalPersistFailed
+              ? `approval flow unavailable: ${String(approvalPersistErr)}`
+              : err.detail,
+            resolution: approvalPersistFailed
+              ? { action: "wait_and_retry", recovery_class: "wait_then_retry" }
+              : err.resolution ??
+                { action: "contact_service_owner", recovery_class: recoveryClassForAction("contact_service_owner") },
+          };
+          if (!approvalPersistFailed && materializedApproval !== null) {
+            failureBody.approval_required = materializedApproval;
+          }
           const response: Record<string, unknown> = {
             success: false,
-            failure: redactFailure({ type: err.errorType, detail: err.detail, resolution: err.resolution ?? { action: "contact_service_owner", recovery_class: recoveryClassForAction("contact_service_owner") } }, effectiveLevel),
+            failure: redactFailure(failureBody, effectiveLevel),
             invocation_id: invocationId,
             client_reference_id: clientReferenceId,
             task_id: effectiveTaskId,

@@ -45,7 +45,35 @@ export interface StorageBackend {
   releaseExclusive(key: string, holder: string): Promise<void>;
   tryAcquireLeader(role: string, holder: string, ttlSeconds: number): Promise<boolean>;
   releaseLeader(role: string, holder: string): Promise<void>;
+
+  // -- v0.23: approval requests + grants -----------------------------------
+  storeApprovalRequest(request: Record<string, unknown>): Promise<void>;
+  getApprovalRequest(approvalRequestId: string): Promise<Record<string, unknown> | null>;
+  approveRequestAndStoreGrant(
+    approvalRequestId: string,
+    grant: Record<string, unknown>,
+    approver: Record<string, unknown>,
+    decidedAtIso: string,
+    nowIso: string,
+  ): Promise<ApprovalDecisionResult>;
+  storeGrant(grant: Record<string, unknown>): Promise<void>;
+  getGrant(grantId: string): Promise<Record<string, unknown> | null>;
+  tryReserveGrant(grantId: string, nowIso: string): Promise<GrantReservationResult>;
 }
+
+export type ApprovalDecisionResult =
+  | { ok: true; grant: Record<string, unknown> }
+  | {
+      ok: false;
+      reason:
+        | "approval_request_not_found"
+        | "approval_request_already_decided"
+        | "approval_request_expired";
+    };
+
+export type GrantReservationResult =
+  | { ok: true; grant: Record<string, unknown> }
+  | { ok: false; reason: "grant_not_found" | "grant_consumed" | "grant_expired" };
 
 /**
  * In-memory implementation of {@link StorageBackend}.
@@ -58,6 +86,17 @@ export class InMemoryStorage implements StorageBackend {
   private auditEntries: Record<string, unknown>[] = [];
   private checkpoints: Record<string, unknown>[] = [];
   private _exclusiveLeases = new Map<string, { holder: string; expiresAt: Date }>();
+  // v0.23: single tail used to serialize approval+grant mutations because
+  // approveRequestAndStoreGrant must mutate both maps atomically.
+  private _approvalRequests = new Map<string, Record<string, unknown>>();
+  private _grants = new Map<string, Record<string, unknown>>();
+  private _approvalLock: Promise<unknown> = Promise.resolve();
+
+  private withApprovalLock<T>(fn: () => T | Promise<T>): Promise<T> {
+    const next = this._approvalLock.then(() => fn());
+    this._approvalLock = next.catch(() => undefined);
+    return next;
+  }
 
   async storeToken(tokenData: Record<string, unknown>): Promise<void> {
     this.tokens.set(tokenData.token_id as string, { ...tokenData });
@@ -213,6 +252,118 @@ export class InMemoryStorage implements StorageBackend {
   async releaseLeader(role: string, holder: string): Promise<void> {
     return this.releaseExclusive(`leader:${role}`, holder);
   }
+
+  // -- v0.23: approval requests + grants -----------------------------------
+
+  async storeApprovalRequest(request: Record<string, unknown>): Promise<void> {
+    return this.withApprovalLock(() => {
+      const reqId = request.approval_request_id as string;
+      const existing = this._approvalRequests.get(reqId);
+      if (existing !== undefined && !deepJsonEqual(existing, request)) {
+        throw new Error(
+          `approval_request_id ${JSON.stringify(reqId)} already stored with different content`,
+        );
+      }
+      this._approvalRequests.set(reqId, { ...request });
+    });
+  }
+
+  async getApprovalRequest(approvalRequestId: string): Promise<Record<string, unknown> | null> {
+    return this.withApprovalLock(() => {
+      const row = this._approvalRequests.get(approvalRequestId);
+      return row ? { ...row } : null;
+    });
+  }
+
+  async approveRequestAndStoreGrant(
+    approvalRequestId: string,
+    grant: Record<string, unknown>,
+    approver: Record<string, unknown>,
+    decidedAtIso: string,
+    nowIso: string,
+  ): Promise<ApprovalDecisionResult> {
+    return this.withApprovalLock(() => {
+      const req = this._approvalRequests.get(approvalRequestId);
+      if (req === undefined) {
+        return { ok: false, reason: "approval_request_not_found" } as const;
+      }
+      if (req.status !== "pending") {
+        return { ok: false, reason: "approval_request_already_decided" } as const;
+      }
+      if (((req.expires_at as string) ?? "") <= nowIso) {
+        return { ok: false, reason: "approval_request_expired" } as const;
+      }
+      // Defense-in-depth: enforce UNIQUE on grants.approval_request_id.
+      for (const existing of this._grants.values()) {
+        if (existing.approval_request_id === approvalRequestId) {
+          return { ok: false, reason: "approval_request_already_decided" } as const;
+        }
+      }
+      req.status = "approved";
+      req.approver = { ...approver };
+      req.decided_at = decidedAtIso;
+      const stored = { ...grant };
+      this._grants.set(grant.grant_id as string, stored);
+      return { ok: true, grant: { ...stored } } as const;
+    });
+  }
+
+  async storeGrant(grant: Record<string, unknown>): Promise<void> {
+    return this.withApprovalLock(() => {
+      this._grants.set(grant.grant_id as string, { ...grant });
+    });
+  }
+
+  async getGrant(grantId: string): Promise<Record<string, unknown> | null> {
+    return this.withApprovalLock(() => {
+      const row = this._grants.get(grantId);
+      return row ? { ...row } : null;
+    });
+  }
+
+  async tryReserveGrant(grantId: string, nowIso: string): Promise<GrantReservationResult> {
+    return this.withApprovalLock(() => {
+      const grant = this._grants.get(grantId);
+      if (grant === undefined) {
+        return { ok: false, reason: "grant_not_found" } as const;
+      }
+      if (((grant.expires_at as string) ?? "") <= nowIso) {
+        return { ok: false, reason: "grant_expired" } as const;
+      }
+      const useCount = (grant.use_count as number) ?? 0;
+      const maxUses = (grant.max_uses as number) ?? 1;
+      if (useCount >= maxUses) {
+        return { ok: false, reason: "grant_consumed" } as const;
+      }
+      grant.use_count = useCount + 1;
+      return { ok: true, grant: { ...grant } } as const;
+    });
+  }
+}
+
+function deepJsonEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a === null || b === null) return a === b;
+  if (typeof a !== typeof b) return false;
+  if (typeof a !== "object") return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!deepJsonEqual(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  const ao = a as Record<string, unknown>;
+  const bo = b as Record<string, unknown>;
+  const ak = Object.keys(ao);
+  const bk = Object.keys(bo);
+  if (ak.length !== bk.length) return false;
+  for (const k of ak) {
+    if (!Object.prototype.hasOwnProperty.call(bo, k)) return false;
+    if (!deepJsonEqual(ao[k], bo[k])) return false;
+  }
+  return true;
 }
 
 /**
@@ -411,6 +562,46 @@ export class SQLiteStorage implements StorageBackend {
 
   async getCheckpointById(checkpointId: string): Promise<Record<string, unknown> | null> {
     return (await this.call("getCheckpointById", [checkpointId])) as Record<string, unknown> | null;
+  }
+
+  // -- v0.23: approval requests + grants -----------------------------------
+
+  async storeApprovalRequest(request: Record<string, unknown>): Promise<void> {
+    await this.call("storeApprovalRequest", [request]);
+  }
+
+  async getApprovalRequest(approvalRequestId: string): Promise<Record<string, unknown> | null> {
+    return (await this.call("getApprovalRequest", [approvalRequestId])) as
+      | Record<string, unknown>
+      | null;
+  }
+
+  async approveRequestAndStoreGrant(
+    approvalRequestId: string,
+    grant: Record<string, unknown>,
+    approver: Record<string, unknown>,
+    decidedAtIso: string,
+    nowIso: string,
+  ): Promise<ApprovalDecisionResult> {
+    return (await this.call("approveRequestAndStoreGrant", [
+      approvalRequestId,
+      grant,
+      approver,
+      decidedAtIso,
+      nowIso,
+    ])) as ApprovalDecisionResult;
+  }
+
+  async storeGrant(grant: Record<string, unknown>): Promise<void> {
+    await this.call("storeGrant", [grant]);
+  }
+
+  async getGrant(grantId: string): Promise<Record<string, unknown> | null> {
+    return (await this.call("getGrant", [grantId])) as Record<string, unknown> | null;
+  }
+
+  async tryReserveGrant(grantId: string, nowIso: string): Promise<GrantReservationResult> {
+    return (await this.call("tryReserveGrant", [grantId, nowIso])) as GrantReservationResult;
   }
 
   // -- lifecycle ------------------------------------------------------------

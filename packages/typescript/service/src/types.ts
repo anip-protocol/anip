@@ -36,18 +36,24 @@ export class ANIPError extends Error {
   readonly detail: string;
   readonly resolution?: Record<string, unknown>;
   readonly retry: boolean;
+  // v0.23: Present iff errorType === 'approval_required'. Handlers MAY supply
+  // only preview content; the runtime fills in approval_request_id +
+  // digests + grant_policy when persisting the ApprovalRequest. SPEC §4.7.
+  approvalRequired?: Record<string, unknown> | null;
 
   constructor(
     errorType: string,
     detail: string,
     resolution?: Record<string, unknown>,
     retry: boolean = false,
+    approvalRequired?: Record<string, unknown> | null,
   ) {
     super(`${errorType}: ${detail}`);
     this.errorType = errorType;
     this.detail = detail;
     this.resolution = resolution;
     this.retry = retry;
+    this.approvalRequired = approvalRequired ?? null;
     this.name = "ANIPError";
   }
 }

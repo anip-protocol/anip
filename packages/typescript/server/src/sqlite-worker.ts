@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS delegation_tokens (
     constraints TEXT,
     root_principal TEXT,
     caller_class TEXT,
+    session_id TEXT,
     registered_at TEXT NOT NULL,
     FOREIGN KEY (parent) REFERENCES delegation_tokens(token_id)
 );
@@ -76,7 +77,10 @@ CREATE TABLE IF NOT EXISTS audit_log (
     aggregation_count INTEGER,
     first_seen TEXT,
     last_seen TEXT,
-    representative_detail TEXT
+    representative_detail TEXT,
+    -- v0.23: approval flow linkage. See SPEC.md §4.7–§4.9.
+    approval_request_id TEXT,
+    approval_grant_id TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_audit_capability ON audit_log(capability);
@@ -100,6 +104,51 @@ CREATE TABLE IF NOT EXISTS checkpoints (
     entry_count INTEGER,
     signature TEXT NOT NULL
 );
+
+-- v0.23: approval requests
+CREATE TABLE IF NOT EXISTS approval_requests (
+    approval_request_id TEXT PRIMARY KEY,
+    capability TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    requester TEXT NOT NULL,
+    parent_invocation_id TEXT,
+    preview TEXT NOT NULL,
+    preview_digest TEXT NOT NULL,
+    requested_parameters TEXT NOT NULL,
+    requested_parameters_digest TEXT NOT NULL,
+    grant_policy TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending','approved','denied','expired')),
+    approver TEXT,
+    decided_at TEXT,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_status ON approval_requests(status);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_expires ON approval_requests(expires_at);
+
+-- v0.23: approval grants. UNIQUE(approval_request_id) is defense-in-depth so
+-- a second insert against an already-approved request raises even if the
+-- conditional UPDATE in approve_request_and_store_grant were bypassed.
+CREATE TABLE IF NOT EXISTS approval_grants (
+    grant_id TEXT PRIMARY KEY,
+    approval_request_id TEXT NOT NULL UNIQUE,
+    grant_type TEXT NOT NULL CHECK (grant_type IN ('one_time','session_bound')),
+    capability TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    approved_parameters_digest TEXT NOT NULL,
+    preview_digest TEXT NOT NULL,
+    requester TEXT NOT NULL,
+    approver TEXT NOT NULL,
+    issued_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    max_uses INTEGER NOT NULL CHECK (max_uses >= 1),
+    use_count INTEGER NOT NULL DEFAULT 0,
+    session_id TEXT,
+    signature TEXT NOT NULL,
+    FOREIGN KEY (approval_request_id) REFERENCES approval_requests(approval_request_id)
+);
+CREATE INDEX IF NOT EXISTS idx_grants_approval_request_id ON approval_grants(approval_request_id);
+CREATE INDEX IF NOT EXISTS idx_grants_expires ON approval_grants(expires_at);
 `;
 
 // ---------------------------------------------------------------------------
@@ -198,7 +247,22 @@ try {
   // Column may already exist
 }
 try {
+  db.exec("ALTER TABLE audit_log ADD COLUMN approval_request_id TEXT");
+} catch {
+  // Column may already exist
+}
+try {
+  db.exec("ALTER TABLE audit_log ADD COLUMN approval_grant_id TEXT");
+} catch {
+  // Column may already exist
+}
+try {
   db.exec("ALTER TABLE delegation_tokens ADD COLUMN caller_class TEXT");
+} catch {
+  // Column may already exist
+}
+try {
+  db.exec("ALTER TABLE delegation_tokens ADD COLUMN session_id TEXT");
 } catch {
   // Column may already exist
 }
@@ -211,8 +275,9 @@ function storeToken(tokenData: Record<string, unknown>): void {
   db.prepare(
     `INSERT INTO delegation_tokens
      (token_id, issuer, subject, scope, purpose, parent,
-      expires, constraints, root_principal, caller_class, registered_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      expires, constraints, root_principal, caller_class,
+      session_id, registered_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     tokenData.token_id as string,
     tokenData.issuer as string,
@@ -224,6 +289,7 @@ function storeToken(tokenData: Record<string, unknown>): void {
     JSON.stringify(tokenData.constraints ?? null),
     (tokenData.root_principal as string) ?? null,
     (tokenData.caller_class as string) ?? null,
+    (tokenData.session_id as string) ?? null,
     new Date().toISOString(),
   );
 }
@@ -246,6 +312,7 @@ function loadToken(tokenId: string): Record<string, unknown> | null {
       : null,
     root_principal: row.root_principal ?? null,
     caller_class: row.caller_class ?? null,
+    session_id: row.session_id ?? null,
   };
 }
 
@@ -260,8 +327,9 @@ function storeAuditEntry(entry: Record<string, unknown>): void {
       event_class, retention_tier, expires_at,
       storage_redacted, entry_type, grouping_key,
       aggregation_window, aggregation_count, first_seen,
-      last_seen, representative_detail)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      last_seen, representative_detail,
+      approval_request_id, approval_grant_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     entry.sequence_number as number,
     entry.timestamp as string,
@@ -303,6 +371,8 @@ function storeAuditEntry(entry: Record<string, unknown>): void {
     (entry.first_seen as string) ?? null,
     (entry.last_seen as string) ?? null,
     (entry.representative_detail as string) ?? null,
+    (entry.approval_request_id as string) ?? null,
+    (entry.approval_grant_id as string) ?? null,
   );
 }
 
@@ -499,6 +569,284 @@ function getMaxAuditSequence(): number | null {
 }
 
 // ---------------------------------------------------------------------------
+// v0.23: approval requests + grants
+// ---------------------------------------------------------------------------
+
+function parseApprovalRequestRow(row: Record<string, unknown>): Record<string, unknown> {
+  const d: Record<string, unknown> = { ...row };
+  for (const f of ["scope", "requester", "preview", "requested_parameters", "grant_policy"]) {
+    if (d[f] != null && typeof d[f] === "string") {
+      d[f] = JSON.parse(d[f] as string);
+    }
+  }
+  if (d.approver != null && typeof d.approver === "string") {
+    d.approver = JSON.parse(d.approver as string);
+  }
+  return d;
+}
+
+function parseGrantRow(row: Record<string, unknown>): Record<string, unknown> {
+  const d: Record<string, unknown> = { ...row };
+  for (const f of ["scope", "requester", "approver"]) {
+    if (d[f] != null && typeof d[f] === "string") {
+      d[f] = JSON.parse(d[f] as string);
+    }
+  }
+  return d;
+}
+
+function jsonEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a === null || b === null) return a === b;
+  if (typeof a !== typeof b) return false;
+  if (typeof a !== "object") return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!jsonEqual(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  const ao = a as Record<string, unknown>;
+  const bo = b as Record<string, unknown>;
+  const ak = Object.keys(ao);
+  const bk = Object.keys(bo);
+  if (ak.length !== bk.length) return false;
+  for (const k of ak) {
+    if (!Object.prototype.hasOwnProperty.call(bo, k)) return false;
+    if (!jsonEqual(ao[k], bo[k])) return false;
+  }
+  return true;
+}
+
+function storeApprovalRequest(request: Record<string, unknown>): void {
+  // SPEC.md §4.7: idempotent on approval_request_id when content is identical;
+  // conflicting re-store with the same id is an error. SELECT-then-INSERT
+  // ensures we can detect identity vs. conflict without UPSERT semantics.
+  const reqId = request.approval_request_id as string;
+  const existingRow = db
+    .prepare("SELECT * FROM approval_requests WHERE approval_request_id = ?")
+    .get(reqId) as Record<string, unknown> | undefined;
+  if (existingRow !== undefined) {
+    const existing = parseApprovalRequestRow(existingRow);
+    if (!jsonEqual(existing, request)) {
+      throw new Error(
+        `approval_request_id ${JSON.stringify(reqId)} already stored with different content`,
+      );
+    }
+    return;
+  }
+  db.prepare(
+    `INSERT INTO approval_requests
+     (approval_request_id, capability, scope, requester, parent_invocation_id,
+      preview, preview_digest, requested_parameters, requested_parameters_digest,
+      grant_policy, status, approver, decided_at, created_at, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    reqId,
+    request.capability as string,
+    JSON.stringify(request.scope ?? []),
+    JSON.stringify(request.requester ?? {}),
+    (request.parent_invocation_id as string) ?? null,
+    JSON.stringify(request.preview ?? {}),
+    request.preview_digest as string,
+    JSON.stringify(request.requested_parameters ?? {}),
+    request.requested_parameters_digest as string,
+    JSON.stringify(request.grant_policy ?? {}),
+    request.status as string,
+    request.approver != null ? JSON.stringify(request.approver) : null,
+    (request.decided_at as string) ?? null,
+    request.created_at as string,
+    request.expires_at as string,
+  );
+}
+
+function getApprovalRequest(approvalRequestId: string): Record<string, unknown> | null {
+  const row = db
+    .prepare("SELECT * FROM approval_requests WHERE approval_request_id = ?")
+    .get(approvalRequestId) as Record<string, unknown> | undefined;
+  return row ? parseApprovalRequestRow(row) : null;
+}
+
+type ApprovalDecisionResultSync =
+  | { ok: true; grant: Record<string, unknown> }
+  | {
+      ok: false;
+      reason:
+        | "approval_request_not_found"
+        | "approval_request_already_decided"
+        | "approval_request_expired";
+    };
+
+function approveRequestAndStoreGrant(
+  approvalRequestId: string,
+  grant: Record<string, unknown>,
+  approver: Record<string, unknown>,
+  decidedAtIso: string,
+  nowIso: string,
+): ApprovalDecisionResultSync {
+  // Atomic per Decision 0.9a: BEGIN IMMEDIATE, conditional UPDATE guarded by
+  // status='pending' AND expires_at > now, INSERT grant, COMMIT. ROLLBACK on
+  // any failure.
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const update = db
+      .prepare(
+        `UPDATE approval_requests
+            SET status = 'approved', approver = ?, decided_at = ?
+          WHERE approval_request_id = ?
+            AND status = 'pending'
+            AND expires_at > ?`,
+      )
+      .run(JSON.stringify(approver), decidedAtIso, approvalRequestId, nowIso);
+    if (update.changes === 0) {
+      db.exec("ROLLBACK");
+      const row = db
+        .prepare(
+          "SELECT status, expires_at FROM approval_requests WHERE approval_request_id = ?",
+        )
+        .get(approvalRequestId) as
+        | { status: string; expires_at: string }
+        | undefined;
+      if (row === undefined) {
+        return { ok: false, reason: "approval_request_not_found" };
+      }
+      if (row.expires_at <= nowIso) {
+        return { ok: false, reason: "approval_request_expired" };
+      }
+      return { ok: false, reason: "approval_request_already_decided" };
+    }
+    try {
+      db.prepare(
+        `INSERT INTO approval_grants
+         (grant_id, approval_request_id, grant_type, capability, scope,
+          approved_parameters_digest, preview_digest, requester, approver,
+          issued_at, expires_at, max_uses, use_count, session_id, signature)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        grant.grant_id as string,
+        grant.approval_request_id as string,
+        grant.grant_type as string,
+        grant.capability as string,
+        JSON.stringify(grant.scope ?? []),
+        grant.approved_parameters_digest as string,
+        grant.preview_digest as string,
+        JSON.stringify(grant.requester ?? {}),
+        JSON.stringify(grant.approver ?? {}),
+        grant.issued_at as string,
+        grant.expires_at as string,
+        grant.max_uses as number,
+        (grant.use_count as number) ?? 0,
+        (grant.session_id as string) ?? null,
+        grant.signature as string,
+      );
+    } catch (err: unknown) {
+      db.exec("ROLLBACK");
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("UNIQUE") || msg.includes("constraint")) {
+        return { ok: false, reason: "approval_request_already_decided" };
+      }
+      throw err;
+    }
+    db.exec("COMMIT");
+    return { ok: true, grant: { ...grant } };
+  } catch (err) {
+    try {
+      db.exec("ROLLBACK");
+    } catch {
+      // already rolled back
+    }
+    throw err;
+  }
+}
+
+function storeGrant(grant: Record<string, unknown>): void {
+  db.prepare(
+    `INSERT OR REPLACE INTO approval_grants
+     (grant_id, approval_request_id, grant_type, capability, scope,
+      approved_parameters_digest, preview_digest, requester, approver,
+      issued_at, expires_at, max_uses, use_count, session_id, signature)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    grant.grant_id as string,
+    grant.approval_request_id as string,
+    grant.grant_type as string,
+    grant.capability as string,
+    JSON.stringify(grant.scope ?? []),
+    grant.approved_parameters_digest as string,
+    grant.preview_digest as string,
+    JSON.stringify(grant.requester ?? {}),
+    JSON.stringify(grant.approver ?? {}),
+    grant.issued_at as string,
+    grant.expires_at as string,
+    grant.max_uses as number,
+    (grant.use_count as number) ?? 0,
+    (grant.session_id as string) ?? null,
+    grant.signature as string,
+  );
+}
+
+function getGrant(grantId: string): Record<string, unknown> | null {
+  const row = db
+    .prepare("SELECT * FROM approval_grants WHERE grant_id = ?")
+    .get(grantId) as Record<string, unknown> | undefined;
+  return row ? parseGrantRow(row) : null;
+}
+
+type GrantReservationResultSync =
+  | { ok: true; grant: Record<string, unknown> }
+  | { ok: false; reason: "grant_not_found" | "grant_consumed" | "grant_expired" };
+
+function tryReserveGrant(grantId: string, nowIso: string): GrantReservationResultSync {
+  // Atomic check-and-increment per SPEC.md §4.8 Phase B.
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const update = db
+      .prepare(
+        `UPDATE approval_grants
+            SET use_count = use_count + 1
+          WHERE grant_id = ?
+            AND use_count < max_uses
+            AND expires_at > ?`,
+      )
+      .run(grantId, nowIso);
+    if (update.changes === 0) {
+      db.exec("ROLLBACK");
+      const row = db
+        .prepare(
+          "SELECT use_count, max_uses, expires_at FROM approval_grants WHERE grant_id = ?",
+        )
+        .get(grantId) as
+        | { use_count: number; max_uses: number; expires_at: string }
+        | undefined;
+      if (row === undefined) {
+        return { ok: false, reason: "grant_not_found" };
+      }
+      if (row.expires_at <= nowIso) {
+        return { ok: false, reason: "grant_expired" };
+      }
+      if (row.use_count >= row.max_uses) {
+        return { ok: false, reason: "grant_consumed" };
+      }
+      return { ok: false, reason: "grant_not_found" };
+    }
+    db.exec("COMMIT");
+    const fresh = db
+      .prepare("SELECT * FROM approval_grants WHERE grant_id = ?")
+      .get(grantId) as Record<string, unknown> | undefined;
+    return { ok: true, grant: fresh ? parseGrantRow(fresh) : { ...{} } };
+  } catch (err) {
+    try {
+      db.exec("ROLLBACK");
+    } catch {
+      // already rolled back
+    }
+    throw err;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Method dispatch table
 // ---------------------------------------------------------------------------
 
@@ -507,6 +855,9 @@ function closeDb(): void {
 }
 
 function clearAll(): void {
+  // Order matters: grants → approval_requests because of the FK.
+  db.exec("DELETE FROM approval_grants");
+  db.exec("DELETE FROM approval_requests");
   db.exec("DELETE FROM delegation_tokens");
   db.exec("DELETE FROM audit_log");
   db.exec("DELETE FROM checkpoints");
@@ -527,6 +878,12 @@ const methods: Record<string, (...args: any[]) => unknown> = {
   storeCheckpoint,
   getCheckpoints,
   getCheckpointById,
+  storeApprovalRequest,
+  getApprovalRequest,
+  approveRequestAndStoreGrant,
+  storeGrant,
+  getGrant,
+  tryReserveGrant,
   closeDb,
   clearAll,
 };

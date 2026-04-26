@@ -234,7 +234,7 @@ describe("normalizePermissions", () => {
 describe("normalizeDiscovery", () => {
   it("normalizes a full discovery document", () => {
     const result = normalizeDiscovery({
-      protocol: "anip/0.22",
+      protocol: "anip/0.23",
       compliance: "full",
       trust: { level: "signed" },
       endpoints: {
@@ -250,7 +250,7 @@ describe("normalizeDiscovery", () => {
       capabilities: ["search_flights", "book_flight"],
     });
 
-    expect(result.protocol).toBe("anip/0.22");
+    expect(result.protocol).toBe("anip/0.23");
     expect(result.compliance).toBe("full");
     expect(result.trustLevel).toBe("signed");
     expect(result.endpoints.manifest).toBe("/anip/manifest");
@@ -262,7 +262,7 @@ describe("normalizeDiscovery", () => {
 
   it("handles missing trust level", () => {
     const result = normalizeDiscovery({
-      protocol: "anip/0.22",
+      protocol: "anip/0.23",
       compliance: "full",
       endpoints: {},
       capabilities: [],
@@ -281,7 +281,7 @@ describe("normalizeDiscovery", () => {
 
   it("accepts profile (singular) as fallback for profiles", () => {
     const result = normalizeDiscovery({
-      protocol: "anip/0.22",
+      protocol: "anip/0.23",
       compliance: "full",
       profile: { core: "1.0" },
       endpoints: {},
@@ -298,7 +298,7 @@ describe("normalizeDiscovery", () => {
 describe("normalizeManifest", () => {
   it("normalizes a manifest with capabilities", () => {
     const result = normalizeManifest({
-      protocol: "anip/0.22",
+      protocol: "anip/0.23",
       manifest_metadata: { version: "1", sha256: "abc" },
       service_identity: { id: "svc", jwks_uri: "/jwks", issuer_mode: "self" },
       trust: { level: "signed" },
@@ -341,7 +341,7 @@ describe("normalizeManifest", () => {
       },
     });
 
-    expect(result.protocol).toBe("anip/0.22");
+    expect(result.protocol).toBe("anip/0.23");
     expect(result.manifestMetadata?.version).toBe("1");
     expect(result.serviceIdentity?.id).toBe("svc");
     expect(result.trust?.level).toBe("signed");
@@ -382,7 +382,7 @@ describe("normalizeManifest", () => {
 
   it("handles empty capabilities", () => {
     const result = normalizeManifest({
-      protocol: "anip/0.22",
+      protocol: "anip/0.23",
       capabilities: {},
     });
     expect(Object.keys(result.capabilities)).toHaveLength(0);
@@ -583,7 +583,7 @@ describe("ANIPClient discover", () => {
     fetchSpy.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        protocol: "anip/0.22",
+        protocol: "anip/0.23",
         compliance: "full",
         trust: { level: "signed" },
         endpoints: {
@@ -598,7 +598,7 @@ describe("ANIPClient discover", () => {
     fetchSpy.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        protocol: "anip/0.22",
+        protocol: "anip/0.23",
         capabilities: {},
       }),
     } as Response);
@@ -607,7 +607,7 @@ describe("ANIPClient discover", () => {
 
     const client = new ANIPClient("https://example.com");
     const disc = await client.discover();
-    expect(disc.protocol).toBe("anip/0.22");
+    expect(disc.protocol).toBe("anip/0.23");
     expect(disc.capabilityNames).toEqual(["search_flights"]);
 
     const manifest = await client.getManifest();
@@ -624,7 +624,7 @@ describe("ANIPClient discover", () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          protocol: "anip/0.22",
+          protocol: "anip/0.23",
           compliance: "full",
           endpoints: { manifest: "/anip/manifest" },
           capabilities: [],
@@ -634,7 +634,7 @@ describe("ANIPClient discover", () => {
         ok: true,
         headers: new Headers({ "X-ANIP-Signature": "sig-123" }),
         json: async () => ({
-          protocol: "anip/0.22",
+          protocol: "anip/0.23",
           capabilities: {},
         }),
       } as Response);
@@ -666,7 +666,7 @@ describe("ANIPClient getCapability", () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        protocol: "anip/0.22",
+        protocol: "anip/0.23",
         capabilities: {
           search_flights: {
             name: "search_flights",
@@ -692,7 +692,7 @@ describe("ANIPClient getCapability", () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        protocol: "anip/0.22",
+        protocol: "anip/0.23",
         capabilities: {},
       }),
     } as Response);

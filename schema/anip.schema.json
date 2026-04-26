@@ -2321,14 +2321,9 @@
       "description": "Request body for POST {approval_grants}. v0.23. See SPEC.md §4.9."
     },
     "IssueApprovalGrantResponse": {
-      "type": "object",
-      "properties": {
-        "grant": {"$ref": "#/$defs/ApprovalGrant"}
-      },
-      "required": ["grant"],
-      "additionalProperties": false,
+      "$ref": "#/$defs/ApprovalGrant",
       "title": "IssueApprovalGrantResponse",
-      "description": "Response body for POST {approval_grants}. v0.23. See SPEC.md §4.9."
+      "description": "Response body for POST {approval_grants}. SPEC.md §4.9: the 200 response IS the signed ApprovalGrant — no wrapper. v0.23."
     }
   }
 }
