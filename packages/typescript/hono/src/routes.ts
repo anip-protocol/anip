@@ -68,6 +68,9 @@ export async function mountAnip(
     const parentInvocationId = body.parent_invocation_id ?? null;
     const upstreamService = body.upstream_service ?? null;
     const budget = body.budget ?? null;
+    // v0.23: continuation invocations supply approval_grant. session_id for
+    // session_bound grants is read from the signed token, never the body.
+    const approvalGrant = body.approval_grant ?? null;
 
     if (!body.stream) {
       // Unary mode — existing behavior
@@ -77,6 +80,7 @@ export async function mountAnip(
         parentInvocationId,
         upstreamService,
         budget,
+        approvalGrant,
       });
       if (!result.success) {
         const failure = result.failure as Record<string, unknown>;
@@ -96,6 +100,7 @@ export async function mountAnip(
         upstreamService,
         stream: true,
         budget,
+        approvalGrant,
       });
       const failure = result.failure as Record<string, unknown>;
       return c.json(result, failureStatus(failure?.type as string));
@@ -115,6 +120,7 @@ export async function mountAnip(
           upstreamService,
           stream: true,
           budget,
+          approvalGrant,
           progressSink: async (event) => {
             const eventData = { ...event, timestamp: new Date().toISOString() };
             await writer.write(
@@ -183,6 +189,133 @@ export async function mountAnip(
       }, 404);
     }
     return c.json(graph);
+  });
+
+  // --- Approval Grants (v0.23 §4.9) ---
+  app.post(`${p}/anip/approval_grants`, async (c) => {
+    const result = await resolveToken(c, service);
+    if (result === null) return authFailureJwtEndpoint(c);
+    if (result instanceof ANIPError) return errorResponse(c, result);
+    const token = result;
+
+    let body: Record<string, unknown>;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json(
+        {
+          success: false,
+          failure: {
+            type: "invalid_request",
+            detail: "Body must be valid JSON",
+            resolution: {
+              action: "fix_request_body",
+              recovery_class: "revalidate_then_retry",
+              requires: "JSON body with approval_request_id and grant_type",
+              grantable_by: null,
+              estimated_availability: null,
+            },
+            retry: false,
+          },
+        },
+        400,
+      );
+    }
+    const approvalRequestId = body.approval_request_id as string | undefined;
+    const grantType = body.grant_type as
+      | "one_time"
+      | "session_bound"
+      | undefined;
+    if (!approvalRequestId || !grantType) {
+      return c.json(
+        {
+          success: false,
+          failure: {
+            type: "invalid_request",
+            detail: "Missing approval_request_id or grant_type",
+            resolution: {
+              action: "fix_request_body",
+              recovery_class: "revalidate_then_retry",
+              requires: "Both approval_request_id and grant_type fields",
+              grantable_by: null,
+              estimated_availability: null,
+            },
+            retry: false,
+          },
+        },
+        400,
+      );
+    }
+
+    const approvalRequest = await service.getApprovalRequest(approvalRequestId);
+    if (approvalRequest === null) {
+      return c.json(
+        {
+          success: false,
+          failure: {
+            type: "approval_request_not_found",
+            detail: `unknown approval_request_id=${JSON.stringify(approvalRequestId)}`,
+            resolution: {
+              action: "check_manifest",
+              recovery_class: "revalidate_then_retry",
+              requires: "Valid approval_request_id from a prior approval_required failure",
+              grantable_by: null,
+              estimated_availability: null,
+            },
+            retry: false,
+          },
+        },
+        404,
+      );
+    }
+
+    // Approver authority check: token scope must contain approver:* OR
+    // approver:<capability> for the request's capability.
+    const targetCapability = approvalRequest.capability as string;
+    const tokenScopes = token.scope ?? [];
+    const acceptedScopes = new Set(["approver:*", `approver:${targetCapability}`]);
+    if (!tokenScopes.some((s) => acceptedScopes.has(s))) {
+      return c.json(
+        {
+          success: false,
+          failure: {
+            type: "approver_not_authorized",
+            detail: `token lacks approver scope for capability ${JSON.stringify(targetCapability)}`,
+            resolution: {
+              action: "request_broader_scope",
+              recovery_class: "redelegation_then_retry",
+              requires: `scope += approver:${targetCapability}`,
+              grantable_by: null,
+              estimated_availability: null,
+            },
+            retry: false,
+          },
+        },
+        403,
+      );
+    }
+
+    const approverPrincipal = {
+      subject: token.subject,
+      root_principal: token.root_principal,
+    };
+    try {
+      const grant = await service.issueApprovalGrant(
+        approvalRequestId,
+        grantType,
+        approverPrincipal,
+        {
+          expiresInSeconds: body.expires_in_seconds as number | undefined,
+          maxUses: body.max_uses as number | undefined,
+          sessionId: body.session_id as string | undefined,
+        },
+      );
+      // SPEC.md §4.9: 200 response IS the signed ApprovalGrant — no wrapper.
+      return c.json(grant);
+    } catch (e) {
+      if (e instanceof ANIPError) return errorResponse(c, e);
+      throw e;
+    }
   });
 
   // --- Audit ---

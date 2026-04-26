@@ -71,6 +71,9 @@ export async function mountAnip(
       const parentInvocationId = body.parent_invocation_id ?? null;
       const upstreamService = body.upstream_service ?? null;
       const budget = body.budget ?? null;
+      // v0.23: continuation invocations supply approval_grant. session_id for
+      // session_bound grants is read from the signed token, never the body.
+      const approvalGrant = body.approval_grant ?? null;
 
       if (!body.stream) {
         // Unary mode — existing behavior
@@ -80,6 +83,7 @@ export async function mountAnip(
           parentInvocationId,
           upstreamService,
           budget,
+          approvalGrant,
         });
         if (!result.success) {
           const failure = result.failure as Record<string, unknown>;
@@ -96,6 +100,7 @@ export async function mountAnip(
       if (!modes.includes("streaming")) {
         const result = await service.invoke(req.params.capability, token, params, {
           clientReferenceId, taskId, parentInvocationId, upstreamService, stream: true, budget,
+          approvalGrant,
         });
         const failure = result.failure as Record<string, unknown>;
         res.status(failureStatus(failure?.type as string)).json(result);
@@ -116,6 +121,7 @@ export async function mountAnip(
         upstreamService,
         stream: true,
         budget,
+        approvalGrant,
         progressSink: async (event) => {
           const eventData = { ...event, timestamp: new Date().toISOString() };
           res.write(`event: progress\ndata: ${JSON.stringify(eventData)}\n\n`);
@@ -161,6 +167,105 @@ export async function mountAnip(
       return;
     }
     res.json(graph);
+  });
+
+  // --- Approval Grants (v0.23 §4.9) ---
+  router.post("/anip/approval_grants", async (req, res, next) => {
+    try {
+      const authResult = await resolveToken(req, service);
+      if (authResult === null) { authFailureJwtEndpoint(res); return; }
+      if (authResult instanceof ANIPError) { errorResponse(res, authResult); return; }
+      const token = authResult;
+
+      const body = req.body ?? {};
+      const approvalRequestId = body.approval_request_id as string | undefined;
+      const grantType = body.grant_type as
+        | "one_time"
+        | "session_bound"
+        | undefined;
+      if (!approvalRequestId || !grantType) {
+        res.status(400).json({
+          success: false,
+          failure: {
+            type: "invalid_request",
+            detail: "Missing approval_request_id or grant_type",
+            resolution: {
+              action: "fix_request_body",
+              recovery_class: "revalidate_then_retry",
+              requires: "Both approval_request_id and grant_type fields",
+              grantable_by: null,
+              estimated_availability: null,
+            },
+            retry: false,
+          },
+        });
+        return;
+      }
+
+      const approvalRequest = await service.getApprovalRequest(approvalRequestId);
+      if (approvalRequest === null) {
+        res.status(404).json({
+          success: false,
+          failure: {
+            type: "approval_request_not_found",
+            detail: `unknown approval_request_id=${JSON.stringify(approvalRequestId)}`,
+            resolution: {
+              action: "check_manifest",
+              recovery_class: "revalidate_then_retry",
+              requires: "Valid approval_request_id from a prior approval_required failure",
+              grantable_by: null,
+              estimated_availability: null,
+            },
+            retry: false,
+          },
+        });
+        return;
+      }
+
+      const targetCapability = approvalRequest.capability as string;
+      const tokenScopes = token.scope ?? [];
+      const acceptedScopes = new Set(["approver:*", `approver:${targetCapability}`]);
+      if (!tokenScopes.some((s) => acceptedScopes.has(s))) {
+        res.status(403).json({
+          success: false,
+          failure: {
+            type: "approver_not_authorized",
+            detail: `token lacks approver scope for capability ${JSON.stringify(targetCapability)}`,
+            resolution: {
+              action: "request_broader_scope",
+              recovery_class: "redelegation_then_retry",
+              requires: `scope += approver:${targetCapability}`,
+              grantable_by: null,
+              estimated_availability: null,
+            },
+            retry: false,
+          },
+        });
+        return;
+      }
+
+      const approverPrincipal = {
+        subject: token.subject,
+        root_principal: token.root_principal,
+      };
+      try {
+        const grant = await service.issueApprovalGrant(
+          approvalRequestId,
+          grantType,
+          approverPrincipal,
+          {
+            expiresInSeconds: body.expires_in_seconds as number | undefined,
+            maxUses: body.max_uses as number | undefined,
+            sessionId: body.session_id as string | undefined,
+          },
+        );
+        // SPEC.md §4.9: 200 response IS the signed ApprovalGrant — no wrapper.
+        res.json(grant);
+      } catch (e) {
+        if (e instanceof ANIPError) { errorResponse(res, e); return; }
+        throw e;
+      }
+    } catch (e) { next(e); }
   });
 
   // --- Audit ---

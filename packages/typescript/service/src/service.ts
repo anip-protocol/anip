@@ -171,6 +171,12 @@ export interface ANIPService {
       sessionId?: string | null;
     },
   ): Promise<Record<string, unknown>>;
+  /** v0.23: read-only lookup of an ApprovalRequest by id. Returns null if
+   * not found. Used by the canonical HTTP route to enforce approver scope
+   * before calling issueApprovalGrant. SPEC.md §4.7. */
+  getApprovalRequest(
+    approvalRequestId: string,
+  ): Promise<Record<string, unknown> | null>;
   getCapabilityDeclaration(capabilityName: string): Record<string, unknown> | null;
   getCapabilityGraph(capabilityName: string): Record<string, unknown> | null;
   queryAudit(
@@ -1312,6 +1318,12 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       }
 
       return result.grant as Record<string, unknown>;
+    },
+
+    async getApprovalRequest(
+      approvalRequestId: string,
+    ): Promise<Record<string, unknown> | null> {
+      return await storage.getApprovalRequest(approvalRequestId);
     },
 
     getCapabilityDeclaration(capabilityName: string): Record<string, unknown> | null {
