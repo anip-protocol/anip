@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anip.dev/schema/v0.22/discovery.schema.json",
+  "$id": "https://anip.dev/schema/v0.23/discovery.schema.json",
   "title": "ANIP Discovery Document",
   "description": "Schema for the /.well-known/anip discovery endpoint response. See SPEC.md §6.1.",
   "type": "object",
@@ -102,7 +102,11 @@
             "audit": { "type": "string" },
             "test": { "type": "string" },
             "checkpoints": { "type": "string" },
-            "jwks": { "type": "string" }
+            "jwks": { "type": "string" },
+            "approval_grants": {
+              "type": "string",
+              "description": "Path for the approval grant issuance endpoint. Required when the service emits approval_required failures (v0.23). See SPEC.md §4.9."
+            }
           },
           "description": "URL paths for standard ANIP endpoints"
         },

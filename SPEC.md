@@ -1,4 +1,4 @@
-# ANIP Specification v0.22
+# ANIP Specification v0.23
 
 > Agent-Native Interface Protocol — Draft
 
@@ -83,6 +83,26 @@ capability:
 ```
 
 A service MUST declare all capabilities in its manifest. Each capability MUST include a name, description, inputs with types, output shape, and side-effect type. Capabilities MAY declare `response_modes` (default: `["unary"]`) to indicate support for streaming invocations (see §6.6).
+
+#### Capability Kind (v0.23)
+
+A capability MAY declare a `kind` field that classifies its execution model:
+
+| Value | Meaning |
+|---|---|
+| `atomic` | The capability is implemented by a single handler. This is the default and matches the v0.22 model. |
+| `composed` | The capability is internally composed of other capabilities. The service runtime executes the composition; the agent invokes a single business capability. See §4.6. |
+
+```yaml
+capability:
+  name: at_risk_account_enrichment_summary
+  kind: composed
+  composition: { ... }   # required when kind=composed; see §4.6
+```
+
+If `kind` is absent, runtimes MUST treat the capability as `atomic`. New v0.23 declarations SHOULD set `kind` explicitly.
+
+A composed capability presents the same external invocation surface as an atomic one — agents see one capability, choose it, and invoke it. The service or runtime owns internal step orchestration. This is the v0.23 design intent: agents pick one bounded business capability; composition stays a service-side concern, made protocol-visible for audit and verification.
 
 #### Binding Requirements (v0.14)
 
@@ -753,6 +773,354 @@ Failure semantics are only meaningful because Delegation Chain is core. Without 
 
 A service MUST return failure objects conforming to this schema. A service MUST NOT return failures that lack a `type` and `resolution` field. A service MUST include `recovery_class` in every `resolution` object.
 
+### 4.6 Capability Composition (v0.23)
+
+A capability with `kind: composed` (§4.1) describes its internal step composition declaratively. Composition metadata MUST give a client, verifier, or audit reader enough information to understand which internal steps run, how parent inputs flow into children, how child outputs become the final response, what happens on empty intermediate results or child failure, and how audit lineage is recorded.
+
+Composition metadata is **declarative and bounded**. It is not an executable scripting language. v0.23 deliberately excludes loops, conditional branching, parallel execution, long-running sagas, BPMN-like constructs, and remote execution plans. If a workflow needs those, expose it as an atomic capability whose handler runs the workflow internally.
+
+#### Composition Object
+
+```yaml
+capability:
+  name: at_risk_account_enrichment_summary
+  kind: composed
+  composition:
+    authority_boundary: same_service
+    steps:
+      - id: select_at_risk_accounts
+        capability: account_risk_summary
+        empty_result_source: true
+      - id: enrich_accounts
+        capability: account_enrichment
+    input_mapping:
+      select_at_risk_accounts:
+        quarter: $.input.quarter
+        owner_scope: $.input.owner_scope
+        limit: $.input.limit
+      enrich_accounts:
+        accounts: $.steps.select_at_risk_accounts.output.accounts
+    output_mapping:
+      account_count: $.steps.enrich_accounts.output.account_count
+      accounts: $.steps.enrich_accounts.output.accounts
+    empty_result_policy: return_success_no_results
+    empty_result_output:
+      account_count: 0
+      accounts: []
+    failure_policy:
+      child_clarification: propagate
+      child_denial: propagate
+      child_approval_required: propagate
+      child_error: fail_parent
+    audit_policy:
+      record_child_invocations: true
+      parent_task_lineage: true
+```
+
+#### Authority Boundary
+
+`composition.authority_boundary` declares where the composed steps run:
+
+| Value | Meaning |
+|---|---|
+| `same_service` | All steps are capabilities declared by this same service. v0.23 mandatory minimum. |
+| `same_package` | Reserved enum value. Runtimes MUST reject composed declarations using this value with `composition_unsupported_authority_boundary` until a future version specifies validation rules. |
+| `external_service` | Reserved enum value. Same rejection rule as `same_package`. |
+
+#### Step References
+
+`composition.steps` is an ordered list. Each step has:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string | Yes | Step identifier, unique within the composition. Used in `input_mapping`, `output_mapping`, and `empty_result_output` JSONPath references. |
+| `capability` | string | Yes | The internal capability invoked at this step. When `authority_boundary: same_service`, MUST resolve to a declared capability of the same service whose `kind: atomic`. |
+| `empty_result_source` | boolean | No (default false) | Flags this step's primary output as the trigger for `empty_result_policy`. At most one step per composition MAY set this to true. |
+| `empty_result_path` | string (JSONPath) | No | Explicit path within this step's output used to detect emptiness when `empty_result_source: true`. If absent, the runtime uses the first downstream `input_mapping` reference into this step's output. |
+
+A composed capability MAY only invoke `kind: atomic` steps. Composed-calling-composed is rejected at registration with `composition_invalid_step` ("composed step capability"). This eliminates cycle risk for v0.23. Multi-level composition is deferred.
+
+#### Input and Output Mapping
+
+`input_mapping` is an object: each key is a step ID; each value is an object mapping that step's parameter names to JSONPath references resolved against the composition's runtime data:
+
+- `$.input.X` — the parent capability's invocation parameter `X`
+- `$.steps.<id>.output.Y` — the output field `Y` of step `<id>` (only for steps that appear earlier in the steps list — forward references rejected)
+
+`output_mapping` is an object: each key is a parent response field; each value is a JSONPath reference. Resolution rules are the same as `input_mapping`.
+
+JSONPath in v0.23 is restricted to single-segment property access. No filters, no wildcards, no recursion. Anything more complex is rejected at registration with `composition_invalid_step`.
+
+#### Empty-Result Policy
+
+When a step with `empty_result_source: true` returns a successful result whose primary output array (or scalar) is empty/null, the composition's `empty_result_policy` applies:
+
+| Value | Behavior |
+|---|---|
+| `return_success_no_results` | Skip downstream steps that depend on the empty source. Build the parent response from `empty_result_output` (see below). Return success. |
+| `clarify` | Return the parent failure `composition_empty_result_clarification_required`. |
+| `deny` | Return the parent failure `composition_empty_result_denied`. |
+
+If no step has `empty_result_source: true`, the policy is never triggered — empty intermediate results pass through normally.
+
+When `empty_result_policy: return_success_no_results` is in effect AND any step has `empty_result_source: true`, the composition MUST declare `empty_result_output`:
+
+- Resolves only against `$.input.X` and `$.steps.<empty_result_source_step>.output.Y` (the empty source step's output, which exists but is empty)
+- MUST NOT reference outputs of any step skipped due to the empty source
+- Produces a response shape matching the parent capability's declared `output` schema
+
+When the empty-result branch is taken, runtimes MUST use `empty_result_output` exclusively. The normal `output_mapping` is NOT used. This makes the empty-result response deterministic across runtimes.
+
+#### Failure Policy
+
+`composition.failure_policy` declares how each child outcome class is handled:
+
+| Outcome | Default | Allowed values |
+|---|---|---|
+| `child_clarification` | `propagate` | `propagate`, `fail_parent` |
+| `child_denial` | `propagate` | `propagate`, `fail_parent` |
+| `child_approval_required` | `propagate` | `propagate`, `fail_parent` |
+| `child_error` | `fail_parent` | `propagate`, `fail_parent` |
+
+`propagate` wraps the child failure as the parent's failure with the same type. `fail_parent` collapses the child failure into a generic parent error. `ignore` is not permitted in v0.23.
+
+#### Audit Policy
+
+`composition.audit_policy` declares audit behavior:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `record_child_invocations` | boolean | Yes | If true, each child step invocation generates its own audit entry linked to the parent. |
+| `parent_task_lineage` | boolean | Yes | If true, child invocations share the parent's `task_id` so audit reconstruction can walk the composition. |
+
+#### Validation
+
+Composition declarations are validated in two layers:
+
+**JSON Schema (structural):** type, presence, enum, conditional-presence rules driven by `if/then/else` (e.g., `kind: composed` requires `composition`; `empty_result_policy: return_success_no_results` requires `empty_result_output`; `empty_result_policy: clarify` or `deny` MUST NOT carry `empty_result_output`).
+
+**Runtime semantic (cross-reference):** enforced at capability registration time, not by JSON Schema. Includes step ID uniqueness, at-most-one `empty_result_source: true`, all JSONPath references resolving to declared step IDs, forward-only `input_mapping` references, `empty_result_output` references restricted to `$.input.*` and the source step's outputs, composed steps must be `kind: atomic`, step capabilities must exist when `authority_boundary: same_service`. Each violation maps to a specific failure type (`composition_invalid_step`, `composition_unknown_capability`, `composition_unsupported_authority_boundary`).
+
+### 4.7 Approval Requests (v0.23)
+
+When a capability handler returns the `approval_required` failure, the service runtime MUST persist a corresponding `ApprovalRequest` before returning the failure to the caller. This is what allows approvers to load the request afterward — by the time an agent surfaces "approval required" to a human, the request exists.
+
+#### ApprovalRequest Object
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `approval_request_id` | string | Yes | Service-generated collision-resistant identifier. |
+| `capability` | string | Yes | The invoked capability that raised `approval_required`. |
+| `scope` | array of string | Yes | The scopes the approved action would consume. |
+| `requester` | object | Yes | The principal of the original invocation (who needs approval). |
+| `parent_invocation_id` | string | No | The original invocation's ID (audit linkage). |
+| `preview` | object | Yes | The preview content shown to approvers (handler-supplied). |
+| `preview_digest` | string | Yes | SHA-256 of canonical JSON of `preview`. |
+| `requested_parameters` | object | Yes | The parameters the requester submitted. |
+| `requested_parameters_digest` | string | Yes | SHA-256 of canonical JSON of `requested_parameters`. |
+| `grant_policy` | object | Yes | What grants MAY be issued for this request — see below. |
+| `status` | enum | Yes | `pending` \| `approved` \| `denied` \| `expired`. |
+| `approver` | object | No | The approving principal — required for `approved`/`denied`, MUST be null for `pending` and `expired`. |
+| `decided_at` | timestamp | No | When the status transitioned away from `pending`. Required for `approved`, `denied`, and `expired`; MUST be null for `pending`. |
+| `created_at` | timestamp | Yes | Creation time. |
+| `expires_at` | timestamp | Yes | Approval request expiry. Distinct from grant expiry. |
+
+#### Grant Policy
+
+`grant_policy` constrains what an approver MAY issue:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `allowed_grant_types` | array of enum | Yes | Subset of `["one_time", "session_bound"]`. |
+| `default_grant_type` | enum | Yes | The recommended grant type when the approver does not specify. MUST be in `allowed_grant_types`. |
+| `expires_in_seconds` | integer | Yes | Maximum grant lifetime. Approvers MAY issue shorter; MUST NOT exceed. |
+| `max_uses` | integer | Yes | Maximum `max_uses` the approver MAY set on the issued grant. |
+
+#### Lifecycle
+
+`pending` → `approved`: atomic transition driven by grant issuance (see §4.9).
+
+`pending` → `denied`: an approver explicitly rejects (denial flow may be deferred to a future version; `denied` status is reserved).
+
+`pending` → `expired`: time-driven. Implementations MAY materialize this lazily (set on next read after `expires_at` passes), eagerly via a sweep, or omit the materialized status and treat `expires_at <= now` as expired purely at read time.
+
+The atomic primitive that issues a grant (§4.9) MUST treat both `status != 'pending'` and `expires_at <= now` as non-grantable.
+
+#### Audit
+
+A new audit event class `approval_request_created` is emitted when an `ApprovalRequest` is persisted. It carries `{approval_request_id, parent_invocation_id, capability, requester_principal, expires_at}`.
+
+#### Approval-Required Failure Response
+
+The `approval_required` failure returned to the caller carries `ApprovalRequiredMetadata`:
+
+```yaml
+failure:
+  type: approval_required
+  detail: "transfer_funds requires approval for amounts > $10,000"
+  resolution:
+    action: contact_service_owner
+    recovery_class: terminal
+  retry: false
+  approval_required:
+    approval_request_id: apr_8a7c
+    preview_digest: sha256:6a91...
+    requested_parameters_digest: sha256:bc4d...
+    grant_policy:
+      allowed_grant_types: [one_time, session_bound]
+      default_grant_type: one_time
+      expires_in_seconds: 900
+      max_uses: 1
+```
+
+**Persistence invariant:** if `store_approval_request` fails (e.g. storage unavailable), the runtime MUST return a generic `service_unavailable` failure — never return `approval_required` to a caller without the underlying request being persisted.
+
+### 4.8 Approval Grants (v0.23)
+
+An approval grant is a signed, auditable authorization object returned after approval. It binds the approved action to specific parameters, scope, capability, requester, approver, expiry, and a finite use count. A caller supplies the grant on a continuation invocation.
+
+#### ApprovalGrant Object
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `grant_id` | string | Yes | Unique grant identifier. |
+| `approval_request_id` | string | Yes | The `ApprovalRequest` this grant authorizes. UNIQUE across grants. Signed into the grant content. |
+| `grant_type` | enum | Yes | `one_time` or `session_bound`. |
+| `capability` | string | Yes | Copied from the `ApprovalRequest` at issuance. |
+| `scope` | array of string | Yes | Copied from the `ApprovalRequest` at issuance. |
+| `approved_parameters_digest` | string | Yes | Copied from `ApprovalRequest.requested_parameters_digest`. |
+| `preview_digest` | string | Yes | Copied from `ApprovalRequest.preview_digest`. |
+| `requester` | object | Yes | Copied from `ApprovalRequest.requester`. |
+| `approver` | object | Yes | The principal that issued the grant. |
+| `issued_at` | timestamp | Yes | Issuance time. |
+| `expires_at` | timestamp | Yes | Grant expiry. MUST be ≤ `issued_at + grant_policy.expires_in_seconds` from the `ApprovalRequest`. |
+| `max_uses` | integer | Yes | Maximum invocations this grant allows. MUST be ≤ `grant_policy.max_uses`. |
+| `use_count` | integer | Yes | Mutable; starts at 0; incremented atomically per use. |
+| `session_id` | string | Conditional | Required when `grant_type: session_bound`; MUST be null otherwise. |
+| `signature` | string | Yes | Signature over all fields except `signature` and `use_count`. |
+
+The capability/scope/digest/requester fields on the grant MUST be copied from the linked `ApprovalRequest` at issuance — they are NOT taken from approver-supplied input. This prevents an approver from approving a different capability/scope than the requester previewed.
+
+#### Grant Types
+
+**`one_time`:** consumed atomically on the first successful continuation. Subsequent invocations with the same grant return `grant_consumed`. MUST set `max_uses: 1`.
+
+**`session_bound`:** reusable within a declared session up to `max_uses`. The continuation invocation's token MUST belong to the session indicated by `session_id`. Outside the session, returns `grant_session_invalid`.
+
+#### Continuation Invocation
+
+The post-approval invocation supplies the grant in a new `approval_grant` field on the invocation request body. Value is the `grant_id` string:
+
+```yaml
+POST /anip/invoke/transfer_funds
+{
+  "parameters": { "from": "acct-1", "to": "acct-2", "amount": 50000 },
+  "approval_grant": "grant_8a7c"
+}
+```
+
+The grant object itself is fetched and validated server-side from storage.
+
+#### Validation Order
+
+When `invoke()` receives a request with `approval_grant`, validation proceeds in three phases:
+
+**Phase A — Read-side (no state change):**
+1. Fetch grant by `grant_id`. Missing → `grant_not_found`.
+2. Verify signature/integrity. Invalid → `grant_not_found` (don't leak existence).
+3. Check `expires_at > now`. Expired → `grant_expired`.
+4. Compare grant `capability` to invoked capability. Mismatch → `grant_capability_mismatch`.
+5. Validate scope per the **scope subset rule** below. Mismatch → `grant_scope_mismatch`.
+6. Compute current request `parameters_digest`; compare to `approved_parameters_digest`. Mismatch → `grant_param_drift`.
+7. If `grant_type: session_bound`: verify session_id from invocation token matches grant `session_id`. Mismatch → `grant_session_invalid`.
+
+**Phase B — Atomic reservation (state change BEFORE side effects):**
+8. Atomically reserve the grant via storage. Implementation MUST be a single compare-and-swap or row-locked operation that simultaneously checks `use_count < max_uses` and `expires_at > now` and increments `use_count`.
+   - PostgreSQL canonical form: `UPDATE grants SET use_count = use_count + 1 WHERE grant_id = $1 AND use_count < max_uses AND expires_at > now() RETURNING ...`. 0 rows → re-fetch to disambiguate `grant_consumed` vs `grant_expired` vs `grant_not_found`.
+9. If reservation fails → return the corresponding failure type. Side effects MUST NOT execute.
+
+**Phase C — Side-effect execution:**
+10. Execute the capability handler.
+11. Write audit linkage entry regardless of handler success/failure.
+
+**Failure handling:** if the handler raises after reservation, the grant stays consumed. The audit entry records the failure. The caller MUST request a fresh approval to retry. This is intentional: a successful reservation means "this grant has been spent on an attempt." The alternative — releasing on failure — opens replay attacks against side effects that completed partially.
+
+Two concurrent requests with the same grant MUST NOT both pass validation. Reservation is the security boundary.
+
+#### Scope Subset Rule
+
+The grant's `scope` represents the bound authority approved for this specific action. The invocation token's scope MUST be a superset of the grant's scope:
+
+```
+forall s in grant.scope: s in invocation_token.scope
+```
+
+The token MAY carry additional scopes the grant doesn't reference. The grant MAY NOT exceed token scope (cannot use a grant to elevate beyond the caller's delegation). Any element of `grant.scope` absent from `invocation_token.scope` → `grant_scope_mismatch`.
+
+#### Signing
+
+The grant's signature covers all stored fields except `signature` itself and the mutable `use_count`. The signed payload includes `approval_request_id`, allowing recipients to verify request → grant linkage cryptographically without storage round-trips. Signing uses the same algorithm as ANIP manifest signing (ES256 JWS by default).
+
+### 4.9 Approval Grant Issuance (v0.23)
+
+#### Canonical Wire Surface
+
+The canonical wire surface for grant issuance is the HTTP endpoint `POST {approval_grants}` (path advertised in the discovery document at `endpoints.approval_grants`). Other transports (gRPC, stdio, REST adapter, GraphQL adapter, MCP adapter) are NOT required to expose grant issuance in v0.23. Approvers needing non-HTTP issuance call the runtime helper SPI directly (services expose this internally for admin UIs, queue workers, on-call escalation tools).
+
+Rationale: agents never issue grants. The role is approver-side and predominantly uses web tooling. A single canonical surface avoids fragmenting authorization-issuance code while v0.23 stabilizes.
+
+#### Endpoint Contract — `POST {approval_grants}`
+
+**Request body:**
+
+```yaml
+{
+  "approval_request_id": "apr_8a7c",
+  "grant_type": "one_time",
+  "session_id": null,
+  "expires_in_seconds": 900,
+  "max_uses": 1
+}
+```
+
+**Authentication:** Bearer token whose scope includes `approver:<capability>` for the capability of the loaded `ApprovalRequest`, OR a service-defined approver scope covering that capability. Services MAY further restrict via principal allowlist via the auth hook.
+
+**Response (200):** A signed `ApprovalGrant` (§4.8).
+
+**Validation order (security-relevant):**
+
+1. Authenticate transport-level bearer; extract approver principal. Missing/invalid → `unauthorized`. Do NOT yet enforce approver scope.
+2. Parse body. Malformed → `invalid_parameters`.
+3. Load `ApprovalRequest` by `approval_request_id`. Missing → `approval_request_not_found`.
+4. Validate request is still pending and not expired. If decided → `approval_request_already_decided`. If expired → `approval_request_expired`.
+5. **Now** validate approver authority against the loaded request's `capability`. Approver scope must cover this specific capability. Missing → `approver_not_authorized`.
+6. Validate `grant_type` is in `request.grant_policy.allowed_grant_types`. If not → `grant_type_not_allowed_by_policy`.
+7. Validate approver-controlled args against `request.grant_policy`:
+   - `expires_at` (computed) ≤ `now + grant_policy.expires_in_seconds`
+   - `max_uses` ≤ `grant_policy.max_uses`
+   - `session_id` is present iff `grant_type: session_bound`
+8. Build the grant. Capability/scope/digests/requester are copied from the loaded `ApprovalRequest`, NOT from the request body.
+9. Sign the grant.
+10. Atomically transition the `ApprovalRequest` from `pending → approved` and insert the grant in a single operation. PostgreSQL: a transaction with conditional `UPDATE approval_requests SET status='approved', approver=..., decided_at=now() WHERE approval_request_id=$1 AND status='pending' AND expires_at > now() RETURNING approval_request_id` (0 rows → ROLLBACK and return `approval_request_already_decided` or `approval_request_expired` after re-read), followed by `INSERT INTO grants (...)`. The grants table's UNIQUE constraint on `approval_request_id` is the second line of defense.
+11. Emit audit event `approval_grant_issued` with `{approval_request_id, grant_id, approver_principal, requester_principal, grant_type, capability, scope}`.
+12. Return the signed grant.
+
+The atomic transition at step 10 is what prevents two approvers from concurrently issuing two grants for the same request. Steps 3–9 are pre-flight — they MUST NOT replace the atomic primitive. Implementations MUST NOT skip step 10 even if pre-flight passed.
+
+**Out-of-band issuance:** services MAY support approver workflows that bypass the HTTP endpoint (admin UIs, Slack bots, queue consumers, on-call tools). Such workflows call the runtime helper SPI directly. They MUST perform their own equivalent authority enforcement before invoking the helper — the helper is the central code path, but it is NOT the security boundary.
+
+#### Audit Linkage Requirements
+
+Every approval flow MUST be reconstructible from audit entries. The chain:
+
+```
+parent_invocation_id  →  approval_request_id  →  grant_id  →  continuation_invocation_id  →  child_invocation_ids (composed)
+```
+
+The `approval_request_created` event provides the invocation → request link. The `approval_grant_issued` event provides the request → grant link. The continuation invocation's audit entry references the grant via the supplied `approval_grant` field, providing the grant → execution link. For composed capabilities (§4.6), child invocation audit entries inherit the parent's `task_id` per `audit_policy.parent_task_lineage`.
+
+If audit cannot reconstruct the approval and composition lineage, the implementation does not satisfy v0.23.
+
 ---
 
 ## 5. Contextual Primitives
@@ -997,6 +1365,7 @@ anip_discovery:
     audit: "/anip/audit"
     test: "/anip/test/{capability}"
     checkpoints: "/anip/checkpoints"           # v0.3: MAY for signed, MUST for anchored/attested
+    approval_grants: "/anip/approval_grants"   # v0.23: required when service emits approval_required
   trust_level: "anchored"                    # one of: signed, anchored, attested (see Section 7.1)
   posture:                                    # OPTIONAL (v0.7) — governance posture summary
     audit:
@@ -1113,6 +1482,7 @@ ANIP defines the following standard endpoints. Core endpoints MUST be implemente
 | `{test}/{capability}` | POST | test | Contract testing sandbox (reserved, v2) |
 | `{checkpoints}` | GET | trust (v0.3) | List checkpoints with pagination |
 | `{checkpoints}/{id}` | GET | trust (v0.3) | Checkpoint detail with Merkle proofs |
+| `{approval_grants}` | POST | approval (v0.23) | Issue an approval grant against a pending approval request (§4.9) |
 
 Endpoint paths in the table above use `{name}` to reference the URL declared in the discovery document's `endpoints` field. Services MAY use any URL paths they choose — the discovery document is the source of truth for where each endpoint lives.
 
@@ -2402,9 +2772,11 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Structured recovery targets (§4.5)** | MAY — v0.21 | Implemented: `recovery_target` with kind/target/continuity/retry_after_target in resolution objects | Multi-step recovery chains |
 | **Canonical parent_token semantics (§6.3)** | MUST — v0.22 | Implemented: parent_token is a token ID string, not JWT; consistent across all runtimes | — |
 | **Delegated capability-targeted issuance (§6.3)** | SHOULD — v0.22 | Implemented: `issueDelegatedCapabilityToken()` helper in all runtimes | — |
+| **Capability composition (§4.6)** | MAY — v0.23 | Implemented: `kind: composed` with declarative composition metadata (steps, mappings, empty-result policy, failure policy, audit policy); single-level composition only (composed steps must be `kind: atomic`); `same_service` authority boundary only | Multi-level composition with cycle detection; `same_package` and `external_service` boundaries |
+| **Approval requests and grants (§4.7, §4.8, §4.9)** | MUST when service emits `approval_required` — v0.23 | Implemented: persisted `ApprovalRequest` with `pending`/`approved`/`denied`/`expired` lifecycle; signed `ApprovalGrant` with `one_time`/`session_bound` types; atomic approve-and-issue (`approve_request_and_store_grant`); atomic per-use reservation (`try_reserve_grant`); parameter-digest binding; `POST /anip/approval_grants` canonical wire surface; full audit linkage | Denial flow; multi-approver workflows; cross-service approval propagation |
 | **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation across services, federated trust |
 
-The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. v0.9 completes the audit story — aggregation collapses noise, storage-side redaction strips low-value parameters at write time, caller-class-aware redaction resolves disclosure per-caller, and proof expiration guidance closes the client-side gap. v0.10 adds horizontal scaling — storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, and leader-elected background job coordination enable multi-replica deployments without protocol invariant violations. v0.11 adds observability hooks — callback-based logging, metrics, tracing, and diagnostics injection points let adopters plug in their observability stack without hard dependencies, plus a `getHealth()` runtime snapshot and optional health endpoint. v0.14 adds pre-execution control surfaces — structured budget constraints in delegation tokens with pre-execution enforcement, execution-time binding requirements (`requires_binding`) for quote-based workflows, and explicit control requirement declarations (`control_requirements`) that let capabilities declare what must be true before invocation. v0.20 hardens runtime ergonomics — an explicit bootstrap authentication contract (sync minimum, optional async), a capability-targeted root token issuance helper that prevents `purpose_mismatch` errors, and a clear deferral of delegation convenience helpers pending `parent_token` semantic resolution. v0.21 hardens cross-service continuation and recovery semantics — `cross_service_contract` adds structured task-local adjacent-step meaning (handoff, followup, verification) that is stronger than advisory hints, and `recovery_target` adds machine-readable recovery targets to failure resolution objects. v0.22 clarifies `parent_token` semantics (token ID string, not JWT) and adds delegated capability-targeted issuance (`issueDelegatedCapabilityToken()`) as the delegation counterpart to v0.20's root issuance helper. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
+The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. v0.9 completes the audit story — aggregation collapses noise, storage-side redaction strips low-value parameters at write time, caller-class-aware redaction resolves disclosure per-caller, and proof expiration guidance closes the client-side gap. v0.10 adds horizontal scaling — storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, and leader-elected background job coordination enable multi-replica deployments without protocol invariant violations. v0.11 adds observability hooks — callback-based logging, metrics, tracing, and diagnostics injection points let adopters plug in their observability stack without hard dependencies, plus a `getHealth()` runtime snapshot and optional health endpoint. v0.14 adds pre-execution control surfaces — structured budget constraints in delegation tokens with pre-execution enforcement, execution-time binding requirements (`requires_binding`) for quote-based workflows, and explicit control requirement declarations (`control_requirements`) that let capabilities declare what must be true before invocation. v0.20 hardens runtime ergonomics — an explicit bootstrap authentication contract (sync minimum, optional async), a capability-targeted root token issuance helper that prevents `purpose_mismatch` errors, and a clear deferral of delegation convenience helpers pending `parent_token` semantic resolution. v0.21 hardens cross-service continuation and recovery semantics — `cross_service_contract` adds structured task-local adjacent-step meaning (handoff, followup, verification) that is stronger than advisory hints, and `recovery_target` adds machine-readable recovery targets to failure resolution objects. v0.22 clarifies `parent_token` semantics (token ID string, not JWT) and adds delegated capability-targeted issuance (`issueDelegatedCapabilityToken()`) as the delegation counterpart to v0.20's root issuance helper. v0.23 makes two long-implicit concerns protocol-visible: capability composition (`kind: composed` with declarative step/mapping/policy metadata so business-level composed capabilities stay one bounded invocation surface for agents) and approval grants (signed, atomically-issued, parameter-digest-bound authorization objects with `one_time` and `session_bound` types replacing v0.22's request-state-only approval flow). Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
 
 **What solving these gaps unlocks.** When trust and verification become real — not declarative — agents can evaluate risk before acting. Delegated authority becomes expressible in ways current tool layers can't handle. Failures become operationally useful, not just descriptive. High-stakes actions — travel, procurement, finance ops, approvals, multi-step orchestration — become automatable with real control surfaces. At that point, ANIP solves one of the central coordination problems of agent deployment: how an agent knows what it's allowed to do, what will happen if it does it, and how to recover when something blocks it.
 
@@ -2440,7 +2812,7 @@ These are unresolved design questions where community input is needed:
 
 ---
 
-*ANIP is an open specification under active development. This is v0.22 — canonical `parent_token` semantics (token ID string, not JWT) and delegated capability-targeted issuance (`issueDelegatedCapabilityToken()`) complete the delegation convenience story started in v0.20. This builds on v0.21's cross-service contracts and structured recovery targets, v0.20's bootstrap auth and capability-targeted issuance, v0.14's pre-execution control surfaces, v0.11's observability hooks, v0.10's horizontal scaling, v0.9's audit aggregation and redaction, v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, v0.3's anchored trust, v0.4's invocation lineage, and v0.5's async storage. Cross-service trust remains a future goal. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
+*ANIP is an open specification under active development. This is v0.23 — capability composition (`kind: composed`, §4.6) and approval grants (§4.7–§4.9) make two previously-hidden concerns protocol-visible: business-level composed capabilities stay one bounded invocation surface for agents while the runtime owns internal step orchestration with declarative empty-result and failure policies; approvals return signed, atomically-issued, parameter-digest-bound authorization grants instead of mutable request state. This builds on v0.22's canonical `parent_token` semantics and delegated issuance helper, v0.21's cross-service contracts and structured recovery targets, v0.20's bootstrap auth and capability-targeted issuance, v0.14's pre-execution control surfaces, v0.11's observability hooks, v0.10's horizontal scaling, v0.9's audit aggregation and redaction, v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, v0.3's anchored trust, v0.4's invocation lineage, and v0.5's async storage. Cross-service trust remains a future goal. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
 
 ---
 
