@@ -97,6 +97,73 @@ class StorageBackend(Protocol):
         """Release a leader lease if held by the given holder."""
         ...
 
+    # --- v0.23: approval requests + grants ---------------------------------
+
+    async def store_approval_request(self, request: dict[str, Any]) -> None:
+        """Persist a freshly created ApprovalRequest with status='pending'.
+
+        Idempotent on approval_request_id when content is identical;
+        conflicting re-store with the same id is an error. v0.23. See SPEC.md §4.7.
+        """
+        ...
+
+    async def get_approval_request(self, approval_request_id: str) -> dict[str, Any] | None:
+        """Read-only fetch of an ApprovalRequest. Returns the row regardless
+        of status so callers can distinguish pending/approved/denied/expired.
+        MUST NOT mutate state. v0.23.
+        """
+        ...
+
+    async def approve_request_and_store_grant(
+        self,
+        approval_request_id: str,
+        grant: dict[str, Any],
+        approver: dict[str, Any],
+        decided_at_iso: str,
+        now_iso: str,
+    ) -> dict[str, Any]:
+        """Atomic state transition: approval_request pending → approved AND
+        insert grant. The conditional check is `status='pending' AND
+        expires_at > now`.
+
+        Returns a dict with one of:
+        - {"ok": True, "grant": <inserted grant dict>}
+        - {"ok": False, "reason": "approval_request_not_found"}
+        - {"ok": False, "reason": "approval_request_already_decided"}
+        - {"ok": False, "reason": "approval_request_expired"}
+
+        Implementations MUST guarantee atomicity per Decision 0.9a.
+        v0.23. See SPEC.md §4.9.
+        """
+        ...
+
+    async def store_grant(self, grant: dict[str, Any]) -> None:
+        """Internal/test-only. The issuance helper MUST use
+        approve_request_and_store_grant. Exposed only for storage tests
+        that don't exercise the approval-request flow. v0.23.
+        """
+        ...
+
+    async def get_grant(self, grant_id: str) -> dict[str, Any] | None:
+        """Read-only fetch. MUST NOT mutate use_count. v0.23. See SPEC.md §4.8."""
+        ...
+
+    async def try_reserve_grant(
+        self, grant_id: str, now_iso: str
+    ) -> dict[str, Any]:
+        """Atomic check-and-increment: increment use_count by 1 only if the
+        grant exists, has not expired, and use_count < max_uses.
+
+        Returns a dict with one of:
+        - {"ok": True, "grant": <updated grant dict>}
+        - {"ok": False, "reason": "grant_not_found"}
+        - {"ok": False, "reason": "grant_expired"}
+        - {"ok": False, "reason": "grant_consumed"}
+
+        v0.23. See SPEC.md §4.8 Phase B.
+        """
+        ...
+
 
 # ---------------------------------------------------------------------------
 # In-memory implementation (for testing)
@@ -111,6 +178,12 @@ class InMemoryStorage:
         self._audit_entries: list[dict[str, Any]] = []
         self._checkpoints: list[dict[str, Any]] = []
         self._exclusive_leases: dict[str, tuple[str, datetime]] = {}
+        # v0.23
+        self._approval_requests: dict[str, dict[str, Any]] = {}
+        self._grants: dict[str, dict[str, Any]] = {}
+        # Single mutex covering BOTH approval_requests and grants because
+        # approve_request_and_store_grant must mutate them atomically.
+        self._approval_lock = threading.Lock()
 
     # -- tokens -------------------------------------------------------------
 
@@ -291,6 +364,72 @@ class InMemoryStorage:
         """Release a leader lease if held by the given holder."""
         await self.release_exclusive(f"leader:{role}", holder)
 
+    # --- v0.23: approval requests + grants ---------------------------------
+
+    async def store_approval_request(self, request: dict[str, Any]) -> None:
+        with self._approval_lock:
+            req_id = request["approval_request_id"]
+            existing = self._approval_requests.get(req_id)
+            if existing is not None and existing != request:
+                raise ValueError(
+                    f"approval_request_id {req_id!r} already stored with different content"
+                )
+            self._approval_requests[req_id] = dict(request)
+
+    async def get_approval_request(self, approval_request_id: str) -> dict[str, Any] | None:
+        with self._approval_lock:
+            row = self._approval_requests.get(approval_request_id)
+            return dict(row) if row is not None else None
+
+    async def approve_request_and_store_grant(
+        self,
+        approval_request_id: str,
+        grant: dict[str, Any],
+        approver: dict[str, Any],
+        decided_at_iso: str,
+        now_iso: str,
+    ) -> dict[str, Any]:
+        with self._approval_lock:
+            req = self._approval_requests.get(approval_request_id)
+            if req is None:
+                return {"ok": False, "reason": "approval_request_not_found"}
+            if req.get("status") != "pending":
+                return {"ok": False, "reason": "approval_request_already_decided"}
+            if req.get("expires_at", "") <= now_iso:
+                return {"ok": False, "reason": "approval_request_expired"}
+            # Defense-in-depth: enforce UNIQUE on grants.approval_request_id.
+            for existing_grant in self._grants.values():
+                if existing_grant.get("approval_request_id") == approval_request_id:
+                    return {"ok": False, "reason": "approval_request_already_decided"}
+            req["status"] = "approved"
+            req["approver"] = dict(approver)
+            req["decided_at"] = decided_at_iso
+            self._grants[grant["grant_id"]] = dict(grant)
+            return {"ok": True, "grant": dict(grant)}
+
+    async def store_grant(self, grant: dict[str, Any]) -> None:
+        with self._approval_lock:
+            self._grants[grant["grant_id"]] = dict(grant)
+
+    async def get_grant(self, grant_id: str) -> dict[str, Any] | None:
+        with self._approval_lock:
+            row = self._grants.get(grant_id)
+            return dict(row) if row is not None else None
+
+    async def try_reserve_grant(
+        self, grant_id: str, now_iso: str
+    ) -> dict[str, Any]:
+        with self._approval_lock:
+            grant = self._grants.get(grant_id)
+            if grant is None:
+                return {"ok": False, "reason": "grant_not_found"}
+            if grant.get("expires_at", "") <= now_iso:
+                return {"ok": False, "reason": "grant_expired"}
+            if grant.get("use_count", 0) >= grant.get("max_uses", 1):
+                return {"ok": False, "reason": "grant_consumed"}
+            grant["use_count"] = grant.get("use_count", 0) + 1
+            return {"ok": True, "grant": dict(grant)}
+
 
 # ---------------------------------------------------------------------------
 # SQLite implementation
@@ -378,6 +517,49 @@ CREATE TABLE IF NOT EXISTS checkpoints (
     entry_count INTEGER,
     signature TEXT NOT NULL
 );
+
+-- v0.23: approval requests
+CREATE TABLE IF NOT EXISTS approval_requests (
+    approval_request_id TEXT PRIMARY KEY,
+    capability TEXT NOT NULL,
+    scope TEXT NOT NULL,                        -- JSON array
+    requester TEXT NOT NULL,                    -- JSON
+    parent_invocation_id TEXT,
+    preview TEXT NOT NULL,                      -- JSON
+    preview_digest TEXT NOT NULL,
+    requested_parameters TEXT NOT NULL,         -- JSON
+    requested_parameters_digest TEXT NOT NULL,
+    grant_policy TEXT NOT NULL,                 -- JSON
+    status TEXT NOT NULL CHECK (status IN ('pending','approved','denied','expired')),
+    approver TEXT,                              -- JSON, null until decided
+    decided_at TEXT,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_status ON approval_requests(status);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_expires ON approval_requests(expires_at);
+
+-- v0.23: approval grants
+CREATE TABLE IF NOT EXISTS approval_grants (
+    grant_id TEXT PRIMARY KEY,
+    approval_request_id TEXT NOT NULL UNIQUE,   -- defense-in-depth: at most one grant per request
+    grant_type TEXT NOT NULL CHECK (grant_type IN ('one_time','session_bound')),
+    capability TEXT NOT NULL,
+    scope TEXT NOT NULL,                        -- JSON array
+    approved_parameters_digest TEXT NOT NULL,
+    preview_digest TEXT NOT NULL,
+    requester TEXT NOT NULL,                    -- JSON
+    approver TEXT NOT NULL,                     -- JSON
+    issued_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    max_uses INTEGER NOT NULL CHECK (max_uses >= 1),
+    use_count INTEGER NOT NULL DEFAULT 0,
+    session_id TEXT,
+    signature TEXT NOT NULL,
+    FOREIGN KEY (approval_request_id) REFERENCES approval_requests(approval_request_id)
+);
+CREATE INDEX IF NOT EXISTS idx_grants_approval_request_id ON approval_grants(approval_request_id);
+CREATE INDEX IF NOT EXISTS idx_grants_expires ON approval_grants(expires_at);
 """
 
 _JSON_AUDIT_FIELDS = (
@@ -943,3 +1125,230 @@ class SQLiteStorage:
     async def release_leader(self, role: str, holder: str) -> None:
         """Release a leader lease if held by the given holder."""
         await self.release_exclusive(f"leader:{role}", holder)
+
+    # --- v0.23: approval requests + grants ---------------------------------
+
+    async def store_approval_request(self, request: dict[str, Any]) -> None:
+        await asyncio.to_thread(self._sync_store_approval_request, request)
+
+    def _sync_store_approval_request(self, request: dict[str, Any]) -> None:
+        with self._lock:
+            self._conn.execute(
+                """INSERT OR REPLACE INTO approval_requests
+                   (approval_request_id, capability, scope, requester, parent_invocation_id,
+                    preview, preview_digest, requested_parameters, requested_parameters_digest,
+                    grant_policy, status, approver, decided_at, created_at, expires_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    request["approval_request_id"],
+                    request["capability"],
+                    json.dumps(request["scope"]),
+                    json.dumps(request["requester"]),
+                    request.get("parent_invocation_id"),
+                    json.dumps(request["preview"]),
+                    request["preview_digest"],
+                    json.dumps(request["requested_parameters"]),
+                    request["requested_parameters_digest"],
+                    json.dumps(request["grant_policy"]),
+                    request["status"],
+                    json.dumps(request["approver"]) if request.get("approver") is not None else None,
+                    request.get("decided_at"),
+                    request["created_at"],
+                    request["expires_at"],
+                ),
+            )
+            self._conn.commit()
+
+    async def get_approval_request(self, approval_request_id: str) -> dict[str, Any] | None:
+        return await asyncio.to_thread(self._sync_get_approval_request, approval_request_id)
+
+    def _sync_get_approval_request(self, approval_request_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM approval_requests WHERE approval_request_id = ?",
+                (approval_request_id,),
+            ).fetchone()
+            return self._parse_approval_request_row(row) if row else None
+
+    @staticmethod
+    def _parse_approval_request_row(row: sqlite3.Row) -> dict[str, Any]:
+        d = dict(row)
+        for f in ("scope", "requester", "preview", "requested_parameters", "grant_policy"):
+            if d.get(f):
+                d[f] = json.loads(d[f])
+        if d.get("approver"):
+            d["approver"] = json.loads(d["approver"])
+        return d
+
+    async def approve_request_and_store_grant(
+        self,
+        approval_request_id: str,
+        grant: dict[str, Any],
+        approver: dict[str, Any],
+        decided_at_iso: str,
+        now_iso: str,
+    ) -> dict[str, Any]:
+        return await asyncio.to_thread(
+            self._sync_approve_and_store, approval_request_id, grant, approver, decided_at_iso, now_iso
+        )
+
+    def _sync_approve_and_store(
+        self,
+        approval_request_id: str,
+        grant: dict[str, Any],
+        approver: dict[str, Any],
+        decided_at_iso: str,
+        now_iso: str,
+    ) -> dict[str, Any]:
+        # Atomic per Decision 0.9a: BEGIN, conditional UPDATE with status='pending'
+        # AND expires_at > now() guard, INSERT into grants. ROLLBACK on any failure.
+        with self._lock:
+            try:
+                self._conn.execute("BEGIN IMMEDIATE")
+                cursor = self._conn.execute(
+                    """UPDATE approval_requests
+                       SET status = 'approved', approver = ?, decided_at = ?
+                       WHERE approval_request_id = ?
+                         AND status = 'pending'
+                         AND expires_at > ?""",
+                    (json.dumps(approver), decided_at_iso, approval_request_id, now_iso),
+                )
+                if cursor.rowcount == 0:
+                    self._conn.execute("ROLLBACK")
+                    row = self._conn.execute(
+                        "SELECT status, expires_at FROM approval_requests WHERE approval_request_id = ?",
+                        (approval_request_id,),
+                    ).fetchone()
+                    if row is None:
+                        return {"ok": False, "reason": "approval_request_not_found"}
+                    if row[1] <= now_iso:
+                        return {"ok": False, "reason": "approval_request_expired"}
+                    return {"ok": False, "reason": "approval_request_already_decided"}
+                try:
+                    self._conn.execute(
+                        """INSERT INTO approval_grants
+                           (grant_id, approval_request_id, grant_type, capability, scope,
+                            approved_parameters_digest, preview_digest, requester, approver,
+                            issued_at, expires_at, max_uses, use_count, session_id, signature)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (
+                            grant["grant_id"],
+                            grant["approval_request_id"],
+                            grant["grant_type"],
+                            grant["capability"],
+                            json.dumps(grant["scope"]),
+                            grant["approved_parameters_digest"],
+                            grant["preview_digest"],
+                            json.dumps(grant["requester"]),
+                            json.dumps(grant["approver"]),
+                            grant["issued_at"],
+                            grant["expires_at"],
+                            grant["max_uses"],
+                            grant.get("use_count", 0),
+                            grant.get("session_id"),
+                            grant["signature"],
+                        ),
+                    )
+                except sqlite3.IntegrityError:
+                    self._conn.execute("ROLLBACK")
+                    return {"ok": False, "reason": "approval_request_already_decided"}
+                self._conn.commit()
+                return {"ok": True, "grant": dict(grant)}
+            except Exception:
+                try:
+                    self._conn.execute("ROLLBACK")
+                except sqlite3.Error:
+                    pass
+                raise
+
+    async def store_grant(self, grant: dict[str, Any]) -> None:
+        await asyncio.to_thread(self._sync_store_grant, grant)
+
+    def _sync_store_grant(self, grant: dict[str, Any]) -> None:
+        with self._lock:
+            self._conn.execute(
+                """INSERT OR REPLACE INTO approval_grants
+                   (grant_id, approval_request_id, grant_type, capability, scope,
+                    approved_parameters_digest, preview_digest, requester, approver,
+                    issued_at, expires_at, max_uses, use_count, session_id, signature)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    grant["grant_id"],
+                    grant["approval_request_id"],
+                    grant["grant_type"],
+                    grant["capability"],
+                    json.dumps(grant["scope"]),
+                    grant["approved_parameters_digest"],
+                    grant["preview_digest"],
+                    json.dumps(grant["requester"]),
+                    json.dumps(grant["approver"]),
+                    grant["issued_at"],
+                    grant["expires_at"],
+                    grant["max_uses"],
+                    grant.get("use_count", 0),
+                    grant.get("session_id"),
+                    grant["signature"],
+                ),
+            )
+            self._conn.commit()
+
+    async def get_grant(self, grant_id: str) -> dict[str, Any] | None:
+        return await asyncio.to_thread(self._sync_get_grant, grant_id)
+
+    def _sync_get_grant(self, grant_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM approval_grants WHERE grant_id = ?", (grant_id,)
+            ).fetchone()
+            return self._parse_grant_row(row) if row else None
+
+    @staticmethod
+    def _parse_grant_row(row: sqlite3.Row) -> dict[str, Any]:
+        d = dict(row)
+        for f in ("scope", "requester", "approver"):
+            if d.get(f):
+                d[f] = json.loads(d[f])
+        return d
+
+    async def try_reserve_grant(
+        self, grant_id: str, now_iso: str
+    ) -> dict[str, Any]:
+        return await asyncio.to_thread(self._sync_try_reserve_grant, grant_id, now_iso)
+
+    def _sync_try_reserve_grant(self, grant_id: str, now_iso: str) -> dict[str, Any]:
+        # Atomic check-and-increment per Phase 7.3 Phase B.
+        with self._lock:
+            try:
+                self._conn.execute("BEGIN IMMEDIATE")
+                cursor = self._conn.execute(
+                    """UPDATE approval_grants
+                       SET use_count = use_count + 1
+                       WHERE grant_id = ?
+                         AND use_count < max_uses
+                         AND expires_at > ?""",
+                    (grant_id, now_iso),
+                )
+                if cursor.rowcount == 0:
+                    self._conn.execute("ROLLBACK")
+                    row = self._conn.execute(
+                        "SELECT use_count, max_uses, expires_at FROM approval_grants WHERE grant_id = ?",
+                        (grant_id,),
+                    ).fetchone()
+                    if row is None:
+                        return {"ok": False, "reason": "grant_not_found"}
+                    if row[2] <= now_iso:
+                        return {"ok": False, "reason": "grant_expired"}
+                    if row[0] >= row[1]:
+                        return {"ok": False, "reason": "grant_consumed"}
+                    return {"ok": False, "reason": "grant_not_found"}
+                self._conn.commit()
+                row = self._conn.execute(
+                    "SELECT * FROM approval_grants WHERE grant_id = ?", (grant_id,)
+                ).fetchone()
+                return {"ok": True, "grant": self._parse_grant_row(row) if row else None}
+            except Exception:
+                try:
+                    self._conn.execute("ROLLBACK")
+                except sqlite3.Error:
+                    pass
+                raise
