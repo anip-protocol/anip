@@ -506,6 +506,69 @@ FAILURE_COMPOSITION_EMPTY_RESULT_DENIED = "composition_empty_result_denied"
 # ---------------------------------------------------------------------------
 
 
+async def materialize_approval_request(
+    *,
+    storage,
+    capability_decl: CapabilityDeclaration,
+    parent_invocation_id: str | None,
+    requester: dict[str, Any],
+    parameters: dict[str, Any],
+    preview: dict[str, Any],
+    service_default_grant_policy: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Phase 7.1: persist a fresh ApprovalRequest and return its metadata.
+
+    Called by the service runtime when a capability handler raises
+    ``ANIPError(error_type='approval_required')``. Returns the
+    ``ApprovalRequiredMetadata`` dict that the runtime attaches to the
+    failure response.
+
+    Per SPEC.md §4.7 'Persistence invariant': if storage fails, the caller
+    MUST surface ``service_unavailable`` instead of ``approval_required``.
+    Storage exceptions propagate through this helper unchanged so the caller
+    can map them.
+    """
+    # Resolve grant_policy.
+    if capability_decl.grant_policy is not None:
+        gp = capability_decl.grant_policy.model_dump()
+    elif service_default_grant_policy is not None:
+        gp = dict(service_default_grant_policy)
+    else:
+        # Registration validation should have prevented this; fail loudly.
+        raise ValueError(
+            f"capability {capability_decl.name!r} raised approval_required "
+            f"but has no grant_policy declared and no service-level default exists"
+        )
+
+    request_id = new_approval_request_id()
+    request: dict[str, Any] = {
+        "approval_request_id": request_id,
+        "capability": capability_decl.name,
+        "scope": list(capability_decl.minimum_scope),
+        "requester": requester,
+        "parent_invocation_id": parent_invocation_id,
+        "preview": preview,
+        "preview_digest": sha256_digest(preview),
+        "requested_parameters": parameters,
+        "requested_parameters_digest": sha256_digest(parameters),
+        "grant_policy": gp,
+        "status": "pending",
+        "approver": None,
+        "decided_at": None,
+        "created_at": utc_now_iso(),
+        "expires_at": utc_in_iso(gp["expires_in_seconds"]),
+    }
+    await storage.store_approval_request(request)
+
+    # Metadata returned to the agent in the failure response.
+    return {
+        "approval_request_id": request_id,
+        "preview_digest": request["preview_digest"],
+        "requested_parameters_digest": request["requested_parameters_digest"],
+        "grant_policy": gp,
+    }
+
+
 async def validate_continuation_grant(
     *,
     storage,
