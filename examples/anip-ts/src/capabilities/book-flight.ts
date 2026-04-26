@@ -52,6 +52,10 @@ const DECLARATION: CapabilityDeclaration = {
     fields_logged: ["capability", "delegation_chain", "parameters", "result", "cost_actual"],
     audit_accessible_by: ["delegation.root_principal"],
   },
+  // v0.23 — atomic capability, no composition, no approval policy
+  kind: "atomic",
+  composition: null,
+  grant_policy: null,
 };
 
 export const bookFlight = defineCapability({
