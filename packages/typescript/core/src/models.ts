@@ -66,6 +66,10 @@ export const DelegationToken = z.object({
   }),
   root_principal: z.string().nullable().default(null),
   caller_class: z.string().nullable().default(null),
+  // v0.23: session identity bound at issuance, validated for session_bound
+  // ApprovalGrant continuations per SPEC.md §4.8. Trust comes from the
+  // signed token, never from caller-supplied invocation input.
+  session_id: z.string().nullable().default(null),
 });
 export type DelegationToken = z.infer<typeof DelegationToken>;
 
@@ -786,6 +790,10 @@ export const TokenRequest = z.object({
   purpose_parameters: z.record(z.any()).default({}),
   ttl_hours: z.number().default(2),
   caller_class: z.string().nullable().optional(),
+  /** v0.23: bind a session identity to the issued token for session_bound
+   * ApprovalGrant validation. Only honored at root issuance — child tokens
+   * inherit parent.session_id verbatim. See SPEC.md §4.8. */
+  session_id: z.string().nullable().optional(),
 });
 export type TokenRequest = z.infer<typeof TokenRequest>;
 
