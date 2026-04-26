@@ -463,9 +463,10 @@ export const IssueApprovalGrantRequest = z
   });
 export type IssueApprovalGrantRequest = z.infer<typeof IssueApprovalGrantRequest>;
 
-export const IssueApprovalGrantResponse = z.object({
-  grant: ApprovalGrant,
-});
+// SPEC.md §4.9: 200 response IS the signed ApprovalGrant — no wrapper.
+// IssueApprovalGrantResponse is exposed as an alias for parity with the
+// request type and for runtimes that prefer a named response model.
+export const IssueApprovalGrantResponse = ApprovalGrant;
 export type IssueApprovalGrantResponse = z.infer<typeof IssueApprovalGrantResponse>;
 
 // ---------------------------------------------------------------------------

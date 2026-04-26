@@ -310,6 +310,29 @@ export async function mountAnip(
     } catch (e) { next(e); }
   });
 
+  // SPEC.md §4.9 step 2: malformed JSON on the approval_grants endpoint
+  // surfaces canonical invalid_parameters JSON, not the framework default.
+  // express.json() raises SyntaxError with type "entity.parse.failed"
+  // before route handlers run, so the mapping happens here.
+  router.use((err: any, req: Request, res: Response, next: any) => {
+    if (
+      err &&
+      err.type === "entity.parse.failed" &&
+      req.method === "POST" &&
+      req.path === "/anip/approval_grants"
+    ) {
+      res
+        .status(400)
+        .json(
+          invalidParametersFailure(
+            `request body must be JSON: ${err.message ?? "parse error"}`,
+          ),
+        );
+      return;
+    }
+    next(err);
+  });
+
   const prefix = opts?.prefix ?? "";
   if (prefix) {
     app.use(prefix, router);

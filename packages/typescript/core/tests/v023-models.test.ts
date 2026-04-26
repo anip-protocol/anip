@@ -248,9 +248,9 @@ describe("v0.23 — IssueApprovalGrant request/response", () => {
     expect(req.session_id).toBeNull();
   });
 
-  it("response wraps a grant", () => {
-    const resp = IssueApprovalGrantResponse.parse({ grant: grant() });
-    expect(resp.grant.grant_id).toBe("grant_test");
+  it("response IS the signed grant (no wrapper, per SPEC §4.9)", () => {
+    const resp = IssueApprovalGrantResponse.parse(grant());
+    expect(resp.grant_id).toBe("grant_test");
   });
 
   it("session_bound issuance requires session_id", () => {

@@ -245,6 +245,27 @@ describe("Fastify POST /anip/approval_grants", () => {
     expect(r.statusCode).toBe(400);
   });
 
+  // SPEC.md §4.9 Validation order step 2: malformed JSON returns canonical
+  // invalid_parameters, not the framework default.
+  it("malformed_json_returns_invalid_parameters", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const approverToken = await issueToken(app, {
+      scope: ["finance.write", "approver:*"],
+    });
+    const r = await app.inject({
+      method: "POST",
+      url: "/anip/approval_grants",
+      headers: {
+        authorization: `Bearer ${approverToken}`,
+        "content-type": "application/json",
+      },
+      payload: "{not json",
+    });
+    expect(r.statusCode).toBe(400);
+    expect(r.json().failure.type).toBe("invalid_parameters");
+  });
+
   // SPEC.md §4.9 Validation order step 2: schema-validate body.
   it("schema_rejects_max_uses_zero", async () => {
     const { app, stop } = await makeApp();

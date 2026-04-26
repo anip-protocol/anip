@@ -172,7 +172,34 @@ export async function mountAnip(
   //   4. check state (decided / expired) — BEFORE approver auth
   //   5. check approver authority against the loaded capability
   //   6. issueApprovalGrant (steps 6–11 of the spec)
-  app.post(`${p}/anip/approval_grants`, async (req, reply) => {
+  //
+  // Fastify's built-in JSON parser raises FST_ERR_CTP_INVALID_JSON before
+  // the handler runs. The route-level errorHandler maps that to canonical
+  // invalid_parameters JSON; other errors fall through to Fastify's default.
+  app.post(
+    `${p}/anip/approval_grants`,
+    {
+      errorHandler: (err: any, _request, reply) => {
+        // Fastify's built-in JSON parser raises FST_ERR_CTP_INVALID_JSON_BODY
+        // for malformed JSON and FST_ERR_CTP_EMPTY_JSON_BODY for empty body.
+        if (
+          err &&
+          (err.code === "FST_ERR_CTP_INVALID_JSON_BODY" ||
+            err.code === "FST_ERR_CTP_EMPTY_JSON_BODY")
+        ) {
+          return reply
+            .status(400)
+            .send(
+              invalidParametersFailure(
+                `request body must be JSON: ${err.message ?? "parse error"}`,
+              ),
+            );
+        }
+        // Re-raise so Fastify's default error handler runs.
+        return reply.send(err);
+      },
+    },
+    async (req, reply) => {
     const authResult = await resolveToken(req, service);
     if (authResult === null) return authFailureJwtEndpoint(reply);
     if (authResult instanceof ANIPError) return errorResponse(reply, authResult);

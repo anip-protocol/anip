@@ -279,6 +279,28 @@ describe("Hono POST /anip/approval_grants", () => {
     expect(r.status).toBe(400);
   });
 
+  // SPEC.md §4.9 Validation order step 2: malformed JSON must surface
+  // as canonical invalid_parameters 400, not the framework default.
+  it("malformed_json_returns_invalid_parameters", async () => {
+    const { app } = await makeApp();
+    const approverToken = await issueToken(app, {
+      scope: ["finance.write", "approver:*"],
+    });
+    const r = await app.request("/anip/approval_grants", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${approverToken}`,
+      },
+      body: "{not json",
+    });
+    expect(r.status).toBe(400);
+    const body = (await r.json()) as Record<string, unknown>;
+    expect((body.failure as Record<string, unknown>).type).toBe(
+      "invalid_parameters",
+    );
+  });
+
   // SPEC.md §4.9 Validation order step 2: schema-validate body before
   // anything else. Bad numerics / empty strings must surface as
   // invalid_parameters 400, not slip through into issuance.
