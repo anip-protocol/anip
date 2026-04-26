@@ -2058,6 +2058,17 @@
         }
       },
       "required": ["allowed_grant_types", "default_grant_type", "expires_in_seconds", "max_uses"],
+      "allOf": [
+        {
+          "// comment": "SPEC.md §4.7: default_grant_type MUST appear in allowed_grant_types.",
+          "if": {"properties": {"default_grant_type": {"const": "one_time"}}, "required": ["default_grant_type"]},
+          "then": {"properties": {"allowed_grant_types": {"contains": {"const": "one_time"}}}}
+        },
+        {
+          "if": {"properties": {"default_grant_type": {"const": "session_bound"}}, "required": ["default_grant_type"]},
+          "then": {"properties": {"allowed_grant_types": {"contains": {"const": "session_bound"}}}}
+        }
+      ],
       "additionalProperties": false,
       "title": "GrantPolicy",
       "description": "Constrains what an approver MAY issue for a given approval request. v0.23. See SPEC.md §4.7."

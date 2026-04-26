@@ -1,5 +1,7 @@
 package core
 
+import "slices"
+
 // v0.23 — Capability Composition and Approval Grants. See SPEC.md §4.6–§4.9.
 
 // --- Capability Composition ---
@@ -91,6 +93,37 @@ type GrantPolicy struct {
 	DefaultGrantType  string   `json:"default_grant_type"`
 	ExpiresInSeconds  int      `json:"expires_in_seconds"`
 	MaxUses           int      `json:"max_uses"`
+}
+
+// Validate enforces SPEC.md §4.7 invariants:
+// default_grant_type MUST appear in allowed_grant_types.
+// Returns a non-nil error when the policy is malformed; nil when valid.
+// Callers (issuance helpers, schema validators) MUST invoke this before
+// trusting the policy.
+func (p GrantPolicy) Validate() error {
+	if len(p.AllowedGrantTypes) == 0 {
+		return &PolicyValidationError{Field: "allowed_grant_types", Reason: "must be non-empty"}
+	}
+	if p.DefaultGrantType == "" {
+		return &PolicyValidationError{Field: "default_grant_type", Reason: "must be set"}
+	}
+	if !slices.Contains(p.AllowedGrantTypes, p.DefaultGrantType) {
+		return &PolicyValidationError{
+			Field:  "default_grant_type",
+			Reason: "must appear in allowed_grant_types",
+		}
+	}
+	return nil
+}
+
+// PolicyValidationError is returned by GrantPolicy.Validate. v0.23.
+type PolicyValidationError struct {
+	Field  string
+	Reason string
+}
+
+func (e *PolicyValidationError) Error() string {
+	return "GrantPolicy invalid: " + e.Field + ": " + e.Reason
 }
 
 // ApprovalRequiredMetadata is attached to an approval_required failure response.

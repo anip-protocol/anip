@@ -204,6 +204,28 @@ class V023ModelsTest {
     }
 
     @Test
+    void grantPolicyConstructorRejectsDefaultNotInAllowed() {
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> new GrantPolicy(Arrays.asList("one_time"), "session_bound", 900, 1));
+        assertTrue(ex.getMessage().contains("defaultGrantType"));
+    }
+
+    @Test
+    void grantPolicyConstructorRejectsEmptyAllowed() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new GrantPolicy(Collections.<String>emptyList(), "one_time", 900, 1));
+    }
+
+    @Test
+    void grantPolicyConstructorAcceptsDefaultInAllowed() {
+        GrantPolicy p = new GrantPolicy(
+                Arrays.asList("one_time", "session_bound"), "session_bound", 900, 1);
+        assertEquals("session_bound", p.getDefaultGrantType());
+    }
+
+    @Test
     void issueApprovalGrantResponseWrapsGrant() {
         ApprovalGrant g = new ApprovalGrant(
                 "grant_test", "apr_test", "one_time",

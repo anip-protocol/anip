@@ -16,6 +16,27 @@ public class GrantPolicy
 
     [JsonPropertyName("max_uses")]
     public int MaxUses { get; set; }
+
+    /// <summary>
+    /// Enforces SPEC.md §4.7 invariants. Throws ArgumentException when malformed.
+    /// Callers (issuance helpers, schema validators) MUST invoke this before trusting the policy.
+    /// </summary>
+    public void Validate()
+    {
+        if (AllowedGrantTypes == null || AllowedGrantTypes.Count == 0)
+        {
+            throw new ArgumentException("GrantPolicy.AllowedGrantTypes must be non-empty");
+        }
+        if (string.IsNullOrEmpty(DefaultGrantType))
+        {
+            throw new ArgumentException("GrantPolicy.DefaultGrantType must be set");
+        }
+        if (!AllowedGrantTypes.Contains(DefaultGrantType))
+        {
+            throw new ArgumentException(
+                $"GrantPolicy.DefaultGrantType='{DefaultGrantType}' must appear in AllowedGrantTypes=[{string.Join(",", AllowedGrantTypes)}]");
+        }
+    }
 }
 
 /// <summary>Metadata attached to an approval_required failure response. v0.23. See SPEC.md §4.7.</summary>

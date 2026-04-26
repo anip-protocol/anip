@@ -263,6 +263,16 @@ class GrantPolicy(BaseModel):
     expires_in_seconds: int
     max_uses: int
 
+    @model_validator(mode="after")
+    def _validate_default_in_allowed(self) -> "GrantPolicy":
+        # SPEC.md §4.7: default_grant_type MUST appear in allowed_grant_types.
+        if self.default_grant_type not in self.allowed_grant_types:
+            raise ValueError(
+                f"default_grant_type={self.default_grant_type!r} must appear in "
+                f"allowed_grant_types={self.allowed_grant_types!r}"
+            )
+        return self
+
 
 class ApprovalRequiredMetadata(BaseModel):
     """Metadata attached to an approval_required failure. v0.23. See SPEC.md §4.7."""

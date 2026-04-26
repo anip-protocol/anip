@@ -294,12 +294,23 @@ export const ApprovalRequestStatus = z.enum([
 ]);
 export type ApprovalRequestStatus = z.infer<typeof ApprovalRequestStatus>;
 
-export const GrantPolicy = z.object({
-  allowed_grant_types: z.array(GrantType).min(1),
-  default_grant_type: GrantType,
-  expires_in_seconds: z.number().int().min(1),
-  max_uses: z.number().int().min(1),
-});
+export const GrantPolicy = z
+  .object({
+    allowed_grant_types: z.array(GrantType).min(1),
+    default_grant_type: GrantType,
+    expires_in_seconds: z.number().int().min(1),
+    max_uses: z.number().int().min(1),
+  })
+  .superRefine((p, ctx) => {
+    // SPEC.md §4.7: default_grant_type MUST appear in allowed_grant_types.
+    if (!p.allowed_grant_types.includes(p.default_grant_type)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `default_grant_type='${p.default_grant_type}' must appear in allowed_grant_types`,
+        path: ["default_grant_type"],
+      });
+    }
+  });
 export type GrantPolicy = z.infer<typeof GrantPolicy>;
 
 export const ApprovalRequiredMetadata = z.object({

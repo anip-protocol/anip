@@ -435,6 +435,26 @@ class TestANIPFailureApprovalInvariants:
             )
 
 
+class TestGrantPolicyInvariants:
+    def test_default_must_be_in_allowed(self):
+        with pytest.raises(ValidationError):
+            GrantPolicy(
+                allowed_grant_types=["one_time"],
+                default_grant_type="session_bound",
+                expires_in_seconds=900,
+                max_uses=1,
+            )
+
+    def test_default_in_allowed_succeeds(self):
+        p = GrantPolicy(
+            allowed_grant_types=["one_time", "session_bound"],
+            default_grant_type="session_bound",
+            expires_in_seconds=900,
+            max_uses=1,
+        )
+        assert p.default_grant_type == "session_bound"
+
+
 class TestCapabilityDeclarationKindInvariants:
     def _base_kwargs(self) -> dict:
         return dict(

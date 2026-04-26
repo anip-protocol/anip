@@ -237,6 +237,47 @@ public class V023ModelsTests
     }
 
     [Fact]
+    public void GrantPolicyValidateRejectsDefaultNotInAllowed()
+    {
+        var p = new GrantPolicy
+        {
+            AllowedGrantTypes = new() { "one_time" },
+            DefaultGrantType = "session_bound",
+            ExpiresInSeconds = 900,
+            MaxUses = 1,
+        };
+        var ex = Assert.Throws<ArgumentException>(() => p.Validate());
+        Assert.Contains("DefaultGrantType", ex.Message);
+    }
+
+    [Fact]
+    public void GrantPolicyValidateRejectsEmptyAllowed()
+    {
+        var p = new GrantPolicy
+        {
+            AllowedGrantTypes = new(),
+            DefaultGrantType = "one_time",
+            ExpiresInSeconds = 900,
+            MaxUses = 1,
+        };
+        Assert.Throws<ArgumentException>(() => p.Validate());
+    }
+
+    [Fact]
+    public void GrantPolicyValidateAcceptsDefaultInAllowed()
+    {
+        var p = new GrantPolicy
+        {
+            AllowedGrantTypes = new() { "one_time", "session_bound" },
+            DefaultGrantType = "session_bound",
+            ExpiresInSeconds = 900,
+            MaxUses = 1,
+        };
+        p.Validate(); // should not throw
+        Assert.Equal("session_bound", p.DefaultGrantType);
+    }
+
+    [Fact]
     public void IssueApprovalGrantResponseWrapsGrant()
     {
         var g = new ApprovalGrant

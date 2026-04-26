@@ -246,6 +246,57 @@ func TestInvokeRequestApprovalGrantRoundTrip(t *testing.T) {
 	}
 }
 
+func TestGrantPolicyValidate_Valid(t *testing.T) {
+	p := grantPolicy()
+	if err := p.Validate(); err != nil {
+		t.Errorf("expected valid policy, got error: %v", err)
+	}
+}
+
+func TestGrantPolicyValidate_DefaultNotInAllowed(t *testing.T) {
+	p := GrantPolicy{
+		AllowedGrantTypes: []string{GrantTypeOneTime},
+		DefaultGrantType:  GrantTypeSessionBound, // not in AllowedGrantTypes
+		ExpiresInSeconds:  900,
+		MaxUses:           1,
+	}
+	err := p.Validate()
+	if err == nil {
+		t.Fatal("expected validation error, got nil")
+	}
+	pve, ok := err.(*PolicyValidationError)
+	if !ok {
+		t.Fatalf("expected *PolicyValidationError, got %T", err)
+	}
+	if pve.Field != "default_grant_type" {
+		t.Errorf("expected Field=default_grant_type, got %q", pve.Field)
+	}
+}
+
+func TestGrantPolicyValidate_EmptyAllowed(t *testing.T) {
+	p := GrantPolicy{
+		AllowedGrantTypes: nil,
+		DefaultGrantType:  GrantTypeOneTime,
+		ExpiresInSeconds:  900,
+		MaxUses:           1,
+	}
+	if err := p.Validate(); err == nil {
+		t.Error("expected validation error for empty AllowedGrantTypes")
+	}
+}
+
+func TestGrantPolicyValidate_EmptyDefault(t *testing.T) {
+	p := GrantPolicy{
+		AllowedGrantTypes: []string{GrantTypeOneTime},
+		DefaultGrantType:  "",
+		ExpiresInSeconds:  900,
+		MaxUses:           1,
+	}
+	if err := p.Validate(); err == nil {
+		t.Error("expected validation error for empty DefaultGrantType")
+	}
+}
+
 func TestIssueApprovalGrantRequestResponseRoundTrip(t *testing.T) {
 	req := IssueApprovalGrantRequest{
 		ApprovalRequestID: "apr_test",

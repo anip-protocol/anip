@@ -11,6 +11,18 @@ public class GrantPolicy {
 
     public GrantPolicy(List<String> allowedGrantTypes, String defaultGrantType,
                        int expiresInSeconds, int maxUses) {
+        if (allowedGrantTypes == null || allowedGrantTypes.isEmpty()) {
+            throw new IllegalArgumentException("GrantPolicy.allowedGrantTypes must be non-empty");
+        }
+        if (defaultGrantType == null || defaultGrantType.isEmpty()) {
+            throw new IllegalArgumentException("GrantPolicy.defaultGrantType must be set");
+        }
+        // SPEC.md §4.7: default_grant_type MUST appear in allowed_grant_types.
+        if (!allowedGrantTypes.contains(defaultGrantType)) {
+            throw new IllegalArgumentException(
+                "GrantPolicy.defaultGrantType='" + defaultGrantType +
+                "' must appear in allowedGrantTypes=" + allowedGrantTypes);
+        }
         this.allowedGrantTypes = allowedGrantTypes;
         this.defaultGrantType = defaultGrantType;
         this.expiresInSeconds = expiresInSeconds;

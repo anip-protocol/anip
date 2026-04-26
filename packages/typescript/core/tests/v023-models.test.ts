@@ -448,6 +448,29 @@ describe("v0.23 — ANIPFailure approval_required invariants", () => {
   });
 });
 
+describe("v0.23 — GrantPolicy invariants", () => {
+  it("rejects default_grant_type not in allowed_grant_types", () => {
+    expect(() =>
+      GrantPolicy.parse({
+        allowed_grant_types: ["one_time"],
+        default_grant_type: "session_bound",
+        expires_in_seconds: 900,
+        max_uses: 1,
+      }),
+    ).toThrow();
+  });
+
+  it("accepts default_grant_type when listed in allowed_grant_types", () => {
+    const p = GrantPolicy.parse({
+      allowed_grant_types: ["one_time", "session_bound"],
+      default_grant_type: "session_bound",
+      expires_in_seconds: 900,
+      max_uses: 1,
+    });
+    expect(p.default_grant_type).toBe("session_bound");
+  });
+});
+
 describe("v0.23 — CapabilityDeclaration kind/composition invariants", () => {
   const baseFields = () => ({
     name: "cap",
