@@ -128,6 +128,7 @@ def mount_anip(
         parent_invocation_id = body.get("parent_invocation_id")
         upstream_service = body.get("upstream_service")
         stream = body.get("stream", False)
+        approval_grant = body.get("approval_grant")  # v0.23
 
         if not stream:
             # Unary mode — existing behavior
@@ -137,6 +138,7 @@ def mount_anip(
                 task_id=task_id,
                 parent_invocation_id=parent_invocation_id,
                 upstream_service=upstream_service,
+                approval_grant=approval_grant,
             )
             if not result.get("success"):
                 status = _failure_status(result.get("failure", {}).get("type"))
@@ -239,6 +241,118 @@ def mount_anip(
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
         )
+
+    # --- Approval grant issuance (v0.23) ---
+
+    @app.post(f"{prefix}/anip/approval_grants")
+    async def issue_approval_grant(request: Request):
+        # Phase 7.2a — canonical wire surface for grant issuance.
+        # Validation order matters: parse + load request first, then enforce
+        # approver-scope-for-this-capability. See SPEC.md §4.9.
+        result = await _resolve_token(request, service)
+        if result is None:
+            return _auth_failure_jwt_endpoint()
+        if isinstance(result, ANIPError):
+            return _error_response(result)
+        token = result
+
+        try:
+            body = await request.json()
+        except Exception:
+            return JSONResponse(
+                {
+                    "success": False,
+                    "failure": {
+                        "type": "invalid_parameters",
+                        "detail": "request body must be JSON",
+                        "resolution": {
+                            "action": "retry_now",
+                            "recovery_class": "retry_now",
+                        },
+                    },
+                },
+                status_code=400,
+            )
+
+        approval_request_id = body.get("approval_request_id")
+        grant_type = body.get("grant_type")
+        if not approval_request_id or not grant_type:
+            return JSONResponse(
+                {
+                    "success": False,
+                    "failure": {
+                        "type": "invalid_parameters",
+                        "detail": "approval_request_id and grant_type are required",
+                        "resolution": {
+                            "action": "retry_now",
+                            "recovery_class": "retry_now",
+                        },
+                    },
+                },
+                status_code=400,
+            )
+
+        # Load the approval_request first so we can check approver authority
+        # against the right capability.
+        approval_request = await service._storage.get_approval_request(approval_request_id)
+        if approval_request is None:
+            return JSONResponse(
+                {
+                    "success": False,
+                    "failure": {
+                        "type": "approval_request_not_found",
+                        "detail": f"unknown approval_request_id={approval_request_id!r}",
+                        "resolution": {
+                            "action": "check_manifest",
+                            "recovery_class": "revalidate_then_retry",
+                        },
+                    },
+                },
+                status_code=404,
+            )
+
+        # Approver authority check: token scope must contain
+        # approver:<capability> OR a service-defined approver scope covering
+        # that capability. The reference implementation accepts any of:
+        # - "approver:*" (all capabilities)
+        # - "approver:<request.capability>" (specific)
+        target_capability = approval_request["capability"]
+        token_scopes = list(token.scope)
+        approver_scopes = {f"approver:*", f"approver:{target_capability}"}
+        if not any(s in approver_scopes for s in token_scopes):
+            return JSONResponse(
+                {
+                    "success": False,
+                    "failure": {
+                        "type": "approver_not_authorized",
+                        "detail": f"token lacks approver scope for capability {target_capability!r}",
+                        "resolution": {
+                            "action": "request_broader_scope",
+                            "recovery_class": "redelegation_then_retry",
+                            "requires": f"scope += approver:{target_capability}",
+                        },
+                    },
+                },
+                status_code=403,
+            )
+
+        approver_principal = {
+            "subject": token.subject,
+            "root_principal": token.root_principal,
+        }
+        try:
+            grant = await service.issue_approval_grant(
+                approval_request_id,
+                grant_type=grant_type,
+                approver_principal=approver_principal,
+                expires_in_seconds=body.get("expires_in_seconds"),
+                max_uses=body.get("max_uses"),
+                session_id=body.get("session_id"),
+            )
+        except ANIPError as e:
+            return _error_response(e)
+
+        return {"grant": grant}
 
     # --- Audit ---
 

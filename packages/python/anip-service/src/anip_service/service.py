@@ -323,7 +323,7 @@ class ANIPService:
                 "tokens": "/anip/tokens",
                 "audit": "/anip/audit",
                 "checkpoints": "/anip/checkpoints",
-                "graph": "/anip/graph/{capability}",
+                "approval_grants": "/anip/approval_grants",  # v0.23
                 "jwks": "/.well-known/jwks.json",
             },
         }
