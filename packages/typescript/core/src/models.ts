@@ -66,12 +66,6 @@ export const DelegationToken = z.object({
   }),
   root_principal: z.string().nullable().default(null),
   caller_class: z.string().nullable().default(null),
-  // NOTE: v0.23 session_id (SPEC.md §4.8) is intentionally NOT modeled
-  // here. The TS service runtime does not yet sign anip:session_id into
-  // JWTs or enforce the JWT/store trust check on resolve. Surfacing
-  // session_id on the Zod model would create a contract that drops the
-  // field at issuance. Add this field together with the runtime work in
-  // a future PR.
 });
 export type DelegationToken = z.infer<typeof DelegationToken>;
 
@@ -792,7 +786,6 @@ export const TokenRequest = z.object({
   purpose_parameters: z.record(z.any()).default({}),
   ttl_hours: z.number().default(2),
   caller_class: z.string().nullable().optional(),
-  // NOTE: v0.23 session_id is omitted on purpose — see DelegationToken.
 });
 export type TokenRequest = z.infer<typeof TokenRequest>;
 
