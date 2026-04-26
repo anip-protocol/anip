@@ -89,6 +89,9 @@ type InvokeOpts struct {
 	UpstreamService    string
 	Stream             bool
 	Budget             *core.Budget
+	// ApprovalGrant is a previously-issued grant_id presented as a
+	// continuation. v0.23 §4.8. Empty when the call is not a continuation.
+	ApprovalGrant string
 }
 
 // CheckpointPolicy configures automatic checkpoint creation.
@@ -138,10 +141,27 @@ type Service struct {
 
 // New creates a new Service from the given configuration.
 // Call Start() to initialize storage and keys before use.
+//
+// v0.23: panics if any kind="composed" capability has an invalid composition
+// declaration. Composition errors are programming errors, surfaced fast.
 func New(cfg Config) *Service {
 	caps := make(map[string]CapabilityDef, len(cfg.Capabilities))
 	for _, c := range cfg.Capabilities {
 		caps[c.Declaration.Name] = c
+	}
+
+	// Validate composition declarations against the registry of all
+	// capabilities. Atomic capabilities pass through this no-op.
+	registry := make(map[string]*core.CapabilityDeclaration, len(caps))
+	for name, c := range caps {
+		decl := c.Declaration
+		registry[name] = &decl
+	}
+	for name, c := range caps {
+		decl := c.Declaration
+		if err := ValidateComposition(name, &decl, registry); err != nil {
+			panic(fmt.Sprintf("invalid composition for capability %q: %s", name, err))
+		}
 	}
 
 	trust := cfg.Trust
@@ -433,14 +453,15 @@ func (s *Service) GetDiscovery(baseURL string) map[string]any {
 	}
 
 	doc["endpoints"] = map[string]any{
-		"manifest":    "/anip/manifest",
-		"permissions": "/anip/permissions",
-		"invoke":      "/anip/invoke/{capability}",
-		"tokens":      "/anip/tokens",
-		"audit":       "/anip/audit",
-		"checkpoints": "/anip/checkpoints",
-		"graph":       "/anip/graph/{capability}",
-		"jwks":        "/.well-known/jwks.json",
+		"manifest":         "/anip/manifest",
+		"permissions":      "/anip/permissions",
+		"invoke":           "/anip/invoke/{capability}",
+		"tokens":           "/anip/tokens",
+		"audit":            "/anip/audit",
+		"checkpoints":      "/anip/checkpoints",
+		"graph":            "/anip/graph/{capability}",
+		"approval_grants":  "/anip/approval_grants", // v0.23
+		"jwks":             "/.well-known/jwks.json",
 	}
 
 	if baseURL != "" {
@@ -838,4 +859,185 @@ func (s *Service) persistAuditMap(entryData map[string]any) {
 func strVal(m map[string]any, key string) string {
 	v, _ := m[key].(string)
 	return v
+}
+
+// --- v0.23 SPI: ApprovalRequest + ApprovalGrant ---
+
+// GetApprovalRequest returns the persisted ApprovalRequest, or nil if none.
+// Read-only pass-through to storage. v0.23 §4.7.
+func (s *Service) GetApprovalRequest(id string) (*core.ApprovalRequest, error) {
+	return s.storage.GetApprovalRequest(id)
+}
+
+// IssueApprovalGrantOpts carries optional approver-controlled inputs. Each
+// field is clamped against the request's grant_policy in IssueApprovalGrant.
+type IssueApprovalGrantOpts struct {
+	ExpiresInSeconds *int
+	MaxUses          *int
+	SessionID        string
+}
+
+// IssueApprovalGrant issues a signed ApprovalGrant for a pending
+// ApprovalRequest. Caller is responsible for approver-authority enforcement
+// — this method trusts the approverPrincipal supplied. v0.23 §4.9.
+//
+// Atomic per Decision 0.9a: the storage primitive performs the conditional
+// UPDATE + INSERT in a single transaction.
+func (s *Service) IssueApprovalGrant(
+	approvalRequestID string,
+	grantType string,
+	approverPrincipal map[string]any,
+	opts IssueApprovalGrantOpts,
+) (*core.ApprovalGrant, error) {
+	// Read-side pre-flight (advisory; the atomic primitive is the boundary).
+	req, err := s.storage.GetApprovalRequest(approvalRequestID)
+	if err != nil {
+		return nil, err
+	}
+	if req == nil {
+		return nil, core.NewANIPError(FailureApprovalRequestNotFound,
+			fmt.Sprintf("unknown approval_request_id=%q", approvalRequestID))
+	}
+	if req.Status != core.ApprovalRequestStatusPending {
+		return nil, core.NewANIPError(FailureApprovalRequestAlreadyDone,
+			fmt.Sprintf("approval_request_id=%q status=%q", approvalRequestID, req.Status))
+	}
+	now := utcNowISO()
+	if req.ExpiresAt <= now {
+		return nil, core.NewANIPError(FailureApprovalRequestExpired,
+			fmt.Sprintf("approval_request_id=%q expired at %s", approvalRequestID, req.ExpiresAt))
+	}
+
+	gp := req.GrantPolicy
+	if !containsString(gp.AllowedGrantTypes, grantType) {
+		return nil, core.NewANIPError(FailureGrantTypeNotAllowed,
+			fmt.Sprintf("grant_type=%q not in allowed_grant_types=%v", grantType, gp.AllowedGrantTypes))
+	}
+
+	effExpires := gp.ExpiresInSeconds
+	if opts.ExpiresInSeconds != nil {
+		effExpires = *opts.ExpiresInSeconds
+	}
+	if effExpires > gp.ExpiresInSeconds {
+		return nil, core.NewANIPError(FailureGrantTypeNotAllowed,
+			fmt.Sprintf("expires_in_seconds=%d exceeds policy=%d", effExpires, gp.ExpiresInSeconds))
+	}
+
+	effMaxUses := gp.MaxUses
+	if opts.MaxUses != nil {
+		effMaxUses = *opts.MaxUses
+	}
+	switch grantType {
+	case core.GrantTypeOneTime:
+		// one_time grants are always single-use and never carry session_id.
+		effMaxUses = 1
+		if opts.SessionID != "" {
+			return nil, core.NewANIPError(FailureGrantTypeNotAllowed,
+				"one_time grants must not carry session_id")
+		}
+	case core.GrantTypeSessionBound:
+		if opts.SessionID == "" {
+			return nil, core.NewANIPError(FailureGrantTypeNotAllowed,
+				"session_bound grants require a session_id")
+		}
+	}
+	if effMaxUses > gp.MaxUses {
+		return nil, core.NewANIPError(FailureGrantTypeNotAllowed,
+			fmt.Sprintf("max_uses=%d exceeds policy=%d", effMaxUses, gp.MaxUses))
+	}
+
+	// Build grant — capability/scope/digests/requester come from the
+	// request, NOT from approver input (SPEC.md §4.9 step 8).
+	grant := &core.ApprovalGrant{
+		GrantID:                  NewGrantID(),
+		ApprovalRequestID:        approvalRequestID,
+		GrantType:                grantType,
+		Capability:               req.Capability,
+		Scope:                    append([]string(nil), req.Scope...),
+		ApprovedParametersDigest: req.RequestedParametersDigest,
+		PreviewDigest:            req.PreviewDigest,
+		Requester:                cloneStringMap(req.Requester),
+		Approver:                 cloneStringMap(approverPrincipal),
+		IssuedAt:                 now,
+		ExpiresAt:                utcInISO(effExpires),
+		MaxUses:                  effMaxUses,
+		UseCount:                 0,
+		SessionID:                opts.SessionID,
+	}
+	sig, err := SignGrant(s.keys, grant)
+	if err != nil {
+		return nil, fmt.Errorf("sign grant: %w", err)
+	}
+	grant.Signature = sig
+
+	// Atomic primitive — security boundary.
+	res, err := s.storage.ApproveRequestAndStoreGrant(approvalRequestID, grant, approverPrincipal, now, now)
+	if err != nil {
+		return nil, err
+	}
+	if !res.OK {
+		switch res.Reason {
+		case "approval_request_not_found":
+			return nil, core.NewANIPError(FailureApprovalRequestNotFound, "request vanished during issuance")
+		case "approval_request_expired":
+			return nil, core.NewANIPError(FailureApprovalRequestExpired, "request expired during issuance")
+		default:
+			return nil, core.NewANIPError(FailureApprovalRequestAlreadyDone, "request decided concurrently")
+		}
+	}
+
+	// Best-effort audit emit. SPEC.md §4.9 audit linkage: approval_grant_issued
+	// links request_id, grant_id, and approver. We do NOT block grant
+	// issuance on audit failure — the grant is already persisted.
+	rootPrincipal, _ := approverPrincipal["root_principal"].(string)
+	if rootPrincipal == "" {
+		rootPrincipal, _ = approverPrincipal["subject"].(string)
+	}
+	subject, _ := approverPrincipal["subject"].(string)
+	resultSummary := map[string]any{
+		"approver":   approverPrincipal,
+		"requester":  req.Requester,
+		"grant_type": grantType,
+		"scope":      req.Scope,
+	}
+	eventClass := ClassifyEvent("", true, "")
+	tier := s.retentionPolicy.ResolveTier(eventClass)
+	expiresAt := s.retentionPolicy.ComputeExpiresAt(tier, time.Now().UTC())
+	entry := &core.AuditEntry{
+		Capability:        req.Capability,
+		Issuer:            s.serviceID,
+		Subject:           subject,
+		RootPrincipal:     rootPrincipal,
+		Success:           true,
+		ResultSummary:     resultSummary,
+		EventClass:        "high_risk_success",
+		RetentionTier:     tier,
+		ExpiresAt:         expiresAt,
+		ApprovalRequestID: approvalRequestID,
+		ApprovalGrantID:   grant.GrantID,
+		EntryType:         "approval_grant_issued",
+	}
+	_ = server.AppendAudit(s.keys, s.storage, entry)
+
+	return res.Grant, nil
+}
+
+func containsString(haystack []string, needle string) bool {
+	for _, s := range haystack {
+		if s == needle {
+			return true
+		}
+	}
+	return false
+}
+
+func cloneStringMap(m map[string]any) map[string]any {
+	if m == nil {
+		return nil
+	}
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
 }

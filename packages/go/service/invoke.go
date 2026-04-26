@@ -614,16 +614,106 @@ func (s *Service) Invoke(
 		},
 	}
 
-	// 5. Call handler.
-	result, err := capDef.Handler(&ctx, params)
+	// v0.23 §4.8 Phase A + Phase B: when an approval_grant is supplied,
+	// validate it and atomically reserve it BEFORE invoking the handler.
+	// Reservation is the security boundary; once reserved, the grant is
+	// spent on this attempt even if the handler fails.
+	if opts.ApprovalGrant != "" {
+		// SPEC.md §4.8: session_id MUST come from the signed token.
+		nowISO := utcNowISO()
+		_, failType := ValidateContinuationGrant(
+			s.storage, s.keys, opts.ApprovalGrant,
+			capName, params, token.Scope, token.SessionID, nowISO,
+		)
+		if failType != "" {
+			return s.failWithGrant(capName, token, capDef, opts.ApprovalGrant, failType, "approval_grant validation failed: "+failType, invocationID, opts, effectiveTaskID), nil
+		}
+		reservation, err := s.storage.TryReserveGrant(opts.ApprovalGrant, nowISO)
+		if err != nil {
+			return s.failWithGrant(capName, token, capDef, opts.ApprovalGrant, core.FailureInternalError, "grant reservation failed", invocationID, opts, effectiveTaskID), nil
+		}
+		if !reservation.OK {
+			var ftype string
+			switch reservation.Reason {
+			case "grant_consumed":
+				ftype = FailureGrantConsumed
+			case "grant_expired":
+				ftype = FailureGrantExpired
+			default:
+				ftype = FailureGrantNotFound
+			}
+			return s.failWithGrant(capName, token, capDef, opts.ApprovalGrant, ftype, ftype, invocationID, opts, effectiveTaskID), nil
+		}
+	}
+
+	// 5. Call handler. v0.23: composed capabilities run ExecuteComposition
+	// instead of the registered handler.
+	var result map[string]any
+	var err error
+	if capDef.Declaration.Kind == core.CapabilityKindComposed {
+		result, err = ExecuteComposition(capName, &capDef.Declaration, params, s.composedInvokeStep(token, opts, effectiveTaskID))
+	} else {
+		result, err = capDef.Handler(&ctx, params)
+	}
 	if err != nil {
 		// Handler returned an error.
 		if anipErr, ok := err.(*core.ANIPError); ok {
-			s.appendAuditEntry(capName, token, false, anipErr.ErrorType, map[string]any{"detail": anipErr.Detail}, nil, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, opts.UpstreamService, capDef.Declaration.SideEffect.Type)
+			// v0.23 §4.7: materialize the ApprovalRequest BEFORE the audit
+			// log so the audit entry can carry approval_request_id. If
+			// persistence fails, downgrade to service_unavailable.
+			var materialized *core.ApprovalRequiredMetadata
+			approvalPersistFailed := false
+			var approvalPersistErr error
+			effectiveErrorType := anipErr.ErrorType
+			if anipErr.ErrorType == FailureApprovalRequired {
+				if anipErr.ApprovalRequired != nil && anipErr.ApprovalRequired.ApprovalRequestID != "" {
+					materialized = anipErr.ApprovalRequired
+				} else {
+					var preview map[string]any
+					meta, _, mErr := MaterializeApprovalRequest(
+						s.storage, &capDef.Declaration,
+						invocationID, // SPEC.md §4.7: parent_invocation_id is the original invocation's ID.
+						map[string]any{
+							"subject":        token.Subject,
+							"root_principal": rootPrincipal,
+						},
+						params, preview, nil,
+					)
+					if mErr != nil {
+						approvalPersistFailed = true
+						approvalPersistErr = mErr
+						effectiveErrorType = core.FailureUnavailable
+					} else {
+						materialized = meta
+					}
+				}
+			}
+
+			approvalRequestIDForAudit := ""
+			if materialized != nil && !approvalPersistFailed {
+				approvalRequestIDForAudit = materialized.ApprovalRequestID
+			}
+			s.appendAuditEntryWithApproval(capName, token, false, effectiveErrorType, map[string]any{"detail": anipErr.Detail}, nil, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, opts.UpstreamService, capDef.Declaration.SideEffect.Type, approvalRequestIDForAudit, opts.ApprovalGrant, "")
+
+			// Emit the dedicated approval_request_created audit event so the
+			// chain from the original invocation to the approval request is
+			// queryable. Best-effort.
+			if approvalRequestIDForAudit != "" {
+				s.appendAuditEntryWithApproval(capName, token, true, "", nil, nil, "", "", effectiveTaskID, invocationID, "", capDef.Declaration.SideEffect.Type, approvalRequestIDForAudit, "", "approval_request_created")
+			}
 
 			failure := map[string]any{
-				"type":   anipErr.ErrorType,
+				"type":   effectiveErrorType,
 				"detail": anipErr.Detail,
+			}
+			if approvalPersistFailed {
+				failure["detail"] = fmt.Sprintf("approval flow unavailable: %s", approvalPersistErr)
+				failure["resolution"] = map[string]any{
+					"action":         "wait_and_retry",
+					"recovery_class": core.RecoveryClassForAction("wait_and_retry"),
+				}
+			} else if materialized != nil {
+				failure["approval_required"] = materialized
 			}
 
 			// Apply failure redaction.
@@ -910,6 +1000,29 @@ func nilIfEmpty(s string) any {
 	return s
 }
 
+// appendAuditEntryWithApproval logs an audit entry that may carry v0.23
+// approval flow linkage (approval_request_id, approval_grant_id) and an
+// optional entry_type discriminator (e.g. approval_request_created).
+func (s *Service) appendAuditEntryWithApproval(
+	capability string,
+	token *core.DelegationToken,
+	success bool,
+	failureType string,
+	resultSummary map[string]any,
+	costActual *core.CostActual,
+	invocationID string,
+	clientReferenceID string,
+	taskID string,
+	parentInvocationID string,
+	upstreamService string,
+	sideEffectType string,
+	approvalRequestID string,
+	approvalGrantID string,
+	entryType string,
+) {
+	s.appendAuditEntryFull(capability, token, success, failureType, resultSummary, costActual, invocationID, clientReferenceID, taskID, parentInvocationID, upstreamService, sideEffectType, approvalRequestID, approvalGrantID, entryType)
+}
+
 // appendAuditEntry logs an audit entry for an invocation.
 func (s *Service) appendAuditEntry(
 	capability string,
@@ -924,6 +1037,26 @@ func (s *Service) appendAuditEntry(
 	parentInvocationID string,
 	upstreamService string,
 	sideEffectType string,
+) {
+	s.appendAuditEntryFull(capability, token, success, failureType, resultSummary, costActual, invocationID, clientReferenceID, taskID, parentInvocationID, upstreamService, sideEffectType, "", "", "")
+}
+
+func (s *Service) appendAuditEntryFull(
+	capability string,
+	token *core.DelegationToken,
+	success bool,
+	failureType string,
+	resultSummary map[string]any,
+	costActual *core.CostActual,
+	invocationID string,
+	clientReferenceID string,
+	taskID string,
+	parentInvocationID string,
+	upstreamService string,
+	sideEffectType string,
+	approvalRequestID string,
+	approvalGrantID string,
+	entryType string,
 ) {
 	rootPrincipal := token.RootPrincipal
 	if rootPrincipal == "" {
@@ -953,6 +1086,9 @@ func (s *Service) appendAuditEntry(
 		EventClass:         eventClass,
 		RetentionTier:      tier,
 		ExpiresAt:          expiresAt,
+		ApprovalRequestID:  approvalRequestID,
+		ApprovalGrantID:    approvalGrantID,
+		EntryType:          entryType,
 	}
 
 	// Apply storage-side redaction.
@@ -1014,4 +1150,57 @@ func tokenClaimsMap(token *core.DelegationToken) map[string]any {
 		claims["anip:caller_class"] = token.CallerClass
 	}
 	return claims
+}
+
+// failWithGrant builds a failure response for a grant validation/reservation
+// failure. v0.23 §4.8: the audit entry carries the grant id so operators can
+// trace continuation attempts.
+func (s *Service) failWithGrant(
+	capName string,
+	token *core.DelegationToken,
+	capDef CapabilityDef,
+	grantID string,
+	failType string,
+	detail string,
+	invocationID string,
+	opts InvokeOpts,
+	effectiveTaskID string,
+) map[string]any {
+	s.appendAuditEntryWithApproval(capName, token, false, failType, map[string]any{"detail": detail}, nil, invocationID, opts.ClientReferenceID, effectiveTaskID, opts.ParentInvocationID, opts.UpstreamService, capDef.Declaration.SideEffect.Type, "", grantID, "")
+
+	failure := map[string]any{
+		"type":   failType,
+		"detail": detail,
+	}
+	effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
+	failure = RedactFailure(failure, effectiveLevel)
+
+	return map[string]any{
+		"success":              false,
+		"failure":              failure,
+		"invocation_id":        invocationID,
+		"client_reference_id":  opts.ClientReferenceID,
+		"task_id":              effectiveTaskID,
+		"parent_invocation_id": opts.ParentInvocationID,
+		"upstream_service":     opts.UpstreamService,
+	}
+}
+
+// composedInvokeStep returns an InvokeStepFunc that re-enters Service.Invoke
+// for child capabilities of a composed parent. Same authority/audit lineage
+// as the parent; child failures are returned as raw response maps for
+// ExecuteComposition to interpret.
+func (s *Service) composedInvokeStep(token *core.DelegationToken, opts InvokeOpts, effectiveTaskID string) InvokeStepFunc {
+	return func(capability string, params map[string]any) (map[string]any, error) {
+		childOpts := InvokeOpts{
+			ClientReferenceID:  opts.ClientReferenceID,
+			TaskID:             effectiveTaskID,
+			ParentInvocationID: opts.ParentInvocationID,
+			UpstreamService:    opts.UpstreamService,
+			Stream:             false,
+			Budget:             opts.Budget,
+			// Children do not inherit parent's approval_grant.
+		}
+		return s.Invoke(capability, token, params, childOpts)
+	}
 }

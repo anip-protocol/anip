@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/anip-protocol/anip/packages/go/core"
 	"github.com/anip-protocol/anip/packages/go/internal/httputil"
@@ -36,6 +37,7 @@ func MountANIP(mux *http.ServeMux, svc *service.Service, opts ...MountANIPOpts) 
 	// JWT-authenticated routes.
 	mux.HandleFunc("POST /anip/permissions", handlePermissions(svc))
 	mux.HandleFunc("POST /anip/invoke/{capability}", handleInvoke(svc))
+	mux.HandleFunc("POST /anip/approval_grants", handleApprovalGrants(svc)) // v0.23
 	mux.HandleFunc("POST /anip/audit", handleAudit(svc))
 
 	// Optional health endpoint.
@@ -222,6 +224,7 @@ func handleInvoke(svc *service.Service) http.HandlerFunc {
 		parentInvID, _ := body["parent_invocation_id"].(string)
 		upstreamSvc, _ := body["upstream_service"].(string)
 		stream, _ := body["stream"].(bool)
+		approvalGrant, _ := body["approval_grant"].(string) // v0.23
 
 		// Extract budget from request body.
 		var budget *core.Budget
@@ -245,6 +248,7 @@ func handleInvoke(svc *service.Service) http.HandlerFunc {
 			UpstreamService:    upstreamSvc,
 			Stream:             false,
 			Budget:             budget,
+			ApprovalGrant:      approvalGrant,
 		})
 		if err != nil {
 			status, respBody := httputil.SimpleFailureResponse(core.FailureInternalError, "Invocation failed", nil)
@@ -263,6 +267,138 @@ func handleInvoke(svc *service.Service) http.HandlerFunc {
 		}
 		writeJSON(w, http.StatusOK, result)
 	}
+}
+
+// handleApprovalGrants implements POST /anip/approval_grants. v0.23 §4.9.
+//
+// Validation order is security-relevant per SPEC.md §4.9 line 1090:
+//  1. authn (already handled by resolveToken)
+//  2. parse body + schema-validate
+//  3. load ApprovalRequest
+//  4. state check (decided / expired) — BEFORE approver auth
+//  5. approver authority check
+//  6. issueApprovalGrant (steps 6–11 of the spec)
+func handleApprovalGrants(svc *service.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		token, ok := resolveToken(w, r, svc)
+		if !ok {
+			return
+		}
+
+		var body core.IssueApprovalGrantRequest
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			status, resp := httputil.SimpleFailureResponse(core.FailureInvalidParameters, "request body must be JSON", nil)
+			writeJSON(w, status, resp)
+			return
+		}
+		if err := validateIssueGrantBody(&body); err != nil {
+			status, resp := httputil.SimpleFailureResponse(core.FailureInvalidParameters, err.Error(), nil)
+			writeJSON(w, status, resp)
+			return
+		}
+
+		req, err := svc.GetApprovalRequest(body.ApprovalRequestID)
+		if err != nil {
+			status, resp := httputil.SimpleFailureResponse(core.FailureInternalError, "lookup failed", nil)
+			writeJSON(w, status, resp)
+			return
+		}
+		if req == nil {
+			status, resp := httputil.SimpleFailureResponse(service.FailureApprovalRequestNotFound,
+				fmt.Sprintf("approval_request_id %q not found", body.ApprovalRequestID), nil)
+			writeJSON(w, status, resp)
+			return
+		}
+
+		// SPEC.md §4.9 step 4: state check BEFORE approver authority.
+		now := time.Now().UTC().Format(time.RFC3339Nano)
+		if req.Status != core.ApprovalRequestStatusPending {
+			status, resp := httputil.SimpleFailureResponse(service.FailureApprovalRequestAlreadyDone,
+				fmt.Sprintf("approval_request %q status=%s", body.ApprovalRequestID, req.Status), nil)
+			writeJSON(w, 409, resp)
+			_ = status
+			return
+		}
+		if req.ExpiresAt <= now {
+			_, resp := httputil.SimpleFailureResponse(service.FailureApprovalRequestExpired,
+				fmt.Sprintf("approval_request %q expired", body.ApprovalRequestID), nil)
+			writeJSON(w, 409, resp)
+			return
+		}
+
+		// Approver authority: token scope contains approver:* OR approver:<capability>.
+		accepted := map[string]struct{}{
+			"approver:*":                {},
+			"approver:" + req.Capability: {},
+		}
+		authorized := false
+		for _, sc := range token.Scope {
+			if _, ok := accepted[sc]; ok {
+				authorized = true
+				break
+			}
+		}
+		if !authorized {
+			_, resp := httputil.SimpleFailureResponse(service.FailureApproverNotAuthorized,
+				fmt.Sprintf("token lacks approver:%s scope", req.Capability), nil)
+			writeJSON(w, 403, resp)
+			return
+		}
+
+		approver := map[string]any{
+			"subject":        token.Subject,
+			"root_principal": token.RootPrincipal,
+		}
+		opts := service.IssueApprovalGrantOpts{SessionID: body.SessionID}
+		if body.ExpiresInSeconds > 0 {
+			v := body.ExpiresInSeconds
+			opts.ExpiresInSeconds = &v
+		}
+		if body.MaxUses > 0 {
+			v := body.MaxUses
+			opts.MaxUses = &v
+		}
+		grant, err := svc.IssueApprovalGrant(body.ApprovalRequestID, body.GrantType, approver, opts)
+		if err != nil {
+			if anipErr, ok := err.(*core.ANIPError); ok {
+				status, resp := httputil.FailureResponse(anipErr)
+				writeJSON(w, status, resp)
+				return
+			}
+			status, resp := httputil.SimpleFailureResponse(core.FailureInternalError, "issuance failed", nil)
+			writeJSON(w, status, resp)
+			return
+		}
+		// SPEC.md §4.9: 200 IS the signed ApprovalGrant — no wrapper.
+		writeJSON(w, http.StatusOK, grant)
+	}
+}
+
+// validateIssueGrantBody enforces the schema invariants on the issuance
+// request. The HTTP layer surfaces these as invalid_parameters; the service
+// layer additionally clamps against grant_policy.
+func validateIssueGrantBody(b *core.IssueApprovalGrantRequest) error {
+	if b.ApprovalRequestID == "" {
+		return fmt.Errorf("approval_request_id: required")
+	}
+	switch b.GrantType {
+	case core.GrantTypeOneTime, core.GrantTypeSessionBound:
+	default:
+		return fmt.Errorf("grant_type: must be one_time or session_bound")
+	}
+	if b.GrantType == core.GrantTypeSessionBound && b.SessionID == "" {
+		return fmt.Errorf("session_id: required when grant_type=session_bound")
+	}
+	if b.GrantType == core.GrantTypeOneTime && b.SessionID != "" {
+		return fmt.Errorf("session_id: must not be set when grant_type=one_time")
+	}
+	if b.ExpiresInSeconds < 0 {
+		return fmt.Errorf("expires_in_seconds: must be a positive integer")
+	}
+	if b.MaxUses < 0 {
+		return fmt.Errorf("max_uses: must be a positive integer")
+	}
+	return nil
 }
 
 func handleStreamInvoke(w http.ResponseWriter, svc *service.Service, capName string, token *core.DelegationToken, params map[string]any, clientRefID, taskID, parentInvID, upstreamSvc string, budget *core.Budget) {

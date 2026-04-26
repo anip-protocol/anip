@@ -333,6 +333,10 @@ type AuditEntry struct {
 	RetentionTier       string         `json:"retention_tier,omitempty"`
 	ExpiresAt           string         `json:"expires_at,omitempty"`
 	StorageRedacted     bool           `json:"storage_redacted,omitempty"`
+	// v0.23: link to approval flow when the entry pertains to an approval
+	// request creation, grant issuance, or continuation invocation.
+	ApprovalRequestID    string            `json:"approval_request_id,omitempty"`
+	ApprovalGrantID      string            `json:"approval_grant_id,omitempty"`
 	EntryType            string            `json:"entry_type,omitempty"`
 	GroupingKey          map[string]string `json:"grouping_key,omitempty"`
 	AggregationWindow    map[string]string `json:"aggregation_window,omitempty"`

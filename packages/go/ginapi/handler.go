@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -37,6 +38,7 @@ func MountANIPGin(router *gin.Engine, svc *service.Service, opts ...MountANIPGin
 	// JWT-authenticated routes.
 	router.POST("/anip/permissions", handlePermissions(svc))
 	router.POST("/anip/invoke/:capability", handleInvoke(svc))
+	router.POST("/anip/approval_grants", handleApprovalGrants(svc)) // v0.23
 	router.POST("/anip/audit", handleAudit(svc))
 
 	// Optional health endpoint.
@@ -221,6 +223,7 @@ func handleInvoke(svc *service.Service) gin.HandlerFunc {
 		parentInvID, _ := body["parent_invocation_id"].(string)
 		upstreamSvc, _ := body["upstream_service"].(string)
 		stream, _ := body["stream"].(bool)
+		approvalGrant, _ := body["approval_grant"].(string) // v0.23
 
 		// Extract budget from request body.
 		var budget *core.Budget
@@ -244,6 +247,7 @@ func handleInvoke(svc *service.Service) gin.HandlerFunc {
 			UpstreamService:    upstreamSvc,
 			Stream:             false,
 			Budget:             budget,
+			ApprovalGrant:      approvalGrant,
 		})
 		if err != nil {
 			status, respBody := httputil.SimpleFailureResponse(core.FailureInternalError, "Invocation failed", nil)
@@ -262,6 +266,133 @@ func handleInvoke(svc *service.Service) gin.HandlerFunc {
 		}
 		c.JSON(http.StatusOK, result)
 	}
+}
+
+// handleApprovalGrants implements POST /anip/approval_grants. v0.23 §4.9.
+//
+// Validation order is security-relevant per SPEC.md §4.9 line 1090:
+//  1. authn (already handled by resolveToken)
+//  2. parse body + schema-validate
+//  3. load ApprovalRequest
+//  4. state check (decided / expired) — BEFORE approver auth
+//  5. approver authority check
+//  6. issueApprovalGrant
+func handleApprovalGrants(svc *service.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token, ok := resolveToken(c, svc)
+		if !ok {
+			return
+		}
+
+		var body core.IssueApprovalGrantRequest
+		if err := c.ShouldBindJSON(&body); err != nil {
+			status, resp := httputil.SimpleFailureResponse(core.FailureInvalidParameters, "request body must be JSON", nil)
+			c.JSON(status, resp)
+			return
+		}
+		if err := validateIssueGrantBody(&body); err != nil {
+			status, resp := httputil.SimpleFailureResponse(core.FailureInvalidParameters, err.Error(), nil)
+			c.JSON(status, resp)
+			return
+		}
+
+		req, err := svc.GetApprovalRequest(body.ApprovalRequestID)
+		if err != nil {
+			status, resp := httputil.SimpleFailureResponse(core.FailureInternalError, "lookup failed", nil)
+			c.JSON(status, resp)
+			return
+		}
+		if req == nil {
+			_, resp := httputil.SimpleFailureResponse(service.FailureApprovalRequestNotFound,
+				fmt.Sprintf("approval_request_id %q not found", body.ApprovalRequestID), nil)
+			c.JSON(404, resp)
+			return
+		}
+
+		now := time.Now().UTC().Format(time.RFC3339Nano)
+		if req.Status != core.ApprovalRequestStatusPending {
+			_, resp := httputil.SimpleFailureResponse(service.FailureApprovalRequestAlreadyDone,
+				fmt.Sprintf("approval_request %q status=%s", body.ApprovalRequestID, req.Status), nil)
+			c.JSON(409, resp)
+			return
+		}
+		if req.ExpiresAt <= now {
+			_, resp := httputil.SimpleFailureResponse(service.FailureApprovalRequestExpired,
+				fmt.Sprintf("approval_request %q expired", body.ApprovalRequestID), nil)
+			c.JSON(409, resp)
+			return
+		}
+
+		accepted := map[string]struct{}{
+			"approver:*":                  {},
+			"approver:" + req.Capability:  {},
+		}
+		authorized := false
+		for _, sc := range token.Scope {
+			if _, ok := accepted[sc]; ok {
+				authorized = true
+				break
+			}
+		}
+		if !authorized {
+			_, resp := httputil.SimpleFailureResponse(service.FailureApproverNotAuthorized,
+				fmt.Sprintf("token lacks approver:%s scope", req.Capability), nil)
+			c.JSON(403, resp)
+			return
+		}
+
+		approver := map[string]any{
+			"subject":        token.Subject,
+			"root_principal": token.RootPrincipal,
+		}
+		opts := service.IssueApprovalGrantOpts{SessionID: body.SessionID}
+		if body.ExpiresInSeconds > 0 {
+			v := body.ExpiresInSeconds
+			opts.ExpiresInSeconds = &v
+		}
+		if body.MaxUses > 0 {
+			v := body.MaxUses
+			opts.MaxUses = &v
+		}
+		grant, err := svc.IssueApprovalGrant(body.ApprovalRequestID, body.GrantType, approver, opts)
+		if err != nil {
+			if anipErr, ok := err.(*core.ANIPError); ok {
+				status, resp := httputil.FailureResponse(anipErr)
+				c.JSON(status, resp)
+				return
+			}
+			status, resp := httputil.SimpleFailureResponse(core.FailureInternalError, "issuance failed", nil)
+			c.JSON(status, resp)
+			return
+		}
+		// SPEC.md §4.9: 200 IS the signed ApprovalGrant — no wrapper.
+		c.JSON(http.StatusOK, grant)
+	}
+}
+
+// validateIssueGrantBody enforces schema invariants on the issuance body.
+func validateIssueGrantBody(b *core.IssueApprovalGrantRequest) error {
+	if b.ApprovalRequestID == "" {
+		return fmt.Errorf("approval_request_id: required")
+	}
+	switch b.GrantType {
+	case core.GrantTypeOneTime, core.GrantTypeSessionBound:
+	default:
+		return fmt.Errorf("grant_type: must be one_time or session_bound")
+	}
+	if b.GrantType == core.GrantTypeSessionBound && b.SessionID == "" {
+		return fmt.Errorf("session_id: required when grant_type=session_bound")
+	}
+	if b.GrantType == core.GrantTypeOneTime && b.SessionID != "" {
+		return fmt.Errorf("session_id: must not be set when grant_type=one_time")
+	}
+	if b.ExpiresInSeconds < 0 {
+		return fmt.Errorf("expires_in_seconds: must be a positive integer")
+	}
+	if b.MaxUses < 0 {
+		return fmt.Errorf("max_uses: must be a positive integer")
+	}
+	return nil
 }
 
 func handleStreamInvoke(c *gin.Context, svc *service.Service, capName string, token *core.DelegationToken, params map[string]any, clientRefID, taskID, parentInvID, upstreamSvc string, budget *core.Budget) {

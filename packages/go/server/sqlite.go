@@ -30,6 +30,9 @@ CREATE TABLE IF NOT EXISTS audit_log (
 	task_id TEXT,
 	parent_invocation_id TEXT,
 	upstream_service TEXT,
+	approval_request_id TEXT,
+	approval_grant_id TEXT,
+	entry_type TEXT,
 	data TEXT NOT NULL,
 	previous_hash TEXT NOT NULL,
 	signature TEXT
@@ -41,13 +44,69 @@ CREATE INDEX IF NOT EXISTS idx_audit_root_principal ON audit_log(root_principal)
 CREATE INDEX IF NOT EXISTS idx_audit_invocation_id ON audit_log(invocation_id);
 CREATE INDEX IF NOT EXISTS idx_audit_task_id ON audit_log(task_id);
 CREATE INDEX IF NOT EXISTS idx_audit_parent_invocation_id ON audit_log(parent_invocation_id);
+CREATE INDEX IF NOT EXISTS idx_audit_approval_request_id ON audit_log(approval_request_id);
+CREATE INDEX IF NOT EXISTS idx_audit_approval_grant_id ON audit_log(approval_grant_id);
 
 CREATE TABLE IF NOT EXISTS checkpoints (
 	checkpoint_id TEXT PRIMARY KEY,
 	data TEXT NOT NULL,
 	signature TEXT NOT NULL
 );
+
+-- v0.23: approval requests
+CREATE TABLE IF NOT EXISTS approval_requests (
+	approval_request_id TEXT PRIMARY KEY,
+	capability TEXT NOT NULL,
+	scope TEXT NOT NULL,                      -- JSON array
+	requester TEXT NOT NULL,                  -- JSON
+	parent_invocation_id TEXT,
+	preview TEXT NOT NULL,                    -- JSON
+	preview_digest TEXT NOT NULL,
+	requested_parameters TEXT NOT NULL,       -- JSON
+	requested_parameters_digest TEXT NOT NULL,
+	grant_policy TEXT NOT NULL,               -- JSON
+	status TEXT NOT NULL CHECK (status IN ('pending','approved','denied','expired')),
+	approver TEXT,                            -- JSON, null until decided
+	decided_at TEXT,
+	created_at TEXT NOT NULL,
+	expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_status ON approval_requests(status);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_expires ON approval_requests(expires_at);
+
+-- v0.23: approval grants. UNIQUE on approval_request_id is defense-in-depth
+-- against concurrent approvals; the atomic UPDATE+INSERT is the boundary.
+CREATE TABLE IF NOT EXISTS approval_grants (
+	grant_id TEXT PRIMARY KEY,
+	approval_request_id TEXT NOT NULL UNIQUE,
+	grant_type TEXT NOT NULL CHECK (grant_type IN ('one_time','session_bound')),
+	capability TEXT NOT NULL,
+	scope TEXT NOT NULL,                      -- JSON array
+	approved_parameters_digest TEXT NOT NULL,
+	preview_digest TEXT NOT NULL,
+	requester TEXT NOT NULL,                  -- JSON
+	approver TEXT NOT NULL,                   -- JSON
+	issued_at TEXT NOT NULL,
+	expires_at TEXT NOT NULL,
+	max_uses INTEGER NOT NULL CHECK (max_uses >= 1),
+	use_count INTEGER NOT NULL DEFAULT 0,
+	session_id TEXT,
+	signature TEXT NOT NULL,
+	FOREIGN KEY (approval_request_id) REFERENCES approval_requests(approval_request_id)
+);
+CREATE INDEX IF NOT EXISTS idx_grants_approval_request_id ON approval_grants(approval_request_id);
+CREATE INDEX IF NOT EXISTS idx_grants_expires ON approval_grants(expires_at);
 `
+
+// sqliteAuditMigrations adds v0.23 audit-log columns to pre-existing
+// databases. Each statement is run independently so a failed ALTER (because
+// the column already exists) doesn't abort the rest.
+var sqliteAuditMigrations = []string{
+	"ALTER TABLE audit_log ADD COLUMN approval_request_id TEXT",
+	"ALTER TABLE audit_log ADD COLUMN approval_grant_id TEXT",
+	"ALTER TABLE audit_log ADD COLUMN entry_type TEXT",
+	"ALTER TABLE delegation_tokens ADD COLUMN session_id TEXT",
+}
 
 // SQLiteStorage implements Storage using modernc.org/sqlite.
 type SQLiteStorage struct {
@@ -80,6 +139,13 @@ func NewSQLiteStorage(dbPath string) (*SQLiteStorage, error) {
 	if _, err := db.Exec(sqliteSchema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("create schema: %w", err)
+	}
+
+	// Idempotent ALTER TABLE migrations for pre-existing databases. We
+	// ignore "duplicate column" errors so already-migrated databases boot
+	// cleanly. SQLite has no IF NOT EXISTS on ADD COLUMN.
+	for _, stmt := range sqliteAuditMigrations {
+		_, _ = db.Exec(stmt)
 	}
 
 	return &SQLiteStorage{
@@ -209,8 +275,9 @@ func (s *SQLiteStorage) AppendAuditEntry(entry *core.AuditEntry) (*core.AuditEnt
 	result, err := tx.Exec(
 		`INSERT INTO audit_log (timestamp, capability, token_id, root_principal,
 		 invocation_id, client_reference_id, task_id, parent_invocation_id,
-		 upstream_service, data, previous_hash, signature)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 upstream_service, approval_request_id, approval_grant_id, entry_type,
+		 data, previous_hash, signature)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		entry.Timestamp,
 		entry.Capability,
 		entry.TokenID,
@@ -220,6 +287,9 @@ func (s *SQLiteStorage) AppendAuditEntry(entry *core.AuditEntry) (*core.AuditEnt
 		entry.TaskID,
 		entry.ParentInvocationID,
 		entry.UpstreamService,
+		nilIfEmpty(entry.ApprovalRequestID),
+		nilIfEmpty(entry.ApprovalGrantID),
+		nilIfEmpty(entry.EntryType),
 		string(data),
 		prevHash,
 		entry.Signature,
@@ -281,6 +351,14 @@ func (s *SQLiteStorage) QueryAuditEntries(filters AuditFilters) ([]core.AuditEnt
 	if filters.ParentInvocationID != "" {
 		query += " AND parent_invocation_id = ?"
 		args = append(args, filters.ParentInvocationID)
+	}
+	if filters.ApprovalRequestID != "" {
+		query += " AND approval_request_id = ?"
+		args = append(args, filters.ApprovalRequestID)
+	}
+	if filters.ApprovalGrantID != "" {
+		query += " AND approval_grant_id = ?"
+		args = append(args, filters.ApprovalGrantID)
 	}
 
 	query += " ORDER BY sequence_number DESC"
@@ -559,4 +637,403 @@ func (s *SQLiteStorage) TryAcquireLeader(role, holder string, ttlSeconds int) (b
 // ReleaseLeader releases a leader lease if held by the given holder.
 func (s *SQLiteStorage) ReleaseLeader(role, holder string) error {
 	return s.ReleaseExclusive("leader:"+role, holder)
+}
+
+// nilIfEmpty returns nil for empty strings, else the string. SQLite stores
+// nil as NULL — nicer for filter queries than empty strings.
+func nilIfEmpty(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
+// --- v0.23: Approval requests + grants ---
+
+// StoreApprovalRequest persists a new ApprovalRequest. Idempotent on
+// approval_request_id when content is identical; conflicting re-store with
+// the same id is an error. SPEC.md §4.7.
+func (s *SQLiteStorage) StoreApprovalRequest(req *core.ApprovalRequest) error {
+	scopeJSON, _ := json.Marshal(req.Scope)
+	requesterJSON, _ := json.Marshal(req.Requester)
+	previewJSON, _ := json.Marshal(req.Preview)
+	paramsJSON, _ := json.Marshal(req.RequestedParameters)
+	policyJSON, _ := json.Marshal(req.GrantPolicy)
+	var approverJSON []byte
+	if req.Approver != nil {
+		approverJSON, _ = json.Marshal(req.Approver)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Idempotency: SELECT-then-INSERT under the same lock.
+	existing, err := s.loadApprovalRequestLocked(req.ApprovalRequestID)
+	if err != nil {
+		return err
+	}
+	if existing != nil {
+		if !approvalRequestsEqual(existing, req) {
+			return fmt.Errorf("approval_request_id %q already stored with different content", req.ApprovalRequestID)
+		}
+		return nil
+	}
+
+	_, err = s.db.Exec(
+		`INSERT INTO approval_requests (
+			approval_request_id, capability, scope, requester, parent_invocation_id,
+			preview, preview_digest, requested_parameters, requested_parameters_digest,
+			grant_policy, status, approver, decided_at, created_at, expires_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		req.ApprovalRequestID,
+		req.Capability,
+		string(scopeJSON),
+		string(requesterJSON),
+		nilIfEmpty(req.ParentInvocationID),
+		string(previewJSON),
+		req.PreviewDigest,
+		string(paramsJSON),
+		req.RequestedParametersDigest,
+		string(policyJSON),
+		req.Status,
+		nullableJSON(approverJSON),
+		nilIfEmpty(req.DecidedAt),
+		req.CreatedAt,
+		req.ExpiresAt,
+	)
+	return err
+}
+
+// GetApprovalRequest loads an ApprovalRequest by id, or nil if not found.
+func (s *SQLiteStorage) GetApprovalRequest(id string) (*core.ApprovalRequest, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.loadApprovalRequestLocked(id)
+}
+
+func (s *SQLiteStorage) loadApprovalRequestLocked(id string) (*core.ApprovalRequest, error) {
+	row := s.db.QueryRow(
+		`SELECT approval_request_id, capability, scope, requester, parent_invocation_id,
+		        preview, preview_digest, requested_parameters, requested_parameters_digest,
+		        grant_policy, status, approver, decided_at, created_at, expires_at
+		 FROM approval_requests WHERE approval_request_id = ?`, id,
+	)
+	return scanApprovalRequest(row)
+}
+
+type approvalRowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanApprovalRequest(row approvalRowScanner) (*core.ApprovalRequest, error) {
+	var (
+		id, capability, scopeJSON, requesterJSON, previewJSON, paramsJSON, policyJSON, status, createdAt, expiresAt string
+		previewDigest, paramsDigest                                                                                  string
+		parentInvID, approverJSON, decidedAt                                                                         sql.NullString
+	)
+	err := row.Scan(
+		&id, &capability, &scopeJSON, &requesterJSON, &parentInvID,
+		&previewJSON, &previewDigest, &paramsJSON, &paramsDigest,
+		&policyJSON, &status, &approverJSON, &decidedAt, &createdAt, &expiresAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	req := &core.ApprovalRequest{
+		ApprovalRequestID:         id,
+		Capability:                capability,
+		PreviewDigest:             previewDigest,
+		RequestedParametersDigest: paramsDigest,
+		Status:                    status,
+		CreatedAt:                 createdAt,
+		ExpiresAt:                 expiresAt,
+	}
+	if parentInvID.Valid {
+		req.ParentInvocationID = parentInvID.String
+	}
+	if decidedAt.Valid {
+		req.DecidedAt = decidedAt.String
+	}
+	_ = json.Unmarshal([]byte(scopeJSON), &req.Scope)
+	_ = json.Unmarshal([]byte(requesterJSON), &req.Requester)
+	_ = json.Unmarshal([]byte(previewJSON), &req.Preview)
+	_ = json.Unmarshal([]byte(paramsJSON), &req.RequestedParameters)
+	_ = json.Unmarshal([]byte(policyJSON), &req.GrantPolicy)
+	if approverJSON.Valid && approverJSON.String != "" {
+		_ = json.Unmarshal([]byte(approverJSON.String), &req.Approver)
+	}
+	return req, nil
+}
+
+// ApproveRequestAndStoreGrant atomically transitions an ApprovalRequest to
+// approved and persists the signed ApprovalGrant. Decision 0.9a: this is
+// the security boundary — UPDATE+INSERT happen in a single transaction.
+func (s *SQLiteStorage) ApproveRequestAndStoreGrant(
+	approvalRequestID string,
+	grant *core.ApprovalGrant,
+	approver map[string]any,
+	decidedAtIso string,
+	nowIso string,
+) (ApprovalDecisionResult, error) {
+	approverJSON, _ := json.Marshal(approver)
+	scopeJSON, _ := json.Marshal(grant.Scope)
+	requesterJSON, _ := json.Marshal(grant.Requester)
+	grantApproverJSON, _ := json.Marshal(grant.Approver)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return ApprovalDecisionResult{}, fmt.Errorf("begin tx: %w", err)
+	}
+	rolled := false
+	rollback := func() {
+		if !rolled {
+			_ = tx.Rollback()
+			rolled = true
+		}
+	}
+	defer rollback()
+
+	res, err := tx.Exec(
+		`UPDATE approval_requests
+		 SET status = 'approved', approver = ?, decided_at = ?
+		 WHERE approval_request_id = ?
+		   AND status = 'pending'
+		   AND expires_at > ?`,
+		string(approverJSON), decidedAtIso, approvalRequestID, nowIso,
+	)
+	if err != nil {
+		return ApprovalDecisionResult{}, fmt.Errorf("update request: %w", err)
+	}
+	affected, _ := res.RowsAffected()
+	if affected == 0 {
+		// Disambiguate: not found vs expired vs already decided.
+		var status, expiresAt string
+		err := tx.QueryRow(
+			"SELECT status, expires_at FROM approval_requests WHERE approval_request_id = ?",
+			approvalRequestID,
+		).Scan(&status, &expiresAt)
+		rollback()
+		if err == sql.ErrNoRows {
+			return ApprovalDecisionResult{OK: false, Reason: "approval_request_not_found"}, nil
+		}
+		if err != nil {
+			return ApprovalDecisionResult{}, err
+		}
+		if expiresAt <= nowIso {
+			return ApprovalDecisionResult{OK: false, Reason: "approval_request_expired"}, nil
+		}
+		return ApprovalDecisionResult{OK: false, Reason: "approval_request_already_decided"}, nil
+	}
+
+	_, err = tx.Exec(
+		`INSERT INTO approval_grants (
+			grant_id, approval_request_id, grant_type, capability, scope,
+			approved_parameters_digest, preview_digest, requester, approver,
+			issued_at, expires_at, max_uses, use_count, session_id, signature
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		grant.GrantID,
+		grant.ApprovalRequestID,
+		grant.GrantType,
+		grant.Capability,
+		string(scopeJSON),
+		grant.ApprovedParametersDigest,
+		grant.PreviewDigest,
+		string(requesterJSON),
+		string(grantApproverJSON),
+		grant.IssuedAt,
+		grant.ExpiresAt,
+		grant.MaxUses,
+		grant.UseCount,
+		nilIfEmpty(grant.SessionID),
+		grant.Signature,
+	)
+	if err != nil {
+		// UNIQUE constraint on approval_request_id => concurrent approval.
+		rollback()
+		return ApprovalDecisionResult{OK: false, Reason: "approval_request_already_decided"}, nil
+	}
+
+	if err := tx.Commit(); err != nil {
+		return ApprovalDecisionResult{}, fmt.Errorf("commit: %w", err)
+	}
+	rolled = true
+	persisted := *grant
+	return ApprovalDecisionResult{OK: true, Grant: &persisted}, nil
+}
+
+// StoreGrant inserts or replaces an ApprovalGrant — internal/test-only.
+func (s *SQLiteStorage) StoreGrant(grant *core.ApprovalGrant) error {
+	scopeJSON, _ := json.Marshal(grant.Scope)
+	requesterJSON, _ := json.Marshal(grant.Requester)
+	approverJSON, _ := json.Marshal(grant.Approver)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, err := s.db.Exec(
+		`INSERT OR REPLACE INTO approval_grants (
+			grant_id, approval_request_id, grant_type, capability, scope,
+			approved_parameters_digest, preview_digest, requester, approver,
+			issued_at, expires_at, max_uses, use_count, session_id, signature
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		grant.GrantID,
+		grant.ApprovalRequestID,
+		grant.GrantType,
+		grant.Capability,
+		string(scopeJSON),
+		grant.ApprovedParametersDigest,
+		grant.PreviewDigest,
+		string(requesterJSON),
+		string(approverJSON),
+		grant.IssuedAt,
+		grant.ExpiresAt,
+		grant.MaxUses,
+		grant.UseCount,
+		nilIfEmpty(grant.SessionID),
+		grant.Signature,
+	)
+	return err
+}
+
+// GetGrant loads an ApprovalGrant by grant_id, or nil if not found.
+func (s *SQLiteStorage) GetGrant(grantID string) (*core.ApprovalGrant, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.loadGrantLocked(grantID)
+}
+
+func (s *SQLiteStorage) loadGrantLocked(grantID string) (*core.ApprovalGrant, error) {
+	row := s.db.QueryRow(
+		`SELECT grant_id, approval_request_id, grant_type, capability, scope,
+		        approved_parameters_digest, preview_digest, requester, approver,
+		        issued_at, expires_at, max_uses, use_count, session_id, signature
+		 FROM approval_grants WHERE grant_id = ?`, grantID,
+	)
+	return scanGrant(row)
+}
+
+func scanGrant(row approvalRowScanner) (*core.ApprovalGrant, error) {
+	var (
+		id, reqID, grantType, capability, scopeJSON, paramsDigest, previewDigest, requesterJSON, approverJSON, issuedAt, expiresAt, signature string
+		maxUses, useCount                                                                                                                      int
+		sessionID                                                                                                                              sql.NullString
+	)
+	err := row.Scan(
+		&id, &reqID, &grantType, &capability, &scopeJSON,
+		&paramsDigest, &previewDigest, &requesterJSON, &approverJSON,
+		&issuedAt, &expiresAt, &maxUses, &useCount, &sessionID, &signature,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	g := &core.ApprovalGrant{
+		GrantID:                  id,
+		ApprovalRequestID:        reqID,
+		GrantType:                grantType,
+		Capability:               capability,
+		ApprovedParametersDigest: paramsDigest,
+		PreviewDigest:            previewDigest,
+		IssuedAt:                 issuedAt,
+		ExpiresAt:                expiresAt,
+		MaxUses:                  maxUses,
+		UseCount:                 useCount,
+		Signature:                signature,
+	}
+	if sessionID.Valid {
+		g.SessionID = sessionID.String
+	}
+	_ = json.Unmarshal([]byte(scopeJSON), &g.Scope)
+	_ = json.Unmarshal([]byte(requesterJSON), &g.Requester)
+	_ = json.Unmarshal([]byte(approverJSON), &g.Approver)
+	return g, nil
+}
+
+// TryReserveGrant atomically increments use_count if the grant is still
+// usable. SPEC.md §4.8 Phase B.
+func (s *SQLiteStorage) TryReserveGrant(grantID string, nowIso string) (GrantReservationResult, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return GrantReservationResult{}, fmt.Errorf("begin tx: %w", err)
+	}
+	rolled := false
+	rollback := func() {
+		if !rolled {
+			_ = tx.Rollback()
+			rolled = true
+		}
+	}
+	defer rollback()
+
+	res, err := tx.Exec(
+		`UPDATE approval_grants
+		 SET use_count = use_count + 1
+		 WHERE grant_id = ?
+		   AND use_count < max_uses
+		   AND expires_at > ?`,
+		grantID, nowIso,
+	)
+	if err != nil {
+		return GrantReservationResult{}, fmt.Errorf("update grant: %w", err)
+	}
+	affected, _ := res.RowsAffected()
+	if affected == 0 {
+		var useCount, maxUses int
+		var expiresAt string
+		err := tx.QueryRow(
+			"SELECT use_count, max_uses, expires_at FROM approval_grants WHERE grant_id = ?",
+			grantID,
+		).Scan(&useCount, &maxUses, &expiresAt)
+		rollback()
+		if err == sql.ErrNoRows {
+			return GrantReservationResult{OK: false, Reason: "grant_not_found"}, nil
+		}
+		if err != nil {
+			return GrantReservationResult{}, err
+		}
+		if expiresAt <= nowIso {
+			return GrantReservationResult{OK: false, Reason: "grant_expired"}, nil
+		}
+		if useCount >= maxUses {
+			return GrantReservationResult{OK: false, Reason: "grant_consumed"}, nil
+		}
+		return GrantReservationResult{OK: false, Reason: "grant_not_found"}, nil
+	}
+
+	if err := tx.Commit(); err != nil {
+		return GrantReservationResult{}, fmt.Errorf("commit: %w", err)
+	}
+	rolled = true
+	g, err := s.loadGrantLocked(grantID)
+	if err != nil {
+		return GrantReservationResult{}, err
+	}
+	return GrantReservationResult{OK: true, Grant: g}, nil
+}
+
+// nullableJSON returns nil for an empty byte slice, else the JSON bytes as
+// a string. Used to map Go nil into SQLite NULL for optional JSON columns.
+func nullableJSON(b []byte) any {
+	if len(b) == 0 {
+		return nil
+	}
+	return string(b)
+}
+
+// approvalRequestsEqual compares two ApprovalRequest pointers for content
+// equality via canonical JSON. Used by the idempotent StoreApprovalRequest.
+func approvalRequestsEqual(a, b *core.ApprovalRequest) bool {
+	aJSON, _ := json.Marshal(a)
+	bJSON, _ := json.Marshal(b)
+	return string(aJSON) == string(bJSON)
 }
