@@ -193,7 +193,10 @@
           "description": "Concurrency posture for the token tree. Uses the same vocabulary as delegation constraints."
         },
         "session_id": {
-          "type": "string",
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
           "description": "v0.23: bind a session identity to the issued token. Required for callers that intend to redeem session_bound ApprovalGrants. Only honored at root issuance — child tokens inherit parent.session_id verbatim. See SPEC.md §4.8."
         }
       }
