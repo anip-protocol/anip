@@ -13,6 +13,7 @@ public class InvokeOpts {
     private String parentInvocationId;
     private String upstreamService;
     private Budget budget;
+    private String approvalGrant;  // v0.23: grant_id supplied on continuation invocations
 
     public InvokeOpts() {}
 
@@ -87,6 +88,16 @@ public class InvokeOpts {
 
     public InvokeOpts setBudget(Budget budget) {
         this.budget = budget;
+        return this;
+    }
+
+    /** v0.23: grant_id supplied on continuation invocations after a prior approval_required failure. */
+    public String getApprovalGrant() {
+        return approvalGrant;
+    }
+
+    public InvokeOpts setApprovalGrant(String approvalGrant) {
+        this.approvalGrant = approvalGrant;
         return this;
     }
 }
