@@ -2,6 +2,7 @@ import express, { Router } from "express";
 import type { Express, Request, Response } from "express";
 import type { ANIPService } from "@anip-dev/service";
 import { ANIPError } from "@anip-dev/service";
+import { IssueApprovalGrantRequest } from "@anip-dev/core";
 
 export async function mountAnip(
   app: Express,
@@ -170,6 +171,13 @@ export async function mountAnip(
   });
 
   // --- Approval Grants (v0.23 §4.9) ---
+  // Validation order is security-relevant; see SPEC.md §4.9 line 1090:
+  //   1. authn (already handled by resolveToken)
+  //   2. parse body + schema-validate via IssueApprovalGrantRequest
+  //   3. load ApprovalRequest
+  //   4. check state (decided / expired) — BEFORE approver auth
+  //   5. check approver authority against the loaded capability
+  //   6. issueApprovalGrant (steps 6–11 of the spec)
   router.post("/anip/approval_grants", async (req, res, next) => {
     try {
       const authResult = await resolveToken(req, service);
@@ -177,48 +185,37 @@ export async function mountAnip(
       if (authResult instanceof ANIPError) { errorResponse(res, authResult); return; }
       const token = authResult;
 
-      const body = req.body ?? {};
-      const approvalRequestId = body.approval_request_id as string | undefined;
-      const grantType = body.grant_type as
-        | "one_time"
-        | "session_bound"
-        | undefined;
-      if (!approvalRequestId || !grantType) {
-        res.status(400).json({
-          success: false,
-          failure: {
-            type: "invalid_parameters",
-            detail: "Missing approval_request_id or grant_type",
-            resolution: {
-              action: "fix_request_body",
-              recovery_class: "revalidate_then_retry",
-              requires: "Both approval_request_id and grant_type fields",
-              grantable_by: null,
-              estimated_availability: null,
-            },
-            retry: false,
-          },
-        });
+      const parsed = IssueApprovalGrantRequest.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json(
+          invalidParametersFailure(
+            parsed.error.issues
+              .map((i) => `${i.path.join(".")}: ${i.message}`)
+              .join("; "),
+          ),
+        );
         return;
       }
+      const { approval_request_id: approvalRequestId, grant_type: grantType } =
+        parsed.data;
 
       const approvalRequest = await service.getApprovalRequest(approvalRequestId);
       if (approvalRequest === null) {
-        res.status(404).json({
-          success: false,
-          failure: {
-            type: "approval_request_not_found",
-            detail: `unknown approval_request_id=${JSON.stringify(approvalRequestId)}`,
-            resolution: {
-              action: "check_manifest",
-              recovery_class: "revalidate_then_retry",
-              requires: "Valid approval_request_id from a prior approval_required failure",
-              grantable_by: null,
-              estimated_availability: null,
-            },
-            retry: false,
-          },
-        });
+        res.status(404).json(approvalRequestNotFoundFailure(approvalRequestId));
+        return;
+      }
+
+      // SPEC.md §4.9 step 4: state check BEFORE approver authority.
+      const status = approvalRequest.status as string;
+      const expiresAt = approvalRequest.expires_at as string | undefined;
+      if (status !== "pending") {
+        res.status(409).json(
+          approvalRequestAlreadyDecidedFailure(approvalRequestId, status),
+        );
+        return;
+      }
+      if (expiresAt && expiresAt <= new Date().toISOString()) {
+        res.status(409).json(approvalRequestExpiredFailure(approvalRequestId));
         return;
       }
 
@@ -226,21 +223,7 @@ export async function mountAnip(
       const tokenScopes = token.scope ?? [];
       const acceptedScopes = new Set(["approver:*", `approver:${targetCapability}`]);
       if (!tokenScopes.some((s) => acceptedScopes.has(s))) {
-        res.status(403).json({
-          success: false,
-          failure: {
-            type: "approver_not_authorized",
-            detail: `token lacks approver scope for capability ${JSON.stringify(targetCapability)}`,
-            resolution: {
-              action: "request_broader_scope",
-              recovery_class: "redelegation_then_retry",
-              requires: `scope += approver:${targetCapability}`,
-              grantable_by: null,
-              estimated_availability: null,
-            },
-            retry: false,
-          },
-        });
+        res.status(403).json(approverNotAuthorizedFailure(targetCapability));
         return;
       }
 
@@ -254,9 +237,9 @@ export async function mountAnip(
           grantType,
           approverPrincipal,
           {
-            expiresInSeconds: body.expires_in_seconds as number | undefined,
-            maxUses: body.max_uses as number | undefined,
-            sessionId: body.session_id as string | undefined,
+            expiresInSeconds: parsed.data.expires_in_seconds,
+            maxUses: parsed.data.max_uses,
+            sessionId: parsed.data.session_id,
           },
         );
         // SPEC.md §4.9: 200 response IS the signed ApprovalGrant — no wrapper.
@@ -467,4 +450,99 @@ function errorResponse(res: Response, error: ANIPError) {
       retry: error.retry,
     },
   });
+}
+
+// --- Approval-grants endpoint failure shapes (v0.23 §4.9) ---
+
+function invalidParametersFailure(detail: string) {
+  return {
+    success: false,
+    failure: {
+      type: "invalid_parameters",
+      detail,
+      resolution: {
+        action: "retry_now",
+        recovery_class: "retry_now",
+        requires: null,
+        grantable_by: null,
+        estimated_availability: null,
+      },
+      retry: false,
+    },
+  };
+}
+
+function approvalRequestNotFoundFailure(approvalRequestId: string) {
+  return {
+    success: false,
+    failure: {
+      type: "approval_request_not_found",
+      detail: `unknown approval_request_id=${JSON.stringify(approvalRequestId)}`,
+      resolution: {
+        action: "check_manifest",
+        recovery_class: "revalidate_then_retry",
+        requires: "Valid approval_request_id from a prior approval_required failure",
+        grantable_by: null,
+        estimated_availability: null,
+      },
+      retry: false,
+    },
+  };
+}
+
+function approvalRequestAlreadyDecidedFailure(
+  approvalRequestId: string,
+  status: string,
+) {
+  return {
+    success: false,
+    failure: {
+      type: "approval_request_already_decided",
+      detail: `approval_request_id=${JSON.stringify(approvalRequestId)} is in status=${JSON.stringify(status)}`,
+      resolution: {
+        action: "contact_service_owner",
+        recovery_class: "terminal",
+        requires: null,
+        grantable_by: null,
+        estimated_availability: null,
+      },
+      retry: false,
+    },
+  };
+}
+
+function approvalRequestExpiredFailure(approvalRequestId: string) {
+  return {
+    success: false,
+    failure: {
+      type: "approval_request_expired",
+      detail: `approval_request_id=${JSON.stringify(approvalRequestId)} expired before issuance`,
+      resolution: {
+        action: "contact_service_owner",
+        recovery_class: "terminal",
+        requires: null,
+        grantable_by: null,
+        estimated_availability: null,
+      },
+      retry: false,
+    },
+  };
+}
+
+function approverNotAuthorizedFailure(targetCapability: string) {
+  return {
+    success: false,
+    failure: {
+      type: "approver_not_authorized",
+      detail: `token lacks approver scope for capability ${JSON.stringify(targetCapability)}`,
+      resolution: {
+        action: "request_broader_scope",
+        recovery_class: "redelegation_then_retry",
+        requires: `scope += approver:${targetCapability}`,
+        grantable_by: null,
+        estimated_availability: null,
+      },
+      retry: false,
+    },
+  };
 }

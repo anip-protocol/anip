@@ -147,7 +147,7 @@ describe("useAnipDiscovery", () => {
 
   it("calls client.discover() on load", async () => {
     const discoveryDoc: NormalizedDiscovery = {
-      protocol: "anip/0.22",
+      protocol: "anip/0.23",
       compliance: "full",
       trustLevel: "signed",
       endpoints: { manifest: "/anip/manifest" },
@@ -204,7 +204,7 @@ describe("useAnipManifest", () => {
 
   it("calls client.getManifest() on load", async () => {
     const manifestDoc: NormalizedManifest = {
-      protocol: "anip/0.22",
+      protocol: "anip/0.23",
       capabilities: {
         search_flights: {
           name: "search_flights",

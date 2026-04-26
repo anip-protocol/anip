@@ -226,6 +226,83 @@ describe("Express POST /anip/approval_grants", () => {
     expect(r.status).toBe(400);
   });
 
+  // SPEC.md §4.9 Validation order step 2: schema-validate body.
+  it("schema_rejects_max_uses_zero", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const approverToken = await issueToken(app, {
+      scope: ["finance.write", "approver:*"],
+    });
+    const r = await request(app)
+      .post("/anip/approval_grants")
+      .set("Authorization", `Bearer ${approverToken}`)
+      .send({
+        approval_request_id: "apr_x",
+        grant_type: "session_bound",
+        session_id: "sess-A",
+        max_uses: 0,
+      });
+    expect(r.status).toBe(400);
+    expect(r.body.failure.type).toBe("invalid_parameters");
+  });
+
+  it("schema_rejects_string_expires_in_seconds", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const approverToken = await issueToken(app, {
+      scope: ["finance.write", "approver:*"],
+    });
+    const r = await request(app)
+      .post("/anip/approval_grants")
+      .set("Authorization", `Bearer ${approverToken}`)
+      .send({
+        approval_request_id: "apr_x",
+        grant_type: "one_time",
+        expires_in_seconds: "60",
+      });
+    expect(r.status).toBe(400);
+    expect(r.body.failure.type).toBe("invalid_parameters");
+  });
+
+  it("schema_rejects_empty_session_id", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const approverToken = await issueToken(app, {
+      scope: ["finance.write", "approver:*"],
+    });
+    const r = await request(app)
+      .post("/anip/approval_grants")
+      .set("Authorization", `Bearer ${approverToken}`)
+      .send({
+        approval_request_id: "apr_x",
+        grant_type: "session_bound",
+        session_id: "",
+      });
+    expect(r.status).toBe(400);
+    expect(r.body.failure.type).toBe("invalid_parameters");
+  });
+
+  // SPEC.md §4.9 Validation order step 4: state check before approver auth.
+  it("state_check_runs_before_approver_auth", async () => {
+    const { app, stop } = await makeApp();
+    stopFn = stop;
+    const token = await issueToken(app, { scope: ["finance.write"] });
+    const requestId = await triggerApproval(app, token);
+    const approverToken = await issueToken(app, {
+      scope: ["finance.write", "approver:*"],
+    });
+    await request(app)
+      .post("/anip/approval_grants")
+      .set("Authorization", `Bearer ${approverToken}`)
+      .send({ approval_request_id: requestId, grant_type: "one_time" });
+    const nonApproverToken = await issueToken(app, { scope: ["finance.write"] });
+    const r = await request(app)
+      .post("/anip/approval_grants")
+      .set("Authorization", `Bearer ${nonApproverToken}`)
+      .send({ approval_request_id: requestId, grant_type: "one_time" });
+    expect(r.body.failure.type).toBe("approval_request_already_decided");
+  });
+
   it("discovery_advertises_endpoint", async () => {
     const { app, stop } = await makeApp();
     stopFn = stop;

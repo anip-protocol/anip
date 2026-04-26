@@ -79,7 +79,7 @@ describe("AnipDiscoveryService", () => {
 
   it("transitions loading -> data on success", async () => {
     const discoveryDoc: NormalizedDiscovery = {
-      protocol: "anip/0.22",
+      protocol: "anip/0.23",
       compliance: "full",
       trustLevel: "signed",
       endpoints: { manifest: "/anip/manifest" },
@@ -119,7 +119,7 @@ describe("AnipDiscoveryService", () => {
 
   it("clears stale data on error", async () => {
     const discoveryDoc: NormalizedDiscovery = {
-      protocol: "anip/0.22",
+      protocol: "anip/0.23",
       compliance: "full",
       endpoints: {},
       profiles: {},
@@ -150,7 +150,7 @@ describe("AnipDiscoveryService", () => {
   it("clears previous error on reload", async () => {
     let callCount = 0;
     const discoveryDoc: NormalizedDiscovery = {
-      protocol: "anip/0.22",
+      protocol: "anip/0.23",
       compliance: "full",
       endpoints: {},
       profiles: {},
@@ -190,7 +190,7 @@ describe("AnipManifestService", () => {
 
   it("transitions loading -> data on success", async () => {
     const manifestDoc: NormalizedManifest = {
-      protocol: "anip/0.22",
+      protocol: "anip/0.23",
       capabilities: {
         search_flights: {
           name: "search_flights",
@@ -293,7 +293,7 @@ describe("AnipCapabilityService", () => {
 
     // Simulate manifest load — signal change should auto-resolve
     loaded = true;
-    manifestSignal.set({ protocol: "anip/0.22", capabilities: {}, raw: {} } as any);
+    manifestSignal.set({ protocol: "anip/0.23", capabilities: {}, raw: {} } as any);
     expect(service.data()).toEqual(cap);
 
     service.destroy();

@@ -279,6 +279,124 @@ describe("Hono POST /anip/approval_grants", () => {
     expect(r.status).toBe(400);
   });
 
+  // SPEC.md §4.9 Validation order step 2: schema-validate body before
+  // anything else. Bad numerics / empty strings must surface as
+  // invalid_parameters 400, not slip through into issuance.
+  it("schema_rejects_max_uses_zero", async () => {
+    const { app } = await makeApp();
+    const approverToken = await issueToken(app, {
+      scope: ["finance.write", "approver:*"],
+    });
+    const r = await app.request("/anip/approval_grants", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${approverToken}`,
+      },
+      body: JSON.stringify({
+        approval_request_id: "apr_x",
+        grant_type: "session_bound",
+        session_id: "sess-A",
+        max_uses: 0,
+      }),
+    });
+    expect(r.status).toBe(400);
+    const body = (await r.json()) as Record<string, unknown>;
+    expect((body.failure as Record<string, unknown>).type).toBe(
+      "invalid_parameters",
+    );
+  });
+
+  it("schema_rejects_string_expires_in_seconds", async () => {
+    const { app } = await makeApp();
+    const approverToken = await issueToken(app, {
+      scope: ["finance.write", "approver:*"],
+    });
+    const r = await app.request("/anip/approval_grants", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${approverToken}`,
+      },
+      body: JSON.stringify({
+        approval_request_id: "apr_x",
+        grant_type: "one_time",
+        expires_in_seconds: "60",
+      }),
+    });
+    expect(r.status).toBe(400);
+    const body = (await r.json()) as Record<string, unknown>;
+    expect((body.failure as Record<string, unknown>).type).toBe(
+      "invalid_parameters",
+    );
+  });
+
+  it("schema_rejects_empty_session_id", async () => {
+    const { app } = await makeApp();
+    const approverToken = await issueToken(app, {
+      scope: ["finance.write", "approver:*"],
+    });
+    const r = await app.request("/anip/approval_grants", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${approverToken}`,
+      },
+      body: JSON.stringify({
+        approval_request_id: "apr_x",
+        grant_type: "session_bound",
+        session_id: "",
+      }),
+    });
+    expect(r.status).toBe(400);
+    const body = (await r.json()) as Record<string, unknown>;
+    expect((body.failure as Record<string, unknown>).type).toBe(
+      "invalid_parameters",
+    );
+  });
+
+  // SPEC.md §4.9 Validation order step 4: state check (decided / expired)
+  // runs BEFORE approver authority. An unauthorized token aimed at a
+  // decided request must surface approval_request_already_decided, not
+  // approver_not_authorized.
+  it("state_check_runs_before_approver_auth", async () => {
+    const { app } = await makeApp();
+    const token = await issueToken(app, { scope: ["finance.write"] });
+    const requestId = await triggerApproval(app, token);
+    const approverToken = await issueToken(app, {
+      scope: ["finance.write", "approver:*"],
+    });
+    await app.request("/anip/approval_grants", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${approverToken}`,
+      },
+      body: JSON.stringify({
+        approval_request_id: requestId,
+        grant_type: "one_time",
+      }),
+    });
+    // Now hit the same (decided) request with a token that has no approver
+    // scope. Spec demands the state failure, not approver_not_authorized.
+    const nonApproverToken = await issueToken(app, { scope: ["finance.write"] });
+    const r = await app.request("/anip/approval_grants", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${nonApproverToken}`,
+      },
+      body: JSON.stringify({
+        approval_request_id: requestId,
+        grant_type: "one_time",
+      }),
+    });
+    const body = (await r.json()) as Record<string, unknown>;
+    expect((body.failure as Record<string, unknown>).type).toBe(
+      "approval_request_already_decided",
+    );
+  });
+
   it("discovery_advertises_endpoint", async () => {
     const { app } = await makeApp();
     const r = await app.request("/.well-known/anip");

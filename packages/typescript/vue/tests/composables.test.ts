@@ -115,7 +115,7 @@ describe("useAnipDiscovery", () => {
 
   it("transitions loading -> data on success", async () => {
     const discoveryDoc: NormalizedDiscovery = {
-      protocol: "anip/0.22",
+      protocol: "anip/0.23",
       compliance: "full",
       trustLevel: "signed",
       endpoints: { manifest: "/anip/manifest" },
@@ -161,7 +161,7 @@ describe("useAnipDiscovery", () => {
   it("clears previous error on reload", async () => {
     let callCount = 0;
     const discoveryDoc: NormalizedDiscovery = {
-      protocol: "anip/0.22",
+      protocol: "anip/0.23",
       compliance: "full",
       endpoints: {},
       profiles: {},
@@ -198,7 +198,7 @@ describe("useAnipManifest", () => {
 
   it("transitions loading -> data on success", async () => {
     const manifestDoc: NormalizedManifest = {
-      protocol: "anip/0.22",
+      protocol: "anip/0.23",
       capabilities: {
         search_flights: {
           name: "search_flights",
