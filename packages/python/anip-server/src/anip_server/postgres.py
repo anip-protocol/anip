@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS delegation_tokens (
     constraints TEXT,
     root_principal TEXT,
     caller_class TEXT,
+    session_id TEXT,
     registered_at TEXT NOT NULL
 );
 
@@ -119,6 +120,48 @@ CREATE TABLE IF NOT EXISTS leader_leases (
     holder TEXT NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL
 );
+
+-- v0.23: approval requests
+CREATE TABLE IF NOT EXISTS approval_requests (
+    approval_request_id TEXT PRIMARY KEY,
+    capability TEXT NOT NULL,
+    scope JSONB NOT NULL,
+    requester JSONB NOT NULL,
+    parent_invocation_id TEXT,
+    preview JSONB NOT NULL,
+    preview_digest TEXT NOT NULL,
+    requested_parameters JSONB NOT NULL,
+    requested_parameters_digest TEXT NOT NULL,
+    grant_policy JSONB NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending','approved','denied','expired')),
+    approver JSONB,
+    decided_at TEXT,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_status ON approval_requests(status);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_expires ON approval_requests(expires_at);
+
+-- v0.23: approval grants (FK + UNIQUE for defense-in-depth per Decision 0.6)
+CREATE TABLE IF NOT EXISTS approval_grants (
+    grant_id TEXT PRIMARY KEY,
+    approval_request_id TEXT NOT NULL UNIQUE
+        REFERENCES approval_requests(approval_request_id),
+    grant_type TEXT NOT NULL CHECK (grant_type IN ('one_time','session_bound')),
+    capability TEXT NOT NULL,
+    scope JSONB NOT NULL,
+    approved_parameters_digest TEXT NOT NULL,
+    preview_digest TEXT NOT NULL,
+    requester JSONB NOT NULL,
+    approver JSONB NOT NULL,
+    issued_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    max_uses INTEGER NOT NULL CHECK (max_uses >= 1),
+    use_count INTEGER NOT NULL DEFAULT 0,
+    session_id TEXT,
+    signature TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_grants_expires ON approval_grants(expires_at);
 """
 
 
@@ -159,6 +202,10 @@ class PostgresStorage:
     async def _ensure_schema(self, conn: asyncpg.Connection) -> None:
         """Execute schema DDL statements."""
         await conn.execute(_SCHEMA)
+        # Idempotent migration for databases created before v0.23.
+        await conn.execute(
+            "ALTER TABLE delegation_tokens ADD COLUMN IF NOT EXISTS session_id TEXT"
+        )
 
     async def close(self) -> None:
         """Close the connection pool."""
@@ -179,8 +226,9 @@ class PostgresStorage:
         await pool.execute(
             """INSERT INTO delegation_tokens
                (token_id, issuer, subject, scope, purpose, parent,
-                expires, constraints, root_principal, caller_class, registered_at)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                expires, constraints, root_principal, caller_class,
+                session_id, registered_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                ON CONFLICT (token_id) DO UPDATE SET
                    issuer = EXCLUDED.issuer,
                    subject = EXCLUDED.subject,
@@ -191,6 +239,7 @@ class PostgresStorage:
                    constraints = EXCLUDED.constraints,
                    root_principal = EXCLUDED.root_principal,
                    caller_class = EXCLUDED.caller_class,
+                   session_id = EXCLUDED.session_id,
                    registered_at = EXCLUDED.registered_at""",
             token_data["token_id"],
             token_data["issuer"],
@@ -202,6 +251,7 @@ class PostgresStorage:
             json.dumps(token_data.get("constraints")),
             token_data.get("root_principal"),
             token_data.get("caller_class"),
+            token_data.get("session_id"),
             datetime.now(timezone.utc).isoformat(),
         )
 
@@ -225,6 +275,8 @@ class PostgresStorage:
             "constraints": json.loads(row["constraints"]) if row["constraints"] else None,
             "root_principal": row["root_principal"],
             "caller_class": row["caller_class"],
+            # session_id may be NULL on tokens issued before v0.23.
+            "session_id": row["session_id"] if "session_id" in row else None,
         }
 
     # -- audit log ----------------------------------------------------------
@@ -614,3 +666,210 @@ class PostgresStorage:
             role,
             holder,
         )
+
+    # --- v0.23: approval requests + grants ---------------------------------
+
+    async def store_approval_request(self, request: dict[str, Any]) -> None:
+        # SPEC.md §4.7 + StorageBackend.store_approval_request: idempotent on
+        # approval_request_id when content is identical; conflicting re-store
+        # with the same id is an error. Mirrors InMemoryStorage semantics.
+        req_id = request["approval_request_id"]
+        pool = self._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                existing_row = await conn.fetchrow(
+                    "SELECT * FROM approval_requests WHERE approval_request_id = $1 FOR UPDATE",
+                    req_id,
+                )
+                if existing_row is not None:
+                    existing = _parse_approval_request_row(existing_row)
+                    if existing != request:
+                        raise ValueError(
+                            f"approval_request_id {req_id!r} already stored with different content"
+                        )
+                    return  # idempotent: identical content, no write needed
+                await conn.execute(
+                    """INSERT INTO approval_requests
+                       (approval_request_id, capability, scope, requester, parent_invocation_id,
+                        preview, preview_digest, requested_parameters, requested_parameters_digest,
+                        grant_policy, status, approver, decided_at, created_at, expires_at)
+                       VALUES ($1, $2, $3::jsonb, $4::jsonb, $5,
+                               $6::jsonb, $7, $8::jsonb, $9,
+                               $10::jsonb, $11, $12::jsonb, $13, $14, $15)""",
+                    req_id,
+                    request["capability"],
+                    json.dumps(request["scope"]),
+                    json.dumps(request["requester"]),
+                    request.get("parent_invocation_id"),
+                    json.dumps(request["preview"]),
+                    request["preview_digest"],
+                    json.dumps(request["requested_parameters"]),
+                    request["requested_parameters_digest"],
+                    json.dumps(request["grant_policy"]),
+                    request["status"],
+                    json.dumps(request["approver"]) if request.get("approver") is not None else None,
+                    request.get("decided_at"),
+                    request["created_at"],
+                    request["expires_at"],
+                )
+
+    async def get_approval_request(self, approval_request_id: str) -> dict[str, Any] | None:
+        pool = self._get_pool()
+        row = await pool.fetchrow(
+            "SELECT * FROM approval_requests WHERE approval_request_id = $1",
+            approval_request_id,
+        )
+        if row is None:
+            return None
+        return _parse_approval_request_row(row)
+
+    async def approve_request_and_store_grant(
+        self,
+        approval_request_id: str,
+        grant: dict[str, Any],
+        approver: dict[str, Any],
+        decided_at_iso: str,
+        now_iso: str,
+    ) -> dict[str, Any]:
+        # Atomic per Decision 0.9a: BEGIN, conditional UPDATE on
+        # status='pending' AND expires_at > now() guard, INSERT grant.
+        pool = self._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    """UPDATE approval_requests
+                       SET status = 'approved', approver = $1::jsonb, decided_at = $2
+                       WHERE approval_request_id = $3
+                         AND status = 'pending'
+                         AND expires_at > $4
+                       RETURNING approval_request_id""",
+                    json.dumps(approver), decided_at_iso, approval_request_id, now_iso,
+                )
+                if row is None:
+                    # Disambiguate via re-fetch outside the failed conditional UPDATE.
+                    state = await conn.fetchrow(
+                        "SELECT status, expires_at FROM approval_requests WHERE approval_request_id = $1",
+                        approval_request_id,
+                    )
+                    if state is None:
+                        return {"ok": False, "reason": "approval_request_not_found"}
+                    if state["expires_at"] <= now_iso:
+                        return {"ok": False, "reason": "approval_request_expired"}
+                    return {"ok": False, "reason": "approval_request_already_decided"}
+                try:
+                    await conn.execute(
+                        """INSERT INTO approval_grants
+                           (grant_id, approval_request_id, grant_type, capability, scope,
+                            approved_parameters_digest, preview_digest, requester, approver,
+                            issued_at, expires_at, max_uses, use_count, session_id, signature)
+                           VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8::jsonb, $9::jsonb,
+                                   $10, $11, $12, $13, $14, $15)""",
+                        grant["grant_id"],
+                        grant["approval_request_id"],
+                        grant["grant_type"],
+                        grant["capability"],
+                        json.dumps(grant["scope"]),
+                        grant["approved_parameters_digest"],
+                        grant["preview_digest"],
+                        json.dumps(grant["requester"]),
+                        json.dumps(grant["approver"]),
+                        grant["issued_at"],
+                        grant["expires_at"],
+                        grant["max_uses"],
+                        grant.get("use_count", 0),
+                        grant.get("session_id"),
+                        grant["signature"],
+                    )
+                except asyncpg.UniqueViolationError:
+                    raise  # transaction rolls back; caller treats as already_decided
+
+        return {"ok": True, "grant": dict(grant)}
+
+    async def store_grant(self, grant: dict[str, Any]) -> None:
+        pool = self._get_pool()
+        await pool.execute(
+            """INSERT INTO approval_grants
+               (grant_id, approval_request_id, grant_type, capability, scope,
+                approved_parameters_digest, preview_digest, requester, approver,
+                issued_at, expires_at, max_uses, use_count, session_id, signature)
+               VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8::jsonb, $9::jsonb,
+                       $10, $11, $12, $13, $14, $15)
+               ON CONFLICT (grant_id) DO UPDATE SET
+                   use_count = EXCLUDED.use_count,
+                   session_id = EXCLUDED.session_id""",
+            grant["grant_id"],
+            grant["approval_request_id"],
+            grant["grant_type"],
+            grant["capability"],
+            json.dumps(grant["scope"]),
+            grant["approved_parameters_digest"],
+            grant["preview_digest"],
+            json.dumps(grant["requester"]),
+            json.dumps(grant["approver"]),
+            grant["issued_at"],
+            grant["expires_at"],
+            grant["max_uses"],
+            grant.get("use_count", 0),
+            grant.get("session_id"),
+            grant["signature"],
+        )
+
+    async def get_grant(self, grant_id: str) -> dict[str, Any] | None:
+        pool = self._get_pool()
+        row = await pool.fetchrow(
+            "SELECT * FROM approval_grants WHERE grant_id = $1",
+            grant_id,
+        )
+        if row is None:
+            return None
+        return _parse_grant_row(row)
+
+    async def try_reserve_grant(self, grant_id: str, now_iso: str) -> dict[str, Any]:
+        # Atomic check-and-increment per Phase 7.3 Phase B.
+        pool = self._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    """UPDATE approval_grants
+                       SET use_count = use_count + 1
+                       WHERE grant_id = $1
+                         AND use_count < max_uses
+                         AND expires_at > $2
+                       RETURNING use_count, max_uses, expires_at""",
+                    grant_id, now_iso,
+                )
+                if row is None:
+                    state = await conn.fetchrow(
+                        "SELECT use_count, max_uses, expires_at FROM approval_grants WHERE grant_id = $1",
+                        grant_id,
+                    )
+                    if state is None:
+                        return {"ok": False, "reason": "grant_not_found"}
+                    if state["expires_at"] <= now_iso:
+                        return {"ok": False, "reason": "grant_expired"}
+                    if state["use_count"] >= state["max_uses"]:
+                        return {"ok": False, "reason": "grant_consumed"}
+                    return {"ok": False, "reason": "grant_not_found"}
+                # Re-read full row.
+                full = await conn.fetchrow(
+                    "SELECT * FROM approval_grants WHERE grant_id = $1", grant_id,
+                )
+                return {"ok": True, "grant": _parse_grant_row(full) if full else None}
+
+
+def _parse_approval_request_row(row: asyncpg.Record) -> dict[str, Any]:
+    d = dict(row)
+    for f in ("scope", "requester", "preview", "requested_parameters", "grant_policy"):
+        if d.get(f) is not None and isinstance(d[f], str):
+            d[f] = json.loads(d[f])
+    if d.get("approver") is not None and isinstance(d["approver"], str):
+        d["approver"] = json.loads(d["approver"])
+    return d
+
+
+def _parse_grant_row(row: asyncpg.Record) -> dict[str, Any]:
+    d = dict(row)
+    for f in ("scope", "requester", "approver"):
+        if d.get(f) is not None and isinstance(d[f], str):
+            d[f] = json.loads(d[f])
+    return d

@@ -191,6 +191,13 @@
         "concurrent_branches": {
           "$ref": "#/$defs/ConcurrentBranches",
           "description": "Concurrency posture for the token tree. Uses the same vocabulary as delegation constraints."
+        },
+        "session_id": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "description": "v0.23: bind a session identity to the issued token. Required for callers that intend to redeem session_bound ApprovalGrants. Only honored at root issuance — child tokens inherit parent.session_id verbatim. See SPEC.md §4.8."
         }
       }
     },
@@ -917,6 +924,15 @@
         },
         "constraints": {
           "$ref": "#/$defs/DelegationConstraints"
+        },
+        "session_id": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Session Id",
+          "description": "v0.23: session identity bound at issuance. Used to validate session_bound ApprovalGrant continuations per SPEC.md §4.8. MUST come from the signed token, never from caller-supplied invocation input. Child tokens inherit parent.session_id verbatim."
         }
       },
       "required": [

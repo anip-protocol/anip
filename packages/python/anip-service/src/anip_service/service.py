@@ -152,6 +152,15 @@ class ANIPService:
             self._capabilities[name] = cap
             cap_declarations[name] = cap.declaration
 
+        # --- v0.23: validate composed capability declarations now that the
+        # full registry is known. Cross-reference checks (step capabilities
+        # exist + are atomic, JSONPath references resolve, empty-result rules)
+        # are enforced here. Pydantic validators on CapabilityDeclaration
+        # already caught structural issues earlier. ---
+        from .v023 import validate_composition
+        for name, decl in cap_declarations.items():
+            validate_composition(name, decl, other_capabilities=cap_declarations)
+
         # --- Storage ---
         if isinstance(storage, str):
             if storage == ":memory:":
@@ -314,7 +323,7 @@ class ANIPService:
                 "tokens": "/anip/tokens",
                 "audit": "/anip/audit",
                 "checkpoints": "/anip/checkpoints",
-                "graph": "/anip/graph/{capability}",
+                "approval_grants": "/anip/approval_grants",  # v0.23
                 "jwks": "/.well-known/jwks.json",
             },
         }
@@ -443,6 +452,13 @@ class ANIPService:
             )
             if jwt_constraints != stored_constraints:
                 mismatches.append(f"constraints: jwt={jwt_constraints} store={stored_constraints}")
+        # v0.23 trust boundary for session_bound grant validation: if either
+        # side carries a session_id, both must agree. SPEC.md §4.8 line 1035.
+        jwt_session = claims.get("anip:session_id")
+        if jwt_session != stored.session_id:
+            mismatches.append(
+                f"session_id: jwt={jwt_session} store={stored.session_id}"
+            )
 
         if mismatches:
             raise ANIPError(
@@ -517,6 +533,7 @@ class ANIPService:
                 ttl_hours=ttl_hours,
                 budget=budget,
                 concurrent_branches=concurrent_branches or ConcurrentBranches.ALLOWED,
+                session_id=request.get("session_id"),
             )
 
         # Check for delegation failure (ANIPFailure is a Pydantic model)
@@ -556,6 +573,10 @@ class ANIPService:
             claims["constraints"] = token.constraints.model_dump() if hasattr(token.constraints, "model_dump") else token.constraints
         if token.caller_class is not None:
             claims["anip:caller_class"] = token.caller_class
+        if token.session_id is not None:
+            # v0.23: bind session identity into the signed JWT so session_bound
+            # grant validation can trust it. See SPEC.md §4.8 line 1035.
+            claims["anip:session_id"] = token.session_id
 
         jwt_str = self._keys.sign_jwt(claims)
 
@@ -644,6 +665,178 @@ class ANIPService:
             request["budget"] = budget
         return await self.issue_token(principal, request)
 
+    # --- v0.23: approval grant issuance helper (SPI) -----------------------
+
+    async def issue_approval_grant(
+        self,
+        approval_request_id: str,
+        grant_type: str,
+        approver_principal: dict[str, Any],
+        *,
+        expires_in_seconds: int | None = None,
+        max_uses: int | None = None,
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Issue a signed ApprovalGrant for a pending ApprovalRequest.
+
+        SPI for both the canonical HTTP endpoint and out-of-band approver
+        workflows. Caller is responsible for approver-authority enforcement
+        — this helper trusts that the caller has already verified the
+        approver has scope to approve ``request.capability``.
+
+        Returns the persisted grant dict on success. Raises ANIPError with
+        one of: approval_request_not_found, approval_request_already_decided,
+        approval_request_expired, grant_type_not_allowed_by_policy.
+
+        Atomic per Decision 0.9a: the storage primitive
+        ``approve_request_and_store_grant`` does the conditional UPDATE +
+        INSERT in a single transaction. v0.23. See SPEC.md §4.9.
+        """
+        from .v023 import (
+            FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED,
+            FAILURE_APPROVAL_REQUEST_EXPIRED,
+            FAILURE_APPROVAL_REQUEST_NOT_FOUND,
+            FAILURE_GRANT_TYPE_NOT_ALLOWED_BY_POLICY,
+            new_grant_id,
+            sign_grant,
+            utc_in_iso,
+            utc_now_iso,
+        )
+        from .types import ANIPError
+
+        # Read-side pre-flight (advisory; the atomic primitive is the boundary).
+        request = await self._storage.get_approval_request(approval_request_id)
+        if request is None:
+            raise ANIPError(FAILURE_APPROVAL_REQUEST_NOT_FOUND, f"unknown approval_request_id={approval_request_id!r}")
+        if request["status"] != "pending":
+            raise ANIPError(
+                FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED,
+                f"approval_request_id={approval_request_id!r} status={request['status']!r}",
+            )
+        now_iso = utc_now_iso()
+        if request["expires_at"] <= now_iso:
+            raise ANIPError(
+                FAILURE_APPROVAL_REQUEST_EXPIRED,
+                f"approval_request_id={approval_request_id!r} expired at {request['expires_at']}",
+            )
+        gp = request["grant_policy"]
+        if grant_type not in gp["allowed_grant_types"]:
+            raise ANIPError(
+                FAILURE_GRANT_TYPE_NOT_ALLOWED_BY_POLICY,
+                f"grant_type={grant_type!r} not in allowed_grant_types={gp['allowed_grant_types']!r}",
+            )
+        # Approver-controlled args clamped to policy.
+        eff_expires_in = expires_in_seconds if expires_in_seconds is not None else gp["expires_in_seconds"]
+        if eff_expires_in > gp["expires_in_seconds"]:
+            raise ANIPError(
+                FAILURE_GRANT_TYPE_NOT_ALLOWED_BY_POLICY,
+                f"expires_in_seconds={eff_expires_in} exceeds policy={gp['expires_in_seconds']}",
+            )
+        eff_max_uses = max_uses if max_uses is not None else gp["max_uses"]
+        if grant_type == "one_time":
+            eff_max_uses = 1
+            if session_id is not None:
+                raise ANIPError(
+                    FAILURE_GRANT_TYPE_NOT_ALLOWED_BY_POLICY,
+                    "one_time grants must not carry session_id",
+                )
+        elif grant_type == "session_bound":
+            if session_id is None:
+                raise ANIPError(
+                    FAILURE_GRANT_TYPE_NOT_ALLOWED_BY_POLICY,
+                    "session_bound grants require a session_id",
+                )
+        if eff_max_uses > gp["max_uses"]:
+            raise ANIPError(
+                FAILURE_GRANT_TYPE_NOT_ALLOWED_BY_POLICY,
+                f"max_uses={eff_max_uses} exceeds policy={gp['max_uses']}",
+            )
+
+        # Build grant — capability/scope/digests/requester come from the
+        # request, NOT from approver input (per SPEC.md §4.9 step 8).
+        grant = {
+            "grant_id": new_grant_id(),
+            "approval_request_id": approval_request_id,
+            "grant_type": grant_type,
+            "capability": request["capability"],
+            "scope": list(request["scope"]),
+            "approved_parameters_digest": request["requested_parameters_digest"],
+            "preview_digest": request["preview_digest"],
+            "requester": dict(request["requester"]),
+            "approver": dict(approver_principal),
+            "issued_at": now_iso,
+            "expires_at": utc_in_iso(eff_expires_in),
+            "max_uses": eff_max_uses,
+            "use_count": 0,
+            "session_id": session_id,
+            "signature": "",
+        }
+        grant["signature"] = sign_grant(grant, key_manager=self._keys)
+
+        # Atomic primitive — the security boundary.
+        result = await self._storage.approve_request_and_store_grant(
+            approval_request_id=approval_request_id,
+            grant=grant,
+            approver=approver_principal,
+            decided_at_iso=now_iso,
+            now_iso=now_iso,
+        )
+        if not result["ok"]:
+            reason = result["reason"]
+            if reason == "approval_request_not_found":
+                raise ANIPError(FAILURE_APPROVAL_REQUEST_NOT_FOUND, "request vanished during issuance")
+            if reason == "approval_request_expired":
+                raise ANIPError(FAILURE_APPROVAL_REQUEST_EXPIRED, "request expired during issuance")
+            raise ANIPError(FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED, "request decided concurrently")
+
+        # v0.23: emit approval_grant_issued audit event linking
+        # approval_request_id ↔ grant_id ↔ approver. SPEC.md §4.9 requires
+        # this for the audit chain.
+        try:
+            issued_grant = result["grant"]
+            # Construct a lightweight audit entry for the approval_grant_issued
+            # event. The approver principal is not currently a delegation-token-
+            # bearing identity, so token_id=None; approver is captured in
+            # result_summary instead. v0.23. See SPEC.md §4.9 audit linkage.
+            await self._audit.log_entry(
+                {
+                    "capability": request["capability"],
+                    "token_id": None,
+                    "issuer": self._service_id,
+                    "subject": approver_principal.get("subject"),
+                    "root_principal": approver_principal.get("root_principal")
+                        or approver_principal.get("subject"),
+                    "parameters": None,
+                    "success": True,
+                    "result_summary": {
+                        "approver": approver_principal,
+                        "requester": request["requester"],
+                        "grant_type": grant_type,
+                        "scope": request["scope"],
+                    },
+                    "failure_type": None,
+                    "cost_actual": None,
+                    "delegation_chain": [],
+                    "invocation_id": None,
+                    "client_reference_id": None,
+                    "task_id": None,
+                    "parent_invocation_id": None,
+                    "upstream_service": None,
+                    "stream_summary": None,
+                    "event_class": "high_risk_success",
+                    "retention_tier": "long",
+                    "expires_at": None,
+                    "approval_request_id": approval_request_id,
+                    "approval_grant_id": issued_grant["grant_id"],
+                    "entry_type": "approval_grant_issued",
+                }
+            )
+        except Exception:
+            # Audit MUST NOT block grant issuance — the grant is already
+            # atomically persisted. Log and move on.
+            pass
+        return result["grant"]
+
     def discover_permissions(self, token: DelegationToken) -> PermissionResponse:
         """Return the permissions granted by a token."""
         return discover_permissions(token, self._manifest.capabilities)
@@ -689,6 +882,7 @@ class ANIPService:
         upstream_service: str | None = None,
         stream: bool = False,
         budget: dict[str, Any] | None = None,
+        approval_grant: str | None = None,
         _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
     ) -> dict[str, Any]:
         """Invoke a capability with full validation, audit, and error handling.
@@ -724,6 +918,7 @@ class ANIPService:
                 upstream_service=upstream_service,
                 stream=stream,
                 budget=budget,
+                approval_grant=approval_grant,
                 _progress_sink=_progress_sink,
                 invocation_id=invocation_id,
                 invoke_start=invoke_start,
@@ -761,6 +956,7 @@ class ANIPService:
         upstream_service: str | None,
         stream: bool,
         budget: dict[str, Any] | None,
+        approval_grant: str | None = None,
         _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None,
         invocation_id: str,
         invoke_start: float,
@@ -1234,6 +1430,47 @@ class ANIPService:
         try:
             # 5. Call handler (supports both sync and async handlers)
             try:
+                # v0.23 §4.8 Phase A+B: when an approval_grant is supplied,
+                # validate it (read-side) and atomically reserve it BEFORE the
+                # handler runs. Reservation is the security boundary; once
+                # reserved, the grant is spent on this attempt even if the
+                # handler fails. See SPEC.md §4.8.
+                _reserved_grant: dict[str, Any] | None = None
+                if approval_grant is not None:
+                    from .v023 import (
+                        FAILURE_GRANT_CONSUMED,
+                        FAILURE_GRANT_EXPIRED,
+                        FAILURE_GRANT_NOT_FOUND,
+                        utc_now_iso,
+                        validate_continuation_grant,
+                    )
+                    # SPEC.md §4.8 line 1035: session_id used for
+                    # session_bound grant validation MUST come from the signed
+                    # invocation token, never from caller-supplied input.
+                    grant_obj, fail_type = await validate_continuation_grant(
+                        storage=self._storage,
+                        grant_id=approval_grant,
+                        capability=capability_name,
+                        parameters=params,
+                        token_scope=list(resolved_token.scope),
+                        token_session_id=resolved_token.session_id,
+                        key_manager=self._keys,
+                        now_iso=utc_now_iso(),
+                    )
+                    if fail_type is not None:
+                        raise ANIPError(fail_type, f"approval_grant validation failed: {fail_type}")
+                    reservation = await self._storage.try_reserve_grant(
+                        approval_grant, utc_now_iso(),
+                    )
+                    if not reservation["ok"]:
+                        reason = reservation["reason"]
+                        if reason == "grant_consumed":
+                            raise ANIPError(FAILURE_GRANT_CONSUMED, "grant has reached max_uses")
+                        if reason == "grant_expired":
+                            raise ANIPError(FAILURE_GRANT_EXPIRED, "grant has expired")
+                        raise ANIPError(FAILURE_GRANT_NOT_FOUND, "grant not found at reservation")
+                    _reserved_grant = reservation["grant"]
+
                 async def _run_handler() -> Any:
                     r = cap.handler(ctx, params)
                     if inspect.isawaitable(r):
@@ -1262,12 +1499,60 @@ class ANIPService:
                         "client_disconnected": client_disconnected,
                     }
                 _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
-                _event_class = classify_event(_side_effect_type, False, e.error_type)
+                # v0.23: materialize the ApprovalRequest BEFORE the audit log
+                # so the audit entry can carry approval_request_id and link
+                # the approval flow per SPEC.md §4.7 audit invariants.
+                _materialized_approval: dict[str, Any] | None = None
+                _approval_persist_failed = False
+                _approval_persist_err: Exception | None = None
+                if e.error_type == "approval_required":
+                    try:
+                        from .v023 import materialize_approval_request
+                        if e.approval_required is not None and "approval_request_id" in e.approval_required:
+                            _materialized_approval = e.approval_required
+                        else:
+                            preview = (
+                                (e.approval_required or {}).get("preview")
+                                if e.approval_required is not None
+                                else {}
+                            ) or {}
+                            # SPEC.md §4.7 (line 916): parent_invocation_id is
+                            # "the original invocation's ID" — the invocation
+                            # that raised approval_required, NOT the inbound
+                            # caller's parent. Pass the local invocation_id.
+                            _materialized_approval = await materialize_approval_request(
+                                storage=self._storage,
+                                capability_decl=decl,
+                                parent_invocation_id=invocation_id,
+                                requester={
+                                    "subject": resolved_token.subject,
+                                    "root_principal": resolved_token.root_principal,
+                                },
+                                parameters=params,
+                                preview=preview,
+                            )
+                    except Exception as ape:  # noqa: BLE001
+                        _approval_persist_failed = True
+                        _approval_persist_err = ape
+
+                # If materialization failed for an approval_required, downgrade
+                # the failure type to service_unavailable per the §4.7
+                # persistence invariant — and re-classify accordingly.
+                _effective_error_type = e.error_type
+                if _approval_persist_failed:
+                    _effective_error_type = "service_unavailable"
+
+                _event_class = classify_event(_side_effect_type, False, _effective_error_type)
                 _retention_tier = self._retention_policy.resolve_tier(_event_class)
                 _expires_at = self._retention_policy.compute_expires_at(_retention_tier)
+                _approval_request_id_audit = (
+                    _materialized_approval.get("approval_request_id")
+                    if _materialized_approval is not None and not _approval_persist_failed
+                    else None
+                )
                 await self._log_audit(
                     capability_name, resolved_token, success=False,
-                    failure_type=e.error_type,
+                    failure_type=_effective_error_type,
                     result_summary={"detail": e.detail},
                     cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
@@ -1278,7 +1563,37 @@ class ANIPService:
                     parent_span=root_span,
                     budget_context=_audit_budget_base,
                     binding_context=_audit_binding_base,
+                    # v0.23 — link approval flow when applicable.
+                    approval_request_id=_approval_request_id_audit,
+                    approval_grant_id=approval_grant,
                 )
+
+                # v0.23: emit a dedicated approval_request_created event when
+                # we successfully persisted the request. This is the canonical
+                # link from the original invocation to the approval request.
+                if _approval_request_id_audit is not None:
+                    try:
+                        await self._log_audit(
+                            capability_name, resolved_token, success=True,
+                            failure_type=None,
+                            result_summary=None,
+                            cost_actual=None, cost_variance=None,
+                            invocation_id=None, client_reference_id=None,
+                            task_id=effective_task_id,
+                            parent_invocation_id=invocation_id,
+                            upstream_service=None,
+                            stream_summary=None,
+                            event_class=_event_class,
+                            retention_tier=_retention_tier,
+                            expires_at=_expires_at,
+                            parent_span=root_span,
+                            approval_request_id=_approval_request_id_audit,
+                            entry_type="approval_request_created",
+                        )
+                    except Exception:  # noqa: BLE001
+                        # Audit emit must never break the failure response path.
+                        pass
+
                 if stream and fail_stream_summary and self._log_hooks and self._log_hooks.on_streaming_summary:
                     self._safe_hook(self._log_hooks.on_streaming_summary, {
                         "invocation_id": invocation_id,
@@ -1295,15 +1610,25 @@ class ANIPService:
                         "capability": capability_name,
                         "invocation_id": invocation_id,
                         "success": False,
-                        "failure_type": e.error_type,
+                        "failure_type": _effective_error_type,
                         "duration_ms": _anip_err_duration_ms,
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                     })
                 if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
                     self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _anip_err_duration_ms, "success": False})
-                _fail_dict: dict[str, Any] = {"type": e.error_type, "detail": e.detail}
-                if e.resolution is not None:
+                _fail_dict: dict[str, Any] = {"type": _effective_error_type, "detail": e.detail}
+                if e.resolution is not None and not _approval_persist_failed:
                     _fail_dict["resolution"] = e.resolution
+                if _approval_persist_failed:
+                    _fail_dict["detail"] = (
+                        f"approval flow unavailable: {_approval_persist_err}"
+                    )
+                    _fail_dict["resolution"] = {
+                        "action": "wait_and_retry",
+                        "recovery_class": "wait_then_retry",
+                    }
+                elif _materialized_approval is not None:
+                    _fail_dict["approval_required"] = _materialized_approval
                 fail_response: dict[str, Any] = {
                     "success": False,
                     "failure": redact_failure(_fail_dict, effective_level),
@@ -1422,6 +1747,8 @@ class ANIPService:
                 parent_span=root_span,
                 budget_context=_success_budget_ctx,
                 binding_context=_audit_binding_base,
+                # v0.23 — link the supplied grant when this is a continuation.
+                approval_grant_id=approval_grant,
             )
 
             # 9. Fire streaming summary hook
@@ -1873,6 +2200,9 @@ class ANIPService:
         parent_span: Any = None,
         budget_context: dict[str, Any] | None = None,
         binding_context: dict[str, Any] | None = None,
+        approval_request_id: str | None = None,  # v0.23
+        approval_grant_id: str | None = None,  # v0.23
+        entry_type: str | None = None,  # v0.23 — for non-invocation events
     ) -> None:
         """Log an audit entry through the SDK's AuditLog.
 
@@ -1901,6 +2231,10 @@ class ANIPService:
             "expires_at": expires_at,
             "budget_context": budget_context,
             "binding_context": binding_context,
+            # v0.23 audit linkage (SPEC.md §4.7–§4.9)
+            "approval_request_id": approval_request_id,
+            "approval_grant_id": approval_grant_id,
+            "entry_type": entry_type,
         }
 
         # Apply storage-side redaction (after classification, before persistence)

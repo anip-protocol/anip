@@ -54,9 +54,14 @@ class ANIPError(Exception):
         detail: str,
         resolution: dict | None = None,
         retry: bool = False,
+        approval_required: dict | None = None,
     ) -> None:
         self.error_type = error_type
         self.detail = detail
         self.resolution = resolution
         self.retry = retry
+        # v0.23: Present iff error_type=='approval_required'. The runtime fills
+        # this in when persisting the ApprovalRequest (handlers MAY supply only
+        # preview content via the ApprovalRequiredPreview helper). See SPEC.md §4.7.
+        self.approval_required = approval_required
         super().__init__(f"{error_type}: {detail}")

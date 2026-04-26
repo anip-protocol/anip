@@ -65,11 +65,15 @@ class DelegationEngine:
         max_delegation_depth: int = 3,
         budget: Budget | None = None,
         concurrent_branches: ConcurrentBranches = ConcurrentBranches.ALLOWED,
+        session_id: str | None = None,
     ) -> tuple[DelegationToken, str]:
         """Issue a root delegation token.
 
         ``issuer`` is always ``self._service_id``.
         ``root_principal`` is always ``authenticated_principal``.
+
+        ``session_id`` (v0.23) binds the token to a session identity for
+        session_bound ApprovalGrant validation per SPEC.md §4.8.
 
         Returns ``(token, token_id)``.
         """
@@ -85,6 +89,7 @@ class DelegationEngine:
             max_delegation_depth=max_delegation_depth,
             budget=budget,
             concurrent_branches=concurrent_branches,
+            session_id=session_id,
         )
 
     async def delegate(
@@ -597,6 +602,8 @@ class DelegationEngine:
         }
         if token.caller_class is not None:
             data["caller_class"] = token.caller_class
+        if token.session_id is not None:
+            data["session_id"] = token.session_id
         await self._storage.store_token(data)
 
     async def get_token(self, token_id: str) -> DelegationToken | None:
@@ -648,6 +655,7 @@ class DelegationEngine:
         max_delegation_depth: int,
         budget: Budget | None = None,
         concurrent_branches: ConcurrentBranches = ConcurrentBranches.ALLOWED,
+        session_id: str | None = None,
     ) -> tuple[DelegationToken, str]:
         """Internal token creation shared by ``issue_root_token`` and ``delegate``."""
         token_id = f"anip-{uuid.uuid4().hex[:12]}"
@@ -673,6 +681,13 @@ class DelegationEngine:
         else:
             resolved_task_id = None  # Caller sent purpose_parameters but without task_id — unbound
 
+        # v0.23: child tokens inherit session_id from parent verbatim.
+        # Roots may set session_id at issuance. A child cannot widen or change
+        # it — that would break the trust boundary for session_bound grants.
+        effective_session_id = (
+            parent_token.session_id if parent_token is not None else session_id
+        )
+
         token = DelegationToken(
             token_id=token_id,
             issuer=issuer,
@@ -691,6 +706,7 @@ class DelegationEngine:
                 budget=budget,
             ),
             root_principal=root_principal,
+            session_id=effective_session_id,
         )
 
         # Validate narrowing for child tokens (post-creation, using stored parent)

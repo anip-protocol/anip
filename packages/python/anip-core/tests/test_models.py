@@ -26,7 +26,7 @@ from anip_core import (
 def test_protocol_version():
     # Intentionally hardcoded — this is the one place that verifies the constant value.
     # Update this when bumping the protocol version.
-    assert PROTOCOL_VERSION == "anip/0.22"
+    assert PROTOCOL_VERSION == "anip/0.23"
 
 
 def test_delegation_token_roundtrip():
