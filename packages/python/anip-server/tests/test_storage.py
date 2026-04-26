@@ -63,6 +63,41 @@ async def test_load_nonexistent_token():
     assert await store.load_token("nonexistent") is None
 
 
+@pytest.mark.asyncio
+async def test_sqlite_token_session_id_roundtrip():
+    """v0.23: SQLite must persist DelegationToken.session_id so JWT/store
+    trust-boundary checks succeed for session_bound grants."""
+    store = SQLiteStorage(":memory:")
+    await store.store_token({
+        "token_id": "tok-sess",
+        "issuer": "svc",
+        "subject": "agent",
+        "scope": ["finance.write"],
+        "expires": "2026-12-31T23:59:59Z",
+        "session_id": "sess-A",
+    })
+    loaded = await store.load_token("tok-sess")
+    assert loaded is not None
+    assert loaded["session_id"] == "sess-A"
+
+
+@pytest.mark.asyncio
+async def test_sqlite_token_no_session_id_returns_none():
+    """Tokens stored without session_id load back with session_id=None,
+    keeping the JWT/store trust check consistent (both sides None)."""
+    store = SQLiteStorage(":memory:")
+    await store.store_token({
+        "token_id": "tok-nosess",
+        "issuer": "svc",
+        "subject": "agent",
+        "scope": ["x"],
+        "expires": "2026-12-31T23:59:59Z",
+    })
+    loaded = await store.load_token("tok-nosess")
+    assert loaded is not None
+    assert loaded["session_id"] is None
+
+
 # ---------------------------------------------------------------------------
 # InMemoryStorage tests
 # ---------------------------------------------------------------------------

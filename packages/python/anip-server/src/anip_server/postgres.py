@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS delegation_tokens (
     constraints TEXT,
     root_principal TEXT,
     caller_class TEXT,
+    session_id TEXT,
     registered_at TEXT NOT NULL
 );
 
@@ -201,6 +202,10 @@ class PostgresStorage:
     async def _ensure_schema(self, conn: asyncpg.Connection) -> None:
         """Execute schema DDL statements."""
         await conn.execute(_SCHEMA)
+        # Idempotent migration for databases created before v0.23.
+        await conn.execute(
+            "ALTER TABLE delegation_tokens ADD COLUMN IF NOT EXISTS session_id TEXT"
+        )
 
     async def close(self) -> None:
         """Close the connection pool."""
@@ -221,8 +226,9 @@ class PostgresStorage:
         await pool.execute(
             """INSERT INTO delegation_tokens
                (token_id, issuer, subject, scope, purpose, parent,
-                expires, constraints, root_principal, caller_class, registered_at)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                expires, constraints, root_principal, caller_class,
+                session_id, registered_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                ON CONFLICT (token_id) DO UPDATE SET
                    issuer = EXCLUDED.issuer,
                    subject = EXCLUDED.subject,
@@ -233,6 +239,7 @@ class PostgresStorage:
                    constraints = EXCLUDED.constraints,
                    root_principal = EXCLUDED.root_principal,
                    caller_class = EXCLUDED.caller_class,
+                   session_id = EXCLUDED.session_id,
                    registered_at = EXCLUDED.registered_at""",
             token_data["token_id"],
             token_data["issuer"],
@@ -244,6 +251,7 @@ class PostgresStorage:
             json.dumps(token_data.get("constraints")),
             token_data.get("root_principal"),
             token_data.get("caller_class"),
+            token_data.get("session_id"),
             datetime.now(timezone.utc).isoformat(),
         )
 
@@ -267,6 +275,8 @@ class PostgresStorage:
             "constraints": json.loads(row["constraints"]) if row["constraints"] else None,
             "root_principal": row["root_principal"],
             "caller_class": row["caller_class"],
+            # session_id may be NULL on tokens issued before v0.23.
+            "session_id": row["session_id"] if "session_id" in row else None,
         }
 
     # -- audit log ----------------------------------------------------------

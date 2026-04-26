@@ -447,6 +447,7 @@ CREATE TABLE IF NOT EXISTS delegation_tokens (
     constraints TEXT,             -- JSON object
     root_principal TEXT,
     caller_class TEXT,
+    session_id TEXT,              -- v0.23: bound session identity for session_bound grants
     registered_at TEXT NOT NULL,
     FOREIGN KEY (parent) REFERENCES delegation_tokens(token_id)
 );
@@ -673,6 +674,10 @@ class SQLiteStorage:
             self._conn.execute("ALTER TABLE delegation_tokens ADD COLUMN caller_class TEXT")
         except Exception:
             pass
+        try:
+            self._conn.execute("ALTER TABLE delegation_tokens ADD COLUMN session_id TEXT")
+        except Exception:
+            pass
 
         # In-memory leases (single-process is fine for SQLite)
         self._exclusive_leases: dict[str, tuple[str, datetime]] = {}
@@ -684,8 +689,9 @@ class SQLiteStorage:
             self._conn.execute(
                 """INSERT INTO delegation_tokens
                    (token_id, issuer, subject, scope, purpose, parent,
-                    expires, constraints, root_principal, caller_class, registered_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    expires, constraints, root_principal, caller_class,
+                    session_id, registered_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     token_data["token_id"],
                     token_data["issuer"],
@@ -697,6 +703,7 @@ class SQLiteStorage:
                     json.dumps(token_data.get("constraints")),
                     token_data.get("root_principal"),
                     token_data.get("caller_class"),
+                    token_data.get("session_id"),
                     datetime.now(timezone.utc).isoformat(),
                 ),
             )
@@ -710,6 +717,7 @@ class SQLiteStorage:
             ).fetchone()
             if row is None:
                 return None
+            cols = row.keys()
             return {
                 "token_id": row["token_id"],
                 "issuer": row["issuer"],
@@ -721,6 +729,9 @@ class SQLiteStorage:
                 "constraints": json.loads(row["constraints"]) if row["constraints"] else None,
                 "root_principal": row["root_principal"],
                 "caller_class": row["caller_class"],
+                # session_id may be missing on databases created before the
+                # v0.23 migration ran; treat absence as None.
+                "session_id": row["session_id"] if "session_id" in cols else None,
             }
 
     def _sync_store_audit_entry(self, entry: dict[str, Any]) -> None:
