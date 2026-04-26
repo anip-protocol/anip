@@ -187,7 +187,7 @@ export async function mountAnip(
         res.status(400).json({
           success: false,
           failure: {
-            type: "invalid_request",
+            type: "invalid_parameters",
             detail: "Missing approval_request_id or grant_type",
             resolution: {
               action: "fix_request_body",
