@@ -286,8 +286,8 @@ func TestANIPErrorJSON(t *testing.T) {
 func TestProtocolVersion(t *testing.T) {
 	// Intentionally hardcoded — this is the one place that verifies the constant value.
 	// Update this when bumping the protocol version.
-	if ProtocolVersion != "anip/0.22" {
-		t.Errorf("expected protocol version %q, got %q", "anip/0.22", ProtocolVersion)
+	if ProtocolVersion != "anip/0.23" {
+		t.Errorf("expected protocol version %q, got %q", "anip/0.23", ProtocolVersion)
 	}
 }
 

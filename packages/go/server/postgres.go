@@ -66,6 +66,56 @@ CREATE TABLE IF NOT EXISTS leader_leases (
 	holder TEXT NOT NULL,
 	expires_at TIMESTAMPTZ NOT NULL
 );
+
+-- v0.23: approval requests
+CREATE TABLE IF NOT EXISTS approval_requests (
+	approval_request_id TEXT PRIMARY KEY,
+	capability TEXT NOT NULL,
+	scope TEXT NOT NULL,
+	requester TEXT NOT NULL,
+	parent_invocation_id TEXT,
+	preview TEXT NOT NULL,
+	preview_digest TEXT NOT NULL,
+	requested_parameters TEXT NOT NULL,
+	requested_parameters_digest TEXT NOT NULL,
+	grant_policy TEXT NOT NULL,
+	status TEXT NOT NULL CHECK (status IN ('pending','approved','denied','expired')),
+	approver TEXT,
+	decided_at TEXT,
+	created_at TEXT NOT NULL,
+	expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_status ON approval_requests(status);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_expires ON approval_requests(expires_at);
+
+-- v0.23: approval grants. UNIQUE on approval_request_id is defense-in-depth.
+CREATE TABLE IF NOT EXISTS approval_grants (
+	grant_id TEXT PRIMARY KEY,
+	approval_request_id TEXT NOT NULL UNIQUE,
+	grant_type TEXT NOT NULL CHECK (grant_type IN ('one_time','session_bound')),
+	capability TEXT NOT NULL,
+	scope TEXT NOT NULL,
+	approved_parameters_digest TEXT NOT NULL,
+	preview_digest TEXT NOT NULL,
+	requester TEXT NOT NULL,
+	approver TEXT NOT NULL,
+	issued_at TEXT NOT NULL,
+	expires_at TEXT NOT NULL,
+	max_uses INTEGER NOT NULL CHECK (max_uses >= 1),
+	use_count INTEGER NOT NULL DEFAULT 0,
+	session_id TEXT,
+	signature TEXT NOT NULL,
+	FOREIGN KEY (approval_request_id) REFERENCES approval_requests(approval_request_id)
+);
+CREATE INDEX IF NOT EXISTS idx_grants_approval_request_id ON approval_grants(approval_request_id);
+CREATE INDEX IF NOT EXISTS idx_grants_expires ON approval_grants(expires_at);
+
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS approval_request_id TEXT;
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS approval_grant_id TEXT;
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS entry_type TEXT;
+ALTER TABLE delegation_tokens ADD COLUMN IF NOT EXISTS session_id TEXT;
+CREATE INDEX IF NOT EXISTS idx_audit_approval_request_id ON audit_log(approval_request_id);
+CREATE INDEX IF NOT EXISTS idx_audit_approval_grant_id ON audit_log(approval_grant_id);
 `
 
 // PostgresStorage implements Storage using pgxpool.Pool.
@@ -194,8 +244,9 @@ func (s *PostgresStorage) AppendAuditEntry(entry *core.AuditEntry) (*core.AuditE
 	_, err = tx.Exec(context.Background(),
 		`INSERT INTO audit_log (sequence_number, timestamp, capability, token_id, root_principal,
 		 invocation_id, client_reference_id, task_id, parent_invocation_id,
-		 upstream_service, data, previous_hash, signature)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+		 upstream_service, approval_request_id, approval_grant_id, entry_type,
+		 data, previous_hash, signature)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
 		newSeqNum,
 		entry.Timestamp,
 		entry.Capability,
@@ -206,6 +257,9 @@ func (s *PostgresStorage) AppendAuditEntry(entry *core.AuditEntry) (*core.AuditE
 		entry.TaskID,
 		entry.ParentInvocationID,
 		entry.UpstreamService,
+		nullIfEmpty(entry.ApprovalRequestID),
+		nullIfEmpty(entry.ApprovalGrantID),
+		nullIfEmpty(entry.EntryType),
 		string(data),
 		prevHash,
 		entry.Signature,
@@ -272,6 +326,16 @@ func (s *PostgresStorage) QueryAuditEntries(filters AuditFilters) ([]core.AuditE
 	if filters.ParentInvocationID != "" {
 		query += " AND parent_invocation_id = $" + strconv.Itoa(argIdx)
 		args = append(args, filters.ParentInvocationID)
+		argIdx++
+	}
+	if filters.ApprovalRequestID != "" {
+		query += " AND approval_request_id = $" + strconv.Itoa(argIdx)
+		args = append(args, filters.ApprovalRequestID)
+		argIdx++
+	}
+	if filters.ApprovalGrantID != "" {
+		query += " AND approval_grant_id = $" + strconv.Itoa(argIdx)
+		args = append(args, filters.ApprovalGrantID)
 		argIdx++
 	}
 
@@ -557,4 +621,366 @@ func (s *PostgresStorage) ReleaseLeader(role, holder string) error {
 		role, holder,
 	)
 	return err
+}
+
+// nullIfEmpty maps "" → nil so optional TEXT columns receive SQL NULL.
+func nullIfEmpty(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
+// nullableJSONBytes maps an empty/nil byte slice to NULL, else the JSON
+// content as a string. Used for optional JSON columns.
+func nullableJSONBytes(b []byte) any {
+	if len(b) == 0 {
+		return nil
+	}
+	return string(b)
+}
+
+// --- v0.23: Approval requests + grants ---
+
+// StoreApprovalRequest persists a new ApprovalRequest. Idempotent on
+// approval_request_id when content is identical.
+func (s *PostgresStorage) StoreApprovalRequest(req *core.ApprovalRequest) error {
+	scopeJSON, _ := json.Marshal(req.Scope)
+	requesterJSON, _ := json.Marshal(req.Requester)
+	previewJSON, _ := json.Marshal(req.Preview)
+	paramsJSON, _ := json.Marshal(req.RequestedParameters)
+	policyJSON, _ := json.Marshal(req.GrantPolicy)
+	var approverJSON []byte
+	if req.Approver != nil {
+		approverJSON, _ = json.Marshal(req.Approver)
+	}
+
+	existing, err := s.GetApprovalRequest(req.ApprovalRequestID)
+	if err != nil {
+		return err
+	}
+	if existing != nil {
+		eJSON, _ := json.Marshal(existing)
+		nJSON, _ := json.Marshal(req)
+		if string(eJSON) != string(nJSON) {
+			return fmt.Errorf("approval_request_id %q already stored with different content", req.ApprovalRequestID)
+		}
+		return nil
+	}
+
+	_, err = s.pool.Exec(context.Background(),
+		`INSERT INTO approval_requests (
+			approval_request_id, capability, scope, requester, parent_invocation_id,
+			preview, preview_digest, requested_parameters, requested_parameters_digest,
+			grant_policy, status, approver, decided_at, created_at, expires_at
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+		req.ApprovalRequestID,
+		req.Capability,
+		string(scopeJSON),
+		string(requesterJSON),
+		nullIfEmpty(req.ParentInvocationID),
+		string(previewJSON),
+		req.PreviewDigest,
+		string(paramsJSON),
+		req.RequestedParametersDigest,
+		string(policyJSON),
+		req.Status,
+		nullableJSONBytes(approverJSON),
+		nullIfEmpty(req.DecidedAt),
+		req.CreatedAt,
+		req.ExpiresAt,
+	)
+	return err
+}
+
+// GetApprovalRequest loads an ApprovalRequest by id, or nil if not found.
+func (s *PostgresStorage) GetApprovalRequest(id string) (*core.ApprovalRequest, error) {
+	row := s.pool.QueryRow(context.Background(),
+		`SELECT approval_request_id, capability, scope, requester, parent_invocation_id,
+		        preview, preview_digest, requested_parameters, requested_parameters_digest,
+		        grant_policy, status, approver, decided_at, created_at, expires_at
+		 FROM approval_requests WHERE approval_request_id = $1`, id,
+	)
+	return scanApprovalRequestPgx(row)
+}
+
+func scanApprovalRequestPgx(row pgx.Row) (*core.ApprovalRequest, error) {
+	var (
+		id, capability, scopeJSON, requesterJSON, previewJSON, paramsJSON, policyJSON, status, createdAt, expiresAt string
+		previewDigest, paramsDigest                                                                                  string
+		parentInvID, approverJSON, decidedAt                                                                         *string
+	)
+	err := row.Scan(
+		&id, &capability, &scopeJSON, &requesterJSON, &parentInvID,
+		&previewJSON, &previewDigest, &paramsJSON, &paramsDigest,
+		&policyJSON, &status, &approverJSON, &decidedAt, &createdAt, &expiresAt,
+	)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	req := &core.ApprovalRequest{
+		ApprovalRequestID:         id,
+		Capability:                capability,
+		PreviewDigest:             previewDigest,
+		RequestedParametersDigest: paramsDigest,
+		Status:                    status,
+		CreatedAt:                 createdAt,
+		ExpiresAt:                 expiresAt,
+	}
+	if parentInvID != nil {
+		req.ParentInvocationID = *parentInvID
+	}
+	if decidedAt != nil {
+		req.DecidedAt = *decidedAt
+	}
+	_ = json.Unmarshal([]byte(scopeJSON), &req.Scope)
+	_ = json.Unmarshal([]byte(requesterJSON), &req.Requester)
+	_ = json.Unmarshal([]byte(previewJSON), &req.Preview)
+	_ = json.Unmarshal([]byte(paramsJSON), &req.RequestedParameters)
+	_ = json.Unmarshal([]byte(policyJSON), &req.GrantPolicy)
+	if approverJSON != nil && *approverJSON != "" {
+		_ = json.Unmarshal([]byte(*approverJSON), &req.Approver)
+	}
+	return req, nil
+}
+
+// ApproveRequestAndStoreGrant atomically transitions to approved and stores
+// the signed grant in one transaction.
+func (s *PostgresStorage) ApproveRequestAndStoreGrant(
+	approvalRequestID string,
+	grant *core.ApprovalGrant,
+	approver map[string]any,
+	decidedAtIso string,
+	nowIso string,
+) (ApprovalDecisionResult, error) {
+	approverJSON, _ := json.Marshal(approver)
+	scopeJSON, _ := json.Marshal(grant.Scope)
+	requesterJSON, _ := json.Marshal(grant.Requester)
+	grantApproverJSON, _ := json.Marshal(grant.Approver)
+
+	ctx := context.Background()
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return ApprovalDecisionResult{}, fmt.Errorf("begin tx: %w", err)
+	}
+	rolled := false
+	rollback := func() {
+		if !rolled {
+			_ = tx.Rollback(ctx)
+			rolled = true
+		}
+	}
+	defer rollback()
+
+	tag, err := tx.Exec(ctx,
+		`UPDATE approval_requests
+		 SET status = 'approved', approver = $1, decided_at = $2
+		 WHERE approval_request_id = $3
+		   AND status = 'pending'
+		   AND expires_at > $4`,
+		string(approverJSON), decidedAtIso, approvalRequestID, nowIso,
+	)
+	if err != nil {
+		return ApprovalDecisionResult{}, fmt.Errorf("update request: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		var status, expiresAt string
+		err := tx.QueryRow(ctx,
+			"SELECT status, expires_at FROM approval_requests WHERE approval_request_id = $1",
+			approvalRequestID,
+		).Scan(&status, &expiresAt)
+		rollback()
+		if err == pgx.ErrNoRows {
+			return ApprovalDecisionResult{OK: false, Reason: "approval_request_not_found"}, nil
+		}
+		if err != nil {
+			return ApprovalDecisionResult{}, err
+		}
+		if expiresAt <= nowIso {
+			return ApprovalDecisionResult{OK: false, Reason: "approval_request_expired"}, nil
+		}
+		return ApprovalDecisionResult{OK: false, Reason: "approval_request_already_decided"}, nil
+	}
+
+	_, err = tx.Exec(ctx,
+		`INSERT INTO approval_grants (
+			grant_id, approval_request_id, grant_type, capability, scope,
+			approved_parameters_digest, preview_digest, requester, approver,
+			issued_at, expires_at, max_uses, use_count, session_id, signature
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+		grant.GrantID,
+		grant.ApprovalRequestID,
+		grant.GrantType,
+		grant.Capability,
+		string(scopeJSON),
+		grant.ApprovedParametersDigest,
+		grant.PreviewDigest,
+		string(requesterJSON),
+		string(grantApproverJSON),
+		grant.IssuedAt,
+		grant.ExpiresAt,
+		grant.MaxUses,
+		grant.UseCount,
+		nullIfEmpty(grant.SessionID),
+		grant.Signature,
+	)
+	if err != nil {
+		// UNIQUE on approval_request_id means another approver got there first.
+		rollback()
+		return ApprovalDecisionResult{OK: false, Reason: "approval_request_already_decided"}, nil
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return ApprovalDecisionResult{}, fmt.Errorf("commit: %w", err)
+	}
+	rolled = true
+	persisted := *grant
+	return ApprovalDecisionResult{OK: true, Grant: &persisted}, nil
+}
+
+// StoreGrant inserts or replaces a grant — internal/test-only.
+func (s *PostgresStorage) StoreGrant(grant *core.ApprovalGrant) error {
+	scopeJSON, _ := json.Marshal(grant.Scope)
+	requesterJSON, _ := json.Marshal(grant.Requester)
+	approverJSON, _ := json.Marshal(grant.Approver)
+	_, err := s.pool.Exec(context.Background(),
+		`INSERT INTO approval_grants (
+			grant_id, approval_request_id, grant_type, capability, scope,
+			approved_parameters_digest, preview_digest, requester, approver,
+			issued_at, expires_at, max_uses, use_count, session_id, signature
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+		 ON CONFLICT (grant_id) DO UPDATE SET
+		     use_count = EXCLUDED.use_count, signature = EXCLUDED.signature`,
+		grant.GrantID,
+		grant.ApprovalRequestID,
+		grant.GrantType,
+		grant.Capability,
+		string(scopeJSON),
+		grant.ApprovedParametersDigest,
+		grant.PreviewDigest,
+		string(requesterJSON),
+		string(approverJSON),
+		grant.IssuedAt,
+		grant.ExpiresAt,
+		grant.MaxUses,
+		grant.UseCount,
+		nullIfEmpty(grant.SessionID),
+		grant.Signature,
+	)
+	return err
+}
+
+// GetGrant loads a grant by grant_id, or nil if not found.
+func (s *PostgresStorage) GetGrant(grantID string) (*core.ApprovalGrant, error) {
+	row := s.pool.QueryRow(context.Background(),
+		`SELECT grant_id, approval_request_id, grant_type, capability, scope,
+		        approved_parameters_digest, preview_digest, requester, approver,
+		        issued_at, expires_at, max_uses, use_count, session_id, signature
+		 FROM approval_grants WHERE grant_id = $1`, grantID,
+	)
+	return scanGrantPgx(row)
+}
+
+func scanGrantPgx(row pgx.Row) (*core.ApprovalGrant, error) {
+	var (
+		id, reqID, grantType, capability, scopeJSON, paramsDigest, previewDigest, requesterJSON, approverJSON, issuedAt, expiresAt, signature string
+		maxUses, useCount                                                                                                                      int
+		sessionID                                                                                                                              *string
+	)
+	err := row.Scan(
+		&id, &reqID, &grantType, &capability, &scopeJSON,
+		&paramsDigest, &previewDigest, &requesterJSON, &approverJSON,
+		&issuedAt, &expiresAt, &maxUses, &useCount, &sessionID, &signature,
+	)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	g := &core.ApprovalGrant{
+		GrantID:                  id,
+		ApprovalRequestID:        reqID,
+		GrantType:                grantType,
+		Capability:               capability,
+		ApprovedParametersDigest: paramsDigest,
+		PreviewDigest:            previewDigest,
+		IssuedAt:                 issuedAt,
+		ExpiresAt:                expiresAt,
+		MaxUses:                  maxUses,
+		UseCount:                 useCount,
+		Signature:                signature,
+	}
+	if sessionID != nil {
+		g.SessionID = *sessionID
+	}
+	_ = json.Unmarshal([]byte(scopeJSON), &g.Scope)
+	_ = json.Unmarshal([]byte(requesterJSON), &g.Requester)
+	_ = json.Unmarshal([]byte(approverJSON), &g.Approver)
+	return g, nil
+}
+
+// TryReserveGrant atomically increments use_count if the grant is usable.
+// SPEC.md §4.8 Phase B.
+func (s *PostgresStorage) TryReserveGrant(grantID string, nowIso string) (GrantReservationResult, error) {
+	ctx := context.Background()
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return GrantReservationResult{}, fmt.Errorf("begin tx: %w", err)
+	}
+	rolled := false
+	rollback := func() {
+		if !rolled {
+			_ = tx.Rollback(ctx)
+			rolled = true
+		}
+	}
+	defer rollback()
+
+	tag, err := tx.Exec(ctx,
+		`UPDATE approval_grants
+		 SET use_count = use_count + 1
+		 WHERE grant_id = $1
+		   AND use_count < max_uses
+		   AND expires_at > $2`,
+		grantID, nowIso,
+	)
+	if err != nil {
+		return GrantReservationResult{}, fmt.Errorf("update grant: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		var useCount, maxUses int
+		var expiresAt string
+		err := tx.QueryRow(ctx,
+			"SELECT use_count, max_uses, expires_at FROM approval_grants WHERE grant_id = $1",
+			grantID,
+		).Scan(&useCount, &maxUses, &expiresAt)
+		rollback()
+		if err == pgx.ErrNoRows {
+			return GrantReservationResult{OK: false, Reason: "grant_not_found"}, nil
+		}
+		if err != nil {
+			return GrantReservationResult{}, err
+		}
+		if expiresAt <= nowIso {
+			return GrantReservationResult{OK: false, Reason: "grant_expired"}, nil
+		}
+		if useCount >= maxUses {
+			return GrantReservationResult{OK: false, Reason: "grant_consumed"}, nil
+		}
+		return GrantReservationResult{OK: false, Reason: "grant_not_found"}, nil
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return GrantReservationResult{}, fmt.Errorf("commit: %w", err)
+	}
+	rolled = true
+	g, err := s.GetGrant(grantID)
+	if err != nil {
+		return GrantReservationResult{}, err
+	}
+	return GrantReservationResult{OK: true, Grant: g}, nil
 }

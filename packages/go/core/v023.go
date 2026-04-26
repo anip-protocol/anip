@@ -176,16 +176,19 @@ type ApprovalGrant struct {
 }
 
 // IssueApprovalGrantRequest is the body for POST {approval_grants}. v0.23.
+//
+// ExpiresInSeconds and MaxUses are pointers so absence (omitted) is
+// distinguishable from explicit 0 (which is invalid per SPEC §4.9 — when
+// present, both must be positive integers).
 type IssueApprovalGrantRequest struct {
 	ApprovalRequestID string `json:"approval_request_id"`
 	GrantType         string `json:"grant_type"`
 	SessionID         string `json:"session_id,omitempty"`
-	ExpiresInSeconds  int    `json:"expires_in_seconds,omitempty"`
-	MaxUses           int    `json:"max_uses,omitempty"`
+	ExpiresInSeconds  *int   `json:"expires_in_seconds,omitempty"`
+	MaxUses           *int   `json:"max_uses,omitempty"`
 }
 
 // IssueApprovalGrantResponse is the response body for POST {approval_grants}.
-// v0.23.
-type IssueApprovalGrantResponse struct {
-	Grant ApprovalGrant `json:"grant"`
-}
+// SPEC.md §4.9: 200 response IS the signed ApprovalGrant — no wrapper.
+// Aliased for parity with the request type. v0.23.
+type IssueApprovalGrantResponse = ApprovalGrant
