@@ -206,6 +206,124 @@ class ControlRequirement(BaseModel):
     enforcement: str = "reject"  # "reject" only; "warn" deferred to future slice
 
 
+# --- v0.23: Capability Composition ---
+
+
+CapabilityKind = Literal["atomic", "composed"]
+AuthorityBoundary = Literal["same_service", "same_package", "external_service"]
+EmptyResultPolicy = Literal["return_success_no_results", "clarify", "deny"]
+FailurePolicyOutcome = Literal["propagate", "fail_parent"]
+
+
+class CompositionStep(BaseModel):
+    """One step in a composed capability. v0.23. See SPEC.md §4.6."""
+    id: str
+    capability: str
+    empty_result_source: bool = False
+    empty_result_path: str | None = None
+
+
+class FailurePolicy(BaseModel):
+    """Per-child-outcome failure handling. v0.23. See SPEC.md §4.6."""
+    child_clarification: FailurePolicyOutcome = "propagate"
+    child_denial: FailurePolicyOutcome = "propagate"
+    child_approval_required: FailurePolicyOutcome = "propagate"
+    child_error: FailurePolicyOutcome = "fail_parent"
+
+
+class AuditPolicy(BaseModel):
+    """Audit behavior for composed capabilities. v0.23. See SPEC.md §4.6."""
+    record_child_invocations: bool
+    parent_task_lineage: bool
+
+
+class Composition(BaseModel):
+    """Declarative composition for kind=composed capabilities. v0.23. See SPEC.md §4.6."""
+    authority_boundary: AuthorityBoundary
+    steps: list[CompositionStep]
+    input_mapping: dict[str, dict[str, str]]
+    output_mapping: dict[str, str]
+    empty_result_policy: EmptyResultPolicy | None = None
+    empty_result_output: dict[str, Any] | None = None
+    failure_policy: FailurePolicy
+    audit_policy: AuditPolicy
+
+
+# --- v0.23: Approval Grants ---
+
+
+GrantType = Literal["one_time", "session_bound"]
+ApprovalRequestStatus = Literal["pending", "approved", "denied", "expired"]
+
+
+class GrantPolicy(BaseModel):
+    """Constrains what an approver MAY issue for a given request. v0.23. See SPEC.md §4.7."""
+    allowed_grant_types: list[GrantType]
+    default_grant_type: GrantType
+    expires_in_seconds: int
+    max_uses: int
+
+
+class ApprovalRequiredMetadata(BaseModel):
+    """Metadata attached to an approval_required failure. v0.23. See SPEC.md §4.7."""
+    approval_request_id: str
+    preview_digest: str
+    requested_parameters_digest: str
+    grant_policy: GrantPolicy
+
+
+class ApprovalRequest(BaseModel):
+    """Persistent record of a request for human/principal approval. v0.23. See SPEC.md §4.7."""
+    approval_request_id: str
+    capability: str
+    scope: list[str]
+    requester: dict[str, Any]
+    parent_invocation_id: str | None = None
+    preview: dict[str, Any]
+    preview_digest: str
+    requested_parameters: dict[str, Any]
+    requested_parameters_digest: str
+    grant_policy: GrantPolicy
+    status: ApprovalRequestStatus
+    approver: dict[str, Any] | None = None
+    decided_at: str | None = None
+    created_at: str
+    expires_at: str
+
+
+class ApprovalGrant(BaseModel):
+    """Signed authorization object issued after approval. v0.23. See SPEC.md §4.8."""
+    grant_id: str
+    approval_request_id: str
+    grant_type: GrantType
+    capability: str
+    scope: list[str]
+    approved_parameters_digest: str
+    preview_digest: str
+    requester: dict[str, Any]
+    approver: dict[str, Any]
+    issued_at: str
+    expires_at: str
+    max_uses: int
+    use_count: int = 0
+    session_id: str | None = None
+    signature: str
+
+
+class IssueApprovalGrantRequest(BaseModel):
+    """Request body for POST {approval_grants}. v0.23. See SPEC.md §4.9."""
+    approval_request_id: str
+    grant_type: GrantType
+    session_id: str | None = None
+    expires_in_seconds: int | None = None
+    max_uses: int | None = None
+
+
+class IssueApprovalGrantResponse(BaseModel):
+    """Response body for POST {approval_grants}. v0.23. See SPEC.md §4.9."""
+    grant: ApprovalGrant
+
+
 class CapabilityDeclaration(BaseModel):
     name: str
     description: str
@@ -226,6 +344,10 @@ class CapabilityDeclaration(BaseModel):
     verify_via: list[str] = Field(default_factory=list)
     cross_service: CrossServiceHints | None = None
     cross_service_contract: CrossServiceContract | None = None
+    # v0.23
+    kind: CapabilityKind = "atomic"
+    composition: Composition | None = None
+    grant_policy: GrantPolicy | None = None
 
 
 # --- Permission Discovery ---
@@ -275,6 +397,7 @@ class ANIPFailure(BaseModel):
     detail: str
     resolution: Resolution
     retry: bool = True
+    approval_required: ApprovalRequiredMetadata | None = None  # v0.23, present iff type='approval_required'
 
 
 # --- Manifest ---
@@ -421,6 +544,7 @@ class InvokeRequest(BaseModel):
     task_id: str | None = Field(default=None, max_length=256)
     parent_invocation_id: str | None = Field(default=None, pattern=r"^inv-[0-9a-f]{12}$")
     stream: bool = False
+    approval_grant: str | None = None  # v0.23: grant_id supplied on continuation invocations
 
 
 class StreamSummary(BaseModel):
