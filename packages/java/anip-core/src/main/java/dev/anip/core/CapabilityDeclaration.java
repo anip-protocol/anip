@@ -24,6 +24,11 @@ public class CapabilityDeclaration {
     private final List<String> verifyVia;
     private final CrossServiceHints crossService;
     private final CrossServiceContract crossServiceContract;
+    // v0.23 — composition + approval grant policy. Mutable for builder/setter style;
+    // values default to null/atomic so existing callers do not break.
+    private String kind = "atomic";
+    private Composition composition;
+    private GrantPolicy grantPolicy;
 
     public CapabilityDeclaration(String name, String description, String contractVersion,
                                   List<CapabilityInput> inputs, CapabilityOutput output,
@@ -187,5 +192,33 @@ public class CapabilityDeclaration {
 
     public CrossServiceContract getCrossServiceContract() {
         return crossServiceContract;
+    }
+
+    // v0.23 accessors
+    public String getKind() {
+        return kind;
+    }
+
+    public CapabilityDeclaration setKind(String kind) {
+        this.kind = kind;
+        return this;
+    }
+
+    public Composition getComposition() {
+        return composition;
+    }
+
+    public CapabilityDeclaration setComposition(Composition composition) {
+        this.composition = composition;
+        return this;
+    }
+
+    public GrantPolicy getGrantPolicy() {
+        return grantPolicy;
+    }
+
+    public CapabilityDeclaration setGrantPolicy(GrantPolicy grantPolicy) {
+        this.grantPolicy = grantPolicy;
+        return this;
     }
 }

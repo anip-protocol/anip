@@ -221,27 +221,297 @@ export const BudgetContext = z.object({
 });
 export type BudgetContext = z.infer<typeof BudgetContext>;
 
-export const CapabilityDeclaration = z.object({
-  name: z.string(),
-  description: z.string(),
-  contract_version: z.string().default("1.0"),
-  inputs: z.array(CapabilityInput),
-  output: CapabilityOutput,
-  side_effect: SideEffect,
-  minimum_scope: z.array(z.string()),
-  cost: Cost.nullable().default(null),
-  requires: z.array(CapabilityRequirement).default([]),
-  composes_with: z.array(CapabilityComposition).default([]),
-  session: SessionInfo.default({ type: "stateless" }),
-  observability: ObservabilityContract.nullable().default(null),
-  response_modes: z.array(ResponseMode).min(1).default(["unary"]),
-  requires_binding: z.array(BindingRequirement).default([]),
-  control_requirements: z.array(ControlRequirement).default([]),
-  refresh_via: z.array(z.string()).default([]),
-  verify_via: z.array(z.string()).default([]),
-  cross_service: CrossServiceHints.nullable().default(null),
-  cross_service_contract: CrossServiceContract.nullable().optional(),
+// ---------------------------------------------------------------------------
+// v0.23: Capability Composition
+// ---------------------------------------------------------------------------
+
+export const CapabilityKind = z.enum(["atomic", "composed"]);
+export type CapabilityKind = z.infer<typeof CapabilityKind>;
+
+export const AuthorityBoundary = z.enum([
+  "same_service",
+  "same_package",
+  "external_service",
+]);
+export type AuthorityBoundary = z.infer<typeof AuthorityBoundary>;
+
+export const EmptyResultPolicy = z.enum([
+  "return_success_no_results",
+  "clarify",
+  "deny",
+]);
+export type EmptyResultPolicy = z.infer<typeof EmptyResultPolicy>;
+
+export const FailurePolicyOutcome = z.enum(["propagate", "fail_parent"]);
+export type FailurePolicyOutcome = z.infer<typeof FailurePolicyOutcome>;
+
+export const CompositionStep = z.object({
+  id: z.string().min(1),
+  capability: z.string().min(1),
+  empty_result_source: z.boolean().default(false),
+  empty_result_path: z.string().nullable().default(null),
 });
+export type CompositionStep = z.infer<typeof CompositionStep>;
+
+export const FailurePolicy = z.object({
+  child_clarification: FailurePolicyOutcome.default("propagate"),
+  child_denial: FailurePolicyOutcome.default("propagate"),
+  child_approval_required: FailurePolicyOutcome.default("propagate"),
+  child_error: FailurePolicyOutcome.default("fail_parent"),
+});
+export type FailurePolicy = z.infer<typeof FailurePolicy>;
+
+export const AuditPolicy = z.object({
+  record_child_invocations: z.boolean(),
+  parent_task_lineage: z.boolean(),
+});
+export type AuditPolicy = z.infer<typeof AuditPolicy>;
+
+export const Composition = z.object({
+  authority_boundary: AuthorityBoundary,
+  steps: z.array(CompositionStep).min(1),
+  input_mapping: z.record(z.record(z.string())),
+  output_mapping: z.record(z.string()),
+  empty_result_policy: EmptyResultPolicy.nullable().default(null),
+  empty_result_output: z.record(z.any()).nullable().default(null),
+  failure_policy: FailurePolicy,
+  audit_policy: AuditPolicy,
+});
+export type Composition = z.infer<typeof Composition>;
+
+// ---------------------------------------------------------------------------
+// v0.23: Approval Grants
+// ---------------------------------------------------------------------------
+
+export const GrantType = z.enum(["one_time", "session_bound"]);
+export type GrantType = z.infer<typeof GrantType>;
+
+export const ApprovalRequestStatus = z.enum([
+  "pending",
+  "approved",
+  "denied",
+  "expired",
+]);
+export type ApprovalRequestStatus = z.infer<typeof ApprovalRequestStatus>;
+
+export const GrantPolicy = z
+  .object({
+    allowed_grant_types: z.array(GrantType).min(1),
+    default_grant_type: GrantType,
+    expires_in_seconds: z.number().int().min(1),
+    max_uses: z.number().int().min(1),
+  })
+  .superRefine((p, ctx) => {
+    // SPEC.md §4.7: default_grant_type MUST appear in allowed_grant_types.
+    if (!p.allowed_grant_types.includes(p.default_grant_type)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `default_grant_type='${p.default_grant_type}' must appear in allowed_grant_types`,
+        path: ["default_grant_type"],
+      });
+    }
+  });
+export type GrantPolicy = z.infer<typeof GrantPolicy>;
+
+export const ApprovalRequiredMetadata = z.object({
+  approval_request_id: z.string().min(1),
+  preview_digest: z.string().min(1),
+  requested_parameters_digest: z.string().min(1),
+  grant_policy: GrantPolicy,
+});
+export type ApprovalRequiredMetadata = z.infer<typeof ApprovalRequiredMetadata>;
+
+export const ApprovalRequest = z
+  .object({
+    approval_request_id: z.string().min(1),
+    capability: z.string().min(1),
+    scope: z.array(z.string()),
+    requester: z.record(z.any()),
+    parent_invocation_id: z.string().nullable().default(null),
+    preview: z.record(z.any()),
+    preview_digest: z.string().min(1),
+    requested_parameters: z.record(z.any()),
+    requested_parameters_digest: z.string().min(1),
+    grant_policy: GrantPolicy,
+    status: ApprovalRequestStatus,
+    approver: z.record(z.any()).nullable().default(null),
+    decided_at: z.string().nullable().default(null),
+    created_at: z.string(),
+    expires_at: z.string(),
+  })
+  .superRefine((req, ctx) => {
+    // SPEC.md §4.7: pending → no approver/decided_at; approved/denied → both required;
+    // expired → decided_at required, approver null.
+    const status = req.status;
+    if (status === "pending") {
+      if (req.approver !== null || req.decided_at !== null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "pending requests must have approver=null and decided_at=null",
+        });
+      }
+    } else if (status === "approved" || status === "denied") {
+      if (req.approver === null || req.decided_at === null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${status} requests require approver and decided_at`,
+        });
+      }
+    } else if (status === "expired") {
+      if (req.approver !== null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "expired requests must have approver=null (time-driven, no human decided)",
+        });
+      }
+      if (req.decided_at === null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "expired requests must have decided_at set",
+        });
+      }
+    }
+  });
+export type ApprovalRequest = z.infer<typeof ApprovalRequest>;
+
+export const ApprovalGrant = z
+  .object({
+    grant_id: z.string().min(1),
+    approval_request_id: z.string().min(1),
+    grant_type: GrantType,
+    capability: z.string().min(1),
+    scope: z.array(z.string()),
+    approved_parameters_digest: z.string().min(1),
+    preview_digest: z.string().min(1),
+    requester: z.record(z.any()),
+    approver: z.record(z.any()),
+    issued_at: z.string(),
+    expires_at: z.string(),
+    max_uses: z.number().int().min(1),
+    use_count: z.number().int().min(0).default(0),
+    session_id: z.string().min(1).nullable().default(null),
+    signature: z.string().min(1),
+  })
+  .superRefine((g, ctx) => {
+    // SPEC.md §4.8: one_time → max_uses=1, session_id=null;
+    // session_bound → session_id required (non-null).
+    if (g.grant_type === "one_time") {
+      if (g.max_uses !== 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "one_time grants must have max_uses=1",
+          path: ["max_uses"],
+        });
+      }
+      if (g.session_id !== null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "one_time grants must have session_id=null",
+          path: ["session_id"],
+        });
+      }
+    } else if (g.grant_type === "session_bound") {
+      if (g.session_id === null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "session_bound grants require a non-null session_id",
+          path: ["session_id"],
+        });
+      }
+    }
+  });
+export type ApprovalGrant = z.infer<typeof ApprovalGrant>;
+
+export const IssueApprovalGrantRequest = z
+  .object({
+    approval_request_id: z.string().min(1),
+    grant_type: GrantType,
+    session_id: z.string().min(1).nullable().default(null),
+    expires_in_seconds: z.number().int().min(1).nullable().default(null),
+    max_uses: z.number().int().min(1).nullable().default(null),
+  })
+  .superRefine((req, ctx) => {
+    // SPEC.md §4.9: session_id required iff session_bound.
+    if (req.grant_type === "session_bound") {
+      if (req.session_id === null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "session_bound grant issuance requires a non-null session_id",
+          path: ["session_id"],
+        });
+      }
+    } else if (req.grant_type === "one_time") {
+      if (req.session_id !== null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "one_time grant issuance must not carry session_id",
+          path: ["session_id"],
+        });
+      }
+      if (req.max_uses !== null && req.max_uses !== 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "one_time grant issuance max_uses must be 1 or null",
+          path: ["max_uses"],
+        });
+      }
+    }
+  });
+export type IssueApprovalGrantRequest = z.infer<typeof IssueApprovalGrantRequest>;
+
+export const IssueApprovalGrantResponse = z.object({
+  grant: ApprovalGrant,
+});
+export type IssueApprovalGrantResponse = z.infer<typeof IssueApprovalGrantResponse>;
+
+// ---------------------------------------------------------------------------
+// Capability Declaration
+// ---------------------------------------------------------------------------
+
+export const CapabilityDeclaration = z
+  .object({
+    name: z.string(),
+    description: z.string(),
+    contract_version: z.string().default("1.0"),
+    inputs: z.array(CapabilityInput),
+    output: CapabilityOutput,
+    side_effect: SideEffect,
+    minimum_scope: z.array(z.string()),
+    cost: Cost.nullable().default(null),
+    requires: z.array(CapabilityRequirement).default([]),
+    composes_with: z.array(CapabilityComposition).default([]),
+    session: SessionInfo.default({ type: "stateless" }),
+    observability: ObservabilityContract.nullable().default(null),
+    response_modes: z.array(ResponseMode).min(1).default(["unary"]),
+    requires_binding: z.array(BindingRequirement).default([]),
+    control_requirements: z.array(ControlRequirement).default([]),
+    refresh_via: z.array(z.string()).default([]),
+    verify_via: z.array(z.string()).default([]),
+    cross_service: CrossServiceHints.nullable().default(null),
+    cross_service_contract: CrossServiceContract.nullable().optional(),
+    // v0.23
+    kind: CapabilityKind.default("atomic"),
+    composition: Composition.nullable().default(null),
+    grant_policy: GrantPolicy.nullable().default(null),
+  })
+  .superRefine((d, ctx) => {
+    // SPEC.md §4.1, §4.6: composed requires composition; atomic forbids it.
+    // The third rule catches the omitted-kind case (defaulting to atomic).
+    if (d.kind === "composed" && d.composition === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "kind='composed' requires composition",
+        path: ["composition"],
+      });
+    }
+    if (d.kind === "atomic" && d.composition !== null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "kind='atomic' must not carry composition",
+        path: ["composition"],
+      });
+    }
+  });
 export type CapabilityDeclaration = z.infer<typeof CapabilityDeclaration>;
 
 // ---------------------------------------------------------------------------
@@ -293,12 +563,31 @@ export const Resolution = z.object({
 });
 export type Resolution = z.infer<typeof Resolution>;
 
-export const ANIPFailure = z.object({
-  type: z.string(),
-  detail: z.string(),
-  resolution: Resolution,
-  retry: z.boolean().default(true),
-});
+export const ANIPFailure = z
+  .object({
+    type: z.string(),
+    detail: z.string(),
+    resolution: Resolution,
+    retry: z.boolean().default(true),
+    approval_required: ApprovalRequiredMetadata.nullable().default(null),
+  })
+  .superRefine((f, ctx) => {
+    // SPEC.md §4.7: approval_required metadata is present iff type='approval_required'.
+    if (f.type === "approval_required" && f.approval_required === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "type='approval_required' failures require approval_required metadata",
+        path: ["approval_required"],
+      });
+    }
+    if (f.type !== "approval_required" && f.approval_required !== null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "approval_required metadata may only be set when type='approval_required'",
+        path: ["approval_required"],
+      });
+    }
+  });
 export type ANIPFailure = z.infer<typeof ANIPFailure>;
 
 // ---------------------------------------------------------------------------
@@ -458,6 +747,7 @@ export const InvokeRequest = z.object({
   budget: z.record(z.any()).nullable().default(null),
   client_reference_id: z.string().max(256).nullable().default(null),
   stream: z.boolean().default(false),
+  approval_grant: z.string().nullable().default(null),  // v0.23
 });
 export type InvokeRequest = z.infer<typeof InvokeRequest>;
 

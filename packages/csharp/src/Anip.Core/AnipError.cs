@@ -16,6 +16,10 @@ public class AnipError : Exception
     [JsonPropertyName("retry")]
     public bool Retry { get; set; }
 
+    // v0.23: present iff ErrorType == "approval_required"
+    [JsonPropertyName("approval_required")]
+    public ApprovalRequiredMetadata? ApprovalRequired { get; set; }
+
     public AnipError(string errorType, string detail, Resolution? resolution = null, bool retry = false)
         : base(detail)
     {
@@ -34,6 +38,13 @@ public class AnipError : Exception
     public AnipError WithRetry()
     {
         Retry = true;
+        return this;
+    }
+
+    /// <summary>v0.23: attach approval-required metadata.</summary>
+    public AnipError WithApprovalRequired(ApprovalRequiredMetadata metadata)
+    {
+        ApprovalRequired = metadata;
         return this;
     }
 }

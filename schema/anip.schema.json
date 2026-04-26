@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anip.dev/schema/v0.22/anip.schema.json",
+  "$id": "https://anip.dev/schema/v0.23/anip.schema.json",
   "title": "ANIP \u2014 Agent-Native Interface Protocol",
-  "description": "Canonical JSON Schema for all ANIP v0.22 types as defined in SPEC.md. Use these schemas to validate ANIP documents, responses, and delegation tokens.",
+  "description": "Canonical JSON Schema for all ANIP v0.23 types as defined in SPEC.md. Use these schemas to validate ANIP documents, responses, and delegation tokens.",
   "$defs": {
     "ServiceCapabilityRef": {
       "type": "object",
@@ -948,12 +948,33 @@
           "default": true,
           "title": "Retry",
           "type": "boolean"
+        },
+        "approval_required": {
+          "anyOf": [
+            { "$ref": "#/$defs/ApprovalRequiredMetadata" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Approval Required",
+          "description": "Approval-required metadata. Present iff type='approval_required'. v0.23. See SPEC.md §4.7."
         }
       },
       "required": [
         "type",
         "detail",
         "resolution"
+      ],
+      "allOf": [
+        {
+          "if": {"properties": {"type": {"const": "approval_required"}}, "required": ["type"]},
+          "then": {
+            "required": ["approval_required"],
+            "properties": {"approval_required": {"not": {"type": "null"}}}
+          },
+          "else": {
+            "properties": {"approval_required": {"type": "null"}}
+          }
+        }
       ],
       "title": "ANIPFailure",
       "type": "object",
@@ -1160,6 +1181,29 @@
           "default": null,
           "title": "Cross Service Contract",
           "description": "Structured cross-service contract with task-local adjacent-step semantics (v0.22). Stronger than advisory cross_service hints. See SPEC.md §4.1."
+        },
+        "kind": {
+          "$ref": "#/$defs/CapabilityKind",
+          "default": "atomic",
+          "description": "Whether this capability is implemented atomically or as a declarative composition of other capabilities (v0.23). See SPEC.md §4.1 and §4.6."
+        },
+        "composition": {
+          "anyOf": [
+            {"$ref": "#/$defs/Composition"},
+            {"type": "null"}
+          ],
+          "default": null,
+          "title": "Composition",
+          "description": "Declarative composition metadata. Required when kind=composed. MUST be null/absent when kind=atomic. See SPEC.md §4.6."
+        },
+        "grant_policy": {
+          "anyOf": [
+            {"$ref": "#/$defs/GrantPolicy"},
+            {"type": "null"}
+          ],
+          "default": null,
+          "title": "Grant Policy",
+          "description": "Policy controlling what approval grants MAY be issued for this capability when it raises approval_required. v0.23. See SPEC.md §4.7."
         }
       },
       "required": [
@@ -1169,6 +1213,27 @@
         "output",
         "side_effect",
         "minimum_scope"
+      ],
+      "allOf": [
+        {
+          "if": {"properties": {"kind": {"const": "composed"}}, "required": ["kind"]},
+          "then": {"required": ["composition"], "properties": {"composition": {"not": {"type": "null"}}}}
+        },
+        {
+          "if": {"properties": {"kind": {"const": "atomic"}}, "required": ["kind"]},
+          "then": {"properties": {"composition": {"type": "null"}}}
+        },
+        {
+          "// comment": "Catches the omitted-kind case: if composition is non-null, kind MUST be 'composed'. The two above only fire when kind is explicitly present.",
+          "if": {
+            "required": ["composition"],
+            "properties": {"composition": {"not": {"type": "null"}}}
+          },
+          "then": {
+            "required": ["kind"],
+            "properties": {"kind": {"const": "composed"}}
+          }
+        }
       ],
       "title": "CapabilityDeclaration",
       "type": "object",
@@ -1320,6 +1385,15 @@
           "default": null,
           "title": "Upstream Service",
           "description": "Agent-supplied hint naming the originating service. Unvalidated. Echoed in response and recorded in audit. See SPEC.md §6.3."
+        },
+        "approval_grant": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Approval Grant",
+          "description": "grant_id of an ApprovalGrant supplied on a continuation invocation after a prior approval_required failure. v0.23. See SPEC.md §4.8."
         }
       },
       "required": [
@@ -1754,6 +1828,491 @@
       "title": "CheckpointResponse",
       "type": "object",
       "description": "A Merkle checkpoint with optional proof. proof_unavailable indicates why proof generation failed. expires_hint is best-effort, informational. See SPEC.md §6.6 and §6.8."
+    },
+
+    "CapabilityKind": {
+      "type": "string",
+      "enum": ["atomic", "composed"],
+      "title": "CapabilityKind",
+      "description": "Whether a capability is implemented atomically or as a declarative composition (v0.23). See SPEC.md §4.1."
+    },
+    "AuthorityBoundary": {
+      "type": "string",
+      "enum": ["same_service", "same_package", "external_service"],
+      "title": "AuthorityBoundary",
+      "description": "Where composed steps run. Only same_service is supported in v0.23; same_package and external_service are reserved enum values that runtimes MUST reject."
+    },
+    "EmptyResultPolicy": {
+      "type": "string",
+      "enum": ["return_success_no_results", "clarify", "deny"],
+      "title": "EmptyResultPolicy",
+      "description": "Policy for handling an empty intermediate result from a step flagged with empty_result_source. v0.23. See SPEC.md §4.6."
+    },
+    "FailurePolicyOutcome": {
+      "type": "string",
+      "enum": ["propagate", "fail_parent"],
+      "title": "FailurePolicyOutcome",
+      "description": "How a child step's outcome is reflected in the parent capability response. v0.23. See SPEC.md §4.6."
+    },
+    "FailurePolicy": {
+      "type": "object",
+      "properties": {
+        "child_clarification": {
+          "$ref": "#/$defs/FailurePolicyOutcome",
+          "default": "propagate"
+        },
+        "child_denial": {
+          "$ref": "#/$defs/FailurePolicyOutcome",
+          "default": "propagate"
+        },
+        "child_approval_required": {
+          "$ref": "#/$defs/FailurePolicyOutcome",
+          "default": "propagate"
+        },
+        "child_error": {
+          "$ref": "#/$defs/FailurePolicyOutcome",
+          "default": "fail_parent"
+        }
+      },
+      "required": ["child_clarification", "child_denial", "child_approval_required", "child_error"],
+      "additionalProperties": false,
+      "title": "FailurePolicy",
+      "description": "Failure outcome handling per child class. v0.23. See SPEC.md §4.6."
+    },
+    "AuditPolicy": {
+      "type": "object",
+      "properties": {
+        "record_child_invocations": {
+          "type": "boolean",
+          "title": "Record Child Invocations"
+        },
+        "parent_task_lineage": {
+          "type": "boolean",
+          "title": "Parent Task Lineage"
+        }
+      },
+      "required": ["record_child_invocations", "parent_task_lineage"],
+      "additionalProperties": false,
+      "title": "AuditPolicy",
+      "description": "Audit behavior for composed capabilities. v0.23. See SPEC.md §4.6."
+    },
+    "CompositionStep": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "title": "Step Id",
+          "description": "Step identifier, unique within the composition."
+        },
+        "capability": {
+          "type": "string",
+          "minLength": 1,
+          "title": "Capability",
+          "description": "The internal capability invoked at this step. MUST be kind=atomic when authority_boundary=same_service."
+        },
+        "empty_result_source": {
+          "type": "boolean",
+          "default": false,
+          "title": "Empty Result Source",
+          "description": "Flags this step's primary output as the trigger for empty_result_policy. At most one step per composition MAY set this to true."
+        },
+        "empty_result_path": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Empty Result Path",
+          "description": "Explicit JSONPath into this step's output used to detect emptiness when empty_result_source=true. If absent, the runtime uses the first downstream input_mapping reference into this step's output."
+        }
+      },
+      "required": ["id", "capability"],
+      "additionalProperties": false,
+      "title": "CompositionStep",
+      "description": "An ordered step in a composed capability. v0.23. See SPEC.md §4.6."
+    },
+    "Composition": {
+      "type": "object",
+      "properties": {
+        "authority_boundary": {
+          "$ref": "#/$defs/AuthorityBoundary"
+        },
+        "steps": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/CompositionStep"},
+          "minItems": 1,
+          "title": "Steps"
+        },
+        "input_mapping": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {"type": "string"}
+          },
+          "title": "Input Mapping",
+          "description": "step_id -> { param_name -> JSONPath }. JSONPath references resolve against $.input.* and earlier $.steps.<id>.output.*."
+        },
+        "output_mapping": {
+          "type": "object",
+          "additionalProperties": {"type": "string"},
+          "title": "Output Mapping",
+          "description": "parent_field -> JSONPath. Used when no empty-result branch is taken."
+        },
+        "empty_result_policy": {
+          "anyOf": [
+            { "$ref": "#/$defs/EmptyResultPolicy" },
+            { "type": "null" }
+          ],
+          "default": null
+        },
+        "empty_result_output": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": true
+            },
+            { "type": "null" }
+          ],
+          "default": null,
+          "title": "Empty Result Output",
+          "description": "parent_field -> JSONPath ref or literal value. Used when the empty-result branch is taken with return_success_no_results. References must resolve only against $.input.* and the empty_result_source step's outputs."
+        },
+        "failure_policy": {
+          "$ref": "#/$defs/FailurePolicy"
+        },
+        "audit_policy": {
+          "$ref": "#/$defs/AuditPolicy"
+        }
+      },
+      "required": ["authority_boundary", "steps", "input_mapping", "output_mapping", "failure_policy", "audit_policy"],
+      "allOf": [
+        {
+          "if": {
+            "properties": {"empty_result_policy": {"const": "return_success_no_results"}},
+            "required": ["empty_result_policy"]
+          },
+          "then": {
+            "required": ["empty_result_output"],
+            "properties": {"empty_result_output": {"not": {"type": "null"}}}
+          }
+        },
+        {
+          "if": {
+            "properties": {"empty_result_policy": {"const": "clarify"}},
+            "required": ["empty_result_policy"]
+          },
+          "then": {
+            "properties": {"empty_result_output": {"type": "null"}}
+          }
+        },
+        {
+          "if": {
+            "properties": {"empty_result_policy": {"const": "deny"}},
+            "required": ["empty_result_policy"]
+          },
+          "then": {
+            "properties": {"empty_result_output": {"type": "null"}}
+          }
+        }
+      ],
+      "additionalProperties": false,
+      "title": "Composition",
+      "description": "Declarative composition metadata for kind=composed capabilities. v0.23. See SPEC.md §4.6."
+    },
+
+    "GrantType": {
+      "type": "string",
+      "enum": ["one_time", "session_bound"],
+      "title": "GrantType",
+      "description": "Approval grant type. v0.23. See SPEC.md §4.8."
+    },
+    "ApprovalRequestStatus": {
+      "type": "string",
+      "enum": ["pending", "approved", "denied", "expired"],
+      "title": "ApprovalRequestStatus",
+      "description": "Lifecycle status of an ApprovalRequest. v0.23. See SPEC.md §4.7."
+    },
+    "GrantPolicy": {
+      "type": "object",
+      "properties": {
+        "allowed_grant_types": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/GrantType"},
+          "minItems": 1,
+          "uniqueItems": true,
+          "title": "Allowed Grant Types"
+        },
+        "default_grant_type": {
+          "$ref": "#/$defs/GrantType"
+        },
+        "expires_in_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "title": "Expires In Seconds"
+        },
+        "max_uses": {
+          "type": "integer",
+          "minimum": 1,
+          "title": "Max Uses"
+        }
+      },
+      "required": ["allowed_grant_types", "default_grant_type", "expires_in_seconds", "max_uses"],
+      "allOf": [
+        {
+          "// comment": "SPEC.md §4.7: default_grant_type MUST appear in allowed_grant_types.",
+          "if": {"properties": {"default_grant_type": {"const": "one_time"}}, "required": ["default_grant_type"]},
+          "then": {"properties": {"allowed_grant_types": {"contains": {"const": "one_time"}}}}
+        },
+        {
+          "if": {"properties": {"default_grant_type": {"const": "session_bound"}}, "required": ["default_grant_type"]},
+          "then": {"properties": {"allowed_grant_types": {"contains": {"const": "session_bound"}}}}
+        }
+      ],
+      "additionalProperties": false,
+      "title": "GrantPolicy",
+      "description": "Constrains what an approver MAY issue for a given approval request. v0.23. See SPEC.md §4.7."
+    },
+    "ApprovalRequiredMetadata": {
+      "type": "object",
+      "properties": {
+        "approval_request_id": {
+          "type": "string",
+          "minLength": 1,
+          "title": "Approval Request Id"
+        },
+        "preview_digest": {
+          "type": "string",
+          "minLength": 1,
+          "title": "Preview Digest"
+        },
+        "requested_parameters_digest": {
+          "type": "string",
+          "minLength": 1,
+          "title": "Requested Parameters Digest"
+        },
+        "grant_policy": {
+          "$ref": "#/$defs/GrantPolicy"
+        }
+      },
+      "required": ["approval_request_id", "preview_digest", "requested_parameters_digest", "grant_policy"],
+      "additionalProperties": false,
+      "title": "ApprovalRequiredMetadata",
+      "description": "Metadata attached to an approval_required failure response. v0.23. See SPEC.md §4.7."
+    },
+    "ApprovalRequest": {
+      "type": "object",
+      "properties": {
+        "approval_request_id": {"type": "string", "minLength": 1},
+        "capability": {"type": "string", "minLength": 1},
+        "scope": {
+          "type": "array",
+          "items": {"type": "string"},
+          "title": "Scope"
+        },
+        "requester": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "parent_invocation_id": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "default": null
+        },
+        "preview": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "preview_digest": {"type": "string", "minLength": 1},
+        "requested_parameters": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "requested_parameters_digest": {"type": "string", "minLength": 1},
+        "grant_policy": {"$ref": "#/$defs/GrantPolicy"},
+        "status": {"$ref": "#/$defs/ApprovalRequestStatus"},
+        "approver": {
+          "anyOf": [
+            { "type": "object", "additionalProperties": true },
+            { "type": "null" }
+          ],
+          "default": null
+        },
+        "decided_at": {
+          "anyOf": [
+            { "type": "string", "format": "date-time" },
+            { "type": "null" }
+          ],
+          "default": null
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["approval_request_id", "capability", "scope", "requester", "preview", "preview_digest", "requested_parameters", "requested_parameters_digest", "grant_policy", "status", "created_at", "expires_at"],
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "pending"}}, "required": ["status"]},
+          "then": {
+            "properties": {
+              "approver": {"type": "null"},
+              "decided_at": {"type": "null"}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"status": {"enum": ["approved", "denied"]}}, "required": ["status"]},
+          "then": {
+            "properties": {
+              "approver": {"not": {"type": "null"}},
+              "decided_at": {"not": {"type": "null"}}
+            },
+            "required": ["approver", "decided_at"]
+          }
+        },
+        {
+          "if": {"properties": {"status": {"const": "expired"}}, "required": ["status"]},
+          "then": {
+            "properties": {
+              "approver": {"type": "null"},
+              "decided_at": {"not": {"type": "null"}}
+            },
+            "required": ["decided_at"]
+          }
+        }
+      ],
+      "additionalProperties": false,
+      "title": "ApprovalRequest",
+      "description": "Persistent record of a request for human/principal approval. Created when a capability raises approval_required. v0.23. See SPEC.md §4.7."
+    },
+    "ApprovalGrant": {
+      "type": "object",
+      "properties": {
+        "grant_id": {"type": "string", "minLength": 1},
+        "approval_request_id": {"type": "string", "minLength": 1},
+        "grant_type": {"$ref": "#/$defs/GrantType"},
+        "capability": {"type": "string", "minLength": 1},
+        "scope": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "approved_parameters_digest": {"type": "string", "minLength": 1},
+        "preview_digest": {"type": "string", "minLength": 1},
+        "requester": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "approver": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "issued_at": {"type": "string", "format": "date-time"},
+        "expires_at": {"type": "string", "format": "date-time"},
+        "max_uses": {"type": "integer", "minimum": 1},
+        "use_count": {"type": "integer", "minimum": 0},
+        "session_id": {
+          "anyOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "null" }
+          ],
+          "default": null
+        },
+        "signature": {"type": "string", "minLength": 1}
+      },
+      "required": ["grant_id", "approval_request_id", "grant_type", "capability", "scope", "approved_parameters_digest", "preview_digest", "requester", "approver", "issued_at", "expires_at", "max_uses", "use_count", "signature"],
+      "allOf": [
+        {
+          "if": {"properties": {"grant_type": {"const": "session_bound"}}, "required": ["grant_type"]},
+          "then": {
+            "properties": {"session_id": {"type": "string", "minLength": 1}},
+            "required": ["session_id"]
+          }
+        },
+        {
+          "if": {"properties": {"grant_type": {"const": "one_time"}}, "required": ["grant_type"]},
+          "then": {
+            "properties": {
+              "session_id": {"type": "null"},
+              "max_uses": {"const": 1}
+            }
+          }
+        }
+      ],
+      "additionalProperties": false,
+      "title": "ApprovalGrant",
+      "description": "Signed authorization object issued after approval. Bound to capability, scope, parameter digest, requester, approver, expiry, and finite use count. v0.23. See SPEC.md §4.8."
+    },
+    "IssueApprovalGrantRequest": {
+      "type": "object",
+      "properties": {
+        "approval_request_id": {"type": "string", "minLength": 1},
+        "grant_type": {"$ref": "#/$defs/GrantType"},
+        "session_id": {
+          "anyOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "null" }
+          ],
+          "default": null
+        },
+        "expires_in_seconds": {
+          "anyOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "null" }
+          ],
+          "default": null
+        },
+        "max_uses": {
+          "anyOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "null" }
+          ],
+          "default": null
+        }
+      },
+      "required": ["approval_request_id", "grant_type"],
+      "allOf": [
+        {
+          "if": {"properties": {"grant_type": {"const": "session_bound"}}, "required": ["grant_type"]},
+          "then": {
+            "properties": {"session_id": {"type": "string", "minLength": 1}},
+            "required": ["session_id"]
+          }
+        },
+        {
+          "if": {"properties": {"grant_type": {"const": "one_time"}}, "required": ["grant_type"]},
+          "then": {
+            "properties": {
+              "session_id": {"type": "null"},
+              "max_uses": {
+                "anyOf": [
+                  {"const": 1},
+                  {"type": "null"}
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false,
+      "title": "IssueApprovalGrantRequest",
+      "description": "Request body for POST {approval_grants}. v0.23. See SPEC.md §4.9."
+    },
+    "IssueApprovalGrantResponse": {
+      "type": "object",
+      "properties": {
+        "grant": {"$ref": "#/$defs/ApprovalGrant"}
+      },
+      "required": ["grant"],
+      "additionalProperties": false,
+      "title": "IssueApprovalGrantResponse",
+      "description": "Response body for POST {approval_grants}. v0.23. See SPEC.md §4.9."
     }
   }
 }

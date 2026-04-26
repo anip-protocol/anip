@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # --- Side-effect Typing ---
@@ -206,6 +206,179 @@ class ControlRequirement(BaseModel):
     enforcement: str = "reject"  # "reject" only; "warn" deferred to future slice
 
 
+# --- v0.23: Capability Composition ---
+
+
+CapabilityKind = Literal["atomic", "composed"]
+AuthorityBoundary = Literal["same_service", "same_package", "external_service"]
+EmptyResultPolicy = Literal["return_success_no_results", "clarify", "deny"]
+FailurePolicyOutcome = Literal["propagate", "fail_parent"]
+
+
+class CompositionStep(BaseModel):
+    """One step in a composed capability. v0.23. See SPEC.md §4.6."""
+    id: str
+    capability: str
+    empty_result_source: bool = False
+    empty_result_path: str | None = None
+
+
+class FailurePolicy(BaseModel):
+    """Per-child-outcome failure handling. v0.23. See SPEC.md §4.6."""
+    child_clarification: FailurePolicyOutcome = "propagate"
+    child_denial: FailurePolicyOutcome = "propagate"
+    child_approval_required: FailurePolicyOutcome = "propagate"
+    child_error: FailurePolicyOutcome = "fail_parent"
+
+
+class AuditPolicy(BaseModel):
+    """Audit behavior for composed capabilities. v0.23. See SPEC.md §4.6."""
+    record_child_invocations: bool
+    parent_task_lineage: bool
+
+
+class Composition(BaseModel):
+    """Declarative composition for kind=composed capabilities. v0.23. See SPEC.md §4.6."""
+    authority_boundary: AuthorityBoundary
+    steps: list[CompositionStep]
+    input_mapping: dict[str, dict[str, str]]
+    output_mapping: dict[str, str]
+    empty_result_policy: EmptyResultPolicy | None = None
+    empty_result_output: dict[str, Any] | None = None
+    failure_policy: FailurePolicy
+    audit_policy: AuditPolicy
+
+
+# --- v0.23: Approval Grants ---
+
+
+GrantType = Literal["one_time", "session_bound"]
+ApprovalRequestStatus = Literal["pending", "approved", "denied", "expired"]
+
+
+class GrantPolicy(BaseModel):
+    """Constrains what an approver MAY issue for a given request. v0.23. See SPEC.md §4.7."""
+    allowed_grant_types: list[GrantType]
+    default_grant_type: GrantType
+    expires_in_seconds: int
+    max_uses: int
+
+    @model_validator(mode="after")
+    def _validate_default_in_allowed(self) -> "GrantPolicy":
+        # SPEC.md §4.7: default_grant_type MUST appear in allowed_grant_types.
+        if self.default_grant_type not in self.allowed_grant_types:
+            raise ValueError(
+                f"default_grant_type={self.default_grant_type!r} must appear in "
+                f"allowed_grant_types={self.allowed_grant_types!r}"
+            )
+        return self
+
+
+class ApprovalRequiredMetadata(BaseModel):
+    """Metadata attached to an approval_required failure. v0.23. See SPEC.md §4.7."""
+    approval_request_id: str
+    preview_digest: str
+    requested_parameters_digest: str
+    grant_policy: GrantPolicy
+
+
+class ApprovalRequest(BaseModel):
+    """Persistent record of a request for human/principal approval. v0.23. See SPEC.md §4.7."""
+    approval_request_id: str
+    capability: str
+    scope: list[str]
+    requester: dict[str, Any]
+    parent_invocation_id: str | None = None
+    preview: dict[str, Any]
+    preview_digest: str
+    requested_parameters: dict[str, Any]
+    requested_parameters_digest: str
+    grant_policy: GrantPolicy
+    status: ApprovalRequestStatus
+    approver: dict[str, Any] | None = None
+    decided_at: str | None = None
+    created_at: str
+    expires_at: str
+
+    @model_validator(mode="after")
+    def _validate_status_invariants(self) -> "ApprovalRequest":
+        # SPEC.md §4.7: pending -> no approver, no decided_at;
+        # approved/denied -> both required; expired -> decided_at required, approver null.
+        status = self.status
+        if status == "pending":
+            if self.approver is not None or self.decided_at is not None:
+                raise ValueError("pending requests must have approver=None and decided_at=None")
+        elif status in ("approved", "denied"):
+            if self.approver is None or self.decided_at is None:
+                raise ValueError(f"{status} requests require approver and decided_at")
+        elif status == "expired":
+            if self.approver is not None:
+                raise ValueError("expired requests must have approver=None (time-driven, no human decided)")
+            if self.decided_at is None:
+                raise ValueError("expired requests must have decided_at set")
+        return self
+
+
+class ApprovalGrant(BaseModel):
+    """Signed authorization object issued after approval. v0.23. See SPEC.md §4.8."""
+    grant_id: str
+    approval_request_id: str
+    grant_type: GrantType
+    capability: str
+    scope: list[str]
+    approved_parameters_digest: str
+    preview_digest: str
+    requester: dict[str, Any]
+    approver: dict[str, Any]
+    issued_at: str
+    expires_at: str
+    max_uses: int
+    use_count: int = 0
+    session_id: str | None = None
+    signature: str
+
+    @model_validator(mode="after")
+    def _validate_grant_type_invariants(self) -> "ApprovalGrant":
+        # SPEC.md §4.8: one_time -> max_uses=1, session_id=None;
+        # session_bound -> session_id required (non-null).
+        if self.grant_type == "one_time":
+            if self.max_uses != 1:
+                raise ValueError("one_time grants must have max_uses=1")
+            if self.session_id is not None:
+                raise ValueError("one_time grants must have session_id=None")
+        elif self.grant_type == "session_bound":
+            if not self.session_id:
+                raise ValueError("session_bound grants require a non-empty session_id")
+        return self
+
+
+class IssueApprovalGrantRequest(BaseModel):
+    """Request body for POST {approval_grants}. v0.23. See SPEC.md §4.9."""
+    approval_request_id: str
+    grant_type: GrantType
+    session_id: str | None = None
+    expires_in_seconds: int | None = None
+    max_uses: int | None = None
+
+    @model_validator(mode="after")
+    def _validate_grant_type_invariants(self) -> "IssueApprovalGrantRequest":
+        # SPEC.md §4.9: session_id required iff session_bound.
+        if self.grant_type == "session_bound":
+            if not self.session_id:
+                raise ValueError("session_bound grant issuance requires a non-empty session_id")
+        elif self.grant_type == "one_time":
+            if self.session_id is not None:
+                raise ValueError("one_time grant issuance must not carry session_id")
+            if self.max_uses is not None and self.max_uses != 1:
+                raise ValueError("one_time grant issuance max_uses must be 1 or omitted")
+        return self
+
+
+class IssueApprovalGrantResponse(BaseModel):
+    """Response body for POST {approval_grants}. v0.23. See SPEC.md §4.9."""
+    grant: ApprovalGrant
+
+
 class CapabilityDeclaration(BaseModel):
     name: str
     description: str
@@ -226,6 +399,21 @@ class CapabilityDeclaration(BaseModel):
     verify_via: list[str] = Field(default_factory=list)
     cross_service: CrossServiceHints | None = None
     cross_service_contract: CrossServiceContract | None = None
+    # v0.23
+    kind: CapabilityKind = "atomic"
+    composition: Composition | None = None
+    grant_policy: GrantPolicy | None = None
+
+    @model_validator(mode="after")
+    def _validate_kind_composition(self) -> "CapabilityDeclaration":
+        # SPEC.md §4.1, §4.6: composed requires composition; atomic forbids it.
+        # The third rule catches the omitted-kind case (defaulting to atomic):
+        # composition non-null implies kind must be "composed".
+        if self.kind == "composed" and self.composition is None:
+            raise ValueError("kind='composed' requires composition")
+        if self.kind == "atomic" and self.composition is not None:
+            raise ValueError("kind='atomic' must not carry composition")
+        return self
 
 
 # --- Permission Discovery ---
@@ -275,6 +463,20 @@ class ANIPFailure(BaseModel):
     detail: str
     resolution: Resolution
     retry: bool = True
+    approval_required: ApprovalRequiredMetadata | None = None  # v0.23, present iff type='approval_required'
+
+    @model_validator(mode="after")
+    def _validate_approval_required_metadata(self) -> "ANIPFailure":
+        # SPEC.md §4.7: approval_required metadata is present iff type='approval_required'.
+        if self.type == "approval_required":
+            if self.approval_required is None:
+                raise ValueError("type='approval_required' failures require approval_required metadata")
+        else:
+            if self.approval_required is not None:
+                raise ValueError(
+                    "approval_required metadata may only be set when type='approval_required'"
+                )
+        return self
 
 
 # --- Manifest ---
@@ -421,6 +623,7 @@ class InvokeRequest(BaseModel):
     task_id: str | None = Field(default=None, max_length=256)
     parent_invocation_id: str | None = Field(default=None, pattern=r"^inv-[0-9a-f]{12}$")
     stream: bool = False
+    approval_grant: str | None = None  # v0.23: grant_id supplied on continuation invocations
 
 
 class StreamSummary(BaseModel):

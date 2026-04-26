@@ -27,4 +27,8 @@ public class InvokeRequest
 
     [JsonPropertyName("stream")]
     public bool Stream { get; set; }
+
+    // v0.23: grant_id supplied on continuation invocations
+    [JsonPropertyName("approval_grant")]
+    public string? ApprovalGrant { get; set; }
 }

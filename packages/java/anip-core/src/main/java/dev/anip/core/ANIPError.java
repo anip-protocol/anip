@@ -10,6 +10,7 @@ public class ANIPError extends RuntimeException {
     private final String detail;
     private Resolution resolution;
     private boolean retry;
+    private ApprovalRequiredMetadata approvalRequired; // v0.23, present iff errorType='approval_required'
 
     public ANIPError(String errorType, String detail) {
         super(errorType + ": " + detail);
@@ -49,5 +50,15 @@ public class ANIPError extends RuntimeException {
 
     public boolean isRetry() {
         return retry;
+    }
+
+    /** v0.23: builder — attach approval-required metadata for type='approval_required' failures. */
+    public ANIPError withApprovalRequired(ApprovalRequiredMetadata metadata) {
+        this.approvalRequired = metadata;
+        return this;
+    }
+
+    public ApprovalRequiredMetadata getApprovalRequired() {
+        return approvalRequired;
     }
 }

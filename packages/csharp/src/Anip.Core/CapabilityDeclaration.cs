@@ -60,4 +60,14 @@ public class CapabilityDeclaration
 
     [JsonPropertyName("cross_service_contract")]
     public CrossServiceContract? CrossServiceContract { get; set; }
+
+    // v0.23
+    [JsonPropertyName("kind")]
+    public string Kind { get; set; } = "atomic";
+
+    [JsonPropertyName("composition")]
+    public Composition? Composition { get; set; }
+
+    [JsonPropertyName("grant_policy")]
+    public GrantPolicy? GrantPolicy { get; set; }
 }
