@@ -521,6 +521,15 @@ class TestAuditLinkage:
         assert len(request_created) == 1
         assert request_created[0].get("parent_invocation_id") == first_invocation_id
 
+        # 3b'. SPEC.md §4.7 line 916: the persisted ApprovalRequest object
+        # itself carries parent_invocation_id = the invocation that raised
+        # approval_required (NOT the inbound caller's parent, which is None
+        # here). Without this, approvers cannot reconstruct lineage from the
+        # request alone.
+        persisted = await service._storage.get_approval_request(approval_request_id)
+        assert persisted is not None
+        assert persisted.get("parent_invocation_id") == first_invocation_id
+
         # 3c. approval_grant_issued event links request_id ↔ grant_id.
         grant_issued = [
             e for e in all_entries

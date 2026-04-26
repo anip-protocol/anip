@@ -452,6 +452,13 @@ class ANIPService:
             )
             if jwt_constraints != stored_constraints:
                 mismatches.append(f"constraints: jwt={jwt_constraints} store={stored_constraints}")
+        # v0.23 trust boundary for session_bound grant validation: if either
+        # side carries a session_id, both must agree. SPEC.md §4.8 line 1035.
+        jwt_session = claims.get("anip:session_id")
+        if jwt_session != stored.session_id:
+            mismatches.append(
+                f"session_id: jwt={jwt_session} store={stored.session_id}"
+            )
 
         if mismatches:
             raise ANIPError(
@@ -526,6 +533,7 @@ class ANIPService:
                 ttl_hours=ttl_hours,
                 budget=budget,
                 concurrent_branches=concurrent_branches or ConcurrentBranches.ALLOWED,
+                session_id=request.get("session_id"),
             )
 
         # Check for delegation failure (ANIPFailure is a Pydantic model)
@@ -565,6 +573,10 @@ class ANIPService:
             claims["constraints"] = token.constraints.model_dump() if hasattr(token.constraints, "model_dump") else token.constraints
         if token.caller_class is not None:
             claims["anip:caller_class"] = token.caller_class
+        if token.session_id is not None:
+            # v0.23: bind session identity into the signed JWT so session_bound
+            # grant validation can trust it. See SPEC.md §4.8 line 1035.
+            claims["anip:session_id"] = token.session_id
 
         jwt_str = self._keys.sign_jwt(claims)
 
@@ -871,7 +883,6 @@ class ANIPService:
         stream: bool = False,
         budget: dict[str, Any] | None = None,
         approval_grant: str | None = None,
-        session_id: str | None = None,
         _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
     ) -> dict[str, Any]:
         """Invoke a capability with full validation, audit, and error handling.
@@ -908,7 +919,6 @@ class ANIPService:
                 stream=stream,
                 budget=budget,
                 approval_grant=approval_grant,
-                session_id=session_id,
                 _progress_sink=_progress_sink,
                 invocation_id=invocation_id,
                 invoke_start=invoke_start,
@@ -947,7 +957,6 @@ class ANIPService:
         stream: bool,
         budget: dict[str, Any] | None,
         approval_grant: str | None = None,
-        session_id: str | None = None,
         _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None,
         invocation_id: str,
         invoke_start: float,
@@ -1435,16 +1444,16 @@ class ANIPService:
                         utc_now_iso,
                         validate_continuation_grant,
                     )
-                    # Session identity for session_bound grants. Callers
-                    # supply session_id on continuation invocations; clients
-                    # SHOULD use the same session_id used during issuance.
+                    # SPEC.md §4.8 line 1035: session_id used for
+                    # session_bound grant validation MUST come from the signed
+                    # invocation token, never from caller-supplied input.
                     grant_obj, fail_type = await validate_continuation_grant(
                         storage=self._storage,
                         grant_id=approval_grant,
                         capability=capability_name,
                         parameters=params,
                         token_scope=list(resolved_token.scope),
-                        token_session_id=session_id,
+                        token_session_id=resolved_token.session_id,
                         key_manager=self._keys,
                         now_iso=utc_now_iso(),
                     )
@@ -1507,10 +1516,14 @@ class ANIPService:
                                 if e.approval_required is not None
                                 else {}
                             ) or {}
+                            # SPEC.md §4.7 (line 916): parent_invocation_id is
+                            # "the original invocation's ID" — the invocation
+                            # that raised approval_required, NOT the inbound
+                            # caller's parent. Pass the local invocation_id.
                             _materialized_approval = await materialize_approval_request(
                                 storage=self._storage,
                                 capability_decl=decl,
-                                parent_invocation_id=parent_invocation_id,
+                                parent_invocation_id=invocation_id,
                                 requester={
                                     "subject": resolved_token.subject,
                                     "root_principal": resolved_token.root_principal,

@@ -65,6 +65,10 @@ class DelegationToken(BaseModel):
     constraints: DelegationConstraints = Field(default_factory=DelegationConstraints)
     root_principal: str | None = None  # The human at the root of the delegation chain
     caller_class: str | None = None  # Issuer-supplied caller classification
+    # v0.23: session identity bound at issuance, used to validate session_bound
+    # ApprovalGrant continuations per SPEC.md §4.8 line 1035. MUST come from
+    # the signed token, never from caller-supplied invocation input.
+    session_id: str | None = None
 
 
 class TokenRequest(BaseModel):
@@ -77,6 +81,10 @@ class TokenRequest(BaseModel):
     ttl_hours: int = 2
     caller_class: str | None = None
     concurrent_branches: ConcurrentBranches | None = None
+    # v0.23: bind a session identity to this token so session_bound
+    # ApprovalGrants can be validated on continuation. Only honored at root
+    # issuance — child (delegated) tokens inherit parent.session_id verbatim.
+    session_id: str | None = None
 
 
 # --- Cross-Service Handoff ---

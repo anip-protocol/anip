@@ -129,7 +129,8 @@ def mount_anip(
         upstream_service = body.get("upstream_service")
         stream = body.get("stream", False)
         approval_grant = body.get("approval_grant")  # v0.23
-        session_id = body.get("session_id")  # v0.23 — session identity for session_bound grants
+        # SPEC.md §4.8 line 1035: session_id for session_bound grants is read
+        # from the signed delegation token, NOT from caller-supplied body.
 
         if not stream:
             # Unary mode — existing behavior
@@ -140,7 +141,6 @@ def mount_anip(
                 parent_invocation_id=parent_invocation_id,
                 upstream_service=upstream_service,
                 approval_grant=approval_grant,
-                session_id=session_id,
             )
             if not result.get("success"):
                 status = _failure_status(result.get("failure", {}).get("type"))
@@ -159,6 +159,7 @@ def mount_anip(
                     parent_invocation_id=parent_invocation_id,
                     upstream_service=upstream_service,
                     stream=True,
+                    approval_grant=approval_grant,
                 )
                 status = _failure_status(result.get("failure", {}).get("type"))
                 return JSONResponse(result, status_code=status)
@@ -178,6 +179,7 @@ def mount_anip(
                     parent_invocation_id=parent_invocation_id,
                     upstream_service=upstream_service,
                     stream=True,
+                    approval_grant=approval_grant,
                     _progress_sink=progress_sink,
                 )
                 await queue.put({"type": "terminal", "result": result})

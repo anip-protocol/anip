@@ -85,15 +85,24 @@ def client(tmp_path):
         loop.close()
 
 
-def _issue_token(client: TestClient, *, scope: list[str], capability: str = "transfer_funds") -> str:
+def _issue_token(
+    client: TestClient,
+    *,
+    scope: list[str],
+    capability: str = "transfer_funds",
+    session_id: str | None = None,
+) -> str:
+    body: dict = {
+        "subject": "human:samir@example.com",
+        "scope": scope,
+        "capability": capability,
+        "ttl_hours": 1,
+    }
+    if session_id is not None:
+        body["session_id"] = session_id
     r = client.post(
         "/anip/tokens",
-        json={
-            "subject": "human:samir@example.com",
-            "scope": scope,
-            "capability": capability,
-            "ttl_hours": 1,
-        },
+        json=body,
         headers={"Authorization": f"Bearer {API_KEY}"},
     )
     assert r.status_code == 200, r.text
@@ -109,6 +118,7 @@ def _trigger_approval(client: TestClient, token: str) -> str:
         headers={"Authorization": f"Bearer {token}"},
     )
     body = r.json()
+    assert "approval_required" in body.get("failure", {}), f"unexpected response: {body}"
     return body["failure"]["approval_required"]["approval_request_id"]
 
 
@@ -271,6 +281,54 @@ class TestContinuationViaInvokeEndpoint:
             headers={"Authorization": f"Bearer {token}"},
         )
         assert r2.json()["failure"]["type"] == "grant_consumed"
+
+    def test_invoke_with_session_bound_grant_uses_token_session_id(self, client):
+        """SPEC.md §4.8 line 1035: session_id for session_bound grant
+        validation is read from the signed token, not from caller input.
+        Body cannot impersonate a different session — only the token's
+        session_id is trusted."""
+        c, _svc = client
+        # Token bound to session "sess-A" via root issuance.
+        sess_token = _issue_token(c, scope=["finance.write"], session_id="sess-A")
+        # Trigger approval using this session-bound token.
+        request_id = _trigger_approval(c, sess_token)
+        # Approver issues a session_bound grant for the same session.
+        approver_token = _issue_token(c, scope=["finance.write", "approver:*"])
+        grant_resp = c.post(
+            "/anip/approval_grants",
+            json={
+                "approval_request_id": request_id,
+                "grant_type": "session_bound",
+                "session_id": "sess-A",
+            },
+            headers={"Authorization": f"Bearer {approver_token}"},
+        )
+        assert grant_resp.status_code == 200, grant_resp.text
+        grant_id = grant_resp.json()["grant_id"]
+        # Continuation with the SAME session-bound token reserves the grant
+        # — body cannot supply session_id (it's ignored / not honored).
+        r = c.post(
+            "/anip/invoke/transfer_funds",
+            json={
+                "parameters": {"amount": 50000, "to_account": "x"},
+                "approval_grant": grant_id,
+            },
+            headers={"Authorization": f"Bearer {sess_token}"},
+        )
+        # Reservation succeeded (regardless of handler outcome): use_count incremented.
+        # A fresh token bound to a DIFFERENT session must be rejected as
+        # grant_session_invalid even if the body claims session-A.
+        wrong_token = _issue_token(c, scope=["finance.write"], session_id="sess-B")
+        r2 = c.post(
+            "/anip/invoke/transfer_funds",
+            json={
+                "parameters": {"amount": 50000, "to_account": "x"},
+                "approval_grant": grant_id,
+                "session_id": "sess-A",  # MUST be ignored — token's session is sess-B
+            },
+            headers={"Authorization": f"Bearer {wrong_token}"},
+        )
+        assert r2.json()["failure"]["type"] == "grant_session_invalid"
 
     def test_invoke_with_unknown_grant_returns_grant_not_found(self, client):
         c, _ = client
