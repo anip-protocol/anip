@@ -221,6 +221,151 @@ export const BudgetContext = z.object({
 });
 export type BudgetContext = z.infer<typeof BudgetContext>;
 
+// ---------------------------------------------------------------------------
+// v0.23: Capability Composition
+// ---------------------------------------------------------------------------
+
+export const CapabilityKind = z.enum(["atomic", "composed"]);
+export type CapabilityKind = z.infer<typeof CapabilityKind>;
+
+export const AuthorityBoundary = z.enum([
+  "same_service",
+  "same_package",
+  "external_service",
+]);
+export type AuthorityBoundary = z.infer<typeof AuthorityBoundary>;
+
+export const EmptyResultPolicy = z.enum([
+  "return_success_no_results",
+  "clarify",
+  "deny",
+]);
+export type EmptyResultPolicy = z.infer<typeof EmptyResultPolicy>;
+
+export const FailurePolicyOutcome = z.enum(["propagate", "fail_parent"]);
+export type FailurePolicyOutcome = z.infer<typeof FailurePolicyOutcome>;
+
+export const CompositionStep = z.object({
+  id: z.string().min(1),
+  capability: z.string().min(1),
+  empty_result_source: z.boolean().default(false),
+  empty_result_path: z.string().nullable().default(null),
+});
+export type CompositionStep = z.infer<typeof CompositionStep>;
+
+export const FailurePolicy = z.object({
+  child_clarification: FailurePolicyOutcome.default("propagate"),
+  child_denial: FailurePolicyOutcome.default("propagate"),
+  child_approval_required: FailurePolicyOutcome.default("propagate"),
+  child_error: FailurePolicyOutcome.default("fail_parent"),
+});
+export type FailurePolicy = z.infer<typeof FailurePolicy>;
+
+export const AuditPolicy = z.object({
+  record_child_invocations: z.boolean(),
+  parent_task_lineage: z.boolean(),
+});
+export type AuditPolicy = z.infer<typeof AuditPolicy>;
+
+export const Composition = z.object({
+  authority_boundary: AuthorityBoundary,
+  steps: z.array(CompositionStep).min(1),
+  input_mapping: z.record(z.record(z.string())),
+  output_mapping: z.record(z.string()),
+  empty_result_policy: EmptyResultPolicy.nullable().default(null),
+  empty_result_output: z.record(z.any()).nullable().default(null),
+  failure_policy: FailurePolicy,
+  audit_policy: AuditPolicy,
+});
+export type Composition = z.infer<typeof Composition>;
+
+// ---------------------------------------------------------------------------
+// v0.23: Approval Grants
+// ---------------------------------------------------------------------------
+
+export const GrantType = z.enum(["one_time", "session_bound"]);
+export type GrantType = z.infer<typeof GrantType>;
+
+export const ApprovalRequestStatus = z.enum([
+  "pending",
+  "approved",
+  "denied",
+  "expired",
+]);
+export type ApprovalRequestStatus = z.infer<typeof ApprovalRequestStatus>;
+
+export const GrantPolicy = z.object({
+  allowed_grant_types: z.array(GrantType).min(1),
+  default_grant_type: GrantType,
+  expires_in_seconds: z.number().int().min(1),
+  max_uses: z.number().int().min(1),
+});
+export type GrantPolicy = z.infer<typeof GrantPolicy>;
+
+export const ApprovalRequiredMetadata = z.object({
+  approval_request_id: z.string().min(1),
+  preview_digest: z.string().min(1),
+  requested_parameters_digest: z.string().min(1),
+  grant_policy: GrantPolicy,
+});
+export type ApprovalRequiredMetadata = z.infer<typeof ApprovalRequiredMetadata>;
+
+export const ApprovalRequest = z.object({
+  approval_request_id: z.string().min(1),
+  capability: z.string().min(1),
+  scope: z.array(z.string()),
+  requester: z.record(z.any()),
+  parent_invocation_id: z.string().nullable().default(null),
+  preview: z.record(z.any()),
+  preview_digest: z.string().min(1),
+  requested_parameters: z.record(z.any()),
+  requested_parameters_digest: z.string().min(1),
+  grant_policy: GrantPolicy,
+  status: ApprovalRequestStatus,
+  approver: z.record(z.any()).nullable().default(null),
+  decided_at: z.string().nullable().default(null),
+  created_at: z.string(),
+  expires_at: z.string(),
+});
+export type ApprovalRequest = z.infer<typeof ApprovalRequest>;
+
+export const ApprovalGrant = z.object({
+  grant_id: z.string().min(1),
+  approval_request_id: z.string().min(1),
+  grant_type: GrantType,
+  capability: z.string().min(1),
+  scope: z.array(z.string()),
+  approved_parameters_digest: z.string().min(1),
+  preview_digest: z.string().min(1),
+  requester: z.record(z.any()),
+  approver: z.record(z.any()),
+  issued_at: z.string(),
+  expires_at: z.string(),
+  max_uses: z.number().int().min(1),
+  use_count: z.number().int().min(0).default(0),
+  session_id: z.string().min(1).nullable().default(null),
+  signature: z.string().min(1),
+});
+export type ApprovalGrant = z.infer<typeof ApprovalGrant>;
+
+export const IssueApprovalGrantRequest = z.object({
+  approval_request_id: z.string().min(1),
+  grant_type: GrantType,
+  session_id: z.string().min(1).nullable().default(null),
+  expires_in_seconds: z.number().int().min(1).nullable().default(null),
+  max_uses: z.number().int().min(1).nullable().default(null),
+});
+export type IssueApprovalGrantRequest = z.infer<typeof IssueApprovalGrantRequest>;
+
+export const IssueApprovalGrantResponse = z.object({
+  grant: ApprovalGrant,
+});
+export type IssueApprovalGrantResponse = z.infer<typeof IssueApprovalGrantResponse>;
+
+// ---------------------------------------------------------------------------
+// Capability Declaration
+// ---------------------------------------------------------------------------
+
 export const CapabilityDeclaration = z.object({
   name: z.string(),
   description: z.string(),
@@ -241,6 +386,10 @@ export const CapabilityDeclaration = z.object({
   verify_via: z.array(z.string()).default([]),
   cross_service: CrossServiceHints.nullable().default(null),
   cross_service_contract: CrossServiceContract.nullable().optional(),
+  // v0.23
+  kind: CapabilityKind.default("atomic"),
+  composition: Composition.nullable().default(null),
+  grant_policy: GrantPolicy.nullable().default(null),
 });
 export type CapabilityDeclaration = z.infer<typeof CapabilityDeclaration>;
 
@@ -298,6 +447,7 @@ export const ANIPFailure = z.object({
   detail: z.string(),
   resolution: Resolution,
   retry: z.boolean().default(true),
+  approval_required: ApprovalRequiredMetadata.nullable().default(null),
 });
 export type ANIPFailure = z.infer<typeof ANIPFailure>;
 
@@ -458,6 +608,7 @@ export const InvokeRequest = z.object({
   budget: z.record(z.any()).nullable().default(null),
   client_reference_id: z.string().max(256).nullable().default(null),
   stream: z.boolean().default(false),
+  approval_grant: z.string().nullable().default(null),  // v0.23
 });
 export type InvokeRequest = z.infer<typeof InvokeRequest>;
 
