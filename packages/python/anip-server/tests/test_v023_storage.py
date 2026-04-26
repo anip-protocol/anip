@@ -127,6 +127,33 @@ async def test_get_approval_request_missing_returns_none(store):
 
 
 @pytest.mark.asyncio
+async def test_store_approval_request_idempotent_same_content(store):
+    """SPEC.md §4.7: re-storing identical content under same id is a no-op."""
+    req = _approval_request()
+    await store.store_approval_request(req)
+    # Second store with the exact same dict must not raise.
+    await store.store_approval_request(dict(req))
+    loaded = await store.get_approval_request("apr_test")
+    assert loaded is not None
+    assert loaded["approval_request_id"] == "apr_test"
+
+
+@pytest.mark.asyncio
+async def test_store_approval_request_conflict_raises(store):
+    """SPEC.md §4.7: re-storing different content under same id is an error.
+    Prevents silent mutation of an already-persisted ApprovalRequest."""
+    req = _approval_request()
+    await store.store_approval_request(req)
+    mutated = dict(req)
+    mutated["preview"] = {"amount": 99999}  # different content, same id
+    with pytest.raises(ValueError, match="already stored with different content"):
+        await store.store_approval_request(mutated)
+    # Original content preserved.
+    loaded = await store.get_approval_request("apr_test")
+    assert loaded["preview"] == {"amount": 50000}
+
+
+@pytest.mark.asyncio
 async def test_store_and_get_grant_round_trip(store):
     await _ensure_approval_request_for(store)
     g = _grant()

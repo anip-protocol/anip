@@ -58,6 +58,9 @@ class AuditLog:
             "expires_at": entry_data.get("expires_at"),
             "storage_redacted": entry_data.get("storage_redacted", False),
             "entry_type": entry_data.get("entry_type"),
+            # v0.23 — approval flow linkage. See SPEC.md §4.7–§4.9.
+            "approval_request_id": entry_data.get("approval_request_id"),
+            "approval_grant_id": entry_data.get("approval_grant_id"),
             "grouping_key": entry_data.get("grouping_key"),
             "aggregation_window": entry_data.get("aggregation_window"),
             "aggregation_count": entry_data.get("aggregation_count"),

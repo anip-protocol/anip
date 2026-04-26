@@ -461,6 +461,84 @@ class TestContinuationInvocation:
         assert fail == "grant_scope_mismatch"
 
 
+class TestAuditLinkage:
+    """SPEC.md §4.9 'Audit Linkage Requirements': every approval flow must be
+    reconstructible from audit entries via:
+
+        parent_invocation_id → approval_request_id → grant_id →
+        continuation_invocation_id
+
+    The approval_request_created event provides the invocation→request link.
+    The approval_grant_issued event provides the request→grant link.
+    The continuation invocation's audit entry references the grant via the
+    approval_grant_id field.
+    """
+
+    @pytest.mark.asyncio
+    async def test_full_audit_chain_reconstructible(self, service: ANIPService):
+        token_resp = await _issue_token(service, ["finance.write"], "transfer_funds")
+        token = await service.resolve_bearer_token(token_resp["token"])
+
+        # Step 1: invoke triggers approval_required.
+        first = await service.invoke(
+            "transfer_funds", token, {"amount": 50000, "to_account": "x"},
+        )
+        first_invocation_id = first["invocation_id"]
+        approval_request_id = first["failure"]["approval_required"]["approval_request_id"]
+
+        # Step 2: approver issues a grant.
+        grant = await service.issue_approval_grant(
+            approval_request_id, "one_time", {"principal": "manager_456"},
+        )
+        grant_id = grant["grant_id"]
+
+        # Step 3: continuation invocation supplies the grant.
+        token2_resp = await _issue_token(service, ["finance.write"], "transfer_funds")
+        token2 = await service.resolve_bearer_token(token2_resp["token"])
+        cont = await service.invoke(
+            "transfer_funds", token2, {"amount": 50000, "to_account": "x"},
+            approval_grant=grant_id,
+        )
+        continuation_invocation_id = cont["invocation_id"]
+
+        # Walk the audit chain and assert linkage.
+        all_entries = await service._storage.query_audit_entries(limit=100)
+
+        # 3a. The original failure carries approval_request_id.
+        original = [e for e in all_entries if e.get("invocation_id") == first_invocation_id]
+        assert len(original) >= 1
+        # The first failure entry should reference the approval request.
+        failure_entry = next(e for e in original if e.get("failure_type") == "approval_required")
+        assert failure_entry.get("approval_request_id") == approval_request_id
+
+        # 3b. approval_request_created event exists with parent_invocation_id
+        # pointing to the original invocation.
+        request_created = [
+            e for e in all_entries
+            if e.get("entry_type") == "approval_request_created"
+            and e.get("approval_request_id") == approval_request_id
+        ]
+        assert len(request_created) == 1
+        assert request_created[0].get("parent_invocation_id") == first_invocation_id
+
+        # 3c. approval_grant_issued event links request_id ↔ grant_id.
+        grant_issued = [
+            e for e in all_entries
+            if e.get("entry_type") == "approval_grant_issued"
+            and e.get("approval_grant_id") == grant_id
+        ]
+        assert len(grant_issued) == 1
+        assert grant_issued[0].get("approval_request_id") == approval_request_id
+
+        # 3d. Continuation audit entry references the grant.
+        continuation = [
+            e for e in all_entries
+            if e.get("invocation_id") == continuation_invocation_id
+        ]
+        assert len(continuation) >= 1
+        assert any(e.get("approval_grant_id") == grant_id for e in continuation)
+
+
 class TestConcurrentIssuance:
     @pytest.mark.asyncio
     async def test_concurrent_issue_grant_exactly_one_succeeds(self, service: ANIPService):

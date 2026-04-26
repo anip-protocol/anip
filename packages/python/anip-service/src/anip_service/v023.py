@@ -302,17 +302,26 @@ async def execute_composition(
         # Invoke the child.
         result = await invoke_step(step.capability, step_input)
         if not result.get("success", False):
-            # Child failure: apply failure_policy.
+            # Child failure: apply failure_policy per SPEC.md §4.6.
             failure = result.get("failure") or {}
             failure_type = failure.get("type", "unknown")
             outcome = _failure_outcome(failure_type, comp.failure_policy)
             if outcome == "fail_parent":
+                # Collapse the child failure into a generic parent error per
+                # SPEC.md §4.6 'Failure Policy'. The child's type is captured
+                # in the detail for diagnostics, but the parent surfaces a
+                # uniform composition_child_failed type so callers can switch
+                # on a single failure type instead of guessing per-child.
                 raise ANIPError(
-                    failure_type,
-                    f"child step {step.id!r} ({step.capability}) failed: {failure.get('detail', '')}",
-                    resolution=failure.get("resolution"),
+                    "composition_child_failed",
+                    f"child step {step.id!r} ({step.capability}) failed with "
+                    f"{failure_type}: {failure.get('detail', '')}",
+                    resolution={
+                        "action": "contact_service_owner",
+                        "recovery_class": "terminal",
+                    },
                 )
-            # propagate (default)
+            # propagate (default): forward the child's failure type unchanged.
             raise ANIPError(
                 failure_type,
                 failure.get("detail", "child step failed"),

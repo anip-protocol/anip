@@ -484,7 +484,10 @@ CREATE TABLE IF NOT EXISTS audit_log (
     aggregation_count INTEGER,
     first_seen TEXT,
     last_seen TEXT,
-    representative_detail TEXT
+    representative_detail TEXT,
+    -- v0.23: approval flow linkage. See SPEC.md §4.7–§4.9.
+    approval_request_id TEXT,
+    approval_grant_id TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_audit_capability
@@ -659,6 +662,14 @@ class SQLiteStorage:
         except Exception:
             pass
         try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN approval_request_id TEXT")
+        except Exception:
+            pass
+        try:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN approval_grant_id TEXT")
+        except Exception:
+            pass
+        try:
             self._conn.execute("ALTER TABLE delegation_tokens ADD COLUMN caller_class TEXT")
         except Exception:
             pass
@@ -724,8 +735,9 @@ class SQLiteStorage:
                     event_class, retention_tier, expires_at,
                     storage_redacted, entry_type, grouping_key,
                     aggregation_window, aggregation_count, first_seen,
-                    last_seen, representative_detail)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    last_seen, representative_detail,
+                    approval_request_id, approval_grant_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     entry["sequence_number"],
                     entry["timestamp"],
@@ -759,6 +771,8 @@ class SQLiteStorage:
                     entry.get("first_seen"),
                     entry.get("last_seen"),
                     entry.get("representative_detail"),
+                    entry.get("approval_request_id"),  # v0.23
+                    entry.get("approval_grant_id"),  # v0.23
                 ),
             )
             self._conn.commit()
@@ -1040,8 +1054,9 @@ class SQLiteStorage:
                     event_class, retention_tier, expires_at,
                     storage_redacted, entry_type, grouping_key,
                     aggregation_window, aggregation_count, first_seen,
-                    last_seen, representative_detail)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    last_seen, representative_detail,
+                    approval_request_id, approval_grant_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     entry["sequence_number"],
                     entry.get("timestamp"),
@@ -1075,6 +1090,8 @@ class SQLiteStorage:
                     entry.get("first_seen"),
                     entry.get("last_seen"),
                     entry.get("representative_detail"),
+                    entry.get("approval_request_id"),  # v0.23
+                    entry.get("approval_grant_id"),  # v0.23
                 ),
             )
             self._conn.commit()
@@ -1132,15 +1149,30 @@ class SQLiteStorage:
         await asyncio.to_thread(self._sync_store_approval_request, request)
 
     def _sync_store_approval_request(self, request: dict[str, Any]) -> None:
+        # SPEC.md §4.7 + StorageBackend.store_approval_request: idempotent on
+        # approval_request_id when content is identical; conflicting re-store
+        # with the same id is an error. Mirrors InMemoryStorage semantics.
+        req_id = request["approval_request_id"]
         with self._lock:
+            existing_row = self._conn.execute(
+                "SELECT * FROM approval_requests WHERE approval_request_id = ?",
+                (req_id,),
+            ).fetchone()
+            if existing_row is not None:
+                existing = self._parse_approval_request_row(existing_row)
+                if existing != request:
+                    raise ValueError(
+                        f"approval_request_id {req_id!r} already stored with different content"
+                    )
+                return  # idempotent: identical content, no write needed
             self._conn.execute(
-                """INSERT OR REPLACE INTO approval_requests
+                """INSERT INTO approval_requests
                    (approval_request_id, capability, scope, requester, parent_invocation_id,
                     preview, preview_digest, requested_parameters, requested_parameters_digest,
                     grant_policy, status, approver, decided_at, created_at, expires_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    request["approval_request_id"],
+                    req_id,
                     request["capability"],
                     json.dumps(request["scope"]),
                     json.dumps(request["requester"]),

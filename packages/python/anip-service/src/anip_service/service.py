@@ -777,9 +777,52 @@ class ANIPService:
                 raise ANIPError(FAILURE_APPROVAL_REQUEST_EXPIRED, "request expired during issuance")
             raise ANIPError(FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED, "request decided concurrently")
 
-        # TODO(audit): emit `approval_grant_issued` event here once the audit
-        # event-class registry is updated. For now the grant is persisted and
-        # signed; full audit linkage lands with Phase 8 audit tests.
+        # v0.23: emit approval_grant_issued audit event linking
+        # approval_request_id ↔ grant_id ↔ approver. SPEC.md §4.9 requires
+        # this for the audit chain.
+        try:
+            issued_grant = result["grant"]
+            # Construct a lightweight audit entry for the approval_grant_issued
+            # event. The approver principal is not currently a delegation-token-
+            # bearing identity, so token_id=None; approver is captured in
+            # result_summary instead. v0.23. See SPEC.md §4.9 audit linkage.
+            await self._audit.log_entry(
+                {
+                    "capability": request["capability"],
+                    "token_id": None,
+                    "issuer": self._service_id,
+                    "subject": approver_principal.get("subject"),
+                    "root_principal": approver_principal.get("root_principal")
+                        or approver_principal.get("subject"),
+                    "parameters": None,
+                    "success": True,
+                    "result_summary": {
+                        "approver": approver_principal,
+                        "requester": request["requester"],
+                        "grant_type": grant_type,
+                        "scope": request["scope"],
+                    },
+                    "failure_type": None,
+                    "cost_actual": None,
+                    "delegation_chain": [],
+                    "invocation_id": None,
+                    "client_reference_id": None,
+                    "task_id": None,
+                    "parent_invocation_id": None,
+                    "upstream_service": None,
+                    "stream_summary": None,
+                    "event_class": "high_risk_success",
+                    "retention_tier": "long",
+                    "expires_at": None,
+                    "approval_request_id": approval_request_id,
+                    "approval_grant_id": issued_grant["grant_id"],
+                    "entry_type": "approval_grant_issued",
+                }
+            )
+        except Exception:
+            # Audit MUST NOT block grant issuance — the grant is already
+            # atomically persisted. Log and move on.
+            pass
         return result["grant"]
 
     def discover_permissions(self, token: DelegationToken) -> PermissionResponse:
@@ -828,6 +871,7 @@ class ANIPService:
         stream: bool = False,
         budget: dict[str, Any] | None = None,
         approval_grant: str | None = None,
+        session_id: str | None = None,
         _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
     ) -> dict[str, Any]:
         """Invoke a capability with full validation, audit, and error handling.
@@ -864,6 +908,7 @@ class ANIPService:
                 stream=stream,
                 budget=budget,
                 approval_grant=approval_grant,
+                session_id=session_id,
                 _progress_sink=_progress_sink,
                 invocation_id=invocation_id,
                 invoke_start=invoke_start,
@@ -902,6 +947,7 @@ class ANIPService:
         stream: bool,
         budget: dict[str, Any] | None,
         approval_grant: str | None = None,
+        session_id: str | None = None,
         _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None,
         invocation_id: str,
         invoke_start: float,
@@ -1389,13 +1435,16 @@ class ANIPService:
                         utc_now_iso,
                         validate_continuation_grant,
                     )
+                    # Session identity for session_bound grants. Callers
+                    # supply session_id on continuation invocations; clients
+                    # SHOULD use the same session_id used during issuance.
                     grant_obj, fail_type = await validate_continuation_grant(
                         storage=self._storage,
                         grant_id=approval_grant,
                         capability=capability_name,
                         parameters=params,
                         token_scope=list(resolved_token.scope),
-                        token_session_id=None,
+                        token_session_id=session_id,
                         key_manager=self._keys,
                         now_iso=utc_now_iso(),
                     )
@@ -1441,12 +1490,56 @@ class ANIPService:
                         "client_disconnected": client_disconnected,
                     }
                 _side_effect_type = decl.side_effect.type.value if decl.side_effect else None
-                _event_class = classify_event(_side_effect_type, False, e.error_type)
+                # v0.23: materialize the ApprovalRequest BEFORE the audit log
+                # so the audit entry can carry approval_request_id and link
+                # the approval flow per SPEC.md §4.7 audit invariants.
+                _materialized_approval: dict[str, Any] | None = None
+                _approval_persist_failed = False
+                _approval_persist_err: Exception | None = None
+                if e.error_type == "approval_required":
+                    try:
+                        from .v023 import materialize_approval_request
+                        if e.approval_required is not None and "approval_request_id" in e.approval_required:
+                            _materialized_approval = e.approval_required
+                        else:
+                            preview = (
+                                (e.approval_required or {}).get("preview")
+                                if e.approval_required is not None
+                                else {}
+                            ) or {}
+                            _materialized_approval = await materialize_approval_request(
+                                storage=self._storage,
+                                capability_decl=decl,
+                                parent_invocation_id=parent_invocation_id,
+                                requester={
+                                    "subject": resolved_token.subject,
+                                    "root_principal": resolved_token.root_principal,
+                                },
+                                parameters=params,
+                                preview=preview,
+                            )
+                    except Exception as ape:  # noqa: BLE001
+                        _approval_persist_failed = True
+                        _approval_persist_err = ape
+
+                # If materialization failed for an approval_required, downgrade
+                # the failure type to service_unavailable per the §4.7
+                # persistence invariant — and re-classify accordingly.
+                _effective_error_type = e.error_type
+                if _approval_persist_failed:
+                    _effective_error_type = "service_unavailable"
+
+                _event_class = classify_event(_side_effect_type, False, _effective_error_type)
                 _retention_tier = self._retention_policy.resolve_tier(_event_class)
                 _expires_at = self._retention_policy.compute_expires_at(_retention_tier)
+                _approval_request_id_audit = (
+                    _materialized_approval.get("approval_request_id")
+                    if _materialized_approval is not None and not _approval_persist_failed
+                    else None
+                )
                 await self._log_audit(
                     capability_name, resolved_token, success=False,
-                    failure_type=e.error_type,
+                    failure_type=_effective_error_type,
                     result_summary={"detail": e.detail},
                     cost_actual=None, cost_variance=None,
                     invocation_id=invocation_id, client_reference_id=client_reference_id,
@@ -1457,7 +1550,37 @@ class ANIPService:
                     parent_span=root_span,
                     budget_context=_audit_budget_base,
                     binding_context=_audit_binding_base,
+                    # v0.23 — link approval flow when applicable.
+                    approval_request_id=_approval_request_id_audit,
+                    approval_grant_id=approval_grant,
                 )
+
+                # v0.23: emit a dedicated approval_request_created event when
+                # we successfully persisted the request. This is the canonical
+                # link from the original invocation to the approval request.
+                if _approval_request_id_audit is not None:
+                    try:
+                        await self._log_audit(
+                            capability_name, resolved_token, success=True,
+                            failure_type=None,
+                            result_summary=None,
+                            cost_actual=None, cost_variance=None,
+                            invocation_id=None, client_reference_id=None,
+                            task_id=effective_task_id,
+                            parent_invocation_id=invocation_id,
+                            upstream_service=None,
+                            stream_summary=None,
+                            event_class=_event_class,
+                            retention_tier=_retention_tier,
+                            expires_at=_expires_at,
+                            parent_span=root_span,
+                            approval_request_id=_approval_request_id_audit,
+                            entry_type="approval_request_created",
+                        )
+                    except Exception:  # noqa: BLE001
+                        # Audit emit must never break the failure response path.
+                        pass
+
                 if stream and fail_stream_summary and self._log_hooks and self._log_hooks.on_streaming_summary:
                     self._safe_hook(self._log_hooks.on_streaming_summary, {
                         "invocation_id": invocation_id,
@@ -1474,59 +1597,25 @@ class ANIPService:
                         "capability": capability_name,
                         "invocation_id": invocation_id,
                         "success": False,
-                        "failure_type": e.error_type,
+                        "failure_type": _effective_error_type,
                         "duration_ms": _anip_err_duration_ms,
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                     })
                 if self._metrics_hooks and self._metrics_hooks.on_invocation_duration:
                     self._safe_hook(self._metrics_hooks.on_invocation_duration, {"capability": capability_name, "duration_ms": _anip_err_duration_ms, "success": False})
-                _fail_dict: dict[str, Any] = {"type": e.error_type, "detail": e.detail}
-                if e.resolution is not None:
+                _fail_dict: dict[str, Any] = {"type": _effective_error_type, "detail": e.detail}
+                if e.resolution is not None and not _approval_persist_failed:
                     _fail_dict["resolution"] = e.resolution
-                # v0.23: when the handler raised approval_required, materialize
-                # the persistent ApprovalRequest and attach metadata. The
-                # ANIPError instance carries either preview content (the only
-                # handler-supplied piece) or full metadata (e.g. when the
-                # runtime regenerates the request after a continuation drift).
-                # Per SPEC.md §4.7 persistence invariant: if storage fails we
-                # MUST NOT return approval_required to the caller.
-                if e.error_type == "approval_required":
-                    try:
-                        from .v023 import materialize_approval_request
-                        if e.approval_required is not None and "approval_request_id" in e.approval_required:
-                            # Caller supplied full metadata (rare path).
-                            _fail_dict["approval_required"] = e.approval_required
-                        else:
-                            preview = (
-                                (e.approval_required or {}).get("preview")
-                                if e.approval_required is not None
-                                else {}
-                            ) or {}
-                            metadata = await materialize_approval_request(
-                                storage=self._storage,
-                                capability_decl=decl,
-                                parent_invocation_id=parent_invocation_id,
-                                requester={
-                                    "subject": resolved_token.subject,
-                                    "root_principal": resolved_token.root_principal,
-                                },
-                                parameters=params,
-                                preview=preview,
-                            )
-                            _fail_dict["approval_required"] = metadata
-                    except Exception as approval_persist_err:  # noqa: BLE001
-                        # Convert to service_unavailable so the agent doesn't
-                        # see approval_required without a persisted request.
-                        _fail_dict = {
-                            "type": "service_unavailable",
-                            "detail": (
-                                f"approval flow unavailable: {approval_persist_err}"
-                            ),
-                            "resolution": {
-                                "action": "wait_and_retry",
-                                "recovery_class": "wait_then_retry",
-                            },
-                        }
+                if _approval_persist_failed:
+                    _fail_dict["detail"] = (
+                        f"approval flow unavailable: {_approval_persist_err}"
+                    )
+                    _fail_dict["resolution"] = {
+                        "action": "wait_and_retry",
+                        "recovery_class": "wait_then_retry",
+                    }
+                elif _materialized_approval is not None:
+                    _fail_dict["approval_required"] = _materialized_approval
                 fail_response: dict[str, Any] = {
                     "success": False,
                     "failure": redact_failure(_fail_dict, effective_level),
@@ -1645,6 +1734,8 @@ class ANIPService:
                 parent_span=root_span,
                 budget_context=_success_budget_ctx,
                 binding_context=_audit_binding_base,
+                # v0.23 — link the supplied grant when this is a continuation.
+                approval_grant_id=approval_grant,
             )
 
             # 9. Fire streaming summary hook
@@ -2096,6 +2187,9 @@ class ANIPService:
         parent_span: Any = None,
         budget_context: dict[str, Any] | None = None,
         binding_context: dict[str, Any] | None = None,
+        approval_request_id: str | None = None,  # v0.23
+        approval_grant_id: str | None = None,  # v0.23
+        entry_type: str | None = None,  # v0.23 — for non-invocation events
     ) -> None:
         """Log an audit entry through the SDK's AuditLog.
 
@@ -2124,6 +2218,10 @@ class ANIPService:
             "expires_at": expires_at,
             "budget_context": budget_context,
             "binding_context": binding_context,
+            # v0.23 audit linkage (SPEC.md §4.7–§4.9)
+            "approval_request_id": approval_request_id,
+            "approval_grant_id": approval_grant_id,
+            "entry_type": entry_type,
         }
 
         # Apply storage-side redaction (after classification, before persistence)

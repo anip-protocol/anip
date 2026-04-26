@@ -132,9 +132,8 @@ class TestApprovalGrantsEndpoint:
             headers={"Authorization": f"Bearer {approver_token}"},
         )
         assert r.status_code == 200, r.text
-        body = r.json()
-        assert "grant" in body
-        grant = body["grant"]
+        grant = r.json()
+        # SPEC.md §4.9: 200 response IS the signed ApprovalGrant (no wrapper).
         assert grant["approval_request_id"] == request_id
         assert grant["grant_type"] == "one_time"
         assert grant["max_uses"] == 1
@@ -248,7 +247,7 @@ class TestContinuationViaInvokeEndpoint:
             json={"approval_request_id": request_id, "grant_type": "one_time"},
             headers={"Authorization": f"Bearer {approver_token}"},
         )
-        grant_id = grant_resp.json()["grant"]["grant_id"]
+        grant_id = grant_resp.json()["grant_id"]
 
         # Resubmit invoke with the grant.
         r = c.post(

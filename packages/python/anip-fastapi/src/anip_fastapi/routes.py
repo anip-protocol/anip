@@ -129,6 +129,7 @@ def mount_anip(
         upstream_service = body.get("upstream_service")
         stream = body.get("stream", False)
         approval_grant = body.get("approval_grant")  # v0.23
+        session_id = body.get("session_id")  # v0.23 — session identity for session_bound grants
 
         if not stream:
             # Unary mode — existing behavior
@@ -139,6 +140,7 @@ def mount_anip(
                 parent_invocation_id=parent_invocation_id,
                 upstream_service=upstream_service,
                 approval_grant=approval_grant,
+                session_id=session_id,
             )
             if not result.get("success"):
                 status = _failure_status(result.get("failure", {}).get("type"))
@@ -352,7 +354,7 @@ def mount_anip(
         except ANIPError as e:
             return _error_response(e)
 
-        return {"grant": grant}
+        return grant
 
     # --- Audit ---
 

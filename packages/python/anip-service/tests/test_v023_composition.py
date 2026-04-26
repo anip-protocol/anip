@@ -7,8 +7,6 @@ Composition declarations are validated at registration time via
 
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 from anip_core import (
     AuditPolicy,
@@ -82,7 +80,7 @@ def _basic_composition() -> Composition:
     )
 
 
-def _registry(*, parent_kind: str = "atomic") -> dict[str, CapabilityDeclaration]:
+def _registry() -> dict[str, CapabilityDeclaration]:
     select = _atomic_decl("select_cap", fields=["items"])
     enrich = _atomic_decl("enrich_cap", fields=["count", "items"])
     return {"select_cap": select, "enrich_cap": enrich}
@@ -334,7 +332,8 @@ class TestExecuteComposition:
 
     @pytest.mark.asyncio
     async def test_child_error_fails_parent(self):
-        # Default child_error policy is fail_parent.
+        # Default child_error policy is fail_parent — collapses to a generic
+        # composition_child_failed parent error per SPEC.md §4.6.
         decl = _composed_decl(composition=_basic_composition())
         runner, _ = _make_step_runner({
             "select_cap": {
@@ -348,10 +347,10 @@ class TestExecuteComposition:
         })
         with pytest.raises(ANIPError) as exc_info:
             await execute_composition("summary", decl, {"q": "x"}, invoke_step=runner)
-        # fail_parent collapses the failure type — we still propagate the original
-        # type identifier here for audit purposes; behaviour is captured by the
-        # detail string indicating it was a child step.
-        assert exc_info.value.error_type == "internal_error"
+        # SPEC.md §4.6: fail_parent collapses to a generic parent error type.
+        assert exc_info.value.error_type == "composition_child_failed"
+        # Original child type captured in the detail for diagnostics.
+        assert "internal_error" in exc_info.value.detail
         assert "child step" in exc_info.value.detail
 
 

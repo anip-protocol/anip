@@ -660,45 +660,48 @@ class PostgresStorage:
     # --- v0.23: approval requests + grants ---------------------------------
 
     async def store_approval_request(self, request: dict[str, Any]) -> None:
+        # SPEC.md §4.7 + StorageBackend.store_approval_request: idempotent on
+        # approval_request_id when content is identical; conflicting re-store
+        # with the same id is an error. Mirrors InMemoryStorage semantics.
+        req_id = request["approval_request_id"]
         pool = self._get_pool()
-        await pool.execute(
-            """INSERT INTO approval_requests
-               (approval_request_id, capability, scope, requester, parent_invocation_id,
-                preview, preview_digest, requested_parameters, requested_parameters_digest,
-                grant_policy, status, approver, decided_at, created_at, expires_at)
-               VALUES ($1, $2, $3::jsonb, $4::jsonb, $5,
-                       $6::jsonb, $7, $8::jsonb, $9,
-                       $10::jsonb, $11, $12::jsonb, $13, $14, $15)
-               ON CONFLICT (approval_request_id) DO UPDATE SET
-                   capability = EXCLUDED.capability,
-                   scope = EXCLUDED.scope,
-                   requester = EXCLUDED.requester,
-                   parent_invocation_id = EXCLUDED.parent_invocation_id,
-                   preview = EXCLUDED.preview,
-                   preview_digest = EXCLUDED.preview_digest,
-                   requested_parameters = EXCLUDED.requested_parameters,
-                   requested_parameters_digest = EXCLUDED.requested_parameters_digest,
-                   grant_policy = EXCLUDED.grant_policy,
-                   status = EXCLUDED.status,
-                   approver = EXCLUDED.approver,
-                   decided_at = EXCLUDED.decided_at,
-                   expires_at = EXCLUDED.expires_at""",
-            request["approval_request_id"],
-            request["capability"],
-            json.dumps(request["scope"]),
-            json.dumps(request["requester"]),
-            request.get("parent_invocation_id"),
-            json.dumps(request["preview"]),
-            request["preview_digest"],
-            json.dumps(request["requested_parameters"]),
-            request["requested_parameters_digest"],
-            json.dumps(request["grant_policy"]),
-            request["status"],
-            json.dumps(request["approver"]) if request.get("approver") is not None else None,
-            request.get("decided_at"),
-            request["created_at"],
-            request["expires_at"],
-        )
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                existing_row = await conn.fetchrow(
+                    "SELECT * FROM approval_requests WHERE approval_request_id = $1 FOR UPDATE",
+                    req_id,
+                )
+                if existing_row is not None:
+                    existing = _parse_approval_request_row(existing_row)
+                    if existing != request:
+                        raise ValueError(
+                            f"approval_request_id {req_id!r} already stored with different content"
+                        )
+                    return  # idempotent: identical content, no write needed
+                await conn.execute(
+                    """INSERT INTO approval_requests
+                       (approval_request_id, capability, scope, requester, parent_invocation_id,
+                        preview, preview_digest, requested_parameters, requested_parameters_digest,
+                        grant_policy, status, approver, decided_at, created_at, expires_at)
+                       VALUES ($1, $2, $3::jsonb, $4::jsonb, $5,
+                               $6::jsonb, $7, $8::jsonb, $9,
+                               $10::jsonb, $11, $12::jsonb, $13, $14, $15)""",
+                    req_id,
+                    request["capability"],
+                    json.dumps(request["scope"]),
+                    json.dumps(request["requester"]),
+                    request.get("parent_invocation_id"),
+                    json.dumps(request["preview"]),
+                    request["preview_digest"],
+                    json.dumps(request["requested_parameters"]),
+                    request["requested_parameters_digest"],
+                    json.dumps(request["grant_policy"]),
+                    request["status"],
+                    json.dumps(request["approver"]) if request.get("approver") is not None else None,
+                    request.get("decided_at"),
+                    request["created_at"],
+                    request["expires_at"],
+                )
 
     async def get_approval_request(self, approval_request_id: str) -> dict[str, Any] | None:
         pool = self._get_pool()
