@@ -25,14 +25,7 @@ public class DelegationToken {
      */
     private final String sessionId;
 
-    public DelegationToken(String tokenId, String issuer, String subject, List<String> scope,
-                           Purpose purpose, String parent, String expires,
-                           DelegationConstraints constraints, String rootPrincipal,
-                           String callerClass) {
-        this(tokenId, issuer, subject, scope, purpose, parent, expires,
-             constraints, rootPrincipal, callerClass, null);
-    }
-
+    /** Canonical constructor — Jackson uses this via ParameterNamesModule + snake_case strategy. */
     public DelegationToken(String tokenId, String issuer, String subject, List<String> scope,
                            Purpose purpose, String parent, String expires,
                            DelegationConstraints constraints, String rootPrincipal,

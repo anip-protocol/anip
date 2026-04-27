@@ -1,5 +1,7 @@
 package dev.anip.server;
 
+import dev.anip.core.ApprovalGrant;
+import dev.anip.core.ApprovalRequest;
 import dev.anip.core.AuditEntry;
 import dev.anip.core.AuditFilters;
 import dev.anip.core.Checkpoint;
@@ -16,6 +18,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -42,6 +45,8 @@ public class SqliteStorage implements Storage {
                 task_id TEXT,
                 parent_invocation_id TEXT,
                 upstream_service TEXT,
+                approval_request_id TEXT,
+                approval_grant_id TEXT,
                 data TEXT NOT NULL,
                 previous_hash TEXT NOT NULL,
                 signature TEXT
@@ -58,6 +63,26 @@ public class SqliteStorage implements Storage {
                 checkpoint_id TEXT PRIMARY KEY,
                 data TEXT NOT NULL,
                 signature TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS approval_requests (
+                approval_request_id TEXT PRIMARY KEY,
+                capability TEXT NOT NULL,
+                status TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                data TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_apreq_status ON approval_requests(status);
+
+            CREATE TABLE IF NOT EXISTS approval_grants (
+                grant_id TEXT PRIMARY KEY,
+                approval_request_id TEXT NOT NULL UNIQUE,
+                capability TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                max_uses INTEGER NOT NULL,
+                use_count INTEGER NOT NULL,
+                data TEXT NOT NULL,
+                FOREIGN KEY (approval_request_id) REFERENCES approval_requests(approval_request_id)
             );
             """;
 
@@ -88,6 +113,25 @@ public class SqliteStorage implements Storage {
                     stmt.execute(trimmed);
                 }
             }
+        }
+
+        // Idempotent ALTER TABLE migrations for v0.23 audit_log columns.
+        addColumnIfMissing("audit_log", "approval_request_id", "TEXT");
+        addColumnIfMissing("audit_log", "approval_grant_id", "TEXT");
+    }
+
+    /** Adds a column if it doesn't already exist on the table. SQLite has no native idempotency. */
+    private void addColumnIfMissing(String table, String column, String type) throws SQLException {
+        try (PreparedStatement ps = connection.prepareStatement("PRAGMA table_info(" + table + ")");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                if (column.equals(rs.getString("name"))) {
+                    return;
+                }
+            }
+        }
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
         }
     }
 
@@ -161,8 +205,9 @@ public class SqliteStorage implements Storage {
                         """
                         INSERT INTO audit_log (timestamp, capability, token_id, root_principal,
                             invocation_id, client_reference_id, task_id, parent_invocation_id,
-                            upstream_service, data, previous_hash, signature)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            upstream_service, approval_request_id, approval_grant_id,
+                            data, previous_hash, signature)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, Statement.RETURN_GENERATED_KEYS)) {
                     ps.setString(1, entry.getTimestamp());
                     ps.setString(2, entry.getCapability());
@@ -173,9 +218,11 @@ public class SqliteStorage implements Storage {
                     ps.setString(7, entry.getTaskId());
                     ps.setString(8, entry.getParentInvocationId());
                     ps.setString(9, entry.getUpstreamService());
-                    ps.setString(10, data);
-                    ps.setString(11, prevHash);
-                    ps.setString(12, entry.getSignature());
+                    ps.setString(10, entry.getApprovalRequestId());
+                    ps.setString(11, entry.getApprovalGrantId());
+                    ps.setString(12, data);
+                    ps.setString(13, prevHash);
+                    ps.setString(14, entry.getSignature());
                     ps.executeUpdate();
 
                     try (ResultSet keys = ps.getGeneratedKeys()) {
@@ -462,5 +509,223 @@ public class SqliteStorage implements Storage {
     @Override
     public void releaseLeader(String role, String holder) {
         releaseExclusive("leader:" + role, holder);
+    }
+
+    // --- v0.23: ApprovalRequest + ApprovalGrant ---
+
+    @Override
+    public void storeApprovalRequest(ApprovalRequest req) throws SQLException {
+        String data = JsonHelper.toJson(req);
+        synchronized (lock) {
+            // Idempotency: same content is no-op; conflicting content raises.
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "SELECT data FROM approval_requests WHERE approval_request_id = ?")) {
+                ps.setString(1, req.getApprovalRequestId());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        String existing = rs.getString("data");
+                        if (existing != null && existing.equals(data)) {
+                            return;
+                        }
+                        throw new SQLException("approval_request_id " + req.getApprovalRequestId()
+                                + " already stored with different content");
+                    }
+                }
+            }
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "INSERT INTO approval_requests (approval_request_id, capability, status, expires_at, data) VALUES (?, ?, ?, ?, ?)")) {
+                ps.setString(1, req.getApprovalRequestId());
+                ps.setString(2, req.getCapability());
+                ps.setString(3, req.getStatus());
+                ps.setString(4, req.getExpiresAt());
+                ps.setString(5, data);
+                ps.executeUpdate();
+            }
+        }
+    }
+
+    @Override
+    public Optional<ApprovalRequest> getApprovalRequest(String approvalRequestId) throws SQLException {
+        synchronized (lock) {
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "SELECT data FROM approval_requests WHERE approval_request_id = ?")) {
+                ps.setString(1, approvalRequestId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        return Optional.empty();
+                    }
+                    return Optional.of(JsonHelper.fromJson(rs.getString("data"), ApprovalRequest.class));
+                }
+            }
+        }
+    }
+
+    @Override
+    public ApprovalDecisionResult approveRequestAndStoreGrant(String approvalRequestId,
+                                                              ApprovalGrant grant,
+                                                              Map<String, Object> approver,
+                                                              String decidedAtIso,
+                                                              String nowIso) throws SQLException {
+        synchronized (lock) {
+            connection.setAutoCommit(false);
+            try {
+                // Load + validate state.
+                ApprovalRequest existing;
+                try (PreparedStatement ps = connection.prepareStatement(
+                        "SELECT data, status, expires_at FROM approval_requests WHERE approval_request_id = ?")) {
+                    ps.setString(1, approvalRequestId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) {
+                            connection.rollback();
+                            return ApprovalDecisionResult.failure("approval_request_not_found");
+                        }
+                        existing = JsonHelper.fromJson(rs.getString("data"), ApprovalRequest.class);
+                        String status = rs.getString("status");
+                        String expiresAt = rs.getString("expires_at");
+                        if (!"pending".equals(status)) {
+                            connection.rollback();
+                            return ApprovalDecisionResult.failure("approval_request_already_decided");
+                        }
+                        if (expiresAt != null && expiresAt.compareTo(nowIso) <= 0) {
+                            connection.rollback();
+                            return ApprovalDecisionResult.failure("approval_request_expired");
+                        }
+                    }
+                }
+
+                // Mutate the request to approved + record approver + decided_at.
+                existing.setStatus("approved");
+                existing.setApprover(approver);
+                existing.setDecidedAt(decidedAtIso);
+                String updatedReq = JsonHelper.toJson(existing);
+                try (PreparedStatement ps = connection.prepareStatement(
+                        "UPDATE approval_requests SET status = 'approved', data = ? WHERE approval_request_id = ? AND status = 'pending'")) {
+                    ps.setString(1, updatedReq);
+                    ps.setString(2, approvalRequestId);
+                    int affected = ps.executeUpdate();
+                    if (affected != 1) {
+                        connection.rollback();
+                        return ApprovalDecisionResult.failure("approval_request_already_decided");
+                    }
+                }
+
+                // Insert the grant. Unique constraint on approval_request_id is the
+                // defense-in-depth (in addition to the conditional UPDATE above).
+                String grantJson = JsonHelper.toJson(grant);
+                try (PreparedStatement ps = connection.prepareStatement(
+                        "INSERT INTO approval_grants (grant_id, approval_request_id, capability, expires_at, max_uses, use_count, data) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+                    ps.setString(1, grant.getGrantId());
+                    ps.setString(2, grant.getApprovalRequestId());
+                    ps.setString(3, grant.getCapability());
+                    ps.setString(4, grant.getExpiresAt());
+                    ps.setInt(5, grant.getMaxUses());
+                    ps.setInt(6, grant.getUseCount());
+                    ps.setString(7, grantJson);
+                    ps.executeUpdate();
+                }
+
+                connection.commit();
+                return ApprovalDecisionResult.success(grant);
+            } catch (SQLException e) {
+                try { connection.rollback(); } catch (SQLException ignored) {}
+                throw e;
+            } finally {
+                try { connection.setAutoCommit(true); } catch (SQLException ignored) {}
+            }
+        }
+    }
+
+    @Override
+    public void storeGrant(ApprovalGrant grant) throws SQLException {
+        String data = JsonHelper.toJson(grant);
+        synchronized (lock) {
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "INSERT INTO approval_grants (grant_id, approval_request_id, capability, expires_at, max_uses, use_count, data) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+                ps.setString(1, grant.getGrantId());
+                ps.setString(2, grant.getApprovalRequestId());
+                ps.setString(3, grant.getCapability());
+                ps.setString(4, grant.getExpiresAt());
+                ps.setInt(5, grant.getMaxUses());
+                ps.setInt(6, grant.getUseCount());
+                ps.setString(7, data);
+                ps.executeUpdate();
+            }
+        }
+    }
+
+    @Override
+    public Optional<ApprovalGrant> getGrant(String grantId) throws SQLException {
+        synchronized (lock) {
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "SELECT data FROM approval_grants WHERE grant_id = ?")) {
+                ps.setString(1, grantId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        return Optional.empty();
+                    }
+                    return Optional.of(JsonHelper.fromJson(rs.getString("data"), ApprovalGrant.class));
+                }
+            }
+        }
+    }
+
+    @Override
+    public GrantReservationResult tryReserveGrant(String grantId, String nowIso) throws SQLException {
+        synchronized (lock) {
+            // Atomic CAS: only succeeds if grant exists, not consumed, not expired.
+            int affected;
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "UPDATE approval_grants SET use_count = use_count + 1 WHERE grant_id = ? AND use_count < max_uses AND expires_at > ?")) {
+                ps.setString(1, grantId);
+                ps.setString(2, nowIso);
+                affected = ps.executeUpdate();
+            }
+            if (affected == 1) {
+                // Re-load to populate post-reservation use_count + sync data blob.
+                ApprovalGrant grant;
+                try (PreparedStatement ps = connection.prepareStatement(
+                        "SELECT data, use_count FROM approval_grants WHERE grant_id = ?")) {
+                    ps.setString(1, grantId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) {
+                            return GrantReservationResult.failure("grant_not_found");
+                        }
+                        grant = JsonHelper.fromJson(rs.getString("data"), ApprovalGrant.class);
+                        int newUseCount = rs.getInt("use_count");
+                        grant.setUseCount(newUseCount);
+                    }
+                }
+                // Persist the updated use_count back into the JSON blob to keep
+                // the data column consistent for cross-runtime readers.
+                try (PreparedStatement ps = connection.prepareStatement(
+                        "UPDATE approval_grants SET data = ? WHERE grant_id = ?")) {
+                    ps.setString(1, JsonHelper.toJson(grant));
+                    ps.setString(2, grantId);
+                    ps.executeUpdate();
+                }
+                return GrantReservationResult.success(grant);
+            }
+            // 0 rows — disambiguate by re-fetching.
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "SELECT use_count, max_uses, expires_at FROM approval_grants WHERE grant_id = ?")) {
+                ps.setString(1, grantId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        return GrantReservationResult.failure("grant_not_found");
+                    }
+                    int useCount = rs.getInt("use_count");
+                    int maxUses = rs.getInt("max_uses");
+                    String expiresAt = rs.getString("expires_at");
+                    if (expiresAt != null && expiresAt.compareTo(nowIso) <= 0) {
+                        return GrantReservationResult.failure("grant_expired");
+                    }
+                    if (useCount >= maxUses) {
+                        return GrantReservationResult.failure("grant_consumed");
+                    }
+                    // Should not happen, but treat as not found for safety.
+                    return GrantReservationResult.failure("grant_not_found");
+                }
+            }
+        }
     }
 }

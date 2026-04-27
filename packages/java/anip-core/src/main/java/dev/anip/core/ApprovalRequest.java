@@ -30,24 +30,30 @@ public class ApprovalRequest {
     private final String createdAt;
     private final String expiresAt;
 
+    /** Full constructor — ParameterNamesModule + snake_case strategy lets Jackson match wire fields. */
     public ApprovalRequest(String approvalRequestId, String capability, List<String> scope,
-                           Map<String, Object> requester, Map<String, Object> preview,
-                           String previewDigest, Map<String, Object> requestedParameters,
-                           String requestedParametersDigest, GrantPolicy grantPolicy,
-                           String status, String createdAt, String expiresAt) {
+                           Map<String, Object> requester, String parentInvocationId,
+                           Map<String, Object> preview, String previewDigest,
+                           Map<String, Object> requestedParameters, String requestedParametersDigest,
+                           GrantPolicy grantPolicy, String status, Map<String, Object> approver,
+                           String decidedAt, String createdAt, String expiresAt) {
         this.approvalRequestId = approvalRequestId;
         this.capability = capability;
         this.scope = scope;
         this.requester = requester;
+        this.parentInvocationId = parentInvocationId;
         this.preview = preview;
         this.previewDigest = previewDigest;
         this.requestedParameters = requestedParameters;
         this.requestedParametersDigest = requestedParametersDigest;
         this.grantPolicy = grantPolicy;
         this.status = status;
+        this.approver = approver;
+        this.decidedAt = decidedAt;
         this.createdAt = createdAt;
         this.expiresAt = expiresAt;
     }
+
 
     public String getApprovalRequestId() { return approvalRequestId; }
     public String getCapability() { return capability; }

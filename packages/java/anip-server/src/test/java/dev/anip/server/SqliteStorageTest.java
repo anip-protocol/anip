@@ -60,7 +60,7 @@ class SqliteStorageTest {
                 "tok-1", "test-service", "new-subject",
                 List.of("admin"), new Purpose("admin_op", Map.of(), "task-1"),
                 "", "2025-12-31T23:59:59Z",
-                new DelegationConstraints(), "admin@example.com", "human"
+                new DelegationConstraints(), "admin@example.com", "human", null
         );
         storage.storeToken(token2);
 
@@ -279,7 +279,7 @@ class SqliteStorageTest {
                 List.of("travel.search", "travel.book"),
                 new Purpose("search_flights", Map.of(), "task-1"),
                 "", "2025-12-31T23:59:59Z",
-                new DelegationConstraints(), rootPrincipal, "human"
+                new DelegationConstraints(), rootPrincipal, "human", null
         );
     }
 
