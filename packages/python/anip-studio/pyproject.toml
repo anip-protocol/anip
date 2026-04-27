@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "anip-studio"
-version = "0.22.0"
+version = "0.23.0"
 description = "ANIP Studio — embedded inspection UI for ANIP services"
 requires-python = ">=3.11"
 dependencies = [
-    "anip-service==0.22.0",
+    "anip-service==0.23.0",
     "fastapi",
 ]
 

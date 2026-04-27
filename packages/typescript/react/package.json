@@ -1,6 +1,6 @@
 {
   "name": "@anip-dev/react",
-  "version": "0.22.0",
+  "version": "0.23.0",
   "description": "React hooks wrapping @anip-dev/client",
   "type": "module",
   "engines": {
@@ -13,7 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@anip-dev/client": "0.22.0"
+    "@anip-dev/client": "0.23.0"
   },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0"

@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.anip</groupId>
         <artifactId>anip-parent</artifactId>
-        <version>0.22.0</version>
+        <version>0.23.0</version>
     </parent>
 
     <artifactId>anip-graphql-quarkus</artifactId>
