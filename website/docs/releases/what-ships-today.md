@@ -7,7 +7,7 @@ description: Current distribution status across all ANIP ecosystems.
 
 ANIP is not a spec waiting for implementations. Here's what's available now.
 
-## Protocol features through v0.22
+## Protocol features through v0.23
 
 Everything below is implemented in the runtimes and exercised by the conformance suite:
 
@@ -33,6 +33,7 @@ Everything below is implemented in the runtimes and exercised by the conformance
 - **Bootstrap auth and capability-targeted issuance (v0.20)**: Explicit bootstrap auth hook contract (sync MUST, async MAY); `issueCapabilityToken()` root-only helper in all 5 runtimes — pre-binds capability, requires explicit scope, prevents `purpose_mismatch` errors
 - **Cross-service contracts and recovery targets (v0.21)**: `cross_service_contract` with structured handoff/followup/verification entries carrying task-local continuity and completion modes; `recovery_target` in resolution objects with kind/target/continuity/retry_after_target — stronger than advisory hints, not a workflow engine
 - **Delegated issuance ergonomics (v0.22)**: Canonical `parent_token` semantics (token ID string, not JWT) aligned across all runtimes; `issueDelegatedCapabilityToken()` helper in all 5 runtimes; token issuance responses echo `task_id` for consumer-side task continuity
+- **Capability composition + approval grants (v0.23)**: Capabilities declare a `kind` (`atomic` or `composed`); composed capabilities expose a declarative `composition` step graph (steps, input/output mapping, empty-result policy, failure policy, audit policy) as protocol-visible metadata, so agents pick one bounded business capability and the runtime owns step orchestration. The `approval_required` failure persists an `ApprovalRequest`; approvers issue a signed `ApprovalGrant` (`one_time` or `session_bound`) via `POST /anip/approval_grants` that the requester redeems on a follow-up invoke (Phase A read-side validation + Phase B atomic reservation). Session identity is bound into the signed delegation token (`anip:session_id`), so session-bound continuations can't be forged from request bodies. Detached JWS over canonical-sorted JSON gives cross-runtime grant signature compatibility — a grant signed by one runtime verifies in any other.
 
 ## Published to package registries
 
