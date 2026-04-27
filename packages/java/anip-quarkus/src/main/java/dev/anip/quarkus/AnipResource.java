@@ -140,10 +140,14 @@ public class AnipResource {
                     ? ((Number) body.get("ttl_hours")).intValue() : 0;
             String callerClass = (String) body.get("caller_class");
             String concurrentBranches = (String) body.get("concurrent_branches");
+            // v0.23: bind a session identity into the issued token so the
+            // caller can later redeem session_bound ApprovalGrants. SPEC §4.8.
+            String sessionId = (String) body.get("session_id");
 
             dev.anip.core.Budget tokenBudget = extractBudget(body);
             TokenRequest req = new TokenRequest(subject, scope, capability,
-                    purposeParams, parentToken, ttlHours, callerClass, tokenBudget, concurrentBranches);
+                    purposeParams, parentToken, ttlHours, callerClass, tokenBudget,
+                    concurrentBranches, sessionId);
 
             TokenResponse resp = service.issueToken(principal.get(), req);
 

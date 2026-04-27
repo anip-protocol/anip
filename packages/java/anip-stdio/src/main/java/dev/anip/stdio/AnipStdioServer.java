@@ -312,6 +312,9 @@ public class AnipStdioServer {
         String taskId = (String) params.get("task_id");
         String parentInvocationId = (String) params.get("parent_invocation_id");
         boolean stream = Boolean.TRUE.equals(params.get("stream"));
+        // v0.23: continuation invocations supply approval_grant. session_id
+        // for session_bound grants is read from the signed token, never the body.
+        String approvalGrant = (String) params.get("approval_grant");
 
         // Extract budget from params.
         Budget budget = extractBudgetFromParams(params);
@@ -319,6 +322,9 @@ public class AnipStdioServer {
         InvokeOpts opts = new InvokeOpts(clientReferenceId, stream, taskId, parentInvocationId);
         if (budget != null) {
             opts.setBudget(budget);
+        }
+        if (approvalGrant != null) {
+            opts.setApprovalGrant(approvalGrant);
         }
 
         if (stream) {

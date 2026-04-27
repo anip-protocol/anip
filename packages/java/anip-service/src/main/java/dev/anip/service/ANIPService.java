@@ -1142,6 +1142,41 @@ public class ANIPService {
         // 3. Validate token scope.
         DelegationEngine.validateScope(token, capDef.getDeclaration().getMinimumScope());
 
+        // 3b. v0.23 §4.8 Phase A + Phase B: validate and atomically reserve
+        // the approval_grant BEFORE any handler / event emission. Reservation
+        // is the security boundary — once reserved, the grant is spent on
+        // this attempt. Failures surface synchronously as ANIPError so the
+        // transport adapter maps to a JSON 4xx and no SSE stream opens.
+        String streamApprovalGrantId = opts != null ? opts.getApprovalGrant() : null;
+        if (streamApprovalGrantId != null && !streamApprovalGrantId.isEmpty()) {
+            try {
+                V023.ContinuationValidation cv = V023.validateContinuationGrant(
+                        storage, keys, streamApprovalGrantId, capName, params,
+                        token.getScope(), token.getSessionId(), V023.utcNowIso());
+                if (cv.failureType() != null) {
+                    throw new ANIPError(cv.failureType(),
+                            "approval_grant validation failed: " + cv.failureType());
+                }
+                GrantReservationResult res = storage.tryReserveGrant(streamApprovalGrantId, V023.utcNowIso());
+                if (!res.ok()) {
+                    String reason = res.reason();
+                    String type = switch (reason == null ? "" : reason) {
+                        case "grant_consumed" -> Constants.FAILURE_GRANT_CONSUMED;
+                        case "grant_expired" -> Constants.FAILURE_GRANT_EXPIRED;
+                        default -> Constants.FAILURE_GRANT_NOT_FOUND;
+                    };
+                    throw new ANIPError(type, "approval_grant reservation failed: " + reason);
+                }
+            } catch (ANIPError e) {
+                throw e;
+            } catch (Exception e) {
+                throw new ANIPError(Constants.FAILURE_INTERNAL_ERROR,
+                        "grant reservation failed: " + e.getMessage());
+            }
+        }
+        // Effectively-final reference for the lambda below.
+        final String reservedGrantId = streamApprovalGrantId;
+
         // 4. Build invocation context with streaming EmitProgress.
         String rootPrincipal = token.getRootPrincipal();
         if (rootPrincipal == null || rootPrincipal.isEmpty()) {
@@ -1193,9 +1228,11 @@ public class ANIPService {
                 CostActual costActual = ctx.getCostActual();
                 String streamSideEffect = capDef.getDeclaration().getSideEffect() != null
                     ? capDef.getDeclaration().getSideEffect().getType() : null;
+                // SPEC §4.9 step 11: continuation invocation audit entries
+                // reference the consumed grant.
                 appendAuditEntry(capName, token, true, "", result, costActual,
                         invocationId, clientRefId, effectiveTaskId, parentInvocationId,
-                        upstreamService, streamSideEffect);
+                        upstreamService, streamSideEffect, null, reservedGrantId, null);
 
                 Map<String, Object> payload = new LinkedHashMap<>();
                 payload.put("invocation_id", invocationId);
@@ -1215,7 +1252,8 @@ public class ANIPService {
                     ? capDef.getDeclaration().getSideEffect().getType() : null;
                 appendAuditEntry(capName, token, false, e.getErrorType(),
                         Map.of("detail", e.getDetail()), null, invocationId, clientRefId,
-                        effectiveTaskId, parentInvocationId, upstreamService, streamSideEffect2);
+                        effectiveTaskId, parentInvocationId, upstreamService, streamSideEffect2,
+                        null, reservedGrantId, null);
 
                 Map<String, Object> failureObj = new LinkedHashMap<>();
                 failureObj.put("type", e.getErrorType());
@@ -1248,7 +1286,8 @@ public class ANIPService {
                     ? capDef.getDeclaration().getSideEffect().getType() : null;
                 appendAuditEntry(capName, token, false, Constants.FAILURE_INTERNAL_ERROR,
                         null, null, invocationId, clientRefId,
-                        effectiveTaskId, parentInvocationId, upstreamService, streamSideEffect3);
+                        effectiveTaskId, parentInvocationId, upstreamService, streamSideEffect3,
+                        null, reservedGrantId, null);
 
                 Map<String, Object> failureObj = new LinkedHashMap<>();
                 failureObj.put("type", Constants.FAILURE_INTERNAL_ERROR);

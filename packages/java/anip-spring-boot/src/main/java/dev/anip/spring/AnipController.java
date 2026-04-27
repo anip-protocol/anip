@@ -202,18 +202,21 @@ public class AnipController {
         String taskId = body != null ? (String) body.get("task_id") : null;
         String parentInvocationId = body != null ? (String) body.get("parent_invocation_id") : null;
         String upstreamService = body != null ? (String) body.get("upstream_service") : null;
+        // v0.23: continuation invocations supply approval_grant. session_id
+        // for session_bound grants is read from the signed token, never the body.
+        String approvalGrant = body != null ? (String) body.get("approval_grant") : null;
 
         // Extract budget from request body.
         dev.anip.core.Budget budget = extractBudget(body);
 
         if (stream) {
-            InvokeOpts streamOpts = new InvokeOpts(clientRefId, true, taskId, parentInvocationId, upstreamService);
-            if (budget != null) streamOpts.setBudget(budget);
-            return handleStreamInvoke(capability, token, params, clientRefId, taskId, parentInvocationId, upstreamService, budget);
+            return handleStreamInvoke(capability, token, params, clientRefId, taskId,
+                    parentInvocationId, upstreamService, budget, approvalGrant);
         }
 
         InvokeOpts opts = new InvokeOpts(clientRefId, false, taskId, parentInvocationId, upstreamService);
         if (budget != null) opts.setBudget(budget);
+        if (approvalGrant != null) opts.setApprovalGrant(approvalGrant);
         Map<String, Object> result = service.invoke(capability, token, params, opts);
 
         boolean success = Boolean.TRUE.equals(result.get("success"));
@@ -341,13 +344,15 @@ public class AnipController {
     private SseEmitter handleStreamInvoke(String capability, DelegationToken token,
                                            Map<String, Object> params, String clientRefId,
                                            String taskId, String parentInvocationId,
-                                           String upstreamService, dev.anip.core.Budget budget) {
+                                           String upstreamService, dev.anip.core.Budget budget,
+                                           String approvalGrant) {
         SseEmitter emitter = new SseEmitter(0L); // no timeout
 
         StreamResult sr;
         try {
             InvokeOpts opts = new InvokeOpts(clientRefId, true, taskId, parentInvocationId, upstreamService);
             if (budget != null) opts.setBudget(budget);
+            if (approvalGrant != null) opts.setApprovalGrant(approvalGrant);
             sr = service.invokeStream(capability, token, params, opts);
         } catch (ANIPError e) {
             try {

@@ -149,6 +149,15 @@ public class AnipRestController {
             opts.setBudget(budget);
         }
 
+        // v0.23: REST adapter wraps the entire body as capability parameters,
+        // so approval_grant cannot live alongside parameters in the body.
+        // Carry it via X-Anip-Approval-Grant header instead. session_id for
+        // session_bound grants is read from the signed token, never the header.
+        String approvalGrant = request.getHeader("X-Anip-Approval-Grant");
+        if (approvalGrant != null && !approvalGrant.isEmpty()) {
+            opts.setApprovalGrant(approvalGrant);
+        }
+
         Map<String, Object> result = service.invoke(capability, token, params, opts);
 
         boolean success = Boolean.TRUE.equals(result.get("success"));
