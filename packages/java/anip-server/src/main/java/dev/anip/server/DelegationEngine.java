@@ -79,6 +79,9 @@ public final class DelegationEngine {
         String issuer = serviceId;
         String rootPrincipal = principal;
         String parent = "";
+        // v0.23: child tokens inherit parent.session_id verbatim. Only honored
+        // at root issuance from req.sessionId.
+        String sessionId = req.getSessionId();
 
         // If there's a parent token, look it up by ID for sub-delegation.
         if (req.getParentToken() != null && !req.getParentToken().isEmpty()) {
@@ -92,6 +95,8 @@ public final class DelegationEngine {
             rootPrincipal = parentToken.getRootPrincipal();
             parent = parentToken.getTokenId();
             constraints = parentToken.getConstraints();
+            // SPEC.md §4.8: child tokens inherit the parent's session_id verbatim.
+            sessionId = parentToken.getSessionId();
 
             // Budget narrowing: child budget must not exceed parent budget.
             if (parentToken.getConstraints().getBudget() != null) {
@@ -135,7 +140,8 @@ public final class DelegationEngine {
         // Build the token record.
         DelegationToken token = new DelegationToken(
                 tokenId, issuer, subject, req.getScope(), purpose,
-                parent, expiresStr, constraints, rootPrincipal, req.getCallerClass()
+                parent, expiresStr, constraints, rootPrincipal, req.getCallerClass(),
+                sessionId
         );
 
         // Store the token.
@@ -156,6 +162,11 @@ public final class DelegationEngine {
         claims.put("constraints", JsonHelper.toMap(constraints));
         if (!parent.isEmpty()) {
             claims.put("parent_token_id", parent);
+        }
+        // v0.23: bind session_id into the JWT so resolveBearerToken can verify
+        // both sides agree (SPEC.md §4.8 trust model).
+        if (sessionId != null && !sessionId.isEmpty()) {
+            claims.put("anip:session_id", sessionId);
         }
 
         String jwt = JwtSigner.signDelegationJwt(km, claims);
@@ -223,6 +234,20 @@ public final class DelegationEngine {
         if (rpObj instanceof String rp && !rp.equals(stored.getRootPrincipal())) {
             throw new ANIPError(Constants.FAILURE_INVALID_TOKEN,
                     "root_principal mismatch between JWT and stored token");
+        }
+
+        // v0.23: if either side carries a session_id, both MUST agree.
+        // SPEC.md §4.8: session_id MUST come from the signed token, not from
+        // caller-supplied input.
+        Object sidObj = claims.get("anip:session_id");
+        String jwtSessionId = sidObj instanceof String s ? s : null;
+        String storedSessionId = stored.getSessionId();
+        boolean jwtPresent = jwtSessionId != null && !jwtSessionId.isEmpty();
+        boolean storedPresent = storedSessionId != null && !storedSessionId.isEmpty();
+        if (jwtPresent != storedPresent
+                || (jwtPresent && !jwtSessionId.equals(storedSessionId))) {
+            throw new ANIPError(Constants.FAILURE_INVALID_TOKEN,
+                    "session_id mismatch between JWT and stored token");
         }
 
         // 5. Return stored token.

@@ -258,7 +258,7 @@ class DelegationEngineTest {
                 "tok-test", SERVICE_ID, "subject", scope,
                 new dev.anip.core.Purpose("cap", Map.of(), "task"),
                 "", "2030-12-31T23:59:59Z",
-                new dev.anip.core.DelegationConstraints(), "principal", "human"
+                new dev.anip.core.DelegationConstraints(), "principal", "human", null
         );
     }
 }

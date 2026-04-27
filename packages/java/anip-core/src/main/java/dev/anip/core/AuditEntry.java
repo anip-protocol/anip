@@ -40,6 +40,9 @@ public class AuditEntry {
     private String taskId;
     private String parentInvocationId;
     private String upstreamService;
+    // v0.23 — approval flow linkage. SPEC.md §4.7 audit invariants.
+    private String approvalRequestId;
+    private String approvalGrantId;
 
     public AuditEntry() {}
 
@@ -138,4 +141,12 @@ public class AuditEntry {
 
     public String getUpstreamService() { return upstreamService; }
     public void setUpstreamService(String upstreamService) { this.upstreamService = upstreamService; }
+
+    /** v0.23: approval request ID linked to this audit entry. */
+    public String getApprovalRequestId() { return approvalRequestId; }
+    public void setApprovalRequestId(String approvalRequestId) { this.approvalRequestId = approvalRequestId; }
+
+    /** v0.23: approval grant ID consumed/issued for this audit entry. */
+    public String getApprovalGrantId() { return approvalGrantId; }
+    public void setApprovalGrantId(String approvalGrantId) { this.approvalGrantId = approvalGrantId; }
 }

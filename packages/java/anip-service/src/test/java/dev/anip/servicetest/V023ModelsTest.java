@@ -104,11 +104,11 @@ class V023ModelsTest {
         Map<String, Object> requester = new HashMap<>();
         requester.put("principal", "u1");
         ApprovalRequest r = new ApprovalRequest(
-                "apr_test", "cap", Arrays.asList("s"), requester,
+                "apr_test", "cap", Arrays.asList("s"), requester, null,
                 new HashMap<>(), "d2",
                 new HashMap<>(), "d1",
                 grantPolicy(),
-                ApprovalRequest.STATUS_PENDING,
+                ApprovalRequest.STATUS_PENDING, null, null,
                 "2026-01-01T00:00:00Z", "2026-01-01T00:15:00Z");
         assertEquals("pending", r.getStatus());
         assertNull(r.getApprover());
@@ -118,10 +118,10 @@ class V023ModelsTest {
     @Test
     void approvalRequestExpiredHasNoApprover() {
         ApprovalRequest r = new ApprovalRequest(
-                "apr_test", "cap", Arrays.asList("s"), new HashMap<>(),
+                "apr_test", "cap", Arrays.asList("s"), new HashMap<>(), null,
                 new HashMap<>(), "d2", new HashMap<>(), "d1",
                 grantPolicy(),
-                ApprovalRequest.STATUS_PENDING,
+                ApprovalRequest.STATUS_PENDING, null, null,
                 "2026-01-01T00:00:00Z", "2026-01-01T00:15:00Z")
                 .setStatus(ApprovalRequest.STATUS_EXPIRED)
                 .setDecidedAt("2026-01-01T00:15:01Z");

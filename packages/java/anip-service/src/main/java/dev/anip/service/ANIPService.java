@@ -9,6 +9,9 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 
 import dev.anip.core.ANIPError;
+import dev.anip.core.ApprovalGrant;
+import dev.anip.core.ApprovalRequest;
+import dev.anip.core.ApprovalRequiredMetadata;
 import dev.anip.core.AuditEntry;
 import dev.anip.core.AuditFilters;
 import dev.anip.core.AuditResponse;
@@ -22,6 +25,7 @@ import dev.anip.core.CheckpointListResponse;
 import dev.anip.core.Constants;
 import dev.anip.core.CostActual;
 import dev.anip.core.DelegationToken;
+import dev.anip.core.GrantPolicy;
 import dev.anip.core.HealthReport;
 import dev.anip.core.PermissionResponse;
 import dev.anip.core.StorageHealth;
@@ -30,9 +34,11 @@ import dev.anip.core.TokenResponse;
 import dev.anip.crypto.JwksSerializer;
 import dev.anip.crypto.JwsSigner;
 import dev.anip.crypto.KeyManager;
+import dev.anip.server.ApprovalDecisionResult;
 import dev.anip.server.AuditLog;
 import dev.anip.server.CheckpointManager;
 import dev.anip.server.DelegationEngine;
+import dev.anip.server.GrantReservationResult;
 import dev.anip.server.PostgresStorage;
 import dev.anip.server.SqliteStorage;
 import dev.anip.server.Storage;
@@ -123,6 +129,16 @@ public class ANIPService {
             for (CapabilityDef cap : config.getCapabilities()) {
                 this.capabilities.put(cap.getDeclaration().getName(), cap);
             }
+        }
+
+        // v0.23: validate composed declarations at registration time. Throws on any
+        // invariant violation. SPEC.md §4.6.
+        Map<String, CapabilityDeclaration> registry = new HashMap<>();
+        for (var e : this.capabilities.entrySet()) {
+            registry.put(e.getKey(), e.getValue().getDeclaration());
+        }
+        for (var e : this.capabilities.entrySet()) {
+            V023.validateComposition(e.getKey(), e.getValue().getDeclaration(), registry);
         }
 
         this.retentionPolicy = config.getRetentionPolicy() != null
@@ -331,6 +347,153 @@ public class ANIPService {
             String subject) throws Exception {
         return issueDelegatedCapabilityToken(
                 principal, parentToken, capability, scope, subject, null, null, 2, null);
+    }
+
+    // --- v0.23: ApprovalRequest + ApprovalGrant SPI ---
+
+    /**
+     * Read-only pass-through to look up an ApprovalRequest by id. Returns null
+     * if not found. Used by the HTTP layer for SPEC.md §4.9 step 3.
+     */
+    public ApprovalRequest getApprovalRequest(String approvalRequestId) throws Exception {
+        return storage.getApprovalRequest(approvalRequestId).orElse(null);
+    }
+
+    /**
+     * Returns the underlying storage handle. Intended for test fixtures and
+     * advanced SPI integrations that need to seed approval state directly.
+     */
+    public Storage getStorage() {
+        return storage;
+    }
+
+    /**
+     * Issues a signed ApprovalGrant for a pending ApprovalRequest. Atomic per
+     * SPEC.md §4.9 (Decision 0.9a) — clamps to grant_policy, signs, runs the
+     * atomic approveRequestAndStoreGrant primitive, emits an
+     * {@code approval_grant_issued} audit event.
+     *
+     * @param approvalRequestId approval request to redeem
+     * @param grantType         {@code one_time} or {@code session_bound}
+     * @param approver          approver principal (must be enforced upstream)
+     * @param sessionId         required iff grant_type=session_bound
+     * @param expiresInSeconds  optional override (must not exceed policy)
+     * @param maxUses           optional override (must not exceed policy)
+     * @return the persisted, signed ApprovalGrant
+     * @throws ANIPError on validation/conflict failures
+     */
+    public ApprovalGrant issueApprovalGrant(String approvalRequestId, String grantType,
+                                             Map<String, Object> approver,
+                                             String sessionId, Integer expiresInSeconds,
+                                             Integer maxUses) throws Exception {
+        ApprovalRequest request = storage.getApprovalRequest(approvalRequestId).orElse(null);
+        if (request == null) {
+            throw new ANIPError(Constants.FAILURE_APPROVAL_REQUEST_NOT_FOUND,
+                    "unknown approval_request_id=" + approvalRequestId);
+        }
+        if (!ApprovalRequest.STATUS_PENDING.equals(request.getStatus())) {
+            throw new ANIPError(Constants.FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED,
+                    "approval_request_id=" + approvalRequestId + " status=" + request.getStatus());
+        }
+        String nowIso = V023.utcNowIso();
+        if (request.getExpiresAt() != null && request.getExpiresAt().compareTo(nowIso) <= 0) {
+            throw new ANIPError(Constants.FAILURE_APPROVAL_REQUEST_EXPIRED,
+                    "approval_request_id=" + approvalRequestId + " expired at " + request.getExpiresAt());
+        }
+        GrantPolicy gp = request.getGrantPolicy();
+        if (gp == null || !gp.getAllowedGrantTypes().contains(grantType)) {
+            throw new ANIPError(Constants.FAILURE_GRANT_TYPE_NOT_ALLOWED,
+                    "grant_type=" + grantType + " not in allowed_grant_types");
+        }
+
+        int effExpiresIn = expiresInSeconds != null ? expiresInSeconds : gp.getExpiresInSeconds();
+        if (effExpiresIn > gp.getExpiresInSeconds()) {
+            throw new ANIPError(Constants.FAILURE_GRANT_TYPE_NOT_ALLOWED,
+                    "expires_in_seconds=" + effExpiresIn + " exceeds policy=" + gp.getExpiresInSeconds());
+        }
+        int effMaxUses = maxUses != null ? maxUses : gp.getMaxUses();
+        if (ApprovalGrant.TYPE_ONE_TIME.equals(grantType)) {
+            effMaxUses = 1;
+            if (sessionId != null && !sessionId.isEmpty()) {
+                throw new ANIPError(Constants.FAILURE_GRANT_TYPE_NOT_ALLOWED,
+                        "one_time grants must not carry session_id");
+            }
+        } else if (ApprovalGrant.TYPE_SESSION_BOUND.equals(grantType)) {
+            if (sessionId == null || sessionId.isEmpty()) {
+                throw new ANIPError(Constants.FAILURE_GRANT_TYPE_NOT_ALLOWED,
+                        "session_bound grants require a session_id");
+            }
+        }
+        if (effMaxUses > gp.getMaxUses()) {
+            throw new ANIPError(Constants.FAILURE_GRANT_TYPE_NOT_ALLOWED,
+                    "max_uses=" + effMaxUses + " exceeds policy=" + gp.getMaxUses());
+        }
+
+        // Build grant — capability/scope/digests/requester come from the request.
+        ApprovalGrant grant = new ApprovalGrant(
+                V023.newGrantId(), approvalRequestId, grantType,
+                request.getCapability(),
+                new ArrayList<>(request.getScope()),
+                request.getRequestedParametersDigest(), request.getPreviewDigest(),
+                request.getRequester(), approver,
+                nowIso, V023.utcInIso(effExpiresIn),
+                effMaxUses, 0, sessionId, "");
+        // Fill signature.
+        String sig;
+        try {
+            sig = V023.signGrant(keys, grant);
+        } catch (Exception e) {
+            throw new ANIPError(Constants.FAILURE_INTERNAL_ERROR, "grant signing failed: " + e.getMessage());
+        }
+        ApprovalGrant signed = new ApprovalGrant(
+                grant.getGrantId(), grant.getApprovalRequestId(), grant.getGrantType(),
+                grant.getCapability(), grant.getScope(),
+                grant.getApprovedParametersDigest(), grant.getPreviewDigest(),
+                grant.getRequester(), grant.getApprover(),
+                grant.getIssuedAt(), grant.getExpiresAt(),
+                grant.getMaxUses(), grant.getUseCount(),
+                grant.getSessionId(), sig);
+
+        ApprovalDecisionResult result = storage.approveRequestAndStoreGrant(
+                approvalRequestId, signed, approver, nowIso, nowIso);
+        if (!result.ok()) {
+            String reason = result.reason();
+            String type = switch (reason == null ? "" : reason) {
+                case "approval_request_not_found" -> Constants.FAILURE_APPROVAL_REQUEST_NOT_FOUND;
+                case "approval_request_expired" -> Constants.FAILURE_APPROVAL_REQUEST_EXPIRED;
+                default -> Constants.FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED;
+            };
+            throw new ANIPError(type, "approve_request_and_store_grant: " + reason);
+        }
+
+        // Emit approval_grant_issued audit event linking request <-> grant <-> approver.
+        // Best-effort — must NOT block grant issuance (already atomically persisted).
+        try {
+            AuditEntry entry = new AuditEntry();
+            entry.setCapability(request.getCapability());
+            entry.setIssuer(serviceId);
+            String approverSubject = approver != null ? (String) approver.get("subject") : null;
+            String approverRoot = approver != null ? (String) approver.get("root_principal") : null;
+            entry.setSubject(approverSubject);
+            entry.setRootPrincipal(approverRoot != null ? approverRoot : approverSubject);
+            entry.setSuccess(true);
+            Map<String, Object> resultSummary = new LinkedHashMap<>();
+            resultSummary.put("approver", approver);
+            resultSummary.put("requester", request.getRequester());
+            resultSummary.put("grant_type", grantType);
+            resultSummary.put("scope", request.getScope());
+            entry.setResultSummary(resultSummary);
+            entry.setApprovalRequestId(approvalRequestId);
+            entry.setApprovalGrantId(signed.getGrantId());
+            entry.setEntryType("approval_grant_issued");
+            entry.setEventClass("high_risk_success");
+            entry.setRetentionTier("long");
+            try {
+                AuditLog.appendAudit(keys, storage, entry);
+            } catch (Exception ignored) {}
+        } catch (Exception ignored) {}
+
+        return signed;
     }
 
     // --- Invocation ---
@@ -685,19 +848,167 @@ public class ANIPService {
                     payload -> true // no-op for unary
             );
 
+            // 4b. v0.23 §4.8 Phase A+B: validate + atomically reserve any
+            // continuation approval_grant before the handler runs.
+            String approvalGrantId = opts != null ? opts.getApprovalGrant() : null;
+            if (approvalGrantId != null && !approvalGrantId.isEmpty()) {
+                try {
+                    V023.ContinuationValidation cv = V023.validateContinuationGrant(
+                            storage, keys, approvalGrantId, capName, params,
+                            token.getScope(), token.getSessionId(), V023.utcNowIso());
+                    if (cv.failureType() != null) {
+                        throw new ANIPError(cv.failureType(),
+                                "approval_grant validation failed: " + cv.failureType());
+                    }
+                    GrantReservationResult res = storage.tryReserveGrant(approvalGrantId, V023.utcNowIso());
+                    if (!res.ok()) {
+                        String reason = res.reason();
+                        String type = switch (reason == null ? "" : reason) {
+                            case "grant_consumed" -> Constants.FAILURE_GRANT_CONSUMED;
+                            case "grant_expired" -> Constants.FAILURE_GRANT_EXPIRED;
+                            default -> Constants.FAILURE_GRANT_NOT_FOUND;
+                        };
+                        throw new ANIPError(type, "approval_grant reservation failed: " + reason);
+                    }
+                } catch (ANIPError e) {
+                    String sideEffectType0 = capDef.getDeclaration().getSideEffect() != null
+                            ? capDef.getDeclaration().getSideEffect().getType() : null;
+                    appendAuditEntry(capName, token, false, e.getErrorType(),
+                            Map.of("detail", e.getDetail()), null, invocationId, clientRefId,
+                            effectiveTaskId, parentInvocationId, upstreamService, sideEffectType0,
+                            null, approvalGrantId, null);
+                    Map<String, Object> failure = new LinkedHashMap<>();
+                    failure.put("type", e.getErrorType());
+                    failure.put("detail", e.getDetail());
+                    Map<String, Object> tokenClaims = tokenClaimsMap(token);
+                    String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
+                    failure = FailureRedaction.redact(failure, effectiveLevel);
+                    Map<String, Object> resp = new LinkedHashMap<>();
+                    resp.put("success", false);
+                    resp.put("failure", failure);
+                    resp.put("invocation_id", invocationId);
+                    resp.put("client_reference_id", clientRefId);
+                    resp.put("task_id", effectiveTaskId);
+                    resp.put("parent_invocation_id", parentInvocationId);
+                    resp.put("upstream_service", upstreamService);
+                    return resp;
+                } catch (Exception e) {
+                    String sideEffectType0 = capDef.getDeclaration().getSideEffect() != null
+                            ? capDef.getDeclaration().getSideEffect().getType() : null;
+                    appendAuditEntry(capName, token, false, Constants.FAILURE_UNAVAILABLE, null, null,
+                            invocationId, clientRefId, effectiveTaskId, parentInvocationId,
+                            upstreamService, sideEffectType0, null, approvalGrantId, null);
+                    Map<String, Object> resp = new LinkedHashMap<>();
+                    resp.put("success", false);
+                    resp.put("failure", Map.of(
+                            "type", Constants.FAILURE_UNAVAILABLE,
+                            "detail", "approval grant validation unavailable"));
+                    resp.put("invocation_id", invocationId);
+                    resp.put("client_reference_id", clientRefId);
+                    resp.put("task_id", effectiveTaskId);
+                    resp.put("parent_invocation_id", parentInvocationId);
+                    resp.put("upstream_service", upstreamService);
+                    return resp;
+                }
+            }
+
             // 5. Call handler.
             Map<String, Object> result;
             try {
-                result = capDef.getHandler().apply(ctx, params);
+                if ("composed".equals(capDef.getDeclaration().getKind())) {
+                    // Run the composition runner instead of the registered handler.
+                    // Each child step re-enters invoke() with the same token + lineage.
+                    DelegationToken childToken = token;
+                    String parentInvocId = invocationId;
+                    V023.InvokeStepFunc invokeStep = (childCap, childParams) -> {
+                        InvokeOpts childOpts = new InvokeOpts(clientRefId, false,
+                                effectiveTaskId, parentInvocId, upstreamService);
+                        return invoke(childCap, childToken, childParams, childOpts);
+                    };
+                    result = V023.executeComposition(capName, capDef.getDeclaration(), params, invokeStep);
+                } else {
+                    result = capDef.getHandler().apply(ctx, params);
+                }
             } catch (ANIPError e) {
                 String sideEffectType2 = capDef.getDeclaration().getSideEffect() != null
                     ? capDef.getDeclaration().getSideEffect().getType() : null;
-                appendAuditEntry(capName, token, false, e.getErrorType(),
+
+                // v0.23: materialize the ApprovalRequest BEFORE the audit log so
+                // audit entries can carry approval_request_id. SPEC.md §4.7
+                // persistence invariant: storage failure -> service_unavailable.
+                ApprovalRequiredMetadata materialized = null;
+                boolean approvalPersistFailed = false;
+                String approvalPersistErr = null;
+                String effectiveErrorType = e.getErrorType();
+                if (Constants.FAILURE_APPROVAL_REQUIRED.equals(e.getErrorType())) {
+                    try {
+                        if (e.getApprovalRequired() != null
+                                && e.getApprovalRequired().getApprovalRequestId() != null) {
+                            materialized = e.getApprovalRequired();
+                        } else {
+                            Map<String, Object> previewMap = Map.of();
+                            V023.ApprovalMaterialization mat = V023.materializeApprovalRequest(
+                                    storage, capDef.getDeclaration(),
+                                    invocationId,
+                                    Map.of("subject", token.getSubject(),
+                                            "root_principal", token.getRootPrincipal() != null
+                                                    ? token.getRootPrincipal() : token.getIssuer()),
+                                    params != null ? params : Map.of(),
+                                    previewMap,
+                                    null);
+                            materialized = mat.metadata();
+                        }
+                    } catch (Exception ape) {
+                        approvalPersistFailed = true;
+                        approvalPersistErr = ape.getMessage();
+                        effectiveErrorType = Constants.FAILURE_UNAVAILABLE;
+                    }
+                }
+
+                String approvalRequestIdAudit = (materialized != null && !approvalPersistFailed)
+                        ? materialized.getApprovalRequestId() : null;
+                appendAuditEntry(capName, token, false, effectiveErrorType,
                         Map.of("detail", e.getDetail()), null, invocationId, clientRefId,
-                        effectiveTaskId, parentInvocationId, upstreamService, sideEffectType2);
+                        effectiveTaskId, parentInvocationId, upstreamService, sideEffectType2,
+                        approvalRequestIdAudit, approvalGrantId, null);
+
+                // v0.23: emit a dedicated approval_request_created event linking
+                // the original invocation -> approval request.
+                if (approvalRequestIdAudit != null) {
+                    try {
+                        appendAuditEntry(capName, token, true, null, null, null,
+                                null, null, effectiveTaskId, invocationId, null, sideEffectType2,
+                                approvalRequestIdAudit, null, "approval_request_created");
+                    } catch (Exception ignored) {}
+                }
+
                 Map<String, Object> failure = new LinkedHashMap<>();
-                failure.put("type", e.getErrorType());
-                failure.put("detail", e.getDetail());
+                failure.put("type", effectiveErrorType);
+                failure.put("detail", approvalPersistFailed
+                        ? "approval flow unavailable: " + approvalPersistErr
+                        : e.getDetail());
+                if (e.getResolution() != null && !approvalPersistFailed) {
+                    Map<String, Object> res = new LinkedHashMap<>();
+                    res.put("action", e.getResolution().getAction());
+                    res.put("recovery_class", e.getResolution().getRecoveryClass() != null
+                            ? e.getResolution().getRecoveryClass()
+                            : Constants.recoveryClassForAction(e.getResolution().getAction()));
+                    failure.put("resolution", res);
+                }
+                if (approvalPersistFailed) {
+                    failure.put("resolution", Map.of(
+                            "action", "wait_and_retry",
+                            "recovery_class", "wait_then_retry"));
+                } else if (materialized != null) {
+                    Map<String, Object> apReq = new LinkedHashMap<>();
+                    apReq.put("approval_request_id", materialized.getApprovalRequestId());
+                    apReq.put("preview_digest", materialized.getPreviewDigest());
+                    apReq.put("requested_parameters_digest", materialized.getRequestedParametersDigest());
+                    if (materialized.getGrantPolicy() != null) {
+                        apReq.put("grant_policy", materialized.getGrantPolicy());
+                    }
+                    failure.put("approval_required", apReq);
+                }
                 Map<String, Object> tokenClaims = tokenClaimsMap(token);
                 String effectiveLevel = DisclosureControl.resolve(disclosureLevel, tokenClaims, disclosurePolicy);
                 failure = FailureRedaction.redact(failure, effectiveLevel);
@@ -740,7 +1051,8 @@ public class ANIPService {
             String sideEffectType4 = capDef.getDeclaration().getSideEffect() != null
                 ? capDef.getDeclaration().getSideEffect().getType() : null;
             appendAuditEntry(capName, token, true, "", result, costActual, invocationId, clientRefId,
-                    effectiveTaskId, parentInvocationId, upstreamService, sideEffectType4);
+                    effectiveTaskId, parentInvocationId, upstreamService, sideEffectType4,
+                    null, approvalGrantId, null);
 
             // 8. Build response.
             Map<String, Object> resp = new LinkedHashMap<>();
@@ -830,6 +1142,41 @@ public class ANIPService {
         // 3. Validate token scope.
         DelegationEngine.validateScope(token, capDef.getDeclaration().getMinimumScope());
 
+        // 3b. v0.23 §4.8 Phase A + Phase B: validate and atomically reserve
+        // the approval_grant BEFORE any handler / event emission. Reservation
+        // is the security boundary — once reserved, the grant is spent on
+        // this attempt. Failures surface synchronously as ANIPError so the
+        // transport adapter maps to a JSON 4xx and no SSE stream opens.
+        String streamApprovalGrantId = opts != null ? opts.getApprovalGrant() : null;
+        if (streamApprovalGrantId != null && !streamApprovalGrantId.isEmpty()) {
+            try {
+                V023.ContinuationValidation cv = V023.validateContinuationGrant(
+                        storage, keys, streamApprovalGrantId, capName, params,
+                        token.getScope(), token.getSessionId(), V023.utcNowIso());
+                if (cv.failureType() != null) {
+                    throw new ANIPError(cv.failureType(),
+                            "approval_grant validation failed: " + cv.failureType());
+                }
+                GrantReservationResult res = storage.tryReserveGrant(streamApprovalGrantId, V023.utcNowIso());
+                if (!res.ok()) {
+                    String reason = res.reason();
+                    String type = switch (reason == null ? "" : reason) {
+                        case "grant_consumed" -> Constants.FAILURE_GRANT_CONSUMED;
+                        case "grant_expired" -> Constants.FAILURE_GRANT_EXPIRED;
+                        default -> Constants.FAILURE_GRANT_NOT_FOUND;
+                    };
+                    throw new ANIPError(type, "approval_grant reservation failed: " + reason);
+                }
+            } catch (ANIPError e) {
+                throw e;
+            } catch (Exception e) {
+                throw new ANIPError(Constants.FAILURE_INTERNAL_ERROR,
+                        "grant reservation failed: " + e.getMessage());
+            }
+        }
+        // Effectively-final reference for the lambda below.
+        final String reservedGrantId = streamApprovalGrantId;
+
         // 4. Build invocation context with streaming EmitProgress.
         String rootPrincipal = token.getRootPrincipal();
         if (rootPrincipal == null || rootPrincipal.isEmpty()) {
@@ -881,9 +1228,11 @@ public class ANIPService {
                 CostActual costActual = ctx.getCostActual();
                 String streamSideEffect = capDef.getDeclaration().getSideEffect() != null
                     ? capDef.getDeclaration().getSideEffect().getType() : null;
+                // SPEC §4.9 step 11: continuation invocation audit entries
+                // reference the consumed grant.
                 appendAuditEntry(capName, token, true, "", result, costActual,
                         invocationId, clientRefId, effectiveTaskId, parentInvocationId,
-                        upstreamService, streamSideEffect);
+                        upstreamService, streamSideEffect, null, reservedGrantId, null);
 
                 Map<String, Object> payload = new LinkedHashMap<>();
                 payload.put("invocation_id", invocationId);
@@ -903,7 +1252,8 @@ public class ANIPService {
                     ? capDef.getDeclaration().getSideEffect().getType() : null;
                 appendAuditEntry(capName, token, false, e.getErrorType(),
                         Map.of("detail", e.getDetail()), null, invocationId, clientRefId,
-                        effectiveTaskId, parentInvocationId, upstreamService, streamSideEffect2);
+                        effectiveTaskId, parentInvocationId, upstreamService, streamSideEffect2,
+                        null, reservedGrantId, null);
 
                 Map<String, Object> failureObj = new LinkedHashMap<>();
                 failureObj.put("type", e.getErrorType());
@@ -936,7 +1286,8 @@ public class ANIPService {
                     ? capDef.getDeclaration().getSideEffect().getType() : null;
                 appendAuditEntry(capName, token, false, Constants.FAILURE_INTERNAL_ERROR,
                         null, null, invocationId, clientRefId,
-                        effectiveTaskId, parentInvocationId, upstreamService, streamSideEffect3);
+                        effectiveTaskId, parentInvocationId, upstreamService, streamSideEffect3,
+                        null, reservedGrantId, null);
 
                 Map<String, Object> failureObj = new LinkedHashMap<>();
                 failureObj.put("type", Constants.FAILURE_INTERNAL_ERROR);
@@ -1167,16 +1518,17 @@ public class ANIPService {
                 "failure_disclosure", failureDisc,
                 "anchoring", Map.of("enabled", false, "proofs_available", false)
         ));
-        doc.put("endpoints", Map.of(
-                "manifest", "/anip/manifest",
-                "permissions", "/anip/permissions",
-                "invoke", "/anip/invoke/{capability}",
-                "tokens", "/anip/tokens",
-                "audit", "/anip/audit",
-                "checkpoints", "/anip/checkpoints",
-                "graph", "/anip/graph/{capability}",
-                "jwks", "/.well-known/jwks.json"
-        ));
+        Map<String, Object> endpoints = new LinkedHashMap<>();
+        endpoints.put("manifest", "/anip/manifest");
+        endpoints.put("permissions", "/anip/permissions");
+        endpoints.put("invoke", "/anip/invoke/{capability}");
+        endpoints.put("tokens", "/anip/tokens");
+        endpoints.put("audit", "/anip/audit");
+        endpoints.put("checkpoints", "/anip/checkpoints");
+        endpoints.put("graph", "/anip/graph/{capability}");
+        endpoints.put("jwks", "/.well-known/jwks.json");
+        endpoints.put("approval_grants", "/anip/approval_grants"); // v0.23
+        doc.put("endpoints", endpoints);
 
         if (baseUrl != null && !baseUrl.isEmpty()) {
             doc.put("base_url", baseUrl);
@@ -1379,27 +1731,43 @@ public class ANIPService {
                                    String invocationId, String clientReferenceId,
                                    String taskId, String parentInvocationId,
                                    String upstreamService, String sideEffectType) {
-        String rootPrincipal = token.getRootPrincipal();
+        appendAuditEntry(capability, token, success, failureType, resultSummary, costActual,
+                invocationId, clientReferenceId, taskId, parentInvocationId, upstreamService,
+                sideEffectType, null, null, null);
+    }
+
+    private void appendAuditEntry(String capability, DelegationToken token,
+                                   boolean success, String failureType,
+                                   Map<String, Object> resultSummary, CostActual costActual,
+                                   String invocationId, String clientReferenceId,
+                                   String taskId, String parentInvocationId,
+                                   String upstreamService, String sideEffectType,
+                                   String approvalRequestId, String approvalGrantId,
+                                   String entryType) {
+        String rootPrincipal = token != null ? token.getRootPrincipal() : null;
         if (rootPrincipal == null || rootPrincipal.isEmpty()) {
-            rootPrincipal = token.getIssuer();
+            rootPrincipal = token != null ? token.getIssuer() : null;
         }
 
         AuditEntry entry = new AuditEntry();
         entry.setCapability(capability);
-        entry.setTokenId(token.getTokenId());
-        entry.setIssuer(token.getIssuer());
-        entry.setSubject(token.getSubject());
+        entry.setTokenId(token != null ? token.getTokenId() : null);
+        entry.setIssuer(token != null ? token.getIssuer() : serviceId);
+        entry.setSubject(token != null ? token.getSubject() : null);
         entry.setRootPrincipal(rootPrincipal);
         entry.setSuccess(success);
         entry.setFailureType(failureType);
         entry.setResultSummary(resultSummary);
         entry.setCostActual(costActual);
-        entry.setDelegationChain(List.of(token.getTokenId()));
+        entry.setDelegationChain(token != null ? List.of(token.getTokenId()) : List.of());
         entry.setInvocationId(invocationId);
         entry.setClientReferenceId(clientReferenceId);
         entry.setTaskId(taskId);
         entry.setParentInvocationId(parentInvocationId);
         entry.setUpstreamService(upstreamService);
+        entry.setApprovalRequestId(approvalRequestId);
+        entry.setApprovalGrantId(approvalGrantId);
+        if (entryType != null) entry.setEntryType(entryType);
 
         // Classification + retention
         String eventClass = EventClassification.classify(sideEffectType, success, failureType);

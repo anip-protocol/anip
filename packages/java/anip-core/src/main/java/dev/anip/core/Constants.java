@@ -11,7 +11,7 @@ public final class Constants {
     private Constants() {}
 
     /** Current ANIP protocol version. */
-    public static final String PROTOCOL_VERSION = "anip/0.22";
+    public static final String PROTOCOL_VERSION = "anip/0.23";
 
     /** Current manifest metadata version. */
     public static final String MANIFEST_VERSION = "0.10.0";
@@ -37,6 +37,22 @@ public final class Constants {
     public static final String FAILURE_STREAMING_NOT_SUPPORTED = "streaming_not_supported";
     public static final String FAILURE_INVALID_PARAMETERS = "invalid_parameters";
     public static final String FAILURE_NON_DELEGABLE_ACTION = "non_delegable_action";
+
+    // v0.23 failure types — composition + approval grants. SPEC.md §4.6, §4.7, §4.8, §4.9.
+    public static final String FAILURE_APPROVAL_REQUIRED = "approval_required";
+    public static final String FAILURE_GRANT_NOT_FOUND = "grant_not_found";
+    public static final String FAILURE_GRANT_EXPIRED = "grant_expired";
+    public static final String FAILURE_GRANT_CONSUMED = "grant_consumed";
+    public static final String FAILURE_GRANT_CAPABILITY_MISMATCH = "grant_capability_mismatch";
+    public static final String FAILURE_GRANT_SCOPE_MISMATCH = "grant_scope_mismatch";
+    public static final String FAILURE_GRANT_PARAM_DRIFT = "grant_param_drift";
+    public static final String FAILURE_GRANT_SESSION_INVALID = "grant_session_invalid";
+    public static final String FAILURE_APPROVAL_REQUEST_NOT_FOUND = "approval_request_not_found";
+    public static final String FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED = "approval_request_already_decided";
+    public static final String FAILURE_APPROVAL_REQUEST_EXPIRED = "approval_request_expired";
+    public static final String FAILURE_APPROVER_NOT_AUTHORIZED = "approver_not_authorized";
+    public static final String FAILURE_GRANT_TYPE_NOT_ALLOWED = "grant_type_not_allowed_by_policy";
+    public static final String FAILURE_COMPOSITION_CHILD_FAILED = "composition_child_failed";
 
     /** Maps each canonical resolution action to its recovery class. */
     public static final Map<String, String> RECOVERY_CLASS_MAP = Map.ofEntries(
@@ -115,9 +131,13 @@ public final class Constants {
                  FAILURE_BUDGET_CURRENCY_MISMATCH, FAILURE_BUDGET_NOT_ENFORCEABLE,
                  FAILURE_BINDING_MISSING, FAILURE_BINDING_STALE,
                  FAILURE_CONTROL_REQUIREMENT_UNSATISFIED,
-                 FAILURE_PURPOSE_MISMATCH, FAILURE_SCOPE_ESCALATION -> 403;
-            case FAILURE_UNKNOWN_CAPABILITY, FAILURE_NOT_FOUND -> 404;
-            case FAILURE_UNAVAILABLE, FAILURE_CONCURRENT_LOCK -> 409;
+                 FAILURE_PURPOSE_MISMATCH, FAILURE_SCOPE_ESCALATION,
+                 FAILURE_APPROVER_NOT_AUTHORIZED -> 403;
+            case FAILURE_UNKNOWN_CAPABILITY, FAILURE_NOT_FOUND,
+                 FAILURE_APPROVAL_REQUEST_NOT_FOUND -> 404;
+            case FAILURE_UNAVAILABLE, FAILURE_CONCURRENT_LOCK,
+                 FAILURE_APPROVAL_REQUEST_ALREADY_DECIDED, FAILURE_APPROVAL_REQUEST_EXPIRED,
+                 FAILURE_GRANT_CONSUMED, FAILURE_GRANT_EXPIRED -> 409;
             case FAILURE_INTERNAL_ERROR -> 500;
             case FAILURE_INVALID_PARAMETERS -> 400;
             default -> 400;

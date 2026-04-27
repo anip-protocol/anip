@@ -277,12 +277,14 @@ public class AnipStdioServer {
         int ttlHours = params.get("ttl_hours") instanceof Number
                 ? ((Number) params.get("ttl_hours")).intValue() : 0;
         String callerClass = (String) params.get("caller_class");
+        // v0.23: bind a session identity into the issued token. SPEC §4.8.
+        String sessionId = (String) params.get("session_id");
 
         Budget budget = extractBudgetFromParams(params);
 
         TokenRequest req = new TokenRequest(
                 subject, scope, capability, purposeParameters,
-                parentToken, ttlHours, callerClass, budget
+                parentToken, ttlHours, callerClass, budget, null, sessionId
         );
 
         TokenResponse resp = service.issueToken(principal.get(), req);
@@ -312,6 +314,9 @@ public class AnipStdioServer {
         String taskId = (String) params.get("task_id");
         String parentInvocationId = (String) params.get("parent_invocation_id");
         boolean stream = Boolean.TRUE.equals(params.get("stream"));
+        // v0.23: continuation invocations supply approval_grant. session_id
+        // for session_bound grants is read from the signed token, never the body.
+        String approvalGrant = (String) params.get("approval_grant");
 
         // Extract budget from params.
         Budget budget = extractBudgetFromParams(params);
@@ -319,6 +324,9 @@ public class AnipStdioServer {
         InvokeOpts opts = new InvokeOpts(clientReferenceId, stream, taskId, parentInvocationId);
         if (budget != null) {
             opts.setBudget(budget);
+        }
+        if (approvalGrant != null) {
+            opts.setApprovalGrant(approvalGrant);
         }
 
         if (stream) {

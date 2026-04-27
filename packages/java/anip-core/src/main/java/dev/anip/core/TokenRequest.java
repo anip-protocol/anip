@@ -17,23 +17,36 @@ public class TokenRequest {
     private final String callerClass;
     private final Budget budget;
     private final String concurrentBranches;
+    /**
+     * v0.23: bind a session identity to the issued token. Required for callers
+     * that intend to redeem session_bound ApprovalGrants. Only honored at root
+     * issuance — child tokens inherit parent's session_id verbatim. SPEC §4.8.
+     */
+    private final String sessionId;
 
     public TokenRequest(String subject, List<String> scope, String capability,
                         Map<String, Object> purposeParameters, String parentToken,
                         int ttlHours, String callerClass) {
-        this(subject, scope, capability, purposeParameters, parentToken, ttlHours, callerClass, null, null);
+        this(subject, scope, capability, purposeParameters, parentToken, ttlHours, callerClass, null, null, null);
     }
 
     public TokenRequest(String subject, List<String> scope, String capability,
                         Map<String, Object> purposeParameters, String parentToken,
                         int ttlHours, String callerClass, Budget budget) {
-        this(subject, scope, capability, purposeParameters, parentToken, ttlHours, callerClass, budget, null);
+        this(subject, scope, capability, purposeParameters, parentToken, ttlHours, callerClass, budget, null, null);
     }
 
     public TokenRequest(String subject, List<String> scope, String capability,
                         Map<String, Object> purposeParameters, String parentToken,
                         int ttlHours, String callerClass, Budget budget,
                         String concurrentBranches) {
+        this(subject, scope, capability, purposeParameters, parentToken, ttlHours, callerClass, budget, concurrentBranches, null);
+    }
+
+    public TokenRequest(String subject, List<String> scope, String capability,
+                        Map<String, Object> purposeParameters, String parentToken,
+                        int ttlHours, String callerClass, Budget budget,
+                        String concurrentBranches, String sessionId) {
         this.subject = subject;
         this.scope = scope;
         this.capability = capability;
@@ -43,6 +56,7 @@ public class TokenRequest {
         this.callerClass = callerClass;
         this.budget = budget;
         this.concurrentBranches = concurrentBranches;
+        this.sessionId = sessionId;
     }
 
     public String getSubject() {
@@ -81,5 +95,10 @@ public class TokenRequest {
     /** Returns "allowed" or "exclusive"; null means default ("allowed"). */
     public String getConcurrentBranches() {
         return concurrentBranches;
+    }
+
+    /** v0.23: session identity to bind to the issued token. */
+    public String getSessionId() {
+        return sessionId;
     }
 }

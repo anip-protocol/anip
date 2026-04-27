@@ -112,7 +112,19 @@ public class AnipMcpStdio {
         }
 
         // 5. Invoke.
-        Map<String, Object> result = service.invoke(capName, token, args, new InvokeOpts());
+        // v0.23: MCP tool args ARE the capability args (no envelope), so
+        // continuation grant rides on a reserved __approval_grant key.
+        // Strip it from args before invocation so it doesn't leak into the
+        // params digest. session_id is intentionally never read from args
+        // — comes from the signed token only.
+        InvokeOpts opts = new InvokeOpts();
+        Map<String, Object> invokeArgs = args;
+        if (args != null && args.get("__approval_grant") instanceof String grant && !grant.isEmpty()) {
+            opts.setApprovalGrant(grant);
+            invokeArgs = new java.util.LinkedHashMap<>(args);
+            invokeArgs.remove("__approval_grant");
+        }
+        Map<String, Object> result = service.invoke(capName, token, invokeArgs, opts);
         return McpToolTranslator.translateResponse(result);
     }
 

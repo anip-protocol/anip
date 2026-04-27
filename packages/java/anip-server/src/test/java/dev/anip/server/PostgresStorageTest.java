@@ -45,7 +45,7 @@ class PostgresStorageTest {
                 "pg-tok-1", "test-service", "test-subject",
                 List.of("travel.search"), new Purpose("cap", Map.of(), "task"),
                 "", "2025-12-31T23:59:59Z",
-                new DelegationConstraints(), "user@test.com", "human"
+                new DelegationConstraints(), "user@test.com", "human", null
         );
         storage.storeToken(token);
 

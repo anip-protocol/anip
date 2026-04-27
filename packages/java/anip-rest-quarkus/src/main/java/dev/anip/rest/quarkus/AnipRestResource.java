@@ -93,12 +93,13 @@ public class AnipRestResource {
     public Response handleGet(@PathParam("capability") String capability,
                                @HeaderParam("Authorization") String authHeader,
                                @HeaderParam("X-Client-Reference-Id") String clientRefId,
+                               @HeaderParam("X-Anip-Approval-Grant") String approvalGrant,
                                @Context UriInfo uriInfo) {
         // Extract query params.
         Map<String, String[]> rawParams = new LinkedHashMap<>();
         uriInfo.getQueryParameters().forEach((k, v) -> rawParams.put(k, v.toArray(new String[0])));
 
-        return handleRoute(capability, "GET", null, rawParams, authHeader, clientRefId);
+        return handleRoute(capability, "GET", null, rawParams, authHeader, clientRefId, approvalGrant);
     }
 
     @POST
@@ -108,8 +109,9 @@ public class AnipRestResource {
     public Response handlePost(@PathParam("capability") String capability,
                                 @HeaderParam("Authorization") String authHeader,
                                 @HeaderParam("X-Client-Reference-Id") String clientRefId,
+                                @HeaderParam("X-Anip-Approval-Grant") String approvalGrant,
                                 Map<String, Object> body) {
-        return handleRoute(capability, "POST", body, null, authHeader, clientRefId);
+        return handleRoute(capability, "POST", body, null, authHeader, clientRefId, approvalGrant);
     }
 
     // --- Internal ---
@@ -117,7 +119,8 @@ public class AnipRestResource {
     private Response handleRoute(String capability, String method,
                                   Map<String, Object> body,
                                   Map<String, String[]> queryParams,
-                                  String authHeader, String clientRefId) {
+                                  String authHeader, String clientRefId,
+                                  String approvalGrant) {
         // Find route.
         RestRoute route = RestRouter.findRoute(routes, capability);
         if (route == null) {
@@ -169,6 +172,13 @@ public class AnipRestResource {
         Budget budget = extractBudget(body);
         if (budget != null) {
             opts.setBudget(budget);
+        }
+
+        // v0.23: REST adapter wraps the entire body as capability parameters,
+        // so approval_grant rides on X-Anip-Approval-Grant. session_id for
+        // session_bound grants is read from the signed token, never the header.
+        if (approvalGrant != null && !approvalGrant.isEmpty()) {
+            opts.setApprovalGrant(approvalGrant);
         }
 
         Map<String, Object> result = service.invoke(capability, token, params, opts);

@@ -51,7 +51,8 @@ public class AnipGraphQLResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response executeGraphQL(Map<String, Object> body,
-                                   @HeaderParam("Authorization") String authHeader) {
+                                   @HeaderParam("Authorization") String authHeader,
+                                   @HeaderParam("X-Anip-Approval-Grant") String approvalGrant) {
         String query = (String) body.get("query");
         @SuppressWarnings("unchecked")
         Map<String, Object> variables = (Map<String, Object>) body.get("variables");
@@ -65,10 +66,17 @@ public class AnipGraphQLResource {
 
         // Inject auth header into GraphQL context.
         String finalAuthHeader = authHeader != null ? authHeader : "";
+        // v0.23: GraphQL mutation args ARE the capability args, so
+        // approval_grant rides on X-Anip-Approval-Grant alongside the auth
+        // header. session_id for session_bound grants is read from the
+        // signed token, never the header.
+        String finalApprovalGrant = approvalGrant != null ? approvalGrant : "";
 
         ExecutionInput.Builder execBuilder = ExecutionInput.newExecutionInput()
                 .query(query)
-                .graphQLContext(builder -> builder.of("authHeader", finalAuthHeader));
+                .graphQLContext(builder -> builder
+                        .of("authHeader", finalAuthHeader)
+                        .of("approvalGrant", finalApprovalGrant));
 
         if (variables != null) {
             execBuilder.variables(variables);
