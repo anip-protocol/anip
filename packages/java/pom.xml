@@ -225,6 +225,18 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
                         <version>3.11.2</version>
+                        <configuration>
+                            <!--
+                              Javadoc plugin 3.11.2 defaults to -Xdoclint:all which
+                              treats "missing @param/@return/comment" as an error.
+                              Maven Central requires a Javadoc JAR to exist; it does
+                              not require strict doclint. Disable doclint so a
+                              missing comment on a new record component cannot break
+                              a release, matching the convention most published JVM
+                              libraries use.
+                            -->
+                            <doclint>none</doclint>
+                        </configuration>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
