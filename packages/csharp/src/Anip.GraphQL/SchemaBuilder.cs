@@ -436,7 +436,16 @@ internal class AnipFieldResolver : global::GraphQL.Resolvers.IFieldResolver
             }
         }
 
-        var result = _service.Invoke(_capName, token, snakeArgs, new InvokeOpts());
+        // v0.23: pull continuation grant_id from execution context
+        // (plumbed by the AspNetCore adapter from X-Anip-Approval-Grant).
+        string? approvalGrant = null;
+        if (context.UserContext.TryGetValue("approvalGrant", out var agObj))
+        {
+            approvalGrant = agObj as string;
+        }
+
+        var result = _service.Invoke(_capName, token, snakeArgs,
+            new InvokeOpts { ApprovalGrant = string.IsNullOrEmpty(approvalGrant) ? null : approvalGrant });
 
         var response = GraphQLResponseMapper.BuildGraphQLResponse(result);
         return new ValueTask<object?>(response);

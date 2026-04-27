@@ -53,6 +53,14 @@ public static class JwtSigner
             claims["parent_token_id"] = token.Parent;
         }
 
+        // v0.23 SPEC §4.8: bind session identity into the signed JWT so the
+        // server can authoritatively resolve session_id from the bearer token
+        // (never from caller-supplied invocation input).
+        if (!string.IsNullOrEmpty(token.SessionId))
+        {
+            claims["anip:session_id"] = token.SessionId;
+        }
+
         return SignRaw(privateKey, keyId, header, claims);
     }
 

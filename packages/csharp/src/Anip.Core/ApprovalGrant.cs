@@ -180,9 +180,10 @@ public class IssueApprovalGrantRequest
     public int? MaxUses { get; set; }
 }
 
-/// <summary>Response body for POST {approval_grants}. v0.23. See SPEC.md §4.9.</summary>
-public class IssueApprovalGrantResponse
-{
-    [JsonPropertyName("grant")]
-    public ApprovalGrant Grant { get; set; } = new();
-}
+// SPEC.md §4.9: the 200 response body for POST /anip/approval_grants IS the
+// signed ApprovalGrant directly — there is no wrapper type. We expose the
+// type alias for documentation purposes only; route handlers return
+// ApprovalGrant verbatim.
+//
+// `using IssueApprovalGrantResponse = ApprovalGrant;` lives next to the route
+// handler if/when needed.

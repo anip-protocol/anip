@@ -143,6 +143,8 @@ public class AnipController : ControllerBase
             parameters.Remove("task_id");
             parameters.Remove("parent_invocation_id");
             parameters.Remove("upstream_service");
+            parameters.Remove("approval_grant"); // v0.23
+            parameters.Remove("budget");
         }
 
         // Check for streaming.
@@ -216,9 +218,24 @@ public class AnipController : ControllerBase
             }
         }
 
+        // v0.23: continuation grant_id from body. NOTE: session_id is NEVER
+        // read from the body — it must come from the signed delegation token.
+        string? approvalGrant = null;
+        if (body.TryGetValue("approval_grant", out var agObj))
+        {
+            if (agObj is JsonElement agEl && agEl.ValueKind == JsonValueKind.String)
+            {
+                approvalGrant = agEl.GetString();
+            }
+            else if (agObj is string agStr)
+            {
+                approvalGrant = agStr;
+            }
+        }
+
         if (stream)
         {
-            return await HandleStreamInvoke(capability, token, parameters, clientRefId, taskId, parentInvocationId, upstreamService);
+            return await HandleStreamInvoke(capability, token, parameters, clientRefId, taskId, parentInvocationId, upstreamService, approvalGrant);
         }
 
         var opts = new InvokeOpts
@@ -228,6 +245,7 @@ public class AnipController : ControllerBase
             ParentInvocationId = parentInvocationId,
             UpstreamService = upstreamService,
             Stream = false,
+            ApprovalGrant = approvalGrant,
         };
 
         var result = _service.Invoke(capability, token, parameters, opts);
@@ -249,6 +267,144 @@ public class AnipController : ControllerBase
         }
 
         return Ok(result);
+    }
+
+    // --- v0.23: Approval grants (JWT auth) ---
+    //
+    // SPEC.md §4.9 — POST /anip/approval_grants. Validation order is
+    // security-relevant:
+    //   1. authn (resolveJwtAuth)
+    //   2. parse + schema-validate body
+    //   3. load ApprovalRequest
+    //   4. state check (decided / expired) — BEFORE approver auth
+    //   5. approver authority check (token must hold approver:* or
+    //      approver:<capability>)
+    //   6. service.IssueApprovalGrant
+    // The 200 body IS the signed grant — no wrapper.
+
+    [HttpPost("/anip/approval_grants")]
+    public async Task<IActionResult> ApprovalGrants()
+    {
+        var (token, errorResult) = ResolveJwtAuth();
+        if (token == null) return errorResult!;
+
+        IssueApprovalGrantRequest? body;
+        try
+        {
+            body = await JsonSerializer.DeserializeAsync<IssueApprovalGrantRequest>(
+                Request.Body, s_serializerOptions);
+        }
+        catch
+        {
+            return FailureResponse(400, Constants.FailureInvalidParameters,
+                "request body must be JSON", false);
+        }
+        if (body == null)
+        {
+            return FailureResponse(400, Constants.FailureInvalidParameters,
+                "request body must be JSON", false);
+        }
+
+        // Schema validation.
+        if (string.IsNullOrEmpty(body.ApprovalRequestId))
+        {
+            return FailureResponse(400, Constants.FailureInvalidParameters,
+                "approval_request_id: required", false);
+        }
+        if (body.GrantType != ApprovalGrant.TypeOneTime && body.GrantType != ApprovalGrant.TypeSessionBound)
+        {
+            return FailureResponse(400, Constants.FailureInvalidParameters,
+                "grant_type: must be one_time or session_bound", false);
+        }
+        if (body.GrantType == ApprovalGrant.TypeSessionBound &&
+            string.IsNullOrEmpty(body.SessionId))
+        {
+            return FailureResponse(400, Constants.FailureInvalidParameters,
+                "session_id: required when grant_type=session_bound", false);
+        }
+        if (body.GrantType == ApprovalGrant.TypeOneTime && !string.IsNullOrEmpty(body.SessionId))
+        {
+            return FailureResponse(400, Constants.FailureInvalidParameters,
+                "session_id: must not be set when grant_type=one_time", false);
+        }
+        if (body.ExpiresInSeconds.HasValue && body.ExpiresInSeconds.Value < 1)
+        {
+            return FailureResponse(400, Constants.FailureInvalidParameters,
+                "expires_in_seconds: must be a positive integer", false);
+        }
+        if (body.MaxUses.HasValue && body.MaxUses.Value < 1)
+        {
+            return FailureResponse(400, Constants.FailureInvalidParameters,
+                "max_uses: must be a positive integer", false);
+        }
+
+        ApprovalRequest? req;
+        try
+        {
+            req = _service.GetApprovalRequest(body.ApprovalRequestId);
+        }
+        catch (Exception)
+        {
+            return FailureResponse(500, Constants.FailureInternalError,
+                "lookup failed", false);
+        }
+        if (req == null)
+        {
+            return FailureResponse(404, Constants.FailureApprovalRequestNotFound,
+                $"approval_request_id '{body.ApprovalRequestId}' not found", false);
+        }
+
+        // 4. State check BEFORE approver auth.
+        var nowIso = DateTime.UtcNow.ToString("o");
+        if (req.Status != ApprovalRequest.StatusPending)
+        {
+            return FailureResponse(409, Constants.FailureApprovalRequestAlreadyDecided,
+                $"approval_request '{body.ApprovalRequestId}' status={req.Status}", false);
+        }
+        if (!string.IsNullOrEmpty(req.ExpiresAt) &&
+            string.CompareOrdinal(req.ExpiresAt, nowIso) <= 0)
+        {
+            return FailureResponse(409, Constants.FailureApprovalRequestExpired,
+                $"approval_request '{body.ApprovalRequestId}' expired", false);
+        }
+
+        // 5. Approver authority — token must hold approver:* OR approver:<capability>.
+        var authorized = false;
+        var required = "approver:" + req.Capability;
+        foreach (var sc in token.Scope)
+        {
+            if (sc == "approver:*" || sc == required) { authorized = true; break; }
+        }
+        if (!authorized)
+        {
+            return FailureResponse(403, Constants.FailureApproverNotAuthorized,
+                $"token lacks approver:{req.Capability} scope", false);
+        }
+
+        // 6. Issue.
+        var approver = new Dictionary<string, object?>
+        {
+            ["subject"] = token.Subject,
+            ["root_principal"] = token.RootPrincipal ?? token.Issuer,
+        };
+        try
+        {
+            var grant = _service.IssueApprovalGrant(
+                body.ApprovalRequestId, body.GrantType, approver,
+                body.SessionId, body.ExpiresInSeconds, body.MaxUses);
+            // SPEC.md §4.9: 200 IS the signed grant, no wrapper.
+            return Ok(grant);
+        }
+        catch (AnipError e)
+        {
+            var status = Constants.FailureStatusCode(e.ErrorType);
+            return AnipErrorResponse(status, e);
+        }
+        catch (Exception e)
+        {
+            return FailureResponse(500, Constants.FailureInternalError,
+                "issuance failed: " + e.Message, false);
+        }
     }
 
     // --- 7. Audit (JWT auth) ---
@@ -423,7 +579,8 @@ public class AnipController : ControllerBase
         string? clientRefId,
         string? taskId,
         string? parentInvocationId,
-        string? upstreamService)
+        string? upstreamService,
+        string? approvalGrant = null)
     {
         StreamResult sr;
         try
@@ -435,6 +592,7 @@ public class AnipController : ControllerBase
                 ParentInvocationId = parentInvocationId,
                 UpstreamService = upstreamService,
                 Stream = true,
+                ApprovalGrant = approvalGrant,
             };
             sr = _service.InvokeStream(capability, token, parameters, opts);
         }

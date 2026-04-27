@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
     task_id TEXT,
     parent_invocation_id TEXT,
     upstream_service TEXT,
+    approval_request_id TEXT,
+    approval_grant_id TEXT,
     data TEXT NOT NULL,
     previous_hash TEXT NOT NULL,
     signature TEXT
@@ -42,6 +44,27 @@ CREATE TABLE IF NOT EXISTS checkpoints (
     checkpoint_id TEXT PRIMARY KEY,
     data TEXT NOT NULL,
     signature TEXT NOT NULL
+);
+
+-- v0.23: approval requests + grants per SPEC.md §4.7 / §4.8.
+CREATE TABLE IF NOT EXISTS approval_requests (
+    approval_request_id TEXT PRIMARY KEY,
+    capability TEXT NOT NULL,
+    status TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    data TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_apreq_status ON approval_requests(status);
+
+CREATE TABLE IF NOT EXISTS approval_grants (
+    grant_id TEXT PRIMARY KEY,
+    approval_request_id TEXT NOT NULL UNIQUE,
+    capability TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    max_uses INTEGER NOT NULL,
+    use_count INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    FOREIGN KEY (approval_request_id) REFERENCES approval_requests(approval_request_id)
 );
 ";
 
@@ -78,6 +101,29 @@ CREATE TABLE IF NOT EXISTS checkpoints (
         using var schemaCmd = _connection.CreateCommand();
         schemaCmd.CommandText = Schema;
         schemaCmd.ExecuteNonQuery();
+
+        // v0.23 idempotent column migrations for audit_log (existing DBs).
+        AddColumnIfMissing("audit_log", "approval_request_id", "TEXT");
+        AddColumnIfMissing("audit_log", "approval_grant_id", "TEXT");
+    }
+
+    private void AddColumnIfMissing(string table, string column, string sqlType)
+    {
+        using var pragmaCmd = _connection.CreateCommand();
+        pragmaCmd.CommandText = $"PRAGMA table_info({table})";
+        using (var reader = pragmaCmd.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                if (reader.GetString(1) == column)
+                {
+                    return;
+                }
+            }
+        }
+        using var alter = _connection.CreateCommand();
+        alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {sqlType}";
+        alter.ExecuteNonQuery();
     }
 
     public void Dispose()
@@ -157,10 +203,12 @@ CREATE TABLE IF NOT EXISTS checkpoints (
                 insertCmd.CommandText = @"
                     INSERT INTO audit_log (timestamp, capability, token_id, root_principal,
                         invocation_id, client_reference_id, task_id, parent_invocation_id,
-                        upstream_service, data, previous_hash, signature)
+                        upstream_service, approval_request_id, approval_grant_id,
+                        data, previous_hash, signature)
                     VALUES ($timestamp, $capability, $tokenId, $rootPrincipal,
                         $invocationId, $clientReferenceId, $taskId, $parentInvocationId,
-                        $upstreamService, $data, $previousHash, $signature);
+                        $upstreamService, $approvalRequestId, $approvalGrantId,
+                        $data, $previousHash, $signature);
                     SELECT last_insert_rowid();";
                 insertCmd.Parameters.AddWithValue("$timestamp", (object?)entry.Timestamp ?? DBNull.Value);
                 insertCmd.Parameters.AddWithValue("$capability", (object?)entry.Capability ?? DBNull.Value);
@@ -171,6 +219,8 @@ CREATE TABLE IF NOT EXISTS checkpoints (
                 insertCmd.Parameters.AddWithValue("$taskId", (object?)entry.TaskId ?? DBNull.Value);
                 insertCmd.Parameters.AddWithValue("$parentInvocationId", (object?)entry.ParentInvocationId ?? DBNull.Value);
                 insertCmd.Parameters.AddWithValue("$upstreamService", (object?)entry.UpstreamService ?? DBNull.Value);
+                insertCmd.Parameters.AddWithValue("$approvalRequestId", (object?)entry.ApprovalRequestId ?? DBNull.Value);
+                insertCmd.Parameters.AddWithValue("$approvalGrantId", (object?)entry.ApprovalGrantId ?? DBNull.Value);
                 insertCmd.Parameters.AddWithValue("$data", data);
                 insertCmd.Parameters.AddWithValue("$previousHash", prevHash);
                 insertCmd.Parameters.AddWithValue("$signature", (object?)entry.Signature ?? DBNull.Value);
@@ -473,6 +523,252 @@ CREATE TABLE IF NOT EXISTS checkpoints (
     public void ReleaseLeader(string role, string holder)
     {
         ReleaseExclusive("leader:" + role, holder);
+    }
+
+    // --- v0.23: ApprovalRequest + ApprovalGrant ---
+
+    public void StoreApprovalRequest(ApprovalRequest request)
+    {
+        var data = JsonSerializer.Serialize(request, s_serializerOptions);
+        lock (_lock)
+        {
+            // Idempotency: same content is a no-op; conflicting content throws.
+            using (var selectCmd = _connection.CreateCommand())
+            {
+                selectCmd.CommandText = "SELECT data FROM approval_requests WHERE approval_request_id = $id";
+                selectCmd.Parameters.AddWithValue("$id", request.ApprovalRequestId);
+                var existing = selectCmd.ExecuteScalar();
+                if (existing != null && existing != DBNull.Value)
+                {
+                    if ((string)existing == data) return;
+                    throw new InvalidOperationException(
+                        $"approval_request_id {request.ApprovalRequestId} already stored with different content");
+                }
+            }
+
+            using var insertCmd = _connection.CreateCommand();
+            insertCmd.CommandText = @"
+                INSERT INTO approval_requests (approval_request_id, capability, status, expires_at, data)
+                VALUES ($id, $capability, $status, $expiresAt, $data)";
+            insertCmd.Parameters.AddWithValue("$id", request.ApprovalRequestId);
+            insertCmd.Parameters.AddWithValue("$capability", request.Capability);
+            insertCmd.Parameters.AddWithValue("$status", request.Status);
+            insertCmd.Parameters.AddWithValue("$expiresAt", request.ExpiresAt);
+            insertCmd.Parameters.AddWithValue("$data", data);
+            insertCmd.ExecuteNonQuery();
+        }
+    }
+
+    public ApprovalRequest? GetApprovalRequest(string approvalRequestId)
+    {
+        lock (_lock)
+        {
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = "SELECT data FROM approval_requests WHERE approval_request_id = $id";
+            cmd.Parameters.AddWithValue("$id", approvalRequestId);
+            var result = cmd.ExecuteScalar();
+            if (result == null || result == DBNull.Value) return null;
+            return JsonSerializer.Deserialize<ApprovalRequest>((string)result, s_serializerOptions);
+        }
+    }
+
+    public ApprovalDecisionResult ApproveRequestAndStoreGrant(
+        string approvalRequestId,
+        ApprovalGrant grant,
+        IDictionary<string, object?> approver,
+        string decidedAtIso,
+        string nowIso)
+    {
+        lock (_lock)
+        {
+            // SQLite "BEGIN IMMEDIATE" acquires a RESERVED lock immediately,
+            // ensuring serial txns when multiple writers race for the same
+            // approval request id. Matches Java/Go semantics for atomicity.
+            using var transaction = _connection.BeginTransaction(System.Data.IsolationLevel.Serializable);
+            try
+            {
+                ApprovalRequest existing;
+                using (var selectCmd = _connection.CreateCommand())
+                {
+                    selectCmd.Transaction = transaction;
+                    selectCmd.CommandText =
+                        "SELECT data, status, expires_at FROM approval_requests WHERE approval_request_id = $id";
+                    selectCmd.Parameters.AddWithValue("$id", approvalRequestId);
+                    using var reader = selectCmd.ExecuteReader();
+                    if (!reader.Read())
+                    {
+                        transaction.Rollback();
+                        return ApprovalDecisionResult.Failure("approval_request_not_found");
+                    }
+                    var data = reader.GetString(0);
+                    var status = reader.GetString(1);
+                    var expiresAt = reader.IsDBNull(2) ? null : reader.GetString(2);
+                    existing = JsonSerializer.Deserialize<ApprovalRequest>(data, s_serializerOptions)!;
+                    if (status != ApprovalRequest.StatusPending)
+                    {
+                        transaction.Rollback();
+                        return ApprovalDecisionResult.Failure("approval_request_already_decided");
+                    }
+                    if (!string.IsNullOrEmpty(expiresAt) &&
+                        string.CompareOrdinal(expiresAt, nowIso) <= 0)
+                    {
+                        transaction.Rollback();
+                        return ApprovalDecisionResult.Failure("approval_request_expired");
+                    }
+                }
+
+                existing.Status = ApprovalRequest.StatusApproved;
+                existing.Approver = approver.ToDictionary(kv => kv.Key, kv => kv.Value!);
+                existing.DecidedAt = decidedAtIso;
+                var updatedReq = JsonSerializer.Serialize(existing, s_serializerOptions);
+
+                using (var updateCmd = _connection.CreateCommand())
+                {
+                    updateCmd.Transaction = transaction;
+                    updateCmd.CommandText = @"
+                        UPDATE approval_requests
+                        SET status = 'approved', data = $data
+                        WHERE approval_request_id = $id AND status = 'pending'";
+                    updateCmd.Parameters.AddWithValue("$data", updatedReq);
+                    updateCmd.Parameters.AddWithValue("$id", approvalRequestId);
+                    if (updateCmd.ExecuteNonQuery() != 1)
+                    {
+                        transaction.Rollback();
+                        return ApprovalDecisionResult.Failure("approval_request_already_decided");
+                    }
+                }
+
+                var grantJson = JsonSerializer.Serialize(grant, s_serializerOptions);
+                using (var insertCmd = _connection.CreateCommand())
+                {
+                    insertCmd.Transaction = transaction;
+                    insertCmd.CommandText = @"
+                        INSERT INTO approval_grants (grant_id, approval_request_id, capability,
+                            expires_at, max_uses, use_count, data)
+                        VALUES ($gid, $arid, $cap, $expires, $maxUses, $useCount, $data)";
+                    insertCmd.Parameters.AddWithValue("$gid", grant.GrantId);
+                    insertCmd.Parameters.AddWithValue("$arid", grant.ApprovalRequestId);
+                    insertCmd.Parameters.AddWithValue("$cap", grant.Capability);
+                    insertCmd.Parameters.AddWithValue("$expires", grant.ExpiresAt);
+                    insertCmd.Parameters.AddWithValue("$maxUses", grant.MaxUses);
+                    insertCmd.Parameters.AddWithValue("$useCount", grant.UseCount);
+                    insertCmd.Parameters.AddWithValue("$data", grantJson);
+                    insertCmd.ExecuteNonQuery();
+                }
+
+                transaction.Commit();
+                return ApprovalDecisionResult.Success(grant);
+            }
+            catch
+            {
+                try { transaction.Rollback(); } catch { /* ignore */ }
+                throw;
+            }
+        }
+    }
+
+    public void StoreGrant(ApprovalGrant grant)
+    {
+        var data = JsonSerializer.Serialize(grant, s_serializerOptions);
+        lock (_lock)
+        {
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = @"
+                INSERT INTO approval_grants (grant_id, approval_request_id, capability,
+                    expires_at, max_uses, use_count, data)
+                VALUES ($gid, $arid, $cap, $expires, $maxUses, $useCount, $data)";
+            cmd.Parameters.AddWithValue("$gid", grant.GrantId);
+            cmd.Parameters.AddWithValue("$arid", grant.ApprovalRequestId);
+            cmd.Parameters.AddWithValue("$cap", grant.Capability);
+            cmd.Parameters.AddWithValue("$expires", grant.ExpiresAt);
+            cmd.Parameters.AddWithValue("$maxUses", grant.MaxUses);
+            cmd.Parameters.AddWithValue("$useCount", grant.UseCount);
+            cmd.Parameters.AddWithValue("$data", data);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public ApprovalGrant? GetGrant(string grantId)
+    {
+        lock (_lock)
+        {
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = "SELECT data FROM approval_grants WHERE grant_id = $gid";
+            cmd.Parameters.AddWithValue("$gid", grantId);
+            var result = cmd.ExecuteScalar();
+            if (result == null || result == DBNull.Value) return null;
+            return JsonSerializer.Deserialize<ApprovalGrant>((string)result, s_serializerOptions);
+        }
+    }
+
+    public GrantReservationResult TryReserveGrant(string grantId, string nowIso)
+    {
+        lock (_lock)
+        {
+            int affected;
+            using (var update = _connection.CreateCommand())
+            {
+                update.CommandText = @"
+                    UPDATE approval_grants
+                    SET use_count = use_count + 1
+                    WHERE grant_id = $gid AND use_count < max_uses AND expires_at > $now";
+                update.Parameters.AddWithValue("$gid", grantId);
+                update.Parameters.AddWithValue("$now", nowIso);
+                affected = update.ExecuteNonQuery();
+            }
+
+            if (affected == 1)
+            {
+                ApprovalGrant grant;
+                int newUseCount;
+                using (var sel = _connection.CreateCommand())
+                {
+                    sel.CommandText = "SELECT data, use_count FROM approval_grants WHERE grant_id = $gid";
+                    sel.Parameters.AddWithValue("$gid", grantId);
+                    using var reader = sel.ExecuteReader();
+                    if (!reader.Read())
+                    {
+                        return GrantReservationResult.Failure("grant_not_found");
+                    }
+                    grant = JsonSerializer.Deserialize<ApprovalGrant>(reader.GetString(0), s_serializerOptions)!;
+                    newUseCount = reader.GetInt32(1);
+                }
+                grant.UseCount = newUseCount;
+                using (var write = _connection.CreateCommand())
+                {
+                    write.CommandText = "UPDATE approval_grants SET data = $data WHERE grant_id = $gid";
+                    write.Parameters.AddWithValue("$data", JsonSerializer.Serialize(grant, s_serializerOptions));
+                    write.Parameters.AddWithValue("$gid", grantId);
+                    write.ExecuteNonQuery();
+                }
+                return GrantReservationResult.Success(grant);
+            }
+
+            // 0 rows → disambiguate by re-fetching.
+            using (var probe = _connection.CreateCommand())
+            {
+                probe.CommandText = "SELECT use_count, max_uses, expires_at FROM approval_grants WHERE grant_id = $gid";
+                probe.Parameters.AddWithValue("$gid", grantId);
+                using var reader = probe.ExecuteReader();
+                if (!reader.Read())
+                {
+                    return GrantReservationResult.Failure("grant_not_found");
+                }
+                var useCount = reader.GetInt32(0);
+                var maxUses = reader.GetInt32(1);
+                var expiresAt = reader.IsDBNull(2) ? null : reader.GetString(2);
+                if (!string.IsNullOrEmpty(expiresAt) &&
+                    string.CompareOrdinal(expiresAt, nowIso) <= 0)
+                {
+                    return GrantReservationResult.Failure("grant_expired");
+                }
+                if (useCount >= maxUses)
+                {
+                    return GrantReservationResult.Failure("grant_consumed");
+                }
+                return GrantReservationResult.Failure("grant_not_found");
+            }
+        }
     }
 
     private class LeaseEntry

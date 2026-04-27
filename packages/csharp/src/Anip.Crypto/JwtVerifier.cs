@@ -137,6 +137,13 @@ public static class JwtVerifier
         if (claims.TryGetValue("parent_token_id", out var parent))
             token.Parent = parent.GetString();
 
+        // v0.23 SPEC §4.8: extract session_id claim if present.
+        if (claims.TryGetValue("anip:session_id", out var sid))
+        {
+            var sidStr = sid.GetString();
+            token.SessionId = string.IsNullOrEmpty(sidStr) ? null : sidStr;
+        }
+
         return token;
     }
 }

@@ -81,9 +81,14 @@ public class AnipGraphQLController : ControllerBase
 
         // Inject auth header into user context so resolvers can access it.
         var authHeader = Request.Headers.Authorization.FirstOrDefault() ?? "";
+        // v0.23: GraphQL mutation args ARE capability args, so the
+        // continuation grant rides on a header. session_id is NEVER read
+        // from a header — it must come from the signed delegation token.
+        var approvalGrantHeader = Request.Headers["X-Anip-Approval-Grant"].FirstOrDefault();
         var userContext = new Dictionary<string, object?>
         {
             ["authHeader"] = authHeader,
+            ["approvalGrant"] = approvalGrantHeader,
         };
 
         var execResult = await _executer.ExecuteAsync(options =>

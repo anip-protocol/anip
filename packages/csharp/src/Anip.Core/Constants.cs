@@ -2,7 +2,7 @@ namespace Anip.Core;
 
 public static class Constants
 {
-    public const string ProtocolVersion = "anip/0.22";
+    public const string ProtocolVersion = "anip/0.23";
     public const string ManifestVersion = "0.10.0";
 
     // Failure types
@@ -25,6 +25,22 @@ public static class Constants
     public const string FailureStreamingNotSupported = "streaming_not_supported";
     public const string FailureInvalidParameters = "invalid_parameters";
     public const string FailureNonDelegableAction = "non_delegable_action";
+
+    // v0.23 — composition + approval grants. SPEC.md §4.6, §4.7, §4.8, §4.9.
+    public const string FailureApprovalRequired = "approval_required";
+    public const string FailureGrantNotFound = "grant_not_found";
+    public const string FailureGrantExpired = "grant_expired";
+    public const string FailureGrantConsumed = "grant_consumed";
+    public const string FailureGrantCapabilityMismatch = "grant_capability_mismatch";
+    public const string FailureGrantScopeMismatch = "grant_scope_mismatch";
+    public const string FailureGrantParamDrift = "grant_param_drift";
+    public const string FailureGrantSessionInvalid = "grant_session_invalid";
+    public const string FailureApprovalRequestNotFound = "approval_request_not_found";
+    public const string FailureApprovalRequestAlreadyDecided = "approval_request_already_decided";
+    public const string FailureApprovalRequestExpired = "approval_request_expired";
+    public const string FailureApproverNotAuthorized = "approver_not_authorized";
+    public const string FailureGrantTypeNotAllowed = "grant_type_not_allowed_by_policy";
+    public const string FailureCompositionChildFailed = "composition_child_failed";
 
     // Maps each canonical resolution action to its recovery class.
     public static readonly Dictionary<string, string> RecoveryClassMap = new()
@@ -74,9 +90,13 @@ public static class Constants
         FailureAuthRequired or FailureInvalidToken or FailureTokenExpired => 401,
         FailureScopeInsufficient or FailureBudgetExceeded or FailureBudgetCurrencyMismatch
             or FailureBudgetNotEnforceable or FailureBindingMissing or FailureBindingStale
-            or FailureControlRequirementUnsatisfied or FailurePurposeMismatch => 403,
-        FailureUnknownCapability or FailureNotFound => 404,
-        FailureUnavailable or FailureConcurrentLock => 409,
+            or FailureControlRequirementUnsatisfied or FailurePurposeMismatch
+            or FailureApproverNotAuthorized => 403,
+        FailureUnknownCapability or FailureNotFound
+            or FailureApprovalRequestNotFound => 404,
+        FailureUnavailable or FailureConcurrentLock
+            or FailureApprovalRequestAlreadyDecided or FailureApprovalRequestExpired
+            or FailureGrantConsumed or FailureGrantExpired => 409,
         FailureInternalError => 500,
         FailureInvalidParameters => 400,
         _ => 400

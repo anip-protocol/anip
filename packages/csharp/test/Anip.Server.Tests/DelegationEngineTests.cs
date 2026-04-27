@@ -153,6 +153,35 @@ public class DelegationEngineTests : IDisposable
         Assert.Equal(Constants.FailureInvalidToken, ex.ErrorType);
     }
 
+    // SPEC §4.8: session_id is the trust anchor for session_bound grant
+    // continuations. The check must be symmetric — both sides agree, or
+    // both are absent. A stored session_id without a matching JWT claim
+    // (e.g., storage tampering after issuance) must fail loudly, just
+    // like the inverse case.
+    [Fact]
+    public void ResolveBearerToken_StoredSessionId_JwtMissing_Throws()
+    {
+        // Issue a normal token without session_id (so the JWT is clean).
+        var request = new TokenRequest
+        {
+            Subject = "agent@example.com",
+            Scope = new List<string> { "data:read" },
+            Capability = "summarize"
+        };
+        var response = DelegationEngine.IssueDelegationToken(_keys, _storage, ServiceId, Principal, request);
+
+        // Tamper with storage to set a session_id that the JWT does not carry.
+        var stored = _storage.LoadToken(response.TokenId)!;
+        stored.SessionId = "sess-tampered";
+        _storage.StoreToken(stored);
+
+        var ex = Assert.Throws<AnipError>(() =>
+            DelegationEngine.ResolveBearerToken(_keys, _storage, ServiceId, response.Token));
+
+        Assert.Equal(Constants.FailureInvalidToken, ex.ErrorType);
+        Assert.Contains("session_id", ex.Detail);
+    }
+
     [Fact]
     public void ScopeNarrowing_ChildCannotWidenParent()
     {

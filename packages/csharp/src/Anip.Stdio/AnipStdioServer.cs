@@ -262,6 +262,8 @@ public class AnipStdioServer
             ParentToken = GetString(parameters, "parent_token"),
             CallerClass = GetString(parameters, "caller_class"),
             Budget = ExtractBudget(parameters),
+            // v0.23: bind a session identity to the issued token at root issuance.
+            SessionId = GetString(parameters, "session_id"),
         };
 
         var resp = _service.IssueToken(principal, request);
@@ -294,6 +296,10 @@ public class AnipStdioServer
         // Extract budget from params (v0.14).
         var budget = ExtractBudget(parameters);
 
+        // v0.23: continuation grant_id from JSON-RPC params. session_id is
+        // NEVER read from JSON-RPC params — it must come from the signed token.
+        var approvalGrant = GetString(parameters, "approval_grant");
+
         if (stream)
         {
             // Streaming invocation — collect progress notifications then return final result.
@@ -304,6 +310,7 @@ public class AnipStdioServer
                 ParentInvocationId = parentInvocationId,
                 Stream = true,
                 Budget = budget,
+                ApprovalGrant = approvalGrant,
             });
 
             var notifications = new List<Dictionary<string, object?>>();
@@ -336,6 +343,7 @@ public class AnipStdioServer
             TaskId = taskId,
             ParentInvocationId = parentInvocationId,
             Budget = budget,
+            ApprovalGrant = approvalGrant,
         };
 
         return _service.Invoke(capability, token, invokeParams, opts);

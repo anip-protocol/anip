@@ -192,11 +192,17 @@ public class AnipRestController : ControllerBase
             budget = ExtractBudget(budgetObj);
         }
 
+        // v0.23: REST adapter wraps body as capability params, so the
+        // continuation grant rides on a header. session_id is NEVER read
+        // from a header — it must come from the signed delegation token.
+        var approvalGrant = Request.Headers["X-Anip-Approval-Grant"].FirstOrDefault();
+
         var opts = new InvokeOpts
         {
             ClientReferenceId = clientRefId,
             Stream = false,
             Budget = budget,
+            ApprovalGrant = string.IsNullOrEmpty(approvalGrant) ? null : approvalGrant,
         };
 
         var result = _service.Invoke(capability, token, parameters, opts);
