@@ -1,16 +1,17 @@
 ---
 title: Version History
-description: ANIP protocol version progression from v0.1 through v0.22.
+description: ANIP protocol version progression from v0.1 through v0.23.
 ---
 
 # Version History
 
-ANIP's version line tracks the progression of protocol capabilities. The current version is **v0.22**.
+ANIP's version line tracks the progression of protocol capabilities. The current version is **v0.23**.
 
 ## Version progression
 
 | Version | What it added | Key concepts |
 |---------|--------------|--------------|
+| **v0.23** | Capability composition + approval grants | Capabilities declare a `kind` (`atomic` or `composed`); composed capabilities expose a declarative `composition` step graph as protocol-visible metadata for audit and verification. The `approval_required` failure persists an `ApprovalRequest`; approvers issue a signed `ApprovalGrant` (`one_time` or `session_bound`) via `POST /anip/approval_grants` that the requester redeems on a follow-up invoke. Session identity is bound into the signed delegation token (`anip:session_id`), so session-bound continuations can't be forged from request bodies. Detached JWS over canonical-sorted JSON for cross-runtime grant signature compatibility. |
 | **v0.22** | Delegated issuance ergonomics | Canonical `parent_token` semantics (token ID string, not JWT) aligned across all runtimes. `issueDelegatedCapabilityToken()` helper in all 5 runtimes. Token issuance responses echo `task_id` for consumer-side task continuity. |
 | **v0.21** | Cross-service contracts and recovery targets | `cross_service_contract` with structured handoff/followup/verification entries (task-local continuity, completion modes). `recovery_target` in resolution objects (kind, target, continuity, retry_after_target). Stronger than advisory hints, not a workflow engine. |
 | **v0.20** | Bootstrap auth and capability-targeted issuance | Explicit bootstrap auth hook contract (sync MUST, async MAY). `issueCapabilityToken()` root-only helper in all 5 runtimes — pre-binds capability, requires explicit scope. |
