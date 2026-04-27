@@ -10,6 +10,10 @@ on:
         description: "Mark as prerelease"
         type: boolean
         default: false
+      allow_already_published:
+        description: "Treat 'already published' as success (use to recover partial releases)"
+        type: boolean
+        default: false
 
 jobs:
   bump-and-validate:
@@ -299,6 +303,7 @@ jobs:
         working-directory: packages/typescript
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          ALLOW_ALREADY_PUBLISHED: ${{ inputs.allow_already_published }}
         run: |
           set -e
           publish_or_skip() {
@@ -309,11 +314,20 @@ jobs:
               cd ..
               return 0
             }
-            # npm publish failed — check if it's "already exists"
+            # npm publish failed — check if it's "already exists".
+            # Strict by default: treat duplicate as a hard failure so an
+            # accidental double-dispatch surfaces loudly. Set
+            # allow_already_published=true on dispatch to recover from a
+            # partial release where some packages already shipped.
             if echo "$OUTPUT" | grep -qi "cannot publish over the previously published"; then
-              echo "SKIP: $pkg@$(node -p 'require("./package.json").version') already published"
+              if [ "$ALLOW_ALREADY_PUBLISHED" = "true" ]; then
+                echo "SKIP: $pkg@$(node -p 'require("./package.json").version') already published (allow_already_published=true)"
+                cd ..
+                return 0
+              fi
+              echo "FAIL: $pkg already published. Re-dispatch with allow_already_published=true to recover a partial release."
               cd ..
-              return 0
+              return 1
             fi
             echo "FAIL: $pkg publish failed:"
             echo "$OUTPUT"
@@ -389,6 +403,7 @@ jobs:
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+          ALLOW_ALREADY_PUBLISHED: ${{ inputs.allow_already_published }}
         run: |
           set -e
           publish_or_skip() {
@@ -399,11 +414,17 @@ jobs:
               cd ../../..
               return 0
             }
-            # twine upload failed — check if it's "already exists"
+            # twine upload failed — check if it's "already exists".
+            # Strict by default: see TS publish job comment.
             if echo "$OUTPUT" | grep -qiE "File already exists|400 Bad Request"; then
-              echo "SKIP: $pkg already published on PyPI"
+              if [ "$ALLOW_ALREADY_PUBLISHED" = "true" ]; then
+                echo "SKIP: $pkg already published on PyPI (allow_already_published=true)"
+                cd ../../..
+                return 0
+              fi
+              echo "FAIL: $pkg already published on PyPI. Re-dispatch with allow_already_published=true to recover a partial release."
               cd ../../..
-              return 0
+              return 1
             fi
             echo "FAIL: $pkg publish failed:"
             echo "$OUTPUT"
@@ -488,17 +509,30 @@ jobs:
         working-directory: packages/csharp
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          ALLOW_ALREADY_PUBLISHED: ${{ inputs.allow_already_published }}
         run: |
           set -e
+          # Strict by default: omit --skip-duplicate so a duplicate causes a
+          # real failure. With --skip-duplicate dotnet exits 0 silently on
+          # conflict and we can never observe it. See TS publish job comment.
+          if [ "$ALLOW_ALREADY_PUBLISHED" = "true" ]; then
+            EXTRA_ARGS=(--skip-duplicate)
+          else
+            EXTRA_ARGS=()
+          fi
           for nupkg in nupkgs/*.nupkg; do
             echo "=== Publishing $(basename $nupkg) ==="
-            OUTPUT=$(dotnet nuget push "$nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate 2>&1) && {
+            OUTPUT=$(dotnet nuget push "$nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json "${EXTRA_ARGS[@]}" 2>&1) && {
               echo "OK: $(basename $nupkg) published"
               continue
             }
             if echo "$OUTPUT" | grep -qi "already exists"; then
-              echo "SKIP: $(basename $nupkg) already published"
-              continue
+              if [ "$ALLOW_ALREADY_PUBLISHED" = "true" ]; then
+                echo "SKIP: $(basename $nupkg) already published (allow_already_published=true)"
+                continue
+              fi
+              echo "FAIL: $(basename $nupkg) already published on NuGet. Re-dispatch with allow_already_published=true to recover a partial release."
+              exit 1
             fi
             echo "FAIL: $(basename $nupkg) publish failed:"
             echo "$OUTPUT"
