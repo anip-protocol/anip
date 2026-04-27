@@ -340,6 +340,20 @@ public class AnipService : IDisposable
                 $"grant_type={grantType} not in allowed_grant_types");
         }
 
+        // SPEC §4.9: when supplied, expires_in_seconds and max_uses must be
+        // positive integers. The HTTP route enforces this on body parsing,
+        // but admin UIs / queue workers / tests call this SPI directly per
+        // §4.9 line 1110, so we re-validate here.
+        if (expiresInSeconds is int eis && eis < 1)
+        {
+            throw new AnipError(Constants.FailureInvalidParameters,
+                $"expires_in_seconds must be a positive integer; got {eis}");
+        }
+        if (maxUses is int mu && mu < 1)
+        {
+            throw new AnipError(Constants.FailureInvalidParameters,
+                $"max_uses must be a positive integer; got {mu}");
+        }
         var effExpiresIn = expiresInSeconds ?? gp.ExpiresInSeconds;
         if (effExpiresIn > gp.ExpiresInSeconds)
         {

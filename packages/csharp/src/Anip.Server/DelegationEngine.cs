@@ -240,11 +240,18 @@ public static class DelegationEngine
 
         // v0.23 SPEC §4.8: enforce session_id consistency between the signed
         // JWT and stored state. This is the trust anchor for session_bound
-        // ApprovalGrant continuations.
-        if (!string.IsNullOrEmpty(jwtToken.SessionId) && jwtToken.SessionId != stored.SessionId)
+        // ApprovalGrant continuations. Both sides must agree — a stored
+        // session_id without a matching signed claim is just as broken as a
+        // signed claim without a stored session_id, since both indicate the
+        // token was issued in a different state than what's now being
+        // presented.
+        var jwtSession = jwtToken.SessionId ?? "";
+        var storedSession = stored.SessionId ?? "";
+        if (jwtSession != storedSession)
         {
             throw new AnipError(Constants.FailureInvalidToken,
-                "session_id mismatch between JWT and stored token");
+                $"session_id mismatch: jwt={(string.IsNullOrEmpty(jwtSession) ? "<absent>" : jwtSession)} " +
+                $"store={(string.IsNullOrEmpty(storedSession) ? "<absent>" : storedSession)}");
         }
 
         // 5. Return stored token.

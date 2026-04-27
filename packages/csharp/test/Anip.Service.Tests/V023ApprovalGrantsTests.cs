@@ -124,6 +124,51 @@ public class V023ApprovalGrantsTests : IDisposable
         Assert.Equal(Constants.FailureGrantTypeNotAllowed, ex.ErrorType);
     }
 
+    // SPEC §4.9: when supplied, expires_in_seconds and max_uses must be
+    // positive integers. The HTTP route validates this but admin UIs / queue
+    // workers / tests call the SPI directly per §4.9 line 1110, so the helper
+    // re-validates. Otherwise an out-of-band caller could store an immediately
+    // expired or unusable grant.
+    [Fact]
+    public void IssueApprovalGrant_RejectsExpiresInSecondsZero()
+    {
+        SeedPendingRequest("apr_zexp");
+        var approver = new Dictionary<string, object?> { ["subject"] = "boss" };
+        var ex = Assert.Throws<AnipError>(() => _service.IssueApprovalGrant(
+            "apr_zexp", ApprovalGrant.TypeOneTime, approver, null, 0, null));
+        Assert.Equal(Constants.FailureInvalidParameters, ex.ErrorType);
+    }
+
+    [Fact]
+    public void IssueApprovalGrant_RejectsExpiresInSecondsNegative()
+    {
+        SeedPendingRequest("apr_nexp");
+        var approver = new Dictionary<string, object?> { ["subject"] = "boss" };
+        var ex = Assert.Throws<AnipError>(() => _service.IssueApprovalGrant(
+            "apr_nexp", ApprovalGrant.TypeOneTime, approver, null, -10, null));
+        Assert.Equal(Constants.FailureInvalidParameters, ex.ErrorType);
+    }
+
+    [Fact]
+    public void IssueApprovalGrant_RejectsMaxUsesZero()
+    {
+        SeedPendingRequest("apr_zmax");
+        var approver = new Dictionary<string, object?> { ["subject"] = "boss" };
+        var ex = Assert.Throws<AnipError>(() => _service.IssueApprovalGrant(
+            "apr_zmax", ApprovalGrant.TypeSessionBound, approver, "sess-1", null, 0));
+        Assert.Equal(Constants.FailureInvalidParameters, ex.ErrorType);
+    }
+
+    [Fact]
+    public void IssueApprovalGrant_RejectsMaxUsesNegative()
+    {
+        SeedPendingRequest("apr_nmax");
+        var approver = new Dictionary<string, object?> { ["subject"] = "boss" };
+        var ex = Assert.Throws<AnipError>(() => _service.IssueApprovalGrant(
+            "apr_nmax", ApprovalGrant.TypeSessionBound, approver, "sess-1", null, -1));
+        Assert.Equal(Constants.FailureInvalidParameters, ex.ErrorType);
+    }
+
     [Fact]
     public void IssueApprovalGrant_RejectsAlreadyDecided()
     {
