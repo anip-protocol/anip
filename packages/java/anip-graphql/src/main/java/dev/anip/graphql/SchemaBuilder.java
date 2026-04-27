@@ -248,8 +248,18 @@ public class SchemaBuilder {
                 snakeArgs.put(GraphQLResponseMapper.toSnakeCase(entry.getKey()), entry.getValue());
             }
 
-            Map<String, Object> result = service.invoke(capName, token, snakeArgs,
-                    new InvokeOpts());
+            // v0.23: approval_grant rides on the X-Anip-Approval-Grant
+            // header (plumbed through GraphQL context by the HTTP adapter)
+            // because GraphQL mutation args ARE the capability args and
+            // there is no envelope. session_id is intentionally never read
+            // from header or args — comes from the signed token only.
+            InvokeOpts opts = new InvokeOpts();
+            String approvalGrant = env.getGraphQlContext().get("approvalGrant");
+            if (approvalGrant != null && !approvalGrant.isEmpty()) {
+                opts.setApprovalGrant(approvalGrant);
+            }
+
+            Map<String, Object> result = service.invoke(capName, token, snakeArgs, opts);
 
             return GraphQLResponseMapper.buildGraphQLResponse(result);
         };

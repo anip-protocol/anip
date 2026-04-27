@@ -277,12 +277,14 @@ public class AnipStdioServer {
         int ttlHours = params.get("ttl_hours") instanceof Number
                 ? ((Number) params.get("ttl_hours")).intValue() : 0;
         String callerClass = (String) params.get("caller_class");
+        // v0.23: bind a session identity into the issued token. SPEC §4.8.
+        String sessionId = (String) params.get("session_id");
 
         Budget budget = extractBudgetFromParams(params);
 
         TokenRequest req = new TokenRequest(
                 subject, scope, capability, purposeParameters,
-                parentToken, ttlHours, callerClass, budget
+                parentToken, ttlHours, callerClass, budget, null, sessionId
         );
 
         TokenResponse resp = service.issueToken(principal.get(), req);

@@ -59,10 +59,18 @@ public class AnipGraphQLController {
         // Inject auth header into GraphQL context.
         String authHeader = request.getHeader("Authorization");
         String finalAuthHeader = authHeader != null ? authHeader : "";
+        // v0.23: GraphQL mutation args ARE the capability args, so
+        // approval_grant rides on X-Anip-Approval-Grant alongside auth.
+        // session_id for session_bound grants is read from the signed
+        // token, never the header.
+        String approvalGrant = request.getHeader("X-Anip-Approval-Grant");
+        String finalApprovalGrant = approvalGrant != null ? approvalGrant : "";
 
         ExecutionInput.Builder execBuilder = ExecutionInput.newExecutionInput()
                 .query(query)
-                .graphQLContext(builder -> builder.of("authHeader", finalAuthHeader));
+                .graphQLContext(builder -> builder
+                        .of("authHeader", finalAuthHeader)
+                        .of("approvalGrant", finalApprovalGrant));
 
         if (variables != null) {
             execBuilder.variables(variables);
