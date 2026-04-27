@@ -17,11 +17,26 @@ public class DelegationToken {
     private final DelegationConstraints constraints;
     private final String rootPrincipal;
     private final String callerClass;
+    /**
+     * v0.23: session identity bound at issuance, validated for session_bound
+     * ApprovalGrant continuations per SPEC.md §4.8. Trust comes from the
+     * signed token, never from caller-supplied invocation input. Null/empty
+     * for tokens that were not bound to a session.
+     */
+    private final String sessionId;
 
     public DelegationToken(String tokenId, String issuer, String subject, List<String> scope,
                            Purpose purpose, String parent, String expires,
                            DelegationConstraints constraints, String rootPrincipal,
                            String callerClass) {
+        this(tokenId, issuer, subject, scope, purpose, parent, expires,
+             constraints, rootPrincipal, callerClass, null);
+    }
+
+    public DelegationToken(String tokenId, String issuer, String subject, List<String> scope,
+                           Purpose purpose, String parent, String expires,
+                           DelegationConstraints constraints, String rootPrincipal,
+                           String callerClass, String sessionId) {
         this.tokenId = tokenId;
         this.issuer = issuer;
         this.subject = subject;
@@ -32,6 +47,7 @@ public class DelegationToken {
         this.constraints = constraints;
         this.rootPrincipal = rootPrincipal;
         this.callerClass = callerClass;
+        this.sessionId = sessionId;
     }
 
     public String getTokenId() {
@@ -73,5 +89,10 @@ public class DelegationToken {
 
     public String getCallerClass() {
         return callerClass;
+    }
+
+    /** v0.23: session identity for session_bound ApprovalGrant validation. */
+    public String getSessionId() {
+        return sessionId;
     }
 }
