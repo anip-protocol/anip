@@ -55,6 +55,13 @@ public class AnipService : IDisposable
             _capabilities[cap.Declaration.Name] = cap;
         }
 
+        // v0.23: validate composition invariants at registration time.
+        var registry = _capabilities.ToDictionary(kv => kv.Key, kv => kv.Value.Declaration);
+        foreach (var (name, cap) in _capabilities)
+        {
+            V023.ValidateComposition(name, cap.Declaration, registry);
+        }
+
         _storageDsn = string.IsNullOrEmpty(config.Storage) ? ":memory:" : config.Storage;
         _keyPath = config.KeyPath;
         _authenticate = config.Authenticate;
@@ -282,6 +289,169 @@ public class AnipService : IDisposable
         return IssueToken(principal, request);
     }
 
+    // --- v0.23: ApprovalRequest + ApprovalGrant SPI ---
+
+    /// <summary>
+    /// Read-only pass-through to look up an ApprovalRequest by id. Returns null
+    /// if not found. Used by the HTTP layer for SPEC.md §4.9 step 3.
+    /// </summary>
+    public ApprovalRequest? GetApprovalRequest(string approvalRequestId) =>
+        _storage!.GetApprovalRequest(approvalRequestId);
+
+    /// <summary>Returns the underlying storage handle. Test/SPI only.</summary>
+    public IStorage GetStorage() => _storage!;
+
+    /// <summary>
+    /// Issues a signed ApprovalGrant for a pending ApprovalRequest. Atomic per
+    /// SPEC.md §4.9 (Decision 0.9a) — clamps to grant_policy, signs, runs the
+    /// atomic ApproveRequestAndStoreGrant primitive, emits an
+    /// <c>approval_grant_issued</c> audit event.
+    /// </summary>
+    public ApprovalGrant IssueApprovalGrant(
+        string approvalRequestId,
+        string grantType,
+        IDictionary<string, object?> approver,
+        string? sessionId,
+        int? expiresInSeconds,
+        int? maxUses)
+    {
+        var request = _storage!.GetApprovalRequest(approvalRequestId)
+            ?? throw new AnipError(Constants.FailureApprovalRequestNotFound,
+                $"unknown approval_request_id={approvalRequestId}");
+
+        if (request.Status != ApprovalRequest.StatusPending)
+        {
+            throw new AnipError(Constants.FailureApprovalRequestAlreadyDecided,
+                $"approval_request_id={approvalRequestId} status={request.Status}");
+        }
+        var nowIso = V023.UtcNowIso();
+        if (!string.IsNullOrEmpty(request.ExpiresAt) &&
+            string.CompareOrdinal(request.ExpiresAt, nowIso) <= 0)
+        {
+            throw new AnipError(Constants.FailureApprovalRequestExpired,
+                $"approval_request_id={approvalRequestId} expired at {request.ExpiresAt}");
+        }
+        var gp = request.GrantPolicy
+            ?? throw new AnipError(Constants.FailureGrantTypeNotAllowed,
+                "approval request has no grant_policy");
+        if (!gp.AllowedGrantTypes.Contains(grantType))
+        {
+            throw new AnipError(Constants.FailureGrantTypeNotAllowed,
+                $"grant_type={grantType} not in allowed_grant_types");
+        }
+
+        var effExpiresIn = expiresInSeconds ?? gp.ExpiresInSeconds;
+        if (effExpiresIn > gp.ExpiresInSeconds)
+        {
+            throw new AnipError(Constants.FailureGrantTypeNotAllowed,
+                $"expires_in_seconds={effExpiresIn} exceeds policy={gp.ExpiresInSeconds}");
+        }
+        var effMaxUses = maxUses ?? gp.MaxUses;
+        if (grantType == ApprovalGrant.TypeOneTime)
+        {
+            effMaxUses = 1;
+            if (!string.IsNullOrEmpty(sessionId))
+            {
+                throw new AnipError(Constants.FailureGrantTypeNotAllowed,
+                    "one_time grants must not carry session_id");
+            }
+        }
+        else if (grantType == ApprovalGrant.TypeSessionBound)
+        {
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                throw new AnipError(Constants.FailureGrantTypeNotAllowed,
+                    "session_bound grants require a session_id");
+            }
+        }
+        if (effMaxUses > gp.MaxUses)
+        {
+            throw new AnipError(Constants.FailureGrantTypeNotAllowed,
+                $"max_uses={effMaxUses} exceeds policy={gp.MaxUses}");
+        }
+
+        var grant = new ApprovalGrant
+        {
+            GrantId = V023.NewGrantId(),
+            ApprovalRequestId = approvalRequestId,
+            GrantType = grantType,
+            Capability = request.Capability,
+            Scope = new List<string>(request.Scope),
+            ApprovedParametersDigest = request.RequestedParametersDigest,
+            PreviewDigest = request.PreviewDigest,
+            Requester = request.Requester,
+            Approver = approver.ToDictionary(kv => kv.Key, kv => kv.Value!),
+            IssuedAt = nowIso,
+            ExpiresAt = V023.UtcInIso(effExpiresIn),
+            MaxUses = effMaxUses,
+            UseCount = 0,
+            SessionId = sessionId,
+        };
+        try
+        {
+            grant.Signature = V023.SignGrant(_keys!, grant);
+        }
+        catch (Exception ex)
+        {
+            throw new AnipError(Constants.FailureInternalError,
+                "grant signing failed: " + ex.Message);
+        }
+
+        var result = _storage!.ApproveRequestAndStoreGrant(
+            approvalRequestId, grant, approver, nowIso, nowIso);
+        if (!result.Ok)
+        {
+            var type = result.Reason switch
+            {
+                "approval_request_not_found" => Constants.FailureApprovalRequestNotFound,
+                "approval_request_expired" => Constants.FailureApprovalRequestExpired,
+                _ => Constants.FailureApprovalRequestAlreadyDecided,
+            };
+            throw new AnipError(type, "approve_request_and_store_grant: " + result.Reason);
+        }
+
+        // Emit approval_grant_issued audit event linking request <-> grant <-> approver.
+        try
+        {
+            var approverSubject = approver.TryGetValue("subject", out var asObj) ? asObj as string : null;
+            var approverRoot = approver.TryGetValue("root_principal", out var arObj) ? arObj as string : null;
+            var entry = new AuditEntry
+            {
+                Capability = request.Capability,
+                Issuer = _serviceId,
+                Subject = approverSubject,
+                RootPrincipal = approverRoot ?? approverSubject,
+                Success = true,
+                ResultSummary = new Dictionary<string, object>
+                {
+                    ["approver"] = approver,
+                    ["requester"] = request.Requester,
+                    ["grant_type"] = grantType,
+                    ["scope"] = request.Scope,
+                },
+                ApprovalRequestId = approvalRequestId,
+                ApprovalGrantId = grant.GrantId,
+                EntryType = "approval_grant_issued",
+                EventClass = "high_risk_success",
+                RetentionTier = "long",
+            };
+            try
+            {
+                AuditLog.AppendAudit(_keys!, _storage!, entry);
+            }
+            catch
+            {
+                // best effort
+            }
+        }
+        catch
+        {
+            // best effort
+        }
+
+        return grant;
+    }
+
     // --- Discovery ---
 
     /// <summary>
@@ -355,6 +525,8 @@ public class AnipService : IDisposable
             ["checkpoints"] = "/anip/checkpoints",
             ["graph"] = "/anip/graph/{capability}",
             ["jwks"] = "/.well-known/jwks.json",
+            // v0.23 SPEC §4.9: signed grant issuance endpoint.
+            ["approval_grants"] = "/anip/approval_grants",
         };
 
         if (!string.IsNullOrEmpty(baseUrl))
@@ -892,25 +1064,226 @@ public class AnipService : IDisposable
                 upstreamService: opts.UpstreamService
             );
 
-            // 5. Call handler.
+            // 4b. v0.23 §4.8 Phase A+B: validate + atomically reserve any
+            // continuation approval_grant before the handler runs. session_id
+            // is taken from the signed delegation token only (never from input).
+            var approvalGrantId = opts.ApprovalGrant;
+            if (!string.IsNullOrEmpty(approvalGrantId))
+            {
+                try
+                {
+                    var cv = V023.ValidateContinuationGrant(
+                        _storage!, _keys!, approvalGrantId, capName, parameters,
+                        token.Scope, token.SessionId, V023.UtcNowIso());
+                    if (cv.FailureType != null)
+                    {
+                        throw new AnipError(cv.FailureType,
+                            "approval_grant validation failed: " + cv.FailureType);
+                    }
+                    var res = _storage!.TryReserveGrant(approvalGrantId, V023.UtcNowIso());
+                    if (!res.Ok)
+                    {
+                        var type = res.Reason switch
+                        {
+                            "grant_consumed" => Constants.FailureGrantConsumed,
+                            "grant_expired" => Constants.FailureGrantExpired,
+                            _ => Constants.FailureGrantNotFound,
+                        };
+                        throw new AnipError(type, "approval_grant reservation failed: " + res.Reason);
+                    }
+                }
+                catch (AnipError ae)
+                {
+                    AppendAuditEntry(capName, token, false, ae.ErrorType,
+                        new Dictionary<string, object?> { ["detail"] = ae.Detail }, null,
+                        invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
+                        opts.UpstreamService, capDef.Declaration.SideEffect?.Type,
+                        approvalGrantId: approvalGrantId);
+                    var failureA = new Dictionary<string, object?>
+                    {
+                        ["type"] = ae.ErrorType,
+                        ["detail"] = ae.Detail,
+                    };
+                    var levelA = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
+                    failureA = FailureRedaction.Redact(failureA, levelA);
+                    return new Dictionary<string, object?>
+                    {
+                        ["success"] = false,
+                        ["failure"] = failureA,
+                        ["invocation_id"] = invocationId,
+                        ["client_reference_id"] = opts.ClientReferenceId,
+                        ["task_id"] = effectiveTaskId,
+                        ["parent_invocation_id"] = opts.ParentInvocationId,
+                        ["upstream_service"] = opts.UpstreamService,
+                    };
+                }
+                catch (Exception)
+                {
+                    AppendAuditEntry(capName, token, false, Constants.FailureUnavailable, null, null,
+                        invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
+                        opts.UpstreamService, capDef.Declaration.SideEffect?.Type,
+                        approvalGrantId: approvalGrantId);
+                    return new Dictionary<string, object?>
+                    {
+                        ["success"] = false,
+                        ["failure"] = new Dictionary<string, object?>
+                        {
+                            ["type"] = Constants.FailureUnavailable,
+                            ["detail"] = "approval grant validation unavailable",
+                        },
+                        ["invocation_id"] = invocationId,
+                        ["client_reference_id"] = opts.ClientReferenceId,
+                        ["task_id"] = effectiveTaskId,
+                        ["parent_invocation_id"] = opts.ParentInvocationId,
+                        ["upstream_service"] = opts.UpstreamService,
+                    };
+                }
+            }
+
+            // 5. Call handler. Composed capabilities run V023.ExecuteComposition
+            // instead of the registered handler — each child step re-enters
+            // Invoke() with the same token, parent_invocation_id lineage.
             Dictionary<string, object?> result;
             try
             {
-                result = capDef.Handler(ctx, parameters);
+                if (capDef.Declaration.Kind == "composed")
+                {
+                    var childToken = token;
+                    var parentInvocationIdInner = invocationId;
+                    var clientRefIdInner = opts.ClientReferenceId;
+                    var upstreamInner = opts.UpstreamService;
+                    var taskIdInner = effectiveTaskId;
+                    V023.InvokeStepFunc invokeStep = (childCap, childParams) =>
+                    {
+                        var childOpts = new InvokeOpts
+                        {
+                            ClientReferenceId = clientRefIdInner,
+                            TaskId = taskIdInner,
+                            ParentInvocationId = parentInvocationIdInner,
+                            UpstreamService = upstreamInner,
+                            Stream = false,
+                        };
+                        return Invoke(childCap, childToken, childParams, childOpts);
+                    };
+                    result = V023.ExecuteComposition(capName, capDef.Declaration, parameters, invokeStep);
+                }
+                else
+                {
+                    result = capDef.Handler(ctx, parameters);
+                }
             }
             catch (AnipError anipErr)
             {
-                AppendAuditEntry(capName, token, false, anipErr.ErrorType,
+                // v0.23: materialize the ApprovalRequest BEFORE the audit log
+                // so audit entries can carry approval_request_id. SPEC.md §4.7
+                // persistence invariant: storage failure → service_unavailable.
+                ApprovalRequiredMetadata? materialized = null;
+                var approvalPersistFailed = false;
+                string? approvalPersistErr = null;
+                var effectiveErrorType = anipErr.ErrorType;
+                if (anipErr.ErrorType == Constants.FailureApprovalRequired)
+                {
+                    try
+                    {
+                        if (anipErr.ApprovalRequired != null
+                            && !string.IsNullOrEmpty(anipErr.ApprovalRequired.ApprovalRequestId))
+                        {
+                            materialized = anipErr.ApprovalRequired;
+                        }
+                        else
+                        {
+                            var requesterMap = new Dictionary<string, object>
+                            {
+                                ["subject"] = token.Subject,
+                                ["root_principal"] = token.RootPrincipal ?? token.Issuer,
+                            };
+                            var paramsMap = parameters.ToDictionary(
+                                kv => kv.Key,
+                                kv => (object)(kv.Value ?? string.Empty));
+                            var mat = V023.MaterializeApprovalRequest(
+                                _storage!, capDef.Declaration, invocationId,
+                                requesterMap, paramsMap, new Dictionary<string, object>(),
+                                null);
+                            materialized = mat.Metadata;
+                        }
+                    }
+                    catch (Exception ape)
+                    {
+                        approvalPersistFailed = true;
+                        approvalPersistErr = ape.Message;
+                        effectiveErrorType = Constants.FailureUnavailable;
+                    }
+                }
+
+                var approvalRequestIdAudit = (materialized != null && !approvalPersistFailed)
+                    ? materialized.ApprovalRequestId
+                    : null;
+
+                AppendAuditEntry(capName, token, false, effectiveErrorType,
                     new Dictionary<string, object?> { ["detail"] = anipErr.Detail }, null,
                     invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
                     opts.UpstreamService,
-                    capDef.Declaration.SideEffect?.Type);
+                    capDef.Declaration.SideEffect?.Type,
+                    approvalRequestId: approvalRequestIdAudit,
+                    approvalGrantId: approvalGrantId);
+
+                // v0.23: emit a dedicated approval_request_created event
+                // linking the original invocation to the approval request.
+                if (approvalRequestIdAudit != null)
+                {
+                    try
+                    {
+                        AppendAuditEntry(capName, token, true, null, null, null,
+                            string.Empty, null, effectiveTaskId, invocationId,
+                            null, capDef.Declaration.SideEffect?.Type,
+                            approvalRequestId: approvalRequestIdAudit,
+                            entryType: "approval_request_created");
+                    }
+                    catch
+                    {
+                        // best effort
+                    }
+                }
 
                 var failure = new Dictionary<string, object?>
                 {
-                    ["type"] = anipErr.ErrorType,
-                    ["detail"] = anipErr.Detail,
+                    ["type"] = effectiveErrorType,
+                    ["detail"] = approvalPersistFailed
+                        ? "approval flow unavailable: " + approvalPersistErr
+                        : anipErr.Detail,
                 };
+                if (anipErr.Resolution != null && !approvalPersistFailed)
+                {
+                    failure["resolution"] = new Dictionary<string, object?>
+                    {
+                        ["action"] = anipErr.Resolution.Action,
+                        ["recovery_class"] = !string.IsNullOrEmpty(anipErr.Resolution.RecoveryClass)
+                            ? anipErr.Resolution.RecoveryClass
+                            : Constants.RecoveryClassForAction(anipErr.Resolution.Action),
+                    };
+                }
+                if (approvalPersistFailed)
+                {
+                    failure["resolution"] = new Dictionary<string, object?>
+                    {
+                        ["action"] = "wait_and_retry",
+                        ["recovery_class"] = "wait_then_retry",
+                    };
+                }
+                else if (materialized != null)
+                {
+                    var apReq = new Dictionary<string, object?>
+                    {
+                        ["approval_request_id"] = materialized.ApprovalRequestId,
+                        ["preview_digest"] = materialized.PreviewDigest,
+                        ["requested_parameters_digest"] = materialized.RequestedParametersDigest,
+                    };
+                    if (materialized.GrantPolicy != null)
+                    {
+                        apReq["grant_policy"] = materialized.GrantPolicy;
+                    }
+                    failure["approval_required"] = apReq;
+                }
 
                 var effectiveLevelErr = DisclosureControl.Resolve(_disclosureLevel, TokenClaimsMap(token), _disclosurePolicy);
                 failure = FailureRedaction.Redact(failure, effectiveLevelErr);
@@ -957,11 +1330,13 @@ public class AnipService : IDisposable
             // 6. Extract cost actual from context.
             var costActual = ctx.CostActual;
 
-            // 7. Log audit (success).
+            // 7. Log audit (success). Continuation success entries reference
+            // the consumed grant per SPEC §4.9 step 11.
             AppendAuditEntry(capName, token, true, null, result, costActual,
                 invocationId, opts.ClientReferenceId, effectiveTaskId, opts.ParentInvocationId,
                 opts.UpstreamService,
-                capDef.Declaration.SideEffect?.Type);
+                capDef.Declaration.SideEffect?.Type,
+                approvalGrantId: approvalGrantId);
 
             // 8. Build response.
             var resp = new Dictionary<string, object?>
@@ -1070,6 +1445,48 @@ public class AnipService : IDisposable
         // 3. Validate token scope.
         DelegationEngine.ValidateScope(token, capDef.Declaration.MinimumScope);
 
+        // 3b. v0.23 §4.8 Phase A+B: validate and atomically reserve the
+        // approval_grant BEFORE any handler / event emission. Reservation is
+        // the security boundary — once reserved, the grant is spent on this
+        // attempt. Failures throw AnipError synchronously so the transport
+        // adapter maps to a JSON 4xx and no SSE stream opens.
+        var streamApprovalGrantId = opts.ApprovalGrant;
+        if (!string.IsNullOrEmpty(streamApprovalGrantId))
+        {
+            try
+            {
+                var cv = V023.ValidateContinuationGrant(
+                    _storage!, _keys!, streamApprovalGrantId, capName, parameters,
+                    token.Scope, token.SessionId, V023.UtcNowIso());
+                if (cv.FailureType != null)
+                {
+                    throw new AnipError(cv.FailureType,
+                        "approval_grant validation failed: " + cv.FailureType);
+                }
+                var res = _storage!.TryReserveGrant(streamApprovalGrantId, V023.UtcNowIso());
+                if (!res.Ok)
+                {
+                    var type = res.Reason switch
+                    {
+                        "grant_consumed" => Constants.FailureGrantConsumed,
+                        "grant_expired" => Constants.FailureGrantExpired,
+                        _ => Constants.FailureGrantNotFound,
+                    };
+                    throw new AnipError(type, "approval_grant reservation failed: " + res.Reason);
+                }
+            }
+            catch (AnipError)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new AnipError(Constants.FailureInternalError,
+                    "grant reservation failed: " + ex.Message);
+            }
+        }
+        var reservedGrantId = streamApprovalGrantId;
+
         // 4. Build invocation context with streaming EmitProgress.
         var rootPrincipal = token.RootPrincipal ?? token.Issuer;
         var channel = Channel.CreateBounded<StreamEvent>(16);
@@ -1134,7 +1551,8 @@ public class AnipService : IDisposable
                         new Dictionary<string, object?> { ["detail"] = anipErr.Detail }, null,
                         invocationId, clientRefId, effectiveTaskId, parentInvId,
                         upstreamSvc,
-                        capDef.Declaration.SideEffect?.Type);
+                        capDef.Declaration.SideEffect?.Type,
+                        approvalGrantId: reservedGrantId);
 
                     var failureObj = new Dictionary<string, object?>
                     {
@@ -1171,7 +1589,8 @@ public class AnipService : IDisposable
                     AppendAuditEntry(capName, token, false, Constants.FailureInternalError, null, null,
                         invocationId, clientRefId, effectiveTaskId, parentInvId,
                         upstreamSvc,
-                        capDef.Declaration.SideEffect?.Type);
+                        capDef.Declaration.SideEffect?.Type,
+                        approvalGrantId: reservedGrantId);
 
                     var failureObj = new Dictionary<string, object?>
                     {
@@ -1207,7 +1626,8 @@ public class AnipService : IDisposable
                 AppendAuditEntry(capName, token, true, null, result, costActual,
                     invocationId, clientRefId, effectiveTaskId, parentInvId,
                     upstreamSvc,
-                    capDef.Declaration.SideEffect?.Type);
+                    capDef.Declaration.SideEffect?.Type,
+                    approvalGrantId: reservedGrantId);
 
                 var payload = new Dictionary<string, object?>
                 {
@@ -1512,7 +1932,10 @@ public class AnipService : IDisposable
         string? taskId,
         string? parentInvocationId,
         string? upstreamService,
-        string? sideEffectType)
+        string? sideEffectType,
+        string? approvalRequestId = null,
+        string? approvalGrantId = null,
+        string? entryType = null)
     {
         var rootPrincipal = token.RootPrincipal ?? token.Issuer;
         var eventClass = EventClassification.Classify(sideEffectType, success, failureType);
@@ -1539,6 +1962,9 @@ public class AnipService : IDisposable
             EventClass = eventClass,
             RetentionTier = tier,
             ExpiresAt = expiresAt,
+            ApprovalRequestId = approvalRequestId,
+            ApprovalGrantId = approvalGrantId,
+            EntryType = entryType,
         };
 
         // Apply storage-side redaction.

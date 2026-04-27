@@ -147,6 +147,16 @@ internal sealed class AnipMcpTool : McpServerTool
             }
         }
 
+        // v0.23: tool args ARE capability args; the continuation grant rides on
+        // a reserved `__approval_grant` key. Strip it BEFORE invocation so it
+        // does not leak into the params digest.
+        string? approvalGrant = null;
+        if (args.TryGetValue("__approval_grant", out var agObj))
+        {
+            approvalGrant = agObj as string;
+            args.Remove("__approval_grant");
+        }
+
         // Extract the Authorization header from the HTTP context.
         // The SDK flows the HTTP context via IHttpContextAccessor when using
         // Streamable HTTP transport with ExecutionContext propagation.
@@ -197,7 +207,8 @@ internal sealed class AnipMcpTool : McpServerTool
         }
 
         // Invoke with resolved token.
-        var result = _service.Invoke(_capabilityName, token, args, new InvokeOpts());
+        var result = _service.Invoke(_capabilityName, token, args,
+            new InvokeOpts { ApprovalGrant = approvalGrant });
         var mcpResult = McpToolTranslator.TranslateResponse(result);
 
         return ValueTask.FromResult(new CallToolResult

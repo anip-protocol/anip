@@ -277,8 +277,10 @@ public class V023ModelsTests
         Assert.Equal("session_bound", p.DefaultGrantType);
     }
 
+    // SPEC.md §4.9: 200 response for POST /anip/approval_grants IS the bare
+    // ApprovalGrant — no IssueApprovalGrantResponse wrapper exists.
     [Fact]
-    public void IssueApprovalGrantResponseWrapsGrant()
+    public void IssueApprovalGrantResponseIsBareGrant()
     {
         var g = new ApprovalGrant
         {
@@ -296,8 +298,8 @@ public class V023ModelsTests
             MaxUses = 1,
             Signature = "sig",
         };
-        var resp = new IssueApprovalGrantResponse { Grant = g };
-        var resp2 = RoundTrip(resp);
-        Assert.Equal("grant_test", resp2.Grant.GrantId);
+        var rt = RoundTrip(g);
+        Assert.Equal("grant_test", rt.GrantId);
+        Assert.Equal("apr_test", rt.ApprovalRequestId);
     }
 }

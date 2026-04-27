@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
     task_id TEXT,
     parent_invocation_id TEXT,
     upstream_service TEXT,
+    approval_request_id TEXT,
+    approval_grant_id TEXT,
     data TEXT NOT NULL,
     previous_hash TEXT NOT NULL,
     signature TEXT
@@ -64,6 +66,27 @@ CREATE TABLE IF NOT EXISTS leader_leases (
     holder TEXT NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL
 );
+
+-- v0.23: approval requests + grants per SPEC.md §4.7 / §4.8.
+CREATE TABLE IF NOT EXISTS approval_requests (
+    approval_request_id TEXT PRIMARY KEY,
+    capability TEXT NOT NULL,
+    status TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    data TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_apreq_status ON approval_requests(status);
+
+CREATE TABLE IF NOT EXISTS approval_grants (
+    grant_id TEXT PRIMARY KEY,
+    approval_request_id TEXT NOT NULL UNIQUE,
+    capability TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    max_uses INTEGER NOT NULL,
+    use_count INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    FOREIGN KEY (approval_request_id) REFERENCES approval_requests(approval_request_id)
+);
 ";
 
     private static readonly JsonSerializerOptions s_serializerOptions = new()
@@ -85,9 +108,20 @@ CREATE TABLE IF NOT EXISTS leader_leases (
 
         // Verify connectivity and create schema.
         using var conn = _dataSource.OpenConnection();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = Schema;
-        cmd.ExecuteNonQuery();
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = Schema;
+            cmd.ExecuteNonQuery();
+        }
+
+        // v0.23 idempotent column migrations for audit_log (existing DBs).
+        using (var alter = conn.CreateCommand())
+        {
+            alter.CommandText = @"
+                ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS approval_request_id TEXT;
+                ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS approval_grant_id TEXT;";
+            alter.ExecuteNonQuery();
+        }
     }
 
     public void Dispose()
@@ -181,10 +215,12 @@ CREATE TABLE IF NOT EXISTS leader_leases (
                 insertCmd.CommandText = @"
                     INSERT INTO audit_log (timestamp, capability, token_id, root_principal,
                         invocation_id, client_reference_id, task_id, parent_invocation_id,
-                        upstream_service, data, previous_hash, signature)
+                        upstream_service, approval_request_id, approval_grant_id,
+                        data, previous_hash, signature)
                     VALUES (@timestamp, @capability, @tokenId, @rootPrincipal,
                         @invocationId, @clientReferenceId, @taskId, @parentInvocationId,
-                        @upstreamService, @data, @previousHash, @signature)
+                        @upstreamService, @approvalRequestId, @approvalGrantId,
+                        @data, @previousHash, @signature)
                     RETURNING sequence_number";
                 insertCmd.Parameters.AddWithValue("timestamp", (object?)entry.Timestamp ?? DBNull.Value);
                 insertCmd.Parameters.AddWithValue("capability", (object?)entry.Capability ?? DBNull.Value);
@@ -195,6 +231,8 @@ CREATE TABLE IF NOT EXISTS leader_leases (
                 insertCmd.Parameters.AddWithValue("taskId", (object?)entry.TaskId ?? DBNull.Value);
                 insertCmd.Parameters.AddWithValue("parentInvocationId", (object?)entry.ParentInvocationId ?? DBNull.Value);
                 insertCmd.Parameters.AddWithValue("upstreamService", (object?)entry.UpstreamService ?? DBNull.Value);
+                insertCmd.Parameters.AddWithValue("approvalRequestId", (object?)entry.ApprovalRequestId ?? DBNull.Value);
+                insertCmd.Parameters.AddWithValue("approvalGrantId", (object?)entry.ApprovalGrantId ?? DBNull.Value);
                 insertCmd.Parameters.AddWithValue("data", data);
                 insertCmd.Parameters.AddWithValue("previousHash", prevHash);
                 insertCmd.Parameters.AddWithValue("signature", (object?)entry.Signature ?? DBNull.Value);
@@ -541,6 +579,227 @@ CREATE TABLE IF NOT EXISTS leader_leases (
         cmd.Parameters.AddWithValue("role", role);
         cmd.Parameters.AddWithValue("holder", holder);
         cmd.ExecuteNonQuery();
+    }
+
+    // --- v0.23: ApprovalRequest + ApprovalGrant ---
+
+    public void StoreApprovalRequest(ApprovalRequest request)
+    {
+        var data = JsonSerializer.Serialize(request, s_serializerOptions);
+        using var conn = _dataSource.OpenConnection();
+        // Idempotency: same content is no-op; conflicting content throws.
+        using (var sel = conn.CreateCommand())
+        {
+            sel.CommandText = "SELECT data FROM approval_requests WHERE approval_request_id = @id";
+            sel.Parameters.AddWithValue("id", request.ApprovalRequestId);
+            var existing = sel.ExecuteScalar();
+            if (existing != null && existing != DBNull.Value)
+            {
+                if ((string)existing == data) return;
+                throw new InvalidOperationException(
+                    $"approval_request_id {request.ApprovalRequestId} already stored with different content");
+            }
+        }
+
+        using var insert = conn.CreateCommand();
+        insert.CommandText = @"
+            INSERT INTO approval_requests (approval_request_id, capability, status, expires_at, data)
+            VALUES (@id, @capability, @status, @expiresAt, @data)";
+        insert.Parameters.AddWithValue("id", request.ApprovalRequestId);
+        insert.Parameters.AddWithValue("capability", request.Capability);
+        insert.Parameters.AddWithValue("status", request.Status);
+        insert.Parameters.AddWithValue("expiresAt", request.ExpiresAt);
+        insert.Parameters.AddWithValue("data", data);
+        insert.ExecuteNonQuery();
+    }
+
+    public ApprovalRequest? GetApprovalRequest(string approvalRequestId)
+    {
+        using var conn = _dataSource.OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT data FROM approval_requests WHERE approval_request_id = @id";
+        cmd.Parameters.AddWithValue("id", approvalRequestId);
+        var result = cmd.ExecuteScalar();
+        if (result == null || result == DBNull.Value) return null;
+        return JsonSerializer.Deserialize<ApprovalRequest>((string)result, s_serializerOptions);
+    }
+
+    public ApprovalDecisionResult ApproveRequestAndStoreGrant(
+        string approvalRequestId,
+        ApprovalGrant grant,
+        IDictionary<string, object?> approver,
+        string decidedAtIso,
+        string nowIso)
+    {
+        using var conn = _dataSource.OpenConnection();
+        using var transaction = conn.BeginTransaction();
+        try
+        {
+            ApprovalRequest existing;
+            using (var sel = conn.CreateCommand())
+            {
+                sel.Transaction = transaction;
+                sel.CommandText = "SELECT data, status, expires_at FROM approval_requests WHERE approval_request_id = @id FOR UPDATE";
+                sel.Parameters.AddWithValue("id", approvalRequestId);
+                using var reader = sel.ExecuteReader();
+                if (!reader.Read())
+                {
+                    transaction.Rollback();
+                    return ApprovalDecisionResult.Failure("approval_request_not_found");
+                }
+                var data = reader.GetString(0);
+                var status = reader.GetString(1);
+                var expiresAt = reader.IsDBNull(2) ? null : reader.GetString(2);
+                existing = JsonSerializer.Deserialize<ApprovalRequest>(data, s_serializerOptions)!;
+                if (status != ApprovalRequest.StatusPending)
+                {
+                    transaction.Rollback();
+                    return ApprovalDecisionResult.Failure("approval_request_already_decided");
+                }
+                if (!string.IsNullOrEmpty(expiresAt) &&
+                    string.CompareOrdinal(expiresAt, nowIso) <= 0)
+                {
+                    transaction.Rollback();
+                    return ApprovalDecisionResult.Failure("approval_request_expired");
+                }
+            }
+
+            existing.Status = ApprovalRequest.StatusApproved;
+            existing.Approver = approver.ToDictionary(kv => kv.Key, kv => kv.Value!);
+            existing.DecidedAt = decidedAtIso;
+            var updatedReq = JsonSerializer.Serialize(existing, s_serializerOptions);
+
+            using (var update = conn.CreateCommand())
+            {
+                update.Transaction = transaction;
+                update.CommandText = @"
+                    UPDATE approval_requests
+                    SET status = 'approved', data = @data
+                    WHERE approval_request_id = @id AND status = 'pending'";
+                update.Parameters.AddWithValue("data", updatedReq);
+                update.Parameters.AddWithValue("id", approvalRequestId);
+                if (update.ExecuteNonQuery() != 1)
+                {
+                    transaction.Rollback();
+                    return ApprovalDecisionResult.Failure("approval_request_already_decided");
+                }
+            }
+
+            var grantJson = JsonSerializer.Serialize(grant, s_serializerOptions);
+            using (var insert = conn.CreateCommand())
+            {
+                insert.Transaction = transaction;
+                insert.CommandText = @"
+                    INSERT INTO approval_grants (grant_id, approval_request_id, capability,
+                        expires_at, max_uses, use_count, data)
+                    VALUES (@gid, @arid, @cap, @expires, @maxUses, @useCount, @data)";
+                insert.Parameters.AddWithValue("gid", grant.GrantId);
+                insert.Parameters.AddWithValue("arid", grant.ApprovalRequestId);
+                insert.Parameters.AddWithValue("cap", grant.Capability);
+                insert.Parameters.AddWithValue("expires", grant.ExpiresAt);
+                insert.Parameters.AddWithValue("maxUses", grant.MaxUses);
+                insert.Parameters.AddWithValue("useCount", grant.UseCount);
+                insert.Parameters.AddWithValue("data", grantJson);
+                insert.ExecuteNonQuery();
+            }
+
+            transaction.Commit();
+            return ApprovalDecisionResult.Success(grant);
+        }
+        catch
+        {
+            try { transaction.Rollback(); } catch { /* ignore */ }
+            throw;
+        }
+    }
+
+    public void StoreGrant(ApprovalGrant grant)
+    {
+        var data = JsonSerializer.Serialize(grant, s_serializerOptions);
+        using var conn = _dataSource.OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+            INSERT INTO approval_grants (grant_id, approval_request_id, capability,
+                expires_at, max_uses, use_count, data)
+            VALUES (@gid, @arid, @cap, @expires, @maxUses, @useCount, @data)";
+        cmd.Parameters.AddWithValue("gid", grant.GrantId);
+        cmd.Parameters.AddWithValue("arid", grant.ApprovalRequestId);
+        cmd.Parameters.AddWithValue("cap", grant.Capability);
+        cmd.Parameters.AddWithValue("expires", grant.ExpiresAt);
+        cmd.Parameters.AddWithValue("maxUses", grant.MaxUses);
+        cmd.Parameters.AddWithValue("useCount", grant.UseCount);
+        cmd.Parameters.AddWithValue("data", data);
+        cmd.ExecuteNonQuery();
+    }
+
+    public ApprovalGrant? GetGrant(string grantId)
+    {
+        using var conn = _dataSource.OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT data FROM approval_grants WHERE grant_id = @gid";
+        cmd.Parameters.AddWithValue("gid", grantId);
+        var result = cmd.ExecuteScalar();
+        if (result == null || result == DBNull.Value) return null;
+        return JsonSerializer.Deserialize<ApprovalGrant>((string)result, s_serializerOptions);
+    }
+
+    public GrantReservationResult TryReserveGrant(string grantId, string nowIso)
+    {
+        using var conn = _dataSource.OpenConnection();
+        // The atomic UPDATE ... RETURNING pattern collapses Phase B's CAS into
+        // a single statement. SPEC.md §4.8 — once-only redemption.
+        ApprovalGrant? grant = null;
+        using (var update = conn.CreateCommand())
+        {
+            update.CommandText = @"
+                UPDATE approval_grants
+                SET use_count = use_count + 1
+                WHERE grant_id = @gid AND use_count < max_uses AND expires_at > @now
+                RETURNING data, use_count";
+            update.Parameters.AddWithValue("gid", grantId);
+            update.Parameters.AddWithValue("now", nowIso);
+            using var reader = update.ExecuteReader();
+            if (reader.Read())
+            {
+                grant = JsonSerializer.Deserialize<ApprovalGrant>(reader.GetString(0), s_serializerOptions)!;
+                grant.UseCount = reader.GetInt32(1);
+            }
+        }
+
+        if (grant != null)
+        {
+            using var write = conn.CreateCommand();
+            write.CommandText = "UPDATE approval_grants SET data = @data WHERE grant_id = @gid";
+            write.Parameters.AddWithValue("data", JsonSerializer.Serialize(grant, s_serializerOptions));
+            write.Parameters.AddWithValue("gid", grantId);
+            write.ExecuteNonQuery();
+            return GrantReservationResult.Success(grant);
+        }
+
+        // 0 rows → disambiguate.
+        using (var probe = conn.CreateCommand())
+        {
+            probe.CommandText = "SELECT use_count, max_uses, expires_at FROM approval_grants WHERE grant_id = @gid";
+            probe.Parameters.AddWithValue("gid", grantId);
+            using var reader = probe.ExecuteReader();
+            if (!reader.Read())
+            {
+                return GrantReservationResult.Failure("grant_not_found");
+            }
+            var useCount = reader.GetInt32(0);
+            var maxUses = reader.GetInt32(1);
+            var expiresAt = reader.IsDBNull(2) ? null : reader.GetString(2);
+            if (!string.IsNullOrEmpty(expiresAt) &&
+                string.CompareOrdinal(expiresAt, nowIso) <= 0)
+            {
+                return GrantReservationResult.Failure("grant_expired");
+            }
+            if (useCount >= maxUses)
+            {
+                return GrantReservationResult.Failure("grant_consumed");
+            }
+            return GrantReservationResult.Failure("grant_not_found");
+        }
     }
 
     // --- Helpers ---

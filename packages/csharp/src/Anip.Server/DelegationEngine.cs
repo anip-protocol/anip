@@ -65,6 +65,11 @@ public static class DelegationEngine
         var rootPrincipal = principal;
         string? parent = null;
 
+        // v0.23 SPEC §4.8: child tokens inherit parent.session_id verbatim.
+        // session_id is settable only at root issuance; child requests must
+        // not override it.
+        string? sessionId = request.SessionId;
+
         // If there's a parent token, look it up by ID for sub-delegation.
         if (!string.IsNullOrEmpty(request.ParentToken))
         {
@@ -79,6 +84,7 @@ public static class DelegationEngine
             rootPrincipal = parentToken.RootPrincipal ?? principal;
             parent = parentToken.TokenId;
             constraints = parentToken.Constraints;
+            sessionId = parentToken.SessionId;
 
             // Budget narrowing: child budget must not exceed parent budget.
             if (parentToken.Constraints.Budget != null)
@@ -124,7 +130,8 @@ public static class DelegationEngine
             Expires = expires.ToString("o"),
             Constraints = constraints,
             RootPrincipal = rootPrincipal,
-            CallerClass = request.CallerClass
+            CallerClass = request.CallerClass,
+            SessionId = sessionId
         };
 
         // Store the token.
@@ -229,6 +236,15 @@ public static class DelegationEngine
         {
             throw new AnipError(Constants.FailureInvalidToken,
                 "root_principal mismatch between JWT and stored token");
+        }
+
+        // v0.23 SPEC §4.8: enforce session_id consistency between the signed
+        // JWT and stored state. This is the trust anchor for session_bound
+        // ApprovalGrant continuations.
+        if (!string.IsNullOrEmpty(jwtToken.SessionId) && jwtToken.SessionId != stored.SessionId)
+        {
+            throw new AnipError(Constants.FailureInvalidToken,
+                "session_id mismatch between JWT and stored token");
         }
 
         // 5. Return stored token.

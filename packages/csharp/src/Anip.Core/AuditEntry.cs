@@ -58,6 +58,14 @@ public class AuditEntry
     [JsonPropertyName("upstream_service")]
     public string? UpstreamService { get; set; }
 
+    /// <summary>v0.23: links audit entry to an approval request. SPEC.md §4.7.</summary>
+    [JsonPropertyName("approval_request_id")]
+    public string? ApprovalRequestId { get; set; }
+
+    /// <summary>v0.23: links audit entry to an approval grant. SPEC.md §4.8.</summary>
+    [JsonPropertyName("approval_grant_id")]
+    public string? ApprovalGrantId { get; set; }
+
     [JsonPropertyName("previous_hash")]
     public string? PreviousHash { get; set; }
 
