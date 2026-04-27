@@ -32,4 +32,13 @@ public class TokenRequest
     /// <summary>"allowed" or "exclusive"; defaults to "allowed" if null.</summary>
     [JsonPropertyName("concurrent_branches")]
     public string? ConcurrentBranches { get; set; }
+
+    /// <summary>
+    /// v0.23: bind a session identity to the issued token. Required for
+    /// callers that intend to redeem session_bound ApprovalGrants. Only
+    /// honored at root issuance — child tokens inherit parent.SessionId
+    /// verbatim. SPEC §4.8.
+    /// </summary>
+    [JsonPropertyName("session_id")]
+    public string? SessionId { get; set; }
 }

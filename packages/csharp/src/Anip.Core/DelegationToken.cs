@@ -33,4 +33,12 @@ public class DelegationToken
 
     [JsonPropertyName("caller_class")]
     public string? CallerClass { get; set; }
+
+    /// <summary>
+    /// v0.23: session identity bound at issuance, validated for session_bound
+    /// ApprovalGrant continuations per SPEC.md §4.8. Trust comes from the
+    /// signed token, never from caller-supplied invocation input.
+    /// </summary>
+    [JsonPropertyName("session_id")]
+    public string? SessionId { get; set; }
 }
