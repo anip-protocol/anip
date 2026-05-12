@@ -31,7 +31,7 @@
 | `AggregatedAuditEntry` | Summary record for repeated low-value audit denials | SPEC.md §6.9 |
 | `CheckpointDetailResponse` | Checkpoint response with `expires_hint` for cache management | SPEC.md §6.5 |
 | `InputResolution` | Capability input resolution block (`mode` + `resolver_ref` + `on_missing`/`on_ambiguous`/`on_unresolved`) | SPEC.md §4.10 |
-| `InputMeaning` | Typed input meaning hint (semantic type, entity reference, allowed values, catalog ref) | SPEC.md §4.10 |
+| `InputMeaning` | A labeled reviewed alternative for a closed-values input (label + value + description) | SPEC.md §4.10 |
 
 ## Usage
 
