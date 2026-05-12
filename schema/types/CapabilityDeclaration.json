@@ -110,7 +110,8 @@
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "title": "Resolution"
         }
       },
       "required": [
