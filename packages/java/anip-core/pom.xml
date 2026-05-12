@@ -11,12 +11,24 @@
 
     <artifactId>anip-core</artifactId>
     <name>ANIP Core</name>
-    <description>ANIP protocol types and constants - zero external dependencies</description>
+    <description>ANIP protocol types and constants</description>
 
     <dependencies>
         <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>2.17.2</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.17.2</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
