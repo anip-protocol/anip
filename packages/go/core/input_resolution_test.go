@@ -83,6 +83,16 @@ func TestInputResolution_ClosedValuesRequiresAllowedValues(t *testing.T) {
 	}
 }
 
+func TestInputResolution_ClosedValuesWithEmptyAllowedValuesSlice(t *testing.T) {
+	raw := `{"name":"x","type":"string","allowed_values":[],"resolution":{"mode":"closed_values"}}`
+	var inp CapabilityInput
+	_ = json.Unmarshal([]byte(raw), &inp)
+	err := ValidateCapabilityInput(&inp)
+	if err == nil {
+		t.Errorf("expected error for closed_values with empty allowed_values slice, got nil")
+	}
+}
+
 func TestInputResolution_UseDefaultRequiresDefault(t *testing.T) {
 	raw := `{"name":"x","type":"string","resolution":{"mode":"clarify","on_missing":"use_default"}}`
 	var inp CapabilityInput

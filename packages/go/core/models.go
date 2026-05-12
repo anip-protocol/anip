@@ -176,7 +176,7 @@ func (b *ResolutionBehavior) UnmarshalJSON(data []byte) error {
 	}
 	behavior := ResolutionBehavior(s)
 	if _, ok := validResolutionBehaviors[behavior]; !ok {
-		return fmt.Errorf("invalid resolution behavior: %q", s)
+		return fmt.Errorf("invalid resolution.behavior: %q", s)
 	}
 	*b = behavior
 	return nil
@@ -186,10 +186,10 @@ func (b *ResolutionBehavior) UnmarshalJSON(data []byte) error {
 func (r *InputResolution) UnmarshalJSON(data []byte) error {
 	var raw struct {
 		Mode         *ResolutionMode     `json:"mode"`
-		ResolverRef  *string             `json:"resolver_ref,omitempty"`
-		OnMissing    *ResolutionBehavior `json:"on_missing,omitempty"`
-		OnAmbiguous  *ResolutionBehavior `json:"on_ambiguous,omitempty"`
-		OnUnresolved *ResolutionBehavior `json:"on_unresolved,omitempty"`
+		ResolverRef  *string             `json:"resolver_ref"`
+		OnMissing    *ResolutionBehavior `json:"on_missing"`
+		OnAmbiguous  *ResolutionBehavior `json:"on_ambiguous"`
+		OnUnresolved *ResolutionBehavior `json:"on_unresolved"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
