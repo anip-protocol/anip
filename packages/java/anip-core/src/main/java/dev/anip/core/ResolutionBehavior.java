@@ -1,8 +1,5 @@
 package dev.anip.core;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonValue;
-
 public enum ResolutionBehavior {
     CLARIFY("clarify"),
     USE_DEFAULT("use_default"),
@@ -13,14 +10,19 @@ public enum ResolutionBehavior {
     OMIT("omit");
 
     private final String wire;
-    ResolutionBehavior(String wire) { this.wire = wire; }
 
-    @JsonValue
-    public String wire() { return wire; }
+    ResolutionBehavior(String wire) {
+        this.wire = wire;
+    }
 
-    @JsonCreator
+    public String wire() {
+        return wire;
+    }
+
     public static ResolutionBehavior fromWire(String wire) {
-        for (ResolutionBehavior b : values()) if (b.wire.equals(wire)) return b;
+        for (ResolutionBehavior b : values()) {
+            if (b.wire.equals(wire)) return b;
+        }
         throw new IllegalArgumentException("invalid resolution.behavior: " + wire);
     }
 }

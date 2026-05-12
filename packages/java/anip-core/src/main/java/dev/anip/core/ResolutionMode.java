@@ -1,8 +1,5 @@
 package dev.anip.core;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonValue;
-
 public enum ResolutionMode {
     CLOSED_VALUES("closed_values"),
     BACKEND_RESOLVED("backend_resolved"),
@@ -13,14 +10,19 @@ public enum ResolutionMode {
     CLARIFY("clarify");
 
     private final String wire;
-    ResolutionMode(String wire) { this.wire = wire; }
 
-    @JsonValue
-    public String wire() { return wire; }
+    ResolutionMode(String wire) {
+        this.wire = wire;
+    }
 
-    @JsonCreator
+    public String wire() {
+        return wire;
+    }
+
     public static ResolutionMode fromWire(String wire) {
-        for (ResolutionMode m : values()) if (m.wire.equals(wire)) return m;
+        for (ResolutionMode m : values()) {
+            if (m.wire.equals(wire)) return m;
+        }
         throw new IllegalArgumentException("invalid resolution.mode: " + wire);
     }
 }
