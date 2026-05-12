@@ -57,6 +57,15 @@ describe("v0.24 input resolution", () => {
     })).toThrow();
   });
 
+  it("rejects closed_values with empty allowed_values", () => {
+    expect(() => CapabilityInput.parse({
+      name: "x",
+      type: "string",
+      allowed_values: [],
+      resolution: { mode: "closed_values" },
+    })).toThrow();
+  });
+
   it("rejects use_default without default", () => {
     expect(() => CapabilityInput.parse({
       name: "x",

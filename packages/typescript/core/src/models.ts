@@ -130,10 +130,18 @@ export const CapabilityInput = z.object({
 }).superRefine((data, ctx) => {
   if (data.resolution === null) return;
   if (data.resolution.mode === "closed_values" && (!data.allowed_values || data.allowed_values.length === 0)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "closed_values requires non-empty allowed_values" });
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "closed_values requires non-empty allowed_values",
+      path: ["allowed_values"],
+    });
   }
   if (data.resolution.on_missing === "use_default" && (data.default === null || data.default === undefined)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "on_missing=use_default requires a non-null default" });
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "on_missing=use_default requires a non-null default",
+      path: ["default"],
+    });
   }
 });
 export type CapabilityInput = z.infer<typeof CapabilityInput>;
