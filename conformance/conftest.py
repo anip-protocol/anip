@@ -63,9 +63,9 @@ def sample_inputs(request):
 
     # Refresh issued_at timestamps so bindings are not stale
     now = int(time.time())
-    for _cap, params in data.items():
+    for params in data.values():
         if isinstance(params, dict):
-            for _key, val in params.items():
+            for val in params.values():
                 if isinstance(val, dict) and "issued_at" in val:
                     val["issued_at"] = now
 
