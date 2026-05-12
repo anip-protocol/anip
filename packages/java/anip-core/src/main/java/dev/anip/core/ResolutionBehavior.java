@@ -23,6 +23,6 @@ public enum ResolutionBehavior {
         for (ResolutionBehavior b : values()) {
             if (b.wire.equals(wire)) return b;
         }
-        throw new IllegalArgumentException("invalid resolution.behavior: " + wire);
+        throw new IllegalArgumentException("invalid resolution behavior value: " + wire);
     }
 }

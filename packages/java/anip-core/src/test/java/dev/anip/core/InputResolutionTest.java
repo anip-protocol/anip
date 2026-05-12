@@ -96,5 +96,6 @@ class InputResolutionTest {
         assertEquals("use_default", ResolutionBehavior.USE_DEFAULT.wire());
         assertEquals("app_select_or_clarify", ResolutionBehavior.APP_SELECT_OR_CLARIFY.wire());
         assertSame(ResolutionMode.BACKEND_RESOLVED, ResolutionMode.fromWire("backend_resolved"));
+        assertSame(ResolutionBehavior.USE_DEFAULT, ResolutionBehavior.fromWire("use_default"));
     }
 }
