@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Xunit;
 using Anip.Core;
 
 namespace Anip.Core.Tests;
@@ -54,6 +53,15 @@ public class InputResolutionTests
     {
         var raw = @"{""name"":""x"",""type"":""string"",""resolution"":{""mode"":""closed_values""}}";
         var inp = JsonSerializer.Deserialize<CapabilityInput>(raw, Opts)!;
+        Assert.Throws<ArgumentException>(() => CapabilityInput.Validate(inp));
+    }
+
+    [Fact]
+    public void ClosedValuesWithEmptyAllowedValuesRejected()
+    {
+        var raw = @"{""name"":""x"",""type"":""string"",""allowed_values"":[],""resolution"":{""mode"":""closed_values""}}";
+        var inp = JsonSerializer.Deserialize<CapabilityInput>(raw, Opts)!;
+        Assert.NotNull(inp.AllowedValues);
         Assert.Throws<ArgumentException>(() => CapabilityInput.Validate(inp));
     }
 
