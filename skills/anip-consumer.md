@@ -35,7 +35,7 @@ Steps 1-3 are always sequential. Steps 4-7 may repeat as you invoke multiple cap
 
 | Field | What it tells you | Action |
 |-------|-------------------|--------|
-| `protocol` | ANIP version (e.g., `anip/1.0`) | Verify you support this version. Stop if you don't. |
+| `protocol` | ANIP version (e.g., `anip/0.24`) | Verify you support this version. Stop if you don't. |
 | `compliance` | `anip-compliant` or `anip-complete` | Compliant = 5 core primitives only. Complete = all 9. Adjust expectations accordingly. |
 | `profile` | Which primitives are implemented and their versions | Use this to decide what to require in the handshake. |
 | `capabilities` | Map of capability names → summary metadata | **This is your decision surface.** See below. |

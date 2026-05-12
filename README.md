@@ -327,15 +327,15 @@ For advanced use cases that need direct access to the SDK primitives (KeyManager
 
 ## Status
 
-ANIP is under active development. The spec is at v0.23 with capability composition and approval grants — building on v0.22's canonical `parent_token` semantics and delegated capability-targeted issuance, v0.21's cross-service contracts and structured recovery targets, v0.20's bootstrap auth hardening and capability-targeted root issuance, and earlier foundations through v0.19. Multi-agent coordination and federated trust remain open. See [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v1) for the full breakdown.
+ANIP is under active development. The spec is at v0.24 with input resolution metadata — building on v0.23's capability composition and approval grants, v0.22's canonical `parent_token` semantics and delegated capability-targeted issuance, v0.21's cross-service contracts and structured recovery targets, v0.20's bootstrap auth hardening and capability-targeted root issuance, and earlier foundations through v0.19. Multi-agent coordination and federated trust remain open. See [SPEC.md § Roadmap](SPEC.md#13-roadmap-v01--v1) for the full breakdown.
 
-> **v0.23 ships capability composition + approval grants.** Composed capabilities declare their step graph as protocol-visible metadata (`kind: composed` + `composition`) so audit and verification see the same shape agents see. The `approval_required` failure now persists an `ApprovalRequest`, and approvers issue a signed `ApprovalGrant` (`one_time` or `session_bound`) that the requester redeems on a follow-up invoke. Session identity is bound into the signed delegation token (`anip:session_id`), so session-bound continuations can't be forged from request bodies. All five runtimes — Python, TypeScript, Go, Java, C# — implement v0.23 end-to-end with cross-runtime grant signature compatibility. Building on v0.22's delegated issuance, v0.21's `cross_service_contract` / `recovery_target`, v0.20's bootstrap auth, and all features through v0.19.
+> **v0.24 ships input resolution metadata.** Capability inputs declare a `resolution` block (`mode` + `resolver_ref` + `on_missing`/`on_ambiguous`/`on_unresolved`) so runtimes, generators, and agents have a portable contract for whether an input is closed-enum, backend-resolved, app-selected, actor-policy-derived, explicit-only, or clarify-on-miss. Adjacent typed hints (`semantic_type`, `entity_reference`, `allowed_values`, `catalog_ref`, `input_meanings`) give the resolution block its substrate. Pure additive — v0.23 manifests parse unchanged. Building on v0.23's capability composition + approval grants, v0.22's delegated issuance, v0.21's `cross_service_contract` / `recovery_target`, v0.20's bootstrap auth, and all features through v0.19.
 
 This is a community effort. We'd rather define this standard thoughtfully and in the open than let it emerge ad-hoc.
 
 **What exists today:**
 - [Manifesto](MANIFESTO.md) — why this moment matters
-- [Spec](SPEC.md) — the technical design (v0.23)
+- [Spec](SPEC.md) — the technical design (v0.24)
 - [Guide](GUIDE.md) — walkthrough of the reference implementation with design rationale
 - [Reference implementation — Python](examples/anip/) — `anip-service` + FastAPI, ~150 lines of business logic
 - [Reference implementation — TypeScript](examples/anip-ts/) — `@anip-dev/service` + Hono, same capabilities and endpoints

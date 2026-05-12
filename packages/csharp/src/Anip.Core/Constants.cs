@@ -2,7 +2,7 @@ namespace Anip.Core;
 
 public static class Constants
 {
-    public const string ProtocolVersion = "anip/0.23";
+    public const string ProtocolVersion = "anip/0.24";
     public const string ManifestVersion = "0.10.0";
 
     // Failure types

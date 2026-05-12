@@ -41,6 +41,77 @@
           "default": "",
           "title": "Description",
           "type": "string"
+        },
+        "semantic_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Semantic Type"
+        },
+        "entity_reference": {
+          "default": false,
+          "title": "Entity Reference",
+          "type": "boolean"
+        },
+        "allowed_values": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Allowed Values"
+        },
+        "catalog_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Catalog Ref"
+        },
+        "input_meanings": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/InputMeaning"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Input Meanings"
+        },
+        "resolution": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InputResolution"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolution"
         }
       },
       "required": [
@@ -173,6 +244,126 @@
       ],
       "title": "CostCertainty",
       "type": "string"
+    },
+    "InputMeaning": {
+      "properties": {
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "value"
+      ],
+      "title": "InputMeaning",
+      "type": "object"
+    },
+    "InputResolution": {
+      "properties": {
+        "mode": {
+          "enum": [
+            "closed_values",
+            "backend_resolved",
+            "app_selected",
+            "actor_policy",
+            "actor_policy_or_explicit",
+            "explicit_only",
+            "clarify"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "resolver_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolver Ref"
+        },
+        "on_missing": {
+          "anyOf": [
+            {
+              "enum": [
+                "clarify",
+                "use_default",
+                "use_actor_scope",
+                "app_select_or_clarify",
+                "deny",
+                "deny_or_clarify",
+                "omit"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "On Missing"
+        },
+        "on_ambiguous": {
+          "anyOf": [
+            {
+              "enum": [
+                "clarify",
+                "use_default",
+                "use_actor_scope",
+                "app_select_or_clarify",
+                "deny",
+                "deny_or_clarify",
+                "omit"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "On Ambiguous"
+        },
+        "on_unresolved": {
+          "anyOf": [
+            {
+              "enum": [
+                "clarify",
+                "use_default",
+                "use_actor_scope",
+                "app_select_or_clarify",
+                "deny",
+                "deny_or_clarify",
+                "omit"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "On Unresolved"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "title": "InputResolution",
+      "type": "object"
     },
     "ObservabilityContract": {
       "properties": {

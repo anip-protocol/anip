@@ -133,12 +133,62 @@ class RecoveryTarget(BaseModel):
 # --- Capability Declaration ---
 
 
+class ResolutionMode(str, Enum):
+    CLOSED_VALUES = "closed_values"
+    BACKEND_RESOLVED = "backend_resolved"
+    APP_SELECTED = "app_selected"
+    ACTOR_POLICY = "actor_policy"
+    ACTOR_POLICY_OR_EXPLICIT = "actor_policy_or_explicit"
+    EXPLICIT_ONLY = "explicit_only"
+    CLARIFY = "clarify"
+
+
+class ResolutionBehavior(str, Enum):
+    CLARIFY = "clarify"
+    USE_DEFAULT = "use_default"
+    USE_ACTOR_SCOPE = "use_actor_scope"
+    APP_SELECT_OR_CLARIFY = "app_select_or_clarify"
+    DENY = "deny"
+    DENY_OR_CLARIFY = "deny_or_clarify"
+    OMIT = "omit"
+
+
+class InputResolution(BaseModel):
+    mode: ResolutionMode
+    resolver_ref: str | None = None
+    on_missing: ResolutionBehavior | None = None
+    on_ambiguous: ResolutionBehavior | None = None
+    on_unresolved: ResolutionBehavior | None = None
+
+
+class InputMeaning(BaseModel):
+    label: str
+    value: str
+    description: str = ""
+
+
 class CapabilityInput(BaseModel):
     name: str
     type: str
     required: bool = True
     default: Any = None
     description: str = ""
+    semantic_type: str | None = None
+    entity_reference: bool = False
+    allowed_values: list[str] | None = None
+    catalog_ref: str | None = None
+    input_meanings: list[InputMeaning] | None = None
+    resolution: InputResolution | None = None
+
+    @model_validator(mode="after")
+    def _validate_resolution_cross_fields(self) -> "CapabilityInput":
+        if self.resolution is None:
+            return self
+        if self.resolution.mode == ResolutionMode.CLOSED_VALUES and not self.allowed_values:
+            raise ValueError("closed_values requires non-empty allowed_values")
+        if self.resolution.on_missing == ResolutionBehavior.USE_DEFAULT and self.default is None:
+            raise ValueError("on_missing=use_default requires a non-null default")
+        return self
 
 
 class CapabilityOutput(BaseModel):
@@ -606,7 +656,7 @@ class DiscoveryPosture(BaseModel):
 
 
 class ANIPManifest(BaseModel):
-    protocol: str = "anip/0.22"
+    protocol: str = "anip/0.24"
     profile: ProfileVersions
     capabilities: dict[str, CapabilityDeclaration]
     manifest_metadata: ManifestMetadata | None = None

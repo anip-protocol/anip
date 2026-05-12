@@ -17,6 +17,7 @@ import dev.anip.core.DelegationToken;
 import dev.anip.core.PermissionResponse;
 import dev.anip.core.TokenRequest;
 import dev.anip.core.TokenResponse;
+import dev.anip.server.AnipJacksonModule;
 import dev.anip.service.ANIPService;
 import dev.anip.service.InvokeOpts;
 import dev.anip.service.SignedManifest;
@@ -93,6 +94,7 @@ public class AnipStdioServer {
     );
 
     private static final ObjectMapper MAPPER = new ObjectMapper()
+            .registerModule(new AnipJacksonModule())
             .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
             .setSerializationInclusion(JsonInclude.Include.NON_NULL)
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)

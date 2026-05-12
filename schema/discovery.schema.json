@@ -13,7 +13,7 @@
         "protocol": {
           "type": "string",
           "pattern": "^anip/\\d+\\.\\d+$",
-          "description": "ANIP protocol version (e.g., 'anip/1.0')"
+          "description": "ANIP protocol version (e.g., 'anip/0.24')"
         },
         "compliance": {
           "type": "string",

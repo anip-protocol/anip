@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 
 import dev.anip.core.ANIPError;
 import dev.anip.core.ApprovalGrant;
+import dev.anip.server.AnipJacksonModule;
 import dev.anip.core.ApprovalRequest;
 import dev.anip.core.AuditFilters;
 import dev.anip.core.AuditResponse;
@@ -62,6 +63,7 @@ import java.util.concurrent.TimeUnit;
 public class AnipResource {
 
     private static final ObjectMapper MAPPER = new ObjectMapper()
+            .registerModule(new AnipJacksonModule())
             .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
             .setSerializationInclusion(JsonInclude.Include.NON_NULL)
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)

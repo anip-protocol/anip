@@ -8,9 +8,9 @@ const DECLARATION: CapabilityDeclaration = {
   description: "Search available flights by origin, destination, and date",
   contract_version: "1.0",
   inputs: [
-    { name: "origin", type: "airport_code", required: true, default: null, description: "Departure airport" },
-    { name: "destination", type: "airport_code", required: true, default: null, description: "Arrival airport" },
-    { name: "date", type: "date", required: true, default: null, description: "Travel date (YYYY-MM-DD)" },
+    { name: "origin", type: "airport_code", required: true, default: null, description: "Departure airport", semantic_type: null, entity_reference: false, allowed_values: null, catalog_ref: null, input_meanings: null, resolution: null },
+    { name: "destination", type: "airport_code", required: true, default: null, description: "Arrival airport", semantic_type: null, entity_reference: false, allowed_values: null, catalog_ref: null, input_meanings: null, resolution: null },
+    { name: "date", type: "date", required: true, default: null, description: "Travel date (YYYY-MM-DD)", semantic_type: null, entity_reference: false, allowed_values: null, catalog_ref: null, input_meanings: null, resolution: null },
   ],
   output: { type: "flight_list", fields: ["flight_number", "departure_time", "arrival_time", "price", "stops", "quote_id"] },
   side_effect: { type: "read", rollback_window: "not_applicable" },

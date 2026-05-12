@@ -1,4 +1,4 @@
-# ANIP Specification v0.23
+# ANIP Specification v0.24
 
 > Agent-Native Interface Protocol — Draft
 
@@ -1121,6 +1121,101 @@ The `approval_request_created` event provides the invocation → request link. T
 
 If audit cannot reconstruct the approval and composition lineage, the implementation does not satisfy v0.23.
 
+### 4.10 Input Resolution Metadata (v0.24)
+
+Input resolution is the seam between caller-provided values and service-side validation. A capability input MAY declare a `resolution` block that names how the value is expected to be produced: from a closed enum, from a backend resolver over an open-ended reference, from an app-side selection, from actor/session policy, or from explicit clarification. Declaring resolution explicitly stops downstream runtimes from inferring it from the input's name or type, and stops normalization layers from leaking command words into scope-like fields. The protocol declares the seam; the service implementation decides whether that seam uses SQL, CRM lookup, vector search, SaaS API call, cached catalog, or custom code.
+
+#### InputResolution Object
+
+`CapabilityInput.resolution` is an optional `InputResolution` block:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `mode` | enum | Yes | The resolution mode (see §"Resolution Modes" below). MUST be one of the seven values; unknown values MUST be rejected at decode. |
+| `resolver_ref` | string | No | Free-form identifier naming the resolver responsibility (e.g. `gtm.cohort_catalog`). See §"Resolver Reference Semantics". |
+| `on_missing` | enum | No | Behavior when the input is absent. One of the seven failure-behavior values (see §"Failure Behaviors"). |
+| `on_ambiguous` | enum | No | Behavior when the value is provided but resolves to multiple candidates. Same enum as `on_missing`. |
+| `on_unresolved` | enum | No | Behavior when the value is provided but the resolver cannot match it to any candidate. Same enum as `on_missing`. |
+
+Only `mode` is required. Manifests omitting the optional fields are well-formed.
+
+#### Resolution Modes
+
+`InputResolution.mode` MUST be one of exactly these seven values:
+
+| Mode | Meaning |
+|---|---|
+| `closed_values` | Value must come from `allowed_values`, `input_meanings`, the input's `default`, or an equivalent reviewed catalog. Open text is not accepted. |
+| `backend_resolved` | Caller MAY provide an open-ended reference. The service/backend resolver validates and resolves it. |
+| `app_selected` | The consuming app SHOULD select or clarify the value before invocation. |
+| `actor_policy` | Value comes from actor/session/policy context. Caller-supplied values MUST NOT override the policy-resolved value. |
+| `actor_policy_or_explicit` | Use the actor/session default unless the caller explicitly supplies a concrete governed scope; an explicit caller value takes precedence over the policy default. |
+| `explicit_only` | Runtime MUST NOT infer. Caller MUST provide a concrete value or clarify. |
+| `clarify` | Missing or ambiguous input MUST produce clarification. |
+
+The enum is deliberately small. Project-specific modes are not added at the protocol layer.
+
+#### Failure Behaviors
+
+Each of `on_missing`, `on_ambiguous`, and `on_unresolved` MUST be one of exactly these seven values:
+
+| Value | Meaning |
+|---|---|
+| `clarify` | Return a clarification request to the caller. |
+| `use_default` | Apply the input's declared `default` value. When set on `on_missing`, the input's `default` field MUST be non-null (see §"Validation Layering"). When set on `on_ambiguous` or `on_unresolved`, no such requirement applies — applying a default to an ambiguous or unresolved value is at the runtime's discretion. |
+| `use_actor_scope` | Substitute the actor/session policy scope. |
+| `app_select_or_clarify` | The consuming app SHOULD select the value; if it cannot, return clarification. |
+| `deny` | Reject the invocation. |
+| `deny_or_clarify` | Clarify if the missing or ambiguous value can plausibly be recovered through dialogue; otherwise reject the invocation. |
+| `omit` | Treat the input as absent and proceed. |
+
+These values are machine-readable; they MUST NOT be replaced with free-form prose.
+
+#### Resolver Reference Semantics
+
+`resolver_ref` is a free-form string identifier (typically a dotted name such as `gtm.account_catalog`, `gtm.cohort_catalog`, `jira.issue_catalog`). It names the resolver responsibility that the service implementation owns.
+
+`resolver_ref` is NOT a capability ID. It is NOT validated at the protocol layer — the protocol does not require it to resolve to any declared capability, registry entry, or service in the manifest. Agents MUST NOT invoke `resolver_ref` directly; the agent still invokes the surrounding business capability, and the service uses `resolver_ref` internally to validate or resolve the input. If lookup or search is itself a user-visible operation, services SHOULD declare it as a separate ordinary capability — that is independent of `resolver_ref`.
+
+#### Adjacent Hint Fields
+
+`CapabilityInput` carries the typed substrate that `resolution` builds on. All are optional:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `semantic_type` | string | Free-form slug naming the domain category of the input (e.g. `"cohort_reference"`, `"scope_reference"`, `"business_category"`). Not enum-constrained at the protocol layer. |
+| `entity_reference` | boolean | Defaults `false`. Marks the input as a reference to a domain entity rather than a literal value. |
+| `allowed_values` | array of string | Closed enum candidates. Required to be non-empty when `resolution.mode == "closed_values"`. |
+| `catalog_ref` | string | Identifier for a single reviewed catalog (e.g. `"gtm.account_catalog"`). Named `catalog_ref` (not `reference_catalog`) to leave room for a future plural map of catalogs without naming collision. |
+| `input_meanings` | array of `InputMeaning` | Labeled reviewed alternatives. Each entry has `{ label, value, description }`. |
+
+These fields are descriptive metadata only at the protocol layer; runtimes consume them, but the protocol does not impose additional cross-field rules beyond those in §"Validation Layering".
+
+#### Validation Layering
+
+Validation of `resolution` is layered, with explicit responsibilities at each layer:
+
+**Decode / model-validation layer rejection** (fails loudly when given invalid input). The following MUST be rejected at the runtime's decode or model-validation entry point: unknown values for `resolution.mode`, `resolution.on_missing`, `resolution.on_ambiguous`, and `resolution.on_unresolved`; and `resolution.mode == null` (missing required field). The rejection mechanism per runtime is:
+
+- **Python:** Pydantic enum validators run at `model_validate(...)`; invalid input raises `ValidationError` synchronously.
+- **TypeScript:** zod `z.enum(...)` rejects at `parse()`.
+- **Go:** custom `UnmarshalJSON` on `ResolutionMode`, `ResolutionBehavior`, and `InputResolution` so `json.Unmarshal` itself fails (without `UnmarshalJSON`, Go's plain string typing would silently accept anything).
+- **Java:** `anip-core` types are JSON-stack-agnostic POJOs/records — no Jackson annotations. Transport modules register `dev.anip.server.AnipJacksonModule` on their `ObjectMapper`, which bridges enum wire values via the `wire()` / `fromWire(String)` static contract on each enum. Jackson then throws on unknown wire values during `readValue`. `InputResolution`'s canonical constructor null-checks `mode`.
+- **C#:** a `JsonConverter` on each enum throws `JsonException` on unknown values during deserialization. `Mode` is typed nullable (`ResolutionMode?`) so missing-mode deserialises to `null`; `CapabilityInput.Validate(...)` then rejects null `Mode` as part of the cross-field check. C# is the one runtime where the missing-mode rejection lives in `Validate(...)` rather than at decode — see the auto-invoke asymmetry note below.
+
+**Cross-field validation** (a separate validator step in each runtime; NOT expressed in JSON Schema). Two hard rules MUST be enforced:
+
+- If `resolution.mode == "closed_values"`, then `allowed_values` MUST be non-empty.
+- If `resolution.on_missing == "use_default"`, then the input's `default` field MUST be non-null. This rule applies ONLY to `on_missing`; `on_ambiguous` and `on_unresolved` may also be set to `use_default` but do not trigger this cross-field constraint.
+
+Cross-field rules live in model-level validators (`ValidateCapabilityInput` in Go; pydantic `@model_validator` in Python; zod `.superRefine` in TypeScript; static `validate(...)` methods in Java and C#) because expressing the "`default`: any non-null literal" constraint cleanly across all JSON Schema validators is impractical. The JSON Schema in `schema/types/CapabilityDeclaration.json` enforces shape and enum membership only.
+
+**Auto-invoke asymmetry.** Python and TypeScript invoke cross-field validation automatically as part of the standard parsing entry point (`model_validate(...)` runs `@model_validator(mode="after")`; `parse(...)` runs `.superRefine(...)`). Go, Java, and C# expose cross-field validation as a separate explicit call (`ValidateCapabilityInput(...)`, `CapabilityInput.validate(...)`, `CapabilityInput.Validate(...)`) that callers must invoke. v0.24 ships the model-level validators in every runtime; wiring these validators into existing manifest and service-definition load paths so they run automatically on every load in Go, Java, and C# is a follow-up — it is not a v0.24 requirement.
+
+#### Backward Compatibility
+
+v0.23 manifests parse unchanged under v0.24 loaders. Loaders MUST treat a missing `resolution` block as `null` on the deserialized `CapabilityInput`. The adjacent hint fields (`semantic_type`, `entity_reference`, `allowed_values`, `catalog_ref`, `input_meanings`) are likewise optional; absence is well-formed. v0.24 manifests MAY include `resolution` and the adjacent hint fields, but are not required to.
+
 ---
 
 ## 5. Contextual Primitives
@@ -1330,7 +1425,7 @@ The discovery document MUST conform to this schema:
 ```yaml
 # GET /.well-known/anip
 anip_discovery:
-  protocol: "anip/1.0"
+  protocol: "anip/0.24"
   compliance: "anip-compliant"              # or "anip-complete" — see §3
   base_url: "https://flights.example.com"  # injected by HTTP binding layer at request time, not hardcoded
   profile:
@@ -1506,7 +1601,7 @@ An agent MUST be able to fetch this endpoint without a delegation token. This is
 
 ```yaml
 anip_manifest:
-  protocol: "anip/1.0"
+  protocol: "anip/0.24"
   profile:
     core: "1.0"
     cost: "1.0"
@@ -2774,9 +2869,10 @@ Not all gaps are equal. The critical distinction is between *protocol requiremen
 | **Delegated capability-targeted issuance (§6.3)** | SHOULD — v0.22 | Implemented: `issueDelegatedCapabilityToken()` helper in all runtimes | — |
 | **Capability composition (§4.6)** | MAY — v0.23 | Schema and core model support landed: `CapabilityKind`, `Composition`, `CompositionStep`, `FailurePolicy`, `AuditPolicy`, `EmptyResultPolicy`, `AuthorityBoundary` types in all five runtime cores with structural validation. Composition execution, step DAG validation, empty-result branching, and audit lineage emission are pending. | Composition execution; multi-level composition with cycle detection; `same_package` and `external_service` boundaries |
 | **Approval requests and grants (§4.7, §4.8, §4.9)** | MUST when service emits `approval_required` — v0.23 | Schema and core model support landed: `ApprovalRequest`, `ApprovalGrant`, `GrantPolicy`, `ApprovalRequiredMetadata`, `IssueApprovalGrantRequest`/`Response` types in all five runtime cores. Persistence, signing, atomic `approve_request_and_store_grant` / `try_reserve_grant` storage primitives, `POST /anip/approval_grants` endpoint handler, audit linkage events, and capability-runtime integration are pending. **Services MUST NOT advertise `anip/0.23` until the full runtime is present** — see §10. | Persistence + signing + atomic primitives + endpoint handler; denial flow; multi-approver workflows; cross-service approval propagation |
+| **Input resolution metadata (§4.10)** | MAY — v0.24 | Schema and core model support landed: `InputResolution`, `InputMeaning`, `ResolutionMode`, `ResolutionBehavior` types plus adjacent hint fields (`semantic_type`, `entity_reference`, `allowed_values`, `catalog_ref`, `input_meanings`) on `CapabilityInput` in all five runtime cores, with decode-layer enum rejection and model-level cross-field validators (`closed_values` requires `allowed_values`; `on_missing=use_default` requires non-null `default`). Auto-invoke wiring for the static-typed runtimes' validators on manifest/service-definition load (Go, Java, C#), generator pass-through into service-definition and agent-consumption artifacts, Studio UI editing, registry display, and runtime consumption of `resolution.mode` are pending. | Auto-invoke wiring for Go/Java/C# validators; generator pass-through; Studio UI; registry display; runtime consumption |
 | **Cryptographic chain verification** | — | — | Authorization server, cryptographic DAG validation across services, federated trust |
 
-The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. v0.9 completes the audit story — aggregation collapses noise, storage-side redaction strips low-value parameters at write time, caller-class-aware redaction resolves disclosure per-caller, and proof expiration guidance closes the client-side gap. v0.10 adds horizontal scaling — storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, and leader-elected background job coordination enable multi-replica deployments without protocol invariant violations. v0.11 adds observability hooks — callback-based logging, metrics, tracing, and diagnostics injection points let adopters plug in their observability stack without hard dependencies, plus a `getHealth()` runtime snapshot and optional health endpoint. v0.14 adds pre-execution control surfaces — structured budget constraints in delegation tokens with pre-execution enforcement, execution-time binding requirements (`requires_binding`) for quote-based workflows, and explicit control requirement declarations (`control_requirements`) that let capabilities declare what must be true before invocation. v0.20 hardens runtime ergonomics — an explicit bootstrap authentication contract (sync minimum, optional async), a capability-targeted root token issuance helper that prevents `purpose_mismatch` errors, and a clear deferral of delegation convenience helpers pending `parent_token` semantic resolution. v0.21 hardens cross-service continuation and recovery semantics — `cross_service_contract` adds structured task-local adjacent-step meaning (handoff, followup, verification) that is stronger than advisory hints, and `recovery_target` adds machine-readable recovery targets to failure resolution objects. v0.22 clarifies `parent_token` semantics (token ID string, not JWT) and adds delegated capability-targeted issuance (`issueDelegatedCapabilityToken()`) as the delegation counterpart to v0.20's root issuance helper. v0.23 makes two long-implicit concerns protocol-visible: capability composition (`kind: composed` with declarative step/mapping/policy metadata so business-level composed capabilities stay one bounded invocation surface for agents) and approval grants (signed, atomically-issued, parameter-digest-bound authorization objects with `one_time` and `session_bound` types replacing v0.22's request-state-only approval flow). Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
+The guiding principle: v0.1 declared the contracts. v0.2 adds cryptographic enforcement for delegation tokens, manifests, and audit logs. v0.3 adds anchored trust — Merkle checkpoints, inclusion/consistency proofs, policy hooks, and external sink publication make audit log integrity verifiable after the fact. v0.4 adds invocation lineage — server-generated and caller-supplied identifiers for end-to-end traceability. v0.5 makes the storage layer fully async. v0.6 adds streaming invocations — SSE-based progress events with delivery tracking and transport fault isolation. v0.7 adds discovery posture — governance-relevant service characteristics (audit, lineage, metadata policy, failure disclosure, anchoring) exposed in the discovery document for pre-invocation trust decisions. v0.8 adds security hardening — event classification, retention enforcement, and failure redaction turn declared governance into enforceable behavior. v0.9 completes the audit story — aggregation collapses noise, storage-side redaction strips low-value parameters at write time, caller-class-aware redaction resolves disclosure per-caller, and proof expiration guidance closes the client-side gap. v0.10 adds horizontal scaling — storage-atomic audit append, storage-derived checkpoint generation, lease-based distributed exclusivity, and leader-elected background job coordination enable multi-replica deployments without protocol invariant violations. v0.11 adds observability hooks — callback-based logging, metrics, tracing, and diagnostics injection points let adopters plug in their observability stack without hard dependencies, plus a `getHealth()` runtime snapshot and optional health endpoint. v0.14 adds pre-execution control surfaces — structured budget constraints in delegation tokens with pre-execution enforcement, execution-time binding requirements (`requires_binding`) for quote-based workflows, and explicit control requirement declarations (`control_requirements`) that let capabilities declare what must be true before invocation. v0.20 hardens runtime ergonomics — an explicit bootstrap authentication contract (sync minimum, optional async), a capability-targeted root token issuance helper that prevents `purpose_mismatch` errors, and a clear deferral of delegation convenience helpers pending `parent_token` semantic resolution. v0.21 hardens cross-service continuation and recovery semantics — `cross_service_contract` adds structured task-local adjacent-step meaning (handoff, followup, verification) that is stronger than advisory hints, and `recovery_target` adds machine-readable recovery targets to failure resolution objects. v0.22 clarifies `parent_token` semantics (token ID string, not JWT) and adds delegated capability-targeted issuance (`issueDelegatedCapabilityToken()`) as the delegation counterpart to v0.20's root issuance helper. v0.23 makes two long-implicit concerns protocol-visible: capability composition (`kind: composed` with declarative step/mapping/policy metadata so business-level composed capabilities stay one bounded invocation surface for agents) and approval grants (signed, atomically-issued, parameter-digest-bound authorization objects with `one_time` and `session_bound` types replacing v0.22's request-state-only approval flow). v0.24 makes input resolution protocol-visible: the optional `resolution` block on each capability input declares whether a value comes from a closed enum, a backend resolver over an open-ended reference, an app-side selection, actor/session policy, or explicit clarification, with bounded enums for missing/ambiguous/unresolved behavior, so runtimes stop inferring resolution from input names or types and stop leaking command words into scope-like fields. Future versions will extend trust guarantees across service boundaries. The distinction is not coding difficulty — it is protocol maturity. A "Protocol Requirement Level" of `—` means we are not claiming it as a guarantee. A "Reference Implementation Status" of `Implemented` means the code exists. A "Future Protocol Work" entry means we know what's needed and why it's hard.
 
 **What solving these gaps unlocks.** When trust and verification become real — not declarative — agents can evaluate risk before acting. Delegated authority becomes expressible in ways current tool layers can't handle. Failures become operationally useful, not just descriptive. High-stakes actions — travel, procurement, finance ops, approvals, multi-step orchestration — become automatable with real control surfaces. At that point, ANIP solves one of the central coordination problems of agent deployment: how an agent knows what it's allowed to do, what will happen if it does it, and how to recover when something blocks it.
 
@@ -2812,7 +2908,7 @@ These are unresolved design questions where community input is needed:
 
 ---
 
-*ANIP is an open specification under active development. This is v0.23 — capability composition (`kind: composed`, §4.6) and approval grants (§4.7–§4.9) make two previously-hidden concerns protocol-visible: business-level composed capabilities stay one bounded invocation surface for agents while the runtime owns internal step orchestration with declarative empty-result and failure policies; approvals return signed, atomically-issued, parameter-digest-bound authorization grants instead of mutable request state. This builds on v0.22's canonical `parent_token` semantics and delegated issuance helper, v0.21's cross-service contracts and structured recovery targets, v0.20's bootstrap auth and capability-targeted issuance, v0.14's pre-execution control surfaces, v0.11's observability hooks, v0.10's horizontal scaling, v0.9's audit aggregation and redaction, v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, v0.3's anchored trust, v0.4's invocation lineage, and v0.5's async storage. Cross-service trust remains a future goal. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
+*ANIP is an open specification under active development. This is v0.24 — input resolution metadata (§4.10) makes the seam between caller-provided values and service-side validation protocol-visible: each capability input MAY declare a `resolution` block naming how its value is produced (closed enum, backend-resolved reference, app-selected, actor/session policy, explicit-only, clarify-on-miss) with bounded enums for missing/ambiguous/unresolved behavior, so runtimes stop inferring resolution from input names or types and stop leaking command words into scope-like fields. This builds on v0.23's capability composition (`kind: composed`, §4.6) and approval grants (§4.7–§4.9), v0.22's canonical `parent_token` semantics and delegated issuance helper, v0.21's cross-service contracts and structured recovery targets, v0.20's bootstrap auth and capability-targeted issuance, v0.14's pre-execution control surfaces, v0.11's observability hooks, v0.10's horizontal scaling, v0.9's audit aggregation and redaction, v0.8's security hardening, v0.7's discovery posture, v0.6's streaming invocations, v0.3's anchored trust, v0.4's invocation lineage, and v0.5's async storage. Cross-service trust remains a future goal. If you see something missing, wrong, or underspecified, [open an issue](https://github.com/anip-protocol/anip/issues).*
 
 ---
 

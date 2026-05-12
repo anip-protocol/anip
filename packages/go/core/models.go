@@ -1,5 +1,10 @@
 package core
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 // --- Financial Cost ---
 
 // FinancialCost describes the financial cost of a capability invocation.
@@ -99,13 +104,122 @@ type SideEffect struct {
 
 // --- Capability Declaration ---
 
+// --- Input Resolution (v0.24) ---
+
+type ResolutionMode string
+
+const (
+	ResolutionModeClosedValues          ResolutionMode = "closed_values"
+	ResolutionModeBackendResolved       ResolutionMode = "backend_resolved"
+	ResolutionModeAppSelected           ResolutionMode = "app_selected"
+	ResolutionModeActorPolicy           ResolutionMode = "actor_policy"
+	ResolutionModeActorPolicyOrExplicit ResolutionMode = "actor_policy_or_explicit"
+	ResolutionModeExplicitOnly          ResolutionMode = "explicit_only"
+	ResolutionModeClarify               ResolutionMode = "clarify"
+)
+
+type ResolutionBehavior string
+
+const (
+	ResolutionBehaviorClarify            ResolutionBehavior = "clarify"
+	ResolutionBehaviorUseDefault         ResolutionBehavior = "use_default"
+	ResolutionBehaviorUseActorScope      ResolutionBehavior = "use_actor_scope"
+	ResolutionBehaviorAppSelectOrClarify ResolutionBehavior = "app_select_or_clarify"
+	ResolutionBehaviorDeny               ResolutionBehavior = "deny"
+	ResolutionBehaviorDenyOrClarify      ResolutionBehavior = "deny_or_clarify"
+	ResolutionBehaviorOmit               ResolutionBehavior = "omit"
+)
+
+var validResolutionModes = map[ResolutionMode]struct{}{
+	ResolutionModeClosedValues: {}, ResolutionModeBackendResolved: {}, ResolutionModeAppSelected: {},
+	ResolutionModeActorPolicy: {}, ResolutionModeActorPolicyOrExplicit: {}, ResolutionModeExplicitOnly: {},
+	ResolutionModeClarify: {},
+}
+
+var validResolutionBehaviors = map[ResolutionBehavior]struct{}{
+	ResolutionBehaviorClarify: {}, ResolutionBehaviorUseDefault: {}, ResolutionBehaviorUseActorScope: {},
+	ResolutionBehaviorAppSelectOrClarify: {}, ResolutionBehaviorDeny: {}, ResolutionBehaviorDenyOrClarify: {},
+	ResolutionBehaviorOmit: {},
+}
+
+type InputResolution struct {
+	Mode         ResolutionMode      `json:"mode"`
+	ResolverRef  *string             `json:"resolver_ref,omitempty"`
+	OnMissing    *ResolutionBehavior `json:"on_missing,omitempty"`
+	OnAmbiguous  *ResolutionBehavior `json:"on_ambiguous,omitempty"`
+	OnUnresolved *ResolutionBehavior `json:"on_unresolved,omitempty"`
+}
+
+type InputMeaning struct {
+	Label       string `json:"label"`
+	Value       string `json:"value"`
+	Description string `json:"description,omitempty"`
+}
+
+func (m *ResolutionMode) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	mode := ResolutionMode(s)
+	if _, ok := validResolutionModes[mode]; !ok {
+		return fmt.Errorf("invalid resolution.mode: %q", s)
+	}
+	*m = mode
+	return nil
+}
+
+func (b *ResolutionBehavior) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	behavior := ResolutionBehavior(s)
+	if _, ok := validResolutionBehaviors[behavior]; !ok {
+		return fmt.Errorf("invalid resolution.behavior: %q", s)
+	}
+	*b = behavior
+	return nil
+}
+
+// Flat raw struct — no embedded alias — so there's no duplicate `json:"mode"` tag.
+func (r *InputResolution) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Mode         *ResolutionMode     `json:"mode"`
+		ResolverRef  *string             `json:"resolver_ref"`
+		OnMissing    *ResolutionBehavior `json:"on_missing"`
+		OnAmbiguous  *ResolutionBehavior `json:"on_ambiguous"`
+		OnUnresolved *ResolutionBehavior `json:"on_unresolved"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if raw.Mode == nil {
+		return fmt.Errorf("resolution.mode is required")
+	}
+	*r = InputResolution{
+		Mode:         *raw.Mode,
+		ResolverRef:  raw.ResolverRef,
+		OnMissing:    raw.OnMissing,
+		OnAmbiguous:  raw.OnAmbiguous,
+		OnUnresolved: raw.OnUnresolved,
+	}
+	return nil
+}
+
 // CapabilityInput describes a single input parameter for a capability.
 type CapabilityInput struct {
-	Name        string `json:"name"`
-	Type        string `json:"type"`
-	Required    bool   `json:"required"`
-	Default     any    `json:"default,omitempty"`
-	Description string `json:"description,omitempty"`
+	Name            string           `json:"name"`
+	Type            string           `json:"type"`
+	Required        bool             `json:"required"`
+	Default         any              `json:"default,omitempty"`
+	Description     string           `json:"description,omitempty"`
+	SemanticType    *string          `json:"semantic_type,omitempty"`
+	EntityReference bool             `json:"entity_reference,omitempty"`
+	AllowedValues   []string         `json:"allowed_values,omitempty"`
+	CatalogRef      *string          `json:"catalog_ref,omitempty"`
+	InputMeanings   []InputMeaning   `json:"input_meanings,omitempty"`
+	Resolution      *InputResolution `json:"resolution,omitempty"`
 }
 
 // CapabilityOutput describes the output of a capability.
@@ -479,4 +593,19 @@ type ANIPManifest struct {
 	ManifestMetadata *ManifestMetadata                 `json:"manifest_metadata,omitempty"`
 	ServiceIdentity  *ServiceIdentity                  `json:"service_identity,omitempty"`
 	Trust            *TrustPosture                     `json:"trust,omitempty"`
+}
+
+// ValidateCapabilityInput enforces cross-field rules. Enum validity and
+// resolution.mode presence are enforced at decode time by UnmarshalJSON.
+func ValidateCapabilityInput(inp *CapabilityInput) error {
+	if inp.Resolution == nil {
+		return nil
+	}
+	if inp.Resolution.Mode == ResolutionModeClosedValues && len(inp.AllowedValues) == 0 {
+		return fmt.Errorf("closed_values requires non-empty allowed_values")
+	}
+	if inp.Resolution.OnMissing != nil && *inp.Resolution.OnMissing == ResolutionBehaviorUseDefault && inp.Default == nil {
+		return fmt.Errorf("on_missing=use_default requires a non-null default")
+	}
+	return nil
 }

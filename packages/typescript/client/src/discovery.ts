@@ -11,7 +11,7 @@ import type { NormalizedDiscovery } from "./types.js";
  * Expected wire format:
  * ```json
  * {
- *   "protocol": "anip/0.23",
+ *   "protocol": "anip/0.24",
  *   "compliance": "full",
  *   "trust": { "level": "signed" },
  *   "endpoints": {

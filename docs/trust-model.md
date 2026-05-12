@@ -240,7 +240,7 @@ The reference implementation uses a static API key map. Production deployments s
 
 The `/.well-known/anip` discovery endpoint advertises:
 
-- Protocol version (`anip/1.0`)
+- Protocol version (`anip/0.24`)
 - JWKS URI for public key retrieval
 - Supported auth formats (`jwt-es256`)
 - Endpoint paths (manifest, tokens, invoke, etc.)
