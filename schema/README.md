@@ -1,6 +1,6 @@
 # ANIP JSON Schema
 
-> Canonical JSON Schema for all ANIP v0.23 types. Use these to validate any ANIP implementation.
+> Canonical JSON Schema for all ANIP v0.24 types. Use these to validate any ANIP implementation.
 
 ## Files
 
@@ -30,6 +30,8 @@
 | `PostureType` | Enum of posture types (open, gated, restricted, closed) | SPEC.md §6.7 |
 | `AggregatedAuditEntry` | Summary record for repeated low-value audit denials | SPEC.md §6.9 |
 | `CheckpointDetailResponse` | Checkpoint response with `expires_hint` for cache management | SPEC.md §6.5 |
+| `InputResolution` | Capability input resolution block (`mode` + `resolver_ref` + `on_missing`/`on_ambiguous`/`on_unresolved`) | SPEC.md §4.10 |
+| `InputMeaning` | Typed input meaning hint (semantic type, entity reference, allowed values, catalog ref) | SPEC.md §4.10 |
 
 ## Usage
 
