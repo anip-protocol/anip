@@ -112,6 +112,17 @@ def test_closed_values_without_allowed_values_rejected():
         )
 
 
+def test_closed_values_with_empty_allowed_values_rejected():
+    """allowed_values=[] is treated the same as None for the cross-field rule."""
+    with pytest.raises(ValidationError):
+        CapabilityInput(
+            name="x",
+            type="string",
+            allowed_values=[],
+            resolution=InputResolution(mode=ResolutionMode.CLOSED_VALUES),
+        )
+
+
 def test_use_default_without_default_rejected():
     """D1.7 hard cross-field rule."""
     with pytest.raises(ValidationError):
