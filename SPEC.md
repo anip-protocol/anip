@@ -1200,7 +1200,7 @@ Validation of `resolution` is layered, with explicit responsibilities at each la
 - **Python:** Pydantic enum validators run at `model_validate(...)`; invalid input raises `ValidationError` synchronously.
 - **TypeScript:** zod `z.enum(...)` rejects at `parse()`.
 - **Go:** custom `UnmarshalJSON` on `ResolutionMode`, `ResolutionBehavior`, and `InputResolution` so `json.Unmarshal` itself fails (without `UnmarshalJSON`, Go's plain string typing would silently accept anything).
-- **Java:** `@JsonCreator` on each enum (Jackson throws `IllegalArgumentException` on unknown values during `readValue`) plus a null-check in `InputResolution`'s canonical constructor.
+- **Java:** `anip-core` types are JSON-stack-agnostic POJOs/records — no Jackson annotations. Transport modules register `dev.anip.server.AnipJacksonModule` on their `ObjectMapper`, which bridges enum wire values via the `wire()` / `fromWire(String)` static contract on each enum. Jackson then throws on unknown wire values during `readValue`. `InputResolution`'s canonical constructor null-checks `mode`.
 - **C#:** a `JsonConverter` on each enum throws `JsonException` on unknown values during deserialization. `Mode` is typed nullable (`ResolutionMode?`) so missing-mode deserialises to `null`; `CapabilityInput.Validate(...)` then rejects null `Mode` as part of the cross-field check. C# is the one runtime where the missing-mode rejection lives in `Validate(...)` rather than at decode — see the auto-invoke asymmetry note below.
 
 **Cross-field validation** (a separate validator step in each runtime; NOT expressed in JSON Schema). Two hard rules MUST be enforced:

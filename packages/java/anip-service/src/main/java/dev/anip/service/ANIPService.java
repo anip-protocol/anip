@@ -34,6 +34,7 @@ import dev.anip.core.TokenResponse;
 import dev.anip.crypto.JwksSerializer;
 import dev.anip.crypto.JwsSigner;
 import dev.anip.crypto.KeyManager;
+import dev.anip.server.AnipJacksonModule;
 import dev.anip.server.ApprovalDecisionResult;
 import dev.anip.server.AuditLog;
 import dev.anip.server.CheckpointManager;
@@ -69,6 +70,7 @@ public class ANIPService {
 
     private static final ObjectMapper MAPPER = new ObjectMapper()
             .registerModule(new ParameterNamesModule())
+            .registerModule(new AnipJacksonModule())
             .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
             .setSerializationInclusion(JsonInclude.Include.NON_NULL)
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
