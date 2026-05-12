@@ -1148,8 +1148,8 @@ Only `mode` is required. Manifests omitting the optional fields are well-formed.
 | `closed_values` | Value must come from `allowed_values`, `input_meanings`, the input's `default`, or an equivalent reviewed catalog. Open text is not accepted. |
 | `backend_resolved` | Caller MAY provide an open-ended reference. The service/backend resolver validates and resolves it. |
 | `app_selected` | The consuming app SHOULD select or clarify the value before invocation. |
-| `actor_policy` | Value comes from actor/session/policy context, not from user prompt inference. |
-| `actor_policy_or_explicit` | Use actor/session default unless the user explicitly supplies a concrete governed scope. |
+| `actor_policy` | Value comes from actor/session/policy context. Caller-supplied values MUST NOT override the policy-resolved value. |
+| `actor_policy_or_explicit` | Use the actor/session default unless the caller explicitly supplies a concrete governed scope; an explicit caller value takes precedence over the policy default. |
 | `explicit_only` | Runtime MUST NOT infer. Caller MUST provide a concrete value or clarify. |
 | `clarify` | Missing or ambiguous input MUST produce clarification. |
 
@@ -1162,11 +1162,11 @@ Each of `on_missing`, `on_ambiguous`, and `on_unresolved` MUST be one of exactly
 | Value | Meaning |
 |---|---|
 | `clarify` | Return a clarification request to the caller. |
-| `use_default` | Use the input's declared `default` value. Requires the input's `default` field to be non-null (see §"Validation Layering"). |
+| `use_default` | Apply the input's declared `default` value. When set on `on_missing`, the input's `default` field MUST be non-null (see §"Validation Layering"). When set on `on_ambiguous` or `on_unresolved`, no such requirement applies — applying a default to an ambiguous or unresolved value is at the runtime's discretion. |
 | `use_actor_scope` | Substitute the actor/session policy scope. |
 | `app_select_or_clarify` | The consuming app SHOULD select the value; if it cannot, return clarification. |
 | `deny` | Reject the invocation. |
-| `deny_or_clarify` | Reject unless clarification can plausibly recover the call; otherwise clarify. |
+| `deny_or_clarify` | Clarify if the missing or ambiguous value can plausibly be recovered through dialogue; otherwise reject the invocation. |
 | `omit` | Treat the input as absent and proceed. |
 
 These values are machine-readable; they MUST NOT be replaced with free-form prose.
@@ -1206,7 +1206,7 @@ Validation of `resolution` is layered, with explicit responsibilities at each la
 **Cross-field validation** (a separate validator step in each runtime; NOT expressed in JSON Schema). Two hard rules MUST be enforced:
 
 - If `resolution.mode == "closed_values"`, then `allowed_values` MUST be non-empty.
-- If `resolution.on_missing == "use_default"`, then the input's `default` field MUST be non-null.
+- If `resolution.on_missing == "use_default"`, then the input's `default` field MUST be non-null. This rule applies ONLY to `on_missing`; `on_ambiguous` and `on_unresolved` may also be set to `use_default` but do not trigger this cross-field constraint.
 
 Cross-field rules live in model-level validators (`ValidateCapabilityInput` in Go; pydantic `@model_validator` in Python; zod `.superRefine` in TypeScript; static `validate(...)` methods in Java and C#) because expressing the "`default`: any non-null literal" constraint cleanly across all JSON Schema validators is impractical. The JSON Schema in `schema/types/CapabilityDeclaration.json` enforces shape and enum membership only.
 
