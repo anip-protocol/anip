@@ -43,13 +43,17 @@
           { "label": "Medium", "value": "P1", "description": "" }
         ]
       }
-    }
+    },
+    { "name": "actor_policy", "input": { "name": "x", "type": "string", "resolution": { "mode": "actor_policy" } } },
+    { "name": "explicit_only", "input": { "name": "x", "type": "string", "resolution": { "mode": "explicit_only" } } },
+    { "name": "clarify_mode", "input": { "name": "x", "type": "string", "resolution": { "mode": "clarify" } } }
   ],
   "invalid": [
     { "name": "unknown_mode", "input": { "name": "x", "type": "string", "resolution": { "mode": "not_real" } } },
     { "name": "unknown_behavior", "input": { "name": "x", "type": "string", "resolution": { "mode": "clarify", "on_missing": "bogus" } } },
     { "name": "missing_mode", "input": { "name": "x", "type": "string", "resolution": {} } },
     { "name": "closed_values_without_allowed_values", "input": { "name": "x", "type": "string", "resolution": { "mode": "closed_values" } } },
+    { "name": "closed_values_with_empty_allowed_values", "input": { "name": "x", "type": "string", "allowed_values": [], "resolution": { "mode": "closed_values" } } },
     { "name": "use_default_without_default", "input": { "name": "x", "type": "string", "resolution": { "mode": "clarify", "on_missing": "use_default" } } }
   ]
 }
