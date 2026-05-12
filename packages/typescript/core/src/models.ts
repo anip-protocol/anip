@@ -77,12 +77,64 @@ export type DelegationToken = z.infer<typeof DelegationToken>;
 // Capability Declaration
 // ---------------------------------------------------------------------------
 
+export const ResolutionMode = z.enum([
+  "closed_values",
+  "backend_resolved",
+  "app_selected",
+  "actor_policy",
+  "actor_policy_or_explicit",
+  "explicit_only",
+  "clarify",
+]);
+export type ResolutionMode = z.infer<typeof ResolutionMode>;
+
+export const ResolutionBehavior = z.enum([
+  "clarify",
+  "use_default",
+  "use_actor_scope",
+  "app_select_or_clarify",
+  "deny",
+  "deny_or_clarify",
+  "omit",
+]);
+export type ResolutionBehavior = z.infer<typeof ResolutionBehavior>;
+
+export const InputResolution = z.object({
+  mode: ResolutionMode,
+  resolver_ref: z.string().nullable().default(null),
+  on_missing: ResolutionBehavior.nullable().default(null),
+  on_ambiguous: ResolutionBehavior.nullable().default(null),
+  on_unresolved: ResolutionBehavior.nullable().default(null),
+});
+export type InputResolution = z.infer<typeof InputResolution>;
+
+export const InputMeaning = z.object({
+  label: z.string(),
+  value: z.string(),
+  description: z.string().default(""),
+});
+export type InputMeaning = z.infer<typeof InputMeaning>;
+
 export const CapabilityInput = z.object({
   name: z.string(),
   type: z.string(),
   required: z.boolean().default(true),
-  default: z.any().nullable().default(null),
+  default: z.any().default(null),
   description: z.string().default(""),
+  semantic_type: z.string().nullable().default(null),
+  entity_reference: z.boolean().default(false),
+  allowed_values: z.array(z.string()).nullable().default(null),
+  catalog_ref: z.string().nullable().default(null),
+  input_meanings: z.array(InputMeaning).nullable().default(null),
+  resolution: InputResolution.nullable().default(null),
+}).superRefine((data, ctx) => {
+  if (data.resolution === null) return;
+  if (data.resolution.mode === "closed_values" && (!data.allowed_values || data.allowed_values.length === 0)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "closed_values requires non-empty allowed_values" });
+  }
+  if (data.resolution.on_missing === "use_default" && (data.default === null || data.default === undefined)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "on_missing=use_default requires a non-null default" });
+  }
 });
 export type CapabilityInput = z.infer<typeof CapabilityInput>;
 
