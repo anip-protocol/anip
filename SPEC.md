@@ -1425,7 +1425,7 @@ The discovery document MUST conform to this schema:
 ```yaml
 # GET /.well-known/anip
 anip_discovery:
-  protocol: "anip/1.0"
+  protocol: "anip/0.24"
   compliance: "anip-compliant"              # or "anip-complete" — see §3
   base_url: "https://flights.example.com"  # injected by HTTP binding layer at request time, not hardcoded
   profile:
@@ -1601,7 +1601,7 @@ An agent MUST be able to fetch this endpoint without a delegation token. This is
 
 ```yaml
 anip_manifest:
-  protocol: "anip/1.0"
+  protocol: "anip/0.24"
   profile:
     core: "1.0"
     cost: "1.0"

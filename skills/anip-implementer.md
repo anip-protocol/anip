@@ -100,7 +100,7 @@ The manifest aggregates all capability declarations with protocol and profile me
 
 ```python
 manifest = ANIPManifest(
-    protocol="anip/1.0",
+    protocol="anip/0.24",
     profile=ProfileVersions(
         core="1.0",           # MUST
         cost="1.0",           # SHOULD
@@ -129,7 +129,7 @@ This is the single entry point to your service. It must be lightweight and cache
 
 ```yaml
 anip_discovery:
-  protocol: "anip/1.0"
+  protocol: "anip/0.24"
   compliance: "anip-complete"    # derived from profile
   base_url: "https://your-service.com"  # from incoming request
   profile: { core: "1.0", cost: "1.0", ... }

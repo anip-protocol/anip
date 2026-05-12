@@ -1750,7 +1750,7 @@
     "ANIPManifest": {
       "properties": {
         "protocol": {
-          "default": "anip/1.0",
+          "default": "anip/0.24",
           "title": "Protocol",
           "type": "string"
         },

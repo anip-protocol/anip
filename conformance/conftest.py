@@ -14,13 +14,13 @@ import httpx
 def pytest_addoption(parser):
     parser.addoption(
         "--base-url",
-        required=True,
-        help="Base URL of the ANIP service to test (e.g. http://localhost:8090)",
+        default=None,
+        help="Base URL of the ANIP service to test (e.g. http://localhost:8090). Tests that exercise a live service skip when this is absent.",
     )
     parser.addoption(
         "--bootstrap-bearer",
-        required=True,
-        help="Bearer credential for bootstrap token issuance (API key, OIDC token, etc.)",
+        default=None,
+        help="Bearer credential for bootstrap token issuance (API key, OIDC token, etc.). Tests that need a token skip when this is absent.",
     )
     parser.addoption(
         "--sample-inputs",
@@ -31,12 +31,18 @@ def pytest_addoption(parser):
 
 @pytest.fixture(scope="session")
 def base_url(request):
-    return request.config.getoption("--base-url").rstrip("/")
+    val = request.config.getoption("--base-url")
+    if val is None:
+        pytest.skip("--base-url not provided (service-level test)")
+    return val.rstrip("/")
 
 
 @pytest.fixture(scope="session")
 def bootstrap_bearer(request):
-    return request.config.getoption("--bootstrap-bearer")
+    val = request.config.getoption("--bootstrap-bearer")
+    if val is None:
+        pytest.skip("--bootstrap-bearer not provided (service-level test)")
+    return val
 
 
 @pytest.fixture(scope="session")

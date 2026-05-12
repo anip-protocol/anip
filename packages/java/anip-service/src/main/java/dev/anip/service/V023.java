@@ -19,6 +19,7 @@ import dev.anip.core.FailurePolicy;
 import dev.anip.core.GrantPolicy;
 import dev.anip.crypto.JwsSigner;
 import dev.anip.crypto.KeyManager;
+import dev.anip.server.AnipJacksonModule;
 import dev.anip.server.ApprovalDecisionResult;
 import dev.anip.server.Storage;
 
@@ -65,6 +66,7 @@ public final class V023 {
     /** ObjectMapper used only for converting POJOs to a JSON tree we can canonicalise. */
     private static final ObjectMapper MAPPER = JsonMapper.builder()
             .addModule(new ParameterNamesModule())
+            .addModule(new AnipJacksonModule())
             .propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
             .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
             .configure(SerializationFeature.WRITE_NULL_MAP_VALUES, true)
