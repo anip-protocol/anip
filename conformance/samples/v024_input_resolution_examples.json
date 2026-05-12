@@ -1,0 +1,55 @@
+{
+  "valid": [
+    { "name": "minimal_v023_compat", "input": { "name": "quarter", "type": "string" } },
+    {
+      "name": "closed_values",
+      "input": {
+        "name": "forecast_mode", "type": "string", "required": false, "default": "risk_adjusted",
+        "allowed_values": ["risk_adjusted", "likely", "best_case"],
+        "semantic_type": "business_category",
+        "resolution": { "mode": "closed_values", "on_missing": "use_default", "on_ambiguous": "clarify" }
+      }
+    },
+    {
+      "name": "backend_resolved",
+      "input": {
+        "name": "cohort_ref", "type": "string", "required": true,
+        "semantic_type": "cohort_reference", "entity_reference": true, "catalog_ref": "gtm.cohort_catalog",
+        "resolution": { "mode": "backend_resolved", "resolver_ref": "gtm.cohort_catalog", "on_missing": "clarify", "on_ambiguous": "clarify", "on_unresolved": "clarify" }
+      }
+    },
+    {
+      "name": "actor_policy_or_explicit",
+      "input": {
+        "name": "owner_scope", "type": "string", "required": false,
+        "semantic_type": "scope_reference",
+        "resolution": { "mode": "actor_policy_or_explicit", "resolver_ref": "gtm.scope_catalog", "on_missing": "use_actor_scope", "on_ambiguous": "clarify", "on_unresolved": "deny_or_clarify" }
+      }
+    },
+    {
+      "name": "app_selected",
+      "input": {
+        "name": "target_ref", "type": "string", "required": true,
+        "semantic_type": "entity_reference", "entity_reference": true, "catalog_ref": "gtm.account_catalog",
+        "resolution": { "mode": "app_selected", "resolver_ref": "gtm.account_catalog", "on_missing": "clarify", "on_ambiguous": "app_select_or_clarify" }
+      }
+    },
+    {
+      "name": "input_meanings_present",
+      "input": {
+        "name": "priority", "type": "string",
+        "input_meanings": [
+          { "label": "High", "value": "P0", "description": "critical" },
+          { "label": "Medium", "value": "P1", "description": "" }
+        ]
+      }
+    }
+  ],
+  "invalid": [
+    { "name": "unknown_mode", "input": { "name": "x", "type": "string", "resolution": { "mode": "not_real" } } },
+    { "name": "unknown_behavior", "input": { "name": "x", "type": "string", "resolution": { "mode": "clarify", "on_missing": "bogus" } } },
+    { "name": "missing_mode", "input": { "name": "x", "type": "string", "resolution": {} } },
+    { "name": "closed_values_without_allowed_values", "input": { "name": "x", "type": "string", "resolution": { "mode": "closed_values" } } },
+    { "name": "use_default_without_default", "input": { "name": "x", "type": "string", "resolution": { "mode": "clarify", "on_missing": "use_default" } } }
+  ]
+}
