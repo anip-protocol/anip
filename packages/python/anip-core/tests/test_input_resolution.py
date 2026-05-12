@@ -35,6 +35,7 @@ def test_closed_values_resolution():
             on_ambiguous=ResolutionBehavior.CLARIFY,
         ),
     )
+    assert inp.resolution is not None
     assert inp.resolution.mode == ResolutionMode.CLOSED_VALUES
 
 
@@ -52,6 +53,7 @@ def test_backend_resolved_resolution():
             on_missing=ResolutionBehavior.CLARIFY,
         ),
     )
+    assert inp.resolution is not None
     assert inp.resolution.resolver_ref == "gtm.cohort_catalog"
     assert inp.catalog_ref == "gtm.cohort_catalog"
     assert inp.entity_reference is True
@@ -69,6 +71,7 @@ def test_actor_policy_or_explicit_resolution():
             on_unresolved=ResolutionBehavior.DENY_OR_CLARIFY,
         ),
     )
+    assert inp.resolution is not None
     assert inp.resolution.mode == ResolutionMode.ACTOR_POLICY_OR_EXPLICIT
 
 
@@ -81,6 +84,7 @@ def test_input_meanings():
             InputMeaning(label="Medium", value="P1"),
         ],
     )
+    assert inp.input_meanings is not None
     assert len(inp.input_meanings) == 2
     assert inp.input_meanings[1].description == ""  # default
 
@@ -88,12 +92,12 @@ def test_input_meanings():
 def test_unknown_mode_rejected():
     """Schema-level enum rejection (no specific error string assertion)."""
     with pytest.raises(ValidationError):
-        InputResolution(mode="not_a_real_mode")
+        InputResolution(mode="not_a_real_mode")  # type: ignore[arg-type]
 
 
 def test_unknown_behavior_rejected():
     with pytest.raises(ValidationError):
-        InputResolution(mode=ResolutionMode.CLARIFY, on_missing="not_real")
+        InputResolution(mode=ResolutionMode.CLARIFY, on_missing="not_real")  # type: ignore[arg-type]
 
 
 def test_missing_mode_rejected():
