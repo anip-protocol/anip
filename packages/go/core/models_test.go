@@ -23,6 +23,12 @@ func TestGenerateInvocationID(t *testing.T) {
 	}
 }
 
+func TestRequestApprovalRecoveryClass(t *testing.T) {
+	if got := RecoveryClassForAction("request_approval"); got != "wait_then_retry" {
+		t.Errorf("RecoveryClassForAction(%q) = %q, want %q", "request_approval", got, "wait_then_retry")
+	}
+}
+
 func TestANIPErrorImplementsError(t *testing.T) {
 	var err error = NewANIPError(FailureInvalidToken, "token is invalid")
 	if err.Error() != "invalid_token: token is invalid" {

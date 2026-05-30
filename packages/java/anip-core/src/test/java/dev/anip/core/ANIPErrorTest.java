@@ -59,6 +59,11 @@ class ANIPErrorTest {
     }
 
     @Test
+    void requestApprovalRecoveryClass() {
+        assertEquals("wait_then_retry", Constants.recoveryClassForAction("request_approval"));
+    }
+
+    @Test
     void canBeCaughtAsException() {
         try {
             throw new ANIPError(Constants.FAILURE_AUTH_REQUIRED, "not authenticated");

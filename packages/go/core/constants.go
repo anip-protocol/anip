@@ -7,23 +7,24 @@ import (
 
 // RecoveryClassMap maps each canonical resolution action to its recovery class.
 var RecoveryClassMap = map[string]string{
-	"retry_now":                          "retry_now",
-	"wait_and_retry":                     "wait_then_retry",
-	"obtain_binding":                     "refresh_then_retry",
-	"refresh_binding":                    "refresh_then_retry",
-	"obtain_quote_first":                 "refresh_then_retry",
-	"revalidate_state":                   "revalidate_then_retry",
-	"request_broader_scope":              "redelegation_then_retry",
-	"request_budget_increase":            "redelegation_then_retry",
-	"request_budget_bound_delegation":    "redelegation_then_retry",
+	"retry_now":                            "retry_now",
+	"wait_and_retry":                       "wait_then_retry",
+	"obtain_binding":                       "refresh_then_retry",
+	"refresh_binding":                      "refresh_then_retry",
+	"obtain_quote_first":                   "refresh_then_retry",
+	"revalidate_state":                     "revalidate_then_retry",
+	"request_broader_scope":                "redelegation_then_retry",
+	"request_budget_increase":              "redelegation_then_retry",
+	"request_budget_bound_delegation":      "redelegation_then_retry",
 	"request_matching_currency_delegation": "redelegation_then_retry",
-	"request_new_delegation":             "redelegation_then_retry",
-	"request_capability_binding":         "redelegation_then_retry",
-	"request_deeper_delegation":          "redelegation_then_retry",
-	"escalate_to_root_principal":         "terminal",
-	"provide_credentials":                "retry_now",
-	"check_manifest":                     "revalidate_then_retry",
-	"contact_service_owner":              "terminal",
+	"request_new_delegation":               "redelegation_then_retry",
+	"request_capability_binding":           "redelegation_then_retry",
+	"request_deeper_delegation":            "redelegation_then_retry",
+	"escalate_to_root_principal":           "terminal",
+	"provide_credentials":                  "retry_now",
+	"request_approval":                     "wait_then_retry",
+	"check_manifest":                       "revalidate_then_retry",
+	"contact_service_owner":                "terminal",
 }
 
 // RecoveryClassForAction returns the recovery class for a given action.
@@ -44,26 +45,26 @@ const ManifestVersion = "0.10.0"
 
 // Failure type constants.
 const (
-	FailureAuthRequired                = "authentication_required"
-	FailureInvalidToken                = "invalid_token"
-	FailureTokenExpired                = "token_expired"
-	FailureScopeInsufficient           = "scope_insufficient"
-	FailureUnknownCapability           = "unknown_capability"
-	FailureBudgetExceeded              = "budget_exceeded"
-	FailureBudgetCurrencyMismatch      = "budget_currency_mismatch"
-	FailureBudgetNotEnforceable        = "budget_not_enforceable"
-	FailureBindingMissing              = "binding_missing"
-	FailureBindingStale                = "binding_stale"
+	FailureAuthRequired                  = "authentication_required"
+	FailureInvalidToken                  = "invalid_token"
+	FailureTokenExpired                  = "token_expired"
+	FailureScopeInsufficient             = "scope_insufficient"
+	FailureUnknownCapability             = "unknown_capability"
+	FailureBudgetExceeded                = "budget_exceeded"
+	FailureBudgetCurrencyMismatch        = "budget_currency_mismatch"
+	FailureBudgetNotEnforceable          = "budget_not_enforceable"
+	FailureBindingMissing                = "binding_missing"
+	FailureBindingStale                  = "binding_stale"
 	FailureControlRequirementUnsatisfied = "control_requirement_unsatisfied"
-	FailurePurposeMismatch             = "purpose_mismatch"
-	FailureScopeEscalation             = "scope_escalation"
-	FailureNotFound                    = "not_found"
-	FailureUnavailable                 = "unavailable"
-	FailureConcurrentLock              = "concurrent_lock"
-	FailureInternalError               = "internal_error"
-	FailureStreamingNotSupported       = "streaming_not_supported"
-	FailureInvalidParameters           = "invalid_parameters"
-	FailureNonDelegableAction          = "non_delegable_action"
+	FailurePurposeMismatch               = "purpose_mismatch"
+	FailureScopeEscalation               = "scope_escalation"
+	FailureNotFound                      = "not_found"
+	FailureUnavailable                   = "unavailable"
+	FailureConcurrentLock                = "concurrent_lock"
+	FailureInternalError                 = "internal_error"
+	FailureStreamingNotSupported         = "streaming_not_supported"
+	FailureInvalidParameters             = "invalid_parameters"
+	FailureNonDelegableAction            = "non_delegable_action"
 )
 
 // Supported algorithms for signing.

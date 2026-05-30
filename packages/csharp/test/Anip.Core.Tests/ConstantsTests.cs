@@ -70,6 +70,13 @@ public class ConstantsTests
     }
 
     [Fact]
+    public void RecoveryClassForAction_RequestApproval_WaitsThenRetries()
+    {
+        Assert.Equal("wait_then_retry", Constants.RecoveryClassMap["request_approval"]);
+        Assert.Equal("wait_then_retry", Constants.RecoveryClassForAction("request_approval"));
+    }
+
+    [Fact]
     public void ManifestVersion_IsCorrect()
     {
         Assert.Equal("0.10.0", Constants.ManifestVersion);

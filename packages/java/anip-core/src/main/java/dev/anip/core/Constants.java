@@ -71,6 +71,7 @@ public final class Constants {
             Map.entry("request_deeper_delegation", "redelegation_then_retry"),
             Map.entry("escalate_to_root_principal", "terminal"),
             Map.entry("provide_credentials", "retry_now"),
+            Map.entry("request_approval", "wait_then_retry"),
             Map.entry("check_manifest", "revalidate_then_retry"),
             Map.entry("contact_service_owner", "terminal")
     );

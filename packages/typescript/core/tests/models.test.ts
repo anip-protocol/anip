@@ -25,8 +25,10 @@ import {
   CheckpointDetailResponse,
   CrossServiceContract,
   CrossServiceContractEntry,
+  RECOVERY_CLASS_MAP,
   RecoveryTarget,
   Resolution,
+  recoveryClassForAction,
   ServiceCapabilityRef,
 } from "../src/index.js";
 
@@ -35,6 +37,11 @@ describe("Protocol constants", () => {
     // Intentionally hardcoded — this is the one place that verifies the constant value.
     // Update this when bumping the protocol version.
     expect(PROTOCOL_VERSION).toBe("anip/0.24");
+  });
+
+  it("maps request_approval to wait_then_retry", () => {
+    expect(RECOVERY_CLASS_MAP.request_approval).toBe("wait_then_retry");
+    expect(recoveryClassForAction("request_approval")).toBe("wait_then_retry");
   });
 });
 
