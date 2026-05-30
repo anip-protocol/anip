@@ -60,6 +60,7 @@ public static class Constants
         ["request_deeper_delegation"] = "redelegation_then_retry",
         ["escalate_to_root_principal"] = "terminal",
         ["provide_credentials"] = "retry_now",
+        ["request_approval"] = "wait_then_retry",
         ["check_manifest"] = "revalidate_then_retry",
         ["contact_service_owner"] = "terminal",
     };
