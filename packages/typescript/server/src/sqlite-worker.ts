@@ -669,6 +669,13 @@ function getApprovalRequest(approvalRequestId: string): Record<string, unknown> 
   return row ? parseApprovalRequestRow(row) : null;
 }
 
+function listApprovalRequests(status: string | null = null): Record<string, unknown>[] {
+  const rows = status
+    ? db.prepare("SELECT * FROM approval_requests WHERE status = ? ORDER BY created_at DESC").all(status)
+    : db.prepare("SELECT * FROM approval_requests ORDER BY created_at DESC").all();
+  return (rows as Record<string, unknown>[]).map(parseApprovalRequestRow);
+}
+
 type ApprovalDecisionResultSync =
   | { ok: true; grant: Record<string, unknown> }
   | {
@@ -880,6 +887,7 @@ const methods: Record<string, (...args: any[]) => unknown> = {
   getCheckpointById,
   storeApprovalRequest,
   getApprovalRequest,
+  listApprovalRequests,
   approveRequestAndStoreGrant,
   storeGrant,
   getGrant,

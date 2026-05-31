@@ -229,7 +229,7 @@ async def test_revalidate_state_action():
 
 
 def test_all_canonical_actions_have_mapping():
-    """All 17 spec-defined canonical actions must be in RECOVERY_CLASS_MAP."""
+    """All 18 spec-defined canonical actions must be in RECOVERY_CLASS_MAP."""
     canonical_actions = [
         "retry_now",
         "wait_and_retry",
@@ -246,6 +246,7 @@ def test_all_canonical_actions_have_mapping():
         "request_deeper_delegation",
         "escalate_to_root_principal",
         "provide_credentials",
+        "request_approval",
         "check_manifest",
         "contact_service_owner",
     ]

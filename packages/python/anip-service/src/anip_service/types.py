@@ -17,6 +17,8 @@ class InvocationContext:
     delegation_chain: list[str]
     invocation_id: str = ""
     client_reference_id: str | None = None
+    approval_grant_id: str | None = None
+    approval_grant: dict[str, Any] | None = None
     _cost_actual: dict[str, Any] | None = field(default=None, repr=False)
     _progress_sink: Callable[[dict[str, Any]], Awaitable[None]] | None = field(default=None, repr=False)
 

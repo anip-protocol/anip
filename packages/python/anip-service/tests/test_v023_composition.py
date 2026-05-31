@@ -331,6 +331,40 @@ class TestExecuteComposition:
         assert exc_info.value.error_type == "scope_insufficient"
 
     @pytest.mark.asyncio
+    async def test_child_clarification_required_propagates_by_default(self):
+        decl = _composed_decl(composition=_basic_composition())
+        runner, _ = _make_step_runner({
+            "select_cap": {
+                "success": False,
+                "failure": {
+                    "type": "clarification_required",
+                    "detail": "quarter is required",
+                    "resolution": {"action": "obtain_binding", "recovery_class": "refresh_then_retry"},
+                },
+            },
+        })
+        with pytest.raises(ANIPError) as exc_info:
+            await execute_composition("summary", decl, {"q": "x"}, invoke_step=runner)
+        assert exc_info.value.error_type == "clarification_required"
+
+    @pytest.mark.asyncio
+    async def test_child_restricted_propagates_by_default(self):
+        decl = _composed_decl(composition=_basic_composition())
+        runner, _ = _make_step_runner({
+            "select_cap": {
+                "success": False,
+                "failure": {
+                    "type": "restricted",
+                    "detail": "scope is restricted",
+                    "resolution": {"action": "request_broader_scope", "recovery_class": "redelegation_then_retry"},
+                },
+            },
+        })
+        with pytest.raises(ANIPError) as exc_info:
+            await execute_composition("summary", decl, {"q": "x"}, invoke_step=runner)
+        assert exc_info.value.error_type == "restricted"
+
+    @pytest.mark.asyncio
     async def test_child_error_fails_parent(self):
         # Default child_error policy is fail_parent — collapses to a generic
         # composition_child_failed parent error per SPEC.md §4.6.

@@ -459,6 +459,60 @@ describe("executeComposition", () => {
     expect(caught!.errorType).toBe("scope_insufficient");
   });
 
+  it("child_clarification_required_propagates_by_default", async () => {
+    const decl = composedDecl({ composition: basicComposition() });
+    const { runner } = makeStepRunner({
+      select_cap: {
+        success: false,
+        failure: {
+          type: "clarification_required",
+          detail: "quarter is required",
+          resolution: { action: "obtain_binding", recovery_class: "refresh_then_retry" },
+        },
+      },
+    });
+    let caught: ANIPError | null = null;
+    try {
+      await executeComposition(
+        "summary",
+        decl,
+        { q: "x" },
+        { invokeStep: runner },
+      );
+    } catch (e) {
+      if (e instanceof ANIPError) caught = e;
+    }
+    expect(caught).not.toBeNull();
+    expect(caught!.errorType).toBe("clarification_required");
+  });
+
+  it("child_restricted_propagates_by_default", async () => {
+    const decl = composedDecl({ composition: basicComposition() });
+    const { runner } = makeStepRunner({
+      select_cap: {
+        success: false,
+        failure: {
+          type: "restricted",
+          detail: "scope is restricted",
+          resolution: { action: "request_broader_scope", recovery_class: "redelegation_then_retry" },
+        },
+      },
+    });
+    let caught: ANIPError | null = null;
+    try {
+      await executeComposition(
+        "summary",
+        decl,
+        { q: "x" },
+        { invokeStep: runner },
+      );
+    } catch (e) {
+      if (e instanceof ANIPError) caught = e;
+    }
+    expect(caught).not.toBeNull();
+    expect(caught!.errorType).toBe("restricted");
+  });
+
   it("child_error_fails_parent", async () => {
     // Default child_error policy is fail_parent — collapses to a generic
     // composition_child_failed parent error per SPEC.md §4.6.

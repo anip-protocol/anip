@@ -1294,7 +1294,13 @@ public class AnipService : IDisposable
                     };
                     if (materialized.GrantPolicy != null)
                     {
-                        apReq["grant_policy"] = materialized.GrantPolicy;
+                        apReq["grant_policy"] = new Dictionary<string, object?>
+                        {
+                            ["allowed_grant_types"] = materialized.GrantPolicy.AllowedGrantTypes,
+                            ["default_grant_type"] = materialized.GrantPolicy.DefaultGrantType,
+                            ["expires_in_seconds"] = materialized.GrantPolicy.ExpiresInSeconds,
+                            ["max_uses"] = materialized.GrantPolicy.MaxUses,
+                        };
                     }
                     failure["approval_required"] = apReq;
                 }
