@@ -10,8 +10,7 @@
  *   3. `await close()` — drains the pool.
  */
 
-import { Pool } from "pg";
-import type { PoolClient } from "pg";
+import type { Pool, PoolClient } from "pg";
 import { computeEntryHash } from "./hashing.js";
 import type {
   ApprovalDecisionResult,
@@ -199,7 +198,16 @@ export class PostgresStorage implements StorageBackend {
   // -----------------------------------------------------------------------
 
   async initialize(): Promise<void> {
-    this.pool = new Pool({ connectionString: this.dsn });
+    let PoolCtor: typeof Pool;
+    try {
+      ({ Pool: PoolCtor } = await import("pg"));
+    } catch (error) {
+      throw new Error(
+        "PostgresStorage requires the optional peer dependency 'pg'. Install it before using PostgreSQL storage.",
+        { cause: error },
+      );
+    }
+    this.pool = new PoolCtor({ connectionString: this.dsn });
     const client = await this.pool.connect();
     try {
       await this.ensureSchema(client);
