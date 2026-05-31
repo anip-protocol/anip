@@ -1,6 +1,6 @@
 [project]
 name = "anip-conformance"
-version = "0.24.1"
+version = "0.24.2"
 description = "ANIP protocol conformance test suite"
 requires-python = ">=3.11"
 dependencies = [

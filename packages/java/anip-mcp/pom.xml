@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.anip</groupId>
         <artifactId>anip-parent</artifactId>
-        <version>0.24.1</version>
+        <version>0.24.2</version>
     </parent>
 
     <artifactId>anip-mcp</artifactId>
