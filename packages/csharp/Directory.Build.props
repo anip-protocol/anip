@@ -9,6 +9,7 @@
     <PackageTags>anip;agent;protocol;delegation;trust</PackageTags>
     <Description>ANIP — Agent-Native Interface Protocol</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 
   <!-- Version is set at pack time via /p:Version -->
