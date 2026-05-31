@@ -17,6 +17,7 @@ import dev.anip.core.CompositionStep;
 import dev.anip.core.Constants;
 import dev.anip.core.FailurePolicy;
 import dev.anip.core.GrantPolicy;
+import dev.anip.core.Resolution;
 import dev.anip.crypto.JwsSigner;
 import dev.anip.crypto.KeyManager;
 import dev.anip.server.AnipJacksonModule;
@@ -439,6 +440,8 @@ public final class V023 {
                             .withResolution("contact_service_owner");
                 }
                 ANIPError propagated = new ANIPError(failureType, detail);
+                Resolution resolution = resolutionFromMap(failure.get("resolution"));
+                if (resolution != null) propagated.withResolution(resolution);
                 @SuppressWarnings("unchecked")
                 Map<String, Object> appReq = (Map<String, Object>) failure.get("approval_required");
                 if (appReq != null) {
@@ -464,9 +467,11 @@ public final class V023 {
     private static String failureOutcomeFor(String failureType, FailurePolicy policy) {
         if (policy == null) policy = new FailurePolicy();
         if ("approval_required".equals(failureType)) return policy.getChildApprovalRequired();
-        if ("scope_insufficient".equals(failureType) || "denied".equals(failureType)
+        if ("scope_insufficient".equals(failureType) || "restricted".equals(failureType)
+                || "denied".equals(failureType)
                 || "non_delegable_action".equals(failureType)) return policy.getChildDenial();
-        if ("binding_missing".equals(failureType) || "binding_stale".equals(failureType)
+        if ("clarification_required".equals(failureType)
+                || "binding_missing".equals(failureType) || "binding_stale".equals(failureType)
                 || "control_requirement_unsatisfied".equals(failureType)
                 || "purpose_mismatch".equals(failureType)
                 || "invalid_parameters".equals(failureType)) return policy.getChildClarification();
@@ -723,6 +728,23 @@ public final class V023 {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /** Best-effort rebuild of a Resolution from a JSON-shaped map. */
+    public static Resolution resolutionFromMap(Object raw) {
+        if (!(raw instanceof Map<?, ?> m)) return null;
+        Object actionRaw = m.get("action");
+        if (!(actionRaw instanceof String action) || action.isBlank()) return null;
+        Object recoveryRaw = m.get("recovery_class");
+        String recoveryClass = recoveryRaw instanceof String s && !s.isBlank()
+                ? s
+                : Constants.recoveryClassForAction(action);
+        return new Resolution(
+                action,
+                recoveryClass,
+                m.get("requires") instanceof String requires ? requires : null,
+                m.get("grantable_by") instanceof String grantableBy ? grantableBy : null,
+                m.get("estimated_availability") instanceof String estimatedAvailability ? estimatedAvailability : null);
     }
 
     // -----------------------------------------------------------------------

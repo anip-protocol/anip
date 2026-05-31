@@ -295,12 +295,14 @@ function failureOutcome(failureType: string, policy: Composition["failure_policy
   if (failureType === "approval_required") return policy.child_approval_required;
   if (
     failureType === "scope_insufficient" ||
+    failureType === "restricted" ||
     failureType === "denied" ||
     failureType === "non_delegable_action"
   ) {
     return policy.child_denial;
   }
   if (
+    failureType === "clarification_required" ||
     failureType === "binding_missing" ||
     failureType === "binding_stale" ||
     failureType === "control_requirement_unsatisfied" ||

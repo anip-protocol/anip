@@ -423,6 +423,8 @@ public static class V023
                         .WithResolution("contact_service_owner");
                 }
                 var propagated = new AnipError(failureType, detail);
+                var resolution = ResolutionFromMap(failure.TryGetValue("resolution", out var resObj) ? resObj : null);
+                if (resolution != null) propagated.Resolution = resolution;
                 if (failure.TryGetValue("approval_required", out var apReqObj)
                     && apReqObj is Dictionary<string, object?> apReq)
                 {
@@ -453,8 +455,8 @@ public static class V023
         return failureType switch
         {
             "approval_required" => policy.ChildApprovalRequired,
-            "scope_insufficient" or "denied" or "non_delegable_action" => policy.ChildDenial,
-            "binding_missing" or "binding_stale" or "control_requirement_unsatisfied"
+            "scope_insufficient" or "restricted" or "denied" or "non_delegable_action" => policy.ChildDenial,
+            "clarification_required" or "binding_missing" or "binding_stale" or "control_requirement_unsatisfied"
                 or "purpose_mismatch" or "invalid_parameters" => policy.ChildClarification,
             _ => policy.ChildError,
         };
@@ -772,6 +774,27 @@ public static class V023
         {
             return null;
         }
+    }
+
+    /// <summary>Best-effort rebuild of a Resolution from a JSON-shaped map.</summary>
+    public static Resolution? ResolutionFromMap(object? raw)
+    {
+        if (raw is not IDictionary<string, object?> m) return null;
+        var action = m.TryGetValue("action", out var actionObj) ? actionObj as string : null;
+        if (string.IsNullOrEmpty(action)) return null;
+        var recoveryClass = m.TryGetValue("recovery_class", out var rcObj) ? rcObj as string : null;
+        if (string.IsNullOrEmpty(recoveryClass))
+        {
+            recoveryClass = Constants.RecoveryClassForAction(action);
+        }
+        return new Resolution
+        {
+            Action = action,
+            RecoveryClass = recoveryClass,
+            Requires = m.TryGetValue("requires", out var requiresObj) ? requiresObj as string : null,
+            GrantableBy = m.TryGetValue("grantable_by", out var grantableObj) ? grantableObj as string : null,
+            EstimatedAvailability = m.TryGetValue("estimated_availability", out var availabilityObj) ? availabilityObj as string : null,
+        };
     }
 
     // -----------------------------------------------------------------------

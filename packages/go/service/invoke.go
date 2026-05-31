@@ -206,13 +206,13 @@ func (s *Service) Invoke(
 			"retry":      false,
 		}
 		resp := map[string]any{
-			"success":               false,
-			"failure":               failure,
-			"invocation_id":         invocationID,
-			"client_reference_id":   opts.ClientReferenceID,
-			"task_id":               opts.TaskID,
-			"parent_invocation_id":  opts.ParentInvocationID,
-			"upstream_service":      opts.UpstreamService,
+			"success":              false,
+			"failure":              failure,
+			"invocation_id":        invocationID,
+			"client_reference_id":  opts.ClientReferenceID,
+			"task_id":              opts.TaskID,
+			"parent_invocation_id": opts.ParentInvocationID,
+			"upstream_service":     opts.UpstreamService,
 		}
 		return resp, nil
 	}
@@ -238,13 +238,13 @@ func (s *Service) Invoke(
 		failure = RedactFailure(failure, effectiveLevel)
 
 		resp := map[string]any{
-			"success":               false,
-			"failure":               failure,
-			"invocation_id":         invocationID,
-			"client_reference_id":   opts.ClientReferenceID,
-			"task_id":               effectiveTaskID,
-			"parent_invocation_id":  opts.ParentInvocationID,
-			"upstream_service":      opts.UpstreamService,
+			"success":              false,
+			"failure":              failure,
+			"invocation_id":        invocationID,
+			"client_reference_id":  opts.ClientReferenceID,
+			"task_id":              effectiveTaskID,
+			"parent_invocation_id": opts.ParentInvocationID,
+			"upstream_service":     opts.UpstreamService,
 		}
 		return resp, nil
 	}
@@ -267,13 +267,13 @@ func (s *Service) Invoke(
 			failure = RedactFailure(failure, effectiveLevel)
 
 			resp := map[string]any{
-				"success":               false,
-				"failure":               failure,
-				"invocation_id":         invocationID,
-				"client_reference_id":   opts.ClientReferenceID,
-				"task_id":               effectiveTaskID,
-				"parent_invocation_id":  opts.ParentInvocationID,
-				"upstream_service":      opts.UpstreamService,
+				"success":              false,
+				"failure":              failure,
+				"invocation_id":        invocationID,
+				"client_reference_id":  opts.ClientReferenceID,
+				"task_id":              effectiveTaskID,
+				"parent_invocation_id": opts.ParentInvocationID,
+				"upstream_service":     opts.UpstreamService,
 			}
 			return resp, nil
 		}
@@ -289,13 +289,13 @@ func (s *Service) Invoke(
 		failure = RedactFailure(failure, effectiveLevel)
 
 		resp := map[string]any{
-			"success":               false,
-			"failure":               failure,
-			"invocation_id":         invocationID,
-			"client_reference_id":   opts.ClientReferenceID,
-			"task_id":               effectiveTaskID,
-			"parent_invocation_id":  opts.ParentInvocationID,
-			"upstream_service":      opts.UpstreamService,
+			"success":              false,
+			"failure":              failure,
+			"invocation_id":        invocationID,
+			"client_reference_id":  opts.ClientReferenceID,
+			"task_id":              effectiveTaskID,
+			"parent_invocation_id": opts.ParentInvocationID,
+			"upstream_service":     opts.UpstreamService,
 		}
 		return resp, nil
 	}
@@ -332,13 +332,13 @@ func (s *Service) Invoke(
 			failure = RedactFailure(failure, effectiveLevel)
 
 			resp := map[string]any{
-				"success":               false,
-				"failure":               failure,
-				"invocation_id":         invocationID,
-				"client_reference_id":   opts.ClientReferenceID,
-				"task_id":               effectiveTaskID,
-				"parent_invocation_id":  opts.ParentInvocationID,
-				"upstream_service":      opts.UpstreamService,
+				"success":              false,
+				"failure":              failure,
+				"invocation_id":        invocationID,
+				"client_reference_id":  opts.ClientReferenceID,
+				"task_id":              effectiveTaskID,
+				"parent_invocation_id": opts.ParentInvocationID,
+				"upstream_service":     opts.UpstreamService,
 			}
 			return resp, nil
 		}
@@ -573,9 +573,9 @@ func (s *Service) Invoke(
 
 		if !satisfied {
 			failure := map[string]any{
-				"type":                      core.FailureControlRequirementUnsatisfied,
-				"detail":                    fmt.Sprintf("Capability %s requires %s", capName, req.Type),
-				"unsatisfied_requirements":  []string{req.Type},
+				"type":                     core.FailureControlRequirementUnsatisfied,
+				"detail":                   fmt.Sprintf("Capability %s requires %s", capName, req.Type),
+				"unsatisfied_requirements": []string{req.Type},
 			}
 			effectiveLevel := ResolveDisclosureLevel(s.disclosureLevel, tokenClaimsMap(token), s.disclosurePolicy)
 			failure = RedactFailure(failure, effectiveLevel)
@@ -706,6 +706,16 @@ func (s *Service) Invoke(
 				"type":   effectiveErrorType,
 				"detail": anipErr.Detail,
 			}
+			if anipErr.Resolution != nil && !approvalPersistFailed {
+				recoveryClass := anipErr.Resolution.RecoveryClass
+				if recoveryClass == "" {
+					recoveryClass = core.RecoveryClassForAction(anipErr.Resolution.Action)
+				}
+				failure["resolution"] = map[string]any{
+					"action":         anipErr.Resolution.Action,
+					"recovery_class": recoveryClass,
+				}
+			}
 			if approvalPersistFailed {
 				failure["detail"] = fmt.Sprintf("approval flow unavailable: %s", approvalPersistErr)
 				failure["resolution"] = map[string]any{
@@ -721,13 +731,13 @@ func (s *Service) Invoke(
 			failure = RedactFailure(failure, effectiveLevel)
 
 			resp := map[string]any{
-				"success":               false,
-				"failure":               failure,
-				"invocation_id":         invocationID,
-				"client_reference_id":   opts.ClientReferenceID,
-				"task_id":               effectiveTaskID,
-				"parent_invocation_id":  opts.ParentInvocationID,
-				"upstream_service":      opts.UpstreamService,
+				"success":              false,
+				"failure":              failure,
+				"invocation_id":        invocationID,
+				"client_reference_id":  opts.ClientReferenceID,
+				"task_id":              effectiveTaskID,
+				"parent_invocation_id": opts.ParentInvocationID,
+				"upstream_service":     opts.UpstreamService,
 			}
 			return resp, nil
 		}
@@ -746,13 +756,13 @@ func (s *Service) Invoke(
 		failure = RedactFailure(failure, effectiveLevel)
 
 		resp := map[string]any{
-			"success":               false,
-			"failure":               failure,
-			"invocation_id":         invocationID,
-			"client_reference_id":   opts.ClientReferenceID,
-			"task_id":               effectiveTaskID,
-			"parent_invocation_id":  opts.ParentInvocationID,
-			"upstream_service":      opts.UpstreamService,
+			"success":              false,
+			"failure":              failure,
+			"invocation_id":        invocationID,
+			"client_reference_id":  opts.ClientReferenceID,
+			"task_id":              effectiveTaskID,
+			"parent_invocation_id": opts.ParentInvocationID,
+			"upstream_service":     opts.UpstreamService,
 		}
 		return resp, nil
 	}
@@ -766,13 +776,13 @@ func (s *Service) Invoke(
 
 	// 8. Build response.
 	resp := map[string]any{
-		"success":               true,
-		"result":                result,
-		"invocation_id":         invocationID,
-		"client_reference_id":   opts.ClientReferenceID,
-		"task_id":               effectiveTaskID,
-		"parent_invocation_id":  opts.ParentInvocationID,
-		"upstream_service":      opts.UpstreamService,
+		"success":              true,
+		"result":               result,
+		"invocation_id":        invocationID,
+		"client_reference_id":  opts.ClientReferenceID,
+		"task_id":              effectiveTaskID,
+		"parent_invocation_id": opts.ParentInvocationID,
+		"upstream_service":     opts.UpstreamService,
 	}
 	if costActual != nil {
 		resp["cost_actual"] = costActual
@@ -1151,21 +1161,21 @@ func (s *Service) appendAuditEntryFull(
 
 func (s *Service) entryToMap(entry *core.AuditEntry) map[string]any {
 	m := map[string]any{
-		"timestamp":              entry.Timestamp,
-		"capability":             entry.Capability,
-		"actor_key":              entry.RootPrincipal,
-		"failure_type":           entry.FailureType,
-		"event_class":            entry.EventClass,
-		"retention_tier":         entry.RetentionTier,
-		"expires_at":             entry.ExpiresAt,
-		"invocation_id":          entry.InvocationID,
-		"client_reference_id":    entry.ClientReferenceID,
-		"task_id":                entry.TaskID,
-		"parent_invocation_id":   entry.ParentInvocationID,
-		"upstream_service":       entry.UpstreamService,
-		"token_id":               entry.TokenID,
-		"issuer":                 entry.Issuer,
-		"subject":                entry.Subject,
+		"timestamp":            entry.Timestamp,
+		"capability":           entry.Capability,
+		"actor_key":            entry.RootPrincipal,
+		"failure_type":         entry.FailureType,
+		"event_class":          entry.EventClass,
+		"retention_tier":       entry.RetentionTier,
+		"expires_at":           entry.ExpiresAt,
+		"invocation_id":        entry.InvocationID,
+		"client_reference_id":  entry.ClientReferenceID,
+		"task_id":              entry.TaskID,
+		"parent_invocation_id": entry.ParentInvocationID,
+		"upstream_service":     entry.UpstreamService,
+		"token_id":             entry.TokenID,
+		"issuer":               entry.Issuer,
+		"subject":              entry.Subject,
 	}
 	if entry.ResultSummary != nil {
 		if detail, ok := entry.ResultSummary["detail"]; ok {

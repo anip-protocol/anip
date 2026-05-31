@@ -176,6 +176,32 @@ class V023CompositionTest {
     }
 
     @Test
+    void clarificationRequiredPropagatesByDefault() {
+        Composition c = new Composition("same_service",
+                List.of(new CompositionStep("a", "x")),
+                Map.of(), Map.of(), new FailurePolicy(), new AuditPolicy(true, true));
+        CapabilityDeclaration d = composed("p", c);
+        ANIPError err = assertThrows(ANIPError.class,
+                () -> V023.executeComposition("p", d, Map.of(),
+                        (cap, params) -> Map.of("success", false,
+                                "failure", Map.of("type", "clarification_required", "detail", "quarter is required"))));
+        assertEquals("clarification_required", err.getErrorType());
+    }
+
+    @Test
+    void restrictedPropagatesByDefault() {
+        Composition c = new Composition("same_service",
+                List.of(new CompositionStep("a", "x")),
+                Map.of(), Map.of(), new FailurePolicy(), new AuditPolicy(true, true));
+        CapabilityDeclaration d = composed("p", c);
+        ANIPError err = assertThrows(ANIPError.class,
+                () -> V023.executeComposition("p", d, Map.of(),
+                        (cap, params) -> Map.of("success", false,
+                                "failure", Map.of("type", "restricted", "detail", "scope is restricted"))));
+        assertEquals("restricted", err.getErrorType());
+    }
+
+    @Test
     void canonicalJsonStableAcrossKeyOrder() {
         Map<String, Object> a = new LinkedHashMap<>();
         a.put("z", 1); a.put("a", 2);

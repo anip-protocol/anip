@@ -380,6 +380,54 @@ func TestExecuteCompositionChildFailurePropagatesByDefault(t *testing.T) {
 	}
 }
 
+func TestExecuteCompositionChildClarificationRequiredPropagatesByDefault(t *testing.T) {
+	decl := composedDecl("summary", basicComposition())
+	runner, _ := makeStepRunner(map[string]map[string]any{
+		"select_cap": {
+			"success": false,
+			"failure": map[string]any{
+				"type":   "clarification_required",
+				"detail": "quarter is required",
+			},
+		},
+	})
+	_, err := ExecuteComposition("summary", decl, map[string]any{"q": "x"}, runner)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	anipErr, ok := err.(*core.ANIPError)
+	if !ok {
+		t.Fatalf("expected *core.ANIPError, got %T", err)
+	}
+	if anipErr.ErrorType != "clarification_required" {
+		t.Errorf("ErrorType = %q, want clarification_required", anipErr.ErrorType)
+	}
+}
+
+func TestExecuteCompositionChildRestrictedPropagatesByDefault(t *testing.T) {
+	decl := composedDecl("summary", basicComposition())
+	runner, _ := makeStepRunner(map[string]map[string]any{
+		"select_cap": {
+			"success": false,
+			"failure": map[string]any{
+				"type":   "restricted",
+				"detail": "scope is restricted",
+			},
+		},
+	})
+	_, err := ExecuteComposition("summary", decl, map[string]any{"q": "x"}, runner)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	anipErr, ok := err.(*core.ANIPError)
+	if !ok {
+		t.Fatalf("expected *core.ANIPError, got %T", err)
+	}
+	if anipErr.ErrorType != "restricted" {
+		t.Errorf("ErrorType = %q, want restricted", anipErr.ErrorType)
+	}
+}
+
 func TestExecuteCompositionChildErrorFailsParent(t *testing.T) {
 	// child_error policy is fail_parent — collapse to composition_child_failed
 	// per SPEC.md §4.6, with original child error type captured in detail.

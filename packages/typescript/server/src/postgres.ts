@@ -793,6 +793,17 @@ export class PostgresStorage implements StorageBackend {
     return parseApprovalRequestRow(result.rows[0]);
   }
 
+  async listApprovalRequests(status?: string | null): Promise<Record<string, unknown>[]> {
+    const pool = this.getPool();
+    const result = status
+      ? await pool.query(
+          "SELECT * FROM approval_requests WHERE status = $1 ORDER BY created_at DESC",
+          [status],
+        )
+      : await pool.query("SELECT * FROM approval_requests ORDER BY created_at DESC");
+    return result.rows.map(parseApprovalRequestRow);
+  }
+
   async approveRequestAndStoreGrant(
     approvalRequestId: string,
     grant: Record<string, unknown>,

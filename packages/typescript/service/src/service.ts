@@ -177,6 +177,7 @@ export interface ANIPService {
   getApprovalRequest(
     approvalRequestId: string,
   ): Promise<Record<string, unknown> | null>;
+  listApprovalRequests(status?: string | null): Promise<Record<string, unknown>[]>;
   getCapabilityDeclaration(capabilityName: string): Record<string, unknown> | null;
   getCapabilityGraph(capabilityName: string): Record<string, unknown> | null;
   queryAudit(
@@ -1326,6 +1327,10 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
       return await storage.getApprovalRequest(approvalRequestId);
     },
 
+    async listApprovalRequests(status?: string | null): Promise<Record<string, unknown>[]> {
+      return await storage.listApprovalRequests(status);
+    },
+
     getCapabilityDeclaration(capabilityName: string): Record<string, unknown> | null {
       const cap = capabilities.get(capabilityName);
       return cap ? (cap.declaration as Record<string, unknown>) : null;
@@ -1873,7 +1878,23 @@ export function createANIPService(opts: ANIPServiceOpts): ANIPService {
               childCap: string,
               childParams: Record<string, unknown>,
             ): Promise<Record<string, unknown>> => {
-              return service.invoke(childCap, resolvedToken, childParams, {
+              const childDefinition = capabilities.get(childCap)?.declaration;
+              if (childDefinition === undefined) {
+                throw new ANIPError("unknown_capability", `Composition child capability '${childCap}' not found`);
+              }
+              const childTokenResponse = await service.issueDelegatedCapabilityToken(
+                resolvedToken.subject,
+                resolvedToken.token_id,
+                childCap,
+                childDefinition.minimum_scope ?? [],
+                resolvedToken.subject,
+                {
+                  purposeParameters: resolvedToken.purpose?.parameters as Record<string, unknown> | undefined,
+                  ttlHours: 1,
+                },
+              );
+              const childToken = await service.resolveBearerToken(String(childTokenResponse.token));
+              return service.invoke(childCap, childToken, childParams, {
                 clientReferenceId,
                 taskId: effectiveTaskId,
                 parentInvocationId: invocationId,

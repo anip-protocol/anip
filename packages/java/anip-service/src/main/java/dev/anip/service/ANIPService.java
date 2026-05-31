@@ -1007,7 +1007,12 @@ public class ANIPService {
                     apReq.put("preview_digest", materialized.getPreviewDigest());
                     apReq.put("requested_parameters_digest", materialized.getRequestedParametersDigest());
                     if (materialized.getGrantPolicy() != null) {
-                        apReq.put("grant_policy", materialized.getGrantPolicy());
+                        GrantPolicy policy = materialized.getGrantPolicy();
+                        apReq.put("grant_policy", Map.of(
+                                "allowed_grant_types", policy.getAllowedGrantTypes(),
+                                "default_grant_type", policy.getDefaultGrantType(),
+                                "expires_in_seconds", policy.getExpiresInSeconds(),
+                                "max_uses", policy.getMaxUses()));
                     }
                     failure.put("approval_required", apReq);
                 }

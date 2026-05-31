@@ -78,6 +78,23 @@ def _resolve_binding_age(binding_value: Any, now: float | None = None) -> timede
             except (ValueError, OverflowError):
                 pass
     return None
+
+
+def _apply_declared_input_defaults(decl: CapabilityDeclaration, params: dict[str, Any]) -> dict[str, Any]:
+    """Apply capability input defaults before policy, approval, and handler logic."""
+    normalized = dict(params)
+    for item in decl.inputs or []:
+        resolution = getattr(item, "resolution", None)
+        if getattr(resolution, "on_missing", None) == "omit":
+            continue
+        default = getattr(item, "default", None)
+        if default is None:
+            continue
+        if normalized.get(item.name) in (None, ""):
+            normalized[item.name] = default
+    return normalized
+
+
 from anip_crypto import KeyManager
 from anip_server import (
     AuditLog,
@@ -1020,6 +1037,7 @@ class ANIPService:
 
         cap = self._capabilities[capability_name]
         decl = cap.declaration
+        params = _apply_declared_input_defaults(decl, params)
 
         # Check streaming support
         if stream:
@@ -1077,7 +1095,7 @@ class ANIPService:
             _event_class = classify_event(_side_effect_type, False, failure["type"])
             _retention_tier = self._retention_policy.resolve_tier(_event_class)
             _expires_at = self._retention_policy.compute_expires_at(_retention_tier)
-            await self._log_audit(
+            await self._safe_log_audit(
                 capability_name, token, success=False,
                 failure_type=failure["type"], result_summary=None,
                 cost_actual=None, cost_variance=None,
@@ -1392,7 +1410,7 @@ class ANIPService:
                 _event_class = classify_event(_side_effect_type, False, "concurrent_lock")
                 _retention_tier = self._retention_policy.resolve_tier(_event_class)
                 _expires_at = self._retention_policy.compute_expires_at(_retention_tier)
-                await self._log_audit(
+                await self._safe_log_audit(
                     capability_name, resolved_token, success=False,
                     failure_type="concurrent_lock",
                     result_summary=None, cost_actual=None, cost_variance=None,
@@ -1470,6 +1488,8 @@ class ANIPService:
                             raise ANIPError(FAILURE_GRANT_EXPIRED, "grant has expired")
                         raise ANIPError(FAILURE_GRANT_NOT_FOUND, "grant not found at reservation")
                     _reserved_grant = reservation["grant"]
+                    ctx.approval_grant_id = approval_grant
+                    ctx.approval_grant = _reserved_grant
 
                 async def _run_handler() -> Any:
                     r = cap.handler(ctx, params)
@@ -1550,7 +1570,7 @@ class ANIPService:
                     if _materialized_approval is not None and not _approval_persist_failed
                     else None
                 )
-                await self._log_audit(
+                await self._safe_log_audit(
                     capability_name, resolved_token, success=False,
                     failure_type=_effective_error_type,
                     result_summary={"detail": e.detail},
@@ -1655,7 +1675,7 @@ class ANIPService:
                 _event_class = classify_event(_side_effect_type, False, "internal_error")
                 _retention_tier = self._retention_policy.resolve_tier(_event_class)
                 _expires_at = self._retention_policy.compute_expires_at(_retention_tier)
-                await self._log_audit(
+                await self._safe_log_audit(
                     capability_name, resolved_token, success=False,
                     failure_type="internal_error",
                     result_summary=None, cost_actual=None, cost_variance=None,
@@ -1733,7 +1753,7 @@ class ANIPService:
                     _cost_actual_amount = _ca_fin.get("amount") if isinstance(_ca_fin, dict) else None
                 _success_budget_ctx = {**_audit_budget_base, "cost_actual": _cost_actual_amount, "within_budget": True}
 
-            await self._log_audit(
+            await self._safe_log_audit(
                 capability_name, resolved_token, success=True,
                 failure_type=None,
                 result_summary=self._summarize_result(result),
@@ -2151,6 +2171,13 @@ class ANIPService:
         """
         try:
             fn(payload)
+        except Exception:
+            pass
+
+    async def _safe_log_audit(self, *args: Any, **kwargs: Any) -> None:
+        """Write invocation audit data without changing the invocation outcome."""
+        try:
+            await self._log_audit(*args, **kwargs)
         except Exception:
             pass
 

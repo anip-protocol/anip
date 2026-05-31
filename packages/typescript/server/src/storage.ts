@@ -49,6 +49,7 @@ export interface StorageBackend {
   // -- v0.23: approval requests + grants -----------------------------------
   storeApprovalRequest(request: Record<string, unknown>): Promise<void>;
   getApprovalRequest(approvalRequestId: string): Promise<Record<string, unknown> | null>;
+  listApprovalRequests(status?: string | null): Promise<Record<string, unknown>[]>;
   approveRequestAndStoreGrant(
     approvalRequestId: string,
     grant: Record<string, unknown>,
@@ -273,6 +274,14 @@ export class InMemoryStorage implements StorageBackend {
       const row = this._approvalRequests.get(approvalRequestId);
       return row ? { ...row } : null;
     });
+  }
+
+  async listApprovalRequests(status?: string | null): Promise<Record<string, unknown>[]> {
+    return this.withApprovalLock(() =>
+      Array.from(this._approvalRequests.values())
+        .filter((row) => !status || row.status === status)
+        .map((row) => ({ ...row })),
+    );
   }
 
   async approveRequestAndStoreGrant(
@@ -574,6 +583,10 @@ export class SQLiteStorage implements StorageBackend {
     return (await this.call("getApprovalRequest", [approvalRequestId])) as
       | Record<string, unknown>
       | null;
+  }
+
+  async listApprovalRequests(status?: string | null): Promise<Record<string, unknown>[]> {
+    return (await this.call("listApprovalRequests", [status ?? null])) as Record<string, unknown>[];
   }
 
   async approveRequestAndStoreGrant(

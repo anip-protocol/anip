@@ -243,6 +243,80 @@ public class V023CompositionTests
     }
 
     [Fact]
+    public void ExecuteComposition_ClarificationRequiredPropagatesByDefault()
+    {
+        var parent = new CapabilityDeclaration
+        {
+            Name = "parent",
+            Description = "p",
+            ContractVersion = "1.0",
+            SideEffect = new SideEffect { Type = "none" },
+            MinimumScope = new List<string> { "data" },
+            Kind = "composed",
+            Composition = new Composition
+            {
+                AuthorityBoundary = "same_service",
+                Steps = new List<CompositionStep>
+                {
+                    new() { Id = "s1", Capability = "step1" },
+                },
+            },
+        };
+
+        V023.InvokeStepFunc invoker = (cap, p) => new Dictionary<string, object?>
+        {
+            ["success"] = false,
+            ["failure"] = new Dictionary<string, object?>
+            {
+                ["type"] = "clarification_required",
+                ["detail"] = "quarter is required",
+            },
+        };
+
+        var ex = Assert.Throws<AnipError>(() =>
+            V023.ExecuteComposition("parent", parent,
+                new Dictionary<string, object?>(), invoker));
+        Assert.Equal("clarification_required", ex.ErrorType);
+    }
+
+    [Fact]
+    public void ExecuteComposition_RestrictedPropagatesByDefault()
+    {
+        var parent = new CapabilityDeclaration
+        {
+            Name = "parent",
+            Description = "p",
+            ContractVersion = "1.0",
+            SideEffect = new SideEffect { Type = "none" },
+            MinimumScope = new List<string> { "data" },
+            Kind = "composed",
+            Composition = new Composition
+            {
+                AuthorityBoundary = "same_service",
+                Steps = new List<CompositionStep>
+                {
+                    new() { Id = "s1", Capability = "step1" },
+                },
+            },
+        };
+
+        V023.InvokeStepFunc invoker = (cap, p) => new Dictionary<string, object?>
+        {
+            ["success"] = false,
+            ["failure"] = new Dictionary<string, object?>
+            {
+                ["type"] = "restricted",
+                ["detail"] = "scope is restricted",
+            },
+        };
+
+        var ex = Assert.Throws<AnipError>(() =>
+            V023.ExecuteComposition("parent", parent,
+                new Dictionary<string, object?>(), invoker));
+        Assert.Equal("restricted", ex.ErrorType);
+    }
+
+    [Fact]
     public void CanonicalJsonSortsKeys()
     {
         var v = new Dictionary<string, object?>

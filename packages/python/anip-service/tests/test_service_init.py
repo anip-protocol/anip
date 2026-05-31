@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 from anip_service import ANIPService, Capability, InvocationContext, ANIPError
 from anip_core import CapabilityDeclaration, CapabilityInput, CapabilityOutput, SideEffect, SideEffectType, PROTOCOL_VERSION
@@ -214,6 +216,69 @@ class TestANIPServiceInvoke:
         result = await service.invoke("greet", token, {"name": "World"})
         assert result["success"] is True
         assert result["result"]["message"] == "Hello, World!"
+
+    def test_invoke_applies_declared_input_defaults_before_handler(self):
+        captured_params = {}
+
+        def handler(ctx, params):
+            captured_params.update(params)
+            return {"objective": params["objective"]}
+
+        cap = Capability(
+            declaration=CapabilityDeclaration(
+                name="draft",
+                description="Draft message",
+                contract_version="1.0",
+                inputs=[
+                    CapabilityInput(name="target_ref", type="string", required=True, description="Target"),
+                    CapabilityInput(
+                        name="objective",
+                        type="string",
+                        required=True,
+                        default="first_touch",
+                        allowed_values=["first_touch", "follow_up"],
+                        description="Objective",
+                    ),
+                ],
+                output=CapabilityOutput(type="object", fields=["objective"]),
+                side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+                minimum_scope=["draft"],
+            ),
+            handler=handler,
+        )
+        service = self._make_service(caps=[cap])
+        token = asyncio.run(self._issue_test_token(service, scope=["draft"], capability="draft"))
+        result = asyncio.run(service.invoke("draft", token, {"target_ref": "Acme"}))
+        assert result["success"] is True
+        assert result["result"]["objective"] == "first_touch"
+        assert captured_params == {"target_ref": "Acme", "objective": "first_touch"}
+
+    def test_invoke_treats_blank_declared_input_as_defaultable(self):
+        cap = Capability(
+            declaration=CapabilityDeclaration(
+                name="draft_blank",
+                description="Draft message",
+                contract_version="1.0",
+                inputs=[
+                    CapabilityInput(
+                        name="objective",
+                        type="string",
+                        required=False,
+                        default="first_touch",
+                        description="Objective",
+                    ),
+                ],
+                output=CapabilityOutput(type="object", fields=["objective"]),
+                side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+                minimum_scope=["draft"],
+            ),
+            handler=lambda ctx, params: {"objective": params["objective"]},
+        )
+        service = self._make_service(caps=[cap])
+        token = asyncio.run(self._issue_test_token(service, scope=["draft"], capability="draft_blank"))
+        result = asyncio.run(service.invoke("draft_blank", token, {"objective": ""}))
+        assert result["success"] is True
+        assert result["result"]["objective"] == "first_touch"
 
     async def test_invoke_with_async_handler(self):
         """Test that async handlers are properly awaited."""

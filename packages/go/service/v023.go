@@ -410,6 +410,9 @@ func ExecuteComposition(
 			}
 			// Propagate (default): forward the child's failure type.
 			cerr := core.NewANIPError(failureType, detail)
+			if resolution, ok := resolutionFromMap(failure["resolution"]); ok {
+				cerr.Resolution = resolution
+			}
 			if approval, ok := failure["approval_required"].(map[string]any); ok && approval != nil {
 				// Re-attach approval_required metadata into the propagated error.
 				meta, ok := approvalMetadataFromMap(approval)
@@ -438,9 +441,9 @@ func failureOutcomeFor(failureType string, policy core.FailurePolicy) string {
 	switch failureType {
 	case FailureApprovalRequired:
 		return policy.ChildApprovalRequired
-	case core.FailureScopeInsufficient, "denied", core.FailureNonDelegableAction:
+	case core.FailureScopeInsufficient, "restricted", "denied", core.FailureNonDelegableAction:
 		return policy.ChildDenial
-	case core.FailureBindingMissing, core.FailureBindingStale,
+	case "clarification_required", core.FailureBindingMissing, core.FailureBindingStale,
 		core.FailureControlRequirementUnsatisfied,
 		core.FailurePurposeMismatch, core.FailureInvalidParameters:
 		return policy.ChildClarification
@@ -729,6 +732,33 @@ func MaterializeApprovalRequest(
 		RequestedParametersDigest: req.RequestedParametersDigest,
 		GrantPolicy:               gp,
 	}, req, nil
+}
+
+// resolutionFromMap rebuilds a child failure resolution from a JSON-shaped map
+// so propagated composed failures preserve the child's recovery path.
+func resolutionFromMap(raw any) (*core.Resolution, bool) {
+	m, ok := raw.(map[string]any)
+	if !ok || m == nil {
+		return nil, false
+	}
+	action, _ := m["action"].(string)
+	if action == "" {
+		return nil, false
+	}
+	recoveryClass, _ := m["recovery_class"].(string)
+	if recoveryClass == "" {
+		recoveryClass = core.RecoveryClassForAction(action)
+	}
+	requires, _ := m["requires"].(string)
+	grantableBy, _ := m["grantable_by"].(string)
+	estimatedAvailability, _ := m["estimated_availability"].(string)
+	return &core.Resolution{
+		Action:                action,
+		RecoveryClass:         recoveryClass,
+		Requires:              requires,
+		GrantableBy:           grantableBy,
+		EstimatedAvailability: estimatedAvailability,
+	}, true
 }
 
 // approvalMetadataFromMap rebuilds an ApprovalRequiredMetadata from a

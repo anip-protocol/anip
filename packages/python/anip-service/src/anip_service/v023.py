@@ -343,9 +343,10 @@ def _failure_outcome(failure_type: str, policy) -> str:
     """Map a child failure_type to the configured outcome."""
     if failure_type == "approval_required":
         return policy.child_approval_required
-    if failure_type in ("scope_insufficient", "denied", "non_delegable_action"):
+    if failure_type in ("scope_insufficient", "restricted", "denied", "non_delegable_action"):
         return policy.child_denial
     if failure_type in (
+        "clarification_required",
         "binding_missing",
         "binding_stale",
         "control_requirement_unsatisfied",
