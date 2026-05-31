@@ -12,7 +12,7 @@ jobs:
     outputs:
       should_test: ${{ steps.filter.outputs.src }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -29,7 +29,7 @@ jobs:
       matrix:
         go-version: ["1.24", "1.25"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
@@ -57,7 +57,7 @@ jobs:
             port: "9201"
     name: "conformance (${{ matrix.example.name }})"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v5
         with:
           go-version: "1.25"
