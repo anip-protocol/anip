@@ -475,11 +475,101 @@ jobs:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+          ALLOW_ALREADY_PUBLISHED: ${{ inputs.allow_already_published }}
+          VERSION: ${{ inputs.version }}
         run: |
           set -e
+          ARTIFACTS=(
+            anip-parent
+            anip-core
+            anip-crypto
+            anip-server
+            anip-service
+            anip-spring-boot
+            anip-quarkus
+            anip-rest
+            anip-rest-spring
+            anip-rest-quarkus
+            anip-graphql
+            anip-graphql-spring
+            anip-graphql-quarkus
+            anip-mcp
+            anip-mcp-spring
+            anip-mcp-quarkus
+            anip-stdio
+            anip-studio
+            anip-example-flights
+            anip-example-flights-quarkus
+          )
+
+          artifact_pom_url() {
+            local artifact="$1"
+            echo "https://repo1.maven.org/maven2/dev/anip/${artifact}/${VERSION}/${artifact}-${VERSION}.pom"
+          }
+
+          list_missing_artifacts() {
+            local missing=()
+            for artifact in "${ARTIFACTS[@]}"; do
+              local url
+              url="$(artifact_pom_url "$artifact")"
+              if curl -fsI "$url" >/dev/null; then
+                echo "FOUND: dev.anip:${artifact}:${VERSION}"
+              else
+                echo "MISSING: dev.anip:${artifact}:${VERSION}"
+                missing+=("$artifact")
+              fi
+            done
+            if [ "${#missing[@]}" -gt 0 ]; then
+              printf '%s\n' "${missing[@]}" > /tmp/anip-maven-missing-artifacts.txt
+              return 1
+            fi
+            : > /tmp/anip-maven-missing-artifacts.txt
+            return 0
+          }
+
+          skip_if_already_published() {
+            if [ "$ALLOW_ALREADY_PUBLISHED" != "true" ]; then
+              return 1
+            fi
+            if list_missing_artifacts; then
+              echo "SKIP: all Java artifacts for ${VERSION} are already published (allow_already_published=true)"
+              return 0
+            fi
+            return 1
+          }
+
+          if skip_if_already_published; then
+            exit 0
+          fi
+
           # Deploy the entire reactor at once — parent POM + all modules in dependency order.
           # The central-publishing plugin bundles everything into a single deployment.
-          mvn deploy -DskipTests -Prelease
+          set +e
+          mvn deploy -DskipTests -Prelease 2>&1 | tee /tmp/anip-maven-deploy.log
+          deploy_status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$deploy_status" -eq 0 ]; then
+            exit 0
+          fi
+
+          if [ "$ALLOW_ALREADY_PUBLISHED" = "true" ]; then
+            echo "Maven deploy failed; checking whether this is a partial-release rerun with artifacts already published."
+            for attempt in {1..30}; do
+              echo "Maven Central visibility check attempt ${attempt}/30"
+              if list_missing_artifacts; then
+                echo "SKIP: Java deploy failed, but all artifacts are already published (allow_already_published=true)"
+                exit 0
+              fi
+              sleep 20
+            done
+            echo "FAIL: Java deploy failed and not all expected artifacts are published."
+            echo "Missing artifacts:"
+            cat /tmp/anip-maven-missing-artifacts.txt
+            exit "$deploy_status"
+          fi
+
+          exit "$deploy_status"
 
   publish-csharp:
     needs: bump-and-validate
