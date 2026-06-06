@@ -72,6 +72,7 @@ type InvocationContext struct {
 	TaskID             string
 	ParentInvocationID string
 	UpstreamService    string
+	ApprovalGrant      string
 	costActual         *core.CostActual
 	EmitProgress       func(payload map[string]any) error
 }

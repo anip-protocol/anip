@@ -608,6 +608,7 @@ func (s *Service) Invoke(
 		TaskID:             effectiveTaskID,
 		ParentInvocationID: opts.ParentInvocationID,
 		UpstreamService:    opts.UpstreamService,
+		ApprovalGrant:      opts.ApprovalGrant,
 		EmitProgress: func(payload map[string]any) error {
 			// No-op for unary invocations.
 			return nil
@@ -938,6 +939,7 @@ func (s *Service) InvokeStream(
 		TaskID:             effectiveTaskID,
 		ParentInvocationID: parentInvID,
 		UpstreamService:    upstreamSvc,
+		ApprovalGrant:      opts.ApprovalGrant,
 		EmitProgress:       emitProgress,
 	}
 

@@ -1075,7 +1075,8 @@ public class AnipService : IDisposable
                 taskId: effectiveTaskId,
                 parentInvocationId: opts.ParentInvocationId,
                 emitProgress: _ => false, // No-op for unary invocations.
-                upstreamService: opts.UpstreamService
+                upstreamService: opts.UpstreamService,
+                approvalGrant: opts.ApprovalGrant
             );
 
             // 4b. v0.23 §4.8 Phase A+B: validate + atomically reserve any
@@ -1552,7 +1553,8 @@ public class AnipService : IDisposable
             taskId: effectiveTaskId,
             parentInvocationId: parentInvId,
             emitProgress: emitProgress,
-            upstreamService: upstreamSvc
+            upstreamService: upstreamSvc,
+            approvalGrant: opts.ApprovalGrant
         );
 
         // 5. Run handler in background task.

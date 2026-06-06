@@ -845,7 +845,8 @@ public class ANIPService {
             InvocationContext ctx = new InvocationContext(
                     token, rootPrincipal, token.getSubject(),
                     invocationId, clientRefId,
-                    effectiveTaskId, parentInvocationId,
+                    effectiveTaskId, parentInvocationId, upstreamService,
+                    opts != null ? opts.getApprovalGrant() : null,
                     token.getScope(), List.of(token.getTokenId()),
                     payload -> true // no-op for unary
             );
@@ -1219,7 +1220,8 @@ public class ANIPService {
         InvocationContext ctx = new InvocationContext(
                 token, rootPrincipal, token.getSubject(),
                 invocationId, clientRefId,
-                effectiveTaskId, parentInvocationId,
+                effectiveTaskId, parentInvocationId, upstreamService,
+                reservedGrantId,
                 token.getScope(), List.of(token.getTokenId()),
                 emitProgress
         );
