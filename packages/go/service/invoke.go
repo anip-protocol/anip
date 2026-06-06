@@ -939,6 +939,7 @@ func (s *Service) InvokeStream(
 		TaskID:             effectiveTaskID,
 		ParentInvocationID: parentInvID,
 		UpstreamService:    upstreamSvc,
+		ApprovalGrant:      opts.ApprovalGrant,
 		EmitProgress:       emitProgress,
 	}
 

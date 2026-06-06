@@ -54,7 +54,7 @@ func approvalRequiredCapability(grantPolicy *core.GrantPolicy) CapabilityDef {
 					amount = float64(i)
 				}
 			}
-			if amount > 10000 {
+			if amount > 10000 && ctx.ApprovalGrant == "" {
 				return nil, &core.ANIPError{
 					ErrorType: FailureApprovalRequired,
 					Detail:    "transfer_funds requires approval for amounts above $10000",
