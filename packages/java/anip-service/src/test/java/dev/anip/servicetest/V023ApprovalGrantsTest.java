@@ -70,7 +70,7 @@ class V023ApprovalGrantsTest {
                     if (Boolean.TRUE.equals(params.get("__force_approval"))) {
                         throw new ANIPError(Constants.FAILURE_APPROVAL_REQUIRED, "approval needed");
                     }
-                    return Map.of("status", "ok");
+                    return Map.of("status", "ok", "approval_grant", ctx.getApprovalGrant());
                 })))
                 .setAuthenticate(b -> "valid".equals(b) ? Optional.of("alice") : Optional.empty())
                 .setRetentionIntervalSeconds(-1);
@@ -277,6 +277,9 @@ class V023ApprovalGrantsTest {
         Map<String, Object> success = service.invoke("transfer_funds", token,
                 Map.of("amount", 100), opts);
         assertEquals(true, success.get("success"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> continuationResult = (Map<String, Object>) success.get("result");
+        assertEquals(g2.getGrantId(), continuationResult.get("approval_grant"));
 
         // Alice-scoped audit: failure entry linked to approval_request_id,
         // approval_request_created event, and continuation success referencing

@@ -35,7 +35,11 @@ public class V023ApprovalGrantsTests : IDisposable
                             MaxUses = 3,
                         },
                     },
-                    (ctx, p) => new Dictionary<string, object?> { ["sent"] = true }),
+                    (ctx, p) => new Dictionary<string, object?>
+                    {
+                        ["sent"] = true,
+                        ["approval_grant"] = ctx.ApprovalGrant,
+                    }),
             },
             Authenticate = bearer => bearer == "valid-key" ? _principal : null,
         };
@@ -93,6 +97,29 @@ public class V023ApprovalGrantsTests : IDisposable
         var loaded = _service.GetApprovalRequest("apr_one1");
         Assert.NotNull(loaded);
         Assert.Equal(ApprovalRequest.StatusApproved, loaded!.Status);
+    }
+
+    [Fact]
+    public void InvokeContinuationExposesApprovalGrantToHandlerContext()
+    {
+        SeedPendingRequest("apr_ctx");
+        var approver = new Dictionary<string, object?> { ["subject"] = "boss" };
+        var grant = _service.IssueApprovalGrant(
+            "apr_ctx", ApprovalGrant.TypeOneTime, approver, null, null, null);
+
+        var tokenResponse = _service.IssueToken(_principal, new TokenRequest
+        {
+            Scope = new List<string> { "data.write" },
+        });
+        var token = _service.ResolveBearerToken(tokenResponse.Token);
+
+        var result = _service.Invoke("send_notice", token,
+            new Dictionary<string, object?> { ["msg"] = "hi" },
+            new InvokeOpts { ApprovalGrant = grant.GrantId });
+
+        Assert.Equal(true, result["success"]);
+        var innerResult = (Dictionary<string, object?>)result["result"]!;
+        Assert.Equal(grant.GrantId, innerResult["approval_grant"]);
     }
 
     [Fact]

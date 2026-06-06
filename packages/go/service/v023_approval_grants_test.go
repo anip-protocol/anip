@@ -63,7 +63,7 @@ func approvalRequiredCapability(grantPolicy *core.GrantPolicy) CapabilityDef {
 					// capability declaration's grant_policy.
 				}
 			}
-			return map[string]any{"transfer_id": "tx-1234"}, nil
+			return map[string]any{"transfer_id": "tx-1234", "approval_grant": ctx.ApprovalGrant}, nil
 		},
 	}
 }
@@ -590,6 +590,10 @@ func TestAuditLinkage_FullChainReconstructible(t *testing.T) {
 		t.Fatalf("Invoke continuation: %v", err)
 	}
 	continuationInvocationID, _ := cont["invocation_id"].(string)
+	result, _ := cont["result"].(map[string]any)
+	if got, _ := result["approval_grant"].(string); got != grantID {
+		t.Fatalf("handler approval grant = %q, want %q", got, grantID)
+	}
 
 	allEntries, err := svc.storage.QueryAuditEntries(server.AuditFilters{Limit: 200})
 	if err != nil {
