@@ -1,0 +1,81 @@
+{
+  "lock_kind": "publisher_recommended_lock",
+  "artifact_type": "anip_package_lock",
+  "blueprint_id": "gtm-pipeline-q2-review",
+  "blueprint_version": "0.3.6",
+  "package_id": "gtm-pipeline-q2-review",
+  "package_version": "0.3.6",
+  "service_definition_digest": "sha256:cb70dc7b098708635de4e18704005183524c10af13e94d6493cefb6eb6f9d8b3",
+  "schema_version": "anip-service-definition/v1",
+  "build_packs": [
+    "anip-build-pack@local"
+  ],
+  "verifier_packs": [
+    "anip-verifier@local"
+  ],
+  "runtime_packages": [],
+  "extension_packs": [],
+  "regression_packs": [],
+  "selected_service_ids": [
+    "gtm-pipeline-service",
+    "gtm-enrichment-service",
+    "gtm-prioritization-service",
+    "gtm-outreach-service"
+  ],
+  "capability_ids": [
+    "gtm.pipeline_summary",
+    "gtm.pipeline_forecast_summary",
+    "gtm.stage_bottleneck_summary",
+    "gtm.sales_team_performance_summary",
+    "gtm.product_pipeline_summary",
+    "gtm.prepare_reassignment_plan",
+    "gtm.stalled_opportunity_review",
+    "gtm.account_risk_summary",
+    "gtm.prepare_followup_tasks",
+    "gtm.account_enrichment_summary",
+    "gtm.lookalike_accounts",
+    "gtm.at_risk_account_enrichment_summary",
+    "gtm.score_leads",
+    "gtm.prioritize_accounts",
+    "gtm.route_leads",
+    "gtm.draft_outreach_message",
+    "gtm.suggest_followup_content",
+    "gtm.objection_response_variants",
+    "gtm.prioritized_outreach_draft",
+    "gtm.bottleneck_account_outreach_draft",
+    "gtm.at_risk_reassignment_preparation",
+    "gtm.at_risk_followup_preparation"
+  ],
+  "contract_signature": "sha256:cb70dc7b098708635de4e18704005183524c10af13e94d6493cefb6eb6f9d8b3",
+  "lineage": {
+    "project_ref": "studio:gtm-pipeline-q2-review",
+    "product_revision": {
+      "ref": "seed:gtm-revenue-operations-business-spec:v2",
+      "artifact_id": "req-gtm-revenue-operations-business-spec",
+      "revision_number": 2,
+      "baseline_locked_at": "2026-04-27T00:00:00Z"
+    },
+    "developer_revision": {
+      "ref": "seed:gtm-revenue-operations-four-service-estate:r2",
+      "artifact_id": "seed:gtm-revenue-operations-four-service-estate:r2",
+      "revision_number": 2,
+      "contract_signature": "sha256:cb70dc7b098708635de4e18704005183524c10af13e94d6493cefb6eb6f9d8b3"
+    }
+  },
+  "agent_consumption_readiness": {
+    "status": "needs_review",
+    "score": 45,
+    "summary": {
+      "blockers": 0,
+      "warnings": 32,
+      "info": 41,
+      "probes": 56,
+      "required_app_glue": 24
+    }
+  },
+  "agent_consumability": {
+    "schema_version": "anip-agent-consumability/v0",
+    "capability_count": 22
+  },
+  "generated_at": "2026-05-06T03:31:46.910Z"
+}

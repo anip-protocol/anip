@@ -16,13 +16,21 @@ function HomepageHeader() {
         <div className={styles.heroInner}>
           <p className={styles.eyebrow}>The missing layer between reasoning and execution</p>
           <Heading as="h1" className={styles.heroTitle}>
-            Interfaces were never designed<br />for systems that act
+            Agents need service-owned interfaces,<br />not UI recipes in prompts
           </Heading>
           <p className={styles.heroLead}>
-            GUIs are built for humans to see and click. APIs are built for developers
-            to call and compose. Agents, however, <strong>act</strong> — and acting has consequences.
-            ANIP is the control layer that makes cost, authority, side effects,
-            and recovery explicit before execution happens.
+            GUIs used to stitch primitive APIs into safe human workflows. MCP exposes
+            callable tools, but it does not replace those service-owned workflows by
+            itself. Without a governed agent interface, behavior moves into consumer-side
+            skills, recipes, and prompts — exactly where hallucinations and prompt
+            injection can override it. ANIP moves that behavior back to the service side:
+            bounded capabilities, authority, approval, side effects, audit, and recovery
+            before execution.
+          </p>
+          <p className={styles.heroSubLead}>
+            ANIP started as a protocol. It is now a complete ecosystem: Studio for
+            authoring and review, Registry for signed distribution, CLI generation,
+            conformance suites, templates, showcase systems, and verification workflows.
           </p>
           <div className={styles.ctaRow}>
             <Link className="button button--primary button--lg" to="/docs/getting-started/quickstart">
@@ -43,48 +51,55 @@ function TheProblem() {
     <section className={styles.section}>
       <div className="container">
         <div className={styles.sectionHeader}>
-          <Heading as="h2">Agents do not fail safely</Heading>
+          <Heading as="h2">MCP exposes tools. It does not replace product workflows.</Heading>
           <p>
-            Today, agents operate in a fundamentally unsafe model: <strong>input → reasoning → tool call → execution</strong>.
-            At the point of execution, cost is unknown, permissions are implicit, side effects are hidden, and failure is opaque.
-            The system assumes the agent made the right decision. That assumption is wrong.
+            Today, teams often hand agents raw tools and then teach safe usage with
+            prompt text, skills, recipes, and framework glue. That puts the workflow on
+            the consumer side instead of the service side. The result is fragile:
+            cost is unclear, permissions are implicit, side effects are hidden, approval
+            is bolted on afterward, and failure recovery depends on model behavior.
           </p>
         </div>
         <div className={styles.compareGrid}>
           <div className={clsx(styles.compareCard, styles.compareBefore)}>
-            <div className={styles.compareLabel}>Today's model</div>
+            <div className={styles.compareLabel}>Tool-first model</div>
             <div className={styles.compareContent}>
-              <CodeBlock language="text">{`call → fail → retry blindly
+              <CodeBlock language="text">{`user intent → prompt/skill recipe → raw tool call
 
-Agent triggers irreversible action without
-understanding consequences
+Agent must infer the workflow the UI used to own
 
-Agent misuses authority it doesn't reason about
+Safety rules live in client prompts or skill files
 
-Agent cannot recover from permission failures
+Prompt injection can redirect or bypass guidance
 
-Agent cannot explain or justify decisions
-before execution`}</CodeBlock>
+Service sees an API call, not a governed action`}</CodeBlock>
             </div>
           </div>
           <div className={clsx(styles.compareCard, styles.compareAfter)}>
-            <div className={styles.compareLabel}>With ANIP</div>
+            <div className={styles.compareLabel}>ANIP model</div>
             <div className={styles.compareContent}>
-              <CodeBlock language="text">{`understand → evaluate → decide → act (or not)
+              <CodeBlock language="text">{`user intent → governed capability → safe outcome
 
-Agent sees cost, authority, side effects,
-and reversibility before acting
+Service exposes the workflow as a contract
 
-Agent checks permissions and budget before
-attempting execution
+Agent gets bounded inputs, authority, and outcomes
 
-Agent receives structured recovery guidance
-when blocked
+Approval, denial, audit, and recovery are service-owned
 
-Agent can escalate to a human when authority
-is insufficient`}</CodeBlock>
+The interface is designed for agents that act`}</CodeBlock>
             </div>
           </div>
+        </div>
+        <div className={styles.compensationCallout}>
+          <Heading as="h3">Framework workflows help, but they do not move the boundary</Heading>
+          <p>
+            Agent frameworks, workflow graphs, skills, and recipe repositories can make one
+            app safer. But the rules still live on the consumer side, are not portable
+            across clients, and can force the model to reason through more policy on every
+            request. ANIP moves the governed workflow into the service contract, narrowing
+            the action space so smaller, cheaper models can safely operate bounded
+            capabilities.
+          </p>
         </div>
       </div>
     </section>
@@ -97,20 +112,24 @@ function TheGap() {
       <div className="container">
         <div className={styles.sectionHeader}>
           <Heading as="h2">The gap</Heading>
-          <p>APIs describe <em>how</em> to call systems. They do not describe what an action <em>means</em>.</p>
+          <p>
+            APIs and tool protocols help agents find and call systems. They still do not, by themselves,
+            define the governed meaning of an action.
+          </p>
         </div>
         <div className={styles.gapGrid}>
           <div className={styles.gapCard}>
-            <Heading as="h3">What APIs tell agents</Heading>
+            <Heading as="h3">What APIs and MCP-style tools expose</Heading>
             <ul>
-              <li>Endpoint URL and HTTP method</li>
-              <li>Input/output schema</li>
-              <li>Authentication mechanism</li>
+              <li>Available operations or tools</li>
+              <li>Tool names, descriptions, and input schemas</li>
+              <li>Transport and authentication shape</li>
             </ul>
           </div>
           <div className={styles.gapCard}>
-            <Heading as="h3">What agents actually need</Heading>
+            <Heading as="h3">What governed agents still need</Heading>
             <ul>
+              <li>Which <strong>capability</strong> matches the business intent?</li>
               <li>What does this action <strong>cost</strong>?</li>
               <li>Is it <strong>reversible</strong>?</li>
               <li>Am I <strong>authorized</strong> to do this?</li>
@@ -120,8 +139,54 @@ function TheGap() {
           </div>
         </div>
         <p className={styles.gapCaption}>
-          For humans, this context lives in documentation, intuition, and experience. Agents have none of these.
-          ANIP makes it part of the interface.
+          MCP is valuable because it standardizes tool discovery and invocation. ANIP adds the service-side
+          governed contract for allowed behavior, authority, approvals, denial, audit, and safe recovery.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function AlignmentLayer() {
+  return (
+    <section className={styles.section}>
+      <div className="container">
+        <div className={styles.sectionHeader}>
+          <Heading as="h2">ANIP aligns product intent with executable capability contracts.</Heading>
+          <p>
+            Agent safety is not only a runtime problem. PM, business, security, and
+            developers need to agree on what capabilities mean before those capabilities
+            are exposed to agents. ANIP makes that agreement explicit and verifiable.
+          </p>
+        </div>
+        <div className={styles.alignmentGrid}>
+          <div className={styles.alignmentCard}>
+            <Heading as="h3">Business defines intent</Heading>
+            <p>
+              Studio captures scenarios, actors, allowed outcomes, approval boundaries,
+              denial rules, and non-happy paths in business language.
+            </p>
+          </div>
+          <div className={styles.alignmentCard}>
+            <Heading as="h3">Developers make it enforceable</Heading>
+            <p>
+              Developer Design turns that intent into capabilities, inputs, input
+              resolution, scopes, side effects, backend seams, and validation coverage.
+            </p>
+          </div>
+          <div className={styles.alignmentCard}>
+            <Heading as="h3">Consumers verify what shipped</Heading>
+            <p>
+              Registry packages, signatures, locks, receipts, audit, checkpoints, and
+              scenario validation let teams prove the running service matches the
+              reviewed contract.
+            </p>
+          </div>
+        </div>
+        <p className={styles.alignmentCaption}>
+          This is the missing collaboration layer: not just “can the agent call a tool,”
+          but “did the service owner publish the behavior the business approved and the
+          developer implemented?”
         </p>
       </div>
     </section>
@@ -134,19 +199,32 @@ function HowItWorks() {
       <div className="container">
         <div className={styles.sectionHeader}>
           <Heading as="h2">How it works</Heading>
-          <p>An ANIP service exposes a standard set of endpoints. Agents discover what's available, check permissions, then invoke with full context.</p>
+          <p>
+            ANIP is not just a tool catalog. A service exposes governed capabilities with
+            authority, input-resolution, approval, failure, audit, and verification semantics.
+          </p>
         </div>
         <div className={styles.flowSteps}>
           <div className={styles.flowStep}>
             <div className={styles.flowNumber}>1</div>
-            <Heading as="h3">Discover</Heading>
-            <p>Agent fetches the discovery document and manifest to learn what capabilities exist, their side effects, costs, and required scopes.</p>
+            <Heading as="h3">Discover Contract</Heading>
+            <p>Agent fetches the discovery document and manifest to learn the service identity, capabilities, side effects, costs, scopes, supported transports, and trust posture.</p>
             <CodeBlock language="bash">{`curl https://service.example/.well-known/anip`}</CodeBlock>
           </div>
           <div className={styles.flowStep}>
             <div className={styles.flowNumber}>2</div>
-            <Heading as="h3">Evaluate</Heading>
-            <p>Agent checks permissions before acting. The service tells the agent what's available, restricted, or denied — not after a failed call, but on request.</p>
+            <Heading as="h3">Resolve Intent</Heading>
+            <p>Agent maps the user request to a governed capability, then follows declared input-resolution rules: clarify, use defaults, use actor scope, resolve references, or stop.</p>
+            <CodeBlock language="json">{`{
+  "capability": "jira.issue.prepare_bug",
+  "input": "severity",
+  "resolution": { "mode": "closed_values", "on_missing": "clarify" }
+}`}</CodeBlock>
+          </div>
+          <div className={styles.flowStep}>
+            <div className={styles.flowNumber}>3</div>
+            <Heading as="h3">Check Authority</Heading>
+            <p>Agent checks permission posture before acting. The service says what is available, restricted, denied, or grantable for the current actor and purpose.</p>
             <CodeBlock language="json">{`{
   "available": [{ "capability": "search_flights", "scope_match": "travel.search" }],
   "restricted": [{ "capability": "book_flight", "reason": "missing scope", "grantable_by": "human" }],
@@ -154,9 +232,22 @@ function HowItWorks() {
 }`}</CodeBlock>
           </div>
           <div className={styles.flowStep}>
-            <div className={styles.flowNumber}>3</div>
-            <Heading as="h3">Invoke</Heading>
-            <p>Agent invokes with a scoped delegation token. The response includes structured success or failure with recovery guidance, cost, and lineage identifiers.</p>
+            <div className={styles.flowNumber}>4</div>
+            <Heading as="h3">Prepare Or Approve</Heading>
+            <p>For consequential actions, the service can return a preview or approval request instead of executing. Approval is a contract outcome, not prompt etiquette.</p>
+            <CodeBlock language="json">{`{
+  "success": false,
+  "failure": {
+    "type": "approval_required",
+    "approval_request_id": "apr_9c21",
+    "preview": { "summary": "Move issue to Done" }
+  }
+}`}</CodeBlock>
+          </div>
+          <div className={styles.flowStep}>
+            <div className={styles.flowNumber}>5</div>
+            <Heading as="h3">Invoke Safely</Heading>
+            <p>Agent invokes with a purpose-bound delegation token. The response includes structured success or failure with recovery guidance, cost, and lineage identifiers.</p>
             <CodeBlock language="json">{`{
   "success": true,
   "invocation_id": "inv_7f3a2b",
@@ -165,9 +256,9 @@ function HowItWorks() {
 }`}</CodeBlock>
           </div>
           <div className={styles.flowStep}>
-            <div className={styles.flowNumber}>4</div>
+            <div className={styles.flowNumber}>6</div>
             <Heading as="h3">Verify</Heading>
-            <p>Every invocation is audit-logged with signed checkpoints. Agents, operators, and compliance tools can verify what happened, when, and under what authority.</p>
+            <p>Every invocation can be audited and checked against signed packages, locks, receipts, and checkpoints. Consumers can verify what ran, under what authority, and against which contract.</p>
             <CodeBlock language="bash">{`curl -X POST https://service.example/anip/audit \\
   -H "Authorization: Bearer <token>" \\
   -d '{"capability": "search_flights", "limit": 5}'`}</CodeBlock>
@@ -308,8 +399,31 @@ app.Run();`;
     <section className={styles.section}>
       <div className="container">
         <div className={styles.sectionHeader}>
-          <Heading as="h2">Build an ANIP service in minutes</Heading>
-          <p>You write business logic. The runtime handles discovery, JWT tokens, signed manifests, delegation validation, audit logging, and Merkle checkpoints.</p>
+          <Heading as="h2">Build or generate an ANIP service</Heading>
+          <p>
+            Start from Studio, a signed Registry package, or code. The toolchain keeps the
+            contract, generated service shape, verifier checks, and runtime behavior aligned.
+          </p>
+        </div>
+
+        <div className={styles.buildPathGrid}>
+          <div className={styles.buildPathCard}>
+            <Heading as="h3">Studio-first</Heading>
+            <p>Design capabilities, scenarios, approvals, and fronting contracts in ANIP Studio, then publish a reviewed package or starter template.</p>
+          </div>
+          <div className={styles.buildPathCard}>
+            <Heading as="h3">Package-first</Heading>
+            <p>Pull a signed package from the Registry, verify it, lock it, and generate a service in Python, TypeScript, Go, Java, or C#.</p>
+          </div>
+          <div className={styles.buildPathCard}>
+            <Heading as="h3">Code-first</Heading>
+            <p>Mount a runtime directly when you already know the capability surface. The runtime handles discovery, delegation, audit, and checkpoints.</p>
+          </div>
+        </div>
+
+        <div className={styles.codeIntro}>
+          <Heading as="h3">Code-first runtime example</Heading>
+          <p>The same contract can also be implemented manually when you want direct control over the service code.</p>
         </div>
         <Tabs groupId="language" queryString>
           <TabItem value="python" label="Python" default>
@@ -329,7 +443,9 @@ app.Run();`;
           </TabItem>
         </Tabs>
         <div className={styles.codeMeta}>
-          <p>Same result in every language — 9 protocol endpoints, signed manifest, delegation-based auth, structured failures, and a verifiable audit log.</p>
+          <p>Same result in every language: governed discovery, signed manifest, delegation-based auth, structured failures, approval/audit surfaces, and verifiable checkpoints.</p>
+          <CodeBlock language="bash">{`anip verify --package-bundle ./service.anip-package.json
+anip generate --package-bundle ./service.anip-package.json --target typescript --output ./generated/service`}</CodeBlock>
           <Link className="button button--primary" to="/docs/getting-started/quickstart">
             Follow the quickstart
           </Link>
@@ -345,7 +461,10 @@ function WhatShips() {
       <div className="container">
         <div className={styles.sectionHeader}>
           <Heading as="h2">What ships today</Heading>
-          <p>ANIP is not a spec waiting for implementations. It ships working runtimes, tools, and examples across five languages.</p>
+          <p>
+            ANIP is not a spec waiting for implementations. It ships runtimes,
+            Studio, Registry, CLI tooling, package workflows, and showcase systems.
+          </p>
         </div>
         <div className={styles.featureGrid}>
           <div className={styles.featureCard}>
@@ -353,24 +472,36 @@ function WhatShips() {
             <p>TypeScript, Python, Java, Go, and C#. Each runtime handles the full protocol — discovery, delegation, audit, checkpoints — so you only write capabilities.</p>
           </div>
           <div className={styles.featureCard}>
-            <Heading as="h3">3 transports</Heading>
-            <p>HTTP (all runtimes), stdio via JSON-RPC 2.0 (all runtimes), and gRPC via shared proto (Python + Go). Same capabilities, multiple wire formats.</p>
+            <Heading as="h3">ANIP CLI</Heading>
+            <p>Generate services, verify definitions and packages, publish package revisions, emit locks, and create integration templates from the command line.</p>
           </div>
           <div className={styles.featureCard}>
-            <Heading as="h3">Interface adapters</Heading>
-            <p>Mount REST (auto-generated OpenAPI + Swagger), GraphQL (auto-generated SDL), and MCP (Streamable HTTP) alongside native ANIP on the same service.</p>
+            <Heading as="h3">ANIP Registry</Heading>
+            <p>Signed packages, templates, locks, contract signatures, tooling metadata, download tracking, and consumer-facing package guidance. <a href="https://registry.anip.dev/registry/packages" target="_blank" rel="noopener">Browse packages</a>.</p>
           </div>
           <div className={styles.featureCard}>
             <Heading as="h3">ANIP Studio</Heading>
-            <p>Inspection and invocation UI. Connect to any ANIP service, browse capabilities, check permissions, invoke with structured failure display. <a href="https://studio.anip.dev" target="_blank" rel="noopener">Try it live</a>.</p>
+            <p>Guided and Autopilot project design, fronting flows, source docs, product/developer revisions, diagnostics, package publication, and template export.</p>
           </div>
           <div className={styles.featureCard}>
-            <Heading as="h3">Testing tools</Heading>
-            <p>Conformance suite validates protocol compliance. Contract testing verifies declared side effects match observed behavior. Both run against any runtime.</p>
+            <Heading as="h3">Transports and interfaces</Heading>
+            <p>HTTP, stdio JSON-RPC, and gRPC support, plus generated inbound surfaces such as OpenAPI/REST, GraphQL, and MCP compatibility where useful.</p>
           </div>
           <div className={styles.featureCard}>
-            <Heading as="h3">Showcase apps</Heading>
-            <p>Travel booking, financial operations, and DevOps infrastructure — three full ANIP services with guided comparison scenarios. <a href="https://playground.anip.dev" target="_blank" rel="noopener">Try the playground</a>.</p>
+            <Heading as="h3">Conformance and validation</Heading>
+            <p>Runtime conformance, generator conformance, package verification, scenario-driven execution design, and execution scenario validation.</p>
+          </div>
+          <div className={styles.featureCard}>
+            <Heading as="h3">GTM Agent showcase</Heading>
+            <p>A full GTM agent system with generated ANIP services in all five languages, approval flows, question banks, local Docker stacks, and Metabase verification.</p>
+          </div>
+          <div className={styles.featureCard}>
+            <Heading as="h3">Fronting showcases</Heading>
+            <p>Governed fronting packages for Jira, GitHub, GitLab, Slack, Linear, Notion, and Superset-style analytics. The point is capabilities, not raw API mimicry.</p>
+          </div>
+          <div className={styles.featureCard}>
+            <Heading as="h3">Starter templates</Heading>
+            <p>Reusable project templates for Studio so teams can start from reviewed structures instead of recreating every service or fronting project from scratch.</p>
           </div>
         </div>
       </div>
@@ -384,7 +515,10 @@ function Comparison() {
       <div className="container">
         <div className={styles.sectionHeader}>
           <Heading as="h2">How ANIP compares</Heading>
-          <p>ANIP is not a replacement for HTTP, gRPC, or MCP. It adds the execution context layer that those protocols don't provide.</p>
+          <p>
+            ANIP is not a replacement for HTTP, gRPC, or MCP. It adds a governed
+            execution contract above transport, tool discovery, and tool-call schemas.
+          </p>
         </div>
         <div className={styles.tableWrapper}>
           <table className={styles.compareTable}>
@@ -399,51 +533,63 @@ function Comparison() {
             <tbody>
               <tr>
                 <td>Tool / endpoint discovery</td>
-                <td>OpenAPI spec</td>
-                <td>Yes</td>
-                <td><Link to="/docs/protocol/reference#discovery">Yes</Link></td>
+                <td>Endpoint catalog</td>
+                <td>Tool catalog</td>
+                <td><Link to="/docs/protocol/reference#discovery">Signed capability contract</Link></td>
               </tr>
               <tr>
-                <td>Side-effect declaration</td>
-                <td>No</td>
-                <td>No</td>
-                <td><Link to="/docs/protocol/capabilities#side-effect-types">read / write / transactional / irreversible</Link></td>
+                <td>Side-effect posture</td>
+                <td>Usually inferred or documented in prose</td>
+                <td>Advisory hints clients may use</td>
+                <td><Link to="/docs/protocol/capabilities#side-effect-types">Contract posture used by permission, approval, audit, and verification</Link></td>
               </tr>
               <tr>
                 <td>Permission discovery before invoke</td>
-                <td>No</td>
-                <td>No</td>
-                <td><Link to="/docs/protocol/delegation-permissions#permission-discovery">available / restricted / denied</Link></td>
+                <td>Usually learn by calling and failing</td>
+                <td>Usually host/server-specific policy</td>
+                <td><Link to="/docs/protocol/delegation-permissions#permission-discovery">Portable available / restricted / denied posture before execution</Link></td>
               </tr>
               <tr>
-                <td>Scoped delegation (not just auth)</td>
-                <td>No</td>
-                <td>No</td>
-                <td><Link to="/docs/protocol/authentication">JWT delegation chains with scope + budget</Link></td>
+                <td>Scoped delegation and purpose limits</td>
+                <td>External auth; execution purpose is app-defined</td>
+                <td>Transport auth; execution purpose is not a portable contract</td>
+                <td><Link to="/docs/protocol/authentication">Purpose-bound delegation chains with scope and budget narrowing</Link></td>
+              </tr>
+              <tr>
+                <td>Input resolution and clarification</td>
+                <td>Validation only; clarification is app logic</td>
+                <td>Tool schema and client/server behavior</td>
+                <td><Link to="/docs/protocol/reference#input-resolution-v024">Declared clarify / default / actor-scope / resolver behavior</Link></td>
+              </tr>
+              <tr>
+                <td>Approval and preview outcomes</td>
+                <td>Possible, but custom</td>
+                <td>Possible, but host/tool-specific</td>
+                <td><Link to="/docs/protocol/failures-cost-audit#approval-required-failures">Standard approval_required outcome with grant continuation</Link></td>
               </tr>
               <tr>
                 <td>Cost declaration + actual cost</td>
-                <td>No</td>
-                <td>No</td>
-                <td><Link to="/docs/protocol/capabilities#cost-declaration">Declared range + actual returned</Link></td>
+                <td>Custom if needed</td>
+                <td>No portable cost contract</td>
+                <td><Link to="/docs/protocol/capabilities#cost-declaration">Declared estimate before execution + actual cost after execution</Link></td>
               </tr>
               <tr>
                 <td>Structured failure + recovery</td>
-                <td>HTTP status codes</td>
-                <td>Error codes</td>
-                <td><Link to="/docs/protocol/failures-cost-audit#structured-failures">Type, detail, resolution, grantable_by, retry</Link></td>
+                <td>Status codes plus custom error bodies</td>
+                <td>Tool errors plus custom payloads</td>
+                <td><Link to="/docs/protocol/failures-cost-audit#structured-failures">Portable failure type, recovery action, grantability, and retry guidance</Link></td>
               </tr>
               <tr>
                 <td>Audit logging</td>
-                <td>App-specific</td>
-                <td>No</td>
-                <td><Link to="/docs/protocol/failures-cost-audit#audit-logging">Protocol-level with retention + classification</Link></td>
+                <td>Custom logs</td>
+                <td>Host/server logs</td>
+                <td><Link to="/docs/protocol/failures-cost-audit#audit-logging">Protocol audit trail with retention, classification, lineage, and authority context</Link></td>
               </tr>
               <tr>
-                <td>Signed manifests + checkpoints</td>
-                <td>No</td>
-                <td>No</td>
-                <td><Link to="/docs/protocol/checkpoints-trust">JWKS + Merkle checkpoints</Link></td>
+                <td>Package verification and execution evidence</td>
+                <td>External supply-chain tooling</td>
+                <td>Implementation-specific</td>
+                <td><Link to="/docs/protocol/checkpoints-trust">Signed packages, locks, receipts, JWKS, and tamper-evident checkpoints</Link></td>
               </tr>
             </tbody>
           </table>
@@ -462,6 +608,7 @@ export default function Home(): ReactNode {
       <main>
         <TheProblem />
         <TheGap />
+        <AlignmentLayer />
         <HowItWorks />
         <QuickStart />
         <WhatShips />

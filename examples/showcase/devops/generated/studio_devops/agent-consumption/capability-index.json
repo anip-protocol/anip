@@ -1,0 +1,473 @@
+{
+  "artifact_type": "agent_capability_index",
+  "capabilities": [
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "Destroy environment"
+          ],
+          "produces": [
+            "Execute approved action"
+          ]
+        },
+        "intent": {
+          "category": "devops.delete.resource",
+          "summary": "Permanently delete an infrastructure resource."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "resource_type",
+            "summary": "Resource type."
+          },
+          {
+            "behavior": "clarify",
+            "input": "resource_name",
+            "summary": "Resource name."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Destroy environment"
+        ],
+        "produces": [
+          "Execute approved action"
+        ]
+      },
+      "capability_id": "devops.delete_resource",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [
+            "deployment",
+            "config",
+            "service"
+          ],
+          "clarification_hint": "Ask for resource_type when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "resource_type",
+          "input_type": "string",
+          "required": true,
+          "summary": "Resource type."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for resource_name when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "resource_name",
+          "input_type": "string",
+          "required": true,
+          "summary": "Resource name."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "infra.admin"
+      ],
+      "service_id": "devops-infra-service",
+      "summary": "Permanently delete an infrastructure resource.",
+      "title": "Delete resource"
+    },
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "Delegate destructive environment removal"
+          ],
+          "produces": [
+            "Execute approved action"
+          ]
+        },
+        "intent": {
+          "category": "devops.destroy.environment",
+          "summary": "Permanently destroy a non-production environment; direct principal action is required."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "environment_name",
+            "summary": "Environment name."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Delegate destructive environment removal"
+        ],
+        "produces": [
+          "Execute approved action"
+        ]
+      },
+      "capability_id": "devops.destroy_environment",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [
+            "staging",
+            "development",
+            "preview"
+          ],
+          "clarification_hint": "Ask for environment_name when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "environment_name",
+          "input_type": "string",
+          "required": true,
+          "summary": "Environment name."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "infra.admin"
+      ],
+      "service_id": "devops-infra-service",
+      "summary": "Permanently destroy a non-production environment; direct principal action is required.",
+      "title": "Destroy environment"
+    },
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "Change infrastructure"
+          ],
+          "produces": [
+            "Read bounded data"
+          ]
+        },
+        "intent": {
+          "category": "devops.get.service.health",
+          "summary": "Get health and performance metrics for a service."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "service_name",
+            "summary": "Service to inspect."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Change infrastructure"
+        ],
+        "produces": [
+          "Read bounded data"
+        ]
+      },
+      "capability_id": "devops.get_service_health",
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for service_name when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "service_name",
+          "input_type": "string",
+          "required": true,
+          "summary": "Service to inspect."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "infra.read"
+      ],
+      "service_id": "devops-infra-service",
+      "summary": "Get health and performance metrics for a service.",
+      "title": "Get service health"
+    },
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "Change infrastructure"
+          ],
+          "produces": [
+            "Read bounded data"
+          ]
+        },
+        "intent": {
+          "category": "devops.list.deployments",
+          "summary": "List current service deployments and status."
+        },
+        "required_context": []
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Change infrastructure"
+        ],
+        "produces": [
+          "Read bounded data"
+        ]
+      },
+      "capability_id": "devops.list_deployments",
+      "kind": "atomic",
+      "minimum_scope": [
+        "infra.read"
+      ],
+      "service_id": "devops-infra-service",
+      "summary": "List current service deployments and status.",
+      "title": "List deployments"
+    },
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "Delete infrastructure"
+          ],
+          "produces": [
+            "Change system state"
+          ]
+        },
+        "intent": {
+          "category": "devops.rollback.deployment",
+          "summary": "Roll back a service deployment to a previous version."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "service_name",
+            "summary": "Service to roll back."
+          },
+          {
+            "behavior": "clarify",
+            "input": "target_version",
+            "summary": "Target version."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Delete infrastructure"
+        ],
+        "produces": [
+          "Change system state"
+        ]
+      },
+      "capability_id": "devops.rollback_deployment",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for service_name when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "service_name",
+          "input_type": "string",
+          "required": true,
+          "summary": "Service to roll back."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for target_version when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "target_version",
+          "input_type": "string",
+          "required": true,
+          "summary": "Target version."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "infra.deploy"
+      ],
+      "service_id": "devops-infra-service",
+      "summary": "Roll back a service deployment to a previous version.",
+      "title": "Rollback deployment"
+    },
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "Delete infrastructure"
+          ],
+          "produces": [
+            "Change system state"
+          ]
+        },
+        "intent": {
+          "category": "devops.scale.replicas",
+          "summary": "Scale the replica count for a deployment."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "service_name",
+            "summary": "Service to scale."
+          },
+          {
+            "behavior": "clarify",
+            "input": "replicas",
+            "summary": "Target replica count."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Delete infrastructure"
+        ],
+        "produces": [
+          "Change system state"
+        ]
+      },
+      "capability_id": "devops.scale_replicas",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for service_name when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "service_name",
+          "input_type": "string",
+          "required": true,
+          "summary": "Service to scale."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for replicas when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "replicas",
+          "input_type": "integer",
+          "required": true,
+          "summary": "Target replica count."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "infra.write"
+      ],
+      "service_id": "devops-infra-service",
+      "summary": "Scale the replica count for a deployment.",
+      "title": "Scale replicas"
+    },
+    {
+      "agent_consumability": {
+        "business_effects": {
+          "does_not_produce": [
+            "Delete infrastructure"
+          ],
+          "produces": [
+            "Change system state"
+          ]
+        },
+        "intent": {
+          "category": "devops.update.config",
+          "summary": "Update a configuration key-value pair for a service."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "service_name",
+            "summary": "Service to configure."
+          },
+          {
+            "behavior": "clarify",
+            "input": "key",
+            "summary": "Configuration key."
+          },
+          {
+            "behavior": "clarify",
+            "input": "value",
+            "summary": "New configuration value."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Delete infrastructure"
+        ],
+        "produces": [
+          "Change system state"
+        ]
+      },
+      "capability_id": "devops.update_config",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for service_name when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "service_name",
+          "input_type": "string",
+          "required": true,
+          "summary": "Service to configure."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for key when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "key",
+          "input_type": "string",
+          "required": true,
+          "summary": "Configuration key."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for value when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "value",
+          "input_type": "string",
+          "required": true,
+          "summary": "New configuration value."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "infra.write"
+      ],
+      "service_id": "devops-infra-service",
+      "summary": "Update a configuration key-value pair for a service.",
+      "title": "Update config"
+    }
+  ],
+  "schema_version": "anip-agent-consumption-kit/v0"
+}

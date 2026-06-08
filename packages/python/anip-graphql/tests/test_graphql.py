@@ -32,6 +32,7 @@ class TestCaseConversion:
     def test_to_camel_case(self):
         assert to_camel_case("search_flights") == "searchFlights"
         assert to_camel_case("book") == "book"
+        assert to_camel_case("gtm.pipeline_summary") == "gtmPipelineSummary"
 
     def test_to_snake_case(self):
         assert to_snake_case("searchFlights") == "search_flights"
@@ -48,6 +49,19 @@ class TestSDLGeneration:
         sdl = generate_schema({"book_item": BOOK_DECL})
         assert "type Mutation" in sdl
         assert "bookItem(itemName: String!): BookItemResult!" in sdl
+
+    def test_sanitizes_dotted_capability_names(self):
+        dotted_decl = CapabilityDeclaration(
+            name="gtm.pipeline_summary",
+            description="Pipeline summary",
+            inputs=[CapabilityInput(name="quarter", type="string", required=True, description="Quarter")],
+            output=CapabilityOutput(type="object", fields=["summary"]),
+            side_effect=SideEffect(type=SideEffectType.READ, rollback_window="not_applicable"),
+            minimum_scope=["gtm.pipeline.summary"],
+        )
+        sdl = generate_schema({"gtm.pipeline_summary": dotted_decl})
+        assert "gtmPipelineSummary(quarter: String!): GtmPipelineSummaryResult!" in sdl
+        assert "type GtmPipelineSummaryResult" in sdl
 
     def test_includes_directives(self):
         sdl = generate_schema({"greet": GREET_DECL})

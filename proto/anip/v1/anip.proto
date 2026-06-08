@@ -8,7 +8,7 @@ package anip.v1;
 
 option go_package = "github.com/anip-protocol/anip/packages/go/grpcapi/proto/anip/v1";
 
-// AnipService exposes the full ANIP protocol over gRPC.
+// AnipService exposes the core ANIP protocol over gRPC.
 // Auth: bearer token via "authorization" call metadata.
 service AnipService {
   // --- Public (no auth) ---
@@ -99,7 +99,7 @@ message IssueTokenRequest {
   repeated string scope = 2;
   string capability = 3;
   string purpose_parameters_json = 4;  // Optional, JSON string
-  string parent_token = 5;             // Optional, JWT string for sub-delegation
+  string parent_token = 5;             // Optional, stored parent token ID for sub-delegation
   int32 ttl_hours = 6;
   string caller_class = 7;
   Budget budget = 8;                   // Optional, v0.14: budget constraint to store in token

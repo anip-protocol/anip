@@ -1,0 +1,553 @@
+{
+  "artifact_type": "agent_capability_index",
+  "capabilities": [
+    {
+      "agent_consumability": {
+        "app_owned_behavior": [
+          "Select native Jira REST or Atlassian MCP backend at deployment time.",
+          "Never route agents directly to raw Jira or MCP operations."
+        ],
+        "business_effects": {
+          "does_not_produce": [
+            "Change system state",
+            "Export raw data"
+          ],
+          "produces": [
+            "Read bounded data",
+            "Summarize information"
+          ]
+        },
+        "intent": {
+          "category": "jira.backlog.search",
+          "summary": "Search Jira issues in an allowed project with bounded query and result limits."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "project_key",
+            "summary": "Allowed Jira project key."
+          },
+          {
+            "behavior": "clarify",
+            "input": "query",
+            "summary": "Bounded issue search query."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Change system state",
+          "Export raw data"
+        ],
+        "produces": [
+          "Read bounded data",
+          "Summarize information"
+        ]
+      },
+      "capability_id": "jira.backlog.search",
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for project_key when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "project_key",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "project_scope",
+          "summary": "Allowed Jira project key."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for query when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "query",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Bounded issue search query."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+          "default_value": "25",
+          "entity_reference": false,
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "semantic_type": "",
+          "summary": "Maximum issues to return."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "jira.read"
+      ],
+      "service_id": "jira-governance-service",
+      "summary": "Search Jira issues in an allowed project with bounded query and result limits.",
+      "title": "Search Team Backlog"
+    },
+    {
+      "agent_consumability": {
+        "app_owned_behavior": [
+          "Select native Jira REST or Atlassian MCP backend at deployment time.",
+          "Never route agents directly to raw Jira or MCP operations."
+        ],
+        "business_effects": {
+          "does_not_produce": [
+            "Change system state",
+            "Create issue"
+          ],
+          "produces": [
+            "Preview a change",
+            "Ask for approval"
+          ]
+        },
+        "intent": {
+          "category": "jira.bug.prepare",
+          "summary": "Prepare a Jira bug ticket preview from a bounded incident or defect summary without creating it."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "project_key",
+            "summary": "Allowed Jira project key."
+          },
+          {
+            "behavior": "clarify",
+            "input": "summary",
+            "summary": "Issue summary."
+          },
+          {
+            "behavior": "clarify",
+            "input": "description",
+            "summary": "Issue description."
+          },
+          {
+            "behavior": "clarify",
+            "input": "severity",
+            "summary": "Business severity."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Change system state",
+          "Create issue"
+        ],
+        "produces": [
+          "Preview a change",
+          "Ask for approval"
+        ]
+      },
+      "capability_id": "jira.bug.prepare",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for project_key when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "project_key",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "project_scope",
+          "summary": "Allowed Jira project key."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for summary when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "summary",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Issue summary."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for description when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "description",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Issue description."
+        },
+        {
+          "allowed_values": [
+            "sev1",
+            "sev2",
+            "sev3",
+            "sev4"
+          ],
+          "clarification_hint": "Ask for severity when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "severity",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "risk_level",
+          "summary": "Business severity."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for labels when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "labels",
+          "input_type": "array\u003cstring\u003e",
+          "required": false,
+          "semantic_type": "",
+          "summary": "Labels to propose."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "jira.write.prepare"
+      ],
+      "service_id": "jira-governance-service",
+      "summary": "Prepare a Jira bug ticket preview from a bounded incident or defect summary without creating it.",
+      "title": "Prepare Bug Ticket"
+    },
+    {
+      "agent_consumability": {
+        "app_owned_behavior": [
+          "Select native Jira REST or Atlassian MCP backend at deployment time.",
+          "Never route agents directly to raw Jira or MCP operations."
+        ],
+        "business_effects": {
+          "does_not_produce": [
+            "Send outside the system",
+            "Change system state"
+          ],
+          "produces": [
+            "Draft content",
+            "Preview a change"
+          ]
+        },
+        "intent": {
+          "category": "jira.comment.prepare",
+          "summary": "Prepare a Jira issue comment from incident or triage context without posting it."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "issue_key",
+            "summary": "Jira issue key."
+          },
+          {
+            "behavior": "clarify",
+            "input": "comment_purpose",
+            "summary": "Purpose of the comment."
+          },
+          {
+            "behavior": "clarify",
+            "input": "context",
+            "summary": "Context to summarize in the comment."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Send outside the system",
+          "Change system state"
+        ],
+        "produces": [
+          "Draft content",
+          "Preview a change"
+        ]
+      },
+      "capability_id": "jira.comment.prepare",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for issue_key when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "issue_key",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "issue_ref",
+          "summary": "Jira issue key."
+        },
+        {
+          "allowed_values": [
+            "triage_update",
+            "customer_impact",
+            "release_note"
+          ],
+          "clarification_hint": "Ask for comment_purpose when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "comment_purpose",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Purpose of the comment."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for context when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "context",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Context to summarize in the comment."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "jira.comment.prepare"
+      ],
+      "service_id": "jira-governance-service",
+      "summary": "Prepare a Jira issue comment from incident or triage context without posting it.",
+      "title": "Prepare Triage Comment"
+    },
+    {
+      "agent_consumability": {
+        "app_owned_behavior": [
+          "Select native Jira REST or Atlassian MCP backend at deployment time.",
+          "Never route agents directly to raw Jira or MCP operations."
+        ],
+        "business_effects": {
+          "does_not_produce": [
+            "Change system state",
+            "Create issue"
+          ],
+          "produces": [
+            "Preview a change",
+            "Ask for approval"
+          ]
+        },
+        "intent": {
+          "category": "jira.story.prepare",
+          "summary": "Prepare a Jira story preview with acceptance criteria before any issue is created."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "project_key",
+            "summary": "Allowed Jira project key."
+          },
+          {
+            "behavior": "clarify",
+            "input": "summary",
+            "summary": "Story summary."
+          },
+          {
+            "behavior": "clarify",
+            "input": "acceptance_criteria",
+            "summary": "Acceptance criteria to include."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Change system state",
+          "Create issue"
+        ],
+        "produces": [
+          "Preview a change",
+          "Ask for approval"
+        ]
+      },
+      "capability_id": "jira.story.prepare",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for project_key when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "project_key",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "project_scope",
+          "summary": "Allowed Jira project key."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for summary when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "summary",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Story summary."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for acceptance_criteria when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "acceptance_criteria",
+          "input_type": "array\u003cstring\u003e",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Acceptance criteria to include."
+        },
+        {
+          "allowed_values": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "clarification_hint": "Ask for priority when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "priority",
+          "input_type": "string",
+          "required": false,
+          "semantic_type": "",
+          "summary": "Business priority."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "jira.write.prepare"
+      ],
+      "service_id": "jira-governance-service",
+      "summary": "Prepare a Jira story preview with acceptance criteria before any issue is created.",
+      "title": "Prepare Story Ticket"
+    },
+    {
+      "agent_consumability": {
+        "app_owned_behavior": [
+          "Select native Jira REST or Atlassian MCP backend at deployment time.",
+          "Never route agents directly to raw Jira or MCP operations."
+        ],
+        "business_effects": {
+          "does_not_produce": [
+            "Execute approved action",
+            "Bypass workflow policy"
+          ],
+          "produces": [
+            "Preview a change",
+            "Ask for approval"
+          ]
+        },
+        "intent": {
+          "category": "jira.transition.request",
+          "summary": "Request a governed Jira issue transition and stop for approval when policy requires it."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "issue_key",
+            "summary": "Jira issue key."
+          },
+          {
+            "behavior": "clarify",
+            "input": "target_status",
+            "summary": "Requested target status."
+          },
+          {
+            "behavior": "clarify",
+            "input": "reason",
+            "summary": "Reason for the transition."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Execute approved action",
+          "Bypass workflow policy"
+        ],
+        "produces": [
+          "Preview a change",
+          "Ask for approval"
+        ]
+      },
+      "capability_id": "jira.transition.request",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for issue_key when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "issue_key",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "issue_ref",
+          "summary": "Jira issue key."
+        },
+        {
+          "allowed_values": [
+            "todo",
+            "in_progress",
+            "in_review",
+            "done"
+          ],
+          "clarification_hint": "Ask for target_status when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "target_status",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Requested target status."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for reason when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "reason",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Reason for the transition."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "jira.transition.request"
+      ],
+      "service_id": "jira-governance-service",
+      "summary": "Request a governed Jira issue transition and stop for approval when policy requires it.",
+      "title": "Request Status Transition"
+    }
+  ],
+  "schema_version": "anip-agent-consumption-kit/v0"
+}

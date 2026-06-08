@@ -1,0 +1,5094 @@
+{
+  "generated_at": "2026-04-14T04-35-36Z",
+  "runtime_url": "http://127.0.0.1:9303",
+  "suite": "gtm_phase6_llm_runtime",
+  "summary": {
+    "passed": 10,
+    "total": 10,
+    "by_category": {
+      "forecast-read": {
+        "passed": 2,
+        "total": 2
+      },
+      "forecast-clarification": {
+        "passed": 1,
+        "total": 1
+      },
+      "forecast-actor-aware": {
+        "passed": 2,
+        "total": 2
+      },
+      "bottleneck-read": {
+        "passed": 2,
+        "total": 2
+      },
+      "bottleneck-clarification": {
+        "passed": 1,
+        "total": 1
+      },
+      "bottleneck-actor-aware": {
+        "passed": 2,
+        "total": 2
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "phase6-forecast-risk-adjusted-q2",
+      "category": "forecast-read",
+      "question": "What is our risk-adjusted pipeline forecast for 2017-Q2?",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "What is our risk-adjusted pipeline forecast for 2017-Q2?",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.pipeline_forecast_summary",
+            "service": "pipeline",
+            "max_total_loops": 2,
+            "data_check": "forecast_summary_risk_adjusted_q2"
+          },
+          "actual": {
+            "planned_capability": "gtm.pipeline_forecast_summary",
+            "capability": "gtm.pipeline_forecast_summary",
+            "service": "pipeline",
+            "outcome": "success",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "forecast_mode": "risk_adjusted"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for a risk-adjusted pipeline forecast for a specific quarter, which matches the bounded forecast summary capability.",
+              "user_message": "Fetching the risk-adjusted pipeline forecast for 2017-Q2."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "forecast_summary_risk_adjusted_q2",
+            "details": {
+              "expected_stage_rows": [
+                [
+                  "Engaging",
+                  "366.0",
+                  "1040553.0",
+                  "624331.8",
+                  "884470.05",
+                  "280949.31",
+                  "0.92"
+                ]
+              ],
+              "actual_stage_rows": [
+                [
+                  "Engaging",
+                  "366.0",
+                  "1040553.0",
+                  "624331.8",
+                  "884470.05",
+                  "280949.31",
+                  "0.92"
+                ]
+              ],
+              "expected_contributor_rows": [
+                [
+                  "__none__",
+                  "West",
+                  "161.0",
+                  "437241.0",
+                  "262344.6",
+                  "371654.85",
+                  "118055.07",
+                  "0.94"
+                ],
+                [
+                  "__none__",
+                  "East",
+                  "90.0",
+                  "235559.0",
+                  "141335.4",
+                  "200225.15",
+                  "63600.93",
+                  "0.94"
+                ],
+                [
+                  "Lexiqvolax",
+                  "West",
+                  "2.0",
+                  "30161.0",
+                  "18096.6",
+                  "25636.85",
+                  "8143.47",
+                  "0.86"
+                ],
+                [
+                  "Treequote",
+                  "West",
+                  "1.0",
+                  "26768.0",
+                  "16060.8",
+                  "22752.8",
+                  "7227.36",
+                  "0.86"
+                ],
+                [
+                  "Xx-zobam",
+                  "West",
+                  "1.0",
+                  "26768.0",
+                  "16060.8",
+                  "22752.8",
+                  "7227.36",
+                  "0.86"
+                ]
+              ],
+              "actual_contributor_rows": [
+                [
+                  "__none__",
+                  "West",
+                  "161.0",
+                  "437241.0",
+                  "262344.6",
+                  "371654.85",
+                  "118055.07",
+                  "0.94"
+                ],
+                [
+                  "__none__",
+                  "East",
+                  "90.0",
+                  "235559.0",
+                  "141335.4",
+                  "200225.15",
+                  "63600.93",
+                  "0.94"
+                ],
+                [
+                  "Lexiqvolax",
+                  "West",
+                  "2.0",
+                  "30161.0",
+                  "18096.6",
+                  "25636.85",
+                  "8143.47",
+                  "0.86"
+                ],
+                [
+                  "Treequote",
+                  "West",
+                  "1.0",
+                  "26768.0",
+                  "16060.8",
+                  "22752.8",
+                  "7227.36",
+                  "0.86"
+                ],
+                [
+                  "Xx-zobam",
+                  "West",
+                  "1.0",
+                  "26768.0",
+                  "16060.8",
+                  "22752.8",
+                  "7227.36",
+                  "0.86"
+                ]
+              ],
+              "expected_selected_forecast_value": 280949.31,
+              "actual_selected_forecast_value": 280949.31
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "What is our risk-adjusted pipeline forecast for 2017-Q2?",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for a risk-adjusted pipeline forecast for a specific quarter, which matches the bounded forecast summary capability.",
+              "user_message": "Fetching the risk-adjusted pipeline forecast for 2017-Q2."
+            },
+            "planned_capability": "gtm.pipeline_forecast_summary",
+            "selected_capability": "gtm.pipeline_forecast_summary",
+            "selected_service": "pipeline",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "forecast_mode": "risk_adjusted"
+            },
+            "parameter_normalizations": [],
+            "capability_metadata": {
+              "description": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+              "minimum_scope": [
+                "gtm.pipeline.read"
+              ],
+              "inputs": [
+                "quarter",
+                "owner_scope",
+                "forecast_mode[allowed=risk_adjusted,likely,best_case default=risk_adjusted]",
+                "limit"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Quarter label like 2017-Q2",
+                  "name": "quarter",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Regional office or company",
+                  "name": "owner_scope",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "risk_adjusted",
+                    "likely",
+                    "best_case"
+                  ],
+                  "default": "risk_adjusted",
+                  "description": "risk_adjusted, likely, or best_case",
+                  "name": "forecast_mode",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Maximum contributing accounts to return",
+                  "name": "limit",
+                  "required": false,
+                  "type": "integer"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "pipeline",
+              "service_url": "http://gtm-pipeline-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "quarter": "2017-Q2",
+                "owner_scope": "company",
+                "forecast_mode": "risk_adjusted",
+                "by_stage": [
+                  {
+                    "deal_stage": "Engaging",
+                    "open_opportunity_count": 366,
+                    "open_pipeline_value": 1040553.0,
+                    "likely_revenue": 624331.8,
+                    "best_case_revenue": 884470.05,
+                    "risk_adjusted_revenue": 280949.31,
+                    "average_risk_score": 0.92,
+                    "selected_forecast_value": 280949.31
+                  }
+                ],
+                "totals": {
+                  "open_opportunity_count": 366,
+                  "open_pipeline_value": 1040553.0,
+                  "likely_revenue": 624331.8,
+                  "best_case_revenue": 884470.05,
+                  "risk_adjusted_revenue": 280949.31,
+                  "selected_forecast_value": 280949.31
+                },
+                "top_contributors": [
+                  {
+                    "account_name": null,
+                    "regional_office": "West",
+                    "open_opportunity_count": 161,
+                    "open_pipeline_value": 437241.0,
+                    "likely_revenue": 262344.6,
+                    "best_case_revenue": 371654.85,
+                    "risk_adjusted_revenue": 118055.07,
+                    "average_risk_score": 0.94,
+                    "selected_forecast_value": 118055.07
+                  },
+                  {
+                    "account_name": null,
+                    "regional_office": "East",
+                    "open_opportunity_count": 90,
+                    "open_pipeline_value": 235559.0,
+                    "likely_revenue": 141335.4,
+                    "best_case_revenue": 200225.15,
+                    "risk_adjusted_revenue": 63600.93,
+                    "average_risk_score": 0.94,
+                    "selected_forecast_value": 63600.93
+                  },
+                  {
+                    "account_name": "Lexiqvolax",
+                    "regional_office": "West",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": 30161.0,
+                    "likely_revenue": 18096.6,
+                    "best_case_revenue": 25636.85,
+                    "risk_adjusted_revenue": 8143.47,
+                    "average_risk_score": 0.86,
+                    "selected_forecast_value": 8143.47
+                  },
+                  {
+                    "account_name": "Treequote",
+                    "regional_office": "West",
+                    "open_opportunity_count": 1,
+                    "open_pipeline_value": 26768.0,
+                    "likely_revenue": 16060.8,
+                    "best_case_revenue": 22752.8,
+                    "risk_adjusted_revenue": 7227.36,
+                    "average_risk_score": 0.86,
+                    "selected_forecast_value": 7227.36
+                  },
+                  {
+                    "account_name": "Xx-zobam",
+                    "regional_office": "West",
+                    "open_opportunity_count": 1,
+                    "open_pipeline_value": 26768.0,
+                    "likely_revenue": 16060.8,
+                    "best_case_revenue": 22752.8,
+                    "risk_adjusted_revenue": 7227.36,
+                    "average_risk_score": 0.86,
+                    "selected_forecast_value": 7227.36
+                  }
+                ],
+                "visibility": {
+                  "financial_values": "full"
+                }
+              },
+              "invocation_id": "inv-7f73b48a7d33",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.pipeline_forecast_summary",
+        "service": "pipeline",
+        "max_total_loops": 2,
+        "data_check": "forecast_summary_risk_adjusted_q2"
+      },
+      "actual": {
+        "planned_capability": "gtm.pipeline_forecast_summary",
+        "capability": "gtm.pipeline_forecast_summary",
+        "service": "pipeline",
+        "outcome": "success",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "forecast_mode": "risk_adjusted"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for a risk-adjusted pipeline forecast for a specific quarter, which matches the bounded forecast summary capability.",
+          "user_message": "Fetching the risk-adjusted pipeline forecast for 2017-Q2."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "forecast_summary_risk_adjusted_q2",
+        "details": {
+          "expected_stage_rows": [
+            [
+              "Engaging",
+              "366.0",
+              "1040553.0",
+              "624331.8",
+              "884470.05",
+              "280949.31",
+              "0.92"
+            ]
+          ],
+          "actual_stage_rows": [
+            [
+              "Engaging",
+              "366.0",
+              "1040553.0",
+              "624331.8",
+              "884470.05",
+              "280949.31",
+              "0.92"
+            ]
+          ],
+          "expected_contributor_rows": [
+            [
+              "__none__",
+              "West",
+              "161.0",
+              "437241.0",
+              "262344.6",
+              "371654.85",
+              "118055.07",
+              "0.94"
+            ],
+            [
+              "__none__",
+              "East",
+              "90.0",
+              "235559.0",
+              "141335.4",
+              "200225.15",
+              "63600.93",
+              "0.94"
+            ],
+            [
+              "Lexiqvolax",
+              "West",
+              "2.0",
+              "30161.0",
+              "18096.6",
+              "25636.85",
+              "8143.47",
+              "0.86"
+            ],
+            [
+              "Treequote",
+              "West",
+              "1.0",
+              "26768.0",
+              "16060.8",
+              "22752.8",
+              "7227.36",
+              "0.86"
+            ],
+            [
+              "Xx-zobam",
+              "West",
+              "1.0",
+              "26768.0",
+              "16060.8",
+              "22752.8",
+              "7227.36",
+              "0.86"
+            ]
+          ],
+          "actual_contributor_rows": [
+            [
+              "__none__",
+              "West",
+              "161.0",
+              "437241.0",
+              "262344.6",
+              "371654.85",
+              "118055.07",
+              "0.94"
+            ],
+            [
+              "__none__",
+              "East",
+              "90.0",
+              "235559.0",
+              "141335.4",
+              "200225.15",
+              "63600.93",
+              "0.94"
+            ],
+            [
+              "Lexiqvolax",
+              "West",
+              "2.0",
+              "30161.0",
+              "18096.6",
+              "25636.85",
+              "8143.47",
+              "0.86"
+            ],
+            [
+              "Treequote",
+              "West",
+              "1.0",
+              "26768.0",
+              "16060.8",
+              "22752.8",
+              "7227.36",
+              "0.86"
+            ],
+            [
+              "Xx-zobam",
+              "West",
+              "1.0",
+              "26768.0",
+              "16060.8",
+              "22752.8",
+              "7227.36",
+              "0.86"
+            ]
+          ],
+          "expected_selected_forecast_value": 280949.31,
+          "actual_selected_forecast_value": 280949.31
+        }
+      },
+      "audit_check": {
+        "passed": true,
+        "details": {
+          "actor_id": "sales_leader",
+          "service": "pipeline",
+          "capability": "gtm.pipeline_forecast_summary",
+          "min_entries": 1,
+          "actual_entries": 13,
+          "latest_entry": {
+            "capability": "gtm.pipeline_forecast_summary",
+            "success": true,
+            "failure_type": null,
+            "root_principal": "human:alex.king@example.com|actor_id=sales_leader|display_name=Alex King|role=sales_leader|pipeline_scope=company|financial_access=full|enrichment_access=full|outreach_access=full|can_prepare_followup=true|can_approve_followup=true|can_use_lookalikes=true|can_route_leads=true|can_approve_routing=true|can_use_objection_variants=true",
+            "storage_redacted": true,
+            "signature_present": true
+          },
+          "assertion_errors": []
+        }
+      },
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "What is our risk-adjusted pipeline forecast for 2017-Q2?",
+        "actor_id": "sales_leader",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for a risk-adjusted pipeline forecast for a specific quarter, which matches the bounded forecast summary capability.",
+          "user_message": "Fetching the risk-adjusted pipeline forecast for 2017-Q2."
+        },
+        "planned_capability": "gtm.pipeline_forecast_summary",
+        "selected_capability": "gtm.pipeline_forecast_summary",
+        "selected_service": "pipeline",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "forecast_mode": "risk_adjusted"
+        },
+        "parameter_normalizations": [],
+        "capability_metadata": {
+          "description": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+          "minimum_scope": [
+            "gtm.pipeline.read"
+          ],
+          "inputs": [
+            "quarter",
+            "owner_scope",
+            "forecast_mode[allowed=risk_adjusted,likely,best_case default=risk_adjusted]",
+            "limit"
+          ],
+          "input_specs": [
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Quarter label like 2017-Q2",
+              "name": "quarter",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Regional office or company",
+              "name": "owner_scope",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [
+                "risk_adjusted",
+                "likely",
+                "best_case"
+              ],
+              "default": "risk_adjusted",
+              "description": "risk_adjusted, likely, or best_case",
+              "name": "forecast_mode",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Maximum contributing accounts to return",
+              "name": "limit",
+              "required": false,
+              "type": "integer"
+            }
+          ],
+          "side_effect": "read",
+          "service_name": "pipeline",
+          "service_url": "http://gtm-pipeline-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "quarter": "2017-Q2",
+            "owner_scope": "company",
+            "forecast_mode": "risk_adjusted",
+            "by_stage": [
+              {
+                "deal_stage": "Engaging",
+                "open_opportunity_count": 366,
+                "open_pipeline_value": 1040553.0,
+                "likely_revenue": 624331.8,
+                "best_case_revenue": 884470.05,
+                "risk_adjusted_revenue": 280949.31,
+                "average_risk_score": 0.92,
+                "selected_forecast_value": 280949.31
+              }
+            ],
+            "totals": {
+              "open_opportunity_count": 366,
+              "open_pipeline_value": 1040553.0,
+              "likely_revenue": 624331.8,
+              "best_case_revenue": 884470.05,
+              "risk_adjusted_revenue": 280949.31,
+              "selected_forecast_value": 280949.31
+            },
+            "top_contributors": [
+              {
+                "account_name": null,
+                "regional_office": "West",
+                "open_opportunity_count": 161,
+                "open_pipeline_value": 437241.0,
+                "likely_revenue": 262344.6,
+                "best_case_revenue": 371654.85,
+                "risk_adjusted_revenue": 118055.07,
+                "average_risk_score": 0.94,
+                "selected_forecast_value": 118055.07
+              },
+              {
+                "account_name": null,
+                "regional_office": "East",
+                "open_opportunity_count": 90,
+                "open_pipeline_value": 235559.0,
+                "likely_revenue": 141335.4,
+                "best_case_revenue": 200225.15,
+                "risk_adjusted_revenue": 63600.93,
+                "average_risk_score": 0.94,
+                "selected_forecast_value": 63600.93
+              },
+              {
+                "account_name": "Lexiqvolax",
+                "regional_office": "West",
+                "open_opportunity_count": 2,
+                "open_pipeline_value": 30161.0,
+                "likely_revenue": 18096.6,
+                "best_case_revenue": 25636.85,
+                "risk_adjusted_revenue": 8143.47,
+                "average_risk_score": 0.86,
+                "selected_forecast_value": 8143.47
+              },
+              {
+                "account_name": "Treequote",
+                "regional_office": "West",
+                "open_opportunity_count": 1,
+                "open_pipeline_value": 26768.0,
+                "likely_revenue": 16060.8,
+                "best_case_revenue": 22752.8,
+                "risk_adjusted_revenue": 7227.36,
+                "average_risk_score": 0.86,
+                "selected_forecast_value": 7227.36
+              },
+              {
+                "account_name": "Xx-zobam",
+                "regional_office": "West",
+                "open_opportunity_count": 1,
+                "open_pipeline_value": 26768.0,
+                "likely_revenue": 16060.8,
+                "best_case_revenue": 22752.8,
+                "risk_adjusted_revenue": 7227.36,
+                "average_risk_score": 0.86,
+                "selected_forecast_value": 7227.36
+              }
+            ],
+            "visibility": {
+              "financial_values": "full"
+            }
+          },
+          "invocation_id": "inv-7f73b48a7d33",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase6-forecast-best-case-east-q2",
+      "category": "forecast-read",
+      "question": "Show the best-case pipeline forecast for 2017-Q2 in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show the best-case pipeline forecast for 2017-Q2 in the East region.",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.pipeline_forecast_summary",
+            "service": "pipeline",
+            "max_total_loops": 2,
+            "data_check": "forecast_summary_best_case_east_q2"
+          },
+          "actual": {
+            "planned_capability": "gtm.pipeline_forecast_summary",
+            "capability": "gtm.pipeline_forecast_summary",
+            "service": "pipeline",
+            "outcome": "success",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "forecast_mode": "best_case",
+              "owner_scope": "East"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This request asks for a best-case pipeline forecast for a specific quarter and region, which matches the bounded forecast summary capability.",
+              "user_message": "Using the best-case forecast mode for 2017-Q2 and East region."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "forecast_summary_best_case_east_q2",
+            "details": {
+              "expected_stage_rows": [
+                [
+                  "Engaging",
+                  "131.0",
+                  "343663.0",
+                  "206197.8",
+                  "292113.55",
+                  "92789.01",
+                  "0.92"
+                ]
+              ],
+              "actual_stage_rows": [
+                [
+                  "Engaging",
+                  "131.0",
+                  "343663.0",
+                  "206197.8",
+                  "292113.55",
+                  "92789.01",
+                  "0.92"
+                ]
+              ],
+              "expected_contributor_rows": [
+                [
+                  "__none__",
+                  "East",
+                  "90.0",
+                  "235559.0",
+                  "141335.4",
+                  "200225.15",
+                  "63600.93",
+                  "0.94"
+                ],
+                [
+                  "Inity",
+                  "East",
+                  "2.0",
+                  "10303.0",
+                  "6181.8",
+                  "8757.55",
+                  "2781.81",
+                  "0.86"
+                ],
+                [
+                  "Betasoloin",
+                  "East",
+                  "3.0",
+                  "9697.0",
+                  "5818.2",
+                  "8242.45",
+                  "2618.19",
+                  "0.94"
+                ]
+              ],
+              "actual_contributor_rows": [
+                [
+                  "__none__",
+                  "East",
+                  "90.0",
+                  "235559.0",
+                  "141335.4",
+                  "200225.15",
+                  "63600.93",
+                  "0.94"
+                ],
+                [
+                  "Inity",
+                  "East",
+                  "2.0",
+                  "10303.0",
+                  "6181.8",
+                  "8757.55",
+                  "2781.81",
+                  "0.86"
+                ],
+                [
+                  "Betasoloin",
+                  "East",
+                  "3.0",
+                  "9697.0",
+                  "5818.2",
+                  "8242.45",
+                  "2618.19",
+                  "0.94"
+                ],
+                [
+                  "Zathunicon",
+                  "East",
+                  "2.0",
+                  "9642.0",
+                  "5785.2",
+                  "8195.7",
+                  "2603.34",
+                  "0.94"
+                ],
+                [
+                  "Condax",
+                  "East",
+                  "2.0",
+                  "8875.0",
+                  "5325.0",
+                  "7543.75",
+                  "2396.25",
+                  "0.94"
+                ]
+              ],
+              "expected_selected_forecast_value": 292113.55,
+              "actual_selected_forecast_value": 292113.55
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Show the best-case pipeline forecast for 2017-Q2 in the East region.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This request asks for a best-case pipeline forecast for a specific quarter and region, which matches the bounded forecast summary capability.",
+              "user_message": "Using the best-case forecast mode for 2017-Q2 and East region."
+            },
+            "planned_capability": "gtm.pipeline_forecast_summary",
+            "selected_capability": "gtm.pipeline_forecast_summary",
+            "selected_service": "pipeline",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "forecast_mode": "best_case",
+              "owner_scope": "East"
+            },
+            "parameter_normalizations": [],
+            "capability_metadata": {
+              "description": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+              "minimum_scope": [
+                "gtm.pipeline.read"
+              ],
+              "inputs": [
+                "quarter",
+                "owner_scope",
+                "forecast_mode[allowed=risk_adjusted,likely,best_case default=risk_adjusted]",
+                "limit"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Quarter label like 2017-Q2",
+                  "name": "quarter",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Regional office or company",
+                  "name": "owner_scope",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "risk_adjusted",
+                    "likely",
+                    "best_case"
+                  ],
+                  "default": "risk_adjusted",
+                  "description": "risk_adjusted, likely, or best_case",
+                  "name": "forecast_mode",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Maximum contributing accounts to return",
+                  "name": "limit",
+                  "required": false,
+                  "type": "integer"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "pipeline",
+              "service_url": "http://gtm-pipeline-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "quarter": "2017-Q2",
+                "owner_scope": "East",
+                "forecast_mode": "best_case",
+                "by_stage": [
+                  {
+                    "deal_stage": "Engaging",
+                    "open_opportunity_count": 131,
+                    "open_pipeline_value": 343663.0,
+                    "likely_revenue": 206197.8,
+                    "best_case_revenue": 292113.55,
+                    "risk_adjusted_revenue": 92789.01,
+                    "average_risk_score": 0.92,
+                    "selected_forecast_value": 292113.55
+                  }
+                ],
+                "totals": {
+                  "open_opportunity_count": 131,
+                  "open_pipeline_value": 343663.0,
+                  "likely_revenue": 206197.8,
+                  "best_case_revenue": 292113.55,
+                  "risk_adjusted_revenue": 92789.01,
+                  "selected_forecast_value": 292113.55
+                },
+                "top_contributors": [
+                  {
+                    "account_name": null,
+                    "regional_office": "East",
+                    "open_opportunity_count": 90,
+                    "open_pipeline_value": 235559.0,
+                    "likely_revenue": 141335.4,
+                    "best_case_revenue": 200225.15,
+                    "risk_adjusted_revenue": 63600.93,
+                    "average_risk_score": 0.94,
+                    "selected_forecast_value": 200225.15
+                  },
+                  {
+                    "account_name": "Inity",
+                    "regional_office": "East",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": 10303.0,
+                    "likely_revenue": 6181.8,
+                    "best_case_revenue": 8757.55,
+                    "risk_adjusted_revenue": 2781.81,
+                    "average_risk_score": 0.86,
+                    "selected_forecast_value": 8757.55
+                  },
+                  {
+                    "account_name": "Betasoloin",
+                    "regional_office": "East",
+                    "open_opportunity_count": 3,
+                    "open_pipeline_value": 9697.0,
+                    "likely_revenue": 5818.2,
+                    "best_case_revenue": 8242.45,
+                    "risk_adjusted_revenue": 2618.19,
+                    "average_risk_score": 0.94,
+                    "selected_forecast_value": 8242.45
+                  },
+                  {
+                    "account_name": "Zathunicon",
+                    "regional_office": "East",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": 9642.0,
+                    "likely_revenue": 5785.2,
+                    "best_case_revenue": 8195.7,
+                    "risk_adjusted_revenue": 2603.34,
+                    "average_risk_score": 0.94,
+                    "selected_forecast_value": 8195.7
+                  },
+                  {
+                    "account_name": "Condax",
+                    "regional_office": "East",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": 8875.0,
+                    "likely_revenue": 5325.0,
+                    "best_case_revenue": 7543.75,
+                    "risk_adjusted_revenue": 2396.25,
+                    "average_risk_score": 0.94,
+                    "selected_forecast_value": 7543.75
+                  }
+                ],
+                "visibility": {
+                  "financial_values": "full"
+                }
+              },
+              "invocation_id": "inv-cf5a159a7787",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.pipeline_forecast_summary",
+        "service": "pipeline",
+        "max_total_loops": 2,
+        "data_check": "forecast_summary_best_case_east_q2"
+      },
+      "actual": {
+        "planned_capability": "gtm.pipeline_forecast_summary",
+        "capability": "gtm.pipeline_forecast_summary",
+        "service": "pipeline",
+        "outcome": "success",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "forecast_mode": "best_case",
+          "owner_scope": "East"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This request asks for a best-case pipeline forecast for a specific quarter and region, which matches the bounded forecast summary capability.",
+          "user_message": "Using the best-case forecast mode for 2017-Q2 and East region."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "forecast_summary_best_case_east_q2",
+        "details": {
+          "expected_stage_rows": [
+            [
+              "Engaging",
+              "131.0",
+              "343663.0",
+              "206197.8",
+              "292113.55",
+              "92789.01",
+              "0.92"
+            ]
+          ],
+          "actual_stage_rows": [
+            [
+              "Engaging",
+              "131.0",
+              "343663.0",
+              "206197.8",
+              "292113.55",
+              "92789.01",
+              "0.92"
+            ]
+          ],
+          "expected_contributor_rows": [
+            [
+              "__none__",
+              "East",
+              "90.0",
+              "235559.0",
+              "141335.4",
+              "200225.15",
+              "63600.93",
+              "0.94"
+            ],
+            [
+              "Inity",
+              "East",
+              "2.0",
+              "10303.0",
+              "6181.8",
+              "8757.55",
+              "2781.81",
+              "0.86"
+            ],
+            [
+              "Betasoloin",
+              "East",
+              "3.0",
+              "9697.0",
+              "5818.2",
+              "8242.45",
+              "2618.19",
+              "0.94"
+            ]
+          ],
+          "actual_contributor_rows": [
+            [
+              "__none__",
+              "East",
+              "90.0",
+              "235559.0",
+              "141335.4",
+              "200225.15",
+              "63600.93",
+              "0.94"
+            ],
+            [
+              "Inity",
+              "East",
+              "2.0",
+              "10303.0",
+              "6181.8",
+              "8757.55",
+              "2781.81",
+              "0.86"
+            ],
+            [
+              "Betasoloin",
+              "East",
+              "3.0",
+              "9697.0",
+              "5818.2",
+              "8242.45",
+              "2618.19",
+              "0.94"
+            ],
+            [
+              "Zathunicon",
+              "East",
+              "2.0",
+              "9642.0",
+              "5785.2",
+              "8195.7",
+              "2603.34",
+              "0.94"
+            ],
+            [
+              "Condax",
+              "East",
+              "2.0",
+              "8875.0",
+              "5325.0",
+              "7543.75",
+              "2396.25",
+              "0.94"
+            ]
+          ],
+          "expected_selected_forecast_value": 292113.55,
+          "actual_selected_forecast_value": 292113.55
+        }
+      },
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Show the best-case pipeline forecast for 2017-Q2 in the East region.",
+        "actor_id": "sales_leader",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This request asks for a best-case pipeline forecast for a specific quarter and region, which matches the bounded forecast summary capability.",
+          "user_message": "Using the best-case forecast mode for 2017-Q2 and East region."
+        },
+        "planned_capability": "gtm.pipeline_forecast_summary",
+        "selected_capability": "gtm.pipeline_forecast_summary",
+        "selected_service": "pipeline",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "forecast_mode": "best_case",
+          "owner_scope": "East"
+        },
+        "parameter_normalizations": [],
+        "capability_metadata": {
+          "description": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+          "minimum_scope": [
+            "gtm.pipeline.read"
+          ],
+          "inputs": [
+            "quarter",
+            "owner_scope",
+            "forecast_mode[allowed=risk_adjusted,likely,best_case default=risk_adjusted]",
+            "limit"
+          ],
+          "input_specs": [
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Quarter label like 2017-Q2",
+              "name": "quarter",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Regional office or company",
+              "name": "owner_scope",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [
+                "risk_adjusted",
+                "likely",
+                "best_case"
+              ],
+              "default": "risk_adjusted",
+              "description": "risk_adjusted, likely, or best_case",
+              "name": "forecast_mode",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Maximum contributing accounts to return",
+              "name": "limit",
+              "required": false,
+              "type": "integer"
+            }
+          ],
+          "side_effect": "read",
+          "service_name": "pipeline",
+          "service_url": "http://gtm-pipeline-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "quarter": "2017-Q2",
+            "owner_scope": "East",
+            "forecast_mode": "best_case",
+            "by_stage": [
+              {
+                "deal_stage": "Engaging",
+                "open_opportunity_count": 131,
+                "open_pipeline_value": 343663.0,
+                "likely_revenue": 206197.8,
+                "best_case_revenue": 292113.55,
+                "risk_adjusted_revenue": 92789.01,
+                "average_risk_score": 0.92,
+                "selected_forecast_value": 292113.55
+              }
+            ],
+            "totals": {
+              "open_opportunity_count": 131,
+              "open_pipeline_value": 343663.0,
+              "likely_revenue": 206197.8,
+              "best_case_revenue": 292113.55,
+              "risk_adjusted_revenue": 92789.01,
+              "selected_forecast_value": 292113.55
+            },
+            "top_contributors": [
+              {
+                "account_name": null,
+                "regional_office": "East",
+                "open_opportunity_count": 90,
+                "open_pipeline_value": 235559.0,
+                "likely_revenue": 141335.4,
+                "best_case_revenue": 200225.15,
+                "risk_adjusted_revenue": 63600.93,
+                "average_risk_score": 0.94,
+                "selected_forecast_value": 200225.15
+              },
+              {
+                "account_name": "Inity",
+                "regional_office": "East",
+                "open_opportunity_count": 2,
+                "open_pipeline_value": 10303.0,
+                "likely_revenue": 6181.8,
+                "best_case_revenue": 8757.55,
+                "risk_adjusted_revenue": 2781.81,
+                "average_risk_score": 0.86,
+                "selected_forecast_value": 8757.55
+              },
+              {
+                "account_name": "Betasoloin",
+                "regional_office": "East",
+                "open_opportunity_count": 3,
+                "open_pipeline_value": 9697.0,
+                "likely_revenue": 5818.2,
+                "best_case_revenue": 8242.45,
+                "risk_adjusted_revenue": 2618.19,
+                "average_risk_score": 0.94,
+                "selected_forecast_value": 8242.45
+              },
+              {
+                "account_name": "Zathunicon",
+                "regional_office": "East",
+                "open_opportunity_count": 2,
+                "open_pipeline_value": 9642.0,
+                "likely_revenue": 5785.2,
+                "best_case_revenue": 8195.7,
+                "risk_adjusted_revenue": 2603.34,
+                "average_risk_score": 0.94,
+                "selected_forecast_value": 8195.7
+              },
+              {
+                "account_name": "Condax",
+                "regional_office": "East",
+                "open_opportunity_count": 2,
+                "open_pipeline_value": 8875.0,
+                "likely_revenue": 5325.0,
+                "best_case_revenue": 7543.75,
+                "risk_adjusted_revenue": 2396.25,
+                "average_risk_score": 0.94,
+                "selected_forecast_value": 7543.75
+              }
+            ],
+            "visibility": {
+              "financial_values": "full"
+            }
+          },
+          "invocation_id": "inv-cf5a159a7787",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase6-forecast-clarify-quarter-followup",
+      "category": "forecast-clarification",
+      "question": "What is our likely pipeline forecast?",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "What is our likely pipeline forecast?",
+          "expected": {
+            "outcome": "clarification_required",
+            "capability": "gtm.pipeline_forecast_summary",
+            "service": "pipeline",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": "gtm.pipeline_forecast_summary",
+            "capability": "gtm.pipeline_forecast_summary",
+            "service": "pipeline",
+            "outcome": "clarification_required",
+            "parameters": {
+              "forecast_mode": "likely"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This request asks for a likely pipeline forecast, so the bounded forecast summary capability is the best fit. Quarter and scope are missing, so I pass only the known partial parameter and let the governed service clarify.",
+              "user_message": "I\u2019ll use the pipeline forecast summary capability with likely mode; quarter and any owner scope are still needed for a complete forecast."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "What is our likely pipeline forecast?",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This request asks for a likely pipeline forecast, so the bounded forecast summary capability is the best fit. Quarter and scope are missing, so I pass only the known partial parameter and let the governed service clarify.",
+              "user_message": "I\u2019ll use the pipeline forecast summary capability with likely mode; quarter and any owner scope are still needed for a complete forecast."
+            },
+            "planned_capability": "gtm.pipeline_forecast_summary",
+            "selected_capability": "gtm.pipeline_forecast_summary",
+            "selected_service": "pipeline",
+            "parameters": {
+              "forecast_mode": "likely"
+            },
+            "parameter_normalizations": [],
+            "capability_metadata": {
+              "description": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+              "minimum_scope": [
+                "gtm.pipeline.read"
+              ],
+              "inputs": [
+                "quarter",
+                "owner_scope",
+                "forecast_mode[allowed=risk_adjusted,likely,best_case default=risk_adjusted]",
+                "limit"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Quarter label like 2017-Q2",
+                  "name": "quarter",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Regional office or company",
+                  "name": "owner_scope",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "risk_adjusted",
+                    "likely",
+                    "best_case"
+                  ],
+                  "default": "risk_adjusted",
+                  "description": "risk_adjusted, likely, or best_case",
+                  "name": "forecast_mode",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Maximum contributing accounts to return",
+                  "name": "limit",
+                  "required": false,
+                  "type": "integer"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "pipeline",
+              "service_url": "http://gtm-pipeline-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "clarification_required",
+                "detail": "quarter is missing",
+                "resolution": {
+                  "action": "provide_missing_parameter",
+                  "requires": "quarter",
+                  "hint": "Quarter label like 2017-Q2"
+                }
+              },
+              "invocation_id": "inv-05d77d757dc4",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        },
+        {
+          "turn": 2,
+          "question": "Use 2017-Q2.",
+          "expected": {
+            "outcome": "success",
+            "planned_capability": "gtm.pipeline_forecast_summary",
+            "capability": "gtm.pipeline_forecast_summary",
+            "service": "pipeline",
+            "max_total_loops": 2,
+            "data_check": "forecast_summary_likely_q2"
+          },
+          "actual": {
+            "planned_capability": "gtm.pipeline_forecast_summary",
+            "capability": "gtm.pipeline_forecast_summary",
+            "service": "pipeline",
+            "outcome": "success",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "forecast_mode": "likely"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user is continuing the prior forecast request and has now provided the missing quarter; this capability best matches a likely pipeline forecast.",
+              "user_message": "Using 2017-Q2 with likely forecast mode."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "forecast_summary_likely_q2",
+            "details": {
+              "expected_stage_rows": [
+                [
+                  "Engaging",
+                  "366.0",
+                  "1040553.0",
+                  "624331.8",
+                  "884470.05",
+                  "280949.31",
+                  "0.92"
+                ]
+              ],
+              "actual_stage_rows": [
+                [
+                  "Engaging",
+                  "366.0",
+                  "1040553.0",
+                  "624331.8",
+                  "884470.05",
+                  "280949.31",
+                  "0.92"
+                ]
+              ],
+              "expected_selected_forecast_value": 624331.8,
+              "actual_selected_forecast_value": 624331.8
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Use 2017-Q2.",
+            "actor_id": "sales_leader",
+            "history": [
+              {
+                "role": "user",
+                "content": "What is our likely pipeline forecast?"
+              },
+              {
+                "role": "assistant",
+                "content": "I\u2019ll use the pipeline forecast summary capability with likely mode; quarter and any owner scope are still needed for a complete forecast. | clarification_required | quarter is missing | provide_missing_parameter | quarter"
+              }
+            ],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user is continuing the prior forecast request and has now provided the missing quarter; this capability best matches a likely pipeline forecast.",
+              "user_message": "Using 2017-Q2 with likely forecast mode."
+            },
+            "planned_capability": "gtm.pipeline_forecast_summary",
+            "selected_capability": "gtm.pipeline_forecast_summary",
+            "selected_service": "pipeline",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "forecast_mode": "likely"
+            },
+            "parameter_normalizations": [],
+            "capability_metadata": {
+              "description": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+              "minimum_scope": [
+                "gtm.pipeline.read"
+              ],
+              "inputs": [
+                "quarter",
+                "owner_scope",
+                "forecast_mode[allowed=risk_adjusted,likely,best_case default=risk_adjusted]",
+                "limit"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Quarter label like 2017-Q2",
+                  "name": "quarter",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Regional office or company",
+                  "name": "owner_scope",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "risk_adjusted",
+                    "likely",
+                    "best_case"
+                  ],
+                  "default": "risk_adjusted",
+                  "description": "risk_adjusted, likely, or best_case",
+                  "name": "forecast_mode",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Maximum contributing accounts to return",
+                  "name": "limit",
+                  "required": false,
+                  "type": "integer"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "pipeline",
+              "service_url": "http://gtm-pipeline-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "quarter": "2017-Q2",
+                "owner_scope": "company",
+                "forecast_mode": "likely",
+                "by_stage": [
+                  {
+                    "deal_stage": "Engaging",
+                    "open_opportunity_count": 366,
+                    "open_pipeline_value": 1040553.0,
+                    "likely_revenue": 624331.8,
+                    "best_case_revenue": 884470.05,
+                    "risk_adjusted_revenue": 280949.31,
+                    "average_risk_score": 0.92,
+                    "selected_forecast_value": 624331.8
+                  }
+                ],
+                "totals": {
+                  "open_opportunity_count": 366,
+                  "open_pipeline_value": 1040553.0,
+                  "likely_revenue": 624331.8,
+                  "best_case_revenue": 884470.05,
+                  "risk_adjusted_revenue": 280949.31,
+                  "selected_forecast_value": 624331.8
+                },
+                "top_contributors": [
+                  {
+                    "account_name": null,
+                    "regional_office": "West",
+                    "open_opportunity_count": 161,
+                    "open_pipeline_value": 437241.0,
+                    "likely_revenue": 262344.6,
+                    "best_case_revenue": 371654.85,
+                    "risk_adjusted_revenue": 118055.07,
+                    "average_risk_score": 0.94,
+                    "selected_forecast_value": 262344.6
+                  },
+                  {
+                    "account_name": null,
+                    "regional_office": "East",
+                    "open_opportunity_count": 90,
+                    "open_pipeline_value": 235559.0,
+                    "likely_revenue": 141335.4,
+                    "best_case_revenue": 200225.15,
+                    "risk_adjusted_revenue": 63600.93,
+                    "average_risk_score": 0.94,
+                    "selected_forecast_value": 141335.4
+                  },
+                  {
+                    "account_name": "Lexiqvolax",
+                    "regional_office": "West",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": 30161.0,
+                    "likely_revenue": 18096.6,
+                    "best_case_revenue": 25636.85,
+                    "risk_adjusted_revenue": 8143.47,
+                    "average_risk_score": 0.86,
+                    "selected_forecast_value": 18096.6
+                  },
+                  {
+                    "account_name": "Treequote",
+                    "regional_office": "West",
+                    "open_opportunity_count": 1,
+                    "open_pipeline_value": 26768.0,
+                    "likely_revenue": 16060.8,
+                    "best_case_revenue": 22752.8,
+                    "risk_adjusted_revenue": 7227.36,
+                    "average_risk_score": 0.86,
+                    "selected_forecast_value": 16060.8
+                  },
+                  {
+                    "account_name": "Xx-zobam",
+                    "regional_office": "West",
+                    "open_opportunity_count": 1,
+                    "open_pipeline_value": 26768.0,
+                    "likely_revenue": 16060.8,
+                    "best_case_revenue": 22752.8,
+                    "risk_adjusted_revenue": 7227.36,
+                    "average_risk_score": 0.86,
+                    "selected_forecast_value": 16060.8
+                  }
+                ],
+                "visibility": {
+                  "financial_values": "full"
+                }
+              },
+              "invocation_id": "inv-3b5a2d160104",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "planned_capability": "gtm.pipeline_forecast_summary",
+        "capability": "gtm.pipeline_forecast_summary",
+        "service": "pipeline",
+        "max_total_loops": 2,
+        "data_check": "forecast_summary_likely_q2"
+      },
+      "actual": {
+        "planned_capability": "gtm.pipeline_forecast_summary",
+        "capability": "gtm.pipeline_forecast_summary",
+        "service": "pipeline",
+        "outcome": "success",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "forecast_mode": "likely"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user is continuing the prior forecast request and has now provided the missing quarter; this capability best matches a likely pipeline forecast.",
+          "user_message": "Using 2017-Q2 with likely forecast mode."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "forecast_summary_likely_q2",
+        "details": {
+          "expected_stage_rows": [
+            [
+              "Engaging",
+              "366.0",
+              "1040553.0",
+              "624331.8",
+              "884470.05",
+              "280949.31",
+              "0.92"
+            ]
+          ],
+          "actual_stage_rows": [
+            [
+              "Engaging",
+              "366.0",
+              "1040553.0",
+              "624331.8",
+              "884470.05",
+              "280949.31",
+              "0.92"
+            ]
+          ],
+          "expected_selected_forecast_value": 624331.8,
+          "actual_selected_forecast_value": 624331.8
+        }
+      },
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Use 2017-Q2.",
+        "actor_id": "sales_leader",
+        "history": [
+          {
+            "role": "user",
+            "content": "What is our likely pipeline forecast?"
+          },
+          {
+            "role": "assistant",
+            "content": "I\u2019ll use the pipeline forecast summary capability with likely mode; quarter and any owner scope are still needed for a complete forecast. | clarification_required | quarter is missing | provide_missing_parameter | quarter"
+          }
+        ],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user is continuing the prior forecast request and has now provided the missing quarter; this capability best matches a likely pipeline forecast.",
+          "user_message": "Using 2017-Q2 with likely forecast mode."
+        },
+        "planned_capability": "gtm.pipeline_forecast_summary",
+        "selected_capability": "gtm.pipeline_forecast_summary",
+        "selected_service": "pipeline",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "forecast_mode": "likely"
+        },
+        "parameter_normalizations": [],
+        "capability_metadata": {
+          "description": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+          "minimum_scope": [
+            "gtm.pipeline.read"
+          ],
+          "inputs": [
+            "quarter",
+            "owner_scope",
+            "forecast_mode[allowed=risk_adjusted,likely,best_case default=risk_adjusted]",
+            "limit"
+          ],
+          "input_specs": [
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Quarter label like 2017-Q2",
+              "name": "quarter",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Regional office or company",
+              "name": "owner_scope",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [
+                "risk_adjusted",
+                "likely",
+                "best_case"
+              ],
+              "default": "risk_adjusted",
+              "description": "risk_adjusted, likely, or best_case",
+              "name": "forecast_mode",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Maximum contributing accounts to return",
+              "name": "limit",
+              "required": false,
+              "type": "integer"
+            }
+          ],
+          "side_effect": "read",
+          "service_name": "pipeline",
+          "service_url": "http://gtm-pipeline-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "quarter": "2017-Q2",
+            "owner_scope": "company",
+            "forecast_mode": "likely",
+            "by_stage": [
+              {
+                "deal_stage": "Engaging",
+                "open_opportunity_count": 366,
+                "open_pipeline_value": 1040553.0,
+                "likely_revenue": 624331.8,
+                "best_case_revenue": 884470.05,
+                "risk_adjusted_revenue": 280949.31,
+                "average_risk_score": 0.92,
+                "selected_forecast_value": 624331.8
+              }
+            ],
+            "totals": {
+              "open_opportunity_count": 366,
+              "open_pipeline_value": 1040553.0,
+              "likely_revenue": 624331.8,
+              "best_case_revenue": 884470.05,
+              "risk_adjusted_revenue": 280949.31,
+              "selected_forecast_value": 624331.8
+            },
+            "top_contributors": [
+              {
+                "account_name": null,
+                "regional_office": "West",
+                "open_opportunity_count": 161,
+                "open_pipeline_value": 437241.0,
+                "likely_revenue": 262344.6,
+                "best_case_revenue": 371654.85,
+                "risk_adjusted_revenue": 118055.07,
+                "average_risk_score": 0.94,
+                "selected_forecast_value": 262344.6
+              },
+              {
+                "account_name": null,
+                "regional_office": "East",
+                "open_opportunity_count": 90,
+                "open_pipeline_value": 235559.0,
+                "likely_revenue": 141335.4,
+                "best_case_revenue": 200225.15,
+                "risk_adjusted_revenue": 63600.93,
+                "average_risk_score": 0.94,
+                "selected_forecast_value": 141335.4
+              },
+              {
+                "account_name": "Lexiqvolax",
+                "regional_office": "West",
+                "open_opportunity_count": 2,
+                "open_pipeline_value": 30161.0,
+                "likely_revenue": 18096.6,
+                "best_case_revenue": 25636.85,
+                "risk_adjusted_revenue": 8143.47,
+                "average_risk_score": 0.86,
+                "selected_forecast_value": 18096.6
+              },
+              {
+                "account_name": "Treequote",
+                "regional_office": "West",
+                "open_opportunity_count": 1,
+                "open_pipeline_value": 26768.0,
+                "likely_revenue": 16060.8,
+                "best_case_revenue": 22752.8,
+                "risk_adjusted_revenue": 7227.36,
+                "average_risk_score": 0.86,
+                "selected_forecast_value": 16060.8
+              },
+              {
+                "account_name": "Xx-zobam",
+                "regional_office": "West",
+                "open_opportunity_count": 1,
+                "open_pipeline_value": 26768.0,
+                "likely_revenue": 16060.8,
+                "best_case_revenue": 22752.8,
+                "risk_adjusted_revenue": 7227.36,
+                "average_risk_score": 0.86,
+                "selected_forecast_value": 16060.8
+              }
+            ],
+            "visibility": {
+              "financial_values": "full"
+            }
+          },
+          "invocation_id": "inv-3b5a2d160104",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase6-sales-analyst-forecast-masked",
+      "category": "forecast-actor-aware",
+      "question": "What is our risk-adjusted pipeline forecast for 2017-Q2?",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "What is our risk-adjusted pipeline forecast for 2017-Q2?",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.pipeline_forecast_summary",
+            "service": "pipeline",
+            "max_total_loops": 2,
+            "data_check": "forecast_summary_masked_q2"
+          },
+          "actual": {
+            "planned_capability": "gtm.pipeline_forecast_summary",
+            "capability": "gtm.pipeline_forecast_summary",
+            "service": "pipeline",
+            "outcome": "success",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "forecast_mode": "risk_adjusted"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for a risk-adjusted pipeline forecast for a specific quarter, which matches the bounded forecast summary capability.",
+              "user_message": "Using the risk-adjusted forecast mode for 2017-Q2."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "forecast_summary_masked_q2",
+            "details": {
+              "expected_rows": [
+                [
+                  "Engaging",
+                  "366",
+                  "0.92"
+                ]
+              ],
+              "actual_rows": [
+                [
+                  "Engaging",
+                  "366",
+                  "0.92"
+                ]
+              ],
+              "all_masked": true
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "What is our risk-adjusted pipeline forecast for 2017-Q2?",
+            "actor_id": "sales_analyst",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for a risk-adjusted pipeline forecast for a specific quarter, which matches the bounded forecast summary capability.",
+              "user_message": "Using the risk-adjusted forecast mode for 2017-Q2."
+            },
+            "planned_capability": "gtm.pipeline_forecast_summary",
+            "selected_capability": "gtm.pipeline_forecast_summary",
+            "selected_service": "pipeline",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "forecast_mode": "risk_adjusted"
+            },
+            "parameter_normalizations": [],
+            "capability_metadata": {
+              "description": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+              "minimum_scope": [
+                "gtm.pipeline.read"
+              ],
+              "inputs": [
+                "quarter",
+                "owner_scope",
+                "forecast_mode[allowed=risk_adjusted,likely,best_case default=risk_adjusted]",
+                "limit"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Quarter label like 2017-Q2",
+                  "name": "quarter",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Regional office or company",
+                  "name": "owner_scope",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "risk_adjusted",
+                    "likely",
+                    "best_case"
+                  ],
+                  "default": "risk_adjusted",
+                  "description": "risk_adjusted, likely, or best_case",
+                  "name": "forecast_mode",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Maximum contributing accounts to return",
+                  "name": "limit",
+                  "required": false,
+                  "type": "integer"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "pipeline",
+              "service_url": "http://gtm-pipeline-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "quarter": "2017-Q2",
+                "owner_scope": "company",
+                "forecast_mode": "risk_adjusted",
+                "by_stage": [
+                  {
+                    "deal_stage": "Engaging",
+                    "open_opportunity_count": 366,
+                    "open_pipeline_value": null,
+                    "likely_revenue": null,
+                    "best_case_revenue": null,
+                    "risk_adjusted_revenue": null,
+                    "average_risk_score": 0.92,
+                    "selected_forecast_value": null
+                  }
+                ],
+                "totals": {
+                  "open_opportunity_count": 366,
+                  "open_pipeline_value": null,
+                  "likely_revenue": null,
+                  "best_case_revenue": null,
+                  "risk_adjusted_revenue": null,
+                  "selected_forecast_value": null
+                },
+                "top_contributors": [
+                  {
+                    "account_name": null,
+                    "regional_office": "West",
+                    "open_opportunity_count": 161,
+                    "open_pipeline_value": null,
+                    "likely_revenue": null,
+                    "best_case_revenue": null,
+                    "risk_adjusted_revenue": null,
+                    "average_risk_score": 0.94,
+                    "selected_forecast_value": null
+                  },
+                  {
+                    "account_name": null,
+                    "regional_office": "East",
+                    "open_opportunity_count": 90,
+                    "open_pipeline_value": null,
+                    "likely_revenue": null,
+                    "best_case_revenue": null,
+                    "risk_adjusted_revenue": null,
+                    "average_risk_score": 0.94,
+                    "selected_forecast_value": null
+                  },
+                  {
+                    "account_name": "Lexiqvolax",
+                    "regional_office": "West",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "likely_revenue": null,
+                    "best_case_revenue": null,
+                    "risk_adjusted_revenue": null,
+                    "average_risk_score": 0.86,
+                    "selected_forecast_value": null
+                  },
+                  {
+                    "account_name": "Treequote",
+                    "regional_office": "West",
+                    "open_opportunity_count": 1,
+                    "open_pipeline_value": null,
+                    "likely_revenue": null,
+                    "best_case_revenue": null,
+                    "risk_adjusted_revenue": null,
+                    "average_risk_score": 0.86,
+                    "selected_forecast_value": null
+                  },
+                  {
+                    "account_name": "Xx-zobam",
+                    "regional_office": "West",
+                    "open_opportunity_count": 1,
+                    "open_pipeline_value": null,
+                    "likely_revenue": null,
+                    "best_case_revenue": null,
+                    "risk_adjusted_revenue": null,
+                    "average_risk_score": 0.86,
+                    "selected_forecast_value": null
+                  }
+                ],
+                "visibility": {
+                  "financial_values": "masked",
+                  "reason": "actor policy does not allow financial forecast values in this view"
+                }
+              },
+              "invocation_id": "inv-153449e5b0b2",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.pipeline_forecast_summary",
+        "service": "pipeline",
+        "max_total_loops": 2,
+        "data_check": "forecast_summary_masked_q2"
+      },
+      "actual": {
+        "planned_capability": "gtm.pipeline_forecast_summary",
+        "capability": "gtm.pipeline_forecast_summary",
+        "service": "pipeline",
+        "outcome": "success",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "forecast_mode": "risk_adjusted"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for a risk-adjusted pipeline forecast for a specific quarter, which matches the bounded forecast summary capability.",
+          "user_message": "Using the risk-adjusted forecast mode for 2017-Q2."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "forecast_summary_masked_q2",
+        "details": {
+          "expected_rows": [
+            [
+              "Engaging",
+              "366",
+              "0.92"
+            ]
+          ],
+          "actual_rows": [
+            [
+              "Engaging",
+              "366",
+              "0.92"
+            ]
+          ],
+          "all_masked": true
+        }
+      },
+      "audit_check": {
+        "passed": true,
+        "details": {
+          "actor_id": "sales_analyst",
+          "service": "pipeline",
+          "capability": "gtm.pipeline_forecast_summary",
+          "min_entries": 1,
+          "actual_entries": 4,
+          "latest_entry": {
+            "capability": "gtm.pipeline_forecast_summary",
+            "success": true,
+            "failure_type": null,
+            "root_principal": "human:jordan.lee@example.com|actor_id=sales_analyst|display_name=Jordan Lee|role=sales_analyst|pipeline_scope=company|financial_access=masked|enrichment_access=bounded|outreach_access=bounded|can_prepare_followup=false|can_approve_followup=false|can_use_lookalikes=false|can_route_leads=false|can_approve_routing=false|can_use_objection_variants=false",
+            "storage_redacted": true,
+            "signature_present": true
+          },
+          "assertion_errors": []
+        }
+      },
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "What is our risk-adjusted pipeline forecast for 2017-Q2?",
+        "actor_id": "sales_analyst",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for a risk-adjusted pipeline forecast for a specific quarter, which matches the bounded forecast summary capability.",
+          "user_message": "Using the risk-adjusted forecast mode for 2017-Q2."
+        },
+        "planned_capability": "gtm.pipeline_forecast_summary",
+        "selected_capability": "gtm.pipeline_forecast_summary",
+        "selected_service": "pipeline",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "forecast_mode": "risk_adjusted"
+        },
+        "parameter_normalizations": [],
+        "capability_metadata": {
+          "description": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+          "minimum_scope": [
+            "gtm.pipeline.read"
+          ],
+          "inputs": [
+            "quarter",
+            "owner_scope",
+            "forecast_mode[allowed=risk_adjusted,likely,best_case default=risk_adjusted]",
+            "limit"
+          ],
+          "input_specs": [
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Quarter label like 2017-Q2",
+              "name": "quarter",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Regional office or company",
+              "name": "owner_scope",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [
+                "risk_adjusted",
+                "likely",
+                "best_case"
+              ],
+              "default": "risk_adjusted",
+              "description": "risk_adjusted, likely, or best_case",
+              "name": "forecast_mode",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Maximum contributing accounts to return",
+              "name": "limit",
+              "required": false,
+              "type": "integer"
+            }
+          ],
+          "side_effect": "read",
+          "service_name": "pipeline",
+          "service_url": "http://gtm-pipeline-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "quarter": "2017-Q2",
+            "owner_scope": "company",
+            "forecast_mode": "risk_adjusted",
+            "by_stage": [
+              {
+                "deal_stage": "Engaging",
+                "open_opportunity_count": 366,
+                "open_pipeline_value": null,
+                "likely_revenue": null,
+                "best_case_revenue": null,
+                "risk_adjusted_revenue": null,
+                "average_risk_score": 0.92,
+                "selected_forecast_value": null
+              }
+            ],
+            "totals": {
+              "open_opportunity_count": 366,
+              "open_pipeline_value": null,
+              "likely_revenue": null,
+              "best_case_revenue": null,
+              "risk_adjusted_revenue": null,
+              "selected_forecast_value": null
+            },
+            "top_contributors": [
+              {
+                "account_name": null,
+                "regional_office": "West",
+                "open_opportunity_count": 161,
+                "open_pipeline_value": null,
+                "likely_revenue": null,
+                "best_case_revenue": null,
+                "risk_adjusted_revenue": null,
+                "average_risk_score": 0.94,
+                "selected_forecast_value": null
+              },
+              {
+                "account_name": null,
+                "regional_office": "East",
+                "open_opportunity_count": 90,
+                "open_pipeline_value": null,
+                "likely_revenue": null,
+                "best_case_revenue": null,
+                "risk_adjusted_revenue": null,
+                "average_risk_score": 0.94,
+                "selected_forecast_value": null
+              },
+              {
+                "account_name": "Lexiqvolax",
+                "regional_office": "West",
+                "open_opportunity_count": 2,
+                "open_pipeline_value": null,
+                "likely_revenue": null,
+                "best_case_revenue": null,
+                "risk_adjusted_revenue": null,
+                "average_risk_score": 0.86,
+                "selected_forecast_value": null
+              },
+              {
+                "account_name": "Treequote",
+                "regional_office": "West",
+                "open_opportunity_count": 1,
+                "open_pipeline_value": null,
+                "likely_revenue": null,
+                "best_case_revenue": null,
+                "risk_adjusted_revenue": null,
+                "average_risk_score": 0.86,
+                "selected_forecast_value": null
+              },
+              {
+                "account_name": "Xx-zobam",
+                "regional_office": "West",
+                "open_opportunity_count": 1,
+                "open_pipeline_value": null,
+                "likely_revenue": null,
+                "best_case_revenue": null,
+                "risk_adjusted_revenue": null,
+                "average_risk_score": 0.86,
+                "selected_forecast_value": null
+              }
+            ],
+            "visibility": {
+              "financial_values": "masked",
+              "reason": "actor policy does not allow financial forecast values in this view"
+            }
+          },
+          "invocation_id": "inv-153449e5b0b2",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase6-account-manager-west-forecast-restricted",
+      "category": "forecast-actor-aware",
+      "question": "Show the best-case pipeline forecast for 2017-Q2 in the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show the best-case pipeline forecast for 2017-Q2 in the West region.",
+          "expected": {
+            "outcome": "restricted",
+            "capability": "gtm.pipeline_forecast_summary",
+            "service": "pipeline",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": "gtm.pipeline_forecast_summary",
+            "capability": "gtm.pipeline_forecast_summary",
+            "service": "pipeline",
+            "outcome": "restricted",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "forecast_mode": "best_case",
+              "owner_scope": "West"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This request asks for a best-case pipeline forecast for a specific quarter and region, which matches the bounded forecast summary capability.",
+              "user_message": "Using the pipeline forecast summary capability for 2017-Q2, scoped to West, with best-case mode."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Show the best-case pipeline forecast for 2017-Q2 in the West region.",
+            "actor_id": "account_manager_east",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This request asks for a best-case pipeline forecast for a specific quarter and region, which matches the bounded forecast summary capability.",
+              "user_message": "Using the pipeline forecast summary capability for 2017-Q2, scoped to West, with best-case mode."
+            },
+            "planned_capability": "gtm.pipeline_forecast_summary",
+            "selected_capability": "gtm.pipeline_forecast_summary",
+            "selected_service": "pipeline",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "forecast_mode": "best_case",
+              "owner_scope": "West"
+            },
+            "parameter_normalizations": [],
+            "capability_metadata": {
+              "description": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+              "minimum_scope": [
+                "gtm.pipeline.read"
+              ],
+              "inputs": [
+                "quarter",
+                "owner_scope",
+                "forecast_mode[allowed=risk_adjusted,likely,best_case default=risk_adjusted]",
+                "limit"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Quarter label like 2017-Q2",
+                  "name": "quarter",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Regional office or company",
+                  "name": "owner_scope",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "risk_adjusted",
+                    "likely",
+                    "best_case"
+                  ],
+                  "default": "risk_adjusted",
+                  "description": "risk_adjusted, likely, or best_case",
+                  "name": "forecast_mode",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Maximum contributing accounts to return",
+                  "name": "limit",
+                  "required": false,
+                  "type": "integer"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "pipeline",
+              "service_url": "http://gtm-pipeline-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "restricted",
+                "detail": "This actor is restricted to a narrower pipeline scope.",
+                "resolution": {
+                  "action": "retry_with_owned_scope",
+                  "requires": "East"
+                }
+              },
+              "invocation_id": "inv-3a7e11104485",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "restricted",
+        "capability": "gtm.pipeline_forecast_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "actual": {
+        "planned_capability": "gtm.pipeline_forecast_summary",
+        "capability": "gtm.pipeline_forecast_summary",
+        "service": "pipeline",
+        "outcome": "restricted",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "forecast_mode": "best_case",
+          "owner_scope": "West"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This request asks for a best-case pipeline forecast for a specific quarter and region, which matches the bounded forecast summary capability.",
+          "user_message": "Using the pipeline forecast summary capability for 2017-Q2, scoped to West, with best-case mode."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": {
+        "passed": true,
+        "details": {
+          "actor_id": "account_manager_east",
+          "service": "pipeline",
+          "capability": "gtm.pipeline_forecast_summary",
+          "min_entries": 1,
+          "actual_entries": 4,
+          "latest_entry": {
+            "capability": "gtm.pipeline_forecast_summary",
+            "success": false,
+            "failure_type": "restricted",
+            "root_principal": "human:maya.chen@example.com|actor_id=account_manager_east|display_name=Maya Chen|role=account_manager|pipeline_scope=East|financial_access=full|enrichment_access=bounded|outreach_access=full|can_prepare_followup=true|can_approve_followup=false|can_use_lookalikes=true|can_route_leads=false|can_approve_routing=false|can_use_objection_variants=true",
+            "storage_redacted": false,
+            "signature_present": true
+          },
+          "assertion_errors": []
+        }
+      },
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Show the best-case pipeline forecast for 2017-Q2 in the West region.",
+        "actor_id": "account_manager_east",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This request asks for a best-case pipeline forecast for a specific quarter and region, which matches the bounded forecast summary capability.",
+          "user_message": "Using the pipeline forecast summary capability for 2017-Q2, scoped to West, with best-case mode."
+        },
+        "planned_capability": "gtm.pipeline_forecast_summary",
+        "selected_capability": "gtm.pipeline_forecast_summary",
+        "selected_service": "pipeline",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "forecast_mode": "best_case",
+          "owner_scope": "West"
+        },
+        "parameter_normalizations": [],
+        "capability_metadata": {
+          "description": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+          "minimum_scope": [
+            "gtm.pipeline.read"
+          ],
+          "inputs": [
+            "quarter",
+            "owner_scope",
+            "forecast_mode[allowed=risk_adjusted,likely,best_case default=risk_adjusted]",
+            "limit"
+          ],
+          "input_specs": [
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Quarter label like 2017-Q2",
+              "name": "quarter",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Regional office or company",
+              "name": "owner_scope",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [
+                "risk_adjusted",
+                "likely",
+                "best_case"
+              ],
+              "default": "risk_adjusted",
+              "description": "risk_adjusted, likely, or best_case",
+              "name": "forecast_mode",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Maximum contributing accounts to return",
+              "name": "limit",
+              "required": false,
+              "type": "integer"
+            }
+          ],
+          "side_effect": "read",
+          "service_name": "pipeline",
+          "service_url": "http://gtm-pipeline-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "restricted",
+            "detail": "This actor is restricted to a narrower pipeline scope.",
+            "resolution": {
+              "action": "retry_with_owned_scope",
+              "requires": "East"
+            }
+          },
+          "invocation_id": "inv-3a7e11104485",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase6-bottleneck-regional-q2",
+      "category": "bottleneck-read",
+      "question": "Where are the biggest stage bottlenecks in our 2017-Q2 pipeline?",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Where are the biggest stage bottlenecks in our 2017-Q2 pipeline?",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.stage_bottleneck_summary",
+            "service": "pipeline",
+            "max_total_loops": 2,
+            "data_check": "bottleneck_summary_regional_q2"
+          },
+          "actual": {
+            "planned_capability": "gtm.stage_bottleneck_summary",
+            "capability": "gtm.stage_bottleneck_summary",
+            "service": "pipeline",
+            "outcome": "success",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "slice_by": "regional_office"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for biggest stage bottlenecks in a specific quarter\u2019s pipeline, which matches the stage bottleneck summary capability.",
+              "user_message": "I\u2019ll use the stage bottleneck summary for 2017-Q2."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "bottleneck_summary_regional_q2",
+            "details": {
+              "expected_rows": [
+                [
+                  "West",
+                  "Engaging",
+                  "235.0",
+                  "696890.0",
+                  "231.06",
+                  "0.92",
+                  "1"
+                ],
+                [
+                  "East",
+                  "Engaging",
+                  "131.0",
+                  "343663.0",
+                  "228.47",
+                  "0.92",
+                  "2"
+                ]
+              ],
+              "actual_rows": [
+                [
+                  "West",
+                  "Engaging",
+                  "235.0",
+                  "696890.0",
+                  "231.06",
+                  "0.92",
+                  "1"
+                ],
+                [
+                  "East",
+                  "Engaging",
+                  "131.0",
+                  "343663.0",
+                  "228.47",
+                  "0.92",
+                  "2"
+                ]
+              ]
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Where are the biggest stage bottlenecks in our 2017-Q2 pipeline?",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for biggest stage bottlenecks in a specific quarter\u2019s pipeline, which matches the stage bottleneck summary capability.",
+              "user_message": "I\u2019ll use the stage bottleneck summary for 2017-Q2."
+            },
+            "planned_capability": "gtm.stage_bottleneck_summary",
+            "selected_capability": "gtm.stage_bottleneck_summary",
+            "selected_service": "pipeline",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "slice_by": "regional_office"
+            },
+            "parameter_normalizations": [
+              {
+                "field": "slice_by",
+                "reason": "default_applied",
+                "from": null,
+                "to": "regional_office"
+              }
+            ],
+            "capability_metadata": {
+              "description": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+              "minimum_scope": [
+                "gtm.pipeline.read"
+              ],
+              "inputs": [
+                "quarter",
+                "owner_scope",
+                "slice_by[allowed=regional_office,manager_name,product_name default=regional_office]",
+                "limit"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Quarter label like 2017-Q2",
+                  "name": "quarter",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Regional office or company",
+                  "name": "owner_scope",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "regional_office",
+                    "manager_name",
+                    "product_name"
+                  ],
+                  "default": "regional_office",
+                  "description": "regional_office, manager_name, or product_name",
+                  "name": "slice_by",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Maximum bottleneck rows to return",
+                  "name": "limit",
+                  "required": false,
+                  "type": "integer"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "pipeline",
+              "service_url": "http://gtm-pipeline-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "quarter": "2017-Q2",
+                "owner_scope": "company",
+                "slice_by": "regional_office",
+                "bottlenecks": [
+                  {
+                    "slice_by": "regional_office",
+                    "slice_value": "West",
+                    "deal_stage": "Engaging",
+                    "open_opportunity_count": 235,
+                    "open_pipeline_value": 696890.0,
+                    "average_open_days": 231.06,
+                    "average_risk_score": 0.92,
+                    "bottleneck_rank": 1
+                  },
+                  {
+                    "slice_by": "regional_office",
+                    "slice_value": "East",
+                    "deal_stage": "Engaging",
+                    "open_opportunity_count": 131,
+                    "open_pipeline_value": 343663.0,
+                    "average_open_days": 228.47,
+                    "average_risk_score": 0.92,
+                    "bottleneck_rank": 2
+                  }
+                ],
+                "visibility": {
+                  "financial_values": "full"
+                }
+              },
+              "invocation_id": "inv-32c8c412ae68",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.stage_bottleneck_summary",
+        "service": "pipeline",
+        "max_total_loops": 2,
+        "data_check": "bottleneck_summary_regional_q2"
+      },
+      "actual": {
+        "planned_capability": "gtm.stage_bottleneck_summary",
+        "capability": "gtm.stage_bottleneck_summary",
+        "service": "pipeline",
+        "outcome": "success",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "slice_by": "regional_office"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for biggest stage bottlenecks in a specific quarter\u2019s pipeline, which matches the stage bottleneck summary capability.",
+          "user_message": "I\u2019ll use the stage bottleneck summary for 2017-Q2."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "bottleneck_summary_regional_q2",
+        "details": {
+          "expected_rows": [
+            [
+              "West",
+              "Engaging",
+              "235.0",
+              "696890.0",
+              "231.06",
+              "0.92",
+              "1"
+            ],
+            [
+              "East",
+              "Engaging",
+              "131.0",
+              "343663.0",
+              "228.47",
+              "0.92",
+              "2"
+            ]
+          ],
+          "actual_rows": [
+            [
+              "West",
+              "Engaging",
+              "235.0",
+              "696890.0",
+              "231.06",
+              "0.92",
+              "1"
+            ],
+            [
+              "East",
+              "Engaging",
+              "131.0",
+              "343663.0",
+              "228.47",
+              "0.92",
+              "2"
+            ]
+          ]
+        }
+      },
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Where are the biggest stage bottlenecks in our 2017-Q2 pipeline?",
+        "actor_id": "sales_leader",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for biggest stage bottlenecks in a specific quarter\u2019s pipeline, which matches the stage bottleneck summary capability.",
+          "user_message": "I\u2019ll use the stage bottleneck summary for 2017-Q2."
+        },
+        "planned_capability": "gtm.stage_bottleneck_summary",
+        "selected_capability": "gtm.stage_bottleneck_summary",
+        "selected_service": "pipeline",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "slice_by": "regional_office"
+        },
+        "parameter_normalizations": [
+          {
+            "field": "slice_by",
+            "reason": "default_applied",
+            "from": null,
+            "to": "regional_office"
+          }
+        ],
+        "capability_metadata": {
+          "description": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+          "minimum_scope": [
+            "gtm.pipeline.read"
+          ],
+          "inputs": [
+            "quarter",
+            "owner_scope",
+            "slice_by[allowed=regional_office,manager_name,product_name default=regional_office]",
+            "limit"
+          ],
+          "input_specs": [
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Quarter label like 2017-Q2",
+              "name": "quarter",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Regional office or company",
+              "name": "owner_scope",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [
+                "regional_office",
+                "manager_name",
+                "product_name"
+              ],
+              "default": "regional_office",
+              "description": "regional_office, manager_name, or product_name",
+              "name": "slice_by",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Maximum bottleneck rows to return",
+              "name": "limit",
+              "required": false,
+              "type": "integer"
+            }
+          ],
+          "side_effect": "read",
+          "service_name": "pipeline",
+          "service_url": "http://gtm-pipeline-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "quarter": "2017-Q2",
+            "owner_scope": "company",
+            "slice_by": "regional_office",
+            "bottlenecks": [
+              {
+                "slice_by": "regional_office",
+                "slice_value": "West",
+                "deal_stage": "Engaging",
+                "open_opportunity_count": 235,
+                "open_pipeline_value": 696890.0,
+                "average_open_days": 231.06,
+                "average_risk_score": 0.92,
+                "bottleneck_rank": 1
+              },
+              {
+                "slice_by": "regional_office",
+                "slice_value": "East",
+                "deal_stage": "Engaging",
+                "open_opportunity_count": 131,
+                "open_pipeline_value": 343663.0,
+                "average_open_days": 228.47,
+                "average_risk_score": 0.92,
+                "bottleneck_rank": 2
+              }
+            ],
+            "visibility": {
+              "financial_values": "full"
+            }
+          },
+          "invocation_id": "inv-32c8c412ae68",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase6-bottleneck-product-east-q2",
+      "category": "bottleneck-read",
+      "question": "Show the biggest stage bottlenecks by product for 2017-Q2 in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show the biggest stage bottlenecks by product for 2017-Q2 in the East region.",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.stage_bottleneck_summary",
+            "service": "pipeline",
+            "max_total_loops": 2,
+            "data_check": "bottleneck_summary_product_east_q2"
+          },
+          "actual": {
+            "planned_capability": "gtm.stage_bottleneck_summary",
+            "capability": "gtm.stage_bottleneck_summary",
+            "service": "pipeline",
+            "outcome": "success",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "slice_by": "product_name",
+              "owner_scope": "East"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "Best fit for stage bottlenecks by product; quarter is known, but region scope is missing from the allowed parameters so I pass the bounded known inputs only.",
+              "user_message": "I\u2019ll use the stage bottleneck summary for 2017-Q2 by product. The East region filter isn\u2019t supported in the available parameters, so the service may clarify or return the closest bounded result."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "bottleneck_summary_product_east_q2",
+            "details": {
+              "expected_rows": [
+                [
+                  "GTX Plus Pro",
+                  "Engaging",
+                  "18.0",
+                  "98676.0",
+                  "236.06",
+                  "0.92",
+                  "1"
+                ],
+                [
+                  "GTX Basic",
+                  "Engaging",
+                  "12.0",
+                  "6600.0",
+                  "234.75",
+                  "0.91",
+                  "2"
+                ],
+                [
+                  "MG Special",
+                  "Engaging",
+                  "25.0",
+                  "1375.0",
+                  "229.44",
+                  "0.93",
+                  "3"
+                ],
+                [
+                  "MG Advanced",
+                  "Engaging",
+                  "28.0",
+                  "95004.0",
+                  "228.21",
+                  "0.93",
+                  "4"
+                ],
+                [
+                  "GTX Plus Basic",
+                  "Engaging",
+                  "24.0",
+                  "26304.0",
+                  "225.46",
+                  "0.92",
+                  "5"
+                ],
+                [
+                  "GTX Pro",
+                  "Engaging",
+                  "24.0",
+                  "115704.0",
+                  "221.96",
+                  "0.93",
+                  "6"
+                ]
+              ],
+              "actual_rows": [
+                [
+                  "GTX Plus Pro",
+                  "Engaging",
+                  "18.0",
+                  "98676.0",
+                  "236.06",
+                  "0.92",
+                  "1"
+                ],
+                [
+                  "GTX Basic",
+                  "Engaging",
+                  "12.0",
+                  "6600.0",
+                  "234.75",
+                  "0.91",
+                  "2"
+                ],
+                [
+                  "MG Special",
+                  "Engaging",
+                  "25.0",
+                  "1375.0",
+                  "229.44",
+                  "0.93",
+                  "3"
+                ],
+                [
+                  "MG Advanced",
+                  "Engaging",
+                  "28.0",
+                  "95004.0",
+                  "228.21",
+                  "0.93",
+                  "4"
+                ],
+                [
+                  "GTX Plus Basic",
+                  "Engaging",
+                  "24.0",
+                  "26304.0",
+                  "225.46",
+                  "0.92",
+                  "5"
+                ],
+                [
+                  "GTX Pro",
+                  "Engaging",
+                  "24.0",
+                  "115704.0",
+                  "221.96",
+                  "0.93",
+                  "6"
+                ]
+              ]
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Show the biggest stage bottlenecks by product for 2017-Q2 in the East region.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "Best fit for stage bottlenecks by product; quarter is known, but region scope is missing from the allowed parameters so I pass the bounded known inputs only.",
+              "user_message": "I\u2019ll use the stage bottleneck summary for 2017-Q2 by product. The East region filter isn\u2019t supported in the available parameters, so the service may clarify or return the closest bounded result."
+            },
+            "planned_capability": "gtm.stage_bottleneck_summary",
+            "selected_capability": "gtm.stage_bottleneck_summary",
+            "selected_service": "pipeline",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "slice_by": "product_name",
+              "owner_scope": "East"
+            },
+            "parameter_normalizations": [],
+            "capability_metadata": {
+              "description": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+              "minimum_scope": [
+                "gtm.pipeline.read"
+              ],
+              "inputs": [
+                "quarter",
+                "owner_scope",
+                "slice_by[allowed=regional_office,manager_name,product_name default=regional_office]",
+                "limit"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Quarter label like 2017-Q2",
+                  "name": "quarter",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Regional office or company",
+                  "name": "owner_scope",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "regional_office",
+                    "manager_name",
+                    "product_name"
+                  ],
+                  "default": "regional_office",
+                  "description": "regional_office, manager_name, or product_name",
+                  "name": "slice_by",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Maximum bottleneck rows to return",
+                  "name": "limit",
+                  "required": false,
+                  "type": "integer"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "pipeline",
+              "service_url": "http://gtm-pipeline-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "quarter": "2017-Q2",
+                "owner_scope": "East",
+                "slice_by": "product_name",
+                "bottlenecks": [
+                  {
+                    "slice_by": "product_name",
+                    "slice_value": "GTX Plus Pro",
+                    "deal_stage": "Engaging",
+                    "open_opportunity_count": 18,
+                    "open_pipeline_value": 98676.0,
+                    "average_open_days": 236.06,
+                    "average_risk_score": 0.92,
+                    "bottleneck_rank": 1
+                  },
+                  {
+                    "slice_by": "product_name",
+                    "slice_value": "GTX Basic",
+                    "deal_stage": "Engaging",
+                    "open_opportunity_count": 12,
+                    "open_pipeline_value": 6600.0,
+                    "average_open_days": 234.75,
+                    "average_risk_score": 0.91,
+                    "bottleneck_rank": 2
+                  },
+                  {
+                    "slice_by": "product_name",
+                    "slice_value": "MG Special",
+                    "deal_stage": "Engaging",
+                    "open_opportunity_count": 25,
+                    "open_pipeline_value": 1375.0,
+                    "average_open_days": 229.44,
+                    "average_risk_score": 0.93,
+                    "bottleneck_rank": 3
+                  },
+                  {
+                    "slice_by": "product_name",
+                    "slice_value": "MG Advanced",
+                    "deal_stage": "Engaging",
+                    "open_opportunity_count": 28,
+                    "open_pipeline_value": 95004.0,
+                    "average_open_days": 228.21,
+                    "average_risk_score": 0.93,
+                    "bottleneck_rank": 4
+                  },
+                  {
+                    "slice_by": "product_name",
+                    "slice_value": "GTX Plus Basic",
+                    "deal_stage": "Engaging",
+                    "open_opportunity_count": 24,
+                    "open_pipeline_value": 26304.0,
+                    "average_open_days": 225.46,
+                    "average_risk_score": 0.92,
+                    "bottleneck_rank": 5
+                  },
+                  {
+                    "slice_by": "product_name",
+                    "slice_value": "GTX Pro",
+                    "deal_stage": "Engaging",
+                    "open_opportunity_count": 24,
+                    "open_pipeline_value": 115704.0,
+                    "average_open_days": 221.96,
+                    "average_risk_score": 0.93,
+                    "bottleneck_rank": 6
+                  }
+                ],
+                "visibility": {
+                  "financial_values": "full"
+                }
+              },
+              "invocation_id": "inv-4fcf1a88bd2b",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.stage_bottleneck_summary",
+        "service": "pipeline",
+        "max_total_loops": 2,
+        "data_check": "bottleneck_summary_product_east_q2"
+      },
+      "actual": {
+        "planned_capability": "gtm.stage_bottleneck_summary",
+        "capability": "gtm.stage_bottleneck_summary",
+        "service": "pipeline",
+        "outcome": "success",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "slice_by": "product_name",
+          "owner_scope": "East"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "Best fit for stage bottlenecks by product; quarter is known, but region scope is missing from the allowed parameters so I pass the bounded known inputs only.",
+          "user_message": "I\u2019ll use the stage bottleneck summary for 2017-Q2 by product. The East region filter isn\u2019t supported in the available parameters, so the service may clarify or return the closest bounded result."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "bottleneck_summary_product_east_q2",
+        "details": {
+          "expected_rows": [
+            [
+              "GTX Plus Pro",
+              "Engaging",
+              "18.0",
+              "98676.0",
+              "236.06",
+              "0.92",
+              "1"
+            ],
+            [
+              "GTX Basic",
+              "Engaging",
+              "12.0",
+              "6600.0",
+              "234.75",
+              "0.91",
+              "2"
+            ],
+            [
+              "MG Special",
+              "Engaging",
+              "25.0",
+              "1375.0",
+              "229.44",
+              "0.93",
+              "3"
+            ],
+            [
+              "MG Advanced",
+              "Engaging",
+              "28.0",
+              "95004.0",
+              "228.21",
+              "0.93",
+              "4"
+            ],
+            [
+              "GTX Plus Basic",
+              "Engaging",
+              "24.0",
+              "26304.0",
+              "225.46",
+              "0.92",
+              "5"
+            ],
+            [
+              "GTX Pro",
+              "Engaging",
+              "24.0",
+              "115704.0",
+              "221.96",
+              "0.93",
+              "6"
+            ]
+          ],
+          "actual_rows": [
+            [
+              "GTX Plus Pro",
+              "Engaging",
+              "18.0",
+              "98676.0",
+              "236.06",
+              "0.92",
+              "1"
+            ],
+            [
+              "GTX Basic",
+              "Engaging",
+              "12.0",
+              "6600.0",
+              "234.75",
+              "0.91",
+              "2"
+            ],
+            [
+              "MG Special",
+              "Engaging",
+              "25.0",
+              "1375.0",
+              "229.44",
+              "0.93",
+              "3"
+            ],
+            [
+              "MG Advanced",
+              "Engaging",
+              "28.0",
+              "95004.0",
+              "228.21",
+              "0.93",
+              "4"
+            ],
+            [
+              "GTX Plus Basic",
+              "Engaging",
+              "24.0",
+              "26304.0",
+              "225.46",
+              "0.92",
+              "5"
+            ],
+            [
+              "GTX Pro",
+              "Engaging",
+              "24.0",
+              "115704.0",
+              "221.96",
+              "0.93",
+              "6"
+            ]
+          ]
+        }
+      },
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Show the biggest stage bottlenecks by product for 2017-Q2 in the East region.",
+        "actor_id": "sales_leader",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "Best fit for stage bottlenecks by product; quarter is known, but region scope is missing from the allowed parameters so I pass the bounded known inputs only.",
+          "user_message": "I\u2019ll use the stage bottleneck summary for 2017-Q2 by product. The East region filter isn\u2019t supported in the available parameters, so the service may clarify or return the closest bounded result."
+        },
+        "planned_capability": "gtm.stage_bottleneck_summary",
+        "selected_capability": "gtm.stage_bottleneck_summary",
+        "selected_service": "pipeline",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "slice_by": "product_name",
+          "owner_scope": "East"
+        },
+        "parameter_normalizations": [],
+        "capability_metadata": {
+          "description": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+          "minimum_scope": [
+            "gtm.pipeline.read"
+          ],
+          "inputs": [
+            "quarter",
+            "owner_scope",
+            "slice_by[allowed=regional_office,manager_name,product_name default=regional_office]",
+            "limit"
+          ],
+          "input_specs": [
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Quarter label like 2017-Q2",
+              "name": "quarter",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Regional office or company",
+              "name": "owner_scope",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [
+                "regional_office",
+                "manager_name",
+                "product_name"
+              ],
+              "default": "regional_office",
+              "description": "regional_office, manager_name, or product_name",
+              "name": "slice_by",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Maximum bottleneck rows to return",
+              "name": "limit",
+              "required": false,
+              "type": "integer"
+            }
+          ],
+          "side_effect": "read",
+          "service_name": "pipeline",
+          "service_url": "http://gtm-pipeline-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "quarter": "2017-Q2",
+            "owner_scope": "East",
+            "slice_by": "product_name",
+            "bottlenecks": [
+              {
+                "slice_by": "product_name",
+                "slice_value": "GTX Plus Pro",
+                "deal_stage": "Engaging",
+                "open_opportunity_count": 18,
+                "open_pipeline_value": 98676.0,
+                "average_open_days": 236.06,
+                "average_risk_score": 0.92,
+                "bottleneck_rank": 1
+              },
+              {
+                "slice_by": "product_name",
+                "slice_value": "GTX Basic",
+                "deal_stage": "Engaging",
+                "open_opportunity_count": 12,
+                "open_pipeline_value": 6600.0,
+                "average_open_days": 234.75,
+                "average_risk_score": 0.91,
+                "bottleneck_rank": 2
+              },
+              {
+                "slice_by": "product_name",
+                "slice_value": "MG Special",
+                "deal_stage": "Engaging",
+                "open_opportunity_count": 25,
+                "open_pipeline_value": 1375.0,
+                "average_open_days": 229.44,
+                "average_risk_score": 0.93,
+                "bottleneck_rank": 3
+              },
+              {
+                "slice_by": "product_name",
+                "slice_value": "MG Advanced",
+                "deal_stage": "Engaging",
+                "open_opportunity_count": 28,
+                "open_pipeline_value": 95004.0,
+                "average_open_days": 228.21,
+                "average_risk_score": 0.93,
+                "bottleneck_rank": 4
+              },
+              {
+                "slice_by": "product_name",
+                "slice_value": "GTX Plus Basic",
+                "deal_stage": "Engaging",
+                "open_opportunity_count": 24,
+                "open_pipeline_value": 26304.0,
+                "average_open_days": 225.46,
+                "average_risk_score": 0.92,
+                "bottleneck_rank": 5
+              },
+              {
+                "slice_by": "product_name",
+                "slice_value": "GTX Pro",
+                "deal_stage": "Engaging",
+                "open_opportunity_count": 24,
+                "open_pipeline_value": 115704.0,
+                "average_open_days": 221.96,
+                "average_risk_score": 0.93,
+                "bottleneck_rank": 6
+              }
+            ],
+            "visibility": {
+              "financial_values": "full"
+            }
+          },
+          "invocation_id": "inv-4fcf1a88bd2b",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase6-bottleneck-clarify-quarter-followup",
+      "category": "bottleneck-clarification",
+      "question": "Where are we bottlenecked?",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Where are we bottlenecked?",
+          "expected": {
+            "outcome": "clarification_required",
+            "capability": "gtm.stage_bottleneck_summary",
+            "service": "pipeline",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": "gtm.stage_bottleneck_summary",
+            "capability": "gtm.stage_bottleneck_summary",
+            "service": "pipeline",
+            "outcome": "clarification_required",
+            "parameters": {
+              "slice_by": "regional_office"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks where pipeline bottlenecks are, which matches the stage bottleneck summary capability best.",
+              "user_message": "I\u2019ll check for pipeline bottlenecks."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Where are we bottlenecked?",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks where pipeline bottlenecks are, which matches the stage bottleneck summary capability best.",
+              "user_message": "I\u2019ll check for pipeline bottlenecks."
+            },
+            "planned_capability": "gtm.stage_bottleneck_summary",
+            "selected_capability": "gtm.stage_bottleneck_summary",
+            "selected_service": "pipeline",
+            "parameters": {
+              "slice_by": "regional_office"
+            },
+            "parameter_normalizations": [
+              {
+                "field": "slice_by",
+                "reason": "default_applied",
+                "from": null,
+                "to": "regional_office"
+              }
+            ],
+            "capability_metadata": {
+              "description": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+              "minimum_scope": [
+                "gtm.pipeline.read"
+              ],
+              "inputs": [
+                "quarter",
+                "owner_scope",
+                "slice_by[allowed=regional_office,manager_name,product_name default=regional_office]",
+                "limit"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Quarter label like 2017-Q2",
+                  "name": "quarter",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Regional office or company",
+                  "name": "owner_scope",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "regional_office",
+                    "manager_name",
+                    "product_name"
+                  ],
+                  "default": "regional_office",
+                  "description": "regional_office, manager_name, or product_name",
+                  "name": "slice_by",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Maximum bottleneck rows to return",
+                  "name": "limit",
+                  "required": false,
+                  "type": "integer"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "pipeline",
+              "service_url": "http://gtm-pipeline-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "clarification_required",
+                "detail": "quarter is missing",
+                "resolution": {
+                  "action": "provide_missing_parameter",
+                  "requires": "quarter",
+                  "hint": "Quarter label like 2017-Q2"
+                }
+              },
+              "invocation_id": "inv-41a1e9664662",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        },
+        {
+          "turn": 2,
+          "question": "Use 2017-Q2.",
+          "expected": {
+            "outcome": "success",
+            "planned_capability": "gtm.stage_bottleneck_summary",
+            "capability": "gtm.stage_bottleneck_summary",
+            "service": "pipeline",
+            "max_total_loops": 2,
+            "data_check": "bottleneck_summary_regional_q2"
+          },
+          "actual": {
+            "planned_capability": "gtm.stage_bottleneck_summary",
+            "capability": "gtm.stage_bottleneck_summary",
+            "service": "pipeline",
+            "outcome": "success",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "slice_by": "regional_office"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The prior clarification was about bottlenecks, so this continues the same task. Stage bottleneck summary is the narrowest matching capability, and quarter is now provided.",
+              "user_message": "Checking pipeline bottlenecks for 2017-Q2."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "bottleneck_summary_regional_q2",
+            "details": {
+              "expected_rows": [
+                [
+                  "West",
+                  "Engaging",
+                  "235.0",
+                  "696890.0",
+                  "231.06",
+                  "0.92",
+                  "1"
+                ],
+                [
+                  "East",
+                  "Engaging",
+                  "131.0",
+                  "343663.0",
+                  "228.47",
+                  "0.92",
+                  "2"
+                ]
+              ],
+              "actual_rows": [
+                [
+                  "West",
+                  "Engaging",
+                  "235.0",
+                  "696890.0",
+                  "231.06",
+                  "0.92",
+                  "1"
+                ],
+                [
+                  "East",
+                  "Engaging",
+                  "131.0",
+                  "343663.0",
+                  "228.47",
+                  "0.92",
+                  "2"
+                ]
+              ]
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Use 2017-Q2.",
+            "actor_id": "sales_leader",
+            "history": [
+              {
+                "role": "user",
+                "content": "Where are we bottlenecked?"
+              },
+              {
+                "role": "assistant",
+                "content": "I\u2019ll check for pipeline bottlenecks. | clarification_required | quarter is missing | provide_missing_parameter | quarter"
+              }
+            ],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The prior clarification was about bottlenecks, so this continues the same task. Stage bottleneck summary is the narrowest matching capability, and quarter is now provided.",
+              "user_message": "Checking pipeline bottlenecks for 2017-Q2."
+            },
+            "planned_capability": "gtm.stage_bottleneck_summary",
+            "selected_capability": "gtm.stage_bottleneck_summary",
+            "selected_service": "pipeline",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "slice_by": "regional_office"
+            },
+            "parameter_normalizations": [
+              {
+                "field": "slice_by",
+                "reason": "default_applied",
+                "from": null,
+                "to": "regional_office"
+              }
+            ],
+            "capability_metadata": {
+              "description": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+              "minimum_scope": [
+                "gtm.pipeline.read"
+              ],
+              "inputs": [
+                "quarter",
+                "owner_scope",
+                "slice_by[allowed=regional_office,manager_name,product_name default=regional_office]",
+                "limit"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Quarter label like 2017-Q2",
+                  "name": "quarter",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Regional office or company",
+                  "name": "owner_scope",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "regional_office",
+                    "manager_name",
+                    "product_name"
+                  ],
+                  "default": "regional_office",
+                  "description": "regional_office, manager_name, or product_name",
+                  "name": "slice_by",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Maximum bottleneck rows to return",
+                  "name": "limit",
+                  "required": false,
+                  "type": "integer"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "pipeline",
+              "service_url": "http://gtm-pipeline-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "quarter": "2017-Q2",
+                "owner_scope": "company",
+                "slice_by": "regional_office",
+                "bottlenecks": [
+                  {
+                    "slice_by": "regional_office",
+                    "slice_value": "West",
+                    "deal_stage": "Engaging",
+                    "open_opportunity_count": 235,
+                    "open_pipeline_value": 696890.0,
+                    "average_open_days": 231.06,
+                    "average_risk_score": 0.92,
+                    "bottleneck_rank": 1
+                  },
+                  {
+                    "slice_by": "regional_office",
+                    "slice_value": "East",
+                    "deal_stage": "Engaging",
+                    "open_opportunity_count": 131,
+                    "open_pipeline_value": 343663.0,
+                    "average_open_days": 228.47,
+                    "average_risk_score": 0.92,
+                    "bottleneck_rank": 2
+                  }
+                ],
+                "visibility": {
+                  "financial_values": "full"
+                }
+              },
+              "invocation_id": "inv-aeb8647cdb08",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "planned_capability": "gtm.stage_bottleneck_summary",
+        "capability": "gtm.stage_bottleneck_summary",
+        "service": "pipeline",
+        "max_total_loops": 2,
+        "data_check": "bottleneck_summary_regional_q2"
+      },
+      "actual": {
+        "planned_capability": "gtm.stage_bottleneck_summary",
+        "capability": "gtm.stage_bottleneck_summary",
+        "service": "pipeline",
+        "outcome": "success",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "slice_by": "regional_office"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The prior clarification was about bottlenecks, so this continues the same task. Stage bottleneck summary is the narrowest matching capability, and quarter is now provided.",
+          "user_message": "Checking pipeline bottlenecks for 2017-Q2."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "bottleneck_summary_regional_q2",
+        "details": {
+          "expected_rows": [
+            [
+              "West",
+              "Engaging",
+              "235.0",
+              "696890.0",
+              "231.06",
+              "0.92",
+              "1"
+            ],
+            [
+              "East",
+              "Engaging",
+              "131.0",
+              "343663.0",
+              "228.47",
+              "0.92",
+              "2"
+            ]
+          ],
+          "actual_rows": [
+            [
+              "West",
+              "Engaging",
+              "235.0",
+              "696890.0",
+              "231.06",
+              "0.92",
+              "1"
+            ],
+            [
+              "East",
+              "Engaging",
+              "131.0",
+              "343663.0",
+              "228.47",
+              "0.92",
+              "2"
+            ]
+          ]
+        }
+      },
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Use 2017-Q2.",
+        "actor_id": "sales_leader",
+        "history": [
+          {
+            "role": "user",
+            "content": "Where are we bottlenecked?"
+          },
+          {
+            "role": "assistant",
+            "content": "I\u2019ll check for pipeline bottlenecks. | clarification_required | quarter is missing | provide_missing_parameter | quarter"
+          }
+        ],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The prior clarification was about bottlenecks, so this continues the same task. Stage bottleneck summary is the narrowest matching capability, and quarter is now provided.",
+          "user_message": "Checking pipeline bottlenecks for 2017-Q2."
+        },
+        "planned_capability": "gtm.stage_bottleneck_summary",
+        "selected_capability": "gtm.stage_bottleneck_summary",
+        "selected_service": "pipeline",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "slice_by": "regional_office"
+        },
+        "parameter_normalizations": [
+          {
+            "field": "slice_by",
+            "reason": "default_applied",
+            "from": null,
+            "to": "regional_office"
+          }
+        ],
+        "capability_metadata": {
+          "description": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+          "minimum_scope": [
+            "gtm.pipeline.read"
+          ],
+          "inputs": [
+            "quarter",
+            "owner_scope",
+            "slice_by[allowed=regional_office,manager_name,product_name default=regional_office]",
+            "limit"
+          ],
+          "input_specs": [
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Quarter label like 2017-Q2",
+              "name": "quarter",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Regional office or company",
+              "name": "owner_scope",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [
+                "regional_office",
+                "manager_name",
+                "product_name"
+              ],
+              "default": "regional_office",
+              "description": "regional_office, manager_name, or product_name",
+              "name": "slice_by",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Maximum bottleneck rows to return",
+              "name": "limit",
+              "required": false,
+              "type": "integer"
+            }
+          ],
+          "side_effect": "read",
+          "service_name": "pipeline",
+          "service_url": "http://gtm-pipeline-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "quarter": "2017-Q2",
+            "owner_scope": "company",
+            "slice_by": "regional_office",
+            "bottlenecks": [
+              {
+                "slice_by": "regional_office",
+                "slice_value": "West",
+                "deal_stage": "Engaging",
+                "open_opportunity_count": 235,
+                "open_pipeline_value": 696890.0,
+                "average_open_days": 231.06,
+                "average_risk_score": 0.92,
+                "bottleneck_rank": 1
+              },
+              {
+                "slice_by": "regional_office",
+                "slice_value": "East",
+                "deal_stage": "Engaging",
+                "open_opportunity_count": 131,
+                "open_pipeline_value": 343663.0,
+                "average_open_days": 228.47,
+                "average_risk_score": 0.92,
+                "bottleneck_rank": 2
+              }
+            ],
+            "visibility": {
+              "financial_values": "full"
+            }
+          },
+          "invocation_id": "inv-aeb8647cdb08",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase6-sales-analyst-bottleneck-masked",
+      "category": "bottleneck-actor-aware",
+      "question": "Where are the biggest stage bottlenecks in our 2017-Q2 pipeline?",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Where are the biggest stage bottlenecks in our 2017-Q2 pipeline?",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.stage_bottleneck_summary",
+            "service": "pipeline",
+            "max_total_loops": 2,
+            "data_check": "bottleneck_summary_masked_q2"
+          },
+          "actual": {
+            "planned_capability": "gtm.stage_bottleneck_summary",
+            "capability": "gtm.stage_bottleneck_summary",
+            "service": "pipeline",
+            "outcome": "success",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "slice_by": "regional_office"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for biggest stage bottlenecks in a specific quarter\u2019s pipeline, which matches the stage bottleneck summary capability.",
+              "user_message": "I\u2019ll use the stage bottleneck summary for 2017-Q2."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "bottleneck_summary_masked_q2",
+            "details": {
+              "expected_rows": [
+                [
+                  "West",
+                  "Engaging",
+                  "235",
+                  "231.06",
+                  "0.92"
+                ],
+                [
+                  "East",
+                  "Engaging",
+                  "131",
+                  "228.47",
+                  "0.92"
+                ]
+              ],
+              "actual_rows": [
+                [
+                  "West",
+                  "Engaging",
+                  "235",
+                  "231.06",
+                  "0.92"
+                ],
+                [
+                  "East",
+                  "Engaging",
+                  "131",
+                  "228.47",
+                  "0.92"
+                ]
+              ],
+              "all_masked": true
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Where are the biggest stage bottlenecks in our 2017-Q2 pipeline?",
+            "actor_id": "sales_analyst",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks for biggest stage bottlenecks in a specific quarter\u2019s pipeline, which matches the stage bottleneck summary capability.",
+              "user_message": "I\u2019ll use the stage bottleneck summary for 2017-Q2."
+            },
+            "planned_capability": "gtm.stage_bottleneck_summary",
+            "selected_capability": "gtm.stage_bottleneck_summary",
+            "selected_service": "pipeline",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "slice_by": "regional_office"
+            },
+            "parameter_normalizations": [
+              {
+                "field": "slice_by",
+                "reason": "default_applied",
+                "from": null,
+                "to": "regional_office"
+              }
+            ],
+            "capability_metadata": {
+              "description": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+              "minimum_scope": [
+                "gtm.pipeline.read"
+              ],
+              "inputs": [
+                "quarter",
+                "owner_scope",
+                "slice_by[allowed=regional_office,manager_name,product_name default=regional_office]",
+                "limit"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Quarter label like 2017-Q2",
+                  "name": "quarter",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Regional office or company",
+                  "name": "owner_scope",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "regional_office",
+                    "manager_name",
+                    "product_name"
+                  ],
+                  "default": "regional_office",
+                  "description": "regional_office, manager_name, or product_name",
+                  "name": "slice_by",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Maximum bottleneck rows to return",
+                  "name": "limit",
+                  "required": false,
+                  "type": "integer"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "pipeline",
+              "service_url": "http://gtm-pipeline-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "quarter": "2017-Q2",
+                "owner_scope": "company",
+                "slice_by": "regional_office",
+                "bottlenecks": [
+                  {
+                    "slice_by": "regional_office",
+                    "slice_value": "West",
+                    "deal_stage": "Engaging",
+                    "open_opportunity_count": 235,
+                    "open_pipeline_value": null,
+                    "average_open_days": 231.06,
+                    "average_risk_score": 0.92,
+                    "bottleneck_rank": 1
+                  },
+                  {
+                    "slice_by": "regional_office",
+                    "slice_value": "East",
+                    "deal_stage": "Engaging",
+                    "open_opportunity_count": 131,
+                    "open_pipeline_value": null,
+                    "average_open_days": 228.47,
+                    "average_risk_score": 0.92,
+                    "bottleneck_rank": 2
+                  }
+                ],
+                "visibility": {
+                  "financial_values": "masked",
+                  "reason": "actor policy does not allow financial values in this bottleneck view"
+                }
+              },
+              "invocation_id": "inv-04bef1e4f3bd",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.stage_bottleneck_summary",
+        "service": "pipeline",
+        "max_total_loops": 2,
+        "data_check": "bottleneck_summary_masked_q2"
+      },
+      "actual": {
+        "planned_capability": "gtm.stage_bottleneck_summary",
+        "capability": "gtm.stage_bottleneck_summary",
+        "service": "pipeline",
+        "outcome": "success",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "slice_by": "regional_office"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for biggest stage bottlenecks in a specific quarter\u2019s pipeline, which matches the stage bottleneck summary capability.",
+          "user_message": "I\u2019ll use the stage bottleneck summary for 2017-Q2."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "bottleneck_summary_masked_q2",
+        "details": {
+          "expected_rows": [
+            [
+              "West",
+              "Engaging",
+              "235",
+              "231.06",
+              "0.92"
+            ],
+            [
+              "East",
+              "Engaging",
+              "131",
+              "228.47",
+              "0.92"
+            ]
+          ],
+          "actual_rows": [
+            [
+              "West",
+              "Engaging",
+              "235",
+              "231.06",
+              "0.92"
+            ],
+            [
+              "East",
+              "Engaging",
+              "131",
+              "228.47",
+              "0.92"
+            ]
+          ],
+          "all_masked": true
+        }
+      },
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Where are the biggest stage bottlenecks in our 2017-Q2 pipeline?",
+        "actor_id": "sales_analyst",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks for biggest stage bottlenecks in a specific quarter\u2019s pipeline, which matches the stage bottleneck summary capability.",
+          "user_message": "I\u2019ll use the stage bottleneck summary for 2017-Q2."
+        },
+        "planned_capability": "gtm.stage_bottleneck_summary",
+        "selected_capability": "gtm.stage_bottleneck_summary",
+        "selected_service": "pipeline",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "slice_by": "regional_office"
+        },
+        "parameter_normalizations": [
+          {
+            "field": "slice_by",
+            "reason": "default_applied",
+            "from": null,
+            "to": "regional_office"
+          }
+        ],
+        "capability_metadata": {
+          "description": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+          "minimum_scope": [
+            "gtm.pipeline.read"
+          ],
+          "inputs": [
+            "quarter",
+            "owner_scope",
+            "slice_by[allowed=regional_office,manager_name,product_name default=regional_office]",
+            "limit"
+          ],
+          "input_specs": [
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Quarter label like 2017-Q2",
+              "name": "quarter",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Regional office or company",
+              "name": "owner_scope",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [
+                "regional_office",
+                "manager_name",
+                "product_name"
+              ],
+              "default": "regional_office",
+              "description": "regional_office, manager_name, or product_name",
+              "name": "slice_by",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Maximum bottleneck rows to return",
+              "name": "limit",
+              "required": false,
+              "type": "integer"
+            }
+          ],
+          "side_effect": "read",
+          "service_name": "pipeline",
+          "service_url": "http://gtm-pipeline-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "quarter": "2017-Q2",
+            "owner_scope": "company",
+            "slice_by": "regional_office",
+            "bottlenecks": [
+              {
+                "slice_by": "regional_office",
+                "slice_value": "West",
+                "deal_stage": "Engaging",
+                "open_opportunity_count": 235,
+                "open_pipeline_value": null,
+                "average_open_days": 231.06,
+                "average_risk_score": 0.92,
+                "bottleneck_rank": 1
+              },
+              {
+                "slice_by": "regional_office",
+                "slice_value": "East",
+                "deal_stage": "Engaging",
+                "open_opportunity_count": 131,
+                "open_pipeline_value": null,
+                "average_open_days": 228.47,
+                "average_risk_score": 0.92,
+                "bottleneck_rank": 2
+              }
+            ],
+            "visibility": {
+              "financial_values": "masked",
+              "reason": "actor policy does not allow financial values in this bottleneck view"
+            }
+          },
+          "invocation_id": "inv-04bef1e4f3bd",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase6-account-manager-west-bottleneck-restricted",
+      "category": "bottleneck-actor-aware",
+      "question": "Show the biggest stage bottlenecks in the West region for 2017-Q2.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show the biggest stage bottlenecks in the West region for 2017-Q2.",
+          "expected": {
+            "outcome": "restricted",
+            "capability": "gtm.stage_bottleneck_summary",
+            "service": "pipeline",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": "gtm.stage_bottleneck_summary",
+            "capability": "gtm.stage_bottleneck_summary",
+            "service": "pipeline",
+            "outcome": "restricted",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "slice_by": "regional_office",
+              "owner_scope": "West"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is a request for stage bottlenecks by region for a specific quarter, which matches the stage bottleneck summary capability. The West region maps to the regional_office slice, and quarter is provided.",
+              "user_message": "Using gtm.stage_bottleneck_summary for 2017-Q2 with regional_office slicing."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Show the biggest stage bottlenecks in the West region for 2017-Q2.",
+            "actor_id": "account_manager_east",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is a request for stage bottlenecks by region for a specific quarter, which matches the stage bottleneck summary capability. The West region maps to the regional_office slice, and quarter is provided.",
+              "user_message": "Using gtm.stage_bottleneck_summary for 2017-Q2 with regional_office slicing."
+            },
+            "planned_capability": "gtm.stage_bottleneck_summary",
+            "selected_capability": "gtm.stage_bottleneck_summary",
+            "selected_service": "pipeline",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "slice_by": "regional_office",
+              "owner_scope": "West"
+            },
+            "parameter_normalizations": [],
+            "capability_metadata": {
+              "description": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+              "minimum_scope": [
+                "gtm.pipeline.read"
+              ],
+              "inputs": [
+                "quarter",
+                "owner_scope",
+                "slice_by[allowed=regional_office,manager_name,product_name default=regional_office]",
+                "limit"
+              ],
+              "input_specs": [
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Quarter label like 2017-Q2",
+                  "name": "quarter",
+                  "required": true,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Regional office or company",
+                  "name": "owner_scope",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [
+                    "regional_office",
+                    "manager_name",
+                    "product_name"
+                  ],
+                  "default": "regional_office",
+                  "description": "regional_office, manager_name, or product_name",
+                  "name": "slice_by",
+                  "required": false,
+                  "type": "string"
+                },
+                {
+                  "allowed_values": [],
+                  "default": null,
+                  "description": "Maximum bottleneck rows to return",
+                  "name": "limit",
+                  "required": false,
+                  "type": "integer"
+                }
+              ],
+              "side_effect": "read",
+              "service_name": "pipeline",
+              "service_url": "http://gtm-pipeline-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "restricted",
+                "detail": "This actor is restricted to a narrower pipeline scope.",
+                "resolution": {
+                  "action": "retry_with_owned_scope",
+                  "requires": "East"
+                }
+              },
+              "invocation_id": "inv-360885a16554",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "restricted",
+        "capability": "gtm.stage_bottleneck_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "actual": {
+        "planned_capability": "gtm.stage_bottleneck_summary",
+        "capability": "gtm.stage_bottleneck_summary",
+        "service": "pipeline",
+        "outcome": "restricted",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "slice_by": "regional_office",
+          "owner_scope": "West"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is a request for stage bottlenecks by region for a specific quarter, which matches the stage bottleneck summary capability. The West region maps to the regional_office slice, and quarter is provided.",
+          "user_message": "Using gtm.stage_bottleneck_summary for 2017-Q2 with regional_office slicing."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": {
+        "passed": true,
+        "details": {
+          "actor_id": "account_manager_east",
+          "service": "pipeline",
+          "capability": "gtm.stage_bottleneck_summary",
+          "min_entries": 1,
+          "actual_entries": 4,
+          "latest_entry": {
+            "capability": "gtm.stage_bottleneck_summary",
+            "success": false,
+            "failure_type": "restricted",
+            "root_principal": "human:maya.chen@example.com|actor_id=account_manager_east|display_name=Maya Chen|role=account_manager|pipeline_scope=East|financial_access=full|enrichment_access=bounded|outreach_access=full|can_prepare_followup=true|can_approve_followup=false|can_use_lookalikes=true|can_route_leads=false|can_approve_routing=false|can_use_objection_variants=true",
+            "storage_redacted": false,
+            "signature_present": true
+          },
+          "assertion_errors": []
+        }
+      },
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Show the biggest stage bottlenecks in the West region for 2017-Q2.",
+        "actor_id": "account_manager_east",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is a request for stage bottlenecks by region for a specific quarter, which matches the stage bottleneck summary capability. The West region maps to the regional_office slice, and quarter is provided.",
+          "user_message": "Using gtm.stage_bottleneck_summary for 2017-Q2 with regional_office slicing."
+        },
+        "planned_capability": "gtm.stage_bottleneck_summary",
+        "selected_capability": "gtm.stage_bottleneck_summary",
+        "selected_service": "pipeline",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "slice_by": "regional_office",
+          "owner_scope": "West"
+        },
+        "parameter_normalizations": [],
+        "capability_metadata": {
+          "description": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+          "minimum_scope": [
+            "gtm.pipeline.read"
+          ],
+          "inputs": [
+            "quarter",
+            "owner_scope",
+            "slice_by[allowed=regional_office,manager_name,product_name default=regional_office]",
+            "limit"
+          ],
+          "input_specs": [
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Quarter label like 2017-Q2",
+              "name": "quarter",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Regional office or company",
+              "name": "owner_scope",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [
+                "regional_office",
+                "manager_name",
+                "product_name"
+              ],
+              "default": "regional_office",
+              "description": "regional_office, manager_name, or product_name",
+              "name": "slice_by",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "allowed_values": [],
+              "default": null,
+              "description": "Maximum bottleneck rows to return",
+              "name": "limit",
+              "required": false,
+              "type": "integer"
+            }
+          ],
+          "side_effect": "read",
+          "service_name": "pipeline",
+          "service_url": "http://gtm-pipeline-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "restricted",
+            "detail": "This actor is restricted to a narrower pipeline scope.",
+            "resolution": {
+              "action": "retry_with_owned_scope",
+              "requires": "East"
+            }
+          },
+          "invocation_id": "inv-360885a16554",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+name: gtm_showcase
+version: 1.0.0
+config-version: 2
+
+profile: gtm_showcase
+
+model-paths:
+  - models
+
+clean-targets:
+  - target
+  - dbt_packages
+
+models:
+  gtm_showcase:
+    staging:
+      +schema: analytics_gtm
+      +materialized: view
+    marts:
+      +schema: analytics_gtm
+      +materialized: view

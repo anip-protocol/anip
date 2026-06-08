@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { designStore, startEditing, discardEdits, validateDraft, composeDraftProposal } from '../store'
 import { diffObjects } from '../diff'
 import { downloadYaml, copyYamlToClipboard } from '../io'
+import { requestConfirmation } from '../confirm'
 
 const props = defineProps<{
   artifact: 'requirements' | 'scenario' | 'proposal'
@@ -10,10 +11,13 @@ const props = defineProps<{
   saving?: boolean
   saveLabel?: string
   saveError?: string | null
+  externalDirty?: boolean
+  readOnly?: boolean
 }>()
 
 const emit = defineEmits<{
   save: []
+  discard: []
 }>()
 
 const showErrors = ref(false)
@@ -22,6 +26,7 @@ const copyFeedback = ref(false)
 const isEditing = computed(() => designStore.editState === 'draft')
 const errors = computed(() => designStore.validationErrors)
 const hasErrors = computed(() => errors.value.length > 0)
+const hasChanges = computed(() => changeCount.value > 0 || !!props.externalDirty)
 const hintCount = computed(() => {
   if (props.artifact === 'scenario') {
     return designStore.scenarioHints.length
@@ -55,11 +60,22 @@ const changeCount = computed(() => {
 })
 
 function handleStartEditing() {
+  if (props.readOnly) return
   startEditing()
 }
 
-function handleDiscard() {
+async function handleDiscard() {
+  if (!hasChanges.value) return
+  const confirmed = await requestConfirmation({
+    title: 'Discard unsaved changes?',
+    message: 'This will remove all edits made since the last save.',
+    confirmLabel: 'Discard Changes',
+    cancelLabel: 'Cancel',
+    tone: 'danger',
+  })
+  if (!confirmed) return
   discardEdits()
+  emit('discard')
 }
 
 function handleExport() {
@@ -98,6 +114,7 @@ function handleValidate() {
 }
 
 function handleSave() {
+  if (props.readOnly) return
   emit('save')
 }
 
@@ -138,10 +155,16 @@ function handleSave() {
             v-if="props.canSave"
             class="tb-btn primary"
             @click="handleSave"
-            :disabled="hasErrors || props.saving"
-            title="Save changes to the current project artifact"
+            :disabled="props.readOnly || !hasChanges || hasErrors || props.saving"
+            :title="props.readOnly ? 'Studio is running in read-only mode' : hasChanges ? 'Save changes to the current project artifact' : 'No changes to save'"
           >
-            {{ props.saving ? 'Saving...' : (props.saveLabel ?? 'Save to Project') }}
+            {{
+              props.saving
+                ? 'Saving...'
+                : !hasChanges
+                  ? 'No Changes to Save'
+                  : (props.saveLabel ?? 'Save to Project')
+            }}
           </button>
           <button class="tb-btn secondary" @click="handleExport" title="Export as YAML file">
             Export YAML
@@ -149,12 +172,17 @@ function handleSave() {
           <button class="tb-btn secondary" @click="handleCopy" title="Copy YAML to clipboard">
             {{ copyFeedback ? 'Copied!' : 'Copy YAML' }}
           </button>
-          <button class="tb-btn danger" @click="handleDiscard" title="Discard all changes">
-            Discard changes
+          <button
+            class="tb-btn danger"
+            @click="handleDiscard"
+            :disabled="!hasChanges"
+            :title="hasChanges ? 'Discard all changes' : 'No changes to discard'"
+          >
+            {{ hasChanges ? 'Discard Changes' : 'Nothing to Discard' }}
           </button>
         </template>
         <template v-else>
-          <button class="tb-btn primary" @click="handleStartEditing">
+          <button class="tb-btn primary" :disabled="props.readOnly" @click="handleStartEditing">
             Start Editing
           </button>
         </template>
@@ -263,6 +291,12 @@ function handleSave() {
   transition: all var(--transition);
 }
 
+.tb-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  box-shadow: none;
+}
+
 .tb-btn.primary {
   background: var(--accent);
   color: #fff;
@@ -271,6 +305,12 @@ function handleSave() {
 
 .tb-btn.primary:hover {
   background: var(--accent-hover);
+}
+
+.tb-btn.primary:disabled {
+  background: color-mix(in srgb, var(--accent) 35%, #566078 65%);
+  border-color: color-mix(in srgb, var(--accent) 25%, var(--border) 75%);
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .tb-btn.secondary {
@@ -283,6 +323,11 @@ function handleSave() {
   color: var(--text-primary);
 }
 
+.tb-btn.secondary:disabled {
+  background: transparent;
+  color: var(--text-muted);
+}
+
 .tb-btn.danger {
   background: transparent;
   color: var(--error);
@@ -291,6 +336,12 @@ function handleSave() {
 
 .tb-btn.danger:hover {
   background: rgba(248, 113, 113, 0.1);
+}
+
+.tb-btn.danger:disabled {
+  color: rgba(248, 113, 113, 0.55);
+  border-color: rgba(248, 113, 113, 0.18);
+  background: transparent;
 }
 
 /* Error list */

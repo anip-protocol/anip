@@ -1,0 +1,66 @@
+{
+  "checks": [
+    {
+      "capability_id": "jira.backlog.search",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "jira.backlog.search.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.backlog.search",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "jira.backlog.search.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.bug.prepare",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "jira.bug.prepare.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.bug.prepare",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "jira.bug.prepare.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.story.prepare",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "jira.story.prepare.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.story.prepare",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "jira.story.prepare.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.transition.request",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "jira.transition.request.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.transition.request",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "jira.transition.request.raw_backend_bound",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.comment.prepare",
+      "detail": "Governed fronting mapping points at a formalized ANIP capability.",
+      "id": "jira.comment.prepare.capability_formalized",
+      "status": "pass"
+    },
+    {
+      "capability_id": "jira.comment.prepare",
+      "detail": "Raw backend operations are reachable only through the mapped governed capability binding metadata.",
+      "id": "jira.comment.prepare.raw_backend_bound",
+      "status": "pass"
+    }
+  ],
+  "schema_version": "anip-integration-fronting-conformance/v0",
+  "status": "passed"
+}

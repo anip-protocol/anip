@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
-import time
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from studio.server.app import mount_anip
+from studio.server.business_developer_bridge import generate_drift_analysis_from_context
 import studio.server.workbench_service as workbench_service
 
 BOOTSTRAP = "studio-workbench-bootstrap"
@@ -87,128 +86,465 @@ def test_workbench_manifest_exposes_core_capabilities(client: TestClient):
     assert "accept_first_design" in caps
     assert "evaluate_service_design" in caps
     assert "generate_business_brief" in caps
+    assert "generate_business_packet" in caps
+    assert "generate_drift_analysis" in caps
+    assert "generate_glue_analysis" in caps
     assert caps["evaluate_service_design"]["cross_service_contract"] is not None
 
 
-def test_workbench_manifest_exposes_round1_dogfood_controls(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", "round1")
+
+
+
+
+def test_workbench_can_generate_business_packet(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        workbench_service,
+        "get_project_detail",
+        lambda _conn, pid: {
+            "id": pid,
+            "name": "Enterprise Deal Desk",
+            "summary": "Sales needs a governed workflow for non-standard enterprise renewals.",
+            "domain": "sales",
+            "labels": ["consumer:hybrid"],
+            "requirements_count": 1,
+            "scenarios_count": 1,
+            "shapes_count": 1,
+            "evaluations_count": 1,
+        },
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_requirements",
+        lambda _conn, _pid: [{
+            "id": "req-1",
+            "data": {
+                "requirements": {
+                    "goals": ["Keep common renewals self-serve."],
+                    "shape_preference": "multi_service_estate",
+                }
+            },
+        }],
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_scenarios",
+        lambda _conn, _pid: [{
+            "id": "scn-1",
+            "title": "Primary Renewal Scenario",
+            "data": {
+                "scenario": {
+                    "name": "renewal_discount_and_terms_exception",
+                    "narrative": "A seller requests a non-standard renewal with margin and terms pressure.",
+                    "expected_behavior": ["Clarify missing authority before proceeding."],
+                }
+            },
+        }],
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_shapes",
+        lambda _conn, _pid: [{"id": "shape-1", "data": {"shape": {"type": "multi_service_estate"}}}],
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_evaluations",
+        lambda _conn, _pid: [{
+            "id": "eval-1",
+            "created_at": "2026-04-09T10:00:00Z",
+            "data": {
+                "evaluation": {
+                    "result": "PARTIAL",
+                    "handled_by_anip": ["purpose binding"],
+                    "what_would_improve": ["Add explicit approval routing."],
+                }
+            },
+        }],
+    )
+
+    token = _issue_token(client, "generate_business_packet")["token"]
+    resp = client.post(
+        "/studio-workbench/anip/invoke/generate_business_packet",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"parameters": {"project_id": "proj-bridge"}},
+    )
+    assert resp.status_code == 200, resp.text
+    packet = resp.json()["result"]["packet"]
+    assert packet["packet_kind"] == "business_packet"
+    assert packet["source"]["project_id"] == "proj-bridge"
+    assert packet["payload"]["intent"]["intended_consumers"] == ["people", "agents"]
+    assert packet["payload"]["current_posture"]["recommended_shape"] == "multi_service_estate"
+    assert packet["payload"]["current_posture"]["needs_change"] == ["Add explicit approval routing."]
+
+
+
+
+def test_workbench_can_generate_glue_analysis(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        workbench_service,
+        "get_project_detail",
+        lambda _conn, pid: {
+            "id": pid,
+            "name": "Enterprise Deal Desk",
+            "summary": "Sales needs a governed workflow for non-standard enterprise renewals.",
+            "domain": "sales",
+            "labels": ["consumer:hybrid"],
+            "requirements_count": 1,
+            "scenarios_count": 1,
+            "shapes_count": 1,
+            "evaluations_count": 1,
+        },
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_requirements",
+        lambda _conn, _pid: [{
+            "id": "req-1",
+            "data": {
+                "requirements": {
+                    "goals": ["Keep common renewals self-serve."],
+                    "business_constraints": ["Require approval before write actions."],
+                }
+            },
+        }],
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_scenarios",
+        lambda _conn, _pid: [{
+            "id": "scn-1",
+            "title": "Primary Renewal Scenario",
+            "data": {
+                "scenario": {
+                    "name": "renewal_followup_task",
+                    "narrative": "A seller wants follow-up tasks created for stalled renewals.",
+                    "expected_behavior": ["Stop for approval before any write executes."],
+                }
+            },
+        }],
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_shapes",
+        lambda _conn, _pid: [{"id": "shape-1", "data": {"shape": {"type": "single_service"}}}],
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_evaluations",
+        lambda _conn, _pid: [{
+            "id": "eval-1",
+            "created_at": "2026-04-09T10:00:00Z",
+            "data": {
+                "evaluation": {
+                    "result": "PARTIAL",
+                    "handled_by_anip": ["purpose binding"],
+                    "what_would_improve": ["Add explicit approval routing."],
+                }
+            },
+        }],
+    )
+
+    token = _issue_token(client, "generate_glue_analysis")["token"]
+    resp = client.post(
+        "/studio-workbench/anip/invoke/generate_glue_analysis",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"parameters": {"project_id": "proj-bridge"}},
+    )
+    assert resp.status_code == 200, resp.text
+    analysis = resp.json()["result"]["analysis"]
+    assert analysis["scenario_id"] == "scn-1"
+    assert analysis["expected_outcome"] == "approval_required"
+    assert analysis["observed_outcome"] == "approval_required"
+    assert analysis["gap_category"] == "approval_control_missing"
+    assert analysis["likely_owner"] == "developer_design"
+    assert analysis["fix_priority"] == "high"
+
+
+def test_workbench_glue_analysis_prefers_runtime_observations(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        workbench_service,
+        "get_project_detail",
+        lambda _conn, pid: {
+            "id": pid,
+            "name": "GTM Runtime Drift",
+            "summary": "Review real runtime drift for a governed GTM capability.",
+            "domain": "sales",
+            "labels": ["consumer:agent"],
+            "requirements_count": 1,
+            "scenarios_count": 1,
+            "shapes_count": 1,
+            "evaluations_count": 1,
+        },
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_requirements",
+        lambda _conn, _pid: [{
+            "id": "req-1",
+            "data": {
+                "requirements": {
+                    "goals": ["Flag risky enterprise renewals."],
+                    "business_constraints": ["Clarify missing GTM inputs before recommendation."],
+                }
+            },
+        }],
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_scenarios",
+        lambda _conn, _pid: [{
+            "id": "scn-1",
+            "title": "Account Risk Review",
+            "data": {
+                "scenario": {
+                    "name": "account_risk_review",
+                    "narrative": "The GTM agent should ask for the missing risk cohort before continuing.",
+                    "expected_behavior": ["Ask for the minimum missing input before retrying."],
+                }
+            },
+        }],
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_shapes",
+        lambda _conn, _pid: [{"id": "shape-1", "data": {"shape": {"type": "single_service"}}}],
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_evaluations",
+        lambda _conn, _pid: [{
+            "id": "eval-runtime-1",
+            "created_at": "2026-04-11T10:00:00Z",
+            "data": {
+                "evaluation": {
+                    "result": "REQUIRES_GLUE",
+                    "runtime_observations": {
+                        "source": "audit",
+                        "observed_at": "2026-04-11T10:05:00Z",
+                        "observed_outcome": "clarification_required",
+                        "reason_code": "clarification_loop_detected",
+                        "invoked_capability": "gtm.account_risk_summary",
+                        "unresolved_inputs": ["risk_cohort"],
+                        "retry_without_progress": True,
+                        "agent_behavior": "retried same capability without resolving inputs",
+                        "backend_context": "cube_semantic_context",
+                    },
+                }
+            },
+        }],
+    )
+
+    token = _issue_token(client, "generate_glue_analysis")["token"]
+    resp = client.post(
+        "/studio-workbench/anip/invoke/generate_glue_analysis",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"parameters": {"project_id": "proj-runtime"}},
+    )
+    assert resp.status_code == 200, resp.text
+    analysis = resp.json()["result"]["analysis"]
+    assert analysis["scenario_id"] == "scn-1"
+    assert analysis["observed_outcome"] == "clarification_required"
+    assert analysis["gap_category"] == "clarification_loop_detected"
+    assert analysis["likely_owner"] == "consuming_agent"
+    assert analysis["fix_priority"] == "high"
+    assert analysis["diagnostic_evidence"]["capability_id"] == "gtm.account_risk_summary"
+    assert analysis["diagnostic_evidence"]["reason_code"] == "clarification_loop_detected"
+    assert analysis["diagnostic_evidence"]["backend_context"] == "cube_semantic_context"
+    assert analysis["diagnostic_evidence"]["observation_source"] == "audit"
+    assert analysis["diagnostic_evidence"]["observed_at"] == "2026-04-11T10:05:00Z"
+
+
+def test_workbench_uses_selected_service_metadata_in_drift_analysis(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        workbench_service,
+        "get_project_detail",
+        lambda _conn, pid: {
+            "id": pid,
+            "name": "GTM Capability",
+            "summary": "Validate the governed GTM capability against the implemented service surface.",
+            "domain": "sales",
+            "labels": ["consumer:agent_anip"],
+            "requirements_count": 1,
+            "scenarios_count": 1,
+            "shapes_count": 1,
+            "evaluations_count": 1,
+        },
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_requirements",
+        lambda _conn, _pid: [{
+            "id": "req-1",
+            "data": {"requirements": {"goals": ["Review account risk safely."]}},
+        }],
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_scenarios",
+        lambda _conn, _pid: [{
+            "id": "scn-1",
+            "title": "Account Risk Review",
+            "data": {"scenario": {"name": "account_risk_review"}},
+        }],
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_shapes",
+        lambda _conn, _pid: [{"id": "shape-1", "data": {"shape": {"type": "single_service"}}}],
+    )
+    monkeypatch.setattr(
+        workbench_service,
+        "list_evaluations",
+        lambda _conn, _pid: [{
+            "id": "eval-1",
+            "data": {"evaluation": {"result": "HANDLED"}},
+        }],
+    )
+
+    token = _issue_token(client, "generate_drift_analysis")["token"]
+    resp = client.post(
+        "/studio-workbench/anip/invoke/generate_drift_analysis",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "parameters": {
+                "project_id": "proj-metadata",
+                "service_metadata_artifact_id": "service-metadata-svc-b",
+                "metadata_comparison": {
+                    "missing_capabilities": ["gtm.account_risk_summary"],
+                    "extra_capabilities": ["gtm.pipeline_summary"],
+                    "observed": {
+                        "source": "inspect_discovery",
+                        "observed_at": "2026-04-11T12:05:00Z",
+                        "service_id": "svc-b",
+                    },
+                },
+            }
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    analysis = resp.json()["result"]["analysis"]
+    assert analysis["gap_category"] == "service_metadata_insufficient"
+    assert analysis["likely_owner"] == "service_implementation"
+    assert analysis["fix_priority"] == "high"
+    assert analysis["diagnostic_evidence"]["capability_id"] == "gtm.account_risk_summary"
+    assert analysis["diagnostic_evidence"]["reason_code"] == "service_metadata_missing_capability"
+    assert analysis["diagnostic_evidence"]["observation_source"] == "inspect_discovery"
+    assert analysis["diagnostic_evidence"]["observed_at"] == "2026-04-11T12:05:00Z"
+    assert analysis["diagnostic_evidence"]["service_metadata_artifact_id"] == "service-metadata-svc-b"
+    assert analysis["diagnostic_evidence"]["service_metadata_mismatch"] == (
+        "missing intended capabilities: gtm.account_risk_summary; "
+        "extra observed capabilities: gtm.pipeline_summary"
+    )
+
+
+def test_workbench_manifest_exposes_public_capabilities(monkeypatch: pytest.MonkeyPatch):
     with _mounted_client(monkeypatch) as client:
         resp = client.get("/studio-workbench/anip/manifest")
         assert resp.status_code == 200, resp.text
         caps = resp.json()["capabilities"]
-        create_project = caps["create_project"]
-        evaluate = caps["evaluate_service_design"]
-
-        assert any(item["type"] == "stronger_delegation_required" for item in create_project["control_requirements"])
-        assert any(item["type"] == "stronger_delegation_required" for item in evaluate["control_requirements"])
-        assert any(item["type"] == "cost_ceiling" for item in evaluate["control_requirements"])
-        assert any(item["type"] == "non_delegable" for item in caps["generate_engineering_contract"]["control_requirements"])
-        assert evaluate["cost"]["financial"]["amount"] == workbench_service.DOGFOOD_EVALUATION_COST_AMOUNT
-        assert evaluate["cost"]["financial"]["currency"] == workbench_service.DOGFOOD_EVALUATION_CURRENCY
+        assert "create_project" in caps
+        assert "evaluate_service_design" in caps
+        assert "generate_engineering_contract" in caps
+        assert caps["create_project"]["control_requirements"] == []
+        assert caps["evaluate_service_design"]["control_requirements"] == []
+        assert caps["generate_engineering_contract"]["control_requirements"] == []
 
 
-@pytest.mark.parametrize("profile", ["round2", "round4", "round5", "round6"])
-def test_workbench_discovery_exposes_anchored_posture(
-    monkeypatch: pytest.MonkeyPatch,
-    profile: str,
-):
-    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", profile)
+def test_generate_drift_analysis_prioritizes_conformance_failures():
+    analysis = generate_drift_analysis_from_context(
+        {
+            "evaluation": {
+                "evaluation": {
+                    "scenario_name": "account_risk_review",
+                    "result": "HANDLED",
+                    "handled_by_anip": ["summary generation"],
+                    "glue_you_will_still_write": [],
+                    "glue_category": [],
+                    "why": [],
+                    "what_would_improve": [],
+                }
+            },
+            "scenario": {
+                "scenario": {
+                    "name": "account_risk_review",
+                    "context": {"capability": "gtm.account_risk_summary"},
+                }
+            },
+            "shape": {
+                "shape": {
+                    "type": "single_service",
+                    "services": [{"name": "gtm-core", "capabilities": ["gtm.account_risk_summary"]}],
+                }
+            },
+            "metadata_comparison": {
+                "missing_capabilities": [],
+                "extra_capabilities": [],
+                "observed": {
+                    "source": "inspect_discovery_manifest",
+                    "observed_at": "2026-04-11T12:05:00Z",
+                    "service_id": "svc-b",
+                },
+                "conformance_checks": [
+                    {
+                        "id": "jwks_uri_declared",
+                        "label": "JWKS URI declared",
+                        "status": "non_conformant",
+                        "detail": "Manifest service identity did not include a JWKS URI.",
+                    }
+                ],
+            },
+        }
+    )
+    assert analysis.gap_category == "service_metadata_insufficient"
+    assert analysis.likely_owner == "service_implementation"
+    assert analysis.fix_priority == "high"
+    assert analysis.diagnostic_evidence.reason_code == "anip_conformance_check_failed"
+
+
+def test_workbench_discovery_exposes_public_posture(monkeypatch: pytest.MonkeyPatch):
     with _mounted_client(monkeypatch) as client:
         resp = client.get("/studio-workbench/.well-known/anip")
         assert resp.status_code == 200, resp.text
         doc = resp.json()["anip_discovery"]
-        assert doc["protocol"] == "anip/0.22"
-        assert doc["trust_level"] == "anchored"
-        assert doc["posture"]["anchoring"]["enabled"] is True
-        assert doc["posture"]["anchoring"]["proofs_available"] is True
+        assert doc["protocol"] == "anip/0.24"
+        assert doc["trust_level"] == "signed"
+        assert doc["posture"]["anchoring"]["enabled"] is False
+        assert doc["posture"]["anchoring"]["proofs_available"] is False
         assert doc["posture"]["failure_disclosure"]["detail_level"] == "full"
 
 
-def test_workbench_manifest_exposes_round5_observability_controls(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", "round5")
+def test_workbench_manifest_exposes_public_graph_relationships(monkeypatch: pytest.MonkeyPatch):
     with _mounted_client(monkeypatch) as client:
         resp = client.get("/studio-workbench/anip/manifest")
         assert resp.status_code == 200, resp.text
         caps = resp.json()["capabilities"]
-        assert "hold_exclusive_probe" in caps
-        assert "read_runtime_observability" in caps
+        assert caps["create_project"]["composes_with"] == []
+        assert caps["accept_first_design"]["composes_with"] == []
+        assert caps["draft_fix_from_change"]["composes_with"] == []
+        assert caps["generate_business_brief"]["requires"] == []
 
 
-def test_workbench_manifest_exposes_round6_graph_relationships(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", "round6")
-    with _mounted_client(monkeypatch) as client:
-        resp = client.get("/studio-workbench/anip/manifest")
-        assert resp.status_code == 200, resp.text
-        caps = resp.json()["capabilities"]
-        assert caps["create_project"]["composes_with"][0]["capability"] == "accept_first_design"
-        assert caps["accept_first_design"]["composes_with"][0]["capability"] == "evaluate_service_design"
-        assert caps["draft_fix_from_change"]["composes_with"][0]["capability"] == "evaluate_service_design"
-        assert caps["generate_business_brief"]["requires"][0]["capability"] == "evaluate_service_design"
-
-
-def test_workbench_graph_route_exposes_round6_relationships(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", "round6")
+def test_workbench_graph_route_exposes_public_relationships(monkeypatch: pytest.MonkeyPatch):
     with _mounted_client(monkeypatch) as client:
         resp = client.get("/studio-workbench/anip/graph/create_project")
         assert resp.status_code == 200, resp.text
         graph = resp.json()
         assert graph["capability"] == "create_project"
-        assert graph["composes_with"][0]["capability"] == "accept_first_design"
+        assert graph["composes_with"] == []
 
 
-def test_workbench_round5_exercises_exclusive_contention_and_observability(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", "round5")
-    with _mounted_client(monkeypatch) as client:
-        hold_token = _issue_token(
-            client,
-            "hold_exclusive_probe",
-            concurrent_branches="exclusive",
-        )["token"]
-        read_token = _issue_token(client, "read_runtime_observability")["token"]
-
-        def _invoke_hold(client_reference_id: str, hold_seconds: float) -> dict:
-            resp = client.post(
-                "/studio-workbench/anip/invoke/hold_exclusive_probe",
-                headers={"Authorization": f"Bearer {hold_token}"},
-                json={
-                    "client_reference_id": client_reference_id,
-                    "parameters": {
-                        "hold_seconds": hold_seconds,
-                        "label": client_reference_id,
-                    },
-                },
-            )
-            assert resp.status_code in (200, 409), resp.text
-            return resp.json()
-
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            first = executor.submit(_invoke_hold, "hold-primary", 1.0)
-            time.sleep(0.2)
-            second = _invoke_hold("hold-contender", 0.1)
-            first_result = first.result(timeout=5)
-
-        assert first_result["success"] is True
-        assert second["success"] is False
-        assert second["failure"]["type"] == "concurrent_request_rejected"
-
-        obs_resp = client.post(
-            "/studio-workbench/anip/invoke/read_runtime_observability",
-            headers={"Authorization": f"Bearer {read_token}"},
-            json={"parameters": {}},
-        )
-        assert obs_resp.status_code == 200, obs_resp.text
-        obs = obs_resp.json()
-        assert obs["success"] is True
-        result = obs["result"]
-        assert result["health"]["status"] == "healthy"
-        counts = result["hooks"]["counts"]
-        assert counts["logging.invocation_start"] >= 1
-        assert counts["logging.invocation_end"] >= 1
-        assert counts["metrics.invocation_duration"] >= 1
-
-
-def test_workbench_permissions_support_round1_preflight_and_budget(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("STUDIO_DOGFOOD_PROFILE", "round1")
+def test_workbench_permissions_use_public_capability_set(monkeypatch: pytest.MonkeyPatch):
     with _mounted_client(monkeypatch) as client:
         parent = _issue_token(
             client,
@@ -225,52 +561,14 @@ def test_workbench_permissions_support_round1_preflight_and_budget(monkeypatch: 
         data = perms_resp.json()
 
         create_workspace = _permission_entry(data, "available", "create_workspace")
-        create_project = _permission_entry(data, "restricted", "create_project")
-        evaluate = _permission_entry(data, "restricted", "evaluate_service_design")
-        engineering = _permission_entry(data, "denied", "generate_engineering_contract")
+        create_project = _permission_entry(data, "available", "create_project")
+        evaluate = _permission_entry(data, "available", "evaluate_service_design")
+        engineering = _permission_entry(data, "available", "generate_engineering_contract")
 
         assert create_workspace["scope_match"] == "studio.workbench.create_workspace"
-        assert create_project["reason_type"] == "unmet_control_requirement"
-        assert create_project["resolution_hint"] == "request_capability_binding"
-        assert "stronger_delegation_required" in create_project["unmet_token_requirements"]
-
-        assert evaluate["reason_type"] == "unmet_control_requirement"
-        assert evaluate["resolution_hint"] == "request_budget_bound_delegation"
-        assert set(evaluate["unmet_token_requirements"]) == {"stronger_delegation_required", "cost_ceiling"}
-        assert engineering["reason_type"] == "non_delegable"
-
-        child = _issue_token(
-            client,
-            "evaluate_service_design",
-            scope=["studio.workbench.evaluate_service_design"],
-            auth_bearer=parent["token"],
-            parent_token=parent["token_id"],
-            budget={"currency": "USD", "max_amount": 8.0},
-        )
-        child_perms_resp = client.post(
-            "/studio-workbench/anip/permissions",
-            headers={"Authorization": f"Bearer {child['token']}"},
-            json={},
-        )
-        assert child_perms_resp.status_code == 200, child_perms_resp.text
-        child_data = child_perms_resp.json()
-        evaluate_available = _permission_entry(child_data, "available", "evaluate_service_design")
-        assert evaluate_available["constraints"]["budget_remaining"] == 8.0
-        assert evaluate_available["constraints"]["currency"] == "USD"
-
-        root_engineering = _issue_token(
-            client,
-            "generate_engineering_contract",
-        )
-        root_engineering_perms = client.post(
-            "/studio-workbench/anip/permissions",
-            headers={"Authorization": f"Bearer {root_engineering['token']}"},
-            json={},
-        )
-        assert root_engineering_perms.status_code == 200, root_engineering_perms.text
-        root_engineering_data = root_engineering_perms.json()
-        engineering_available = _permission_entry(root_engineering_data, "available", "generate_engineering_contract")
-        assert engineering_available["scope_match"] == "studio.workbench.generate_engineering_contract"
+        assert create_project["scope_match"] == "studio.workbench.create_project"
+        assert evaluate["scope_match"] == "studio.workbench.evaluate_service_design"
+        assert engineering["scope_match"] == "studio.workbench.generate_engineering_contract"
 
 
 def test_workbench_can_accept_first_design(

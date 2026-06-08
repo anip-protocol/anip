@@ -1,0 +1,62 @@
+{
+  "backend_families": [
+    "native-api"
+  ],
+  "contract_boundary": "Agents invoke ANIP capabilities. Generated policy, approval, clarification, and audit logic runs before backend execution. Backend profiles may change when the implementation moves from REST to MCP, SQL, dbt, Cube, or another provider, as long as governed capability behavior is unchanged.",
+  "description": "Implementation profile for local backend code. This is replaceable deployment material, not the governed ANIP behavior contract.",
+  "profiles": [
+    {
+      "backend_family": "native-api",
+      "capabilities": [
+        {
+          "backend_kind": "native_api",
+          "capability_id": "notion.comment.prepare",
+          "connection_ref": "d31b4bd9-b05e-4631-afc4-c4c10a8e65ff-notion-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "notion.api.comment_prepare"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "notion.page.update.prepare",
+          "connection_ref": "d31b4bd9-b05e-4631-afc4-c4c10a8e65ff-notion-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "notion.api.page_update_prepare"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "notion.page.create.prepare",
+          "connection_ref": "d31b4bd9-b05e-4631-afc4-c4c10a8e65ff-notion-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "notion.api.page_create_prepare"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "notion.database.query_context",
+          "connection_ref": "d31b4bd9-b05e-4631-afc4-c4c10a8e65ff-notion-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "notion.api.database_query_context"
+          ]
+        },
+        {
+          "backend_kind": "native_api",
+          "capability_id": "notion.workspace.search_context",
+          "connection_ref": "d31b4bd9-b05e-4631-afc4-c4c10a8e65ff-notion-api",
+          "input_mode": "explicit",
+          "raw_operation_refs": [
+            "notion.api.workspace_search_context"
+          ]
+        }
+      ],
+      "profile_id": "native-api-default",
+      "template": "backend-templates/native-api.md"
+    }
+  ],
+  "schema_version": "anip-backend-implementation-profile/v0"
+}

@@ -121,19 +121,19 @@ The current example packs are:
 Use these docs when validating a completed ANIP slice before implementing the
 next one:
 
-- [VALIDATION_GATE.md](/Users/samirski/Development/codex/ANIP/tooling/VALIDATION_GATE.md)
-- [VALIDATION_REPORT_TEMPLATE.md](/Users/samirski/Development/codex/ANIP/tooling/VALIDATION_REPORT_TEMPLATE.md)
+- [VALIDATION_GATE.md](VALIDATION_GATE.md)
+- [VALIDATION_REPORT_TEMPLATE.md](VALIDATION_REPORT_TEMPLATE.md)
 
 Current example report:
 
-- [2026-03-31-v014-validation-report.md](/Users/samirski/Development/codex/ANIP/tooling/reports/2026-03-31-v014-validation-report.md)
+- [2026-03-31-v014-validation-report.md](reports/2026-03-31-v014-validation-report.md)
 
 ## Post-Phase-4 Direction
 
 For the concrete tooling-first work order after the aggressive ANIP protocol
 build-out, use:
 
-- [NEXT_STEPS_PLAN.md](/Users/samirski/Development/codex/ANIP/tooling/NEXT_STEPS_PLAN.md)
+- [NEXT_STEPS_PLAN.md](NEXT_STEPS_PLAN.md)
 
 ## Compatibility
 

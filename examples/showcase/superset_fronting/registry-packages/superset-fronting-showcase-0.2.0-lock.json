@@ -1,0 +1,63 @@
+{
+  "lock_kind": "publisher_recommended_lock",
+  "artifact_type": "anip_package_lock",
+  "blueprint_id": "superset-fronting-showcase",
+  "blueprint_version": "0.2.0",
+  "package_id": "superset-fronting-showcase",
+  "package_version": "0.2.0",
+  "service_definition_digest": "sha256:7ef5d380ed3a2430ccf74e37f885d07db3f1a9cc5be1f6eee328eb39418797d4",
+  "schema_version": "anip-service-definition/v1",
+  "anip_spec_version": "anip/0.24",
+  "build_packs": [
+    "anip-build-pack@local"
+  ],
+  "verifier_packs": [
+    "anip-verifier@local"
+  ],
+  "runtime_packages": [],
+  "extension_packs": [],
+  "regression_packs": [],
+  "selected_service_ids": [
+    "superset-governance-service"
+  ],
+  "capability_ids": [
+    "superset.analytics.discover_context",
+    "superset.analytics.answer_question",
+    "superset.chart.preview.create",
+    "superset.chart.publish.request",
+    "superset.dashboard.draft.prepare",
+    "superset.dataset.draft.prepare"
+  ],
+  "contract_signature": "sha256:7ef5d380ed3a2430ccf74e37f885d07db3f1a9cc5be1f6eee328eb39418797d4",
+  "lineage": {
+    "project_ref": "studio:9befed1d-ebf6-4c8c-b429-463ffd320d4c",
+    "product_revision": {
+      "ref": "9befed1d-ebf6-4c8c-b429-463ffd320d4c-product-design-revision-1@r1",
+      "artifact_id": "9befed1d-ebf6-4c8c-b429-463ffd320d4c-product-design-revision-1",
+      "revision_number": 1,
+      "baseline_locked_at": "2026-06-06T21:20:08.196Z"
+    },
+    "developer_revision": {
+      "ref": "9befed1d-ebf6-4c8c-b429-463ffd320d4c-developer-definition-revision-1",
+      "artifact_id": "9befed1d-ebf6-4c8c-b429-463ffd320d4c-developer-definition-revision-1",
+      "revision_number": 1,
+      "contract_signature": "sha256:7ef5d380ed3a2430ccf74e37f885d07db3f1a9cc5be1f6eee328eb39418797d4"
+    }
+  },
+  "agent_consumption_readiness": {
+    "status": "ready",
+    "score": 100,
+    "summary": {
+      "blockers": 0,
+      "warnings": 0,
+      "info": 0,
+      "probes": 19,
+      "required_app_glue": 0
+    }
+  },
+  "agent_consumability": {
+    "schema_version": "anip-agent-consumability/v0",
+    "capability_count": 6
+  },
+  "generated_at": "2026-06-06T21:50:48.349Z"
+}

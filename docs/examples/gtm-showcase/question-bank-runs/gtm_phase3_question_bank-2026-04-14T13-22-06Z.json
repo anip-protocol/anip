@@ -1,0 +1,2775 @@
+{
+  "generated_at": "2026-04-14T13-22-06Z",
+  "runtime_url": "http://127.0.0.1:9303",
+  "suite": "gtm_phase3_question_bank",
+  "summary": {
+    "passed": 0,
+    "total": 50,
+    "by_category": {
+      "actor-aware-core": {
+        "passed": 0,
+        "total": 10
+      },
+      "actor-aware-variant": {
+        "passed": 0,
+        "total": 10
+      },
+      "actor-aware-matrix": {
+        "passed": 0,
+        "total": 30
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "actor-core-1",
+      "category": "actor-aware-core",
+      "question": "Rank the top 10 at-risk accounts in 2017-Q2.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Rank the top 10 at-risk accounts in 2017-Q2.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-core-2",
+      "category": "actor-aware-core",
+      "question": "Rank the top 10 at-risk accounts in 2017-Q2.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Rank the top 10 at-risk accounts in 2017-Q2.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-core-3",
+      "category": "actor-aware-core",
+      "question": "Rank the top 5 at-risk accounts in 2017-Q2.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Rank the top 5 at-risk accounts in 2017-Q2.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-core-4",
+      "category": "actor-aware-core",
+      "question": "Rank the top 5 at-risk accounts in 2017-Q2 for the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Rank the top 5 at-risk accounts in 2017-Q2 for the West region.",
+          "expected": {
+            "outcome": "restricted"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome restricted, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "restricted"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome restricted, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-core-5",
+      "category": "actor-aware-core",
+      "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q2.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q2.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-core-6",
+      "category": "actor-aware-core",
+      "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q2.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q2.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-core-7",
+      "category": "actor-aware-core",
+      "question": "Summarize firmographic context for Acme Corporation and Codehow.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for Acme Corporation and Codehow.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-core-8",
+      "category": "actor-aware-core",
+      "question": "Find lookalike accounts similar to Condax.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Condax.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-core-9",
+      "category": "actor-aware-core",
+      "question": "Find lookalike accounts similar to Condax.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Condax.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-core-10",
+      "category": "actor-aware-core",
+      "question": "Show pipeline health for 2017-Q2 in the East region with a stage breakdown.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the East region with a stage breakdown.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-variant-1",
+      "category": "actor-aware-variant",
+      "question": "Show the top 5 at-risk accounts in 2017-Q2 for the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show the top 5 at-risk accounts in 2017-Q2 for the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-variant-2",
+      "category": "actor-aware-variant",
+      "question": "Show the top 5 at-risk accounts in 2017-Q2 for the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show the top 5 at-risk accounts in 2017-Q2 for the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-variant-3",
+      "category": "actor-aware-variant",
+      "question": "Show the top 5 at-risk accounts in 2017-Q2 for the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show the top 5 at-risk accounts in 2017-Q2 for the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-variant-4",
+      "category": "actor-aware-variant",
+      "question": "Show the top 5 at-risk accounts in 2017-Q2 for the Central region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show the top 5 at-risk accounts in 2017-Q2 for the Central region.",
+          "expected": {
+            "outcome": "restricted"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome restricted, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "restricted"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome restricted, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-variant-5",
+      "category": "actor-aware-variant",
+      "question": "Prepare follow-up tasks for the top 3 at-risk accounts in the East region for 2017-Q2.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prepare follow-up tasks for the top 3 at-risk accounts in the East region for 2017-Q2.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-variant-6",
+      "category": "actor-aware-variant",
+      "question": "Prepare follow-up tasks for the top 3 at-risk accounts in the East region for 2017-Q2.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prepare follow-up tasks for the top 3 at-risk accounts in the East region for 2017-Q2.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-variant-7",
+      "category": "actor-aware-variant",
+      "question": "Find lookalike accounts similar to Acme Corporation.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Acme Corporation.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-variant-8",
+      "category": "actor-aware-variant",
+      "question": "Find lookalike accounts similar to Acme Corporation.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Acme Corporation.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-variant-9",
+      "category": "actor-aware-variant",
+      "question": "Summarize firmographic context for Condax and Acme Corporation.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for Condax and Acme Corporation.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-variant-10",
+      "category": "actor-aware-variant",
+      "question": "Summarize firmographic context for Condax and Acme Corporation.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for Condax and Acme Corporation.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-21",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the Central region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the Central region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-22",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-23",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the West region.",
+          "expected": {
+            "outcome": "restricted"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome restricted, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "restricted"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome restricted, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-24",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the Central region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the Central region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-25",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-26",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the West region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-27",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the Central region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the Central region.",
+          "expected": {
+            "outcome": "restricted"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome restricted, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "restricted"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome restricted, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-28",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-29",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the West region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-30",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the Central region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the Central region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-31",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-32",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the West region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-33",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the Central region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the Central region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-34",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-35",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the West region.",
+          "expected": {
+            "outcome": "restricted"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome restricted, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "restricted"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome restricted, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-36",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the Central region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the Central region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-37",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-38",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the West region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-39",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the Central region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the Central region.",
+          "expected": {
+            "outcome": "restricted"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome restricted, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "restricted"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome restricted, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-40",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-41",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the West region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-42",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the Central region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the Central region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-43",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-44",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the West region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-45",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the Central region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the Central region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-46",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-47",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the West region.",
+          "expected": {
+            "outcome": "restricted"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome restricted, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "restricted"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome restricted, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-48",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the Central region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the Central region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-49",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "actor-matrix-50",
+      "category": "actor-aware-matrix",
+      "question": "Show pipeline health for 2017-Q2 in the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show pipeline health for 2017-Q2 in the West region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    }
+  ]
+}

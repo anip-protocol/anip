@@ -1,0 +1,357 @@
+{
+  "phase": 1,
+  "title": "Bounded GTM Pipeline Questions",
+  "count": 50,
+  "entries": [
+    {
+      "id": "risk-summary-2017-q1",
+      "category": "happy_path",
+      "question": "Which deals in our 2017-Q1 pipeline are at risk, and why?",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "pipeline-summary-2017-q1",
+      "category": "happy_path",
+      "question": "Summarize pipeline health for 2017-Q1.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "stalled-30-2017-q1",
+      "category": "happy_path",
+      "question": "Show me stalled opportunities in 2017-Q1 that have been open more than 30 days.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "followup-preview-2017-q1",
+      "category": "approval_boundary",
+      "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q1.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "risk-summary-2017-q2",
+      "category": "happy_path",
+      "question": "Which deals in our 2017-Q2 pipeline are at risk, and why?",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "pipeline-summary-2017-q2",
+      "category": "happy_path",
+      "question": "Summarize pipeline health for 2017-Q2.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "stalled-30-2017-q2",
+      "category": "happy_path",
+      "question": "Show me stalled opportunities in 2017-Q2 that have been open more than 30 days.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "followup-preview-2017-q2",
+      "category": "approval_boundary",
+      "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q2.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "risk-summary-2017-q3",
+      "category": "happy_path",
+      "question": "Which deals in our 2017-Q3 pipeline are at risk, and why?",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "pipeline-summary-2017-q3",
+      "category": "happy_path",
+      "question": "Summarize pipeline health for 2017-Q3.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "stalled-30-2017-q3",
+      "category": "happy_path",
+      "question": "Show me stalled opportunities in 2017-Q3 that have been open more than 30 days.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "followup-preview-2017-q3",
+      "category": "approval_boundary",
+      "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q3.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "risk-summary-2017-q4",
+      "category": "happy_path",
+      "question": "Which deals in our 2017-Q4 pipeline are at risk, and why?",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "pipeline-summary-2017-q4",
+      "category": "happy_path",
+      "question": "Summarize pipeline health for 2017-Q4.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "stalled-30-2017-q4",
+      "category": "happy_path",
+      "question": "Show me stalled opportunities in 2017-Q4 that have been open more than 30 days.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "followup-preview-2017-q4",
+      "category": "approval_boundary",
+      "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q4.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "risk-top5-east-2017-q1",
+      "category": "happy_path",
+      "question": "Show me the top 5 at-risk accounts in 2017-Q1 for the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "pipeline-stage-east-2017-q1",
+      "category": "happy_path",
+      "question": "Show pipeline health for 2017-Q1 in the East region with a stage breakdown.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "risk-top5-west-2017-q1",
+      "category": "happy_path",
+      "question": "Show me the top 5 at-risk accounts in 2017-Q1 for the West region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "pipeline-stage-west-2017-q1",
+      "category": "happy_path",
+      "question": "Show pipeline health for 2017-Q1 in the West region with a stage breakdown.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "risk-top5-central-2017-q1",
+      "category": "happy_path",
+      "question": "Show me the top 5 at-risk accounts in 2017-Q1 for the Central region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "pipeline-stage-central-2017-q1",
+      "category": "happy_path",
+      "question": "Show pipeline health for 2017-Q1 in the Central region with a stage breakdown.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "risk-top5-east-2017-q2",
+      "category": "happy_path",
+      "question": "Show me the top 5 at-risk accounts in 2017-Q2 for the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "pipeline-stage-east-2017-q2",
+      "category": "happy_path",
+      "question": "Show pipeline health for 2017-Q2 in the East region with a stage breakdown.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "risk-top5-west-2017-q2",
+      "category": "happy_path",
+      "question": "Show me the top 5 at-risk accounts in 2017-Q2 for the West region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "pipeline-stage-west-2017-q2",
+      "category": "happy_path",
+      "question": "Show pipeline health for 2017-Q2 in the West region with a stage breakdown.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "risk-top5-central-2017-q2",
+      "category": "happy_path",
+      "question": "Show me the top 5 at-risk accounts in 2017-Q2 for the Central region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "pipeline-stage-central-2017-q2",
+      "category": "happy_path",
+      "question": "Show pipeline health for 2017-Q2 in the Central region with a stage breakdown.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "risk-top5-east-2017-q3",
+      "category": "happy_path",
+      "question": "Show me the top 5 at-risk accounts in 2017-Q3 for the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "pipeline-stage-east-2017-q3",
+      "category": "happy_path",
+      "question": "Show pipeline health for 2017-Q3 in the East region with a stage breakdown.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "risk-top5-west-2017-q3",
+      "category": "happy_path",
+      "question": "Show me the top 5 at-risk accounts in 2017-Q3 for the West region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "pipeline-stage-west-2017-q3",
+      "category": "happy_path",
+      "question": "Show pipeline health for 2017-Q3 in the West region with a stage breakdown.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "risk-top5-central-2017-q3",
+      "category": "happy_path",
+      "question": "Show me the top 5 at-risk accounts in 2017-Q3 for the Central region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "pipeline-stage-central-2017-q3",
+      "category": "happy_path",
+      "question": "Show pipeline health for 2017-Q3 in the Central region with a stage breakdown.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "risk-top5-east-2017-q4",
+      "category": "happy_path",
+      "question": "Show me the top 5 at-risk accounts in 2017-Q4 for the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "pipeline-stage-east-2017-q4",
+      "category": "happy_path",
+      "question": "Show pipeline health for 2017-Q4 in the East region with a stage breakdown.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "risk-top5-west-2017-q4",
+      "category": "happy_path",
+      "question": "Show me the top 5 at-risk accounts in 2017-Q4 for the West region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "pipeline-stage-west-2017-q4",
+      "category": "happy_path",
+      "question": "Show pipeline health for 2017-Q4 in the West region with a stage breakdown.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "risk-top5-central-2017-q4",
+      "category": "happy_path",
+      "question": "Show me the top 5 at-risk accounts in 2017-Q4 for the Central region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "pipeline-stage-central-2017-q4",
+      "category": "happy_path",
+      "question": "Show pipeline health for 2017-Q4 in the Central region with a stage breakdown.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "clarify-risk-this-quarter",
+      "category": "clarification",
+      "question": "Which deals are at risk this quarter, and why?",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "clarify-top-accounts",
+      "category": "clarification",
+      "question": "Show me the top accounts.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "clarify-stalled-missing-quarter",
+      "category": "clarification",
+      "question": "Show me stalled opportunities.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "clarify-followup-missing-quarter",
+      "category": "clarification",
+      "question": "Prepare follow-up tasks for the highest-risk accounts.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "clarify-priority-focus",
+      "category": "clarification",
+      "question": "What should I focus on first?",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "clarify-top-risk-without-scope",
+      "category": "clarification",
+      "question": "Rank our riskiest accounts.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "followup-turn-risk-q2",
+      "category": "clarification_followup",
+      "question": "Use 2017-Q2 after asking which deals are at risk, and why?",
+      "expected_outcome": "success",
+      "notes": "Follow-up turn after missing-quarter clarification."
+    },
+    {
+      "id": "followup-turn-followup-q2",
+      "category": "clarification_followup",
+      "question": "Use 2017-Q2 after asking to prepare follow-up tasks for the highest-risk accounts.",
+      "expected_outcome": "approval_required",
+      "notes": "Follow-up turn after missing-quarter clarification."
+    },
+    {
+      "id": "deny-raw-export-q2",
+      "category": "denied",
+      "question": "Show me raw row-level records for our 2017-Q2 pipeline.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "deny-export-all-q2",
+      "category": "denied",
+      "question": "Export all opportunity rows for 2017-Q2.",
+      "expected_outcome": "denied",
+      "notes": null
+    }
+  ]
+}

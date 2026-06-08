@@ -1,0 +1,934 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GTM Agent</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Inter", sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+    }
+    .shell {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 24px 56px;
+    }
+    .eyebrow {
+      color: #7ee787;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    h1 {
+      margin: 8px 0 12px;
+      font-size: 38px;
+      line-height: 1.05;
+    }
+    .subtitle {
+      color: #9fb0c3;
+      max-width: 820px;
+      line-height: 1.6;
+    }
+    .panel {
+      background: #161b22;
+      border: 1px solid #2d333b;
+      border-radius: 18px;
+      padding: 20px;
+      margin-top: 20px;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.25);
+    }
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      background: #0d1117;
+      color: #e6edf3;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font: inherit;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 14px;
+      background: #238636;
+      color: #fff;
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .example {
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      background: #0d1117;
+      border-radius: 999px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-x: auto;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 16px;
+      color: #c9d1d9;
+    }
+    .answer {
+      display: grid;
+      gap: 16px;
+    }
+    .answer-title {
+      font-size: 22px;
+      font-weight: 800;
+      margin: 0;
+    }
+    .answer-message {
+      color: #d7e3ef;
+      line-height: 1.55;
+      margin: 0;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    .metric-card {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 14px;
+      padding: 14px;
+      min-width: 0;
+    }
+    .metric-card-wide {
+      grid-column: span 2;
+    }
+    .metric-label {
+      color: #9fb0c3;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .metric-value {
+      color: #f0f6fc;
+      font-size: clamp(17px, 2vw, 22px);
+      font-weight: 800;
+      line-height: 1.18;
+      margin-top: 6px;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    @media (max-width: 640px) {
+      .metric-card-wide {
+        grid-column: span 1;
+      }
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 12px;
+      border: 1px solid #30363d;
+    }
+    th,
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #30363d;
+      text-align: left;
+    }
+    th {
+      background: #0d1117;
+      color: #9fb0c3;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    tr:last-child td {
+      border-bottom: 0;
+    }
+    .execution-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .pill {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 999px;
+      color: #9fb0c3;
+      padding: 7px 10px;
+      font-size: 12px;
+    }
+    .pill strong {
+      color: #e6edf3;
+      font-weight: 700;
+    }
+    details {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 12px;
+    }
+    summary {
+      cursor: pointer;
+      color: #9fb0c3;
+      font-weight: 700;
+    }
+    .empty-state {
+      color: #9fb0c3;
+    }
+    .status {
+      margin-top: 12px;
+      color: #9fb0c3;
+      font-size: 14px;
+    }
+    select {
+      background: #0d1117;
+      color: #e6edf3;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font: inherit;
+      min-width: 240px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-top: 14px;
+    }
+    .secondary {
+      background: #1f6feb;
+    }
+    .danger {
+      background: #da3633;
+    }
+    .inline-action {
+      margin-top: 0;
+      margin-right: 8px;
+      padding: 9px 13px;
+      font-size: 14px;
+    }
+    .approval-panel {
+      background:
+        radial-gradient(circle at top right, rgba(255, 171, 0, 0.14), transparent 30%),
+        #0d1117;
+      border: 1px solid #8b6f2f;
+      border-radius: 16px;
+      padding: 16px;
+      display: grid;
+      gap: 14px;
+    }
+    .approval-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .stream-toggle {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      margin-left: 12px;
+      color: #9fb0c3;
+      font-size: 14px;
+    }
+    .hero-grid,
+    .runbook-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .link-card,
+    .runbook-card {
+      display: block;
+      min-height: 118px;
+      background:
+        radial-gradient(circle at top right, rgba(126, 231, 135, 0.15), transparent 32%),
+        #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 16px;
+      padding: 16px;
+      color: #c9d1d9;
+      text-decoration: none;
+      box-sizing: border-box;
+    }
+    .link-card strong,
+    .runbook-card strong {
+      display: block;
+      color: #f0f6fc;
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+    .link-card span,
+    .runbook-card span {
+      color: #9fb0c3;
+      line-height: 1.45;
+      font-size: 14px;
+    }
+    .question-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 10px;
+      margin: 14px 0 16px;
+    }
+    .question-chip {
+      margin: 0;
+      background: #0d1117;
+      color: #d7e3ef;
+      border: 1px solid #30363d;
+      border-radius: 14px;
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+    }
+    .section-heading {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+    .section-copy {
+      color: #9fb0c3;
+      line-height: 1.55;
+      margin: 0;
+    }
+    .code-block {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="eyebrow"><a href="/" style="color: inherit;">ANIP GTM Showcase</a></div>
+    <h1>GTM Agent</h1>
+    <div class="subtitle">
+      Ask one business question. The agent reads the ANIP capability catalog, selects the correct GTM service, gets a scoped token, and lets the service enforce clarification, denial, approval, and audit behavior.
+    </div>
+
+    <div class="panel">
+      <div class="controls">
+        <label for="actorSelect">Actor</label>
+        <select id="actorSelect"></select>
+        <button id="auditButton" type="button">Load Audit</button>
+        <button id="approvalsButton" type="button" class="secondary">Load Approvals</button>
+        <button id="approvalPageButton" type="button" class="secondary">Open Approval Queue</button>
+        <button id="approveButton" type="button" class="secondary">Approve Latest</button>
+      </div>
+      <textarea id="question">Ask a bounded business question supported by one configured ANIP capability.</textarea>
+      <button id="askButton">Ask LLM Runtime</button>
+      <label class="stream-toggle">
+        <input id="streamToggle" type="checkbox" checked />
+        Stream runtime events
+      </label>
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="panel">
+      <div id="result" class="empty-state">No request yet.</div>
+    </div>
+  </div>
+
+  <script>
+    const questionEl = document.getElementById('question');
+    const resultEl = document.getElementById('result');
+    const statusEl = document.getElementById('status');
+    const askButton = document.getElementById('askButton');
+    const actorSelect = document.getElementById('actorSelect');
+    const auditButton = document.getElementById('auditButton');
+    const approvalsButton = document.getElementById('approvalsButton');
+    const approvalPageButton = document.getElementById('approvalPageButton');
+    const approveButton = document.getElementById('approveButton');
+    const streamToggle = document.getElementById('streamToggle');
+    let chatHistory = [];
+    let lastQuestion = '';
+    let activeView = 'agent';
+
+    function hydrateQuestionFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const question = params.get('question');
+      if (question) {
+        questionEl.value = question;
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatLabel(value) {
+      return String(value || '')
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+    }
+
+    function formatValue(value) {
+      if (typeof value === 'number') {
+        return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
+      }
+      if (value === null || value === undefined) {
+        return 'Not available';
+      }
+      if (typeof value === 'boolean') {
+        return value ? 'Yes' : 'No';
+      }
+      return String(value);
+    }
+
+    function renderDebugJson(label, payload) {
+      return `
+        <details>
+          <summary>${escapeHtml(label)}</summary>
+          <pre>${escapeHtml(JSON.stringify(payload, null, 2))}</pre>
+        </details>
+      `;
+    }
+
+    function renderMetricCards(items) {
+      return `
+        <div class="summary-grid">
+          ${items.map(([label, value]) => {
+            const labelText = String(label || '').toLowerCase();
+            const valueText = String(value ?? '');
+            const isWide = valueText.length > 18 || /\b(cohort|target|account|opportunity|reference|ref|id)\b/.test(labelText);
+            return `
+            <div class="metric-card${isWide ? ' metric-card-wide' : ''}">
+              <div class="metric-label">${escapeHtml(formatLabel(label))}</div>
+              <div class="metric-value">${escapeHtml(formatValue(value))}</div>
+            </div>
+          `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function renderTable(rows) {
+      if (!Array.isArray(rows) || !rows.length) {
+        return '';
+      }
+      const preferred = ['deal_stage', 'opportunity_count', 'open_opportunity_count', 'won_opportunity_count', 'lost_opportunity_count', 'won_revenue', 'open_pipeline_value', 'average_open_risk_score', 'average_open_days'];
+      const keys = preferred.filter((key) => Object.prototype.hasOwnProperty.call(rows[0], key));
+      for (const key of Object.keys(rows[0])) {
+        if (!keys.includes(key)) {
+          keys.push(key);
+        }
+      }
+      return `
+        <table>
+          <thead>
+            <tr>${keys.map((key) => `<th>${escapeHtml(formatLabel(key))}</th>`).join('')}</tr>
+          </thead>
+          <tbody>
+            ${rows.map((row) => `
+              <tr>${keys.map((key) => `<td>${escapeHtml(formatValue(row[key]))}</td>`).join('')}</tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function renderPreview(preview) {
+      if (!preview || typeof preview !== 'object') {
+        return '';
+      }
+      const blocks = [];
+      const summaryEntries = Object.entries(preview).filter(([, value]) => !Array.isArray(value) && typeof value !== 'object');
+      if (summaryEntries.length) {
+        blocks.push(renderMetricCards(summaryEntries));
+      }
+      for (const key of ['tasks', 'reassignments', 'preview', 'lead_scores', 'accounts']) {
+        if (Array.isArray(preview[key])) {
+          blocks.push(`<div><h3>${escapeHtml(formatLabel(key))}</h3>${renderTable(preview[key])}</div>`);
+        }
+      }
+      return blocks.join('') || renderDebugJson('Preview', preview);
+    }
+
+    function approvalRetryQuestion(entry) {
+      const preview = entry?.preview || {};
+      if (entry?.capability === 'gtm.prepare_followup_tasks') {
+        const quarter = preview.quarter || '2017-Q2';
+        const owner = preview.owner_scope ? ` for the ${preview.owner_scope} region` : '';
+        return `Prepare follow-up tasks for the top at-risk accounts in ${quarter}${owner}.`;
+      }
+      if (entry?.capability === 'gtm.route_leads') {
+        if (preview.cohort_ref === 'inbound_last_week') {
+          return `Route the inbound leads from last week to ${preview.target_queue || 'sales'}.`;
+        }
+        return `Route ${preview.cohort_ref || 'the inbound leads'} to ${preview.target_queue || 'sales'}.`;
+      }
+      return lastQuestion || questionEl.value.trim();
+    }
+
+    function renderApprovalRequired(failure) {
+      const metadata = failure.approval_required || {};
+      const approval = failure.approval || {};
+      const resolution = failure.resolution || {};
+      const approvalId = approval.approval_request_id || metadata.approval_request_id || resolution.approval_request_id || '';
+      const requiredRole = approval.required_role || resolution.approval_role_required || 'Approver role declared by the service';
+      const requestedBy = approval.requested_by?.actor_id || approval.requested_by?.role || 'Current actor';
+      const preview = approval.preview || resolution.preview || null;
+      return `
+        <div class="approval-panel">
+          <div>
+            <h2 class="answer-title">Approval Required</h2>
+            <p class="answer-message">${escapeHtml(failure.detail || 'This request reaches an approval boundary before downstream action.')}</p>
+          </div>
+          ${renderMetricCards([
+            ['approval id', approvalId],
+            ['required role', requiredRole],
+            ['requested by', requestedBy],
+            ['recovery', resolution.recovery_class || 'wait_then_retry'],
+          ].filter(([, value]) => value))}
+          ${preview ? `<div><h3>Approval Preview</h3>${renderPreview(preview)}</div>` : ''}
+          <div class="approval-actions">
+            ${approvalId ? `<button class="inline-action" type="button" onclick="approveApproval('${escapeHtml(approvalId)}', '${escapeHtml(approval.service || '')}')">Approve As Selected Actor</button>` : ''}
+            ${approvalId ? `<button class="inline-action secondary" type="button" onclick="approveApprovalAndRetry('${escapeHtml(approvalId)}', '${escapeHtml(approval.service || '')}')">Approve Then Retry</button>` : ''}
+            <button class="inline-action secondary" type="button" onclick="openApprovalQueue()">Open Approval Queue</button>
+            <button class="inline-action secondary" type="button" onclick="retryCurrentQuestion()">Retry Original Request</button>
+          </div>
+          <p class="answer-message">ANIP recovery class is <strong>wait_then_retry</strong>: approve the pending request, then run the same business question again. The service decides whether the approved grant matches the requested preview.</p>
+        </div>
+      `;
+    }
+
+    function renderBusinessResult(result) {
+      if (!result || typeof result !== 'object') {
+        return '';
+      }
+      const businessResult = result.result && typeof result.result === 'object' ? result.result : result;
+      const approvedBy = businessResult.approved_by && typeof businessResult.approved_by === 'object'
+        ? businessResult.approved_by.actor_id || businessResult.approved_by.role
+        : businessResult.approved_by;
+      const blocks = [];
+      if (result.execution_status || businessResult.quarter || businessResult.owner_scope || businessResult.cohort_ref || businessResult.selected_target_ref) {
+        blocks.push(renderMetricCards([
+          ['status', result.execution_status],
+          ['approval', businessResult.approval_status],
+          ['approved by', approvedBy],
+          ['quarter', businessResult.quarter],
+          ['cohort', businessResult.cohort_ref],
+          ['owner scope', businessResult.owner_scope],
+          ['selected target', businessResult.selected_target_ref],
+        ].filter(([, value]) => value !== undefined && value !== null)));
+      }
+      if (businessResult.totals && typeof businessResult.totals === 'object') {
+        blocks.push(renderMetricCards(Object.entries(businessResult.totals)));
+      }
+      if (Array.isArray(businessResult.by_stage)) {
+        blocks.push(`<div><h3>Stage Breakdown</h3>${renderTable(businessResult.by_stage)}</div>`);
+      }
+      if (Array.isArray(businessResult.prioritized_accounts)) {
+        blocks.push(`<div><h3>Prioritized Accounts</h3>${renderTable(businessResult.prioritized_accounts)}</div>`);
+      } else if (Array.isArray(businessResult.accounts)) {
+        blocks.push(`<div><h3>Accounts</h3>${renderTable(businessResult.accounts)}</div>`);
+      }
+      for (const key of ['tasks', 'reassignments', 'preview', 'lead_scores']) {
+        if (Array.isArray(businessResult[key])) {
+          blocks.push(`<div><h3>${escapeHtml(formatLabel(key))}</h3>${renderTable(businessResult[key])}</div>`);
+        }
+      }
+      const draftPayload = businessResult.draft && typeof businessResult.draft === 'object'
+        ? businessResult.draft
+        : ((businessResult.body || businessResult.subject || businessResult.draft_id) ? businessResult : null);
+      if (draftPayload && typeof draftPayload === 'object') {
+        const draft = draftPayload;
+        blocks.push(`
+          <div class="metric-card">
+            <div class="metric-label">Draft Outreach</div>
+            <h3>${escapeHtml(draft.subject || 'Draft message')}</h3>
+            <p><strong>Target:</strong> ${escapeHtml(draft.target_ref || businessResult.selected_target_ref || 'Not specified')}</p>
+            <p><strong>Channel:</strong> ${escapeHtml(formatValue(draft.channel))} · <strong>Objective:</strong> ${escapeHtml(formatValue(draft.objective))}</p>
+            ${draft.persona ? `<p><strong>Persona:</strong> ${escapeHtml(formatValue(draft.persona))}</p>` : ''}
+            <pre>${escapeHtml(draft.body || '')}</pre>
+            ${draft.rationale ? `<p class="answer-message">${escapeHtml(draft.rationale)}</p>` : ''}
+          </div>
+        `);
+      }
+      if (Array.isArray(businessResult.recommendations)) {
+        blocks.push(`<div><h3>Recommendations</h3><ul>${businessResult.recommendations.map((item) => `<li>${escapeHtml(formatValue(item))}</li>`).join('')}</ul></div>`);
+      }
+      if (!blocks.length) {
+        blocks.push(renderDebugJson('Result', result));
+      }
+      return blocks.join('');
+    }
+
+    function renderFailure(anipResult) {
+      const failure = anipResult.failure || {};
+      if (failure.type === 'approval_required') {
+        return renderApprovalRequired(failure);
+      }
+      const resolution = failure.resolution || {};
+      const title = failure.type ? formatLabel(failure.type) : 'Request Needs Attention';
+      const preview = resolution.preview || failure.preview || null;
+      return `
+        <h2 class="answer-title">${escapeHtml(title)}</h2>
+        <p class="answer-message">${escapeHtml(failure.detail || resolution.requires || 'The service returned a governed non-success outcome.')}</p>
+        ${resolution.action ? `<div class="pill"><strong>Next step:</strong> ${escapeHtml(formatValue(resolution.action))}</div>` : ''}
+        ${preview ? renderDebugJson('Preview', preview) : ''}
+      `;
+    }
+
+    function renderExecutionStrip(payload) {
+      const planner = payload.planner || {};
+      const loops = payload.loop_counts || {};
+      return `
+        <div class="execution-strip">
+          <span class="pill"><strong>Capability</strong> ${escapeHtml(payload.selected_capability || 'n/a')}</span>
+          <span class="pill"><strong>Service</strong> ${escapeHtml(payload.selected_service || 'n/a')}</span>
+          <span class="pill"><strong>Planner</strong> ${escapeHtml(planner.mode || 'selection')}</span>
+          <span class="pill"><strong>Loops</strong> ${escapeHtml(formatValue(loops.total_loops || 0))}</span>
+        </div>
+      `;
+    }
+
+    function finalAnswerMessage(payload) {
+      const planner = payload.planner || {};
+      const anipResult = payload.anip_result || {};
+      const result = anipResult.result || {};
+      const businessResult = result.result && typeof result.result === 'object' ? result.result : result;
+      if (anipResult.success === true && (businessResult.approval_status === 'approved' || businessResult.approved_by || businessResult.approved_at)) {
+        return 'Approved grant matched. Showing the approved service preview; no downstream mutation was executed.';
+      }
+      return planner.user_message || (anipResult.success === true ? 'The ANIP service completed the request.' : 'The ANIP service returned a governed outcome.');
+    }
+
+    function renderFinalResult(payload, events = []) {
+      const anipResult = payload.anip_result || {};
+      const result = anipResult.result || {};
+      const succeeded = anipResult.success === true;
+      resultEl.innerHTML = `
+        <div class="answer">
+          <h2 class="answer-title">${escapeHtml(succeeded ? 'Answer' : 'Governed Outcome')}</h2>
+          <p class="answer-message">${escapeHtml(finalAnswerMessage(payload))}</p>
+          ${renderExecutionStrip(payload)}
+          ${succeeded ? renderBusinessResult(result) : renderFailure(anipResult)}
+          ${events.length ? renderDebugJson('Runtime event stream', events) : ''}
+          ${renderDebugJson('Technical details', payload)}
+        </div>
+      `;
+    }
+
+    function renderLoading(message) {
+      resultEl.innerHTML = `<div class="empty-state">${escapeHtml(message)}</div>`;
+    }
+
+    function assistantHistoryText(payload) {
+      const planner = payload.planner || {};
+      const userMessage = String(planner.user_message || '').trim();
+      const anipResult = payload.anip_result || {};
+      if (anipResult.success === true) {
+        return userMessage || 'Success.';
+      }
+      const failure = anipResult.failure || {};
+      const resolution = failure.resolution || {};
+      const parts = [
+        userMessage,
+        failure.type,
+        failure.detail,
+        resolution.action,
+        resolution.requires,
+      ].filter((item) => item);
+      return parts.length ? parts.join(' | ') : 'Handled.';
+    }
+
+    async function loadRuntime() {
+      const response = await fetch('/api/runtime');
+      const data = await response.json();
+      actorSelect.innerHTML = '';
+      for (const actor of data.actors || []) {
+        const option = document.createElement('option');
+        option.value = actor.actor_id;
+        option.textContent = actor.label || actor.display_name || actor.actor_id;
+        actorSelect.appendChild(option);
+      }
+      if (!actorSelect.options.length) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No actors configured';
+        actorSelect.appendChild(option);
+      }
+      const stats = data.catalog_stats || {};
+      const serviceCount = stats.service_count || (data.services || []).length || 0;
+      const capabilityCount = stats.capability_count || Object.keys(data.capabilities || {}).length || 0;
+      const language = data.showcase?.language ? `${data.showcase.language} stack. ` : '';
+      statusEl.textContent = `Ready. ${language}ANIP catalog exposes ${capabilityCount} capabilities across ${serviceCount} services; the runtime selects the service automatically.`;
+    }
+
+    async function ask() {
+      const question = questionEl.value.trim();
+      if (!question) {
+        statusEl.textContent = 'Enter a question first.';
+        return;
+      }
+      lastQuestion = question;
+      activeView = 'agent';
+      if (streamToggle.checked) {
+        await askStreaming(question);
+        return;
+      }
+      statusEl.textContent = 'Calling LLM runtime...';
+      renderLoading('Loading...');
+      try {
+        const response = await fetch('/api/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question, actor_id: actorSelect.value, history: chatHistory }),
+        });
+        const data = await response.json();
+        const assistantEntry = { role: 'assistant', content: assistantHistoryText(data) };
+        if (data.continuation) {
+          assistantEntry.continuation = data.continuation;
+        }
+        chatHistory.push({ role: 'user', content: question }, assistantEntry);
+        renderFinalResult(data);
+        statusEl.textContent = response.ok ? 'Completed.' : 'Completed with error.';
+      } catch (error) {
+        renderLoading(String(error));
+        statusEl.textContent = 'Request failed.';
+      }
+    }
+
+    async function askStreaming(question) {
+      statusEl.textContent = 'Opening runtime stream...';
+      renderLoading('Opening runtime stream...');
+      lastQuestion = question;
+      activeView = 'agent';
+      const events = [];
+      try {
+        const response = await fetch('/api/ask/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question, actor_id: actorSelect.value, history: chatHistory }),
+        });
+        if (!response.body) {
+          throw new Error('Streaming response body is not available in this browser.');
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let finalPayload = null;
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            const event = JSON.parse(line);
+            events.push(event);
+            if (event.type === 'status') {
+              statusEl.textContent = event.message || 'Working...';
+            } else if (event.type === 'planner') {
+              statusEl.textContent = `Planned ${event.selected_capability} via ${event.selected_service}.`;
+            } else if (event.type === 'anip_result') {
+              statusEl.textContent = event.success ? 'ANIP service returned success.' : `ANIP service returned ${event.failure_type || 'failure'}.`;
+            } else if (event.type === 'final') {
+              finalPayload = event.payload;
+              statusEl.textContent = 'Completed.';
+              renderFinalResult(finalPayload, events);
+            } else if (event.type === 'error') {
+              statusEl.textContent = 'Runtime stream failed.';
+              renderLoading(event.detail || 'Runtime stream failed.');
+            } else if (!finalPayload) {
+              renderLoading(event.message || 'Working...');
+            }
+          }
+        }
+        if (finalPayload) {
+          const assistantEntry = { role: 'assistant', content: assistantHistoryText(finalPayload) };
+          if (finalPayload.continuation) {
+            assistantEntry.continuation = finalPayload.continuation;
+          }
+          chatHistory.push({ role: 'user', content: question }, assistantEntry);
+        } else if (!events.some((event) => event.type === 'error')) {
+          statusEl.textContent = 'Stream ended without final result.';
+        }
+      } catch (error) {
+        renderLoading(String(error));
+        statusEl.textContent = 'Request failed.';
+      }
+    }
+
+    async function loadAudit() {
+      statusEl.textContent = 'Loading audit...';
+      renderLoading('Loading audit...');
+      try {
+        const response = await fetch('/api/audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ actor_id: actorSelect.value, limit: 20 }),
+        });
+        const data = await response.json();
+        resultEl.innerHTML = `<div class="answer"><h2 class="answer-title">Audit</h2>${renderDebugJson('Audit records', data)}</div>`;
+        statusEl.textContent = response.ok ? 'Audit loaded.' : 'Audit loaded with error.';
+      } catch (error) {
+        renderLoading(String(error));
+        statusEl.textContent = 'Audit request failed.';
+      }
+    }
+
+    async function loadApprovals() {
+      statusEl.textContent = 'Loading approvals...';
+      renderLoading('Loading approvals...');
+      activeView = 'approvals';
+      try {
+        const response = await fetch(`/api/approvals?actor_id=${encodeURIComponent(actorSelect.value)}&status=pending`);
+        const data = await response.json();
+        const entries = data.approvals?.entries || [];
+        resultEl.innerHTML = `
+          <div class="answer">
+            <h2 class="answer-title">Pending Approvals</h2>
+            <p class="answer-message">${entries.length ? `${entries.length} pending approval request(s) found for ${escapeHtml(formatLabel(actorSelect.value))}.` : `No pending approvals for ${escapeHtml(formatLabel(actorSelect.value))}.`}</p>
+            ${entries.map((entry) => `
+              <div class="approval-panel">
+                ${renderMetricCards([
+                  ['approval id', entry.approval_request_id],
+                  ['capability', entry.capability],
+                  ['service', entry.service],
+                  ['required role', entry.required_role],
+                  ['requested by', entry.requested_by?.actor_id || entry.requested_by?.role],
+                ].filter(([, value]) => value))}
+                ${entry.preview ? `<div><h3>Preview</h3>${renderPreview(entry.preview)}</div>` : ''}
+                <div class="approval-actions">
+                  <button class="inline-action" type="button" onclick="approveApproval('${escapeHtml(entry.approval_request_id)}', '${escapeHtml(entry.service || '')}')">Approve As Selected Actor</button>
+                  <button class="inline-action secondary" type="button" onclick="approveApprovalAndRetry('${escapeHtml(entry.approval_request_id)}', '${escapeHtml(entry.service || '')}', '${escapeHtml(approvalRetryQuestion(entry))}')">Approve Then Retry</button>
+                  <a class="pill" href="/agent?question=${encodeURIComponent(approvalRetryQuestion(entry))}"><strong>Retry question</strong> after approval</a>
+                </div>
+              </div>
+            `).join('')}
+            ${renderDebugJson('Approval records', data)}
+          </div>
+        `;
+        statusEl.textContent = response.ok ? 'Approvals loaded.' : 'Approvals loaded with error.';
+      } catch (error) {
+        renderLoading(String(error));
+        statusEl.textContent = 'Approval request failed.';
+      }
+    }
+
+    async function approveApproval(approvalRequestId, service = '') {
+      statusEl.textContent = `Approving ${approvalRequestId} as ${actorSelect.value}...`;
+      const payload = { actor_id: actorSelect.value, approval_request_id: approvalRequestId };
+      if (service) {
+        payload.service = service;
+      }
+      const response = await fetch('/api/approvals/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || 'Approval failed.');
+      }
+      resultEl.innerHTML = `
+        <div class="answer">
+          <h2 class="answer-title">Approval Recorded</h2>
+          <p class="answer-message">Approval ${escapeHtml(approvalRequestId)} was recorded as ${escapeHtml(formatLabel(actorSelect.value))}. Retry the original request so the service can consume the approved grant.</p>
+          <div class="approval-actions">
+            <button class="inline-action" type="button" onclick="retryCurrentQuestion()">Retry Original Request</button>
+            <button class="inline-action secondary" type="button" onclick="loadApprovals()">Refresh Approval Queue</button>
+          </div>
+          ${renderDebugJson('Approval response', data)}
+        </div>
+      `;
+      statusEl.textContent = 'Approval recorded. Retry the original request.';
+      return data;
+    }
+
+    async function approveApprovalAndRetry(approvalRequestId, service = '', retryQuestion = '') {
+      await approveApproval(approvalRequestId, service);
+      if (retryQuestion) {
+        questionEl.value = retryQuestion;
+      }
+      await ask();
+    }
+
+    function retryCurrentQuestion() {
+      if (lastQuestion) {
+        questionEl.value = lastQuestion;
+      }
+      ask().catch((error) => {
+        renderLoading(String(error));
+        statusEl.textContent = 'Retry failed.';
+      });
+    }
+
+    function openApprovalQueue() {
+      window.location.href = `/approvals?actor_id=${encodeURIComponent(actorSelect.value)}`;
+    }
+
+    async function approveLatest() {
+      statusEl.textContent = 'Approving latest pending request...';
+      renderLoading('Approving latest pending request...');
+      try {
+        const listResponse = await fetch(`/api/approvals?actor_id=${encodeURIComponent(actorSelect.value)}&status=pending`);
+        const listData = await listResponse.json();
+        const entries = listData.approvals?.entries || [];
+        if (!entries.length) {
+          renderLoading('No pending approvals for this actor.');
+          statusEl.textContent = 'No pending approvals.';
+          return;
+        }
+        const latest = entries[0];
+        await approveApproval(latest.approval_request_id, latest.service);
+      } catch (error) {
+        renderLoading(String(error));
+        statusEl.textContent = 'Approval failed.';
+      }
+    }
+
+    askButton.addEventListener('click', ask);
+    auditButton.addEventListener('click', loadAudit);
+    approvalsButton.addEventListener('click', loadApprovals);
+    approveButton.addEventListener('click', () => {
+      approveLatest().catch((error) => {
+        renderLoading(String(error));
+        statusEl.textContent = 'Approval failed.';
+      });
+    });
+    hydrateQuestionFromUrl();
+    approvalPageButton.addEventListener('click', openApprovalQueue);
+    actorSelect.addEventListener('change', () => {
+      statusEl.textContent = `Actor changed to ${actorSelect.options[actorSelect.selectedIndex]?.textContent || actorSelect.value}. Future requests and approval actions will use this actor.`;
+      if (activeView === 'approvals') {
+        loadApprovals().catch(() => {});
+      }
+    });
+    window.approveApproval = approveApproval;
+    window.approveApprovalAndRetry = approveApprovalAndRetry;
+    window.retryCurrentQuestion = retryCurrentQuestion;
+    window.openApprovalQueue = openApprovalQueue;
+    loadRuntime().catch((error) => {
+      renderLoading(String(error));
+      statusEl.textContent = 'Failed to load runtime metadata.';
+    });
+  </script>
+</body>
+</html>

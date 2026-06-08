@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 from psycopg.errors import UniqueViolation
 
 from ..db import get_pool
-from ..models import CreateProject, ProjectDetail, ProjectOut, UpdateProject
+from ..models import CloneProject, CreateProject, ProjectDetail, ProjectOut, UpdateProject
 from ..repository import NotFoundError
 
 from .. import repository
@@ -32,6 +32,8 @@ def create_project(body: CreateProject):
                 summary=body.summary,
                 domain=body.domain,
                 labels=body.labels,
+                project_type=body.project_type,
+                integration_profile=body.integration_profile,
             )
     except UniqueViolation:
         raise HTTPException(status_code=409, detail=f"Project {body.id!r} already exists")
@@ -53,6 +55,24 @@ def update_project(project_id: str, body: UpdateProject):
             return repository.update_project(
                 conn, project_id, **body.model_dump(exclude_unset=True)
             )
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/{project_id}/clone", response_model=ProjectOut, status_code=201)
+def clone_project(project_id: str, body: CloneProject):
+    try:
+        with get_pool().connection() as conn:
+            return repository.clone_project(
+                conn,
+                source_project_id=project_id,
+                target_project_id=body.id,
+                target_workspace_id=body.workspace_id,
+                name=body.name,
+                summary=body.summary,
+            )
+    except UniqueViolation:
+        raise HTTPException(status_code=409, detail=f"Project {body.id!r} already exists")
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 

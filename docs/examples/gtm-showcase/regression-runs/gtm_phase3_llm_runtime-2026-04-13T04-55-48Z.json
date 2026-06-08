@@ -1,0 +1,3414 @@
+{
+  "generated_at": "2026-04-13T04-55-48Z",
+  "runtime_url": "http://127.0.0.1:9303",
+  "suite": "gtm_phase3_llm_runtime",
+  "summary": {
+    "passed": 9,
+    "total": 9,
+    "by_category": {
+      "actor-aware-read": {
+        "passed": 4,
+        "total": 4
+      },
+      "actor-aware-approval": {
+        "passed": 2,
+        "total": 2
+      },
+      "actor-aware-enrichment": {
+        "passed": 3,
+        "total": 3
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "phase3-sales-leader-risk-summary",
+      "category": "actor-aware-read",
+      "question": "Rank the top 10 at-risk accounts in 2017-Q2.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Rank the top 10 at-risk accounts in 2017-Q2.",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.account_risk_summary",
+            "service": "pipeline",
+            "max_total_loops": 2,
+            "data_check": "risk_summary_top10_q2"
+          },
+          "actual": {
+            "planned_capability": "gtm.account_risk_summary",
+            "capability": "gtm.account_risk_summary",
+            "service": "pipeline",
+            "outcome": "success",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "limit": 10,
+              "ranking_basis": "risk_score"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks to rank at-risk accounts for a specific quarter, which matches the account risk summary capability. Quarter is provided; ranking basis and owner scope are not specified, so I pass only the known bounded parameters.",
+              "user_message": "Using the account risk summary capability for 2017-Q2 and top 10 accounts."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "risk_summary_top10_q2",
+            "details": {
+              "expected_rows": [
+                [
+                  "Betasoloin",
+                  "East",
+                  "3",
+                  "0.94",
+                  "256"
+                ],
+                [
+                  "Betasoloin",
+                  "West",
+                  "2",
+                  "0.94",
+                  "246"
+                ],
+                [
+                  "Condax",
+                  "East",
+                  "2",
+                  "0.94",
+                  "230"
+                ],
+                [
+                  "Condax",
+                  "West",
+                  "1",
+                  "0.94",
+                  "222"
+                ],
+                [
+                  "Dalttechnology",
+                  "West",
+                  "2",
+                  "0.94",
+                  "211"
+                ],
+                [
+                  "Domzoom",
+                  "West",
+                  "2",
+                  "0.94",
+                  "244"
+                ],
+                [
+                  "Golddex",
+                  "West",
+                  "1",
+                  "0.94",
+                  "239"
+                ],
+                [
+                  "Groovestreet",
+                  "East",
+                  "3",
+                  "0.94",
+                  "242"
+                ],
+                [
+                  "Groovestreet",
+                  "West",
+                  "2",
+                  "0.94",
+                  "236"
+                ],
+                [
+                  "Scottech",
+                  "East",
+                  "1",
+                  "0.94",
+                  "196"
+                ]
+              ],
+              "actual_rows": [
+                [
+                  "Betasoloin",
+                  "East",
+                  "3",
+                  "0.94",
+                  "256"
+                ],
+                [
+                  "Betasoloin",
+                  "West",
+                  "2",
+                  "0.94",
+                  "246"
+                ],
+                [
+                  "Condax",
+                  "East",
+                  "2",
+                  "0.94",
+                  "230"
+                ],
+                [
+                  "Condax",
+                  "West",
+                  "1",
+                  "0.94",
+                  "222"
+                ],
+                [
+                  "Dalttechnology",
+                  "West",
+                  "2",
+                  "0.94",
+                  "211"
+                ],
+                [
+                  "Domzoom",
+                  "West",
+                  "2",
+                  "0.94",
+                  "244"
+                ],
+                [
+                  "Golddex",
+                  "West",
+                  "1",
+                  "0.94",
+                  "239"
+                ],
+                [
+                  "Groovestreet",
+                  "East",
+                  "3",
+                  "0.94",
+                  "242"
+                ],
+                [
+                  "Groovestreet",
+                  "West",
+                  "2",
+                  "0.94",
+                  "236"
+                ],
+                [
+                  "Scottech",
+                  "East",
+                  "1",
+                  "0.94",
+                  "196"
+                ]
+              ]
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Rank the top 10 at-risk accounts in 2017-Q2.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks to rank at-risk accounts for a specific quarter, which matches the account risk summary capability. Quarter is provided; ranking basis and owner scope are not specified, so I pass only the known bounded parameters.",
+              "user_message": "Using the account risk summary capability for 2017-Q2 and top 10 accounts."
+            },
+            "planned_capability": "gtm.account_risk_summary",
+            "selected_capability": "gtm.account_risk_summary",
+            "selected_service": "pipeline",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "limit": 10,
+              "ranking_basis": "risk_score"
+            },
+            "capability_metadata": {
+              "description": "Rank at-risk accounts with explicit evidence for why they need attention.",
+              "minimum_scope": [
+                "gtm.pipeline.read"
+              ],
+              "inputs": [
+                "quarter",
+                "ranking_basis",
+                "owner_scope",
+                "limit"
+              ],
+              "side_effect": "read",
+              "service_name": "pipeline",
+              "service_url": "http://gtm-pipeline-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "quarter": "2017-Q2",
+                "owner_scope": "company",
+                "ranking_basis": "risk_score",
+                "accounts": [
+                  {
+                    "account_name": "Betasoloin",
+                    "regional_office": "East",
+                    "open_opportunity_count": 3,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 256,
+                    "sales_agents": "Corliss Cosme, Rosie Papadopoulos, Violet Mclelland"
+                  },
+                  {
+                    "account_name": "Betasoloin",
+                    "regional_office": "West",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 246,
+                    "sales_agents": "Hayden Neloms, Kary Hendrixson"
+                  },
+                  {
+                    "account_name": "Condax",
+                    "regional_office": "West",
+                    "open_opportunity_count": 1,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 222,
+                    "sales_agents": "James Ascencio"
+                  },
+                  {
+                    "account_name": "Condax",
+                    "regional_office": "East",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 230,
+                    "sales_agents": "Cassey Cress"
+                  },
+                  {
+                    "account_name": "Dalttechnology",
+                    "regional_office": "West",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 211,
+                    "sales_agents": "Markita Hansen, Rosalina Dieter"
+                  },
+                  {
+                    "account_name": "Domzoom",
+                    "regional_office": "West",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 244,
+                    "sales_agents": "James Ascencio, Markita Hansen"
+                  },
+                  {
+                    "account_name": "Golddex",
+                    "regional_office": "West",
+                    "open_opportunity_count": 1,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 239,
+                    "sales_agents": "Vicki Laflamme"
+                  },
+                  {
+                    "account_name": "Groovestreet",
+                    "regional_office": "East",
+                    "open_opportunity_count": 3,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 242,
+                    "sales_agents": "Corliss Cosme, Daniell Hammack, Violet Mclelland"
+                  },
+                  {
+                    "account_name": "Groovestreet",
+                    "regional_office": "West",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 236,
+                    "sales_agents": "Kary Hendrixson, Markita Hansen"
+                  },
+                  {
+                    "account_name": "Scottech",
+                    "regional_office": "East",
+                    "open_opportunity_count": 1,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 196,
+                    "sales_agents": "Cassey Cress"
+                  }
+                ],
+                "visibility": {
+                  "financial_values": "full"
+                }
+              },
+              "invocation_id": "inv-336ebf5db141",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.account_risk_summary",
+        "service": "pipeline",
+        "max_total_loops": 2,
+        "data_check": "risk_summary_top10_q2"
+      },
+      "actual": {
+        "planned_capability": "gtm.account_risk_summary",
+        "capability": "gtm.account_risk_summary",
+        "service": "pipeline",
+        "outcome": "success",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "limit": 10,
+          "ranking_basis": "risk_score"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks to rank at-risk accounts for a specific quarter, which matches the account risk summary capability. Quarter is provided; ranking basis and owner scope are not specified, so I pass only the known bounded parameters.",
+          "user_message": "Using the account risk summary capability for 2017-Q2 and top 10 accounts."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "risk_summary_top10_q2",
+        "details": {
+          "expected_rows": [
+            [
+              "Betasoloin",
+              "East",
+              "3",
+              "0.94",
+              "256"
+            ],
+            [
+              "Betasoloin",
+              "West",
+              "2",
+              "0.94",
+              "246"
+            ],
+            [
+              "Condax",
+              "East",
+              "2",
+              "0.94",
+              "230"
+            ],
+            [
+              "Condax",
+              "West",
+              "1",
+              "0.94",
+              "222"
+            ],
+            [
+              "Dalttechnology",
+              "West",
+              "2",
+              "0.94",
+              "211"
+            ],
+            [
+              "Domzoom",
+              "West",
+              "2",
+              "0.94",
+              "244"
+            ],
+            [
+              "Golddex",
+              "West",
+              "1",
+              "0.94",
+              "239"
+            ],
+            [
+              "Groovestreet",
+              "East",
+              "3",
+              "0.94",
+              "242"
+            ],
+            [
+              "Groovestreet",
+              "West",
+              "2",
+              "0.94",
+              "236"
+            ],
+            [
+              "Scottech",
+              "East",
+              "1",
+              "0.94",
+              "196"
+            ]
+          ],
+          "actual_rows": [
+            [
+              "Betasoloin",
+              "East",
+              "3",
+              "0.94",
+              "256"
+            ],
+            [
+              "Betasoloin",
+              "West",
+              "2",
+              "0.94",
+              "246"
+            ],
+            [
+              "Condax",
+              "East",
+              "2",
+              "0.94",
+              "230"
+            ],
+            [
+              "Condax",
+              "West",
+              "1",
+              "0.94",
+              "222"
+            ],
+            [
+              "Dalttechnology",
+              "West",
+              "2",
+              "0.94",
+              "211"
+            ],
+            [
+              "Domzoom",
+              "West",
+              "2",
+              "0.94",
+              "244"
+            ],
+            [
+              "Golddex",
+              "West",
+              "1",
+              "0.94",
+              "239"
+            ],
+            [
+              "Groovestreet",
+              "East",
+              "3",
+              "0.94",
+              "242"
+            ],
+            [
+              "Groovestreet",
+              "West",
+              "2",
+              "0.94",
+              "236"
+            ],
+            [
+              "Scottech",
+              "East",
+              "1",
+              "0.94",
+              "196"
+            ]
+          ]
+        }
+      },
+      "audit_check": {
+        "passed": true,
+        "details": {
+          "actor_id": "sales_leader",
+          "service": "pipeline",
+          "capability": "gtm.account_risk_summary",
+          "min_entries": 1,
+          "actual_entries": 2
+        }
+      },
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Rank the top 10 at-risk accounts in 2017-Q2.",
+        "actor_id": "sales_leader",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks to rank at-risk accounts for a specific quarter, which matches the account risk summary capability. Quarter is provided; ranking basis and owner scope are not specified, so I pass only the known bounded parameters.",
+          "user_message": "Using the account risk summary capability for 2017-Q2 and top 10 accounts."
+        },
+        "planned_capability": "gtm.account_risk_summary",
+        "selected_capability": "gtm.account_risk_summary",
+        "selected_service": "pipeline",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "limit": 10,
+          "ranking_basis": "risk_score"
+        },
+        "capability_metadata": {
+          "description": "Rank at-risk accounts with explicit evidence for why they need attention.",
+          "minimum_scope": [
+            "gtm.pipeline.read"
+          ],
+          "inputs": [
+            "quarter",
+            "ranking_basis",
+            "owner_scope",
+            "limit"
+          ],
+          "side_effect": "read",
+          "service_name": "pipeline",
+          "service_url": "http://gtm-pipeline-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "quarter": "2017-Q2",
+            "owner_scope": "company",
+            "ranking_basis": "risk_score",
+            "accounts": [
+              {
+                "account_name": "Betasoloin",
+                "regional_office": "East",
+                "open_opportunity_count": 3,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 256,
+                "sales_agents": "Corliss Cosme, Rosie Papadopoulos, Violet Mclelland"
+              },
+              {
+                "account_name": "Betasoloin",
+                "regional_office": "West",
+                "open_opportunity_count": 2,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 246,
+                "sales_agents": "Hayden Neloms, Kary Hendrixson"
+              },
+              {
+                "account_name": "Condax",
+                "regional_office": "West",
+                "open_opportunity_count": 1,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 222,
+                "sales_agents": "James Ascencio"
+              },
+              {
+                "account_name": "Condax",
+                "regional_office": "East",
+                "open_opportunity_count": 2,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 230,
+                "sales_agents": "Cassey Cress"
+              },
+              {
+                "account_name": "Dalttechnology",
+                "regional_office": "West",
+                "open_opportunity_count": 2,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 211,
+                "sales_agents": "Markita Hansen, Rosalina Dieter"
+              },
+              {
+                "account_name": "Domzoom",
+                "regional_office": "West",
+                "open_opportunity_count": 2,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 244,
+                "sales_agents": "James Ascencio, Markita Hansen"
+              },
+              {
+                "account_name": "Golddex",
+                "regional_office": "West",
+                "open_opportunity_count": 1,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 239,
+                "sales_agents": "Vicki Laflamme"
+              },
+              {
+                "account_name": "Groovestreet",
+                "regional_office": "East",
+                "open_opportunity_count": 3,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 242,
+                "sales_agents": "Corliss Cosme, Daniell Hammack, Violet Mclelland"
+              },
+              {
+                "account_name": "Groovestreet",
+                "regional_office": "West",
+                "open_opportunity_count": 2,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 236,
+                "sales_agents": "Kary Hendrixson, Markita Hansen"
+              },
+              {
+                "account_name": "Scottech",
+                "regional_office": "East",
+                "open_opportunity_count": 1,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 196,
+                "sales_agents": "Cassey Cress"
+              }
+            ],
+            "visibility": {
+              "financial_values": "full"
+            }
+          },
+          "invocation_id": "inv-336ebf5db141",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase3-sales-analyst-risk-summary-masked",
+      "category": "actor-aware-read",
+      "question": "Rank the top 10 at-risk accounts in 2017-Q2.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Rank the top 10 at-risk accounts in 2017-Q2.",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.account_risk_summary",
+            "service": "pipeline",
+            "max_total_loops": 2,
+            "data_check": "risk_summary_masked_top10_q2"
+          },
+          "actual": {
+            "planned_capability": "gtm.account_risk_summary",
+            "capability": "gtm.account_risk_summary",
+            "service": "pipeline",
+            "outcome": "success",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "limit": 10,
+              "ranking_basis": "risk_score"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks to rank at-risk accounts for a specific quarter, which matches the account risk summary capability. Quarter is provided; no owner scope or ranking basis was specified, so I pass only the known required scope and limit.",
+              "user_message": "I\u2019ll use the account risk summary capability for 2017-Q2 and ask for the top 10 at-risk accounts."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "risk_summary_masked_top10_q2",
+            "details": {
+              "expected_rows": [
+                [
+                  "Betasoloin",
+                  "East",
+                  "3",
+                  "0.94",
+                  "256"
+                ],
+                [
+                  "Betasoloin",
+                  "West",
+                  "2",
+                  "0.94",
+                  "246"
+                ],
+                [
+                  "Condax",
+                  "East",
+                  "2",
+                  "0.94",
+                  "230"
+                ],
+                [
+                  "Condax",
+                  "West",
+                  "1",
+                  "0.94",
+                  "222"
+                ],
+                [
+                  "Dalttechnology",
+                  "West",
+                  "2",
+                  "0.94",
+                  "211"
+                ],
+                [
+                  "Domzoom",
+                  "West",
+                  "2",
+                  "0.94",
+                  "244"
+                ],
+                [
+                  "Golddex",
+                  "West",
+                  "1",
+                  "0.94",
+                  "239"
+                ],
+                [
+                  "Groovestreet",
+                  "East",
+                  "3",
+                  "0.94",
+                  "242"
+                ],
+                [
+                  "Groovestreet",
+                  "West",
+                  "2",
+                  "0.94",
+                  "236"
+                ],
+                [
+                  "Scottech",
+                  "East",
+                  "1",
+                  "0.94",
+                  "196"
+                ]
+              ],
+              "actual_rows": [
+                [
+                  "Betasoloin",
+                  "East",
+                  "3",
+                  "0.94",
+                  "256"
+                ],
+                [
+                  "Betasoloin",
+                  "West",
+                  "2",
+                  "0.94",
+                  "246"
+                ],
+                [
+                  "Condax",
+                  "East",
+                  "2",
+                  "0.94",
+                  "230"
+                ],
+                [
+                  "Condax",
+                  "West",
+                  "1",
+                  "0.94",
+                  "222"
+                ],
+                [
+                  "Dalttechnology",
+                  "West",
+                  "2",
+                  "0.94",
+                  "211"
+                ],
+                [
+                  "Domzoom",
+                  "West",
+                  "2",
+                  "0.94",
+                  "244"
+                ],
+                [
+                  "Golddex",
+                  "West",
+                  "1",
+                  "0.94",
+                  "239"
+                ],
+                [
+                  "Groovestreet",
+                  "East",
+                  "3",
+                  "0.94",
+                  "242"
+                ],
+                [
+                  "Groovestreet",
+                  "West",
+                  "2",
+                  "0.94",
+                  "236"
+                ],
+                [
+                  "Scottech",
+                  "East",
+                  "1",
+                  "0.94",
+                  "196"
+                ]
+              ],
+              "all_masked": true
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Rank the top 10 at-risk accounts in 2017-Q2.",
+            "actor_id": "sales_analyst",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks to rank at-risk accounts for a specific quarter, which matches the account risk summary capability. Quarter is provided; no owner scope or ranking basis was specified, so I pass only the known required scope and limit.",
+              "user_message": "I\u2019ll use the account risk summary capability for 2017-Q2 and ask for the top 10 at-risk accounts."
+            },
+            "planned_capability": "gtm.account_risk_summary",
+            "selected_capability": "gtm.account_risk_summary",
+            "selected_service": "pipeline",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "limit": 10,
+              "ranking_basis": "risk_score"
+            },
+            "capability_metadata": {
+              "description": "Rank at-risk accounts with explicit evidence for why they need attention.",
+              "minimum_scope": [
+                "gtm.pipeline.read"
+              ],
+              "inputs": [
+                "quarter",
+                "ranking_basis",
+                "owner_scope",
+                "limit"
+              ],
+              "side_effect": "read",
+              "service_name": "pipeline",
+              "service_url": "http://gtm-pipeline-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "quarter": "2017-Q2",
+                "owner_scope": "company",
+                "ranking_basis": "risk_score",
+                "accounts": [
+                  {
+                    "account_name": "Betasoloin",
+                    "regional_office": "East",
+                    "open_opportunity_count": 3,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 256,
+                    "sales_agents": "Corliss Cosme, Rosie Papadopoulos, Violet Mclelland"
+                  },
+                  {
+                    "account_name": "Betasoloin",
+                    "regional_office": "West",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 246,
+                    "sales_agents": "Hayden Neloms, Kary Hendrixson"
+                  },
+                  {
+                    "account_name": "Condax",
+                    "regional_office": "West",
+                    "open_opportunity_count": 1,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 222,
+                    "sales_agents": "James Ascencio"
+                  },
+                  {
+                    "account_name": "Condax",
+                    "regional_office": "East",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 230,
+                    "sales_agents": "Cassey Cress"
+                  },
+                  {
+                    "account_name": "Dalttechnology",
+                    "regional_office": "West",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 211,
+                    "sales_agents": "Markita Hansen, Rosalina Dieter"
+                  },
+                  {
+                    "account_name": "Domzoom",
+                    "regional_office": "West",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 244,
+                    "sales_agents": "James Ascencio, Markita Hansen"
+                  },
+                  {
+                    "account_name": "Golddex",
+                    "regional_office": "West",
+                    "open_opportunity_count": 1,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 239,
+                    "sales_agents": "Vicki Laflamme"
+                  },
+                  {
+                    "account_name": "Groovestreet",
+                    "regional_office": "East",
+                    "open_opportunity_count": 3,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 242,
+                    "sales_agents": "Corliss Cosme, Daniell Hammack, Violet Mclelland"
+                  },
+                  {
+                    "account_name": "Groovestreet",
+                    "regional_office": "West",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 236,
+                    "sales_agents": "Kary Hendrixson, Markita Hansen"
+                  },
+                  {
+                    "account_name": "Scottech",
+                    "regional_office": "East",
+                    "open_opportunity_count": 1,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 196,
+                    "sales_agents": "Cassey Cress"
+                  }
+                ],
+                "visibility": {
+                  "financial_values": "masked"
+                }
+              },
+              "invocation_id": "inv-cad9def8ac20",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.account_risk_summary",
+        "service": "pipeline",
+        "max_total_loops": 2,
+        "data_check": "risk_summary_masked_top10_q2"
+      },
+      "actual": {
+        "planned_capability": "gtm.account_risk_summary",
+        "capability": "gtm.account_risk_summary",
+        "service": "pipeline",
+        "outcome": "success",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "limit": 10,
+          "ranking_basis": "risk_score"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks to rank at-risk accounts for a specific quarter, which matches the account risk summary capability. Quarter is provided; no owner scope or ranking basis was specified, so I pass only the known required scope and limit.",
+          "user_message": "I\u2019ll use the account risk summary capability for 2017-Q2 and ask for the top 10 at-risk accounts."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "risk_summary_masked_top10_q2",
+        "details": {
+          "expected_rows": [
+            [
+              "Betasoloin",
+              "East",
+              "3",
+              "0.94",
+              "256"
+            ],
+            [
+              "Betasoloin",
+              "West",
+              "2",
+              "0.94",
+              "246"
+            ],
+            [
+              "Condax",
+              "East",
+              "2",
+              "0.94",
+              "230"
+            ],
+            [
+              "Condax",
+              "West",
+              "1",
+              "0.94",
+              "222"
+            ],
+            [
+              "Dalttechnology",
+              "West",
+              "2",
+              "0.94",
+              "211"
+            ],
+            [
+              "Domzoom",
+              "West",
+              "2",
+              "0.94",
+              "244"
+            ],
+            [
+              "Golddex",
+              "West",
+              "1",
+              "0.94",
+              "239"
+            ],
+            [
+              "Groovestreet",
+              "East",
+              "3",
+              "0.94",
+              "242"
+            ],
+            [
+              "Groovestreet",
+              "West",
+              "2",
+              "0.94",
+              "236"
+            ],
+            [
+              "Scottech",
+              "East",
+              "1",
+              "0.94",
+              "196"
+            ]
+          ],
+          "actual_rows": [
+            [
+              "Betasoloin",
+              "East",
+              "3",
+              "0.94",
+              "256"
+            ],
+            [
+              "Betasoloin",
+              "West",
+              "2",
+              "0.94",
+              "246"
+            ],
+            [
+              "Condax",
+              "East",
+              "2",
+              "0.94",
+              "230"
+            ],
+            [
+              "Condax",
+              "West",
+              "1",
+              "0.94",
+              "222"
+            ],
+            [
+              "Dalttechnology",
+              "West",
+              "2",
+              "0.94",
+              "211"
+            ],
+            [
+              "Domzoom",
+              "West",
+              "2",
+              "0.94",
+              "244"
+            ],
+            [
+              "Golddex",
+              "West",
+              "1",
+              "0.94",
+              "239"
+            ],
+            [
+              "Groovestreet",
+              "East",
+              "3",
+              "0.94",
+              "242"
+            ],
+            [
+              "Groovestreet",
+              "West",
+              "2",
+              "0.94",
+              "236"
+            ],
+            [
+              "Scottech",
+              "East",
+              "1",
+              "0.94",
+              "196"
+            ]
+          ],
+          "all_masked": true
+        }
+      },
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Rank the top 10 at-risk accounts in 2017-Q2.",
+        "actor_id": "sales_analyst",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks to rank at-risk accounts for a specific quarter, which matches the account risk summary capability. Quarter is provided; no owner scope or ranking basis was specified, so I pass only the known required scope and limit.",
+          "user_message": "I\u2019ll use the account risk summary capability for 2017-Q2 and ask for the top 10 at-risk accounts."
+        },
+        "planned_capability": "gtm.account_risk_summary",
+        "selected_capability": "gtm.account_risk_summary",
+        "selected_service": "pipeline",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "limit": 10,
+          "ranking_basis": "risk_score"
+        },
+        "capability_metadata": {
+          "description": "Rank at-risk accounts with explicit evidence for why they need attention.",
+          "minimum_scope": [
+            "gtm.pipeline.read"
+          ],
+          "inputs": [
+            "quarter",
+            "ranking_basis",
+            "owner_scope",
+            "limit"
+          ],
+          "side_effect": "read",
+          "service_name": "pipeline",
+          "service_url": "http://gtm-pipeline-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "quarter": "2017-Q2",
+            "owner_scope": "company",
+            "ranking_basis": "risk_score",
+            "accounts": [
+              {
+                "account_name": "Betasoloin",
+                "regional_office": "East",
+                "open_opportunity_count": 3,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 256,
+                "sales_agents": "Corliss Cosme, Rosie Papadopoulos, Violet Mclelland"
+              },
+              {
+                "account_name": "Betasoloin",
+                "regional_office": "West",
+                "open_opportunity_count": 2,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 246,
+                "sales_agents": "Hayden Neloms, Kary Hendrixson"
+              },
+              {
+                "account_name": "Condax",
+                "regional_office": "West",
+                "open_opportunity_count": 1,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 222,
+                "sales_agents": "James Ascencio"
+              },
+              {
+                "account_name": "Condax",
+                "regional_office": "East",
+                "open_opportunity_count": 2,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 230,
+                "sales_agents": "Cassey Cress"
+              },
+              {
+                "account_name": "Dalttechnology",
+                "regional_office": "West",
+                "open_opportunity_count": 2,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 211,
+                "sales_agents": "Markita Hansen, Rosalina Dieter"
+              },
+              {
+                "account_name": "Domzoom",
+                "regional_office": "West",
+                "open_opportunity_count": 2,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 244,
+                "sales_agents": "James Ascencio, Markita Hansen"
+              },
+              {
+                "account_name": "Golddex",
+                "regional_office": "West",
+                "open_opportunity_count": 1,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 239,
+                "sales_agents": "Vicki Laflamme"
+              },
+              {
+                "account_name": "Groovestreet",
+                "regional_office": "East",
+                "open_opportunity_count": 3,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 242,
+                "sales_agents": "Corliss Cosme, Daniell Hammack, Violet Mclelland"
+              },
+              {
+                "account_name": "Groovestreet",
+                "regional_office": "West",
+                "open_opportunity_count": 2,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 236,
+                "sales_agents": "Kary Hendrixson, Markita Hansen"
+              },
+              {
+                "account_name": "Scottech",
+                "regional_office": "East",
+                "open_opportunity_count": 1,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 196,
+                "sales_agents": "Cassey Cress"
+              }
+            ],
+            "visibility": {
+              "financial_values": "masked"
+            }
+          },
+          "invocation_id": "inv-cad9def8ac20",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase3-account-manager-east-scope",
+      "category": "actor-aware-read",
+      "question": "Rank the top 5 at-risk accounts in 2017-Q2.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Rank the top 5 at-risk accounts in 2017-Q2.",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.account_risk_summary",
+            "service": "pipeline",
+            "max_total_loops": 2,
+            "data_check": "risk_summary_top5_east_q2"
+          },
+          "actual": {
+            "planned_capability": "gtm.account_risk_summary",
+            "capability": "gtm.account_risk_summary",
+            "service": "pipeline",
+            "outcome": "success",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "limit": 5,
+              "ranking_basis": "risk_score"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request is explicitly asking to rank at-risk accounts for a specific quarter, which matches the account risk summary capability. Ranking basis and owner scope were not provided, so I\u2019m passing only the known required scope and limit.",
+              "user_message": "I\u2019ll use the account risk summary capability for 2017-Q2 and ask for the top 5 at-risk accounts."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "risk_summary_top5_east_q2",
+            "details": {
+              "expected_rows": [
+                [
+                  "Betasoloin",
+                  "East",
+                  "3",
+                  "0.94",
+                  "256"
+                ],
+                [
+                  "Condax",
+                  "East",
+                  "2",
+                  "0.94",
+                  "230"
+                ],
+                [
+                  "Groovestreet",
+                  "East",
+                  "3",
+                  "0.94",
+                  "242"
+                ],
+                [
+                  "Scottech",
+                  "East",
+                  "1",
+                  "0.94",
+                  "196"
+                ],
+                [
+                  "Zathunicon",
+                  "East",
+                  "2",
+                  "0.94",
+                  "216"
+                ]
+              ],
+              "actual_rows": [
+                [
+                  "Betasoloin",
+                  "East",
+                  "3",
+                  "0.94",
+                  "256"
+                ],
+                [
+                  "Condax",
+                  "East",
+                  "2",
+                  "0.94",
+                  "230"
+                ],
+                [
+                  "Groovestreet",
+                  "East",
+                  "3",
+                  "0.94",
+                  "242"
+                ],
+                [
+                  "Scottech",
+                  "East",
+                  "1",
+                  "0.94",
+                  "196"
+                ],
+                [
+                  "Zathunicon",
+                  "East",
+                  "2",
+                  "0.94",
+                  "216"
+                ]
+              ]
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Rank the top 5 at-risk accounts in 2017-Q2.",
+            "actor_id": "account_manager_east",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request is explicitly asking to rank at-risk accounts for a specific quarter, which matches the account risk summary capability. Ranking basis and owner scope were not provided, so I\u2019m passing only the known required scope and limit.",
+              "user_message": "I\u2019ll use the account risk summary capability for 2017-Q2 and ask for the top 5 at-risk accounts."
+            },
+            "planned_capability": "gtm.account_risk_summary",
+            "selected_capability": "gtm.account_risk_summary",
+            "selected_service": "pipeline",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "limit": 5,
+              "ranking_basis": "risk_score"
+            },
+            "capability_metadata": {
+              "description": "Rank at-risk accounts with explicit evidence for why they need attention.",
+              "minimum_scope": [
+                "gtm.pipeline.read"
+              ],
+              "inputs": [
+                "quarter",
+                "ranking_basis",
+                "owner_scope",
+                "limit"
+              ],
+              "side_effect": "read",
+              "service_name": "pipeline",
+              "service_url": "http://gtm-pipeline-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "quarter": "2017-Q2",
+                "owner_scope": "East",
+                "ranking_basis": "risk_score",
+                "accounts": [
+                  {
+                    "account_name": "Betasoloin",
+                    "regional_office": "East",
+                    "open_opportunity_count": 3,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 256,
+                    "sales_agents": "Corliss Cosme, Rosie Papadopoulos, Violet Mclelland"
+                  },
+                  {
+                    "account_name": "Condax",
+                    "regional_office": "East",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 230,
+                    "sales_agents": "Cassey Cress"
+                  },
+                  {
+                    "account_name": "Groovestreet",
+                    "regional_office": "East",
+                    "open_opportunity_count": 3,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 242,
+                    "sales_agents": "Corliss Cosme, Daniell Hammack, Violet Mclelland"
+                  },
+                  {
+                    "account_name": "Scottech",
+                    "regional_office": "East",
+                    "open_opportunity_count": 1,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 196,
+                    "sales_agents": "Cassey Cress"
+                  },
+                  {
+                    "account_name": "Zathunicon",
+                    "regional_office": "East",
+                    "open_opportunity_count": 2,
+                    "open_pipeline_value": null,
+                    "average_risk_score": 0.94,
+                    "max_days_open": 216,
+                    "sales_agents": "Corliss Cosme, Violet Mclelland"
+                  }
+                ],
+                "visibility": {
+                  "financial_values": "full"
+                }
+              },
+              "invocation_id": "inv-469f6ef5ce3f",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.account_risk_summary",
+        "service": "pipeline",
+        "max_total_loops": 2,
+        "data_check": "risk_summary_top5_east_q2"
+      },
+      "actual": {
+        "planned_capability": "gtm.account_risk_summary",
+        "capability": "gtm.account_risk_summary",
+        "service": "pipeline",
+        "outcome": "success",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "limit": 5,
+          "ranking_basis": "risk_score"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request is explicitly asking to rank at-risk accounts for a specific quarter, which matches the account risk summary capability. Ranking basis and owner scope were not provided, so I\u2019m passing only the known required scope and limit.",
+          "user_message": "I\u2019ll use the account risk summary capability for 2017-Q2 and ask for the top 5 at-risk accounts."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "risk_summary_top5_east_q2",
+        "details": {
+          "expected_rows": [
+            [
+              "Betasoloin",
+              "East",
+              "3",
+              "0.94",
+              "256"
+            ],
+            [
+              "Condax",
+              "East",
+              "2",
+              "0.94",
+              "230"
+            ],
+            [
+              "Groovestreet",
+              "East",
+              "3",
+              "0.94",
+              "242"
+            ],
+            [
+              "Scottech",
+              "East",
+              "1",
+              "0.94",
+              "196"
+            ],
+            [
+              "Zathunicon",
+              "East",
+              "2",
+              "0.94",
+              "216"
+            ]
+          ],
+          "actual_rows": [
+            [
+              "Betasoloin",
+              "East",
+              "3",
+              "0.94",
+              "256"
+            ],
+            [
+              "Condax",
+              "East",
+              "2",
+              "0.94",
+              "230"
+            ],
+            [
+              "Groovestreet",
+              "East",
+              "3",
+              "0.94",
+              "242"
+            ],
+            [
+              "Scottech",
+              "East",
+              "1",
+              "0.94",
+              "196"
+            ],
+            [
+              "Zathunicon",
+              "East",
+              "2",
+              "0.94",
+              "216"
+            ]
+          ]
+        }
+      },
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Rank the top 5 at-risk accounts in 2017-Q2.",
+        "actor_id": "account_manager_east",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request is explicitly asking to rank at-risk accounts for a specific quarter, which matches the account risk summary capability. Ranking basis and owner scope were not provided, so I\u2019m passing only the known required scope and limit.",
+          "user_message": "I\u2019ll use the account risk summary capability for 2017-Q2 and ask for the top 5 at-risk accounts."
+        },
+        "planned_capability": "gtm.account_risk_summary",
+        "selected_capability": "gtm.account_risk_summary",
+        "selected_service": "pipeline",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "limit": 5,
+          "ranking_basis": "risk_score"
+        },
+        "capability_metadata": {
+          "description": "Rank at-risk accounts with explicit evidence for why they need attention.",
+          "minimum_scope": [
+            "gtm.pipeline.read"
+          ],
+          "inputs": [
+            "quarter",
+            "ranking_basis",
+            "owner_scope",
+            "limit"
+          ],
+          "side_effect": "read",
+          "service_name": "pipeline",
+          "service_url": "http://gtm-pipeline-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "quarter": "2017-Q2",
+            "owner_scope": "East",
+            "ranking_basis": "risk_score",
+            "accounts": [
+              {
+                "account_name": "Betasoloin",
+                "regional_office": "East",
+                "open_opportunity_count": 3,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 256,
+                "sales_agents": "Corliss Cosme, Rosie Papadopoulos, Violet Mclelland"
+              },
+              {
+                "account_name": "Condax",
+                "regional_office": "East",
+                "open_opportunity_count": 2,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 230,
+                "sales_agents": "Cassey Cress"
+              },
+              {
+                "account_name": "Groovestreet",
+                "regional_office": "East",
+                "open_opportunity_count": 3,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 242,
+                "sales_agents": "Corliss Cosme, Daniell Hammack, Violet Mclelland"
+              },
+              {
+                "account_name": "Scottech",
+                "regional_office": "East",
+                "open_opportunity_count": 1,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 196,
+                "sales_agents": "Cassey Cress"
+              },
+              {
+                "account_name": "Zathunicon",
+                "regional_office": "East",
+                "open_opportunity_count": 2,
+                "open_pipeline_value": null,
+                "average_risk_score": 0.94,
+                "max_days_open": 216,
+                "sales_agents": "Corliss Cosme, Violet Mclelland"
+              }
+            ],
+            "visibility": {
+              "financial_values": "full"
+            }
+          },
+          "invocation_id": "inv-469f6ef5ce3f",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase3-account-manager-east-west-restricted",
+      "category": "actor-aware-read",
+      "question": "Rank the top 5 at-risk accounts in 2017-Q2 for the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Rank the top 5 at-risk accounts in 2017-Q2 for the West region.",
+          "expected": {
+            "outcome": "restricted",
+            "capability": "gtm.account_risk_summary",
+            "service": "pipeline",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": "gtm.account_risk_summary",
+            "capability": "gtm.account_risk_summary",
+            "service": "pipeline",
+            "outcome": "restricted",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "owner_scope": "West",
+              "limit": 5,
+              "ranking_basis": "risk_score"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks to rank at-risk accounts for a specific quarter and region, which matches the account risk summary capability. Ranking basis is not specified, so it is omitted to let the governed service clarify or apply its default if allowed.",
+              "user_message": "I\u2019ll request a bounded at-risk account ranking for 2017-Q2 in the West region, limited to 5 accounts."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Rank the top 5 at-risk accounts in 2017-Q2 for the West region.",
+            "actor_id": "account_manager_east",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The request asks to rank at-risk accounts for a specific quarter and region, which matches the account risk summary capability. Ranking basis is not specified, so it is omitted to let the governed service clarify or apply its default if allowed.",
+              "user_message": "I\u2019ll request a bounded at-risk account ranking for 2017-Q2 in the West region, limited to 5 accounts."
+            },
+            "planned_capability": "gtm.account_risk_summary",
+            "selected_capability": "gtm.account_risk_summary",
+            "selected_service": "pipeline",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "owner_scope": "West",
+              "limit": 5,
+              "ranking_basis": "risk_score"
+            },
+            "capability_metadata": {
+              "description": "Rank at-risk accounts with explicit evidence for why they need attention.",
+              "minimum_scope": [
+                "gtm.pipeline.read"
+              ],
+              "inputs": [
+                "quarter",
+                "ranking_basis",
+                "owner_scope",
+                "limit"
+              ],
+              "side_effect": "read",
+              "service_name": "pipeline",
+              "service_url": "http://gtm-pipeline-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "restricted",
+                "detail": "This actor is restricted to a narrower pipeline scope.",
+                "resolution": {
+                  "action": "retry_with_owned_scope",
+                  "requires": "East"
+                }
+              },
+              "invocation_id": "inv-02589e052076",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "restricted",
+        "capability": "gtm.account_risk_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "actual": {
+        "planned_capability": "gtm.account_risk_summary",
+        "capability": "gtm.account_risk_summary",
+        "service": "pipeline",
+        "outcome": "restricted",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "owner_scope": "West",
+          "limit": 5,
+          "ranking_basis": "risk_score"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks to rank at-risk accounts for a specific quarter and region, which matches the account risk summary capability. Ranking basis is not specified, so it is omitted to let the governed service clarify or apply its default if allowed.",
+          "user_message": "I\u2019ll request a bounded at-risk account ranking for 2017-Q2 in the West region, limited to 5 accounts."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Rank the top 5 at-risk accounts in 2017-Q2 for the West region.",
+        "actor_id": "account_manager_east",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The request asks to rank at-risk accounts for a specific quarter and region, which matches the account risk summary capability. Ranking basis is not specified, so it is omitted to let the governed service clarify or apply its default if allowed.",
+          "user_message": "I\u2019ll request a bounded at-risk account ranking for 2017-Q2 in the West region, limited to 5 accounts."
+        },
+        "planned_capability": "gtm.account_risk_summary",
+        "selected_capability": "gtm.account_risk_summary",
+        "selected_service": "pipeline",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "owner_scope": "West",
+          "limit": 5,
+          "ranking_basis": "risk_score"
+        },
+        "capability_metadata": {
+          "description": "Rank at-risk accounts with explicit evidence for why they need attention.",
+          "minimum_scope": [
+            "gtm.pipeline.read"
+          ],
+          "inputs": [
+            "quarter",
+            "ranking_basis",
+            "owner_scope",
+            "limit"
+          ],
+          "side_effect": "read",
+          "service_name": "pipeline",
+          "service_url": "http://gtm-pipeline-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "restricted",
+            "detail": "This actor is restricted to a narrower pipeline scope.",
+            "resolution": {
+              "action": "retry_with_owned_scope",
+              "requires": "East"
+            }
+          },
+          "invocation_id": "inv-02589e052076",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase3-sales-analyst-followup-denied",
+      "category": "actor-aware-approval",
+      "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q2.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q2.",
+          "expected": {
+            "outcome": "denied",
+            "capability": "gtm.prepare_followup_tasks",
+            "service": "pipeline",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": "gtm.prepare_followup_tasks",
+            "capability": "gtm.prepare_followup_tasks",
+            "service": "pipeline",
+            "outcome": "denied",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "ranking_basis": "risk_score"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user explicitly asked to prepare follow-up tasks for highest-risk accounts, which matches the follow-up task preparation capability. Quarter is provided; other ranking inputs are omitted to let the governed service clarify if needed.",
+              "user_message": "Preparing follow-up task preview for highest-risk accounts in 2017-Q2."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q2.",
+            "actor_id": "sales_analyst",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user explicitly asked to prepare follow-up tasks for highest-risk accounts, which matches the follow-up task preparation capability. Quarter is provided; other ranking inputs are omitted to let the governed service clarify if needed.",
+              "user_message": "Preparing follow-up task preview for highest-risk accounts in 2017-Q2."
+            },
+            "planned_capability": "gtm.prepare_followup_tasks",
+            "selected_capability": "gtm.prepare_followup_tasks",
+            "selected_service": "pipeline",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "ranking_basis": "risk_score"
+            },
+            "capability_metadata": {
+              "description": "Prepare follow-up tasks for high-risk accounts without executing downstream mutations.",
+              "minimum_scope": [
+                "gtm.pipeline.followup"
+              ],
+              "inputs": [
+                "quarter",
+                "ranking_basis",
+                "owner_scope",
+                "limit"
+              ],
+              "side_effect": "write",
+              "service_name": "pipeline",
+              "service_url": "http://gtm-pipeline-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "This actor role cannot prepare follow-up work.",
+                "resolution": {
+                  "action": "request_authorized_actor",
+                  "requires": "role with follow-up preparation authority"
+                }
+              },
+              "invocation_id": "inv-901d2946072a",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied",
+        "capability": "gtm.prepare_followup_tasks",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "actual": {
+        "planned_capability": "gtm.prepare_followup_tasks",
+        "capability": "gtm.prepare_followup_tasks",
+        "service": "pipeline",
+        "outcome": "denied",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "ranking_basis": "risk_score"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user explicitly asked to prepare follow-up tasks for highest-risk accounts, which matches the follow-up task preparation capability. Quarter is provided; other ranking inputs are omitted to let the governed service clarify if needed.",
+          "user_message": "Preparing follow-up task preview for highest-risk accounts in 2017-Q2."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q2.",
+        "actor_id": "sales_analyst",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user explicitly asked to prepare follow-up tasks for highest-risk accounts, which matches the follow-up task preparation capability. Quarter is provided; other ranking inputs are omitted to let the governed service clarify if needed.",
+          "user_message": "Preparing follow-up task preview for highest-risk accounts in 2017-Q2."
+        },
+        "planned_capability": "gtm.prepare_followup_tasks",
+        "selected_capability": "gtm.prepare_followup_tasks",
+        "selected_service": "pipeline",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "ranking_basis": "risk_score"
+        },
+        "capability_metadata": {
+          "description": "Prepare follow-up tasks for high-risk accounts without executing downstream mutations.",
+          "minimum_scope": [
+            "gtm.pipeline.followup"
+          ],
+          "inputs": [
+            "quarter",
+            "ranking_basis",
+            "owner_scope",
+            "limit"
+          ],
+          "side_effect": "write",
+          "service_name": "pipeline",
+          "service_url": "http://gtm-pipeline-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "This actor role cannot prepare follow-up work.",
+            "resolution": {
+              "action": "request_authorized_actor",
+              "requires": "role with follow-up preparation authority"
+            }
+          },
+          "invocation_id": "inv-901d2946072a",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase3-rev-ops-followup-approval",
+      "category": "actor-aware-approval",
+      "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q2.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q2.",
+          "expected": {
+            "outcome": "approval_required",
+            "capability": "gtm.prepare_followup_tasks",
+            "service": "pipeline",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": "gtm.prepare_followup_tasks",
+            "capability": "gtm.prepare_followup_tasks",
+            "service": "pipeline",
+            "outcome": "approval_required",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "ranking_basis": "risk_score"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user explicitly asked to prepare follow-up tasks for high-risk accounts, which matches the follow-up task capability. Quarter is provided; other ranking and scope fields are omitted to keep the invocation bounded and let the service clarify if needed.",
+              "user_message": "Using the follow-up task capability for 2017-Q2. If you need more scope details, please clarify."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q2.",
+            "actor_id": "rev_ops_manager",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user explicitly asked to prepare follow-up tasks for high-risk accounts, which matches the follow-up task capability. Quarter is provided; other ranking and scope fields are omitted to keep the invocation bounded and let the service clarify if needed.",
+              "user_message": "Using the follow-up task capability for 2017-Q2. If you need more scope details, please clarify."
+            },
+            "planned_capability": "gtm.prepare_followup_tasks",
+            "selected_capability": "gtm.prepare_followup_tasks",
+            "selected_service": "pipeline",
+            "parameters": {
+              "quarter": "2017-Q2",
+              "ranking_basis": "risk_score"
+            },
+            "capability_metadata": {
+              "description": "Prepare follow-up tasks for high-risk accounts without executing downstream mutations.",
+              "minimum_scope": [
+                "gtm.pipeline.followup"
+              ],
+              "inputs": [
+                "quarter",
+                "ranking_basis",
+                "owner_scope",
+                "limit"
+              ],
+              "side_effect": "write",
+              "service_name": "pipeline",
+              "service_url": "http://gtm-pipeline-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "approval_required",
+                "detail": "any downstream task creation or CRM mutation would occur",
+                "resolution": {
+                  "action": "request_approval",
+                  "requires": "approval before downstream mutation",
+                  "preview": {
+                    "quarter": "2017-Q2",
+                    "owner_scope": "company",
+                    "ranking_basis": "risk_score",
+                    "requires_approval": true,
+                    "tasks": [
+                      {
+                        "account_name": "Betasoloin",
+                        "regional_office": "West",
+                        "recommended_owner": "Hayden Neloms",
+                        "task_type": "risk_review_followup",
+                        "reason": "Average risk score 0.94 with 2 open opportunities and max age 246 days.",
+                        "suggested_due_in_days": 3
+                      },
+                      {
+                        "account_name": "Betasoloin",
+                        "regional_office": "East",
+                        "recommended_owner": "Corliss Cosme",
+                        "task_type": "risk_review_followup",
+                        "reason": "Average risk score 0.94 with 3 open opportunities and max age 256 days.",
+                        "suggested_due_in_days": 3
+                      },
+                      {
+                        "account_name": "Condax",
+                        "regional_office": "West",
+                        "recommended_owner": "James Ascencio",
+                        "task_type": "risk_review_followup",
+                        "reason": "Average risk score 0.94 with 1 open opportunities and max age 222 days.",
+                        "suggested_due_in_days": 3
+                      },
+                      {
+                        "account_name": "Condax",
+                        "regional_office": "East",
+                        "recommended_owner": "Cassey Cress",
+                        "task_type": "risk_review_followup",
+                        "reason": "Average risk score 0.94 with 2 open opportunities and max age 230 days.",
+                        "suggested_due_in_days": 3
+                      },
+                      {
+                        "account_name": "Dalttechnology",
+                        "regional_office": "West",
+                        "recommended_owner": "Markita Hansen",
+                        "task_type": "risk_review_followup",
+                        "reason": "Average risk score 0.94 with 2 open opportunities and max age 211 days.",
+                        "suggested_due_in_days": 3
+                      }
+                    ]
+                  },
+                  "approval_request_id": "apr_aa333dbe6b80",
+                  "approval_role_required": "sales_leader"
+                }
+              },
+              "invocation_id": "inv-103160f8b7c5",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required",
+        "capability": "gtm.prepare_followup_tasks",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "actual": {
+        "planned_capability": "gtm.prepare_followup_tasks",
+        "capability": "gtm.prepare_followup_tasks",
+        "service": "pipeline",
+        "outcome": "approval_required",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "ranking_basis": "risk_score"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user explicitly asked to prepare follow-up tasks for high-risk accounts, which matches the follow-up task capability. Quarter is provided; other ranking and scope fields are omitted to keep the invocation bounded and let the service clarify if needed.",
+          "user_message": "Using the follow-up task capability for 2017-Q2. If you need more scope details, please clarify."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": {
+        "passed": true,
+        "details": {
+          "approval_request_id": "apr_aa333dbe6b80",
+          "approver_actor_id": "sales_leader",
+          "approval_payload": {
+            "actor_id": "sales_leader",
+            "approval_request_id": "apr_aa333dbe6b80",
+            "result": {
+              "approval": {
+                "approval_request_id": "apr_aa333dbe6b80",
+                "approved_at": "2026-04-13T04:55:45.256946+00:00",
+                "approved_by": {
+                  "actor_id": "sales_leader",
+                  "role": "sales_leader",
+                  "email": "human:alex.king@example.com"
+                },
+                "capability": "gtm.prepare_followup_tasks",
+                "preview": {
+                  "owner_scope": "company",
+                  "quarter": "2017-Q2",
+                  "ranking_basis": "risk_score",
+                  "requires_approval": true,
+                  "tasks": [
+                    {
+                      "account_name": "Betasoloin",
+                      "reason": "Average risk score 0.94 with 2 open opportunities and max age 246 days.",
+                      "recommended_owner": "Hayden Neloms",
+                      "regional_office": "West",
+                      "suggested_due_in_days": 3,
+                      "task_type": "risk_review_followup"
+                    },
+                    {
+                      "account_name": "Betasoloin",
+                      "reason": "Average risk score 0.94 with 3 open opportunities and max age 256 days.",
+                      "recommended_owner": "Corliss Cosme",
+                      "regional_office": "East",
+                      "suggested_due_in_days": 3,
+                      "task_type": "risk_review_followup"
+                    },
+                    {
+                      "account_name": "Condax",
+                      "reason": "Average risk score 0.94 with 1 open opportunities and max age 222 days.",
+                      "recommended_owner": "James Ascencio",
+                      "regional_office": "West",
+                      "suggested_due_in_days": 3,
+                      "task_type": "risk_review_followup"
+                    },
+                    {
+                      "account_name": "Condax",
+                      "reason": "Average risk score 0.94 with 2 open opportunities and max age 230 days.",
+                      "recommended_owner": "Cassey Cress",
+                      "regional_office": "East",
+                      "suggested_due_in_days": 3,
+                      "task_type": "risk_review_followup"
+                    },
+                    {
+                      "account_name": "Dalttechnology",
+                      "reason": "Average risk score 0.94 with 2 open opportunities and max age 211 days.",
+                      "recommended_owner": "Markita Hansen",
+                      "regional_office": "West",
+                      "suggested_due_in_days": 3,
+                      "task_type": "risk_review_followup"
+                    }
+                  ]
+                },
+                "requested_at": "2026-04-13T04:55:45.249086+00:00",
+                "requested_by": {
+                  "actor_id": "rev_ops_manager",
+                  "email": "human:priya.shah@example.com",
+                  "role": "rev_ops_manager"
+                },
+                "required_role": "sales_leader",
+                "status": "approved"
+              }
+            }
+          }
+        }
+      },
+      "response": {
+        "runtime": "llm",
+        "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q2.",
+        "actor_id": "rev_ops_manager",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user explicitly asked to prepare follow-up tasks for high-risk accounts, which matches the follow-up task capability. Quarter is provided; other ranking and scope fields are omitted to keep the invocation bounded and let the service clarify if needed.",
+          "user_message": "Using the follow-up task capability for 2017-Q2. If you need more scope details, please clarify."
+        },
+        "planned_capability": "gtm.prepare_followup_tasks",
+        "selected_capability": "gtm.prepare_followup_tasks",
+        "selected_service": "pipeline",
+        "parameters": {
+          "quarter": "2017-Q2",
+          "ranking_basis": "risk_score"
+        },
+        "capability_metadata": {
+          "description": "Prepare follow-up tasks for high-risk accounts without executing downstream mutations.",
+          "minimum_scope": [
+            "gtm.pipeline.followup"
+          ],
+          "inputs": [
+            "quarter",
+            "ranking_basis",
+            "owner_scope",
+            "limit"
+          ],
+          "side_effect": "write",
+          "service_name": "pipeline",
+          "service_url": "http://gtm-pipeline-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "approval_required",
+            "detail": "any downstream task creation or CRM mutation would occur",
+            "resolution": {
+              "action": "request_approval",
+              "requires": "approval before downstream mutation",
+              "preview": {
+                "quarter": "2017-Q2",
+                "owner_scope": "company",
+                "ranking_basis": "risk_score",
+                "requires_approval": true,
+                "tasks": [
+                  {
+                    "account_name": "Betasoloin",
+                    "regional_office": "West",
+                    "recommended_owner": "Hayden Neloms",
+                    "task_type": "risk_review_followup",
+                    "reason": "Average risk score 0.94 with 2 open opportunities and max age 246 days.",
+                    "suggested_due_in_days": 3
+                  },
+                  {
+                    "account_name": "Betasoloin",
+                    "regional_office": "East",
+                    "recommended_owner": "Corliss Cosme",
+                    "task_type": "risk_review_followup",
+                    "reason": "Average risk score 0.94 with 3 open opportunities and max age 256 days.",
+                    "suggested_due_in_days": 3
+                  },
+                  {
+                    "account_name": "Condax",
+                    "regional_office": "West",
+                    "recommended_owner": "James Ascencio",
+                    "task_type": "risk_review_followup",
+                    "reason": "Average risk score 0.94 with 1 open opportunities and max age 222 days.",
+                    "suggested_due_in_days": 3
+                  },
+                  {
+                    "account_name": "Condax",
+                    "regional_office": "East",
+                    "recommended_owner": "Cassey Cress",
+                    "task_type": "risk_review_followup",
+                    "reason": "Average risk score 0.94 with 2 open opportunities and max age 230 days.",
+                    "suggested_due_in_days": 3
+                  },
+                  {
+                    "account_name": "Dalttechnology",
+                    "regional_office": "West",
+                    "recommended_owner": "Markita Hansen",
+                    "task_type": "risk_review_followup",
+                    "reason": "Average risk score 0.94 with 2 open opportunities and max age 211 days.",
+                    "suggested_due_in_days": 3
+                  }
+                ]
+              },
+              "approval_request_id": "apr_aa333dbe6b80",
+              "approval_role_required": "sales_leader"
+            }
+          },
+          "invocation_id": "inv-103160f8b7c5",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase3-sales-analyst-bounded-enrichment",
+      "category": "actor-aware-enrichment",
+      "question": "Summarize firmographic context for Acme Corporation and Codehow.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Summarize firmographic context for Acme Corporation and Codehow.",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.account_enrichment_summary",
+            "service": "enrichment",
+            "max_total_loops": 2,
+            "data_check": "account_enrichment_named_accounts_bounded"
+          },
+          "actual": {
+            "planned_capability": "gtm.account_enrichment_summary",
+            "capability": "gtm.account_enrichment_summary",
+            "service": "enrichment",
+            "outcome": "success",
+            "parameters": {
+              "account_names": "Acme Corporation, Codehow"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user asked for firmographic context on specific accounts, which matches bounded account enrichment.",
+              "user_message": "Using the account enrichment summary capability for Acme Corporation and Codehow."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "account_enrichment_named_accounts_bounded",
+            "details": {
+              "expected_rows": [
+                [
+                  "Acme Corporation",
+                  "technology",
+                  "United States",
+                  "conditional_fit",
+                  "medium",
+                  "general_expansion",
+                  "Sector=technology; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=conditional_fit"
+                ],
+                [
+                  "Codehow",
+                  "software",
+                  "United States",
+                  "strong_fit",
+                  "high",
+                  "cloud_modernization",
+                  "Sector=software; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=strong_fit"
+                ]
+              ],
+              "actual_rows": [
+                [
+                  "Acme Corporation",
+                  "technology",
+                  "United States",
+                  "conditional_fit",
+                  "medium",
+                  "general_expansion",
+                  "Sector=technology; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=conditional_fit"
+                ],
+                [
+                  "Codehow",
+                  "software",
+                  "United States",
+                  "strong_fit",
+                  "high",
+                  "cloud_modernization",
+                  "Sector=software; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=strong_fit"
+                ]
+              ],
+              "all_sensitive_fields_masked": true
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Summarize firmographic context for Acme Corporation and Codehow.",
+            "actor_id": "sales_analyst",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user asked for firmographic context on specific accounts, which matches bounded account enrichment.",
+              "user_message": "Using the account enrichment summary capability for Acme Corporation and Codehow."
+            },
+            "planned_capability": "gtm.account_enrichment_summary",
+            "selected_capability": "gtm.account_enrichment_summary",
+            "selected_service": "enrichment",
+            "parameters": {
+              "account_names": "Acme Corporation, Codehow"
+            },
+            "capability_metadata": {
+              "description": "Return bounded firmographic context and fit signals for selected accounts.",
+              "minimum_scope": [
+                "gtm.enrichment.read"
+              ],
+              "inputs": [
+                "account_names",
+                "limit"
+              ],
+              "side_effect": "read",
+              "service_name": "enrichment",
+              "service_url": "http://gtm-enrichment-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "accounts": [
+                  {
+                    "account_name": "Acme Corporation",
+                    "sector": "technology",
+                    "office_location": "United States",
+                    "parent_company": null,
+                    "revenue_band": null,
+                    "employee_band": null,
+                    "icp_fit": "conditional_fit",
+                    "intent_signal": "medium",
+                    "likely_buying_motion": "general_expansion",
+                    "enrichment_rationale": "Sector=technology; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=conditional_fit"
+                  },
+                  {
+                    "account_name": "Codehow",
+                    "sector": "software",
+                    "office_location": "United States",
+                    "parent_company": null,
+                    "revenue_band": null,
+                    "employee_band": null,
+                    "icp_fit": "strong_fit",
+                    "intent_signal": "high",
+                    "likely_buying_motion": "cloud_modernization",
+                    "enrichment_rationale": "Sector=software; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=strong_fit"
+                  }
+                ],
+                "bounded_to_account_count": 2,
+                "visibility": {
+                  "enrichment_access": "bounded"
+                }
+              },
+              "invocation_id": "inv-0467e885f4ab",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.account_enrichment_summary",
+        "service": "enrichment",
+        "max_total_loops": 2,
+        "data_check": "account_enrichment_named_accounts_bounded"
+      },
+      "actual": {
+        "planned_capability": "gtm.account_enrichment_summary",
+        "capability": "gtm.account_enrichment_summary",
+        "service": "enrichment",
+        "outcome": "success",
+        "parameters": {
+          "account_names": "Acme Corporation, Codehow"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user asked for firmographic context on specific accounts, which matches bounded account enrichment.",
+          "user_message": "Using the account enrichment summary capability for Acme Corporation and Codehow."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "account_enrichment_named_accounts_bounded",
+        "details": {
+          "expected_rows": [
+            [
+              "Acme Corporation",
+              "technology",
+              "United States",
+              "conditional_fit",
+              "medium",
+              "general_expansion",
+              "Sector=technology; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=conditional_fit"
+            ],
+            [
+              "Codehow",
+              "software",
+              "United States",
+              "strong_fit",
+              "high",
+              "cloud_modernization",
+              "Sector=software; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=strong_fit"
+            ]
+          ],
+          "actual_rows": [
+            [
+              "Acme Corporation",
+              "technology",
+              "United States",
+              "conditional_fit",
+              "medium",
+              "general_expansion",
+              "Sector=technology; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=conditional_fit"
+            ],
+            [
+              "Codehow",
+              "software",
+              "United States",
+              "strong_fit",
+              "high",
+              "cloud_modernization",
+              "Sector=software; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=strong_fit"
+            ]
+          ],
+          "all_sensitive_fields_masked": true
+        }
+      },
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Summarize firmographic context for Acme Corporation and Codehow.",
+        "actor_id": "sales_analyst",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user asked for firmographic context on specific accounts, which matches bounded account enrichment.",
+          "user_message": "Using the account enrichment summary capability for Acme Corporation and Codehow."
+        },
+        "planned_capability": "gtm.account_enrichment_summary",
+        "selected_capability": "gtm.account_enrichment_summary",
+        "selected_service": "enrichment",
+        "parameters": {
+          "account_names": "Acme Corporation, Codehow"
+        },
+        "capability_metadata": {
+          "description": "Return bounded firmographic context and fit signals for selected accounts.",
+          "minimum_scope": [
+            "gtm.enrichment.read"
+          ],
+          "inputs": [
+            "account_names",
+            "limit"
+          ],
+          "side_effect": "read",
+          "service_name": "enrichment",
+          "service_url": "http://gtm-enrichment-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "accounts": [
+              {
+                "account_name": "Acme Corporation",
+                "sector": "technology",
+                "office_location": "United States",
+                "parent_company": null,
+                "revenue_band": null,
+                "employee_band": null,
+                "icp_fit": "conditional_fit",
+                "intent_signal": "medium",
+                "likely_buying_motion": "general_expansion",
+                "enrichment_rationale": "Sector=technology; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=conditional_fit"
+              },
+              {
+                "account_name": "Codehow",
+                "sector": "software",
+                "office_location": "United States",
+                "parent_company": null,
+                "revenue_band": null,
+                "employee_band": null,
+                "icp_fit": "strong_fit",
+                "intent_signal": "high",
+                "likely_buying_motion": "cloud_modernization",
+                "enrichment_rationale": "Sector=software; region=United States; revenue_band=mid_market; employee_band=2000_to_4999; fit=strong_fit"
+              }
+            ],
+            "bounded_to_account_count": 2,
+            "visibility": {
+              "enrichment_access": "bounded"
+            }
+          },
+          "invocation_id": "inv-0467e885f4ab",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase3-sales-analyst-lookalike-denied",
+      "category": "actor-aware-enrichment",
+      "question": "Find lookalike accounts similar to Condax.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Condax.",
+          "expected": {
+            "outcome": "denied",
+            "capability": "gtm.lookalike_accounts",
+            "service": "enrichment",
+            "max_total_loops": 2
+          },
+          "actual": {
+            "planned_capability": "gtm.lookalike_accounts",
+            "capability": "gtm.lookalike_accounts",
+            "service": "enrichment",
+            "outcome": "denied",
+            "parameters": {
+              "reference_account": "Condax"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user asked for lookalike accounts similar to a named reference account, which matches the enrichment capability for explainable similarity-based lookalikes.",
+              "user_message": "I\u2019ll use the lookalike accounts capability for Condax and return a bounded similarity-based set."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Find lookalike accounts similar to Condax.",
+            "actor_id": "sales_analyst",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user asked for lookalike accounts similar to a named reference account, which matches the enrichment capability for explainable similarity-based lookalikes.",
+              "user_message": "I\u2019ll use the lookalike accounts capability for Condax and return a bounded similarity-based set."
+            },
+            "planned_capability": "gtm.lookalike_accounts",
+            "selected_capability": "gtm.lookalike_accounts",
+            "selected_service": "enrichment",
+            "parameters": {
+              "reference_account": "Condax"
+            },
+            "capability_metadata": {
+              "description": "Return bounded lookalike accounts using explainable similarity logic.",
+              "minimum_scope": [
+                "gtm.enrichment.read"
+              ],
+              "inputs": [
+                "reference_account",
+                "limit"
+              ],
+              "side_effect": "read",
+              "service_name": "enrichment",
+              "service_url": "http://gtm-enrichment-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Lookalike analysis is not available for this actor role.",
+                "resolution": {
+                  "action": "request_authorized_actor",
+                  "requires": "role with lookalike access"
+                }
+              },
+              "invocation_id": "inv-5a4de91dbc7b",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied",
+        "capability": "gtm.lookalike_accounts",
+        "service": "enrichment",
+        "max_total_loops": 2
+      },
+      "actual": {
+        "planned_capability": "gtm.lookalike_accounts",
+        "capability": "gtm.lookalike_accounts",
+        "service": "enrichment",
+        "outcome": "denied",
+        "parameters": {
+          "reference_account": "Condax"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user asked for lookalike accounts similar to a named reference account, which matches the enrichment capability for explainable similarity-based lookalikes.",
+          "user_message": "I\u2019ll use the lookalike accounts capability for Condax and return a bounded similarity-based set."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Find lookalike accounts similar to Condax.",
+        "actor_id": "sales_analyst",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user asked for lookalike accounts similar to a named reference account, which matches the enrichment capability for explainable similarity-based lookalikes.",
+          "user_message": "I\u2019ll use the lookalike accounts capability for Condax and return a bounded similarity-based set."
+        },
+        "planned_capability": "gtm.lookalike_accounts",
+        "selected_capability": "gtm.lookalike_accounts",
+        "selected_service": "enrichment",
+        "parameters": {
+          "reference_account": "Condax"
+        },
+        "capability_metadata": {
+          "description": "Return bounded lookalike accounts using explainable similarity logic.",
+          "minimum_scope": [
+            "gtm.enrichment.read"
+          ],
+          "inputs": [
+            "reference_account",
+            "limit"
+          ],
+          "side_effect": "read",
+          "service_name": "enrichment",
+          "service_url": "http://gtm-enrichment-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Lookalike analysis is not available for this actor role.",
+            "resolution": {
+              "action": "request_authorized_actor",
+              "requires": "role with lookalike access"
+            }
+          },
+          "invocation_id": "inv-5a4de91dbc7b",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    },
+    {
+      "id": "phase3-sales-leader-lookalike-success",
+      "category": "actor-aware-enrichment",
+      "question": "Find lookalike accounts similar to Condax.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Find lookalike accounts similar to Condax.",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.lookalike_accounts",
+            "service": "enrichment",
+            "max_total_loops": 2,
+            "data_check": "lookalike_condax"
+          },
+          "actual": {
+            "planned_capability": "gtm.lookalike_accounts",
+            "capability": "gtm.lookalike_accounts",
+            "service": "enrichment",
+            "outcome": "success",
+            "parameters": {
+              "reference_account": "Condax"
+            },
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user asked for lookalike accounts similar to a named reference account, which matches the enrichment capability for explainable similarity-based lookalikes.",
+              "user_message": "Using the lookalike accounts capability for Condax."
+            }
+          },
+          "data_check": {
+            "passed": true,
+            "check": "lookalike_condax",
+            "details": {
+              "expected_reference": [
+                [
+                  "Condax",
+                  "medical",
+                  "United States",
+                  "commercial",
+                  "under_500",
+                  "medical|United States|commercial|under_500",
+                  "qualified_fit",
+                  "medium"
+                ]
+              ],
+              "actual_reference": [
+                [
+                  "Condax",
+                  "medical",
+                  "United States",
+                  "commercial",
+                  "under_500",
+                  "medical|United States|commercial|under_500",
+                  "qualified_fit",
+                  "medium"
+                ]
+              ],
+              "expected_matches": [
+                [
+                  "Betasoloin",
+                  "medical",
+                  "United States",
+                  "commercial",
+                  "under_500",
+                  "qualified_fit",
+                  "medium",
+                  "regulated_growth",
+                  "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+                ]
+              ],
+              "actual_matches": [
+                [
+                  "Betasoloin",
+                  "medical",
+                  "United States",
+                  "commercial",
+                  "under_500",
+                  "qualified_fit",
+                  "medium",
+                  "regulated_growth",
+                  "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+                ]
+              ]
+            }
+          },
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Find lookalike accounts similar to Condax.",
+            "actor_id": "sales_leader",
+            "history": [],
+            "loop_counts": {
+              "planner_loops": 1,
+              "service_invoke_loops": 1,
+              "total_loops": 2
+            },
+            "planner": {
+              "model": "gpt-5.4-mini",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "The user asked for lookalike accounts similar to a named reference account, which matches the enrichment capability for explainable similarity-based lookalikes.",
+              "user_message": "Using the lookalike accounts capability for Condax."
+            },
+            "planned_capability": "gtm.lookalike_accounts",
+            "selected_capability": "gtm.lookalike_accounts",
+            "selected_service": "enrichment",
+            "parameters": {
+              "reference_account": "Condax"
+            },
+            "capability_metadata": {
+              "description": "Return bounded lookalike accounts using explainable similarity logic.",
+              "minimum_scope": [
+                "gtm.enrichment.read"
+              ],
+              "inputs": [
+                "reference_account",
+                "limit"
+              ],
+              "side_effect": "read",
+              "service_name": "enrichment",
+              "service_url": "http://gtm-enrichment-service:9200"
+            },
+            "prior_service_calls": [],
+            "anip_result": {
+              "success": true,
+              "result": {
+                "reference_account": "Condax",
+                "reference_profile": {
+                  "account_name": "Condax",
+                  "sector": "medical",
+                  "office_location": "United States",
+                  "revenue_band": "commercial",
+                  "employee_band": "under_500",
+                  "lookalike_key": "medical|United States|commercial|under_500",
+                  "icp_fit": "qualified_fit",
+                  "intent_signal": "medium"
+                },
+                "matches": [
+                  {
+                    "account_name": "Betasoloin",
+                    "sector": "medical",
+                    "office_location": "United States",
+                    "revenue_band": "commercial",
+                    "employee_band": "under_500",
+                    "icp_fit": "qualified_fit",
+                    "intent_signal": "medium",
+                    "likely_buying_motion": "regulated_growth",
+                    "enrichment_rationale": "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+                  }
+                ]
+              },
+              "invocation_id": "inv-e54eba2795c1",
+              "client_reference_id": null,
+              "task_id": null,
+              "parent_invocation_id": null,
+              "upstream_service": null
+            }
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.lookalike_accounts",
+        "service": "enrichment",
+        "max_total_loops": 2,
+        "data_check": "lookalike_condax"
+      },
+      "actual": {
+        "planned_capability": "gtm.lookalike_accounts",
+        "capability": "gtm.lookalike_accounts",
+        "service": "enrichment",
+        "outcome": "success",
+        "parameters": {
+          "reference_account": "Condax"
+        },
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user asked for lookalike accounts similar to a named reference account, which matches the enrichment capability for explainable similarity-based lookalikes.",
+          "user_message": "Using the lookalike accounts capability for Condax."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": {
+        "passed": true,
+        "check": "lookalike_condax",
+        "details": {
+          "expected_reference": [
+            [
+              "Condax",
+              "medical",
+              "United States",
+              "commercial",
+              "under_500",
+              "medical|United States|commercial|under_500",
+              "qualified_fit",
+              "medium"
+            ]
+          ],
+          "actual_reference": [
+            [
+              "Condax",
+              "medical",
+              "United States",
+              "commercial",
+              "under_500",
+              "medical|United States|commercial|under_500",
+              "qualified_fit",
+              "medium"
+            ]
+          ],
+          "expected_matches": [
+            [
+              "Betasoloin",
+              "medical",
+              "United States",
+              "commercial",
+              "under_500",
+              "qualified_fit",
+              "medium",
+              "regulated_growth",
+              "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+            ]
+          ],
+          "actual_matches": [
+            [
+              "Betasoloin",
+              "medical",
+              "United States",
+              "commercial",
+              "under_500",
+              "qualified_fit",
+              "medium",
+              "regulated_growth",
+              "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+            ]
+          ]
+        }
+      },
+      "audit_check": {
+        "passed": true,
+        "details": {
+          "actor_id": "sales_leader",
+          "service": "enrichment",
+          "capability": "gtm.lookalike_accounts",
+          "min_entries": 1,
+          "actual_entries": 5
+        }
+      },
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Find lookalike accounts similar to Condax.",
+        "actor_id": "sales_leader",
+        "history": [],
+        "loop_counts": {
+          "planner_loops": 1,
+          "service_invoke_loops": 1,
+          "total_loops": 2
+        },
+        "planner": {
+          "model": "gpt-5.4-mini",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "The user asked for lookalike accounts similar to a named reference account, which matches the enrichment capability for explainable similarity-based lookalikes.",
+          "user_message": "Using the lookalike accounts capability for Condax."
+        },
+        "planned_capability": "gtm.lookalike_accounts",
+        "selected_capability": "gtm.lookalike_accounts",
+        "selected_service": "enrichment",
+        "parameters": {
+          "reference_account": "Condax"
+        },
+        "capability_metadata": {
+          "description": "Return bounded lookalike accounts using explainable similarity logic.",
+          "minimum_scope": [
+            "gtm.enrichment.read"
+          ],
+          "inputs": [
+            "reference_account",
+            "limit"
+          ],
+          "side_effect": "read",
+          "service_name": "enrichment",
+          "service_url": "http://gtm-enrichment-service:9200"
+        },
+        "prior_service_calls": [],
+        "anip_result": {
+          "success": true,
+          "result": {
+            "reference_account": "Condax",
+            "reference_profile": {
+              "account_name": "Condax",
+              "sector": "medical",
+              "office_location": "United States",
+              "revenue_band": "commercial",
+              "employee_band": "under_500",
+              "lookalike_key": "medical|United States|commercial|under_500",
+              "icp_fit": "qualified_fit",
+              "intent_signal": "medium"
+            },
+            "matches": [
+              {
+                "account_name": "Betasoloin",
+                "sector": "medical",
+                "office_location": "United States",
+                "revenue_band": "commercial",
+                "employee_band": "under_500",
+                "icp_fit": "qualified_fit",
+                "intent_signal": "medium",
+                "likely_buying_motion": "regulated_growth",
+                "enrichment_rationale": "Sector=medical; region=United States; revenue_band=commercial; employee_band=under_500; fit=qualified_fit"
+              }
+            ]
+          },
+          "invocation_id": "inv-e54eba2795c1",
+          "client_reference_id": null,
+          "task_id": null,
+          "parent_invocation_id": null,
+          "upstream_service": null
+        }
+      }
+    }
+  ]
+}

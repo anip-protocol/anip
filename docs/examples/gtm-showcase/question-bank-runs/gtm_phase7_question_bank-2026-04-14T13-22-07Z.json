@@ -1,0 +1,2779 @@
+{
+  "generated_at": "2026-04-14T13-22-07Z",
+  "runtime_url": "http://127.0.0.1:9303",
+  "suite": "gtm_phase7_question_bank",
+  "summary": {
+    "passed": 0,
+    "total": 50,
+    "by_category": {
+      "compound-read": {
+        "passed": 0,
+        "total": 23
+      },
+      "compound-approval": {
+        "passed": 0,
+        "total": 17
+      },
+      "compound-actor-aware": {
+        "passed": 0,
+        "total": 9
+      },
+      "compound-safe-stop": {
+        "passed": 0,
+        "total": 1
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "compound-prioritize-enrich-draft-email",
+      "category": "compound-read",
+      "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a first-touch email for the highest-priority account.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a first-touch email for the highest-priority account.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "compound-prioritize-enrich-draft-linkedin",
+      "category": "compound-read",
+      "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a LinkedIn first-touch for the highest-priority account.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a LinkedIn first-touch for the highest-priority account.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "compound-prioritize-enrich-draft-followup",
+      "category": "compound-read",
+      "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a follow-up email for the highest-priority account.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a follow-up email for the highest-priority account.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "compound-forecast-followup-company",
+      "category": "compound-approval",
+      "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "compound-forecast-followup-company-analyst",
+      "category": "compound-actor-aware",
+      "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "compound-score-route-sales",
+      "category": "compound-approval",
+      "question": "Score inbound leads from last week, route the hot ones to sales, and draft a first-touch email for the highest-priority account.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score inbound leads from last week, route the hot ones to sales, and draft a first-touch email for the highest-priority account.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "compound-score-route-sdr",
+      "category": "compound-approval",
+      "question": "Score inbound leads from last week and route the hot ones to SDR.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score inbound leads from last week and route the hot ones to SDR.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "compound-route-sales-analyst",
+      "category": "compound-actor-aware",
+      "question": "Score inbound leads from last week and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score inbound leads from last week and route the hot ones to sales.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "compound-bottleneck-enrich-east",
+      "category": "compound-read",
+      "question": "For 2017-Q2 in the East region, show the biggest bottlenecks and enrich the top 3 at-risk accounts contributing to them.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "For 2017-Q2 in the East region, show the biggest bottlenecks and enrich the top 3 at-risk accounts contributing to them.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "compound-bottleneck-followup-east",
+      "category": "compound-approval",
+      "question": "For 2017-Q2 in the East region, show the biggest bottlenecks, identify the top 3 at-risk accounts contributing to them, and prepare follow-up task previews for them.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "For 2017-Q2 in the East region, show the biggest bottlenecks, identify the top 3 at-risk accounts contributing to them, and prepare follow-up task previews for them.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "compound-bottleneck-draft-safe-stop",
+      "category": "compound-safe-stop",
+      "question": "For 2017-Q2 in the East region, show the biggest bottlenecks, identify the top 3 at-risk accounts contributing to them, enrich those accounts, and draft a first-touch email for the top one.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "For 2017-Q2 in the East region, show the biggest bottlenecks, identify the top 3 at-risk accounts contributing to them, enrich those accounts, and draft a first-touch email for the top one.",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "clarification_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "compound-forecast-followup-east",
+      "category": "compound-approval",
+      "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts in the East region.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "compound-forecast-followup-east-analyst",
+      "category": "compound-actor-aware",
+      "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts in the East region.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "compound-prioritize-atrisk-enrich",
+      "category": "compound-read",
+      "question": "Prioritize the at-risk accounts in 2017-Q2 and enrich the top 3 accounts.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the at-risk accounts in 2017-Q2 and enrich the top 3 accounts.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-15",
+      "category": "compound-actor-aware",
+      "question": "Score inbound leads from last week and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score inbound leads from last week and route the hot ones to sales.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-16",
+      "category": "compound-read",
+      "question": "For 2017-Q2 in the East region, show the biggest bottlenecks and enrich the top 3 at-risk accounts contributing to them.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "For 2017-Q2 in the East region, show the biggest bottlenecks and enrich the top 3 at-risk accounts contributing to them.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-17",
+      "category": "compound-approval",
+      "question": "For 2017-Q2 in the West region, show the biggest bottlenecks, identify the top 3 at-risk accounts contributing to them, and prepare follow-up task previews for them.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "For 2017-Q2 in the West region, show the biggest bottlenecks, identify the top 3 at-risk accounts contributing to them, and prepare follow-up task previews for them.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-18",
+      "category": "compound-read",
+      "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a LinkedIn first-touch for the highest-priority account.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a LinkedIn first-touch for the highest-priority account.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-19",
+      "category": "compound-read",
+      "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a first-touch email for the highest-priority account in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a first-touch email for the highest-priority account in the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-20",
+      "category": "compound-approval",
+      "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts in the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts in the West region.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-21",
+      "category": "compound-actor-aware",
+      "question": "Score inbound leads from last week and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score inbound leads from last week and route the hot ones to sales.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-22",
+      "category": "compound-read",
+      "question": "For 2017-Q2 in the East region, show the biggest bottlenecks and enrich the top 3 at-risk accounts contributing to them.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "For 2017-Q2 in the East region, show the biggest bottlenecks and enrich the top 3 at-risk accounts contributing to them.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-23",
+      "category": "compound-approval",
+      "question": "For 2017-Q2 in the West region, show the biggest bottlenecks, identify the top 3 at-risk accounts contributing to them, and prepare follow-up task previews for them.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "For 2017-Q2 in the West region, show the biggest bottlenecks, identify the top 3 at-risk accounts contributing to them, and prepare follow-up task previews for them.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-24",
+      "category": "compound-read",
+      "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a LinkedIn first-touch for the highest-priority account.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a LinkedIn first-touch for the highest-priority account.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-25",
+      "category": "compound-read",
+      "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a first-touch email for the highest-priority account in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a first-touch email for the highest-priority account in the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-26",
+      "category": "compound-approval",
+      "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts in the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts in the West region.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-27",
+      "category": "compound-actor-aware",
+      "question": "Score inbound leads from last week and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score inbound leads from last week and route the hot ones to sales.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-28",
+      "category": "compound-read",
+      "question": "For 2017-Q2 in the East region, show the biggest bottlenecks and enrich the top 3 at-risk accounts contributing to them.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "For 2017-Q2 in the East region, show the biggest bottlenecks and enrich the top 3 at-risk accounts contributing to them.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-29",
+      "category": "compound-approval",
+      "question": "For 2017-Q2 in the West region, show the biggest bottlenecks, identify the top 3 at-risk accounts contributing to them, and prepare follow-up task previews for them.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "For 2017-Q2 in the West region, show the biggest bottlenecks, identify the top 3 at-risk accounts contributing to them, and prepare follow-up task previews for them.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-30",
+      "category": "compound-read",
+      "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a LinkedIn first-touch for the highest-priority account.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a LinkedIn first-touch for the highest-priority account.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-31",
+      "category": "compound-read",
+      "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a first-touch email for the highest-priority account in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a first-touch email for the highest-priority account in the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-32",
+      "category": "compound-approval",
+      "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts in the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts in the West region.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-33",
+      "category": "compound-actor-aware",
+      "question": "Score inbound leads from last week and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score inbound leads from last week and route the hot ones to sales.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-34",
+      "category": "compound-read",
+      "question": "For 2017-Q2 in the East region, show the biggest bottlenecks and enrich the top 3 at-risk accounts contributing to them.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "For 2017-Q2 in the East region, show the biggest bottlenecks and enrich the top 3 at-risk accounts contributing to them.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-35",
+      "category": "compound-approval",
+      "question": "For 2017-Q2 in the West region, show the biggest bottlenecks, identify the top 3 at-risk accounts contributing to them, and prepare follow-up task previews for them.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "For 2017-Q2 in the West region, show the biggest bottlenecks, identify the top 3 at-risk accounts contributing to them, and prepare follow-up task previews for them.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-36",
+      "category": "compound-read",
+      "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a LinkedIn first-touch for the highest-priority account.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a LinkedIn first-touch for the highest-priority account.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-37",
+      "category": "compound-read",
+      "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a first-touch email for the highest-priority account in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a first-touch email for the highest-priority account in the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-38",
+      "category": "compound-approval",
+      "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts in the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts in the West region.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-39",
+      "category": "compound-actor-aware",
+      "question": "Score inbound leads from last week and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score inbound leads from last week and route the hot ones to sales.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-40",
+      "category": "compound-read",
+      "question": "For 2017-Q2 in the East region, show the biggest bottlenecks and enrich the top 3 at-risk accounts contributing to them.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "For 2017-Q2 in the East region, show the biggest bottlenecks and enrich the top 3 at-risk accounts contributing to them.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-41",
+      "category": "compound-approval",
+      "question": "For 2017-Q2 in the West region, show the biggest bottlenecks, identify the top 3 at-risk accounts contributing to them, and prepare follow-up task previews for them.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "For 2017-Q2 in the West region, show the biggest bottlenecks, identify the top 3 at-risk accounts contributing to them, and prepare follow-up task previews for them.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-42",
+      "category": "compound-read",
+      "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a LinkedIn first-touch for the highest-priority account.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a LinkedIn first-touch for the highest-priority account.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-43",
+      "category": "compound-read",
+      "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a first-touch email for the highest-priority account in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a first-touch email for the highest-priority account in the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-44",
+      "category": "compound-approval",
+      "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts in the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts in the West region.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-45",
+      "category": "compound-actor-aware",
+      "question": "Score inbound leads from last week and route the hot ones to sales.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Score inbound leads from last week and route the hot ones to sales.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-46",
+      "category": "compound-read",
+      "question": "For 2017-Q2 in the East region, show the biggest bottlenecks and enrich the top 3 at-risk accounts contributing to them.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "For 2017-Q2 in the East region, show the biggest bottlenecks and enrich the top 3 at-risk accounts contributing to them.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-47",
+      "category": "compound-approval",
+      "question": "For 2017-Q2 in the West region, show the biggest bottlenecks, identify the top 3 at-risk accounts contributing to them, and prepare follow-up task previews for them.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "For 2017-Q2 in the West region, show the biggest bottlenecks, identify the top 3 at-risk accounts contributing to them, and prepare follow-up task previews for them.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-48",
+      "category": "compound-read",
+      "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a LinkedIn first-touch for the highest-priority account.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a LinkedIn first-touch for the highest-priority account.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-49",
+      "category": "compound-read",
+      "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a first-touch email for the highest-priority account in the East region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a first-touch email for the highest-priority account in the East region.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "phase7-matrix-50",
+      "category": "compound-approval",
+      "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts in the West region.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts in the West region.",
+          "expected": {
+            "outcome": "approval_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome approval_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "approval_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome approval_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    }
+  ]
+}

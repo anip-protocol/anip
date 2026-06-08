@@ -1,0 +1,74 @@
+[
+  {
+    "id": "allowed-1",
+    "expected_outcome": "allowed",
+    "expected_permission_status": "available",
+    "notes": "Starter allowed scenario."
+  },
+  {
+    "id": "allowed-2",
+    "expected_outcome": "allowed",
+    "expected_permission_status": "available",
+    "notes": "Starter allowed scenario."
+  },
+  {
+    "id": "allowed-3",
+    "expected_outcome": "allowed",
+    "expected_permission_status": "available",
+    "notes": "Starter allowed scenario."
+  },
+  {
+    "id": "restricted-1",
+    "expected_outcome": "restricted",
+    "expected_permission_status": "restricted",
+    "notes": "Starter restricted scenario."
+  },
+  {
+    "id": "restricted-2",
+    "expected_outcome": "restricted",
+    "expected_permission_status": "restricted",
+    "notes": "Starter restricted scenario."
+  },
+  {
+    "id": "restricted-3",
+    "expected_outcome": "restricted",
+    "expected_permission_status": "restricted",
+    "notes": "Starter restricted scenario."
+  },
+  {
+    "id": "denied-1",
+    "expected_outcome": "denied",
+    "expected_permission_status": "denied",
+    "notes": "Starter denied scenario."
+  },
+  {
+    "id": "denied-2",
+    "expected_outcome": "denied",
+    "expected_permission_status": "denied",
+    "notes": "Starter denied scenario."
+  },
+  {
+    "id": "denied-3",
+    "expected_outcome": "denied",
+    "expected_permission_status": "denied",
+    "notes": "Starter denied scenario."
+  },
+  {
+    "id": "clarification_required-1",
+    "expected_outcome": "clarification_required",
+    "expected_permission_status": "clarification_required",
+    "notes": "Starter clarification_required scenario."
+  },
+  {
+    "id": "clarification_required-2",
+    "expected_outcome": "clarification_required",
+    "expected_permission_status": "clarification_required",
+    "notes": "Starter clarification_required scenario."
+  },
+  {
+    "id": "clarification_required-3",
+    "expected_outcome": "clarification_required",
+    "expected_permission_status": "clarification_required",
+    "notes": "Starter clarification_required scenario."
+  }
+]

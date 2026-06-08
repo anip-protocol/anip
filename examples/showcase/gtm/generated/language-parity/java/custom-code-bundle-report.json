@@ -1,0 +1,42 @@
+{
+  "bundle_path": "../../examples/showcase/gtm/custom-code-bundles/gtm_pipeline_java_native",
+  "bundle_sha256": "sha256:6b037ef9a46fb62210ca6ae50ab4f323e330b89bba3b5bed37304af8209b2767",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "sha256:0764ccdc334f1af10919bd09ee0e7b6d2d1b336ea1086c19c839656ccdff6d7f",
+      "seam": "custom_file",
+      "mode": "extension_overlay",
+      "bytes": 794,
+      "overlaid": true,
+      "substrate": false
+    },
+    {
+      "path": "src/main/java/dev/anip/generated/gtm_operator_contract_20260512235040/BackendAdapter.java",
+      "sha256": "sha256:fd0da8de42c45bb2af5adaa7e8ab75c4011bef2d14c9125e77adba832791876c",
+      "seam": "backend_adapter",
+      "mode": "extension_overlay",
+      "bytes": 71647,
+      "overlaid": true,
+      "substrate": false
+    },
+    {
+      "path": "src/main/java/dev/anip/generated/gtm_operator_contract_20260512235040/GtmApprovalController.java",
+      "sha256": "sha256:b403ba3c446c8d3b218201b4b6cd742b4cb3e2fcef9b73a6588945eba562945a",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 2687,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/main/java/dev/anip/generated/gtm_operator_contract_20260512235040/Policy.java",
+      "sha256": "sha256:303226c9e3dcfb691eceb009c739de30ad3c02cf301db2c56654b0a904ce9196",
+      "seam": "policy",
+      "mode": "extension_overlay",
+      "bytes": 462,
+      "overlaid": true,
+      "substrate": false
+    }
+  ]
+}

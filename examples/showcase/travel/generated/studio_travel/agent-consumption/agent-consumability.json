@@ -1,0 +1,103 @@
+{
+  "capabilities": {
+    "travel.book_flight": {
+      "business_effects": {
+        "does_not_produce": [
+          "Book without quote",
+          "Ignore budget authority"
+        ],
+        "produces": [
+          "Execute approved action"
+        ]
+      },
+      "intent": {
+        "category": "travel.book.flight",
+        "summary": "Book a confirmed flight reservation from a current quote."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "flight_number",
+          "summary": "Flight to book."
+        },
+        {
+          "behavior": "clarify",
+          "input": "quote_id",
+          "summary": "Priced quote returned by search_flights."
+        }
+      ]
+    },
+    "travel.cancel_booking": {
+      "business_effects": {
+        "does_not_produce": [
+          "Delete booking history"
+        ],
+        "produces": [
+          "Change system state"
+        ]
+      },
+      "intent": {
+        "category": "travel.cancel.booking",
+        "summary": "Cancel an existing booking within the transactional cancellation window."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "booking_id",
+          "summary": "Booking identifier to cancel."
+        }
+      ]
+    },
+    "travel.check_availability": {
+      "business_effects": {
+        "does_not_produce": [
+          "Book travel",
+          "Charge payment"
+        ],
+        "produces": [
+          "Read bounded data"
+        ]
+      },
+      "intent": {
+        "category": "travel.check.availability",
+        "summary": "Check seat availability and current price for a specific flight."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "flight_number",
+          "summary": "Flight number to check."
+        }
+      ]
+    },
+    "travel.search_flights": {
+      "business_effects": {
+        "does_not_produce": [
+          "Book travel",
+          "Charge payment"
+        ],
+        "produces": [
+          "Summarize information",
+          "Return bounded options"
+        ]
+      },
+      "intent": {
+        "category": "travel.search.flights",
+        "summary": "Search available flights by origin and destination and return priced quote references."
+      },
+      "required_context": [
+        {
+          "behavior": "clarify",
+          "input": "origin",
+          "summary": "Departure airport IATA code."
+        },
+        {
+          "behavior": "clarify",
+          "input": "destination",
+          "summary": "Arrival airport IATA code."
+        }
+      ]
+    }
+  },
+  "schema_version": "anip-agent-consumability/v0"
+}

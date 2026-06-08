@@ -1,0 +1,32 @@
+{
+  "system": "Lead Prioritization API",
+  "default_result_limit": 25,
+  "require_approval_for_writes": true,
+  "require_clarification_on_ambiguous_record": true,
+  "dry_run_before_write": true,
+  "approval_rules": [
+    {
+      "ruleId": "approval_required_for_routing",
+      "capabilityId": "gtm.route_leads",
+      "required": true,
+      "approverType": "manager",
+      "summary": "Routing mutations require explicit approval before execution."
+    }
+  ],
+  "denial_rules": [
+    {
+      "ruleId": "deny_raw_scoring_export",
+      "denialType": "forbidden_field",
+      "capabilityId": "gtm.score_leads",
+      "summary": "Deny requests for raw model features, feature weights, or unconstrained export.",
+      "enabled": true
+    },
+    {
+      "ruleId": "deny_outreach_in_prioritization",
+      "denialType": "unsupported_object",
+      "capabilityId": "gtm.route_leads",
+      "summary": "Deny outreach drafting or message-generation work in the prioritization service.",
+      "enabled": true
+    }
+  ]
+}

@@ -1,0 +1,910 @@
+{
+  "contract_signature": "sha256:946654d5f73eb55bf9cc1b50720536819dd6c9cd83e80a67f85052afa66eca1a",
+  "developer_revision_ref": "seed:gtm-revenue-operations-four-service-estate:v1",
+  "lineage": {
+    "developer_revision": {
+      "artifact_id": "shape-gtm-pipeline-q2-review",
+      "contract_signature": "sha256:946654d5f73eb55bf9cc1b50720536819dd6c9cd83e80a67f85052afa66eca1a",
+      "ref": "seed:gtm-revenue-operations-four-service-estate:v1",
+      "revision_number": 1
+    },
+    "product_revision": {
+      "artifact_id": "req-gtm-revenue-operations-business-spec",
+      "ref": "seed:gtm-revenue-operations-business-spec:v1",
+      "revision_number": 1
+    },
+    "project_ref": "studio:gtm-pipeline-q2-review"
+  },
+  "manifest": {
+    "artifact_type": "anip_package_manifest",
+    "capability_count": 17,
+    "contract_signature": "sha256:946654d5f73eb55bf9cc1b50720536819dd6c9cd83e80a67f85052afa66eca1a",
+    "package_id": "gtm-pipeline-q2-review",
+    "package_version": "0.2.0",
+    "project_ref": "studio:gtm-pipeline-q2-review",
+    "schema_version": "anip-service-definition/v1",
+    "service_count": 4,
+    "service_ids": [
+      "gtm-pipeline-service",
+      "gtm-enrichment-service",
+      "gtm-prioritization-service",
+      "gtm-outreach-service"
+    ],
+    "source": {
+      "business_source_path": "docs/examples/gtm-showcase/gtm-revenue-operations-business-spec.md",
+      "developer_revision_ref": "seed:gtm-revenue-operations-four-service-estate:v1",
+      "product_revision_ref": "seed:gtm-revenue-operations-business-spec:v1"
+    }
+  },
+  "package_id": "gtm-pipeline-q2-review",
+  "package_version": "0.2.0",
+  "product_revision_ref": "seed:gtm-revenue-operations-business-spec:v1",
+  "project_ref": "studio:gtm-pipeline-q2-review",
+  "recommended_lock": {
+    "artifact_type": "anip_package_lock",
+    "capability_ids": [
+      "gtm.pipeline_summary",
+      "gtm.pipeline_forecast_summary",
+      "gtm.stage_bottleneck_summary",
+      "gtm.sales_team_performance_summary",
+      "gtm.product_pipeline_summary",
+      "gtm.prepare_reassignment_plan",
+      "gtm.stalled_opportunity_review",
+      "gtm.account_risk_summary",
+      "gtm.prepare_followup_tasks",
+      "gtm.account_enrichment_summary",
+      "gtm.lookalike_accounts",
+      "gtm.score_leads",
+      "gtm.prioritize_accounts",
+      "gtm.route_leads",
+      "gtm.draft_outreach_message",
+      "gtm.suggest_followup_content",
+      "gtm.objection_response_variants"
+    ],
+    "contract_signature": "sha256:946654d5f73eb55bf9cc1b50720536819dd6c9cd83e80a67f85052afa66eca1a",
+    "package_id": "gtm-pipeline-q2-review",
+    "package_version": "0.2.0",
+    "schema_version": "anip-service-definition/v1",
+    "selected_service_ids": [
+      "gtm-pipeline-service",
+      "gtm-enrichment-service",
+      "gtm-prioritization-service",
+      "gtm-outreach-service"
+    ]
+  },
+  "schema_version": "anip-service-definition/v1",
+  "service_definition": {
+    "artifact_type": "anip_service_definition",
+    "audit": {
+      "cross_service_continuity_required": true,
+      "cross_service_reconstruction_required": true,
+      "durable_records_required": true,
+      "searchable_history_required": true
+    },
+    "authority": {
+      "approval_expectation": "approval_required_for_high_risk",
+      "blocked_failure_posture": "human_review_for_unresolved_or_approval_gated_work"
+    },
+    "capability_formalizations": [
+      {
+        "approval_required_when": [],
+        "backend_operation": "gtm.pipeline_summary",
+        "bounded_evidence": [
+          "stage mix",
+          "pipeline totals",
+          "bounded risk indicators"
+        ],
+        "capability_id": "gtm.pipeline_summary",
+        "clarification_required_when": [
+          "quarter is missing",
+          "scope is underspecified for the requested comparison"
+        ],
+        "context_type": "",
+        "denied_when": [
+          "the user asks for raw row-level export instead of a bounded summary"
+        ],
+        "entity_targeted": false,
+        "id": "application_integration:gtm.pipeline_summary",
+        "inputs": [],
+        "intent_type": "business_action",
+        "minimum_scope": [
+          "gtm.pipeline.read"
+        ],
+        "operation_type": "read",
+        "output_intent": "",
+        "output_shape": "gtm_pipeline_summary_result",
+        "path_template": "/gtm/pipeline-summary",
+        "service_id": "gtm-pipeline-service",
+        "side_effect_level": "none",
+        "source_kind": "application_integration",
+        "subject_kind": "",
+        "summary": "Return a bounded pipeline health summary for a quarter and optional scope.",
+        "title": "Gtm Pipeline Summary"
+      },
+      {
+        "approval_required_when": [],
+        "backend_operation": "gtm.pipeline_forecast_summary",
+        "bounded_evidence": [
+          "forecast totals",
+          "stage-level forecast mix",
+          "top contributing accounts"
+        ],
+        "capability_id": "gtm.pipeline_forecast_summary",
+        "clarification_required_when": [
+          "quarter is missing"
+        ],
+        "context_type": "",
+        "denied_when": [
+          "the user asks for raw row-level forecast export instead of a bounded summary"
+        ],
+        "entity_targeted": false,
+        "id": "application_integration:gtm.pipeline_forecast_summary",
+        "inputs": [],
+        "intent_type": "business_action",
+        "minimum_scope": [
+          "gtm.pipeline.read"
+        ],
+        "operation_type": "read",
+        "output_intent": "",
+        "output_shape": "gtm_pipeline_forecast_summary_result",
+        "path_template": "/gtm/pipeline-forecast-summary",
+        "service_id": "gtm-pipeline-service",
+        "side_effect_level": "none",
+        "source_kind": "application_integration",
+        "subject_kind": "",
+        "summary": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+        "title": "Gtm Pipeline Forecast Summary"
+      },
+      {
+        "approval_required_when": [],
+        "backend_operation": "gtm.stage_bottleneck_summary",
+        "bounded_evidence": [
+          "open opportunity accumulation by stage",
+          "average days open by allowed slice",
+          "average risk concentration by allowed slice"
+        ],
+        "capability_id": "gtm.stage_bottleneck_summary",
+        "clarification_required_when": [
+          "quarter is missing"
+        ],
+        "context_type": "",
+        "denied_when": [
+          "the user asks for raw export or unsupported slicing instead of a bounded bottleneck summary"
+        ],
+        "entity_targeted": false,
+        "id": "application_integration:gtm.stage_bottleneck_summary",
+        "inputs": [],
+        "intent_type": "business_action",
+        "minimum_scope": [
+          "gtm.pipeline.read"
+        ],
+        "operation_type": "read",
+        "output_intent": "",
+        "output_shape": "gtm_stage_bottleneck_summary_result",
+        "path_template": "/gtm/stage-bottleneck-summary",
+        "service_id": "gtm-pipeline-service",
+        "side_effect_level": "none",
+        "source_kind": "application_integration",
+        "subject_kind": "",
+        "summary": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+        "title": "Gtm Stage Bottleneck Summary"
+      },
+      {
+        "approval_required_when": [],
+        "backend_operation": "gtm.sales_team_performance_summary",
+        "bounded_evidence": [
+          "open pipeline by team",
+          "won revenue by team",
+          "open risk and stall indicators by team"
+        ],
+        "capability_id": "gtm.sales_team_performance_summary",
+        "clarification_required_when": [
+          "quarter is missing"
+        ],
+        "context_type": "",
+        "denied_when": [
+          "the user asks for raw export or unsupported slicing instead of a bounded team performance summary"
+        ],
+        "entity_targeted": false,
+        "id": "application_integration:gtm.sales_team_performance_summary",
+        "inputs": [],
+        "intent_type": "business_action",
+        "minimum_scope": [
+          "gtm.pipeline.read"
+        ],
+        "operation_type": "read",
+        "output_intent": "",
+        "output_shape": "gtm_sales_team_performance_summary_result",
+        "path_template": "/gtm/sales-team-performance-summary",
+        "service_id": "gtm-pipeline-service",
+        "side_effect_level": "none",
+        "source_kind": "application_integration",
+        "subject_kind": "",
+        "summary": "Return a bounded sales team performance summary for a quarter and optional scope.",
+        "title": "Gtm Sales Team Performance Summary"
+      },
+      {
+        "approval_required_when": [],
+        "backend_operation": "gtm.product_pipeline_summary",
+        "bounded_evidence": [
+          "open pipeline by product",
+          "won revenue by product",
+          "loss and risk posture by product"
+        ],
+        "capability_id": "gtm.product_pipeline_summary",
+        "clarification_required_when": [
+          "quarter is missing"
+        ],
+        "context_type": "",
+        "denied_when": [
+          "the user asks for raw export instead of a bounded product summary"
+        ],
+        "entity_targeted": false,
+        "id": "application_integration:gtm.product_pipeline_summary",
+        "inputs": [],
+        "intent_type": "business_action",
+        "minimum_scope": [
+          "gtm.pipeline.read"
+        ],
+        "operation_type": "read",
+        "output_intent": "",
+        "output_shape": "gtm_product_pipeline_summary_result",
+        "path_template": "/gtm/product-pipeline-summary",
+        "service_id": "gtm-pipeline-service",
+        "side_effect_level": "none",
+        "source_kind": "application_integration",
+        "subject_kind": "",
+        "summary": "Return a bounded product pipeline summary for a quarter and optional scope.",
+        "title": "Gtm Product Pipeline Summary"
+      },
+      {
+        "approval_required_when": [
+          "any downstream reassignment execution would occur"
+        ],
+        "backend_operation": "gtm.prepare_reassignment_plan",
+        "bounded_evidence": [
+          "proposed reassignment preview",
+          "source and target managers",
+          "reason each reassignment was suggested"
+        ],
+        "capability_id": "gtm.prepare_reassignment_plan",
+        "clarification_required_when": [
+          "quarter is missing"
+        ],
+        "context_type": "",
+        "denied_when": [
+          "the request asks to execute assignment mutations directly"
+        ],
+        "entity_targeted": false,
+        "id": "application_integration:gtm.prepare_reassignment_plan",
+        "inputs": [],
+        "intent_type": "business_action",
+        "minimum_scope": [
+          "gtm.pipeline.reassign"
+        ],
+        "operation_type": "write",
+        "output_intent": "",
+        "output_shape": "gtm_prepare_reassignment_plan_result",
+        "path_template": "/gtm/prepare-reassignment-plan",
+        "service_id": "gtm-pipeline-service",
+        "side_effect_level": "reversible",
+        "source_kind": "application_integration",
+        "subject_kind": "",
+        "summary": "Prepare a reassignment preview for overloaded pipeline coverage without executing downstream mutations.",
+        "title": "Gtm Prepare Reassignment Plan"
+      },
+      {
+        "approval_required_when": [],
+        "backend_operation": "gtm.stalled_opportunity_review",
+        "bounded_evidence": [
+          "days in stage",
+          "owner",
+          "account",
+          "amount bucket"
+        ],
+        "capability_id": "gtm.stalled_opportunity_review",
+        "clarification_required_when": [
+          "stalled-days threshold is missing when the request is ambiguous"
+        ],
+        "context_type": "",
+        "denied_when": [
+          "the user asks for unconstrained raw pipeline export"
+        ],
+        "entity_targeted": false,
+        "id": "application_integration:gtm.stalled_opportunity_review",
+        "inputs": [],
+        "intent_type": "business_action",
+        "minimum_scope": [
+          "gtm.pipeline.read"
+        ],
+        "operation_type": "read",
+        "output_intent": "",
+        "output_shape": "gtm_stalled_opportunity_review_result",
+        "path_template": "/gtm/stalled-opportunity-review",
+        "service_id": "gtm-pipeline-service",
+        "side_effect_level": "none",
+        "source_kind": "application_integration",
+        "subject_kind": "",
+        "summary": "Return stalled open opportunities with bounded evidence and explainable stall reasoning.",
+        "title": "Gtm Stalled Opportunity Review"
+      },
+      {
+        "approval_required_when": [],
+        "backend_operation": "gtm.account_risk_summary",
+        "bounded_evidence": [
+          "open opportunity count",
+          "stalled opportunity indicators",
+          "risk score components"
+        ],
+        "capability_id": "gtm.account_risk_summary",
+        "clarification_required_when": [
+          "quarter is missing",
+          "ranking basis is missing"
+        ],
+        "context_type": "",
+        "denied_when": [
+          "the request asks for unconstrained export or out-of-scope outreach work"
+        ],
+        "entity_targeted": false,
+        "id": "application_integration:gtm.account_risk_summary",
+        "inputs": [],
+        "intent_type": "business_action",
+        "minimum_scope": [
+          "gtm.pipeline.read"
+        ],
+        "operation_type": "read",
+        "output_intent": "",
+        "output_shape": "gtm_account_risk_summary_result",
+        "path_template": "/gtm/account-risk-summary",
+        "service_id": "gtm-pipeline-service",
+        "side_effect_level": "none",
+        "source_kind": "application_integration",
+        "subject_kind": "",
+        "summary": "Rank at-risk accounts with explicit evidence for why they need attention.",
+        "title": "Gtm Account Risk Summary"
+      },
+      {
+        "approval_required_when": [
+          "any downstream task creation or CRM mutation would occur"
+        ],
+        "backend_operation": "gtm.prepare_followup_tasks",
+        "bounded_evidence": [
+          "proposed task preview",
+          "target account list",
+          "reason each task was suggested"
+        ],
+        "capability_id": "gtm.prepare_followup_tasks",
+        "clarification_required_when": [
+          "target accounts or quarter are missing"
+        ],
+        "context_type": "",
+        "denied_when": [
+          "the request asks to execute CRM mutations directly in phase 1"
+        ],
+        "entity_targeted": false,
+        "id": "application_integration:gtm.prepare_followup_tasks",
+        "inputs": [],
+        "intent_type": "business_action",
+        "minimum_scope": [
+          "gtm.pipeline.followup"
+        ],
+        "operation_type": "write",
+        "output_intent": "",
+        "output_shape": "gtm_prepare_followup_tasks_result",
+        "path_template": "/gtm/prepare-followup-tasks",
+        "service_id": "gtm-pipeline-service",
+        "side_effect_level": "reversible",
+        "source_kind": "application_integration",
+        "subject_kind": "",
+        "summary": "Prepare follow-up tasks for high-risk accounts without executing downstream mutations.",
+        "title": "Gtm Prepare Followup Tasks"
+      },
+      {
+        "approval_required_when": [],
+        "backend_operation": "gtm.account_enrichment_summary",
+        "bounded_evidence": [
+          "firmographic summary",
+          "fit and intent context",
+          "approved account identifiers"
+        ],
+        "capability_id": "gtm.account_enrichment_summary",
+        "clarification_required_when": [
+          "account scope is missing"
+        ],
+        "context_type": "",
+        "denied_when": [
+          "the request asks for raw enrichment export or vendor-source details"
+        ],
+        "entity_targeted": false,
+        "id": "application_integration:gtm.account_enrichment_summary",
+        "inputs": [],
+        "intent_type": "business_action",
+        "minimum_scope": [
+          "gtm.enrichment.read"
+        ],
+        "operation_type": "read",
+        "output_intent": "",
+        "output_shape": "gtm_account_enrichment_summary_result",
+        "path_template": "/gtm/account-enrichment-summary",
+        "service_id": "gtm-enrichment-service",
+        "side_effect_level": "none",
+        "source_kind": "application_integration",
+        "subject_kind": "",
+        "summary": "Return bounded firmographic and account context for selected accounts.",
+        "title": "Gtm Account Enrichment Summary"
+      },
+      {
+        "approval_required_when": [],
+        "backend_operation": "gtm.lookalike_accounts",
+        "bounded_evidence": [
+          "lookalike account list",
+          "similarity explanation",
+          "bounded fit signals"
+        ],
+        "capability_id": "gtm.lookalike_accounts",
+        "clarification_required_when": [
+          "reference account or comparison basis is missing"
+        ],
+        "context_type": "",
+        "denied_when": [
+          "the request asks for raw similarity features or unconstrained account export"
+        ],
+        "entity_targeted": false,
+        "id": "application_integration:gtm.lookalike_accounts",
+        "inputs": [],
+        "intent_type": "business_action",
+        "minimum_scope": [
+          "gtm.enrichment.read"
+        ],
+        "operation_type": "read",
+        "output_intent": "",
+        "output_shape": "gtm_lookalike_accounts_result",
+        "path_template": "/gtm/lookalike-accounts",
+        "service_id": "gtm-enrichment-service",
+        "side_effect_level": "none",
+        "source_kind": "application_integration",
+        "subject_kind": "",
+        "summary": "Return explainable lookalike accounts for an approved reference account or cohort.",
+        "title": "Gtm Lookalike Accounts"
+      },
+      {
+        "approval_required_when": [],
+        "backend_operation": "gtm.score_leads",
+        "bounded_evidence": [
+          "score band",
+          "reason codes",
+          "approved target cohort"
+        ],
+        "capability_id": "gtm.score_leads",
+        "clarification_required_when": [
+          "target lead or account cohort is missing"
+        ],
+        "context_type": "",
+        "denied_when": [
+          "the request asks for raw model features or opaque scoring internals"
+        ],
+        "entity_targeted": false,
+        "id": "application_integration:gtm.score_leads",
+        "inputs": [],
+        "intent_type": "business_action",
+        "minimum_scope": [
+          "gtm.prioritization.read"
+        ],
+        "operation_type": "read",
+        "output_intent": "",
+        "output_shape": "gtm_score_leads_result",
+        "path_template": "/gtm/score-leads",
+        "service_id": "gtm-prioritization-service",
+        "side_effect_level": "none",
+        "source_kind": "application_integration",
+        "subject_kind": "",
+        "summary": "Score bounded leads or accounts with explainable reasons.",
+        "title": "Gtm Score Leads"
+      },
+      {
+        "approval_required_when": [],
+        "backend_operation": "gtm.prioritize_accounts",
+        "bounded_evidence": [
+          "ranked account list",
+          "reason codes",
+          "priority bands"
+        ],
+        "capability_id": "gtm.prioritize_accounts",
+        "clarification_required_when": [
+          "ranking basis or account cohort is missing"
+        ],
+        "context_type": "",
+        "denied_when": [
+          "the request asks for unconstrained account export or raw scoring internals"
+        ],
+        "entity_targeted": false,
+        "id": "application_integration:gtm.prioritize_accounts",
+        "inputs": [],
+        "intent_type": "business_action",
+        "minimum_scope": [
+          "gtm.prioritization.read"
+        ],
+        "operation_type": "read",
+        "output_intent": "",
+        "output_shape": "gtm_prioritize_accounts_result",
+        "path_template": "/gtm/prioritize-accounts",
+        "service_id": "gtm-prioritization-service",
+        "side_effect_level": "none",
+        "source_kind": "application_integration",
+        "subject_kind": "",
+        "summary": "Prioritize bounded accounts for GTM action with explainable ranking.",
+        "title": "Gtm Prioritize Accounts"
+      },
+      {
+        "approval_required_when": [
+          "any downstream routing mutation would occur"
+        ],
+        "backend_operation": "gtm.route_leads",
+        "bounded_evidence": [
+          "routing recommendation preview",
+          "target owner or queue",
+          "reason each route was suggested"
+        ],
+        "capability_id": "gtm.route_leads",
+        "clarification_required_when": [
+          "routing target cohort or routing objective is missing"
+        ],
+        "context_type": "",
+        "denied_when": [
+          "the request asks to execute routing directly without approval"
+        ],
+        "entity_targeted": false,
+        "id": "application_integration:gtm.route_leads",
+        "inputs": [],
+        "intent_type": "business_action",
+        "minimum_scope": [
+          "gtm.prioritization.route"
+        ],
+        "operation_type": "write",
+        "output_intent": "",
+        "output_shape": "gtm_route_leads_result",
+        "path_template": "/gtm/route-leads",
+        "service_id": "gtm-prioritization-service",
+        "side_effect_level": "reversible",
+        "source_kind": "application_integration",
+        "subject_kind": "",
+        "summary": "Prepare bounded routing recommendations without executing downstream assignment mutations.",
+        "title": "Gtm Route Leads"
+      },
+      {
+        "approval_required_when": [],
+        "backend_operation": "gtm.draft_outreach_message",
+        "bounded_evidence": [
+          "draft message",
+          "source context summary",
+          "review notes"
+        ],
+        "capability_id": "gtm.draft_outreach_message",
+        "clarification_required_when": [
+          "audience, account context, or outreach objective is missing"
+        ],
+        "context_type": "",
+        "denied_when": [
+          "the request asks to send outreach or use unapproved context"
+        ],
+        "entity_targeted": false,
+        "id": "application_integration:gtm.draft_outreach_message",
+        "inputs": [],
+        "intent_type": "business_action",
+        "minimum_scope": [
+          "gtm.outreach.draft"
+        ],
+        "operation_type": "read",
+        "output_intent": "",
+        "output_shape": "gtm_draft_outreach_message_result",
+        "path_template": "/gtm/draft-outreach-message",
+        "service_id": "gtm-outreach-service",
+        "side_effect_level": "none",
+        "source_kind": "application_integration",
+        "subject_kind": "",
+        "summary": "Draft bounded outreach content for approved account or contact context.",
+        "title": "Gtm Draft Outreach Message"
+      },
+      {
+        "approval_required_when": [],
+        "backend_operation": "gtm.suggest_followup_content",
+        "bounded_evidence": [
+          "suggested content",
+          "reasoning summary",
+          "approved context references"
+        ],
+        "capability_id": "gtm.suggest_followup_content",
+        "clarification_required_when": [
+          "follow-up context or objective is missing"
+        ],
+        "context_type": "",
+        "denied_when": [
+          "the request asks to send messages or bypass review"
+        ],
+        "entity_targeted": false,
+        "id": "application_integration:gtm.suggest_followup_content",
+        "inputs": [],
+        "intent_type": "business_action",
+        "minimum_scope": [
+          "gtm.outreach.draft"
+        ],
+        "operation_type": "read",
+        "output_intent": "",
+        "output_shape": "gtm_suggest_followup_content_result",
+        "path_template": "/gtm/suggest-followup-content",
+        "service_id": "gtm-outreach-service",
+        "side_effect_level": "none",
+        "source_kind": "application_integration",
+        "subject_kind": "",
+        "summary": "Suggest bounded follow-up content for an approved outreach or account context.",
+        "title": "Gtm Suggest Followup Content"
+      },
+      {
+        "approval_required_when": [],
+        "backend_operation": "gtm.objection_response_variants",
+        "bounded_evidence": [
+          "response variants",
+          "approved claims",
+          "review caveats"
+        ],
+        "capability_id": "gtm.objection_response_variants",
+        "clarification_required_when": [
+          "objection, audience, or account context is missing"
+        ],
+        "context_type": "",
+        "denied_when": [
+          "the request asks to send responses or invent unsupported claims"
+        ],
+        "entity_targeted": false,
+        "id": "application_integration:gtm.objection_response_variants",
+        "inputs": [],
+        "intent_type": "business_action",
+        "minimum_scope": [
+          "gtm.outreach.draft"
+        ],
+        "operation_type": "read",
+        "output_intent": "",
+        "output_shape": "gtm_objection_response_variants_result",
+        "path_template": "/gtm/objection-response-variants",
+        "service_id": "gtm-outreach-service",
+        "side_effect_level": "none",
+        "source_kind": "application_integration",
+        "subject_kind": "",
+        "summary": "Generate bounded objection-response variants for a known account or outreach scenario.",
+        "title": "Gtm Objection Response Variants"
+      }
+    ],
+    "compiled_contract_identity": {
+      "artifact_name": "gtm-pipeline-q2-review-0.2.0-service-definition.json",
+      "signature": "sha256:946654d5f73eb55bf9cc1b50720536819dd6c9cd83e80a67f85052afa66eca1a",
+      "signature_algorithm": "sha256"
+    },
+    "contract_schema_version": "anip-service-definition/v1",
+    "domain_concept_bindings": [
+      {
+        "concept_detail": "A bounded summary of pipeline health for a quarter and scope.",
+        "concept_id": "pipeline-review",
+        "concept_name": "Pipeline Review",
+        "id": "domain_concept_pipeline-review",
+        "owner_service_id": "gtm-pipeline-service"
+      },
+      {
+        "concept_detail": "An explainable ranking of open accounts that need attention.",
+        "concept_id": "account-risk",
+        "concept_name": "Account Risk",
+        "id": "domain_concept_account-risk",
+        "owner_service_id": "gtm-pipeline-service"
+      },
+      {
+        "concept_detail": "A prepared set of recommended tasks that still requires approval before downstream execution.",
+        "concept_id": "followup-plan",
+        "concept_name": "Follow-up Plan",
+        "id": "domain_concept_followup-plan",
+        "owner_service_id": "gtm-pipeline-service"
+      },
+      {
+        "concept_detail": "A prepared set of reassignment recommendations that still requires approval before downstream execution.",
+        "concept_id": "reassignment-plan",
+        "concept_name": "Reassignment Plan",
+        "id": "domain_concept_reassignment-plan",
+        "owner_service_id": "gtm-pipeline-service"
+      },
+      {
+        "concept_detail": "Bounded firmographic and account context for approved accounts.",
+        "concept_id": "account-enrichment",
+        "concept_name": "Account Enrichment",
+        "id": "domain_concept_account-enrichment",
+        "owner_service_id": "gtm-enrichment-service"
+      },
+      {
+        "concept_detail": "An account similar to an approved reference account with explainable similarity signals.",
+        "concept_id": "lookalike-account",
+        "concept_name": "Lookalike Account",
+        "id": "domain_concept_lookalike-account",
+        "owner_service_id": "gtm-enrichment-service"
+      },
+      {
+        "concept_detail": "A bounded score band and reason-code summary for a lead or account.",
+        "concept_id": "lead-score",
+        "concept_name": "Lead Score",
+        "id": "domain_concept_lead-score",
+        "owner_service_id": "gtm-prioritization-service"
+      },
+      {
+        "concept_detail": "An explainable ordering of accounts for GTM action.",
+        "concept_id": "account-priority",
+        "concept_name": "Account Priority",
+        "id": "domain_concept_account-priority",
+        "owner_service_id": "gtm-prioritization-service"
+      },
+      {
+        "concept_detail": "A prepared routing recommendation that requires approval before mutation.",
+        "concept_id": "routing-plan",
+        "concept_name": "Routing Plan",
+        "id": "domain_concept_routing-plan",
+        "owner_service_id": "gtm-prioritization-service"
+      },
+      {
+        "concept_detail": "Draft-only outreach content generated from approved context.",
+        "concept_id": "outreach-draft",
+        "concept_name": "Outreach Draft",
+        "id": "domain_concept_outreach-draft",
+        "owner_service_id": "gtm-outreach-service"
+      },
+      {
+        "concept_detail": "Suggested follow-up messaging content that remains review-only.",
+        "concept_id": "followup-content",
+        "concept_name": "Follow-up Content",
+        "id": "domain_concept_followup-content",
+        "owner_service_id": "gtm-outreach-service"
+      },
+      {
+        "concept_detail": "Bounded response variants using approved claims and account context.",
+        "concept_id": "objection-response",
+        "concept_name": "Objection Response",
+        "id": "domain_concept_objection-response",
+        "owner_service_id": "gtm-outreach-service"
+      }
+    ],
+    "generation": {
+      "layout_strategy": "monorepo",
+      "protocols": [
+        "anip_http"
+      ],
+      "selected_service_ids": [
+        "gtm-pipeline-service",
+        "gtm-enrichment-service",
+        "gtm-prioritization-service",
+        "gtm-outreach-service"
+      ]
+    },
+    "identity": {
+      "architecture_shape": "multi_service_estate",
+      "delivery_model": "multiple_coordinated_services",
+      "domain_name": "revenue_operations",
+      "system_name": "GTM Pipeline Q2 Review"
+    },
+    "naming": {
+      "namespace": "gtm",
+      "package_prefix": "gtm",
+      "service_name_prefix": "gtm"
+    },
+    "project": {
+      "domain": "revenue_operations",
+      "id": "gtm-pipeline-q2-review",
+      "labels": [],
+      "name": "GTM Pipeline Q2 Review",
+      "summary": "PM brief: Revenue operations needs a governed GTM agent system that can answer pipeline health, enrichment, prioritization, and outreach-support questions across four bounded ANIP services while preserving actor-aware visibility, explicit service handoffs, approval stops, and auditable behavior."
+    },
+    "rationale": [
+      "the current GTM benchmark is a four-service estate, not a phase-1 pipeline-only service",
+      "pipeline analytics, enrichment, prioritization, and outreach have different backend shapes and governance boundaries",
+      "service-to-service composition must be explicit so actor scope, task lineage, approval posture, and audit evidence survive handoffs"
+    ],
+    "service_topology_bindings": [
+      {
+        "formalized_capability_ids": [
+          "gtm.pipeline_summary",
+          "gtm.pipeline_forecast_summary",
+          "gtm.stage_bottleneck_summary",
+          "gtm.sales_team_performance_summary",
+          "gtm.product_pipeline_summary",
+          "gtm.prepare_reassignment_plan",
+          "gtm.stalled_opportunity_review",
+          "gtm.account_risk_summary",
+          "gtm.prepare_followup_tasks"
+        ],
+        "id": "service_topology_gtm-pipeline-service",
+        "owned_concept_ids": [
+          "pipeline-review",
+          "account-risk",
+          "followup-plan",
+          "reassignment-plan"
+        ],
+        "service_id": "gtm-pipeline-service",
+        "service_name": "GTM Pipeline Service",
+        "source_capabilities": [
+          "gtm.pipeline_summary",
+          "gtm.pipeline_forecast_summary",
+          "gtm.stage_bottleneck_summary",
+          "gtm.sales_team_performance_summary",
+          "gtm.product_pipeline_summary",
+          "gtm.prepare_reassignment_plan",
+          "gtm.stalled_opportunity_review",
+          "gtm.account_risk_summary",
+          "gtm.prepare_followup_tasks"
+        ],
+        "source_role": "answers bounded pipeline review questions and prepares follow-up and reassignment previews"
+      },
+      {
+        "formalized_capability_ids": [
+          "gtm.account_enrichment_summary",
+          "gtm.lookalike_accounts"
+        ],
+        "id": "service_topology_gtm-enrichment-service",
+        "owned_concept_ids": [
+          "account-enrichment",
+          "lookalike-account"
+        ],
+        "service_id": "gtm-enrichment-service",
+        "service_name": "GTM Enrichment Service",
+        "source_capabilities": [
+          "gtm.account_enrichment_summary",
+          "gtm.lookalike_accounts"
+        ],
+        "source_role": "answers bounded account enrichment and lookalike questions over approved account scope"
+      },
+      {
+        "formalized_capability_ids": [
+          "gtm.score_leads",
+          "gtm.prioritize_accounts",
+          "gtm.route_leads"
+        ],
+        "id": "service_topology_gtm-prioritization-service",
+        "owned_concept_ids": [
+          "lead-score",
+          "account-priority",
+          "routing-plan"
+        ],
+        "service_id": "gtm-prioritization-service",
+        "service_name": "GTM Prioritization Service",
+        "source_capabilities": [
+          "gtm.score_leads",
+          "gtm.prioritize_accounts",
+          "gtm.route_leads"
+        ],
+        "source_role": "scores and prioritizes bounded GTM work with explainable routing recommendations"
+      },
+      {
+        "formalized_capability_ids": [
+          "gtm.draft_outreach_message",
+          "gtm.suggest_followup_content",
+          "gtm.objection_response_variants"
+        ],
+        "id": "service_topology_gtm-outreach-service",
+        "owned_concept_ids": [
+          "outreach-draft",
+          "followup-content",
+          "objection-response"
+        ],
+        "service_id": "gtm-outreach-service",
+        "service_name": "GTM Outreach Service",
+        "source_capabilities": [
+          "gtm.draft_outreach_message",
+          "gtm.suggest_followup_content",
+          "gtm.objection_response_variants"
+        ],
+        "source_role": "provides bounded draft-only outreach support through an MCP-fronted backend"
+      }
+    ],
+    "source": {
+      "business_source_artifact_id": "req-gtm-revenue-operations-business-spec",
+      "business_source_path": "docs/examples/gtm-showcase/gtm-revenue-operations-business-spec.md",
+      "developer_revision_ref": "seed:gtm-revenue-operations-four-service-estate:v1",
+      "product_revision_ref": "seed:gtm-revenue-operations-business-spec:v1",
+      "proposal_id": "prop-gtm-pipeline-q2-review",
+      "requirements_id": "req-gtm-pipeline-q2-review",
+      "shape_id": "shape-gtm-pipeline-q2-review"
+    }
+  }
+}

@@ -1,6 +1,7 @@
 """Tests for seed, export, and import operations."""
 
 import os
+
 os.environ.setdefault("DATABASE_URL", "postgresql://anip:anip@localhost:5432/anip_studio")
 
 
@@ -23,19 +24,257 @@ def test_seed_is_idempotent(client):
     assert second["skipped"] == first["created_projects"] + first["skipped"]
 
 
+def test_gtm_seed_includes_source_business_spec_artifact(client):
+    client.post("/api/seed")
+
+    requirements = client.get("/api/projects/gtm-pipeline-q2-review/requirements").json()
+    assert any(item["id"] == "req-gtm-revenue-operations-business-spec" for item in requirements)
+
+    translated = next(item for item in requirements if item["id"] == "req-gtm-pipeline-q2-review")
+    source_refs = translated["data"].get("source_documents", [])
+    assert any(ref.get("artifact_id") == "req-gtm-revenue-operations-business-spec" for ref in source_refs)
+
+    translation = translated["data"].get("behavior_translation", {})
+    assert translation.get("source_artifact_id") == "req-gtm-revenue-operations-business-spec"
+    assert any(
+        item.get("class") == "ambiguity_requiring_clarification"
+        for item in translation.get("behavior_families", [])
+    )
+    umbrella_goals = next(
+        item["data"]["business_spec"]["business_goal"]
+        for item in requirements
+        if item["id"] == "req-gtm-revenue-operations-business-spec"
+    )
+    assert "enrich account context and identify lookalikes" in umbrella_goals
+
+
+def test_gtm_seed_loads_source_business_spec_documents(client):
+    client.post("/api/seed")
+
+    documents = client.get("/api/projects/gtm-pipeline-q2-review/documents").json()
+    document_ids = {item["id"] for item in documents}
+
+    assert "req-gtm-revenue-operations-business-spec" in document_ids
+    assert "req-gtm-pipeline-forecast-business-spec" in document_ids
+    assert "req-gtm-stage-bottleneck-business-spec" in document_ids
+    assert "req-gtm-prepare-reassignment-business-spec" in document_ids
+    assert "req-gtm-sales-team-performance-business-spec" in document_ids
+    assert "req-gtm-product-pipeline-business-spec" in document_ids
+    assert "req-gtm-pipeline-business-spec" in document_ids
+    assert "req-gtm-pipeline-q2-review-enrichment-business-spec" in document_ids
+    assert "req-gtm-pipeline-q2-review-prioritization-business-spec" in document_ids
+    assert "req-gtm-pipeline-q2-review-outreach-business-spec" in document_ids
+    assert len(document_ids) == 10
+    canonical = next(item for item in documents if item["id"] == "req-gtm-revenue-operations-business-spec")
+    assert canonical["source_path"] == "docs/examples/gtm-showcase/gtm-revenue-operations-business-spec.md"
+    assert canonical["media_type"] == "text/markdown"
+
+
+def test_retired_typescript_generator_endpoint_returns_gone(client):
+    client.post("/api/projects", json={
+        "id": "proj-generator",
+        "name": "Generator Target",
+    })
+
+    resp = client.post(
+        "/api/projects/proj-generator/generator/typescript",
+        json={
+            "definition": {"system": {"name": "retired-generator-target"}},
+            "package_name": "proj-generator",
+            "dependency_source": "local",
+        },
+    )
+    assert resp.status_code == 410, resp.text
+    assert "retired" in resp.json()["detail"]
+    assert "generator" in resp.json()["detail"]
+
+
+def test_retired_local_runtime_proof_endpoint_returns_gone(client):
+    client.post("/api/seed")
+    project_id = "project-issue-tracker-fronting-showcase"
+    generation_run_artifact_id = "proof-generation-run"
+    create_resp = client.post(
+        f"/api/projects/{project_id}/pm-artifacts",
+        json={
+            "id": generation_run_artifact_id,
+            "title": "Developer Generation Run",
+            "data": {
+                "artifact_type": "developer_generation_run",
+                "source_inputs": {
+                    "requirements_id": "req-issue-tracker-fronting",
+                    "scenario_ids": ["scenario-issue-tracker-transition-request"],
+                },
+                "compiled_contract_identity": {
+                    "signature": "proof-signature",
+                    "signature_algorithm": "sha256",
+                    "artifact_name": "proof-definition.json",
+                },
+                "generator_inputs": {
+                    "dependency_source": "local",
+                },
+            },
+        },
+    )
+    assert create_resp.status_code == 201, create_resp.text
+
+    resp = client.post(
+        f"/api/projects/{project_id}/proofs/local-runtime",
+        json={"generation_run_artifact_id": generation_run_artifact_id},
+    )
+    assert resp.status_code == 410, resp.text
+    assert "retired" in resp.json()["detail"]
+    assert "verifier" in resp.json()["detail"]
+
+
+def test_gtm_seed_includes_behavior_class_scenario_pack(client):
+    client.post("/api/seed")
+
+    scenarios = client.get("/api/projects/gtm-pipeline-q2-review/scenarios").json()
+    scenario_ids = {item["id"] for item in scenarios}
+    assert {
+        "scn-gtm-pipeline-q2-review",
+        "scn-gtm-pipeline-clarification",
+        "scn-gtm-pipeline-stalled-opportunities",
+        "scn-gtm-pipeline-raw-export-denial",
+        "scn-gtm-pipeline-out-of-scope",
+    }.issubset(scenario_ids)
+
+    clarification = next(item for item in scenarios if item["id"] == "scn-gtm-pipeline-clarification")
+    assert "clarification_required_for_missing_quarter" in clarification["data"]["scenario"]["expected_behavior"]
+
+    denial = next(item for item in scenarios if item["id"] == "scn-gtm-pipeline-raw-export-denial")
+    assert "denied_for_raw_row_level_export" in denial["data"]["scenario"]["expected_behavior"]
+
+
+def test_gtm_seed_includes_developer_translation_and_contract_trace(client):
+    client.post("/api/seed")
+
+    proposals = client.get("/api/projects/gtm-pipeline-q2-review/proposals").json()
+    proposal = next(item for item in proposals if item["id"] == "prop-gtm-pipeline-q2-review")
+    developer_translation = proposal["data"]["proposal"].get("developer_translation", {})
+    assert developer_translation.get("source_artifact_id") == "req-gtm-pipeline-q2-review"
+    assert "GTM Pipeline Service owns bounded pipeline analytics, risk, and preparation capabilities" in developer_translation.get(
+        "service_contract_decisions", []
+    )
+    assert "GTM Enrichment Service owns bounded account enrichment and lookalike capabilities" in developer_translation.get(
+        "service_contract_decisions", []
+    )
+    assert "GTM Prioritization Service owns explainable scoring, prioritization, and routing recommendation capabilities" in developer_translation.get(
+        "service_contract_decisions", []
+    )
+    assert "GTM Outreach Service owns bounded draft-only outreach support capabilities" in developer_translation.get(
+        "service_contract_decisions", []
+    )
+    assert "raw CRM, enrichment, scoring-feature, and outreach-source exports are denied rather than narrowed silently" in developer_translation.get(
+        "service_contract_decisions", []
+    )
+
+    shapes = client.get("/api/projects/gtm-pipeline-q2-review/shapes").json()
+    shape = next(item for item in shapes if item["id"] == "shape-gtm-pipeline-q2-review")
+    shape_data = shape["data"]["shape"]
+    assert shape_data["type"] == "multi_service_estate"
+    assert shape_data["implementation_contract"]["implementation_language"] == "python"
+    assert shape_data["implementation_contract"]["runtime_profile"] == "mixed_anip_service_estate"
+    assert shape_data["implementation_trace"]["generated_code_used_for_showcase"] is True
+    assert (
+        shape_data["implementation_contract"]["runtime_entrypoint"]
+        == "examples/showcase/gtm/docker-compose.yml"
+    )
+    assert [item["id"] for item in shape_data["services"]] == [
+        "gtm-pipeline-service",
+        "gtm-enrichment-service",
+        "gtm-prioritization-service",
+        "gtm-outreach-service",
+    ]
+    capability_ids = [item["id"] for item in shape_data.get("capability_contracts", [])]
+    assert capability_ids == [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks",
+        "gtm.prepare_reassignment_plan",
+        "gtm.at_risk_followup_preparation",
+        "gtm.at_risk_reassignment_preparation",
+        "gtm.account_enrichment_summary",
+        "gtm.lookalike_accounts",
+        "gtm.at_risk_account_enrichment_summary",
+        "gtm.score_leads",
+        "gtm.prioritize_accounts",
+        "gtm.route_leads",
+        "gtm.prioritized_routing_preparation",
+        "gtm.draft_outreach_message",
+        "gtm.suggest_followup_content",
+        "gtm.objection_response_variants",
+        "gtm.prioritized_outreach_draft",
+        "gtm.bottleneck_account_outreach_draft",
+    ]
+    followup_contract = next(item for item in shape_data["capability_contracts"] if item["id"] == "gtm.prepare_followup_tasks")
+    assert "approval-gated write contract" in followup_contract["side_effect_detail"]
+
+
+def test_gtm_enrichment_seed_includes_actor_policy_and_cross_service_trace(client):
+    client.post("/api/seed")
+
+    proposals = client.get("/api/projects/gtm-account-enrichment/proposals").json()
+    proposal = next(item for item in proposals if item["id"] == "prop-gtm-account-enrichment")
+    developer_translation = proposal["data"]["proposal"].get("developer_translation", {})
+    actor_policy_model = developer_translation.get("actor_policy_model", {})
+
+    assert developer_translation.get("source_artifact_id") == "req-gtm-account-enrichment"
+    assert "only bounded account identifiers may cross the pipeline-to-enrichment handoff" in developer_translation.get(
+        "orchestration_contract_coverage", []
+    )
+    assert "mechanical account-name normalization still happens in the runtime before enrichment invocation" in developer_translation.get(
+        "runtime_glue_inventory", []
+    )
+    assert actor_policy_model.get("identity_source") == "delegation.root_principal claims carried through ANIP token issuance"
+    assert any(
+        item.get("outcome") == "success with bounded enrichment fields only"
+        for item in actor_policy_model.get("visibility_rules", [])
+    )
+    assert actor_policy_model.get("approval_rules") == []
+    assert "cross-service handoff into enrichment should preserve actor and task continuity" in actor_policy_model.get(
+        "audit_expectations", []
+    )
+
+    shapes = client.get("/api/projects/gtm-account-enrichment/shapes").json()
+    shape = next(item for item in shapes if item["id"] == "shape-gtm-account-enrichment")
+    shape_data = shape["data"]["shape"]
+
+    assert shape_data["implementation_contract"]["implementation_language"] == "python"
+    assert shape_data["implementation_trace"]["generated_code_used_for_showcase"] is True
+    capability_ids = [item["id"] for item in shape_data.get("capability_contracts", [])]
+    assert capability_ids == [
+        "gtm.account_enrichment_summary",
+        "gtm.lookalike_accounts",
+    ]
+
+
 def test_export_returns_full_project_graph(client):
     """Export returns the project plus all artifact collections."""
     # Seed first to have data
     client.post("/api/seed")
 
-    # List projects and pick the first one
+    # List projects and pick a legacy seed with the complete proposal/evaluation graph.
+    # Governed fronting seeds intentionally do not need legacy proposal artifacts.
     projects = client.get("/api/projects").json()
     assert len(projects) > 0
-    pid = projects[0]["id"]
-
-    resp = client.get(f"/api/projects/{pid}/export")
-    assert resp.status_code == 200
-    data = resp.json()
+    pid = None
+    data = None
+    for project in projects:
+        candidate = client.get(f"/api/projects/{project['id']}/export")
+        assert candidate.status_code == 200
+        candidate_data = candidate.json()
+        if candidate_data["proposals"] and candidate_data["evaluations"]:
+            pid = project["id"]
+            data = candidate_data
+            break
+    assert pid is not None
+    assert data is not None
 
     # Should have the project and all artifact arrays
     assert "project" in data

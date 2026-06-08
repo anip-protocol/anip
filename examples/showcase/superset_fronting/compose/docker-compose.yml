@@ -1,0 +1,21 @@
+name: anip-superset-fronting
+
+services:
+  superset:
+    image: apache/superset:6.1.0
+    environment:
+      SUPERSET_SECRET_KEY: anip-local-superset-secret-key
+      SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
+    ports:
+      - "18088:8088"
+    volumes:
+      - ./superset_config.py:/app/pythonpath/superset_config.py:ro
+      - superset-home:/app/superset_home
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8088/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  superset-home:

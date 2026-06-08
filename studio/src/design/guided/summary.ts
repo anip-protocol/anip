@@ -2,6 +2,52 @@
 
 import { collectRiskLeaves } from './mappings'
 
+function humanizeLabel(value: unknown): string {
+  if (value == null) return ''
+  const text = String(value).trim()
+  if (!text) return ''
+  return text
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\b\w/g, (match) => match.toUpperCase())
+}
+
+function describeDeploymentIntent(value: unknown): string {
+  const key = String(value ?? '').trim().toLowerCase()
+  const descriptions: Record<string, string> = {
+    business_source_document: 'a source business document that drives downstream PM and engineering work',
+    embedded_single_process: 'an embedded single-process component',
+    production_single_service: 'a single production service',
+    public_http_service: 'a public HTTP service',
+    control_plane_worker_split: 'a control plane with separate worker processes',
+    multi_service_estate: 'a coordinated multi-service production system',
+    horizontally_scaled: 'a horizontally scaled production service',
+    testing: 'a system primarily used for testing and evaluation',
+    production: 'a system intended for production use',
+    prod: 'a system intended for production use',
+  }
+  return descriptions[key] ?? String(value ?? '').trim().replace(/[.]+$/, '')
+}
+
+function describeDeliveryShape(value: unknown): string {
+  const key = String(value ?? '').trim().toLowerCase()
+  const labels: Record<string, string> = {
+    embedded_single_process: 'an embedded product experience',
+    production_single_service: 'one standalone service',
+    horizontally_scaled: 'a horizontally scaled service deployment',
+    control_plane_worker_split: 'a coordinator and worker split',
+    multi_service_estate: 'multiple coordinated services',
+  }
+  return labels[key] ?? humanizeLabel(value).toLowerCase()
+}
+
+function formatCapabilityLabel(name: string): string {
+  const trimmed = String(name ?? '').trim()
+  if (!trimmed) return ''
+  const lastSegment = trimmed.split('.').pop() ?? trimmed
+  return humanizeLabel(lastSegment)
+}
+
 /**
  * Generate a plain-language requirements summary from the artifact.
  * Each paragraph covers one aspect. Returns an array of summary paragraphs.
@@ -17,23 +63,20 @@ export function generateRequirementsSummary(
 
   // System identity
   if (req.system) {
-    parts.push(
-      `${req.system.name} is a ${req.system.domain} system intended for ${req.system.deployment_intent}.`,
-    )
+    const systemSentence = `${req.system.name} is a ${humanizeLabel(req.system.domain).toLowerCase()} system.`
+    const intent = describeDeploymentIntent(req.system.deployment_intent)
+    if (intent) {
+      parts.push(`${systemSentence} It is intended to be delivered as ${intent}.`)
+    } else {
+      parts.push(systemSentence)
+    }
   }
 
   // Scale
   if (req.scale) {
-    const shapeLabels: Record<string, string> = {
-      embedded_single_process: 'an embedded single-process deployment',
-      production_single_service: 'a single production service',
-      horizontally_scaled: 'a horizontally scaled deployment',
-      control_plane_worker_split: 'a control-plane and worker split',
-      multi_service_estate: 'a multi-service estate',
-    }
-    const shape = shapeLabels[req.scale.shape_preference] ?? req.scale.shape_preference
+    const shape = describeDeliveryShape(req.scale.shape_preference)
     const ha = req.scale.high_availability ? ' with high availability' : ''
-    parts.push(`It targets ${shape}${ha}.`)
+    parts.push(`It is expected to run as ${shape}${ha}.`)
   }
 
   // Collect risk_profile leaves (recursive walk)
@@ -57,7 +100,7 @@ export function generateRequirementsSummary(
   if (riskLeaves.length > 0) {
     const highRiskLeaves = riskLeaves.filter(l => l.high_risk === true)
     if (highRiskLeaves.length > 0) {
-      parts.push(`High-risk capabilities: ${highRiskLeaves.map(l => l.name).join(', ')}.`)
+      parts.push(`High-risk actions include: ${highRiskLeaves.map(l => formatCapabilityLabel(l.name)).join(', ')}.`)
     }
   }
 
@@ -88,7 +131,9 @@ export function generateRequirementsSummary(
       }
       parts.push(`Recovery is important — the expected posture for blocked or failed work is ${postureLabels[posture] ?? posture}.`)
     } else if (hasRecoveryLeaf && !bc.recovery_sensitive) {
-      const recoveryCaps = riskLeaves.filter(l => l.recovery_guidance_required === true).map(l => l.name)
+      const recoveryCaps = riskLeaves
+        .filter(l => l.recovery_guidance_required === true)
+        .map(l => formatCapabilityLabel(l.name))
       parts.push(`Recovery guidance is required for: ${recoveryCaps.join(', ')}.`)
     } else {
       parts.push('Recovery expectations are flagged as important but no specific posture is defined.')

@@ -1,0 +1,361 @@
+{
+  "schema_version": "anip-fronting-starter/v0",
+  "system_name": "github_governed_fronting_showcase",
+  "domain_name": "github",
+  "service_id": "github-governance-service",
+  "service_name": "GitHub Governance Service",
+  "backend_kind": "native_api",
+  "connection_ref": "github_fronting",
+  "operations": [
+    {
+      "capability_id": "github.repo.search_context",
+      "title": "Search Repository Context",
+      "summary": "Search bounded GitHub repository issues and pull requests without exposing raw repository tools.",
+      "subject_kind": "github_repository",
+      "context_type": "repository_context_search",
+      "output_intent": "bounded_repository_results",
+      "backend_kind": "native_api",
+      "connection_ref": "github_fronting",
+      "path": "/github/repos/{owner}/{repo}/context/search",
+      "raw_operation_refs": [
+        "github.api.search_repository_context"
+      ],
+      "side_effect_level": "read",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "owner",
+          "type": "string",
+          "required": true,
+          "summary": "GitHub repository owner.",
+          "semantic_type": "repo_owner",
+          "clarification_hint": "Ask for owner when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "repo",
+          "type": "string",
+          "required": true,
+          "summary": "GitHub repository name.",
+          "semantic_type": "repo_name",
+          "clarification_hint": "Ask for repo when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "query",
+          "type": "string",
+          "required": true,
+          "summary": "Bounded repository search query.",
+          "clarification_hint": "Ask for query when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "summary": "Maximum results to return.",
+          "default_value": "20",
+          "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded GitHub provider options such as selected fields or pagination. Must not bypass repo scope, approval, or secret policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    },
+    {
+      "capability_id": "github.issue.prepare",
+      "title": "Prepare Issue",
+      "summary": "Prepare a GitHub issue preview with labels and assignees before any issue is created.",
+      "subject_kind": "github_issue",
+      "context_type": "issue_preparation",
+      "output_intent": "issue_creation_preview",
+      "backend_kind": "native_api",
+      "connection_ref": "github_fronting",
+      "path": "/github/repos/{owner}/{repo}/issues/preview",
+      "raw_operation_refs": [
+        "github.api.prepare_issue"
+      ],
+      "side_effect_level": "write_adjacent",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "owner",
+          "type": "string",
+          "required": true,
+          "summary": "GitHub repository owner.",
+          "semantic_type": "repo_owner",
+          "clarification_hint": "Ask for owner when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "repo",
+          "type": "string",
+          "required": true,
+          "summary": "GitHub repository name.",
+          "semantic_type": "repo_name",
+          "clarification_hint": "Ask for repo when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "summary": "Issue title.",
+          "clarification_hint": "Ask for title when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "body",
+          "type": "string",
+          "required": true,
+          "summary": "Issue body.",
+          "clarification_hint": "Ask for body when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "labels",
+          "type": "array<string>",
+          "required": false,
+          "summary": "Labels to propose.",
+          "clarification_hint": "Ask for labels when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "assignees",
+          "type": "array<string>",
+          "required": false,
+          "summary": "Assignees to propose.",
+          "clarification_hint": "Ask for assignees when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded GitHub provider options such as selected fields or pagination. Must not bypass repo scope, approval, or secret policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    },
+    {
+      "capability_id": "github.pr.comment.prepare",
+      "title": "Prepare Pull Request Comment",
+      "summary": "Prepare a pull request comment from review or release context without posting it.",
+      "subject_kind": "github_pull_request",
+      "context_type": "pull_request_comment_preparation",
+      "output_intent": "comment_preview",
+      "backend_kind": "native_api",
+      "connection_ref": "github_fronting",
+      "path": "/github/repos/{owner}/{repo}/pulls/{pull_number}/comments/preview",
+      "raw_operation_refs": [
+        "github.api.prepare_pull_request_comment"
+      ],
+      "side_effect_level": "write_adjacent",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "owner",
+          "type": "string",
+          "required": true,
+          "summary": "GitHub repository owner.",
+          "semantic_type": "repo_owner",
+          "clarification_hint": "Ask for owner when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "repo",
+          "type": "string",
+          "required": true,
+          "summary": "GitHub repository name.",
+          "semantic_type": "repo_name",
+          "clarification_hint": "Ask for repo when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "pull_number",
+          "type": "integer",
+          "required": true,
+          "summary": "Pull request number.",
+          "semantic_type": "pull_request_ref",
+          "clarification_hint": "Ask for pull_number when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "comment_purpose",
+          "type": "string",
+          "required": true,
+          "summary": "Purpose of the comment.",
+          "allowed_values": [
+            "review_note",
+            "release_note",
+            "triage_update"
+          ],
+          "clarification_hint": "Ask for comment_purpose when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "context",
+          "type": "string",
+          "required": true,
+          "summary": "Context to include in the comment.",
+          "clarification_hint": "Ask for context when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded GitHub provider options such as selected fields or pagination. Must not bypass repo scope, approval, or secret policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    },
+    {
+      "capability_id": "github.workflow.dispatch.request",
+      "title": "Request Workflow Dispatch",
+      "summary": "Prepare a governed GitHub Actions workflow dispatch request and stop for approval.",
+      "subject_kind": "github_workflow",
+      "context_type": "workflow_dispatch",
+      "output_intent": "workflow_dispatch_preview",
+      "backend_kind": "native_api",
+      "connection_ref": "github_fronting",
+      "path": "/github/repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches/preview",
+      "raw_operation_refs": [
+        "github.api.request_workflow_dispatch"
+      ],
+      "side_effect_level": "write_adjacent",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "owner",
+          "type": "string",
+          "required": true,
+          "summary": "GitHub repository owner.",
+          "semantic_type": "repo_owner",
+          "clarification_hint": "Ask for owner when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "repo",
+          "type": "string",
+          "required": true,
+          "summary": "GitHub repository name.",
+          "semantic_type": "repo_name",
+          "clarification_hint": "Ask for repo when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "workflow_id",
+          "type": "string",
+          "required": true,
+          "summary": "Workflow file name or workflow ID.",
+          "semantic_type": "workflow_ref",
+          "clarification_hint": "Ask for workflow_id when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "ref",
+          "type": "string",
+          "required": true,
+          "summary": "Git ref for dispatch.",
+          "clarification_hint": "Ask for ref when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "inputs",
+          "type": "object",
+          "required": false,
+          "summary": "Workflow inputs.",
+          "clarification_hint": "Ask for inputs when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded GitHub provider options such as selected fields or pagination. Must not bypass repo scope, approval, or secret policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    },
+    {
+      "capability_id": "github.release_notes.prepare",
+      "title": "Prepare Release Notes",
+      "summary": "Prepare bounded release notes from selected issues or pull requests without creating a GitHub release.",
+      "subject_kind": "github_release",
+      "context_type": "release_notes_preparation",
+      "output_intent": "release_notes_draft",
+      "backend_kind": "native_api",
+      "connection_ref": "github_fronting",
+      "path": "/github/repos/{owner}/{repo}/release-notes/preview",
+      "raw_operation_refs": [
+        "github.api.prepare_release_notes"
+      ],
+      "side_effect_level": "read",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "owner",
+          "type": "string",
+          "required": true,
+          "summary": "GitHub repository owner.",
+          "semantic_type": "repo_owner",
+          "clarification_hint": "Ask for owner when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "repo",
+          "type": "string",
+          "required": true,
+          "summary": "GitHub repository name.",
+          "semantic_type": "repo_name",
+          "clarification_hint": "Ask for repo when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "range",
+          "type": "string",
+          "required": true,
+          "summary": "Release range, milestone, or comparison reference.",
+          "clarification_hint": "Ask for range when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "audience",
+          "type": "string",
+          "required": false,
+          "summary": "Release-note audience.",
+          "allowed_values": [
+            "engineering",
+            "customer",
+            "internal"
+          ],
+          "clarification_hint": "Ask for audience when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded GitHub provider options such as selected fields or pagination. Must not bypass repo scope, approval, or secret policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    }
+  ]
+}

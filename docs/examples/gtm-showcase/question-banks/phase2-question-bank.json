@@ -1,0 +1,357 @@
+{
+  "phase": 2,
+  "title": "Enrichment And Lookalike Questions",
+  "count": 50,
+  "entries": [
+    {
+      "id": "enrichment-named-1",
+      "category": "enrichment_happy_path",
+      "question": "Summarize firmographic context for Acme Corporation and Codehow.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "enrichment-named-2",
+      "category": "enrichment_happy_path",
+      "question": "Summarize firmographic context for Condax and Acme Corporation.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "enrichment-named-3",
+      "category": "enrichment_happy_path",
+      "question": "Summarize firmographic context for Codehow and Condax.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "enrichment-named-4",
+      "category": "enrichment_happy_path",
+      "question": "Summarize firmographic context for Acme Corporation, Codehow, and Condax.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "cross-service-risk-enrichment-East",
+      "category": "cross_service",
+      "question": "Show enrichment context for the top 5 at-risk accounts in 2017-Q2 in the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "cross-service-risk-enrichment-West",
+      "category": "cross_service",
+      "question": "Show enrichment context for the top 5 at-risk accounts in 2017-Q2 in the West region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "cross-service-risk-enrichment-Central",
+      "category": "cross_service",
+      "question": "Show enrichment context for the top 5 at-risk accounts in 2017-Q2 in the Central region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "cross-service-risk-enrichment-company",
+      "category": "cross_service",
+      "question": "Show enrichment context for the top 5 at-risk accounts in 2017-Q2 .",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "lookalike-condax",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Condax.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "lookalike-acme-corporation",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Acme Corporation.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "lookalike-codehow",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Codehow.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "lookalike-betasoloin",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Betasoloin.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "lookalike-groovestreet",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Groovestreet.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "clarify-enrichment-important-accounts",
+      "category": "clarification",
+      "question": "Summarize firmographic context for our most important accounts.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "clarify-lookalike-best-customer",
+      "category": "clarification",
+      "question": "Find lookalike accounts for our best customer.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "clarify-lookalike-top-account",
+      "category": "clarification",
+      "question": "Find lookalike accounts for our top account.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "clarify-enrichment-core-accounts",
+      "category": "clarification",
+      "question": "Summarize enrichment for our core accounts.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "clarify-buying-committee",
+      "category": "clarification",
+      "question": "Show firmographic context for the companies we care about most.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "followup-lookalike-condax",
+      "category": "clarification_followup",
+      "question": "Use Condax after asking for lookalike accounts for our best customer.",
+      "expected_outcome": "success",
+      "notes": "Follow-up turn after missing reference account."
+    },
+    {
+      "id": "followup-enrichment-acme-codehow",
+      "category": "clarification_followup",
+      "question": "Use Acme Corporation and Codehow after asking for firmographic context for our most important accounts.",
+      "expected_outcome": "success",
+      "notes": "Follow-up turn after missing account scope."
+    },
+    {
+      "id": "followup-enrichment-acme-codehow-condax",
+      "category": "clarification_followup",
+      "question": "Use Acme Corporation, Codehow, and Condax after asking for firmographic context for our most important accounts.",
+      "expected_outcome": "success",
+      "notes": "Follow-up turn after missing account scope."
+    },
+    {
+      "id": "deny-outreach-plus-rows",
+      "category": "denied",
+      "question": "Draft a personalized outreach sequence for the top 5 at-risk accounts in 2017-Q2 and include the raw underlying opportunity rows.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "deny-raw-enrichment-table",
+      "category": "denied",
+      "question": "Return the raw enrichment table for our highest-risk accounts.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "deny-buying-committee-export",
+      "category": "denied",
+      "question": "Export every enrichment field and underlying notes for Acme Corporation and Codehow.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "deny-enrichment-underlying-dump",
+      "category": "denied",
+      "question": "Dump the full underlying enrichment payload for Condax and Acme Corporation.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "deny-enrichment-debug-dump",
+      "category": "denied",
+      "question": "Return all raw enrichment records for internal debugging.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "deny-raw-lookalike-payload",
+      "category": "denied",
+      "question": "Give me the raw payload behind the Condax lookalike report.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "lookalike-top3-condax",
+      "category": "enrichment_happy_path",
+      "question": "Find the top 3 lookalike accounts similar to Condax.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "lookalike-top3-acme-corporation",
+      "category": "enrichment_happy_path",
+      "question": "Find the top 3 lookalike accounts similar to Acme Corporation.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "lookalike-top3-codehow",
+      "category": "enrichment_happy_path",
+      "question": "Find the top 3 lookalike accounts similar to Codehow.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-31",
+      "category": "cross_service",
+      "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-32",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Acme Corporation in a bounded top-5 list.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-33",
+      "category": "clarification",
+      "question": "Summarize firmographic context for the accounts we should review next.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-34",
+      "category": "cross_service",
+      "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-35",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Groovestreet in a bounded top-5 list.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-36",
+      "category": "clarification",
+      "question": "Summarize firmographic context for the accounts we should review next.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-37",
+      "category": "cross_service",
+      "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-38",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Codehow in a bounded top-5 list.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-39",
+      "category": "clarification",
+      "question": "Summarize firmographic context for the accounts we should review next.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-40",
+      "category": "cross_service",
+      "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-41",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Condax in a bounded top-5 list.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-42",
+      "category": "clarification",
+      "question": "Summarize firmographic context for the accounts we should review next.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-43",
+      "category": "cross_service",
+      "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-44",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Betasoloin in a bounded top-5 list.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-45",
+      "category": "clarification",
+      "question": "Summarize firmographic context for the accounts we should review next.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-46",
+      "category": "cross_service",
+      "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-47",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Acme Corporation in a bounded top-5 list.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-48",
+      "category": "clarification",
+      "question": "Summarize firmographic context for the accounts we should review next.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-49",
+      "category": "cross_service",
+      "question": "Summarize firmographic context for the top 3 at-risk accounts in 2017-Q2 for the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase2-matrix-50",
+      "category": "enrichment_happy_path",
+      "question": "Find lookalike accounts similar to Groovestreet in a bounded top-5 list.",
+      "expected_outcome": "success",
+      "notes": null
+    }
+  ]
+}

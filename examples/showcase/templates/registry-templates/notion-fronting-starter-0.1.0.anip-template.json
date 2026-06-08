@@ -1,0 +1,2116 @@
+{
+  "template_id": "notion-fronting-starter",
+  "template_version": "0.1.0",
+  "manifest": {
+    "schema": "anip-starter-template-manifest/v0",
+    "template_id": "notion-fronting-starter",
+    "template_title": "Notion Fronting Starter",
+    "template_kind": "fronting_starter",
+    "package_version": "0.1.0",
+    "anip_spec_version": "anip/0.24",
+    "studio_version": "0.8.0",
+    "template_digest": "sha256:c435932d2647531fc072b073f9e8d0b0f1397957bb41d0ef6407bac2bc356071",
+    "counts": {
+      "documents": 3,
+      "connections": 2,
+      "discovery_records": 5,
+      "capability_mappings": 5
+    },
+    "industry": "knowledge_management",
+    "systems": [
+      "notion"
+    ]
+  },
+  "template": {
+    "schema": "anip-starter-template/v0",
+    "anipSpecVersion": "anip/0.24",
+    "id": "notion-fronting-starter",
+    "kind": "fronting_starter",
+    "projectType": "governed_service_project",
+    "title": "Notion Fronting Starter",
+    "summary": "Template-suggested Notion API/MCP fronting structure with reviewed capability candidates.",
+    "description": "Starts a governed Notion fronting project from reviewed starter data. Verify backend operations, auth posture, and policy boundaries against the real integration before locking.",
+    "domain": "notion",
+    "recommendedBrief": "Create a governed ANIP fronting layer for Notion. Expose selected behavior-shaped capabilities instead of raw backend operations. Read operations must preserve actor-visible scope. Write-adjacent operations must prepare previews or require approval before downstream mutation.",
+    "documents": [
+      {
+        "idSuffix": "template-fronting-intent",
+        "title": "Notion governed fronting intent",
+        "kind": "business_intent",
+        "filename": "notion-fronting-intent.md",
+        "content": "# Notion Governed Fronting Intent\n\n> Imported from starter template `notion-fronting-starter`. Treat this as draft guidance, not discovered truth.\n\nExpose a governed Notion capability surface in front of native API or MCP-backed operations.\n\n## Template-suggested capabilities\n- notion.workspace.search_context: Search bounded Notion pages and databases without exposing raw workspace tools.\n- notion.database.query_context: Query a bounded Notion database view with declared filters and return summarized context.\n- notion.page.create.prepare: Prepare a Notion page creation preview under an explicit parent before creating anything.\n- notion.page.update.prepare: Prepare a Notion page update preview for an explicit page without applying the update.\n- notion.comment.prepare: Prepare a Notion page comment from supplied context without posting it.\n\n## Governance posture\n- Raw Notion tools are not exposed directly to agents.\n- Reads return bounded actor-visible context.\n- Write-adjacent actions prepare previews or require explicit approval before execution.\n- Missing required inputs trigger clarification instead of guessing."
+      },
+      {
+        "idSuffix": "template-integration-evidence",
+        "title": "Notion integration evidence",
+        "kind": "api_docs",
+        "filename": "notion-integration-evidence.template.md",
+        "content": "# Notion Integration Evidence Template\n\n> Imported from starter template `notion-fronting-starter`. Verify every operation against your chosen native API/MCP source before locking.\n\nNative API connection: NOTION_API_URL\nMCP connection: NOTION_MCP_ENDPOINT\n\n## Template-suggested backend operations\n- notion.api.workspace_search_context: GET /notion/workspace_search_context\n- notion.api.database_query_context: GET /notion/database_query_context\n- notion.api.page_create_prepare: POST /notion/page_create_prepare\n- notion.api.page_update_prepare: POST /notion/page_update_prepare\n- notion.api.comment_prepare: POST /notion/comment_prepare\n\n## Secret posture\n- Studio stores secret references only; project exports must not contain tokens.\n- Teams can implement either native API or MCP backend seams behind the same governed ANIP contract."
+      },
+      {
+        "idSuffix": "template-developer-evidence",
+        "title": "Notion developer evidence",
+        "kind": "api_docs",
+        "filename": "notion-developer-evidence.template.md",
+        "content": "# Notion Developer Evidence\n\nImported from starter template `notion-fronting-starter`. This is developer-owned evidence for Studio Autopilot and generated-service review.\n\nThis document turns starter operations into explicit ANIP runtime governance and input-contract evidence. Review it against the real integration before publishing.\n\n## Capability Evidence Summary\n\n| capability_id | service_id | operation_type | side_effect_level | inputs | backend_operation |\n| --- | --- | --- | --- | ---: | --- |\n| notion.workspace.search_context | notion-fronting | read | read | 4 | notion.api.workspace_search_context |\n| notion.database.query_context | notion-fronting | read | read | 4 | notion.api.database_query_context |\n| notion.page.create.prepare | notion-fronting | write | write_adjacent | 4 | notion.api.page_create_prepare |\n| notion.page.update.prepare | notion-fronting | write | write_adjacent | 4 | notion.api.page_update_prepare |\n| notion.comment.prepare | notion-fronting | write | write_adjacent | 4 | notion.api.comment_prepare |\n\n## Reviewed Developer Evidence\n\n```json\n{\"capability_formalizations\":[{\"capability_id\":\"notion.workspace.search_context\",\"title\":\"Search Workspace Context\",\"summary\":\"Search bounded Notion pages and databases without exposing raw workspace tools.\",\"kind\":\"atomic\",\"source_kind\":\"application_integration\",\"service_id\":\"notion-fronting\",\"operation_type\":\"read\",\"side_effect_level\":\"read\",\"execution_posture\":\"read_only\",\"grant_policy\":null,\"business_effects\":{\"produces\":[\"content.summary\",\"data.read\"],\"does_not_produce\":[\"raw_data_export\",\"system.mutation\"]},\"minimum_scope\":[\"notion.workspace.search_context\"],\"backend_operation\":\"notion.api.workspace_search_context\",\"output_shape\":\"bounded_workspace_results_result\",\"output_intent\":\"bounded_workspace_results\",\"intent_type\":\"read_only\",\"subject_kind\":\"notion_workspace\",\"context_type\":\"workspace_context_search\",\"inputs\":[{\"input_name\":\"workspace_scope\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"workspace_scope\",\"entity_reference\":true,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"query\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"limit\",\"input_type\":\"integer\",\"required\":false,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"20\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"backend_options\",\"input_type\":\"object\",\"required\":false,\"semantic_type\":\"backend_options\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}}]},{\"capability_id\":\"notion.database.query_context\",\"title\":\"Query Database Context\",\"summary\":\"Query a bounded Notion database view with declared filters and return summarized context.\",\"kind\":\"atomic\",\"source_kind\":\"application_integration\",\"service_id\":\"notion-fronting\",\"operation_type\":\"read\",\"side_effect_level\":\"read\",\"execution_posture\":\"read_only\",\"grant_policy\":null,\"business_effects\":{\"produces\":[\"content.summary\",\"data.read\"],\"does_not_produce\":[\"raw_data_export\",\"system.mutation\"]},\"minimum_scope\":[\"notion.database.query_context\"],\"backend_operation\":\"notion.api.database_query_context\",\"output_shape\":\"bounded_database_rows_result\",\"output_intent\":\"bounded_database_rows\",\"intent_type\":\"read_only\",\"subject_kind\":\"notion_database\",\"context_type\":\"database_query\",\"inputs\":[{\"input_name\":\"database_id\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"database_ref\",\"entity_reference\":true,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"filter\",\"input_type\":\"string\",\"required\":false,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"limit\",\"input_type\":\"integer\",\"required\":false,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"20\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"backend_options\",\"input_type\":\"object\",\"required\":false,\"semantic_type\":\"backend_options\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}}]},{\"capability_id\":\"notion.page.create.prepare\",\"title\":\"Prepare Page Creation\",\"summary\":\"Prepare a Notion page creation preview under an explicit parent before creating anything.\",\"kind\":\"atomic\",\"source_kind\":\"application_integration\",\"service_id\":\"notion-fronting\",\"operation_type\":\"write\",\"side_effect_level\":\"write_adjacent\",\"execution_posture\":\"prepare_only\",\"grant_policy\":{\"allowed_grant_types\":[\"one_time\",\"session_bound\"],\"default_grant_type\":\"one_time\",\"expires_in_seconds\":900,\"max_uses\":1},\"business_effects\":{\"produces\":[\"approval.request\",\"system.preview_mutation\",\"content.draft\"],\"does_not_produce\":[\"approval.execute\",\"system.mutation\",\"raw_data_export\"]},\"minimum_scope\":[\"notion.page.create.prepare\"],\"backend_operation\":\"notion.api.page_create_prepare\",\"output_shape\":\"page_creation_preview_result\",\"output_intent\":\"page_creation_preview\",\"intent_type\":\"prepare_only\",\"subject_kind\":\"notion_page\",\"context_type\":\"page_creation_preparation\",\"inputs\":[{\"input_name\":\"parent_id\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"page_or_database_ref\",\"entity_reference\":true,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"title\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"content_summary\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"backend_options\",\"input_type\":\"object\",\"required\":false,\"semantic_type\":\"backend_options\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}}]},{\"capability_id\":\"notion.page.update.prepare\",\"title\":\"Prepare Page Update\",\"summary\":\"Prepare a Notion page update preview for an explicit page without applying the update.\",\"kind\":\"atomic\",\"source_kind\":\"application_integration\",\"service_id\":\"notion-fronting\",\"operation_type\":\"write\",\"side_effect_level\":\"write_adjacent\",\"execution_posture\":\"prepare_only\",\"grant_policy\":{\"allowed_grant_types\":[\"one_time\",\"session_bound\"],\"default_grant_type\":\"one_time\",\"expires_in_seconds\":900,\"max_uses\":1},\"business_effects\":{\"produces\":[\"approval.request\",\"system.preview_mutation\",\"content.draft\"],\"does_not_produce\":[\"approval.execute\",\"system.mutation\",\"raw_data_export\"]},\"minimum_scope\":[\"notion.page.update.prepare\"],\"backend_operation\":\"notion.api.page_update_prepare\",\"output_shape\":\"page_update_preview_result\",\"output_intent\":\"page_update_preview\",\"intent_type\":\"prepare_only\",\"subject_kind\":\"notion_page\",\"context_type\":\"page_update_preparation\",\"inputs\":[{\"input_name\":\"page_id\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"page_ref\",\"entity_reference\":true,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"change_summary\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"content_patch\",\"input_type\":\"string\",\"required\":false,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"backend_options\",\"input_type\":\"object\",\"required\":false,\"semantic_type\":\"backend_options\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}}]},{\"capability_id\":\"notion.comment.prepare\",\"title\":\"Prepare Page Comment\",\"summary\":\"Prepare a Notion page comment from supplied context without posting it.\",\"kind\":\"atomic\",\"source_kind\":\"application_integration\",\"service_id\":\"notion-fronting\",\"operation_type\":\"write\",\"side_effect_level\":\"write_adjacent\",\"execution_posture\":\"prepare_only\",\"grant_policy\":{\"allowed_grant_types\":[\"one_time\",\"session_bound\"],\"default_grant_type\":\"one_time\",\"expires_in_seconds\":900,\"max_uses\":1},\"business_effects\":{\"produces\":[\"approval.request\",\"system.preview_mutation\",\"content.draft\"],\"does_not_produce\":[\"approval.execute\",\"system.mutation\",\"raw_data_export\"]},\"minimum_scope\":[\"notion.comment.prepare\"],\"backend_operation\":\"notion.api.comment_prepare\",\"output_shape\":\"comment_preview_result\",\"output_intent\":\"comment_preview\",\"intent_type\":\"prepare_only\",\"subject_kind\":\"notion_comment\",\"context_type\":\"comment_preparation\",\"inputs\":[{\"input_name\":\"page_id\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"page_ref\",\"entity_reference\":true,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"comment_purpose\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"context\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"backend_options\",\"input_type\":\"object\",\"required\":false,\"semantic_type\":\"backend_options\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}}]}]}\n```"
+      }
+    ],
+    "connections": [
+      {
+        "idSuffix": "notion-api",
+        "display_name": "Notion API",
+        "backend_kind": "native_api",
+        "system_kind": "notion",
+        "endpoint_ref": "NOTION_API_URL",
+        "auth_mode": "service_delegated",
+        "identity_provider_ref": "workspace-identity",
+        "secret_ref": "NOTION_API_TOKEN",
+        "metadata": {
+          "template_suggested": true,
+          "starter_template_id": "notion-fronting-starter"
+        }
+      },
+      {
+        "idSuffix": "notion-mcp",
+        "display_name": "Notion MCP",
+        "backend_kind": "mcp",
+        "system_kind": "notion",
+        "endpoint_ref": "NOTION_MCP_ENDPOINT",
+        "auth_mode": "external",
+        "identity_provider_ref": "notion-oauth",
+        "secret_ref": "NOTION_MCP_TOKEN",
+        "metadata": {
+          "template_suggested": true,
+          "starter_template_id": "notion-fronting-starter"
+        }
+      }
+    ],
+    "discoveryRecords": [
+      {
+        "idSuffix": "notion-workspace-search-context-notion-api-workspace-search-context",
+        "connectionIdSuffix": "notion-api",
+        "operation_id": "notion.api.workspace_search_context",
+        "backend_kind": "native_api",
+        "method": "GET",
+        "path_template": "/notion/workspace_search_context",
+        "side_effect_level": "read",
+        "input_schema_summary": {
+          "required": [
+            "workspace_scope",
+            "query"
+          ],
+          "optional": [
+            "limit",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "notion-fronting-starter",
+          "capability_id": "notion.workspace.search_context"
+        }
+      },
+      {
+        "idSuffix": "notion-database-query-context-notion-api-database-query-context",
+        "connectionIdSuffix": "notion-api",
+        "operation_id": "notion.api.database_query_context",
+        "backend_kind": "native_api",
+        "method": "GET",
+        "path_template": "/notion/database_query_context",
+        "side_effect_level": "read",
+        "input_schema_summary": {
+          "required": [
+            "database_id"
+          ],
+          "optional": [
+            "filter",
+            "limit",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "notion-fronting-starter",
+          "capability_id": "notion.database.query_context"
+        }
+      },
+      {
+        "idSuffix": "notion-page-create-prepare-notion-api-page-create-prepare",
+        "connectionIdSuffix": "notion-api",
+        "operation_id": "notion.api.page_create_prepare",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/notion/page_create_prepare",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "required": [
+            "parent_id",
+            "title",
+            "content_summary"
+          ],
+          "optional": [
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "notion-fronting-starter",
+          "capability_id": "notion.page.create.prepare"
+        }
+      },
+      {
+        "idSuffix": "notion-page-update-prepare-notion-api-page-update-prepare",
+        "connectionIdSuffix": "notion-api",
+        "operation_id": "notion.api.page_update_prepare",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/notion/page_update_prepare",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "required": [
+            "page_id",
+            "change_summary"
+          ],
+          "optional": [
+            "content_patch",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "notion-fronting-starter",
+          "capability_id": "notion.page.update.prepare"
+        }
+      },
+      {
+        "idSuffix": "notion-comment-prepare-notion-api-comment-prepare",
+        "connectionIdSuffix": "notion-api",
+        "operation_id": "notion.api.comment_prepare",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/notion/comment_prepare",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "required": [
+            "page_id",
+            "comment_purpose",
+            "context"
+          ],
+          "optional": [
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "notion-fronting-starter",
+          "capability_id": "notion.comment.prepare"
+        }
+      }
+    ],
+    "capabilityMappings": [
+      {
+        "idSuffix": "mapping-notion-workspace-search-context",
+        "title": "Search Workspace Context",
+        "data": {
+          "artifact_type": "integration_fronting_capability_mapping",
+          "template_suggested": true,
+          "review_status": "template_suggested",
+          "title": "Search Workspace Context",
+          "capability_id": "notion.workspace.search_context",
+          "intent": "Search bounded Notion pages and databases without exposing raw workspace tools.",
+          "service_id": "notion-fronting",
+          "service_name": "Notion Fronting",
+          "backend_kind": "native_api",
+          "connection_ref": "notion-api",
+          "raw_operation_refs": [
+            "notion.api.workspace_search_context"
+          ],
+          "backend_bindings": [
+            {
+              "backend_kind": "native_api",
+              "connection_ref": "notion-api",
+              "raw_operation_refs": [
+                "notion.api.workspace_search_context"
+              ],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "workspace_scope",
+                "query"
+              ],
+              "derived_optional_backend_inputs": [
+                "limit",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "workspace_scope",
+                "query"
+              ],
+              "explicit_optional_backend_inputs": [
+                "limit",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [
+                "notion-workspace-search-context-notion-api-workspace-search-context"
+              ],
+              "status": "ready",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking."
+            },
+            {
+              "backend_kind": "mcp",
+              "connection_ref": "notion-mcp",
+              "raw_operation_refs": [],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "workspace_scope",
+                "query"
+              ],
+              "derived_optional_backend_inputs": [
+                "limit",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "workspace_scope",
+                "query"
+              ],
+              "explicit_optional_backend_inputs": [
+                "limit",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [],
+              "status": "missing",
+              "status_detail": "No MCP operation was declared for this capability."
+            }
+          ],
+          "execution_posture": "read_only",
+          "side_effect_level": "read",
+          "subject_kind": "notion_workspace",
+          "context_type": "workspace_context_search",
+          "output_intent": "bounded_workspace_results",
+          "required_inputs": [
+            "workspace_scope",
+            "query"
+          ],
+          "optional_inputs": [
+            "limit",
+            "backend_options"
+          ],
+          "inputs": [
+            {
+              "input_name": "workspace_scope",
+              "input_type": "string",
+              "required": true,
+              "summary": "Declared workspace or team scope.",
+              "allowed_values": [],
+              "semantic_type": "workspace_scope",
+              "clarification_hint": "Ask for workspace_scope when it is missing or ambiguous.",
+              "entity_reference": true
+            },
+            {
+              "input_name": "query",
+              "input_type": "string",
+              "required": true,
+              "summary": "Bounded workspace search query.",
+              "allowed_values": [],
+              "clarification_hint": "Ask for query when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "limit",
+              "input_type": "integer",
+              "required": false,
+              "summary": "Maximum results to return.",
+              "default_value": "20",
+              "allowed_values": [],
+              "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy.",
+              "allowed_values": [],
+              "semantic_type": "backend_options",
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "entity_reference": false
+            }
+          ],
+          "backend_input_mode": "explicit",
+          "derived_required_backend_inputs": [
+            "workspace_scope",
+            "query"
+          ],
+          "derived_optional_backend_inputs": [
+            "limit",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "workspace_scope",
+            "query"
+          ],
+          "explicit_optional_backend_inputs": [
+            "limit",
+            "backend_options"
+          ],
+          "approval_rule_refs": [],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "clarification_rule_refs": [
+            "clarify.workspace_scope",
+            "clarify.query"
+          ],
+          "audit_required": true,
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ]
+        }
+      },
+      {
+        "idSuffix": "mapping-notion-database-query-context",
+        "title": "Query Database Context",
+        "data": {
+          "artifact_type": "integration_fronting_capability_mapping",
+          "template_suggested": true,
+          "review_status": "template_suggested",
+          "title": "Query Database Context",
+          "capability_id": "notion.database.query_context",
+          "intent": "Query a bounded Notion database view with declared filters and return summarized context.",
+          "service_id": "notion-fronting",
+          "service_name": "Notion Fronting",
+          "backend_kind": "native_api",
+          "connection_ref": "notion-api",
+          "raw_operation_refs": [
+            "notion.api.database_query_context"
+          ],
+          "backend_bindings": [
+            {
+              "backend_kind": "native_api",
+              "connection_ref": "notion-api",
+              "raw_operation_refs": [
+                "notion.api.database_query_context"
+              ],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "database_id"
+              ],
+              "derived_optional_backend_inputs": [
+                "filter",
+                "limit",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "database_id"
+              ],
+              "explicit_optional_backend_inputs": [
+                "filter",
+                "limit",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [
+                "notion-database-query-context-notion-api-database-query-context"
+              ],
+              "status": "ready",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking."
+            },
+            {
+              "backend_kind": "mcp",
+              "connection_ref": "notion-mcp",
+              "raw_operation_refs": [],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "database_id"
+              ],
+              "derived_optional_backend_inputs": [
+                "filter",
+                "limit",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "database_id"
+              ],
+              "explicit_optional_backend_inputs": [
+                "filter",
+                "limit",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [],
+              "status": "missing",
+              "status_detail": "No MCP operation was declared for this capability."
+            }
+          ],
+          "execution_posture": "read_only",
+          "side_effect_level": "read",
+          "subject_kind": "notion_database",
+          "context_type": "database_query",
+          "output_intent": "bounded_database_rows",
+          "required_inputs": [
+            "database_id"
+          ],
+          "optional_inputs": [
+            "filter",
+            "limit",
+            "backend_options"
+          ],
+          "inputs": [
+            {
+              "input_name": "database_id",
+              "input_type": "string",
+              "required": true,
+              "summary": "Notion database identifier.",
+              "allowed_values": [],
+              "semantic_type": "database_ref",
+              "clarification_hint": "Ask for database_id when it is missing or ambiguous.",
+              "entity_reference": true
+            },
+            {
+              "input_name": "filter",
+              "input_type": "string",
+              "required": false,
+              "summary": "Declared filter expression or business filter.",
+              "allowed_values": [],
+              "clarification_hint": "Ask for filter when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "limit",
+              "input_type": "integer",
+              "required": false,
+              "summary": "Maximum rows to return.",
+              "default_value": "20",
+              "allowed_values": [],
+              "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy.",
+              "allowed_values": [],
+              "semantic_type": "backend_options",
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "entity_reference": false
+            }
+          ],
+          "backend_input_mode": "explicit",
+          "derived_required_backend_inputs": [
+            "database_id"
+          ],
+          "derived_optional_backend_inputs": [
+            "filter",
+            "limit",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "database_id"
+          ],
+          "explicit_optional_backend_inputs": [
+            "filter",
+            "limit",
+            "backend_options"
+          ],
+          "approval_rule_refs": [],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "clarification_rule_refs": [
+            "clarify.database_id"
+          ],
+          "audit_required": true,
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ]
+        }
+      },
+      {
+        "idSuffix": "mapping-notion-page-create-prepare",
+        "title": "Prepare Page Creation",
+        "data": {
+          "artifact_type": "integration_fronting_capability_mapping",
+          "template_suggested": true,
+          "review_status": "template_suggested",
+          "title": "Prepare Page Creation",
+          "capability_id": "notion.page.create.prepare",
+          "intent": "Prepare a Notion page creation preview under an explicit parent before creating anything.",
+          "service_id": "notion-fronting",
+          "service_name": "Notion Fronting",
+          "backend_kind": "native_api",
+          "connection_ref": "notion-api",
+          "raw_operation_refs": [
+            "notion.api.page_create_prepare"
+          ],
+          "backend_bindings": [
+            {
+              "backend_kind": "native_api",
+              "connection_ref": "notion-api",
+              "raw_operation_refs": [
+                "notion.api.page_create_prepare"
+              ],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "parent_id",
+                "title",
+                "content_summary"
+              ],
+              "derived_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "parent_id",
+                "title",
+                "content_summary"
+              ],
+              "explicit_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [
+                "notion-page-create-prepare-notion-api-page-create-prepare"
+              ],
+              "status": "ready",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking."
+            },
+            {
+              "backend_kind": "mcp",
+              "connection_ref": "notion-mcp",
+              "raw_operation_refs": [],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "parent_id",
+                "title",
+                "content_summary"
+              ],
+              "derived_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "parent_id",
+                "title",
+                "content_summary"
+              ],
+              "explicit_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [],
+              "status": "missing",
+              "status_detail": "No MCP operation was declared for this capability."
+            }
+          ],
+          "execution_posture": "prepare_only",
+          "side_effect_level": "write_adjacent",
+          "subject_kind": "notion_page",
+          "context_type": "page_creation_preparation",
+          "output_intent": "page_creation_preview",
+          "required_inputs": [
+            "parent_id",
+            "title",
+            "content_summary"
+          ],
+          "optional_inputs": [
+            "backend_options"
+          ],
+          "inputs": [
+            {
+              "input_name": "parent_id",
+              "input_type": "string",
+              "required": true,
+              "summary": "Parent page or database identifier.",
+              "allowed_values": [],
+              "semantic_type": "page_or_database_ref",
+              "clarification_hint": "Ask for parent_id when it is missing or ambiguous.",
+              "entity_reference": true
+            },
+            {
+              "input_name": "title",
+              "input_type": "string",
+              "required": true,
+              "summary": "Proposed page title.",
+              "allowed_values": [],
+              "clarification_hint": "Ask for title when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "content_summary",
+              "input_type": "string",
+              "required": true,
+              "summary": "Bounded content summary for the new page.",
+              "allowed_values": [],
+              "clarification_hint": "Ask for content_summary when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy.",
+              "allowed_values": [],
+              "semantic_type": "backend_options",
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "entity_reference": false
+            }
+          ],
+          "backend_input_mode": "explicit",
+          "derived_required_backend_inputs": [
+            "parent_id",
+            "title",
+            "content_summary"
+          ],
+          "derived_optional_backend_inputs": [
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "parent_id",
+            "title",
+            "content_summary"
+          ],
+          "explicit_optional_backend_inputs": [
+            "backend_options"
+          ],
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "clarification_rule_refs": [
+            "clarify.parent_id",
+            "clarify.title",
+            "clarify.content_summary"
+          ],
+          "audit_required": true,
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ]
+        }
+      },
+      {
+        "idSuffix": "mapping-notion-page-update-prepare",
+        "title": "Prepare Page Update",
+        "data": {
+          "artifact_type": "integration_fronting_capability_mapping",
+          "template_suggested": true,
+          "review_status": "template_suggested",
+          "title": "Prepare Page Update",
+          "capability_id": "notion.page.update.prepare",
+          "intent": "Prepare a Notion page update preview for an explicit page without applying the update.",
+          "service_id": "notion-fronting",
+          "service_name": "Notion Fronting",
+          "backend_kind": "native_api",
+          "connection_ref": "notion-api",
+          "raw_operation_refs": [
+            "notion.api.page_update_prepare"
+          ],
+          "backend_bindings": [
+            {
+              "backend_kind": "native_api",
+              "connection_ref": "notion-api",
+              "raw_operation_refs": [
+                "notion.api.page_update_prepare"
+              ],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "page_id",
+                "change_summary"
+              ],
+              "derived_optional_backend_inputs": [
+                "content_patch",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "page_id",
+                "change_summary"
+              ],
+              "explicit_optional_backend_inputs": [
+                "content_patch",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [
+                "notion-page-update-prepare-notion-api-page-update-prepare"
+              ],
+              "status": "ready",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking."
+            },
+            {
+              "backend_kind": "mcp",
+              "connection_ref": "notion-mcp",
+              "raw_operation_refs": [],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "page_id",
+                "change_summary"
+              ],
+              "derived_optional_backend_inputs": [
+                "content_patch",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "page_id",
+                "change_summary"
+              ],
+              "explicit_optional_backend_inputs": [
+                "content_patch",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [],
+              "status": "missing",
+              "status_detail": "No MCP operation was declared for this capability."
+            }
+          ],
+          "execution_posture": "prepare_only",
+          "side_effect_level": "write_adjacent",
+          "subject_kind": "notion_page",
+          "context_type": "page_update_preparation",
+          "output_intent": "page_update_preview",
+          "required_inputs": [
+            "page_id",
+            "change_summary"
+          ],
+          "optional_inputs": [
+            "content_patch",
+            "backend_options"
+          ],
+          "inputs": [
+            {
+              "input_name": "page_id",
+              "input_type": "string",
+              "required": true,
+              "summary": "Notion page identifier.",
+              "allowed_values": [],
+              "semantic_type": "page_ref",
+              "clarification_hint": "Ask for page_id when it is missing or ambiguous.",
+              "entity_reference": true
+            },
+            {
+              "input_name": "change_summary",
+              "input_type": "string",
+              "required": true,
+              "summary": "Plain-language change summary.",
+              "allowed_values": [],
+              "clarification_hint": "Ask for change_summary when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "content_patch",
+              "input_type": "string",
+              "required": false,
+              "summary": "Optional bounded content patch.",
+              "allowed_values": [],
+              "clarification_hint": "Ask for content_patch when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy.",
+              "allowed_values": [],
+              "semantic_type": "backend_options",
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "entity_reference": false
+            }
+          ],
+          "backend_input_mode": "explicit",
+          "derived_required_backend_inputs": [
+            "page_id",
+            "change_summary"
+          ],
+          "derived_optional_backend_inputs": [
+            "content_patch",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "page_id",
+            "change_summary"
+          ],
+          "explicit_optional_backend_inputs": [
+            "content_patch",
+            "backend_options"
+          ],
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "clarification_rule_refs": [
+            "clarify.page_id",
+            "clarify.change_summary"
+          ],
+          "audit_required": true,
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ]
+        }
+      },
+      {
+        "idSuffix": "mapping-notion-comment-prepare",
+        "title": "Prepare Page Comment",
+        "data": {
+          "artifact_type": "integration_fronting_capability_mapping",
+          "template_suggested": true,
+          "review_status": "template_suggested",
+          "title": "Prepare Page Comment",
+          "capability_id": "notion.comment.prepare",
+          "intent": "Prepare a Notion page comment from supplied context without posting it.",
+          "service_id": "notion-fronting",
+          "service_name": "Notion Fronting",
+          "backend_kind": "native_api",
+          "connection_ref": "notion-api",
+          "raw_operation_refs": [
+            "notion.api.comment_prepare"
+          ],
+          "backend_bindings": [
+            {
+              "backend_kind": "native_api",
+              "connection_ref": "notion-api",
+              "raw_operation_refs": [
+                "notion.api.comment_prepare"
+              ],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "page_id",
+                "comment_purpose",
+                "context"
+              ],
+              "derived_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "page_id",
+                "comment_purpose",
+                "context"
+              ],
+              "explicit_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [
+                "notion-comment-prepare-notion-api-comment-prepare"
+              ],
+              "status": "ready",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking."
+            },
+            {
+              "backend_kind": "mcp",
+              "connection_ref": "notion-mcp",
+              "raw_operation_refs": [],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "page_id",
+                "comment_purpose",
+                "context"
+              ],
+              "derived_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "page_id",
+                "comment_purpose",
+                "context"
+              ],
+              "explicit_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [],
+              "status": "missing",
+              "status_detail": "No MCP operation was declared for this capability."
+            }
+          ],
+          "execution_posture": "prepare_only",
+          "side_effect_level": "write_adjacent",
+          "subject_kind": "notion_comment",
+          "context_type": "comment_preparation",
+          "output_intent": "comment_preview",
+          "required_inputs": [
+            "page_id",
+            "comment_purpose",
+            "context"
+          ],
+          "optional_inputs": [
+            "backend_options"
+          ],
+          "inputs": [
+            {
+              "input_name": "page_id",
+              "input_type": "string",
+              "required": true,
+              "summary": "Notion page identifier.",
+              "allowed_values": [],
+              "semantic_type": "page_ref",
+              "clarification_hint": "Ask for page_id when it is missing or ambiguous.",
+              "entity_reference": true
+            },
+            {
+              "input_name": "comment_purpose",
+              "input_type": "string",
+              "required": true,
+              "summary": "Purpose of the comment.",
+              "allowed_values": [],
+              "clarification_hint": "Ask for comment_purpose when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "context",
+              "input_type": "string",
+              "required": true,
+              "summary": "Bounded context for the proposed comment.",
+              "allowed_values": [],
+              "clarification_hint": "Ask for context when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy.",
+              "allowed_values": [],
+              "semantic_type": "backend_options",
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "entity_reference": false
+            }
+          ],
+          "backend_input_mode": "explicit",
+          "derived_required_backend_inputs": [
+            "page_id",
+            "comment_purpose",
+            "context"
+          ],
+          "derived_optional_backend_inputs": [
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "page_id",
+            "comment_purpose",
+            "context"
+          ],
+          "explicit_optional_backend_inputs": [
+            "backend_options"
+          ],
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "clarification_rule_refs": [
+            "clarify.page_id",
+            "clarify.comment_purpose",
+            "clarify.context"
+          ],
+          "audit_required": true,
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ]
+        }
+      }
+    ]
+  },
+  "package": {
+    "schema": "anip-starter-template-package/v0",
+    "package_kind": "anip_starter_template",
+    "package_version": "0.1.0",
+    "exported_at": "2026-05-15T00:00:00Z",
+    "exported_by": {
+      "studio_version": "0.8.0",
+      "anip_spec_version": "anip/0.24"
+    },
+    "source_project": {
+      "id": "template-source:notion-fronting-starter",
+      "name": "Notion Fronting Starter",
+      "project_type": "governed_service_project",
+      "domain": "notion"
+    },
+    "manifest": {
+      "schema": "anip-starter-template-manifest/v0",
+      "template_id": "notion-fronting-starter",
+      "template_title": "Notion Fronting Starter",
+      "template_kind": "fronting_starter",
+      "package_version": "0.1.0",
+      "anip_spec_version": "anip/0.24",
+      "studio_version": "0.8.0",
+      "template_digest": "sha256:c435932d2647531fc072b073f9e8d0b0f1397957bb41d0ef6407bac2bc356071",
+      "counts": {
+        "documents": 3,
+        "connections": 2,
+        "discovery_records": 5,
+        "capability_mappings": 5
+      },
+      "industry": "knowledge_management",
+      "systems": [
+        "notion"
+      ]
+    },
+    "selection": {
+      "documents": 3,
+      "connections": 2,
+      "discovery_records": 5,
+      "capability_mappings": 5
+    },
+    "warnings": [
+      "Template-suggested starter data must be reviewed before baseline locking or publication.",
+      "Do not include workspace secrets or customer-private source documents in shared templates."
+    ],
+    "template": {
+      "schema": "anip-starter-template/v0",
+      "anipSpecVersion": "anip/0.24",
+      "id": "notion-fronting-starter",
+      "kind": "fronting_starter",
+      "projectType": "governed_service_project",
+      "title": "Notion Fronting Starter",
+      "summary": "Template-suggested Notion API/MCP fronting structure with reviewed capability candidates.",
+      "description": "Starts a governed Notion fronting project from reviewed starter data. Verify backend operations, auth posture, and policy boundaries against the real integration before locking.",
+      "domain": "notion",
+      "recommendedBrief": "Create a governed ANIP fronting layer for Notion. Expose selected behavior-shaped capabilities instead of raw backend operations. Read operations must preserve actor-visible scope. Write-adjacent operations must prepare previews or require approval before downstream mutation.",
+      "documents": [
+        {
+          "idSuffix": "template-fronting-intent",
+          "title": "Notion governed fronting intent",
+          "kind": "business_intent",
+          "filename": "notion-fronting-intent.md",
+          "content": "# Notion Governed Fronting Intent\n\n> Imported from starter template `notion-fronting-starter`. Treat this as draft guidance, not discovered truth.\n\nExpose a governed Notion capability surface in front of native API or MCP-backed operations.\n\n## Template-suggested capabilities\n- notion.workspace.search_context: Search bounded Notion pages and databases without exposing raw workspace tools.\n- notion.database.query_context: Query a bounded Notion database view with declared filters and return summarized context.\n- notion.page.create.prepare: Prepare a Notion page creation preview under an explicit parent before creating anything.\n- notion.page.update.prepare: Prepare a Notion page update preview for an explicit page without applying the update.\n- notion.comment.prepare: Prepare a Notion page comment from supplied context without posting it.\n\n## Governance posture\n- Raw Notion tools are not exposed directly to agents.\n- Reads return bounded actor-visible context.\n- Write-adjacent actions prepare previews or require explicit approval before execution.\n- Missing required inputs trigger clarification instead of guessing."
+        },
+        {
+          "idSuffix": "template-integration-evidence",
+          "title": "Notion integration evidence",
+          "kind": "api_docs",
+          "filename": "notion-integration-evidence.template.md",
+          "content": "# Notion Integration Evidence Template\n\n> Imported from starter template `notion-fronting-starter`. Verify every operation against your chosen native API/MCP source before locking.\n\nNative API connection: NOTION_API_URL\nMCP connection: NOTION_MCP_ENDPOINT\n\n## Template-suggested backend operations\n- notion.api.workspace_search_context: GET /notion/workspace_search_context\n- notion.api.database_query_context: GET /notion/database_query_context\n- notion.api.page_create_prepare: POST /notion/page_create_prepare\n- notion.api.page_update_prepare: POST /notion/page_update_prepare\n- notion.api.comment_prepare: POST /notion/comment_prepare\n\n## Secret posture\n- Studio stores secret references only; project exports must not contain tokens.\n- Teams can implement either native API or MCP backend seams behind the same governed ANIP contract."
+        },
+        {
+          "idSuffix": "template-developer-evidence",
+          "title": "Notion developer evidence",
+          "kind": "api_docs",
+          "filename": "notion-developer-evidence.template.md",
+          "content": "# Notion Developer Evidence\n\nImported from starter template `notion-fronting-starter`. This is developer-owned evidence for Studio Autopilot and generated-service review.\n\nThis document turns starter operations into explicit ANIP runtime governance and input-contract evidence. Review it against the real integration before publishing.\n\n## Capability Evidence Summary\n\n| capability_id | service_id | operation_type | side_effect_level | inputs | backend_operation |\n| --- | --- | --- | --- | ---: | --- |\n| notion.workspace.search_context | notion-fronting | read | read | 4 | notion.api.workspace_search_context |\n| notion.database.query_context | notion-fronting | read | read | 4 | notion.api.database_query_context |\n| notion.page.create.prepare | notion-fronting | write | write_adjacent | 4 | notion.api.page_create_prepare |\n| notion.page.update.prepare | notion-fronting | write | write_adjacent | 4 | notion.api.page_update_prepare |\n| notion.comment.prepare | notion-fronting | write | write_adjacent | 4 | notion.api.comment_prepare |\n\n## Reviewed Developer Evidence\n\n```json\n{\"capability_formalizations\":[{\"capability_id\":\"notion.workspace.search_context\",\"title\":\"Search Workspace Context\",\"summary\":\"Search bounded Notion pages and databases without exposing raw workspace tools.\",\"kind\":\"atomic\",\"source_kind\":\"application_integration\",\"service_id\":\"notion-fronting\",\"operation_type\":\"read\",\"side_effect_level\":\"read\",\"execution_posture\":\"read_only\",\"grant_policy\":null,\"business_effects\":{\"produces\":[\"content.summary\",\"data.read\"],\"does_not_produce\":[\"raw_data_export\",\"system.mutation\"]},\"minimum_scope\":[\"notion.workspace.search_context\"],\"backend_operation\":\"notion.api.workspace_search_context\",\"output_shape\":\"bounded_workspace_results_result\",\"output_intent\":\"bounded_workspace_results\",\"intent_type\":\"read_only\",\"subject_kind\":\"notion_workspace\",\"context_type\":\"workspace_context_search\",\"inputs\":[{\"input_name\":\"workspace_scope\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"workspace_scope\",\"entity_reference\":true,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"query\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"limit\",\"input_type\":\"integer\",\"required\":false,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"20\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"backend_options\",\"input_type\":\"object\",\"required\":false,\"semantic_type\":\"backend_options\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}}]},{\"capability_id\":\"notion.database.query_context\",\"title\":\"Query Database Context\",\"summary\":\"Query a bounded Notion database view with declared filters and return summarized context.\",\"kind\":\"atomic\",\"source_kind\":\"application_integration\",\"service_id\":\"notion-fronting\",\"operation_type\":\"read\",\"side_effect_level\":\"read\",\"execution_posture\":\"read_only\",\"grant_policy\":null,\"business_effects\":{\"produces\":[\"content.summary\",\"data.read\"],\"does_not_produce\":[\"raw_data_export\",\"system.mutation\"]},\"minimum_scope\":[\"notion.database.query_context\"],\"backend_operation\":\"notion.api.database_query_context\",\"output_shape\":\"bounded_database_rows_result\",\"output_intent\":\"bounded_database_rows\",\"intent_type\":\"read_only\",\"subject_kind\":\"notion_database\",\"context_type\":\"database_query\",\"inputs\":[{\"input_name\":\"database_id\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"database_ref\",\"entity_reference\":true,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"filter\",\"input_type\":\"string\",\"required\":false,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"limit\",\"input_type\":\"integer\",\"required\":false,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"20\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"backend_options\",\"input_type\":\"object\",\"required\":false,\"semantic_type\":\"backend_options\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}}]},{\"capability_id\":\"notion.page.create.prepare\",\"title\":\"Prepare Page Creation\",\"summary\":\"Prepare a Notion page creation preview under an explicit parent before creating anything.\",\"kind\":\"atomic\",\"source_kind\":\"application_integration\",\"service_id\":\"notion-fronting\",\"operation_type\":\"write\",\"side_effect_level\":\"write_adjacent\",\"execution_posture\":\"prepare_only\",\"grant_policy\":{\"allowed_grant_types\":[\"one_time\",\"session_bound\"],\"default_grant_type\":\"one_time\",\"expires_in_seconds\":900,\"max_uses\":1},\"business_effects\":{\"produces\":[\"approval.request\",\"system.preview_mutation\",\"content.draft\"],\"does_not_produce\":[\"approval.execute\",\"system.mutation\",\"raw_data_export\"]},\"minimum_scope\":[\"notion.page.create.prepare\"],\"backend_operation\":\"notion.api.page_create_prepare\",\"output_shape\":\"page_creation_preview_result\",\"output_intent\":\"page_creation_preview\",\"intent_type\":\"prepare_only\",\"subject_kind\":\"notion_page\",\"context_type\":\"page_creation_preparation\",\"inputs\":[{\"input_name\":\"parent_id\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"page_or_database_ref\",\"entity_reference\":true,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"title\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"content_summary\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"backend_options\",\"input_type\":\"object\",\"required\":false,\"semantic_type\":\"backend_options\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}}]},{\"capability_id\":\"notion.page.update.prepare\",\"title\":\"Prepare Page Update\",\"summary\":\"Prepare a Notion page update preview for an explicit page without applying the update.\",\"kind\":\"atomic\",\"source_kind\":\"application_integration\",\"service_id\":\"notion-fronting\",\"operation_type\":\"write\",\"side_effect_level\":\"write_adjacent\",\"execution_posture\":\"prepare_only\",\"grant_policy\":{\"allowed_grant_types\":[\"one_time\",\"session_bound\"],\"default_grant_type\":\"one_time\",\"expires_in_seconds\":900,\"max_uses\":1},\"business_effects\":{\"produces\":[\"approval.request\",\"system.preview_mutation\",\"content.draft\"],\"does_not_produce\":[\"approval.execute\",\"system.mutation\",\"raw_data_export\"]},\"minimum_scope\":[\"notion.page.update.prepare\"],\"backend_operation\":\"notion.api.page_update_prepare\",\"output_shape\":\"page_update_preview_result\",\"output_intent\":\"page_update_preview\",\"intent_type\":\"prepare_only\",\"subject_kind\":\"notion_page\",\"context_type\":\"page_update_preparation\",\"inputs\":[{\"input_name\":\"page_id\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"page_ref\",\"entity_reference\":true,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"change_summary\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"content_patch\",\"input_type\":\"string\",\"required\":false,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"backend_options\",\"input_type\":\"object\",\"required\":false,\"semantic_type\":\"backend_options\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}}]},{\"capability_id\":\"notion.comment.prepare\",\"title\":\"Prepare Page Comment\",\"summary\":\"Prepare a Notion page comment from supplied context without posting it.\",\"kind\":\"atomic\",\"source_kind\":\"application_integration\",\"service_id\":\"notion-fronting\",\"operation_type\":\"write\",\"side_effect_level\":\"write_adjacent\",\"execution_posture\":\"prepare_only\",\"grant_policy\":{\"allowed_grant_types\":[\"one_time\",\"session_bound\"],\"default_grant_type\":\"one_time\",\"expires_in_seconds\":900,\"max_uses\":1},\"business_effects\":{\"produces\":[\"approval.request\",\"system.preview_mutation\",\"content.draft\"],\"does_not_produce\":[\"approval.execute\",\"system.mutation\",\"raw_data_export\"]},\"minimum_scope\":[\"notion.comment.prepare\"],\"backend_operation\":\"notion.api.comment_prepare\",\"output_shape\":\"comment_preview_result\",\"output_intent\":\"comment_preview\",\"intent_type\":\"prepare_only\",\"subject_kind\":\"notion_comment\",\"context_type\":\"comment_preparation\",\"inputs\":[{\"input_name\":\"page_id\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"page_ref\",\"entity_reference\":true,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"comment_purpose\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"context\",\"input_type\":\"string\",\"required\":true,\"semantic_type\":\"\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}},{\"input_name\":\"backend_options\",\"input_type\":\"object\",\"required\":false,\"semantic_type\":\"backend_options\",\"entity_reference\":false,\"catalog_ref\":\"\",\"default_value\":\"\",\"allowed_values\":[],\"resolution\":{\"mode\":\"\",\"resolver_ref\":\"\",\"on_missing\":\"\",\"on_ambiguous\":\"\",\"on_unresolved\":\"\"}}]}]}\n```"
+        }
+      ],
+      "connections": [
+        {
+          "idSuffix": "notion-api",
+          "display_name": "Notion API",
+          "backend_kind": "native_api",
+          "system_kind": "notion",
+          "endpoint_ref": "NOTION_API_URL",
+          "auth_mode": "service_delegated",
+          "identity_provider_ref": "workspace-identity",
+          "secret_ref": "NOTION_API_TOKEN",
+          "metadata": {
+            "template_suggested": true,
+            "starter_template_id": "notion-fronting-starter"
+          }
+        },
+        {
+          "idSuffix": "notion-mcp",
+          "display_name": "Notion MCP",
+          "backend_kind": "mcp",
+          "system_kind": "notion",
+          "endpoint_ref": "NOTION_MCP_ENDPOINT",
+          "auth_mode": "external",
+          "identity_provider_ref": "notion-oauth",
+          "secret_ref": "NOTION_MCP_TOKEN",
+          "metadata": {
+            "template_suggested": true,
+            "starter_template_id": "notion-fronting-starter"
+          }
+        }
+      ],
+      "discoveryRecords": [
+        {
+          "idSuffix": "notion-workspace-search-context-notion-api-workspace-search-context",
+          "connectionIdSuffix": "notion-api",
+          "operation_id": "notion.api.workspace_search_context",
+          "backend_kind": "native_api",
+          "method": "GET",
+          "path_template": "/notion/workspace_search_context",
+          "side_effect_level": "read",
+          "input_schema_summary": {
+            "required": [
+              "workspace_scope",
+              "query"
+            ],
+            "optional": [
+              "limit",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "notion-fronting-starter",
+            "capability_id": "notion.workspace.search_context"
+          }
+        },
+        {
+          "idSuffix": "notion-database-query-context-notion-api-database-query-context",
+          "connectionIdSuffix": "notion-api",
+          "operation_id": "notion.api.database_query_context",
+          "backend_kind": "native_api",
+          "method": "GET",
+          "path_template": "/notion/database_query_context",
+          "side_effect_level": "read",
+          "input_schema_summary": {
+            "required": [
+              "database_id"
+            ],
+            "optional": [
+              "filter",
+              "limit",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "notion-fronting-starter",
+            "capability_id": "notion.database.query_context"
+          }
+        },
+        {
+          "idSuffix": "notion-page-create-prepare-notion-api-page-create-prepare",
+          "connectionIdSuffix": "notion-api",
+          "operation_id": "notion.api.page_create_prepare",
+          "backend_kind": "native_api",
+          "method": "POST",
+          "path_template": "/notion/page_create_prepare",
+          "side_effect_level": "write_adjacent",
+          "input_schema_summary": {
+            "required": [
+              "parent_id",
+              "title",
+              "content_summary"
+            ],
+            "optional": [
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "notion-fronting-starter",
+            "capability_id": "notion.page.create.prepare"
+          }
+        },
+        {
+          "idSuffix": "notion-page-update-prepare-notion-api-page-update-prepare",
+          "connectionIdSuffix": "notion-api",
+          "operation_id": "notion.api.page_update_prepare",
+          "backend_kind": "native_api",
+          "method": "POST",
+          "path_template": "/notion/page_update_prepare",
+          "side_effect_level": "write_adjacent",
+          "input_schema_summary": {
+            "required": [
+              "page_id",
+              "change_summary"
+            ],
+            "optional": [
+              "content_patch",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "notion-fronting-starter",
+            "capability_id": "notion.page.update.prepare"
+          }
+        },
+        {
+          "idSuffix": "notion-comment-prepare-notion-api-comment-prepare",
+          "connectionIdSuffix": "notion-api",
+          "operation_id": "notion.api.comment_prepare",
+          "backend_kind": "native_api",
+          "method": "POST",
+          "path_template": "/notion/comment_prepare",
+          "side_effect_level": "write_adjacent",
+          "input_schema_summary": {
+            "required": [
+              "page_id",
+              "comment_purpose",
+              "context"
+            ],
+            "optional": [
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "notion-fronting-starter",
+            "capability_id": "notion.comment.prepare"
+          }
+        }
+      ],
+      "capabilityMappings": [
+        {
+          "idSuffix": "mapping-notion-workspace-search-context",
+          "title": "Search Workspace Context",
+          "data": {
+            "artifact_type": "integration_fronting_capability_mapping",
+            "template_suggested": true,
+            "review_status": "template_suggested",
+            "title": "Search Workspace Context",
+            "capability_id": "notion.workspace.search_context",
+            "intent": "Search bounded Notion pages and databases without exposing raw workspace tools.",
+            "service_id": "notion-fronting",
+            "service_name": "Notion Fronting",
+            "backend_kind": "native_api",
+            "connection_ref": "notion-api",
+            "raw_operation_refs": [
+              "notion.api.workspace_search_context"
+            ],
+            "backend_bindings": [
+              {
+                "backend_kind": "native_api",
+                "connection_ref": "notion-api",
+                "raw_operation_refs": [
+                  "notion.api.workspace_search_context"
+                ],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "workspace_scope",
+                  "query"
+                ],
+                "derived_optional_backend_inputs": [
+                  "limit",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "workspace_scope",
+                  "query"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "limit",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [
+                  "notion-workspace-search-context-notion-api-workspace-search-context"
+                ],
+                "status": "ready",
+                "status_detail": "Template-suggested native API implementation seam. Review before locking."
+              },
+              {
+                "backend_kind": "mcp",
+                "connection_ref": "notion-mcp",
+                "raw_operation_refs": [],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "workspace_scope",
+                  "query"
+                ],
+                "derived_optional_backend_inputs": [
+                  "limit",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "workspace_scope",
+                  "query"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "limit",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [],
+                "status": "missing",
+                "status_detail": "No MCP operation was declared for this capability."
+              }
+            ],
+            "execution_posture": "read_only",
+            "side_effect_level": "read",
+            "subject_kind": "notion_workspace",
+            "context_type": "workspace_context_search",
+            "output_intent": "bounded_workspace_results",
+            "required_inputs": [
+              "workspace_scope",
+              "query"
+            ],
+            "optional_inputs": [
+              "limit",
+              "backend_options"
+            ],
+            "inputs": [
+              {
+                "input_name": "workspace_scope",
+                "input_type": "string",
+                "required": true,
+                "summary": "Declared workspace or team scope.",
+                "allowed_values": [],
+                "semantic_type": "workspace_scope",
+                "clarification_hint": "Ask for workspace_scope when it is missing or ambiguous.",
+                "entity_reference": true
+              },
+              {
+                "input_name": "query",
+                "input_type": "string",
+                "required": true,
+                "summary": "Bounded workspace search query.",
+                "allowed_values": [],
+                "clarification_hint": "Ask for query when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "limit",
+                "input_type": "integer",
+                "required": false,
+                "summary": "Maximum results to return.",
+                "default_value": "20",
+                "allowed_values": [],
+                "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "backend_options",
+                "input_type": "object",
+                "required": false,
+                "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy.",
+                "allowed_values": [],
+                "semantic_type": "backend_options",
+                "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+                "entity_reference": false
+              }
+            ],
+            "backend_input_mode": "explicit",
+            "derived_required_backend_inputs": [
+              "workspace_scope",
+              "query"
+            ],
+            "derived_optional_backend_inputs": [
+              "limit",
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "workspace_scope",
+              "query"
+            ],
+            "explicit_optional_backend_inputs": [
+              "limit",
+              "backend_options"
+            ],
+            "approval_rule_refs": [],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "clarification_rule_refs": [
+              "clarify.workspace_scope",
+              "clarify.query"
+            ],
+            "audit_required": true,
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "template_notes": [
+              "Imported from an explicit starter template.",
+              "Review backend operations, auth posture, and approval rules before locking or generation."
+            ]
+          }
+        },
+        {
+          "idSuffix": "mapping-notion-database-query-context",
+          "title": "Query Database Context",
+          "data": {
+            "artifact_type": "integration_fronting_capability_mapping",
+            "template_suggested": true,
+            "review_status": "template_suggested",
+            "title": "Query Database Context",
+            "capability_id": "notion.database.query_context",
+            "intent": "Query a bounded Notion database view with declared filters and return summarized context.",
+            "service_id": "notion-fronting",
+            "service_name": "Notion Fronting",
+            "backend_kind": "native_api",
+            "connection_ref": "notion-api",
+            "raw_operation_refs": [
+              "notion.api.database_query_context"
+            ],
+            "backend_bindings": [
+              {
+                "backend_kind": "native_api",
+                "connection_ref": "notion-api",
+                "raw_operation_refs": [
+                  "notion.api.database_query_context"
+                ],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "database_id"
+                ],
+                "derived_optional_backend_inputs": [
+                  "filter",
+                  "limit",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "database_id"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "filter",
+                  "limit",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [
+                  "notion-database-query-context-notion-api-database-query-context"
+                ],
+                "status": "ready",
+                "status_detail": "Template-suggested native API implementation seam. Review before locking."
+              },
+              {
+                "backend_kind": "mcp",
+                "connection_ref": "notion-mcp",
+                "raw_operation_refs": [],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "database_id"
+                ],
+                "derived_optional_backend_inputs": [
+                  "filter",
+                  "limit",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "database_id"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "filter",
+                  "limit",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [],
+                "status": "missing",
+                "status_detail": "No MCP operation was declared for this capability."
+              }
+            ],
+            "execution_posture": "read_only",
+            "side_effect_level": "read",
+            "subject_kind": "notion_database",
+            "context_type": "database_query",
+            "output_intent": "bounded_database_rows",
+            "required_inputs": [
+              "database_id"
+            ],
+            "optional_inputs": [
+              "filter",
+              "limit",
+              "backend_options"
+            ],
+            "inputs": [
+              {
+                "input_name": "database_id",
+                "input_type": "string",
+                "required": true,
+                "summary": "Notion database identifier.",
+                "allowed_values": [],
+                "semantic_type": "database_ref",
+                "clarification_hint": "Ask for database_id when it is missing or ambiguous.",
+                "entity_reference": true
+              },
+              {
+                "input_name": "filter",
+                "input_type": "string",
+                "required": false,
+                "summary": "Declared filter expression or business filter.",
+                "allowed_values": [],
+                "clarification_hint": "Ask for filter when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "limit",
+                "input_type": "integer",
+                "required": false,
+                "summary": "Maximum rows to return.",
+                "default_value": "20",
+                "allowed_values": [],
+                "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "backend_options",
+                "input_type": "object",
+                "required": false,
+                "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy.",
+                "allowed_values": [],
+                "semantic_type": "backend_options",
+                "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+                "entity_reference": false
+              }
+            ],
+            "backend_input_mode": "explicit",
+            "derived_required_backend_inputs": [
+              "database_id"
+            ],
+            "derived_optional_backend_inputs": [
+              "filter",
+              "limit",
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "database_id"
+            ],
+            "explicit_optional_backend_inputs": [
+              "filter",
+              "limit",
+              "backend_options"
+            ],
+            "approval_rule_refs": [],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "clarification_rule_refs": [
+              "clarify.database_id"
+            ],
+            "audit_required": true,
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "template_notes": [
+              "Imported from an explicit starter template.",
+              "Review backend operations, auth posture, and approval rules before locking or generation."
+            ]
+          }
+        },
+        {
+          "idSuffix": "mapping-notion-page-create-prepare",
+          "title": "Prepare Page Creation",
+          "data": {
+            "artifact_type": "integration_fronting_capability_mapping",
+            "template_suggested": true,
+            "review_status": "template_suggested",
+            "title": "Prepare Page Creation",
+            "capability_id": "notion.page.create.prepare",
+            "intent": "Prepare a Notion page creation preview under an explicit parent before creating anything.",
+            "service_id": "notion-fronting",
+            "service_name": "Notion Fronting",
+            "backend_kind": "native_api",
+            "connection_ref": "notion-api",
+            "raw_operation_refs": [
+              "notion.api.page_create_prepare"
+            ],
+            "backend_bindings": [
+              {
+                "backend_kind": "native_api",
+                "connection_ref": "notion-api",
+                "raw_operation_refs": [
+                  "notion.api.page_create_prepare"
+                ],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "parent_id",
+                  "title",
+                  "content_summary"
+                ],
+                "derived_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "parent_id",
+                  "title",
+                  "content_summary"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [
+                  "notion-page-create-prepare-notion-api-page-create-prepare"
+                ],
+                "status": "ready",
+                "status_detail": "Template-suggested native API implementation seam. Review before locking."
+              },
+              {
+                "backend_kind": "mcp",
+                "connection_ref": "notion-mcp",
+                "raw_operation_refs": [],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "parent_id",
+                  "title",
+                  "content_summary"
+                ],
+                "derived_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "parent_id",
+                  "title",
+                  "content_summary"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [],
+                "status": "missing",
+                "status_detail": "No MCP operation was declared for this capability."
+              }
+            ],
+            "execution_posture": "prepare_only",
+            "side_effect_level": "write_adjacent",
+            "subject_kind": "notion_page",
+            "context_type": "page_creation_preparation",
+            "output_intent": "page_creation_preview",
+            "required_inputs": [
+              "parent_id",
+              "title",
+              "content_summary"
+            ],
+            "optional_inputs": [
+              "backend_options"
+            ],
+            "inputs": [
+              {
+                "input_name": "parent_id",
+                "input_type": "string",
+                "required": true,
+                "summary": "Parent page or database identifier.",
+                "allowed_values": [],
+                "semantic_type": "page_or_database_ref",
+                "clarification_hint": "Ask for parent_id when it is missing or ambiguous.",
+                "entity_reference": true
+              },
+              {
+                "input_name": "title",
+                "input_type": "string",
+                "required": true,
+                "summary": "Proposed page title.",
+                "allowed_values": [],
+                "clarification_hint": "Ask for title when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "content_summary",
+                "input_type": "string",
+                "required": true,
+                "summary": "Bounded content summary for the new page.",
+                "allowed_values": [],
+                "clarification_hint": "Ask for content_summary when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "backend_options",
+                "input_type": "object",
+                "required": false,
+                "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy.",
+                "allowed_values": [],
+                "semantic_type": "backend_options",
+                "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+                "entity_reference": false
+              }
+            ],
+            "backend_input_mode": "explicit",
+            "derived_required_backend_inputs": [
+              "parent_id",
+              "title",
+              "content_summary"
+            ],
+            "derived_optional_backend_inputs": [
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "parent_id",
+              "title",
+              "content_summary"
+            ],
+            "explicit_optional_backend_inputs": [
+              "backend_options"
+            ],
+            "approval_rule_refs": [
+              "approval.write_adjacent"
+            ],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "clarification_rule_refs": [
+              "clarify.parent_id",
+              "clarify.title",
+              "clarify.content_summary"
+            ],
+            "audit_required": true,
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "template_notes": [
+              "Imported from an explicit starter template.",
+              "Review backend operations, auth posture, and approval rules before locking or generation."
+            ]
+          }
+        },
+        {
+          "idSuffix": "mapping-notion-page-update-prepare",
+          "title": "Prepare Page Update",
+          "data": {
+            "artifact_type": "integration_fronting_capability_mapping",
+            "template_suggested": true,
+            "review_status": "template_suggested",
+            "title": "Prepare Page Update",
+            "capability_id": "notion.page.update.prepare",
+            "intent": "Prepare a Notion page update preview for an explicit page without applying the update.",
+            "service_id": "notion-fronting",
+            "service_name": "Notion Fronting",
+            "backend_kind": "native_api",
+            "connection_ref": "notion-api",
+            "raw_operation_refs": [
+              "notion.api.page_update_prepare"
+            ],
+            "backend_bindings": [
+              {
+                "backend_kind": "native_api",
+                "connection_ref": "notion-api",
+                "raw_operation_refs": [
+                  "notion.api.page_update_prepare"
+                ],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "page_id",
+                  "change_summary"
+                ],
+                "derived_optional_backend_inputs": [
+                  "content_patch",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "page_id",
+                  "change_summary"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "content_patch",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [
+                  "notion-page-update-prepare-notion-api-page-update-prepare"
+                ],
+                "status": "ready",
+                "status_detail": "Template-suggested native API implementation seam. Review before locking."
+              },
+              {
+                "backend_kind": "mcp",
+                "connection_ref": "notion-mcp",
+                "raw_operation_refs": [],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "page_id",
+                  "change_summary"
+                ],
+                "derived_optional_backend_inputs": [
+                  "content_patch",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "page_id",
+                  "change_summary"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "content_patch",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [],
+                "status": "missing",
+                "status_detail": "No MCP operation was declared for this capability."
+              }
+            ],
+            "execution_posture": "prepare_only",
+            "side_effect_level": "write_adjacent",
+            "subject_kind": "notion_page",
+            "context_type": "page_update_preparation",
+            "output_intent": "page_update_preview",
+            "required_inputs": [
+              "page_id",
+              "change_summary"
+            ],
+            "optional_inputs": [
+              "content_patch",
+              "backend_options"
+            ],
+            "inputs": [
+              {
+                "input_name": "page_id",
+                "input_type": "string",
+                "required": true,
+                "summary": "Notion page identifier.",
+                "allowed_values": [],
+                "semantic_type": "page_ref",
+                "clarification_hint": "Ask for page_id when it is missing or ambiguous.",
+                "entity_reference": true
+              },
+              {
+                "input_name": "change_summary",
+                "input_type": "string",
+                "required": true,
+                "summary": "Plain-language change summary.",
+                "allowed_values": [],
+                "clarification_hint": "Ask for change_summary when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "content_patch",
+                "input_type": "string",
+                "required": false,
+                "summary": "Optional bounded content patch.",
+                "allowed_values": [],
+                "clarification_hint": "Ask for content_patch when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "backend_options",
+                "input_type": "object",
+                "required": false,
+                "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy.",
+                "allowed_values": [],
+                "semantic_type": "backend_options",
+                "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+                "entity_reference": false
+              }
+            ],
+            "backend_input_mode": "explicit",
+            "derived_required_backend_inputs": [
+              "page_id",
+              "change_summary"
+            ],
+            "derived_optional_backend_inputs": [
+              "content_patch",
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "page_id",
+              "change_summary"
+            ],
+            "explicit_optional_backend_inputs": [
+              "content_patch",
+              "backend_options"
+            ],
+            "approval_rule_refs": [
+              "approval.write_adjacent"
+            ],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "clarification_rule_refs": [
+              "clarify.page_id",
+              "clarify.change_summary"
+            ],
+            "audit_required": true,
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "template_notes": [
+              "Imported from an explicit starter template.",
+              "Review backend operations, auth posture, and approval rules before locking or generation."
+            ]
+          }
+        },
+        {
+          "idSuffix": "mapping-notion-comment-prepare",
+          "title": "Prepare Page Comment",
+          "data": {
+            "artifact_type": "integration_fronting_capability_mapping",
+            "template_suggested": true,
+            "review_status": "template_suggested",
+            "title": "Prepare Page Comment",
+            "capability_id": "notion.comment.prepare",
+            "intent": "Prepare a Notion page comment from supplied context without posting it.",
+            "service_id": "notion-fronting",
+            "service_name": "Notion Fronting",
+            "backend_kind": "native_api",
+            "connection_ref": "notion-api",
+            "raw_operation_refs": [
+              "notion.api.comment_prepare"
+            ],
+            "backend_bindings": [
+              {
+                "backend_kind": "native_api",
+                "connection_ref": "notion-api",
+                "raw_operation_refs": [
+                  "notion.api.comment_prepare"
+                ],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "page_id",
+                  "comment_purpose",
+                  "context"
+                ],
+                "derived_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "page_id",
+                  "comment_purpose",
+                  "context"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [
+                  "notion-comment-prepare-notion-api-comment-prepare"
+                ],
+                "status": "ready",
+                "status_detail": "Template-suggested native API implementation seam. Review before locking."
+              },
+              {
+                "backend_kind": "mcp",
+                "connection_ref": "notion-mcp",
+                "raw_operation_refs": [],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "page_id",
+                  "comment_purpose",
+                  "context"
+                ],
+                "derived_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "page_id",
+                  "comment_purpose",
+                  "context"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [],
+                "status": "missing",
+                "status_detail": "No MCP operation was declared for this capability."
+              }
+            ],
+            "execution_posture": "prepare_only",
+            "side_effect_level": "write_adjacent",
+            "subject_kind": "notion_comment",
+            "context_type": "comment_preparation",
+            "output_intent": "comment_preview",
+            "required_inputs": [
+              "page_id",
+              "comment_purpose",
+              "context"
+            ],
+            "optional_inputs": [
+              "backend_options"
+            ],
+            "inputs": [
+              {
+                "input_name": "page_id",
+                "input_type": "string",
+                "required": true,
+                "summary": "Notion page identifier.",
+                "allowed_values": [],
+                "semantic_type": "page_ref",
+                "clarification_hint": "Ask for page_id when it is missing or ambiguous.",
+                "entity_reference": true
+              },
+              {
+                "input_name": "comment_purpose",
+                "input_type": "string",
+                "required": true,
+                "summary": "Purpose of the comment.",
+                "allowed_values": [],
+                "clarification_hint": "Ask for comment_purpose when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "context",
+                "input_type": "string",
+                "required": true,
+                "summary": "Bounded context for the proposed comment.",
+                "allowed_values": [],
+                "clarification_hint": "Ask for context when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "backend_options",
+                "input_type": "object",
+                "required": false,
+                "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy.",
+                "allowed_values": [],
+                "semantic_type": "backend_options",
+                "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+                "entity_reference": false
+              }
+            ],
+            "backend_input_mode": "explicit",
+            "derived_required_backend_inputs": [
+              "page_id",
+              "comment_purpose",
+              "context"
+            ],
+            "derived_optional_backend_inputs": [
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "page_id",
+              "comment_purpose",
+              "context"
+            ],
+            "explicit_optional_backend_inputs": [
+              "backend_options"
+            ],
+            "approval_rule_refs": [
+              "approval.write_adjacent"
+            ],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "clarification_rule_refs": [
+              "clarify.page_id",
+              "clarify.comment_purpose",
+              "clarify.context"
+            ],
+            "audit_required": true,
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "template_notes": [
+              "Imported from an explicit starter template.",
+              "Review backend operations, auth posture, and approval rules before locking or generation."
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

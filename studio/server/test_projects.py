@@ -127,3 +127,107 @@ def test_delete_project_cascades_all_children(client):
     assert client.get("/api/projects/proj-del/scenarios/scn-del").status_code == 404
     assert client.get("/api/projects/proj-del/proposals/prop-del").status_code == 404
     assert client.get("/api/projects/proj-del/evaluations/eval-del").status_code == 404
+
+
+def test_clone_project_copies_artifacts(client):
+    client.post(
+        "/api/workspaces",
+        json={"id": "ws-clone", "name": "Clone Workspace"},
+    )
+    client.post(
+        "/api/projects",
+        json={
+            "id": "proj-source",
+            "workspace_id": "ws-clone",
+            "name": "Source Project",
+            "summary": "Original summary",
+            "domain": "sales",
+            "labels": ["alpha"],
+        },
+    )
+    client.post(
+        "/api/projects/proj-source/requirements",
+        json={
+            "id": "req-source",
+            "title": "Requirements",
+            "data": {"system": {"name": "Source System"}},
+        },
+    )
+    client.post(
+        "/api/projects/proj-source/scenarios",
+        json={
+            "id": "scn-source",
+            "title": "Scenario",
+            "data": {"scenario": {"name": "Scenario One"}},
+        },
+    )
+    client.post(
+        "/api/projects/proj-source/pm-artifacts",
+        json={
+            "id": "pm-source",
+            "title": "PM Artifact",
+            "data": {
+                "artifact_type": "design_traceability",
+                "source_inputs": {
+                    "requirements_id": "req-source",
+                    "scenario_ids": ["scn-source"],
+                },
+                "coverage": [
+                    {
+                        "id": "scenario:scn-source:context-capability",
+                        "label": "What capability or action is being attempted?",
+                        "status": "addressed",
+                        "mapping_mode": "automatic",
+                        "mapping_target_key": "developer_definition.scenario_formalization:scn-source:primary_capability",
+                    }
+                ],
+                "embedded_refs": "artifact:pm-source|project:proj-source",
+            },
+        },
+    )
+
+    cloned = client.post(
+        "/api/projects/proj-source/clone",
+        json={
+            "id": "proj-clone",
+            "workspace_id": "ws-clone",
+            "name": "Cloned Project",
+            "summary": "Cloned summary",
+        },
+    )
+    assert cloned.status_code == 201, cloned.text
+    clone_row = cloned.json()
+    assert clone_row["id"] == "proj-clone"
+    assert clone_row["name"] == "Cloned Project"
+    assert clone_row["workspace_id"] == "ws-clone"
+    assert clone_row["summary"] == "Cloned summary"
+
+    clone_detail = client.get("/api/projects/proj-clone")
+    assert clone_detail.status_code == 200
+    detail = clone_detail.json()
+    assert detail["requirements_count"] == 1
+    assert detail["scenarios_count"] == 1
+    assert detail["pm_artifacts_count"] == 1
+
+    cloned_requirements = client.get("/api/projects/proj-clone/requirements")
+    assert cloned_requirements.status_code == 200
+    requirement_rows = cloned_requirements.json()
+    assert len(requirement_rows) == 1
+    assert requirement_rows[0]["id"] != "req-source"
+    assert requirement_rows[0]["data"]["system"]["name"] == "Source System"
+
+    cloned_artifacts = client.get("/api/projects/proj-clone/pm-artifacts")
+    assert cloned_artifacts.status_code == 200
+    artifact = next(item for item in cloned_artifacts.json() if item["title"] == "PM Artifact")
+    cloned_scenarios = client.get("/api/projects/proj-clone/scenarios").json()
+    cloned_scenario_id = cloned_scenarios[0]["id"]
+    cloned_coverage = artifact["data"]["coverage"][0]
+    assert cloned_scenario_id != "scn-source"
+    assert cloned_coverage["id"] == f"scenario:{cloned_scenario_id}:context-capability"
+    assert cloned_coverage["mapping_target_key"] == (
+        f"developer_definition.scenario_formalization:{cloned_scenario_id}:primary_capability"
+    )
+    assert "pm-source" not in artifact["data"]["embedded_refs"]
+    assert "proj-source" not in artifact["data"]["embedded_refs"]
+    assert artifact["id"] in artifact["data"]["embedded_refs"]
+    assert "proj-clone" in artifact["data"]["embedded_refs"]

@@ -1,0 +1,222 @@
+{
+  "suite": "gtm_phase3_llm_runtime",
+  "cases": [
+    {
+      "id": "phase3-sales-leader-risk-summary",
+      "category": "actor-aware-read",
+      "actor_id": "sales_leader",
+      "question": "Rank the top 10 at-risk accounts in 2017-Q2.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.account_risk_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "data_check": "risk_summary_top10_q2",
+      "audit_check": {
+        "actor_id": "sales_leader",
+        "service": "pipeline",
+        "capability": "gtm.account_risk_summary",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": true,
+          "signature_present": true,
+          "storage_redacted": true,
+          "root_principal_contains": ["actor_id=sales_leader", "role=sales_leader"]
+        }
+      }
+    },
+    {
+      "id": "phase3-sales-analyst-risk-summary-masked",
+      "category": "actor-aware-read",
+      "actor_id": "sales_analyst",
+      "question": "Rank the top 10 at-risk accounts in 2017-Q2.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.account_risk_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "data_check": "risk_summary_masked_top10_q2",
+      "audit_check": {
+        "actor_id": "sales_analyst",
+        "service": "pipeline",
+        "capability": "gtm.account_risk_summary",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": true,
+          "signature_present": true,
+          "storage_redacted": true,
+          "root_principal_contains": ["actor_id=sales_analyst", "role=sales_analyst"]
+        }
+      }
+    },
+    {
+      "id": "phase3-account-manager-east-scope",
+      "category": "actor-aware-read",
+      "actor_id": "account_manager_east",
+      "question": "Rank the top 5 at-risk accounts in 2017-Q2.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.account_risk_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "data_check": "risk_summary_top5_east_q2"
+    },
+    {
+      "id": "phase3-account-manager-east-west-restricted",
+      "category": "actor-aware-read",
+      "actor_id": "account_manager_east",
+      "question": "Rank the top 5 at-risk accounts in 2017-Q2 for the West region.",
+      "expected": {
+        "outcome": "restricted",
+        "capability": "gtm.account_risk_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "account_manager_east",
+        "service": "pipeline",
+        "capability": "gtm.account_risk_summary",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "restricted",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=account_manager_east", "role=account_manager"]
+        }
+      }
+    },
+    {
+      "id": "phase3-sales-analyst-followup-denied",
+      "category": "actor-aware-approval",
+      "actor_id": "sales_analyst",
+      "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q2.",
+      "expected": {
+        "outcome": "denied",
+        "capability": "gtm.prepare_followup_tasks",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "sales_analyst",
+        "service": "pipeline",
+        "capability": "gtm.prepare_followup_tasks",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "denied",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_analyst", "role=sales_analyst"]
+        }
+      }
+    },
+    {
+      "id": "phase3-rev-ops-followup-approval",
+      "category": "actor-aware-approval",
+      "actor_id": "rev_ops_manager",
+      "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q2.",
+      "expected": {
+        "outcome": "approval_required",
+        "capability": "gtm.prepare_followup_tasks",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "approval_check": {
+        "approver_actor_id": "sales_leader",
+        "expected_required_role": "sales_leader",
+        "expected_requester_actor_id": "rev_ops_manager",
+        "expected_approved_by_actor_id": "sales_leader",
+        "expected_pre_approval_status": "pending",
+        "expected_post_approval_status": "approved"
+      },
+      "audit_check": {
+        "actor_id": "rev_ops_manager",
+        "service": "pipeline",
+        "capability": "gtm.prepare_followup_tasks",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "approval_required",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=rev_ops_manager", "role=rev_ops_manager"]
+        }
+      }
+    },
+    {
+      "id": "phase3-sales-analyst-bounded-enrichment",
+      "category": "actor-aware-enrichment",
+      "actor_id": "sales_analyst",
+      "question": "Summarize firmographic context for Acme Corporation and Codehow.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.account_enrichment_summary",
+        "service": "enrichment",
+        "max_total_loops": 2
+      },
+      "data_check": "account_enrichment_named_accounts_bounded",
+      "audit_check": {
+        "actor_id": "sales_analyst",
+        "service": "enrichment",
+        "capability": "gtm.account_enrichment_summary",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": true,
+          "signature_present": true,
+          "storage_redacted": true,
+          "root_principal_contains": ["actor_id=sales_analyst", "role=sales_analyst"]
+        }
+      }
+    },
+    {
+      "id": "phase3-sales-analyst-lookalike-denied",
+      "category": "actor-aware-enrichment",
+      "actor_id": "sales_analyst",
+      "question": "Find lookalike accounts similar to Condax.",
+      "expected": {
+        "outcome": "denied",
+        "capability": "gtm.lookalike_accounts",
+        "service": "enrichment",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "sales_analyst",
+        "service": "enrichment",
+        "capability": "gtm.lookalike_accounts",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "denied",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_analyst", "role=sales_analyst"]
+        }
+      }
+    },
+    {
+      "id": "phase3-sales-leader-lookalike-success",
+      "category": "actor-aware-enrichment",
+      "actor_id": "sales_leader",
+      "question": "Find lookalike accounts similar to Condax.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.lookalike_accounts",
+        "service": "enrichment",
+        "max_total_loops": 2
+      },
+      "data_check": "lookalike_condax",
+      "audit_check": {
+        "actor_id": "sales_leader",
+        "service": "enrichment",
+        "capability": "gtm.lookalike_accounts",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": true,
+          "signature_present": true,
+          "storage_redacted": true,
+          "root_principal_contains": ["actor_id=sales_leader", "role=sales_leader"]
+        }
+      }
+    }
+  ]
+}

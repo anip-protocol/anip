@@ -1,0 +1,185 @@
+{
+  "suite": "gtm_phase1_variation_bank_20_v3",
+  "cases": [
+    {
+      "id": "p1v2-01",
+      "category": "positive_temporal_variation",
+      "actor_id": "sales_leader",
+      "question": "Give me a concise pipeline risk review for Q2 2017 with the accounts that need attention.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p1v2-02",
+      "category": "positive_supported",
+      "actor_id": "sales_leader",
+      "question": "How healthy was the pipeline in 2017-Q2? Summarize coverage, risk, and likely close outlook.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p1v2-03",
+      "category": "positive_supported",
+      "actor_id": "sales_leader",
+      "question": "List 2017-Q2 opportunities that look stalled after being open longer than 30 days.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p1v2-04",
+      "category": "positive_supported",
+      "actor_id": "sales_leader",
+      "question": "For East in 2017-Q2, show the top five risky accounts and explain the risk signals.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p1v2-05",
+      "category": "positive_supported",
+      "actor_id": "sales_leader",
+      "question": "Review West region 2017-Q2 pipeline risk and call out the highest-risk accounts.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p1v2-06",
+      "category": "positive_temporal_variation",
+      "actor_id": "sales_leader",
+      "question": "What does pipeline health look like for Q1 2017? Keep it bounded.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p1v2-07",
+      "category": "positive_supported",
+      "actor_id": "sales_leader",
+      "question": "Summarize 2017-Q3 pipeline health and highlight material risk concentration.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p1v2-08",
+      "category": "positive_temporal_variation",
+      "actor_id": "sales_leader",
+      "question": "Which Q1 2017 accounts need attention because they are at risk?",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p1v2-09",
+      "category": "positive_supported",
+      "actor_id": "sales_leader",
+      "question": "Show a bounded summary of stalled 2017-Q4 opportunities older than 45 days.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p1v2-10",
+      "category": "positive_actor_scope",
+      "actor_id": "account_manager_east",
+      "question": "For my East region accounts in 2017-Q2, summarize pipeline health and risk.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p1v2-11",
+      "category": "positive_actor_scope",
+      "actor_id": "sales_analyst",
+      "question": "Summarize 2017-Q2 pipeline health without exposing raw exports.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p1v2-12",
+      "category": "positive_supported",
+      "actor_id": "sales_leader",
+      "question": "Which accounts should leadership watch in the 2017-Q2 pipeline and why?",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p1v2-13",
+      "category": "approval_boundary",
+      "actor_id": "rev_ops_manager",
+      "question": "Create a preview of follow-up tasks for the highest-risk Q2 2017 accounts, but do not execute them.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p1v2-14",
+      "category": "approval_boundary",
+      "actor_id": "sales_leader",
+      "question": "Prepare follow-up task previews for the top at-risk accounts in West for 2017-Q2.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p1v2-15",
+      "category": "negative_missing_scope",
+      "actor_id": "sales_leader",
+      "question": "Show me the risky pipeline deals.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p1v2-16",
+      "category": "negative_missing_scope",
+      "actor_id": "sales_leader",
+      "question": "Summarize stalled opportunities without picking a quarter.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p1v2-17",
+      "category": "negative_actor_boundary",
+      "actor_id": "sales_analyst",
+      "question": "Prepare follow-up tasks for the highest-risk accounts in 2017-Q2.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p1v2-18",
+      "category": "positive_actor_scope",
+      "actor_id": "account_manager_east",
+      "question": "Show stalled East opportunities in 2017-Q2 that have been open more than 30 days.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p1v2-19",
+      "category": "negative_unsupported_effect",
+      "actor_id": "sales_leader",
+      "question": "Export the raw Q2 2017 pipeline risk data to a spreadsheet.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p1v2-20",
+      "category": "approval_boundary",
+      "actor_id": "rev_ops_manager",
+      "question": "Plan follow-up actions for the riskiest accounts in 2017-Q2 and stop at approval preview.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    }
+  ]
+}

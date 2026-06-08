@@ -48,12 +48,12 @@ go get github.com/anip-protocol/anip/packages/go
 <dependency>
   <groupId>dev.anip</groupId>
   <artifactId>anip-service</artifactId>
-  <version>0.24.0</version>
+  <version>0.24.4</version>
 </dependency>
 <dependency>
   <groupId>dev.anip</groupId>
   <artifactId>anip-spring-boot</artifactId>
-  <version>0.24.0</version>
+  <version>0.24.4</version>
 </dependency>
 ```
 
@@ -62,12 +62,11 @@ go get github.com/anip-protocol/anip/packages/go
 
 **Prerequisites:** .NET 8+
 
-C# packages are available in-repo (NuGet publishing coming soon):
+C# packages are published by the release workflow to NuGet:
 
 ```bash
-# From the ANIP repo root:
-dotnet add reference packages/csharp/src/Anip.Service
-dotnet add reference packages/csharp/src/Anip.AspNetCore
+dotnet add package Anip.Service --version 0.24.4
+dotnet add package Anip.AspNetCore --version 0.24.4
 ```
 
 </TabItem>
@@ -344,7 +343,7 @@ curl http://localhost:9100/.well-known/anip | python -m json.tool
 ```json
 {
   "anip_discovery": {
-    "version": "0.24.0",
+    "version": "0.24.4",
     "service_id": "quickstart-flights",
     "endpoints": {
       "manifest": "/anip/manifest",
@@ -437,70 +436,22 @@ Every invocation is automatically logged with the capability name, caller identi
 
 ## 4. Open Studio
 
-For a visual experience, add the Studio adapter:
+Studio is a standalone design and package-authoring application. It is not mounted inside every runtime service.
 
-<Tabs groupId="language" queryString>
-<TabItem value="python" label="Python" default>
-
-```bash
-pip install anip-studio
-```
-
-Add one line to your `app.py`:
-
-```python
-from anip_studio import mount_anip_studio
-mount_anip_studio(app, service)
-```
-
-</TabItem>
-<TabItem value="typescript" label="TypeScript">
-
-Studio is currently available as a Python adapter. You can run it standalone via Docker against any ANIP service:
+Run it locally:
 
 ```bash
-docker build -t anip-studio studio/
-docker run -p 3000:8080 anip-studio
-# Open http://localhost:3000 and connect to http://localhost:9100
+cd studio
+docker compose up --build
 ```
 
-</TabItem>
-<TabItem value="go" label="Go">
+Open:
 
-Studio is currently available as a Python adapter. You can run it standalone via Docker against any ANIP service:
-
-```bash
-docker build -t anip-studio studio/
-docker run -p 3000:8080 anip-studio
-# Open http://localhost:3000 and connect to http://localhost:9100
+```text
+http://127.0.0.1:8080
 ```
 
-</TabItem>
-<TabItem value="java" label="Java">
-
-Studio is currently available as a Python adapter. You can run it standalone via Docker against any ANIP service:
-
-```bash
-docker build -t anip-studio studio/
-docker run -p 3000:8080 anip-studio
-# Open http://localhost:3000 and connect to http://localhost:9100
-```
-
-</TabItem>
-<TabItem value="csharp" label="C#">
-
-Studio is currently available as a Python adapter. You can run it standalone via Docker against any ANIP service:
-
-```bash
-docker build -t anip-studio studio/
-docker run -p 3000:8080 anip-studio
-# Open http://localhost:3000 and connect to http://localhost:9100
-```
-
-</TabItem>
-</Tabs>
-
-Open Studio to browse discovery, manifest, JWKS, audit, checkpoints, and invoke capabilities through a UI.
+Use Studio when you want to design a complete ANIP project, lock Product Design, produce a Developer Definition, publish a package, or browse seeded showcase projects. Use the service endpoints above when you want to inspect one running service directly.
 
 ## What to notice
 
@@ -515,4 +466,6 @@ Open Studio to browse discovery, manifest, JWKS, audit, checkpoints, and invoke 
 
 - **[Install](/docs/getting-started/install)** — Full package lists for all runtimes
 - **[Capability Declaration](/docs/protocol/capabilities)** — Deep dive into how capabilities work
-- **[Studio & Showcases](/docs/getting-started/studio-showcases)** — Run the full showcase apps
+- **[Start With Studio](/docs/getting-started/studio)** — Author, inspect, and publish ANIP projects
+- **[Showcases](/docs/getting-started/showcases)** — Run GTM, fronting, and introductory showcase apps
+- **[Package Trust Loop](/docs/getting-started/package-trust-loop)** — Verify, lock, and generate from packages

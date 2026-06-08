@@ -1,0 +1,386 @@
+{
+  "suite": "gtm_phase7_llm_runtime",
+  "cases": [
+    {
+      "id": "phase7-prioritize-enrich-draft-compound",
+      "category": "compound-read",
+      "actor_id": "sales_leader",
+      "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a first-touch email for the highest-priority account.",
+      "expected": {
+        "outcome": "success",
+        "planned_capability": "gtm.prioritized_outreach_draft",
+        "capability": "gtm.prioritized_outreach_draft",
+        "service": "outreach",
+        "max_total_loops": 2
+      },
+      "data_check": "compound_prioritize_enrich_draft_expansion_q2",
+      "audit_check": {
+        "actor_id": "sales_leader",
+        "service": "outreach",
+        "capability": "gtm.prioritized_outreach_draft",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": true,
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_leader", "role=sales_leader"]
+        }
+      }
+    },
+    {
+      "id": "phase7-forecast-followup-compound-approval",
+      "category": "compound-approval",
+      "actor_id": "rev_ops_manager",
+      "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts.",
+      "expected": {
+        "outcome": "approval_required",
+        "planned_capability": "gtm.at_risk_followup_preparation",
+        "capability": "gtm.at_risk_followup_preparation",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "data_check": "compound_forecast_followup_top3_q2",
+      "approval_check": {
+        "approver_actor_id": "sales_leader",
+        "expected_required_role": "sales_leader",
+        "expected_requester_actor_id": "rev_ops_manager",
+        "expected_approved_by_actor_id": "sales_leader",
+        "expected_pre_approval_status": "pending",
+        "expected_post_approval_status": "approved"
+      },
+      "audit_check": {
+        "actor_id": "rev_ops_manager",
+        "service": "pipeline",
+        "capability": "gtm.at_risk_followup_preparation",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "approval_required",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=rev_ops_manager", "role=rev_ops_manager"]
+        }
+      }
+    },
+    {
+      "id": "phase7-forecast-followup-compound-analyst-denied",
+      "category": "compound-actor-aware",
+      "actor_id": "sales_analyst",
+      "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts.",
+      "expected": {
+        "outcome": "denied",
+        "planned_capability": "gtm.at_risk_followup_preparation",
+        "capability": "gtm.at_risk_followup_preparation",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "data_check": "compound_forecast_followup_sales_analyst_q2",
+      "audit_check": {
+        "actor_id": "sales_analyst",
+        "service": "pipeline",
+        "capability": "gtm.at_risk_followup_preparation",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "denied",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_analyst", "role=sales_analyst"]
+        }
+      }
+    },
+    {
+      "id": "phase7-score-route-compound-approval-stop",
+      "category": "compound-approval",
+      "actor_id": "rev_ops_manager",
+      "question": "Score inbound leads from last week, route the hot ones to sales, and draft a first-touch email for the highest-priority account.",
+      "expected": {
+        "outcome": "approval_required",
+        "planned_capability": "gtm.route_leads",
+        "capability": "gtm.route_leads",
+        "service": "prioritization",
+        "max_total_loops": 2
+      },
+      "data_check": "compound_score_route_inbound_approval",
+      "approval_check": {
+        "service": "prioritization",
+        "approver_actor_id": "sales_leader",
+        "expected_required_role": "sales_leader",
+        "expected_requester_actor_id": "rev_ops_manager",
+        "expected_approved_by_actor_id": "sales_leader",
+        "expected_pre_approval_status": "pending",
+        "expected_post_approval_status": "approved"
+      },
+      "audit_check": {
+        "actor_id": "rev_ops_manager",
+        "service": "prioritization",
+        "capability": "gtm.route_leads",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "approval_required",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=rev_ops_manager", "role=rev_ops_manager"]
+        }
+      }
+    },
+    {
+      "id": "phase7-bottleneck-enrich-east",
+      "category": "compound-read",
+      "actor_id": "sales_leader",
+      "question": "For 2017-Q2 in the East region, show the biggest bottlenecks and enrich the top 3 at-risk accounts contributing to them.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.at_risk_account_enrichment_summary",
+        "service": "enrichment",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "sales_leader",
+        "service": "enrichment",
+        "capability": "gtm.at_risk_account_enrichment_summary",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": true,
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_leader", "role=sales_leader"]
+        }
+      }
+    },
+    {
+      "id": "phase7-bottleneck-followup-east-approval",
+      "category": "compound-approval",
+      "actor_id": "rev_ops_manager",
+      "question": "For 2017-Q2 in the East region, show the biggest bottlenecks, identify the top 3 at-risk accounts contributing to them, and prepare follow-up task previews for them.",
+      "expected": {
+        "outcome": "approval_required",
+        "capability": "gtm.at_risk_followup_preparation",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "approval_check": {
+        "approver_actor_id": "sales_leader",
+        "expected_required_role": "sales_leader",
+        "expected_requester_actor_id": "rev_ops_manager",
+        "expected_approved_by_actor_id": "sales_leader",
+        "expected_pre_approval_status": "pending",
+        "expected_post_approval_status": "approved"
+      },
+      "audit_check": {
+        "actor_id": "rev_ops_manager",
+        "service": "pipeline",
+        "capability": "gtm.at_risk_followup_preparation",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "approval_required",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=rev_ops_manager", "role=rev_ops_manager"]
+        }
+      }
+    },
+    {
+      "id": "phase7-bottleneck-enrich-draft-east-clarify",
+      "category": "compound-safe-stop",
+      "actor_id": "sales_leader",
+      "question": "For 2017-Q2 in the East region, show the biggest bottlenecks, identify the top 3 at-risk accounts contributing to them, enrich those accounts, and draft a first-touch email for the top one.",
+      "expected": {
+        "outcome": "clarification_required",
+        "capability": "gtm.bottleneck_account_outreach_draft",
+        "service": "outreach",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "sales_leader",
+        "service": "outreach",
+        "capability": "gtm.bottleneck_account_outreach_draft",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "clarification_required",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_leader", "role=sales_leader"]
+        }
+      }
+    },
+    {
+      "id": "phase7-prioritize-enrich-linkedin-draft",
+      "category": "compound-read",
+      "actor_id": "sales_leader",
+      "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a LinkedIn first-touch for the highest-priority account.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.prioritized_outreach_draft",
+        "service": "outreach",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "sales_leader",
+        "service": "outreach",
+        "capability": "gtm.prioritized_outreach_draft",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": true,
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_leader", "role=sales_leader"]
+        }
+      }
+    },
+    {
+      "id": "phase7-prioritize-enrich-followup-draft",
+      "category": "compound-read",
+      "actor_id": "sales_leader",
+      "question": "Prioritize the expansion candidates in 2017-Q2, enrich the top 3 accounts, and draft a follow-up email for the highest-priority account.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.prioritized_outreach_draft",
+        "service": "outreach",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "sales_leader",
+        "service": "outreach",
+        "capability": "gtm.prioritized_outreach_draft",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": true,
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_leader", "role=sales_leader"]
+        }
+      }
+    },
+    {
+      "id": "phase7-prioritize-atrisk-enrich",
+      "category": "compound-read",
+      "actor_id": "sales_leader",
+      "question": "Prioritize the at-risk accounts in 2017-Q2 and enrich the top 3 accounts.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.at_risk_account_enrichment_summary",
+        "service": "enrichment",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "sales_leader",
+        "service": "enrichment",
+        "capability": "gtm.at_risk_account_enrichment_summary",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": true,
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_leader", "role=sales_leader"]
+        }
+      }
+    },
+    {
+      "id": "phase7-route-sdr-direct-approval",
+      "category": "compound-approval",
+      "actor_id": "rev_ops_manager",
+      "question": "Score inbound leads from last week and route the hot ones to SDR.",
+      "expected": {
+        "outcome": "approval_required",
+        "capability": "gtm.route_leads",
+        "service": "prioritization",
+        "max_total_loops": 2
+      },
+      "approval_check": {
+        "service": "prioritization",
+        "approver_actor_id": "sales_leader",
+        "expected_required_role": "sales_leader",
+        "expected_requester_actor_id": "rev_ops_manager",
+        "expected_approved_by_actor_id": "sales_leader",
+        "expected_pre_approval_status": "pending",
+        "expected_post_approval_status": "approved"
+      },
+      "audit_check": {
+        "actor_id": "rev_ops_manager",
+        "service": "prioritization",
+        "capability": "gtm.route_leads",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "approval_required",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=rev_ops_manager", "role=rev_ops_manager"]
+        }
+      }
+    },
+    {
+      "id": "phase7-route-sales-analyst-denied",
+      "category": "compound-actor-aware",
+      "actor_id": "sales_analyst",
+      "question": "Score inbound leads from last week and route the hot ones to sales.",
+      "expected": {
+        "outcome": "denied",
+        "capability": "gtm.route_leads",
+        "service": "prioritization",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "sales_analyst",
+        "service": "prioritization",
+        "capability": "gtm.route_leads",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "denied",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_analyst", "role=sales_analyst"]
+        }
+      }
+    },
+    {
+      "id": "phase7-forecast-followup-east-approval",
+      "category": "compound-approval",
+      "actor_id": "rev_ops_manager",
+      "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts in the East region.",
+      "expected": {
+        "outcome": "approval_required",
+        "capability": "gtm.at_risk_followup_preparation",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "approval_check": {
+        "approver_actor_id": "sales_leader",
+        "expected_required_role": "sales_leader",
+        "expected_requester_actor_id": "rev_ops_manager",
+        "expected_approved_by_actor_id": "sales_leader",
+        "expected_pre_approval_status": "pending",
+        "expected_post_approval_status": "approved"
+      },
+      "audit_check": {
+        "actor_id": "rev_ops_manager",
+        "service": "pipeline",
+        "capability": "gtm.at_risk_followup_preparation",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "approval_required",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=rev_ops_manager", "role=rev_ops_manager"]
+        }
+      }
+    },
+    {
+      "id": "phase7-forecast-followup-east-analyst-denied",
+      "category": "compound-actor-aware",
+      "actor_id": "sales_analyst",
+      "question": "Show the risk-adjusted forecast for 2017-Q2 and prepare follow-up task previews for the top 3 at-risk accounts in the East region.",
+      "expected": {
+        "outcome": "denied",
+        "capability": "gtm.at_risk_followup_preparation",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "sales_analyst",
+        "service": "pipeline",
+        "capability": "gtm.at_risk_followup_preparation",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "denied",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_analyst", "role=sales_analyst"]
+        }
+      }
+    }
+  ]
+}

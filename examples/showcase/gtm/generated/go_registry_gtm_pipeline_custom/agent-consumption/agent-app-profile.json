@@ -1,0 +1,1502 @@
+{
+  "artifact_type": "agent_app_profile",
+  "capability_metadata": {
+    "gtm.account_enrichment_summary": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "app_glue": {
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "business_language_rules": [
+        {
+          "agent_action": "clarify",
+          "applies_when": {
+            "any_terms": [
+              "top",
+              "ranked",
+              "selected",
+              "recommended",
+              "at-risk",
+              "highest priority"
+            ],
+            "exclude_terms": [
+              "raw",
+              "export",
+              "download",
+              "send",
+              "email",
+              "message",
+              "draft",
+              "write",
+              "generate"
+            ]
+          },
+          "id": "gtm-account-enrichment-summary-derived-target-semantics",
+          "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+          "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "capability_framing": "Return bounded firmographic context and fit signals for selected accounts; raw records, full exports, underlying notes, and debug payloads are not supported.",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "intent_rules": [
+        {
+          "agent_action": "Select, clarify, or frame the request before invoking the ANIP capability.",
+          "id": "derived_target",
+          "meaning": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "required_context": [
+        {
+          "input": "account_names",
+          "missing_behavior": "clarify_or_app_select"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
+      }
+    },
+    "gtm.account_risk_summary": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "app_glue": {
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "business_language_rules": [
+        {
+          "agent_action": "clarify",
+          "applies_when": {
+            "any_terms": [
+              "top",
+              "ranked",
+              "selected",
+              "recommended",
+              "at-risk",
+              "highest priority"
+            ],
+            "exclude_terms": [
+              "raw",
+              "export",
+              "download",
+              "send",
+              "email",
+              "message",
+              "draft",
+              "write",
+              "generate"
+            ]
+          },
+          "id": "gtm-account-risk-summary-derived-target-semantics",
+          "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+          "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "capability_framing": "Rank at-risk accounts with explicit evidence for why they need attention.",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "input_meanings": {
+        "ranking_basis": {
+          "risk_score": "risk_score within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        }
+      },
+      "intent_rules": [
+        {
+          "agent_action": "Select, clarify, or frame the request before invoking the ANIP capability.",
+          "id": "derived_target",
+          "meaning": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "ranking_basis",
+          "missing_behavior": "use_default"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
+      }
+    },
+    "gtm.at_risk_account_enrichment_summary": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "app_glue": {
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "business_language_rules": [
+        {
+          "agent_action": "clarify",
+          "applies_when": {
+            "any_terms": [
+              "top",
+              "ranked",
+              "selected",
+              "recommended",
+              "at-risk",
+              "highest priority"
+            ],
+            "exclude_terms": [
+              "raw",
+              "export",
+              "download",
+              "send",
+              "email",
+              "message",
+              "draft",
+              "write",
+              "generate"
+            ]
+          },
+          "id": "gtm-at-risk-account-enrichment-summary-derived-target-semantics",
+          "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+          "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "capability_framing": "Rank at-risk accounts and return bounded enrichment context for the selected accounts.",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "input_meanings": {
+        "ranking_basis": {
+          "risk_score": "risk_score within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        }
+      },
+      "intent_rules": [
+        {
+          "agent_action": "Select, clarify, or frame the request before invoking the ANIP capability.",
+          "id": "derived_target",
+          "meaning": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
+      }
+    },
+    "gtm.at_risk_followup_preparation": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute",
+          "raw_data_export"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "raw_data_export"
+        ],
+        "produces": [
+          "approval.request",
+          "content.summary",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Compose gtm.account_risk_summary -\u003e gtm.prepare_followup_tasks when the requested business action needs derived targets before governed preparation.",
+      "input_meanings": {
+        "ranking_basis": {
+          "risk_score": "risk_score within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        }
+      },
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "ranking_basis",
+          "missing_behavior": "use_default"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
+      }
+    },
+    "gtm.at_risk_reassignment_preparation": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute",
+          "raw_data_export"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "raw_data_export"
+        ],
+        "produces": [
+          "approval.request",
+          "content.summary",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Compose gtm.account_risk_summary -\u003e gtm.prepare_reassignment_plan when the requested business action needs derived targets before governed preparation.",
+      "input_meanings": {
+        "ranking_basis": {
+          "risk_score": "risk_score within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        }
+      },
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "ranking_basis",
+          "missing_behavior": "use_default"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
+      }
+    },
+    "gtm.bottleneck_account_outreach_draft": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute",
+          "external_dispatch",
+          "system.mutation"
+        ]
+      },
+      "app_glue": {
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+        "required": true
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "external_dispatch",
+          "system.mutation"
+        ],
+        "produces": [
+          "approval.request",
+          "content.draft",
+          "system.preview_mutation"
+        ]
+      },
+      "business_language_rules": [
+        {
+          "agent_action": "clarify",
+          "applies_when": {
+            "any_terms": [
+              "top",
+              "ranked",
+              "selected",
+              "recommended",
+              "at-risk",
+              "highest priority"
+            ],
+            "exclude_terms": [
+              "raw",
+              "export",
+              "download",
+              "send",
+              "email",
+              "message",
+              "draft",
+              "write",
+              "generate"
+            ]
+          },
+          "id": "gtm-bottleneck-account-outreach-draft-derived-target-semantics",
+          "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+          "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "capability_framing": "Draft outreach only for a specific account already selected from a bounded bottleneck or at-risk account review. Do not use this capability to choose the top or affected account from analysis; use the approval-gated follow-up preparation flow for derived-target bottleneck or at-risk requests.",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "input_meanings": {
+        "channel": {
+          "call_follow_up": "call_follow_up within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "email": "email within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "linkedin": "linkedin within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        },
+        "objective": {
+          "first_touch": "first_touch within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "follow_up": "follow_up within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "revive_stalled": "revive_stalled within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        }
+      },
+      "intent_rules": [
+        {
+          "agent_action": "Select, clarify, or frame the request before invoking the ANIP capability.",
+          "id": "derived_target",
+          "meaning": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "target_ref",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
+      }
+    },
+    "gtm.draft_outreach_message": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "external_dispatch",
+          "system.mutation"
+        ]
+      },
+      "app_glue": {
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "external_dispatch",
+          "system.mutation"
+        ],
+        "produces": [
+          "content.draft"
+        ]
+      },
+      "business_language_rules": [
+        {
+          "agent_action": "clarify",
+          "applies_when": {
+            "any_terms": [
+              "top",
+              "ranked",
+              "selected",
+              "recommended",
+              "at-risk",
+              "highest priority"
+            ],
+            "exclude_terms": [
+              "raw",
+              "export",
+              "download",
+              "send",
+              "email",
+              "message",
+              "draft",
+              "write",
+              "generate"
+            ]
+          },
+          "id": "gtm-draft-outreach-message-derived-target-semantics",
+          "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+          "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "capability_framing": "Draft a bounded outreach message for a selected target and explicit objective; send actions and raw transcripts are not supported.",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "input_meanings": {
+        "channel": {
+          "call_follow_up": "call_follow_up within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "email": "email within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "linkedin": "linkedin within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        },
+        "objective": {
+          "first_touch": "first_touch within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "follow_up": "follow_up within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "revive_stalled": "revive_stalled within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        }
+      },
+      "intent_rules": [
+        {
+          "agent_action": "Select, clarify, or frame the request before invoking the ANIP capability.",
+          "id": "derived_target",
+          "meaning": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "required_context": [
+        {
+          "input": "target_ref",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "objective",
+          "missing_behavior": "use_default"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
+      }
+    },
+    "gtm.lookalike_accounts": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "capability_framing": "Return bounded lookalike accounts using explainable similarity logic; raw payloads and underlying model data are not supported.",
+      "required_context": [
+        {
+          "input": "reference_account",
+          "missing_behavior": "clarify"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
+      }
+    },
+    "gtm.objection_response_variants": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "external_dispatch",
+          "system.mutation"
+        ]
+      },
+      "app_glue": {
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "external_dispatch",
+          "system.mutation"
+        ],
+        "produces": [
+          "content.draft",
+          "content.recommendation"
+        ]
+      },
+      "business_language_rules": [
+        {
+          "agent_action": "clarify",
+          "applies_when": {
+            "any_terms": [
+              "top",
+              "ranked",
+              "selected",
+              "recommended",
+              "at-risk",
+              "highest priority"
+            ],
+            "exclude_terms": [
+              "raw",
+              "export",
+              "download",
+              "send",
+              "email",
+              "message",
+              "draft",
+              "write",
+              "generate"
+            ]
+          },
+          "id": "gtm-objection-response-variants-derived-target-semantics",
+          "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+          "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "capability_framing": "Return bounded objection-response variants for a selected competitor or concern.",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "input_meanings": {
+        "objection_theme": {
+          "competitor": "competitor within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "implementation_risk": "implementation_risk within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "pricing": "pricing within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        }
+      },
+      "intent_rules": [
+        {
+          "agent_action": "Select, clarify, or frame the request before invoking the ANIP capability.",
+          "id": "derived_target",
+          "meaning": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "required_context": [
+        {
+          "input": "objection_theme",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "target_ref",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
+      }
+    },
+    "gtm.pipeline_forecast_summary": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "app_glue": {
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "business_language_rules": [
+        {
+          "agent_action": "clarify",
+          "applies_when": {
+            "any_terms": [
+              "top",
+              "ranked",
+              "selected",
+              "recommended",
+              "at-risk",
+              "highest priority"
+            ],
+            "exclude_terms": [
+              "raw",
+              "export",
+              "download",
+              "send",
+              "email",
+              "message",
+              "draft",
+              "write",
+              "generate"
+            ]
+          },
+          "id": "gtm-pipeline-forecast-summary-derived-target-semantics",
+          "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+          "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "capability_framing": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "input_meanings": {
+        "forecast_mode": {
+          "best_case": "best_case within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "likely": "likely within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "risk_adjusted": "risk_adjusted within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        }
+      },
+      "intent_rules": [
+        {
+          "agent_action": "Select, clarify, or frame the request before invoking the ANIP capability.",
+          "id": "derived_target",
+          "meaning": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
+      }
+    },
+    "gtm.pipeline_summary": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "capability_framing": "Return a bounded pipeline health summary for a quarter and optional scope.",
+      "input_meanings": {
+        "detail_level": {
+          "stage_breakdown": "stage_breakdown within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "summary": "summary within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        }
+      },
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
+      }
+    },
+    "gtm.prepare_followup_tasks": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute"
+        ],
+        "produces": [
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Prepare follow-up tasks for high-risk accounts without executing downstream mutations.",
+      "input_meanings": {
+        "ranking_basis": {
+          "risk_score": "risk_score within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        }
+      },
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "ranking_basis",
+          "missing_behavior": "use_default"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show preview, approval requirement, and bounded impact before details."
+      }
+    },
+    "gtm.prepare_reassignment_plan": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute"
+        ],
+        "produces": [
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Prepare a reassignment preview for overloaded pipeline coverage without executing downstream mutations.",
+      "input_meanings": {
+        "selection_basis": {
+          "manager_capacity": "manager_capacity within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "stalled_risk_mix": "stalled_risk_mix within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        }
+      },
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show preview, approval requirement, and bounded impact before details."
+      }
+    },
+    "gtm.prioritize_accounts": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "app_glue": {
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.recommendation",
+          "content.summary"
+        ]
+      },
+      "business_language_rules": [
+        {
+          "agent_action": "clarify",
+          "applies_when": {
+            "any_terms": [
+              "top",
+              "ranked",
+              "selected",
+              "recommended",
+              "at-risk",
+              "highest priority"
+            ],
+            "exclude_terms": [
+              "raw",
+              "export",
+              "download",
+              "send",
+              "email",
+              "message",
+              "draft",
+              "write",
+              "generate"
+            ]
+          },
+          "id": "gtm-prioritize-accounts-derived-target-semantics",
+          "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+          "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "capability_framing": "Rank bounded accounts or enriched cohorts by explainable GTM priority.",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "input_meanings": {
+        "cohort_ref": {
+          "at_risk_q2": "at_risk_q2 within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "expansion_candidates_q2": "expansion_candidates_q2 within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        },
+        "ranking_basis": {
+          "deal_likelihood": "deal_likelihood within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        }
+      },
+      "intent_rules": [
+        {
+          "agent_action": "Select, clarify, or frame the request before invoking the ANIP capability.",
+          "id": "derived_target",
+          "meaning": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "required_context": [
+        {
+          "input": "cohort_ref",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show recommendations or variants with concise rationale."
+      }
+    },
+    "gtm.prioritized_outreach_draft": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "external_dispatch",
+          "system.mutation"
+        ]
+      },
+      "app_glue": {
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "external_dispatch",
+          "system.mutation"
+        ],
+        "produces": [
+          "content.draft",
+          "content.recommendation"
+        ]
+      },
+      "business_language_rules": [
+        {
+          "agent_action": "clarify",
+          "applies_when": {
+            "any_terms": [
+              "top",
+              "ranked",
+              "selected",
+              "recommended",
+              "at-risk",
+              "highest priority"
+            ],
+            "exclude_terms": [
+              "raw",
+              "export",
+              "download",
+              "send",
+              "email",
+              "message",
+              "draft",
+              "write",
+              "generate"
+            ]
+          },
+          "id": "gtm-prioritized-outreach-draft-derived-target-semantics",
+          "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+          "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "capability_framing": "Prioritize a bounded account cohort, include bounded enrichment context for the top accounts, and draft one outreach message for the highest-priority account; this is for prioritization-to-enrichment-to-draft requests, not lead routing.",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "input_meanings": {
+        "channel": {
+          "call_follow_up": "call_follow_up within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "email": "email within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "linkedin": "linkedin within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        },
+        "cohort_ref": {
+          "at_risk_q2": "at_risk_q2 within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "expansion_candidates_q2": "expansion_candidates_q2 within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        },
+        "objective": {
+          "first_touch": "first_touch within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "follow_up": "follow_up within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "revive_stalled": "revive_stalled within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        },
+        "ranking_basis": {
+          "deal_likelihood": "deal_likelihood within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        }
+      },
+      "intent_rules": [
+        {
+          "agent_action": "Select, clarify, or frame the request before invoking the ANIP capability.",
+          "id": "derived_target",
+          "meaning": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "required_context": [
+        {
+          "input": "cohort_ref",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
+      }
+    },
+    "gtm.prioritized_routing_preparation": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute"
+        ],
+        "produces": [
+          "approval.request",
+          "content.recommendation",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Compose gtm.prioritize_accounts -\u003e gtm.route_leads when the requested business action needs derived targets before governed preparation.",
+      "input_meanings": {
+        "cohort_ref": {
+          "at_risk_q2": "at_risk_q2 within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "expansion_candidates_q2": "expansion_candidates_q2 within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        },
+        "ranking_basis": {
+          "deal_likelihood": "deal_likelihood within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        }
+      },
+      "required_context": [
+        {
+          "input": "cohort_ref",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show recommendations or variants with concise rationale."
+      }
+    },
+    "gtm.product_pipeline_summary": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "capability_framing": "Return a bounded product pipeline summary for a quarter and optional scope.",
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "product_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
+      }
+    },
+    "gtm.route_leads": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute",
+          "external_dispatch",
+          "system.mutation"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "external_dispatch",
+          "system.mutation"
+        ],
+        "produces": [
+          "approval.request",
+          "content.draft",
+          "content.recommendation",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Prepare an approval-gated routing preview for scored or hot leads in a named cohort; outreach drafting is not supported by this capability.",
+      "input_meanings": {
+        "cohort_ref": {
+          "inbound_last_week": "inbound_last_week within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "webinar_q2": "webinar_q2 within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        },
+        "target_queue": {
+          "sales": "sales within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "sdr": "sdr within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        }
+      },
+      "required_context": [
+        {
+          "input": "cohort_ref",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
+      }
+    },
+    "gtm.sales_team_performance_summary": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "capability_framing": "Return a bounded sales team performance summary for a quarter and optional scope.",
+      "input_meanings": {
+        "slice_by": {
+          "manager_name": "manager_name within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "regional_office": "regional_office within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        }
+      },
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
+      }
+    },
+    "gtm.score_leads": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "app_glue": {
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.recommendation",
+          "content.summary"
+        ]
+      },
+      "business_language_rules": [
+        {
+          "agent_action": "clarify",
+          "applies_when": {
+            "any_terms": [
+              "top",
+              "ranked",
+              "selected",
+              "recommended",
+              "at-risk",
+              "highest priority"
+            ],
+            "exclude_terms": [
+              "raw",
+              "export",
+              "download",
+              "send",
+              "email",
+              "message",
+              "draft",
+              "write",
+              "generate"
+            ]
+          },
+          "id": "gtm-score-leads-derived-target-semantics",
+          "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+          "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "capability_framing": "Return bounded lead scores and explainable priority bands for a named cohort.",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "input_meanings": {
+        "cohort_ref": {
+          "inbound_last_week": "inbound_last_week within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "webinar_q2": "webinar_q2 within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        }
+      },
+      "intent_rules": [
+        {
+          "agent_action": "Select, clarify, or frame the request before invoking the ANIP capability.",
+          "id": "derived_target",
+          "meaning": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "required_context": [
+        {
+          "input": "cohort_ref",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show recommendations or variants with concise rationale."
+      }
+    },
+    "gtm.stage_bottleneck_summary": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "app_glue": {
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation.",
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "business_language_rules": [
+        {
+          "agent_action": "clarify",
+          "applies_when": {
+            "any_terms": [
+              "top",
+              "ranked",
+              "selected",
+              "recommended",
+              "at-risk",
+              "highest priority"
+            ],
+            "exclude_terms": [
+              "raw",
+              "export",
+              "download",
+              "send",
+              "email",
+              "message",
+              "draft",
+              "write",
+              "generate"
+            ]
+          },
+          "id": "gtm-stage-bottleneck-summary-derived-target-semantics",
+          "interpretation": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation. Do not pass vague target wording as a literal input. The consuming app should select a reviewed bounded target group or ask for clarification before invoking the capability.",
+          "meaning": "User asks the app or service to choose a target group from business wording such as top, ranked, selected, recommended, or at-risk records.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "capability_framing": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+      "derived_target_owner": {
+        "owner": "app",
+        "reason": "Operator review classified this as consuming-app guidance. The contract remains valid; the app profile owns selection, framing, or clarification behavior without changing generic ANIP invocation."
+      },
+      "input_meanings": {
+        "slice_by": {
+          "manager_name": "manager_name within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "product_name": "product_name within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit.",
+          "regional_office": "regional_office within Accepted assistant guidance:\n- Separate entity references from scalar inputs: State which inputs represent named entities, lists of entities, cohorts, products, or account references so the runtime can bind them consistently. Mark each as entity_reference or non-reference and specify the catalog or lookup source when applicable.\n  Why: The source includes multiple catalog-backed references and free-text scopes; these must be distinguished to avoid unsafe guessing.\n- Define when missing or ambiguous inputs should stop for clarification: Describe which missing fields should trigger clarification_required instead of defaulting or guessing. Include the exact clarification_hint text for each field and note whether the request can proceed with partial inputs.\n  Why: The requirements explicitly say missing critical inputs must be clarified, but the stop conditions need to be encoded per field.\n- Preserve the inputs needed at approval boundaries: Call out which inputs must survive into approval review so approvers can see the same bounded request context the runtime used. Include any lineage, scope, and target references that must be retained in the approval payload.\n  Why: Approval-gated previews are part of the baseline, so the input contract should preserve the exact request context needed for review and audit."
+        }
+      },
+      "intent_rules": [
+        {
+          "agent_action": "Select, clarify, or frame the request before invoking the ANIP capability.",
+          "id": "derived_target",
+          "meaning": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. The package should state whether the service chooses that group, or the consuming app chooses it before calling.",
+          "owner": "agent_app_glue"
+        }
+      ],
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify_or_app_select"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
+      }
+    },
+    "gtm.stalled_opportunity_review": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "capability_framing": "Return stalled open opportunities with bounded evidence and explainable stall reasoning.",
+      "required_context": [
+        {
+          "input": "quarter",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "owner_scope",
+          "missing_behavior": "optional"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show the bounded summary and key supporting evidence."
+      }
+    },
+    "gtm.suggest_followup_content": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "external_dispatch",
+          "system.mutation"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "external_dispatch",
+          "system.mutation"
+        ],
+        "produces": [
+          "content.draft",
+          "content.recommendation"
+        ]
+      },
+      "capability_framing": "Return bounded follow-up content variants for an explicit GTM target.",
+      "required_context": [
+        {
+          "input": "target_ref",
+          "missing_behavior": "clarify"
+        }
+      ],
+      "result_display": {
+        "primary_fields": [
+          "result"
+        ],
+        "style": "Show generated draft content first, then rationale and evidence."
+      }
+    }
+  },
+  "schema_version": "anip-agent-app-profile/v0"
+}

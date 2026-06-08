@@ -1,0 +1,63 @@
+name: CI — CLI Artifacts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+              - "packages/go/**"
+              - ".github/workflows/ci-cli.yml"
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Build cross-platform CLI archives
+        env:
+          ANIP_CLI_BUILD_CACHE: /tmp/anip-cli-build-cache
+        run: packages/go/scripts/build-anip-cli.sh ci
+
+      - name: Verify expected CLI archives
+        run: |
+          set -euo pipefail
+          test -f packages/go/dist/anip_ci_darwin_amd64.tar.gz
+          test -f packages/go/dist/anip_ci_darwin_arm64.tar.gz
+          test -f packages/go/dist/anip_ci_linux_amd64.tar.gz
+          test -f packages/go/dist/anip_ci_linux_arm64.tar.gz
+          test -f packages/go/dist/anip_ci_windows_amd64.zip
+          test -f packages/go/dist/anip_ci_windows_arm64.zip
+          test -f packages/go/dist/anip_ci_checksums.txt
+          grep -q "anip_ci_linux_amd64.tar.gz" packages/go/dist/anip_ci_checksums.txt
+
+      - name: Upload CLI artifact bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: anip-cli-ci
+          path: |
+            packages/go/dist/anip_ci_*.tar.gz
+            packages/go/dist/anip_ci_*.zip
+            packages/go/dist/anip_ci_checksums.txt
+            packages/go/dist/homebrew/anip.rb
+          if-no-files-found: error
+          retention-days: 7
+

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GTM Metabase</title>
+  <style>
+    body { margin: 0; font-family: "IBM Plex Sans", "Inter", sans-serif; background: #0d1117; color: #e6edf3; }
+    .shell { max-width: 860px; margin: 0 auto; padding: 44px 24px 56px; }
+    a { color: #7ee787; }
+    .eyebrow { color: #7ee787; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { margin: 8px 0 10px; font-size: 36px; }
+    p, li { color: #9fb0c3; line-height: 1.6; }
+    .panel { background: #161b22; border: 1px solid #2d333b; border-radius: 16px; padding: 18px; margin-top: 18px; }
+    .button { display: inline-block; margin-top: 12px; background: #238636; color: #fff; border-radius: 999px; padding: 11px 16px; text-decoration: none; font-weight: 800; }
+    code, pre { background: #0d1117; color: #e6edf3; border: 1px solid #30363d; border-radius: 10px; }
+    code { padding: 2px 6px; }
+    pre { padding: 14px; white-space: pre-wrap; user-select: text; }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="eyebrow"><a href="/">ANIP GTM Showcase</a></div>
+    <h1>Metabase BI Verification</h1>
+    <p>
+      Metabase is bundled with the GTM showcase. It is initialized by the
+      <code>gtm-metabase-setup</code> compose service, which creates the GTM
+      warehouse connection, saved questions, and verification dashboard.
+    </p>
+
+    <section class="panel">
+      <h2>Open Metabase</h2>
+      <p>Use this button to open Metabase. Credentials below are plain text so they can be copied without navigating.</p>
+      <a id="metabaseLink" class="button" href="#" target="_blank" rel="noreferrer">Open Metabase</a>
+    </section>
+
+    <section class="panel">
+      <h2>Login</h2>
+      <pre>Email: admin@anip.local
+Password: Anip-Demo-Admin-2026!</pre>
+    </section>
+
+    <section class="panel">
+      <h2>What Setup Creates</h2>
+      <ul>
+        <li>Database connection: <code>GTM Warehouse</code></li>
+        <li>Collection: <code>ANIP GTM Showcase</code></li>
+        <li>Dashboard: <code>ANIP GTM Verification Surface</code></li>
+        <li>Saved questions for pipeline, forecast, bottlenecks, risk accounts, product pipeline, sales-team performance, and enrichment verification.</li>
+      </ul>
+    </section>
+
+    <section class="panel">
+      <h2>Manual Setup Rerun</h2>
+      <pre id="setupCommand">Loading command...</pre>
+    </section>
+
+    <p id="runtimeMeta">Loading runtime metadata...</p>
+  </main>
+
+  <script>
+    async function loadRuntime() {
+      const response = await fetch('/api/runtime');
+      const data = await response.json();
+      const metabase = data.showcase?.links?.metabase || 'http://127.0.0.1:3041';
+      document.getElementById('metabaseLink').href = metabase;
+      document.getElementById('runtimeMeta').textContent = `Configured Metabase URL: ${metabase}`;
+      document.getElementById('setupCommand').textContent =
+        `GTM_METABASE_URL=${metabase} \\\n  python3 examples/showcase/gtm/scripts/setup_metabase_verification.py`;
+    }
+    loadRuntime().catch((error) => {
+      document.getElementById('runtimeMeta').textContent = `Runtime metadata failed: ${error}`;
+    });
+  </script>
+</body>
+</html>

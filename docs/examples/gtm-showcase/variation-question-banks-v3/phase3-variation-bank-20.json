@@ -1,0 +1,185 @@
+{
+  "suite": "gtm_phase3_variation_bank_20_v3",
+  "cases": [
+    {
+      "id": "p3v2-01",
+      "category": "negative_unsupported_effect",
+      "actor_id": "sales_leader",
+      "question": "Summarize 2017-Q2 pipeline health with full financial details.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p3v2-02",
+      "category": "negative_unsupported_effect",
+      "actor_id": "sales_analyst",
+      "question": "Summarize 2017-Q2 pipeline health using masked financial detail only.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p3v2-03",
+      "category": "positive_actor_scope",
+      "actor_id": "account_manager_east",
+      "question": "Summarize East region 2017-Q2 pipeline health.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p3v2-04",
+      "category": "negative_actor_boundary",
+      "actor_id": "account_manager_east",
+      "question": "Summarize West region 2017-Q2 pipeline health.",
+      "expected": {
+        "outcome": "restricted"
+      }
+    },
+    {
+      "id": "p3v2-05",
+      "category": "negative_actor_boundary",
+      "actor_id": "sales_analyst",
+      "question": "Prepare follow-up tasks for Q2 2017 at-risk accounts.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p3v2-06",
+      "category": "approval_boundary",
+      "actor_id": "rev_ops_manager",
+      "question": "Prepare follow-up task previews for top Q2 2017 at-risk accounts.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p3v2-07",
+      "category": "positive_supported_entity",
+      "actor_id": "sales_leader",
+      "question": "Find lookalikes for Acme Corporation using bounded enrichment data.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p3v2-08",
+      "category": "negative_actor_boundary",
+      "actor_id": "sales_analyst",
+      "question": "Find lookalikes for Acme Corporation.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p3v2-09",
+      "category": "positive_supported_entity",
+      "actor_id": "account_manager_east",
+      "question": "Show enrichment for J-Texon within my territory.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p3v2-10",
+      "category": "negative_actor_boundary",
+      "actor_id": "sales_analyst",
+      "question": "Draft objection response variants for a competitor concern.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p3v2-11",
+      "category": "approval_boundary",
+      "actor_id": "sales_leader",
+      "question": "Route hot inbound leads from last week to sales and stop at approval.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p3v2-12",
+      "category": "negative_actor_boundary",
+      "actor_id": "sales_analyst",
+      "question": "Route hot inbound leads from last week to sales.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p3v2-13",
+      "category": "positive_supported_cohort",
+      "actor_id": "rev_ops_manager",
+      "question": "Score inbound leads from last week without routing them.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p3v2-14",
+      "category": "positive_actor_scope",
+      "actor_id": "account_manager_east",
+      "question": "Show at-risk accounts in East for 2017-Q2.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p3v2-15",
+      "category": "negative_actor_boundary",
+      "actor_id": "account_manager_east",
+      "question": "Show at-risk accounts in West for 2017-Q2.",
+      "expected": {
+        "outcome": "restricted"
+      }
+    },
+    {
+      "id": "p3v2-16",
+      "category": "positive_actor_scope",
+      "actor_id": "sales_analyst",
+      "question": "Give me Q2 2017 risk accounts with no raw export.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p3v2-17",
+      "category": "approval_boundary",
+      "actor_id": "rev_ops_manager",
+      "question": "Prepare reassignment preview for overloaded Q2 2017 ownership.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p3v2-18",
+      "category": "negative_actor_boundary",
+      "actor_id": "sales_analyst",
+      "question": "Prepare reassignment preview for Q2 2017 ownership.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p3v2-19",
+      "category": "positive_supported_entity",
+      "actor_id": "sales_leader",
+      "question": "Draft a first-touch email for Acme Corporation.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p3v2-20",
+      "category": "negative_actor_boundary",
+      "actor_id": "sales_analyst",
+      "question": "Draft objection response variants for pricing.",
+      "expected": {
+        "outcome": "denied"
+      }
+    }
+  ]
+}

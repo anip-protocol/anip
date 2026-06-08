@@ -10,6 +10,36 @@ import TabItem from '@theme/TabItem';
 
 ANIP is available across multiple ecosystems. Pick your language to get started.
 
+## CLI
+
+The ANIP CLI is distributed from GitHub release assets as prebuilt archives for macOS, Linux, and Windows:
+
+```bash
+anip version
+anip generate --help
+anip validate --help
+```
+
+Each release includes:
+
+- `anip_<version>_darwin_amd64.tar.gz`
+- `anip_<version>_darwin_arm64.tar.gz`
+- `anip_<version>_linux_amd64.tar.gz`
+- `anip_<version>_linux_arm64.tar.gz`
+- `anip_<version>_windows_amd64.zip`
+- `anip_<version>_windows_arm64.zip`
+- `anip_<version>_checksums.txt`
+- `anip.rb` Homebrew formula for `anip-protocol/homebrew-anip` tap installation
+
+The primary command is `anip`. Compatibility wrappers `anip-generate` and `anip-verify` are included in the macOS/Linux archives and formula. Windows archives include `anip.exe`, `anip-generate.cmd`, and `anip-verify.cmd`.
+
+Homebrew installation uses the separate `anip-protocol/homebrew-anip` tap:
+
+```bash
+brew tap anip-protocol/anip
+brew install anip
+```
+
 ## Runtime packages
 
 <Tabs groupId="language" queryString>
@@ -33,7 +63,6 @@ pip install anip-service anip-fastapi
 | `anip-rest` | REST / OpenAPI interface adapter |
 | `anip-graphql` | GraphQL interface adapter |
 | `anip-mcp` | MCP Streamable HTTP interface adapter |
-| `anip-studio` | Studio embedded UI adapter |
 | `anip-stdio` | stdio transport (JSON-RPC 2.0) |
 | `anip-grpc` | gRPC transport |
 
@@ -87,7 +116,7 @@ Published to **Maven Central** under group `dev.anip`:
 <dependency>
   <groupId>dev.anip</groupId>
   <artifactId>anip-service</artifactId>
-  <version>0.24.0</version>
+  <version>0.24.4</version>
 </dependency>
 ```
 
@@ -109,12 +138,11 @@ Published to **Maven Central** under group `dev.anip`:
 </TabItem>
 <TabItem value="csharp" label="C#">
 
-C# packages are available **in-repo** (NuGet publishing coming soon):
+C# packages are published by the release workflow to **NuGet**:
 
 ```bash
-# From the ANIP repo root:
-dotnet add reference packages/csharp/src/Anip.Service
-dotnet add reference packages/csharp/src/Anip.AspNetCore
+dotnet add package Anip.Service --version 0.24.4
+dotnet add package Anip.AspNetCore --version 0.24.4
 ```
 
 **All projects:** `Anip.Core`, `Anip.Crypto`, `Anip.Server`, `Anip.Service`, `Anip.AspNetCore`, `Anip.Rest`, `Anip.Rest.AspNetCore`, `Anip.GraphQL`, `Anip.GraphQL.AspNetCore`, `Anip.Mcp`, `Anip.Mcp.AspNetCore`, `Anip.Stdio`
@@ -124,24 +152,26 @@ dotnet add reference packages/csharp/src/Anip.AspNetCore
 
 ## Studio
 
-Studio runs in two modes — no language dependency for standalone:
+Studio runs as standalone Docker services. Treat it as the design and package-authoring application, not as a runtime adapter that every service mounts.
+
+Standalone local compose with Postgres:
 
 ```bash
-# Standalone via Docker (connects to any ANIP service)
+cd studio
+docker compose up --build
+```
+
+Read-only seeded demo mode:
+
+```bash
+STUDIO_READ_ONLY=1 STUDIO_SEED_SHOWCASES=1 docker compose up --build
+```
+
+Direct standalone image build:
+
+```bash
 docker build -t anip-studio studio/
 docker run -p 3000:8080 anip-studio
-```
-
-Or embedded inside a Python service:
-
-```bash
-pip install anip-studio
-```
-
-```python
-from anip_studio import mount_anip_studio
-mount_anip_studio(app, service)
-# → http://localhost:9100/studio/
 ```
 
 ## Testing tools

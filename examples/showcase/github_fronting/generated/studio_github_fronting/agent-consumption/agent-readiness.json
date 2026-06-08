@@ -1,0 +1,33 @@
+{
+  "probes": [
+    {
+      "expected_outcome": "success",
+      "id": "github-search-repo-scope"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "github-issue-missing-repo"
+    },
+    {
+      "expected_outcome": "approval_required",
+      "id": "github-pr-comment-without-approval"
+    },
+    {
+      "expected_outcome": "approval_required",
+      "id": "github-workflow-dispatch-without-approval"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "github-raw-export-denied"
+    }
+  ],
+  "score": 100,
+  "status": "ready",
+  "summary": {
+    "blockers": 0,
+    "info": 0,
+    "probes": 5,
+    "required_app_glue": 0,
+    "warnings": 0
+  }
+}

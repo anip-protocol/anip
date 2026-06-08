@@ -1,0 +1,380 @@
+{
+  "suite": "gtm_phase6_llm_runtime",
+  "cases": [
+    {
+      "id": "phase6-forecast-risk-adjusted-q2",
+      "category": "forecast-read",
+      "actor_id": "sales_leader",
+      "question": "What is our risk-adjusted pipeline forecast for 2017-Q2?",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.pipeline_forecast_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "data_check": "forecast_summary_risk_adjusted_q2",
+      "audit_check": {
+        "actor_id": "sales_leader",
+        "service": "pipeline",
+        "capability": "gtm.pipeline_forecast_summary",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": true,
+          "signature_present": true,
+          "storage_redacted": true,
+          "root_principal_contains": ["actor_id=sales_leader", "role=sales_leader"]
+        }
+      }
+    },
+    {
+      "id": "phase6-forecast-best-case-east-q2",
+      "category": "forecast-read",
+      "actor_id": "sales_leader",
+      "question": "Show the best-case pipeline forecast for 2017-Q2 in the East region.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.pipeline_forecast_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "data_check": "forecast_summary_best_case_east_q2"
+    },
+    {
+      "id": "phase6-forecast-clarify-quarter-followup",
+      "category": "forecast-clarification",
+      "actor_id": "sales_leader",
+      "turns": [
+        {
+          "question": "What is our likely pipeline forecast?",
+          "expected": {
+            "outcome": "clarification_required",
+            "capability": "gtm.pipeline_forecast_summary",
+            "service": "pipeline",
+            "max_total_loops": 2
+          }
+        },
+        {
+          "question": "Use 2017-Q2.",
+          "expected": {
+            "outcome": "success",
+            "planned_capability": "gtm.pipeline_forecast_summary",
+            "capability": "gtm.pipeline_forecast_summary",
+            "service": "pipeline",
+            "max_total_loops": 2
+          },
+          "data_check": "forecast_summary_likely_q2"
+        }
+      ]
+    },
+    {
+      "id": "phase6-sales-analyst-forecast-masked",
+      "category": "forecast-actor-aware",
+      "actor_id": "sales_analyst",
+      "question": "What is our risk-adjusted pipeline forecast for 2017-Q2?",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.pipeline_forecast_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "data_check": "forecast_summary_masked_q2",
+      "audit_check": {
+        "actor_id": "sales_analyst",
+        "service": "pipeline",
+        "capability": "gtm.pipeline_forecast_summary",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": true,
+          "signature_present": true,
+          "storage_redacted": true,
+          "root_principal_contains": ["actor_id=sales_analyst", "role=sales_analyst"]
+        }
+      }
+    },
+    {
+      "id": "phase6-account-manager-west-forecast-restricted",
+      "category": "forecast-actor-aware",
+      "actor_id": "account_manager_east",
+      "question": "Show the best-case pipeline forecast for 2017-Q2 in the West region.",
+      "expected": {
+        "outcome": "restricted",
+        "capability": "gtm.pipeline_forecast_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "account_manager_east",
+        "service": "pipeline",
+        "capability": "gtm.pipeline_forecast_summary",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "restricted",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=account_manager_east", "role=account_manager"]
+        }
+      }
+    },
+    {
+      "id": "phase6-bottleneck-regional-q2",
+      "category": "bottleneck-read",
+      "actor_id": "sales_leader",
+      "question": "Where are the biggest stage bottlenecks in our 2017-Q2 pipeline?",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.stage_bottleneck_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "data_check": "bottleneck_summary_regional_q2"
+    },
+    {
+      "id": "phase6-bottleneck-product-east-q2",
+      "category": "bottleneck-read",
+      "actor_id": "sales_leader",
+      "question": "Show the biggest stage bottlenecks by product for 2017-Q2 in the East region.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.stage_bottleneck_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "data_check": "bottleneck_summary_product_east_q2"
+    },
+    {
+      "id": "phase6-bottleneck-clarify-quarter-followup",
+      "category": "bottleneck-clarification",
+      "actor_id": "sales_leader",
+      "turns": [
+        {
+          "question": "Where are we bottlenecked?",
+          "expected": {
+            "outcome": "clarification_required",
+            "capability": "gtm.stage_bottleneck_summary",
+            "service": "pipeline",
+            "max_total_loops": 2
+          }
+        },
+        {
+          "question": "Use 2017-Q2.",
+          "expected": {
+            "outcome": "success",
+            "planned_capability": "gtm.stage_bottleneck_summary",
+            "capability": "gtm.stage_bottleneck_summary",
+            "service": "pipeline",
+            "max_total_loops": 2
+          },
+          "data_check": "bottleneck_summary_regional_q2"
+        }
+      ]
+    },
+    {
+      "id": "phase6-sales-analyst-bottleneck-masked",
+      "category": "bottleneck-actor-aware",
+      "actor_id": "sales_analyst",
+      "question": "Where are the biggest stage bottlenecks in our 2017-Q2 pipeline?",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.stage_bottleneck_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "data_check": "bottleneck_summary_masked_q2"
+    },
+    {
+      "id": "phase6-account-manager-west-bottleneck-restricted",
+      "category": "bottleneck-actor-aware",
+      "actor_id": "account_manager_east",
+      "question": "Show the biggest stage bottlenecks in the West region for 2017-Q2.",
+      "expected": {
+        "outcome": "restricted",
+        "capability": "gtm.stage_bottleneck_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "account_manager_east",
+        "service": "pipeline",
+        "capability": "gtm.stage_bottleneck_summary",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "restricted",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=account_manager_east", "role=account_manager"]
+        }
+      }
+    },
+    {
+      "id": "phase6-sales-team-performance-q2",
+      "category": "team-performance-read",
+      "actor_id": "sales_leader",
+      "question": "How are our sales teams performing in 2017-Q2?",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.sales_team_performance_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "data_check": "sales_team_performance_manager_q2"
+    },
+    {
+      "id": "phase6-sales-team-clarify-quarter-followup",
+      "category": "team-performance-clarification",
+      "actor_id": "sales_leader",
+      "turns": [
+        {
+          "question": "How are the teams performing?",
+          "expected": {
+            "outcome": "clarification_required",
+            "capability": "gtm.sales_team_performance_summary",
+            "service": "pipeline",
+            "max_total_loops": 2
+          }
+        },
+        {
+          "question": "Use 2017-Q2.",
+          "expected": {
+            "outcome": "success",
+            "planned_capability": "gtm.sales_team_performance_summary",
+            "capability": "gtm.sales_team_performance_summary",
+            "service": "pipeline",
+            "max_total_loops": 2
+          },
+          "data_check": "sales_team_performance_manager_q2"
+        }
+      ]
+    },
+    {
+      "id": "phase6-sales-team-west-restricted",
+      "category": "team-performance-actor-aware",
+      "actor_id": "account_manager_east",
+      "question": "Show sales team performance for 2017-Q2 in the West region.",
+      "expected": {
+        "outcome": "restricted",
+        "capability": "gtm.sales_team_performance_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "account_manager_east",
+        "service": "pipeline",
+        "capability": "gtm.sales_team_performance_summary",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "restricted",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=account_manager_east", "role=account_manager"]
+        }
+      }
+    },
+    {
+      "id": "phase6-product-pipeline-east-q2",
+      "category": "product-pipeline-read",
+      "actor_id": "sales_leader",
+      "question": "Show product pipeline performance for 2017-Q2 in the East region.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.product_pipeline_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "data_check": "product_pipeline_east_q2"
+    },
+    {
+      "id": "phase6-product-pipeline-masked",
+      "category": "product-pipeline-actor-aware",
+      "actor_id": "sales_analyst",
+      "question": "Show product pipeline performance for 2017-Q2.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.product_pipeline_summary",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "data_check": "product_pipeline_masked_q2"
+    },
+    {
+      "id": "phase6-reassignment-plan-approval",
+      "category": "reassignment-preview",
+      "actor_id": "rev_ops_manager",
+      "question": "Prepare a reassignment plan for overloaded managers in 2017-Q2.",
+      "expected": {
+        "outcome": "approval_required",
+        "capability": "gtm.prepare_reassignment_plan",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "data_check": "reassignment_preview_manager_capacity_q2",
+      "approval_check": {
+        "approver_actor_id": "sales_leader",
+        "expected_required_role": "sales_leader",
+        "expected_requester_actor_id": "rev_ops_manager",
+        "expected_approved_by_actor_id": "sales_leader",
+        "expected_pre_approval_status": "pending",
+        "expected_post_approval_status": "approved"
+      },
+      "audit_check": {
+        "actor_id": "rev_ops_manager",
+        "service": "pipeline",
+        "capability": "gtm.prepare_reassignment_plan",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "approval_required",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=rev_ops_manager", "role=rev_ops_manager"]
+        }
+      }
+    },
+    {
+      "id": "phase6-sales-analyst-reassignment-denied",
+      "category": "reassignment-preview",
+      "actor_id": "sales_analyst",
+      "question": "Prepare a reassignment plan for overloaded managers in 2017-Q2.",
+      "expected": {
+        "outcome": "denied",
+        "capability": "gtm.prepare_reassignment_plan",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "sales_analyst",
+        "service": "pipeline",
+        "capability": "gtm.prepare_reassignment_plan",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "denied",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_analyst", "role=sales_analyst"]
+        }
+      }
+    },
+    {
+      "id": "phase6-account-manager-west-reassignment-restricted",
+      "category": "reassignment-preview",
+      "actor_id": "account_manager_east",
+      "question": "Prepare a reassignment plan for the West region in 2017-Q2.",
+      "expected": {
+        "outcome": "restricted",
+        "capability": "gtm.prepare_reassignment_plan",
+        "service": "pipeline",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "account_manager_east",
+        "service": "pipeline",
+        "capability": "gtm.prepare_reassignment_plan",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "restricted",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=account_manager_east", "role=account_manager"]
+        }
+      }
+    }
+  ]
+}

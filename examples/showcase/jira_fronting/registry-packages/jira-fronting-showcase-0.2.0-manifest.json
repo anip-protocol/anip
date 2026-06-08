@@ -1,0 +1,896 @@
+{
+  "agent_consumability": {
+    "artifact_type": "agent_consumability_metadata",
+    "capabilities": {
+      "jira.assignee_change.request": {
+        "business_effects": {},
+        "intent": {
+          "category": "jira.assignee_change.request",
+          "summary": "Request reassignment of a Jira issue with backend user resolution, preview, approval, and audit."
+        },
+        "required_context": [
+          {
+            "input": "issue_key",
+            "posture": "required",
+            "semantic_type": "issue_ref"
+          },
+          {
+            "input": "assignee_ref",
+            "posture": "required",
+            "semantic_type": "user_ref"
+          },
+          {
+            "input": "reason",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "jira.backlog.search_context": {
+        "business_effects": {},
+        "intent": {
+          "category": "jira.backlog.search_context",
+          "summary": "Find bounded work context in an allowed Jira project without exposing raw JQL or unbounded issue export."
+        },
+        "required_context": [
+          {
+            "input": "project_key",
+            "posture": "required:clarify",
+            "semantic_type": "project_scope"
+          },
+          {
+            "input": "query",
+            "posture": "required:clarify",
+            "semantic_type": "search_query"
+          },
+          {
+            "input": "issue_type",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "status",
+            "posture": "optional",
+            "semantic_type": "workflow_status"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "jira.customer_escalation.comment.prepare": {
+        "business_effects": {},
+        "intent": {
+          "category": "jira.customer_escalation.comment.prepare",
+          "summary": "Prepare a customer-safe Jira comment from incident or triage context without posting it."
+        },
+        "required_context": [
+          {
+            "input": "issue_key",
+            "posture": "required",
+            "semantic_type": "issue_ref"
+          },
+          {
+            "input": "comment_purpose",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "context",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "visibility",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "jira.incident_bug.prepare": {
+        "business_effects": {},
+        "intent": {
+          "category": "jira.incident_bug.prepare",
+          "summary": "Prepare a Jira bug ticket from incident or defect context without creating it."
+        },
+        "required_context": [
+          {
+            "input": "project_key",
+            "posture": "required",
+            "semantic_type": "project_scope"
+          },
+          {
+            "input": "summary",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "description",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "severity",
+            "posture": "required",
+            "semantic_type": "risk_level"
+          },
+          {
+            "input": "labels",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "components",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "jira.issue.get_context": {
+        "business_effects": {},
+        "intent": {
+          "category": "jira.issue.get_context",
+          "summary": "Inspect one Jira issue with bounded actor-visible fields, comments, and history."
+        },
+        "required_context": [
+          {
+            "input": "issue_key",
+            "posture": "required:clarify",
+            "semantic_type": "issue_ref"
+          },
+          {
+            "input": "include_comments",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "include_changelog",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "jira.issue_link.request": {
+        "business_effects": {},
+        "intent": {
+          "category": "jira.issue_link.request",
+          "summary": "Request linking two Jira issues with a declared relationship and cross-project policy checks."
+        },
+        "required_context": [
+          {
+            "input": "source_issue_key",
+            "posture": "required",
+            "semantic_type": "issue_ref"
+          },
+          {
+            "input": "target_issue_key",
+            "posture": "required",
+            "semantic_type": "issue_ref"
+          },
+          {
+            "input": "link_type",
+            "posture": "required",
+            "semantic_type": "relationship_type"
+          },
+          {
+            "input": "reason",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "jira.release_notes.prepare": {
+        "business_effects": {},
+        "intent": {
+          "category": "jira.release_notes.prepare",
+          "summary": "Prepare release notes from bounded Jira issues without publishing or mutating Jira."
+        },
+        "required_context": [
+          {
+            "input": "project_key",
+            "posture": "required",
+            "semantic_type": "project_scope"
+          },
+          {
+            "input": "release_ref",
+            "posture": "required",
+            "semantic_type": "release_ref"
+          },
+          {
+            "input": "issue_query",
+            "posture": "required",
+            "semantic_type": "search_query"
+          },
+          {
+            "input": "audience",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "jira.sprint_move.request": {
+        "business_effects": {},
+        "intent": {
+          "category": "jira.sprint_move.request",
+          "summary": "Request moving Jira issue(s) into a sprint or backlog with approval and actor-visible board scope."
+        },
+        "required_context": [
+          {
+            "input": "issue_keys",
+            "posture": "required",
+            "semantic_type": "issue_ref"
+          },
+          {
+            "input": "target_sprint",
+            "posture": "required",
+            "semantic_type": "sprint_ref"
+          },
+          {
+            "input": "reason",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "jira.story.prepare": {
+        "business_effects": {},
+        "intent": {
+          "category": "jira.story.prepare",
+          "summary": "Prepare a Jira story preview with acceptance criteria before any issue is created."
+        },
+        "required_context": [
+          {
+            "input": "project_key",
+            "posture": "required",
+            "semantic_type": "project_scope"
+          },
+          {
+            "input": "summary",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "acceptance_criteria",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "priority",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "labels",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "jira.subtask.prepare": {
+        "business_effects": {},
+        "intent": {
+          "category": "jira.subtask.prepare",
+          "summary": "Prepare a subtask under an existing parent issue without creating it."
+        },
+        "required_context": [
+          {
+            "input": "parent_issue_key",
+            "posture": "required",
+            "semantic_type": "issue_ref"
+          },
+          {
+            "input": "summary",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "description",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "assignee",
+            "posture": "optional",
+            "semantic_type": "user_ref"
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ]
+      },
+      "jira.workflow_transition.request": {
+        "business_effects": {},
+        "intent": {
+          "category": "jira.workflow_transition.request",
+          "summary": "Request a governed Jira issue transition and stop for approval when policy requires it."
+        },
+        "required_context": [
+          {
+            "input": "issue_key",
+            "posture": "required",
+            "semantic_type": "issue_ref"
+          },
+          {
+            "input": "target_status",
+            "posture": "required",
+            "semantic_type": "workflow_status"
+          },
+          {
+            "input": "reason",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "comment",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ]
+      }
+    },
+    "capability_hints": [
+      {
+        "capability_id": "jira.backlog.search_context",
+        "required_context": [
+          {
+            "input": "project_key",
+            "posture": "required:clarify",
+            "semantic_type": "project_scope"
+          },
+          {
+            "input": "query",
+            "posture": "required:clarify",
+            "semantic_type": "search_query"
+          },
+          {
+            "input": "issue_type",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "status",
+            "posture": "optional",
+            "semantic_type": "workflow_status"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional:clarify",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "read",
+        "summary": "Find bounded work context in an allowed Jira project without exposing raw JQL or unbounded issue export.",
+        "title": "Search Backlog Context"
+      },
+      {
+        "capability_id": "jira.issue.get_context",
+        "required_context": [
+          {
+            "input": "issue_key",
+            "posture": "required:clarify",
+            "semantic_type": "issue_ref"
+          },
+          {
+            "input": "include_comments",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "include_changelog",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "read",
+        "summary": "Inspect one Jira issue with bounded actor-visible fields, comments, and history.",
+        "title": "Get Issue Context"
+      },
+      {
+        "capability_id": "jira.incident_bug.prepare",
+        "required_context": [
+          {
+            "input": "project_key",
+            "posture": "required",
+            "semantic_type": "project_scope"
+          },
+          {
+            "input": "summary",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "description",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "severity",
+            "posture": "required",
+            "semantic_type": "risk_level"
+          },
+          {
+            "input": "labels",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "components",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "write_adjacent",
+        "summary": "Prepare a Jira bug ticket from incident or defect context without creating it.",
+        "title": "Prepare Incident Bug"
+      },
+      {
+        "capability_id": "jira.story.prepare",
+        "required_context": [
+          {
+            "input": "project_key",
+            "posture": "required",
+            "semantic_type": "project_scope"
+          },
+          {
+            "input": "summary",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "acceptance_criteria",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "priority",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "labels",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "write_adjacent",
+        "summary": "Prepare a Jira story preview with acceptance criteria before any issue is created.",
+        "title": "Prepare Story"
+      },
+      {
+        "capability_id": "jira.subtask.prepare",
+        "required_context": [
+          {
+            "input": "parent_issue_key",
+            "posture": "required",
+            "semantic_type": "issue_ref"
+          },
+          {
+            "input": "summary",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "description",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "assignee",
+            "posture": "optional",
+            "semantic_type": "user_ref"
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "write_adjacent",
+        "summary": "Prepare a subtask under an existing parent issue without creating it.",
+        "title": "Prepare Subtask"
+      },
+      {
+        "capability_id": "jira.customer_escalation.comment.prepare",
+        "required_context": [
+          {
+            "input": "issue_key",
+            "posture": "required",
+            "semantic_type": "issue_ref"
+          },
+          {
+            "input": "comment_purpose",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "context",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "visibility",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "write_adjacent",
+        "summary": "Prepare a customer-safe Jira comment from incident or triage context without posting it.",
+        "title": "Prepare Customer Escalation Comment"
+      },
+      {
+        "capability_id": "jira.workflow_transition.request",
+        "required_context": [
+          {
+            "input": "issue_key",
+            "posture": "required",
+            "semantic_type": "issue_ref"
+          },
+          {
+            "input": "target_status",
+            "posture": "required",
+            "semantic_type": "workflow_status"
+          },
+          {
+            "input": "reason",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "comment",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "approval_required",
+        "summary": "Request a governed Jira issue transition and stop for approval when policy requires it.",
+        "title": "Request Workflow Transition"
+      },
+      {
+        "capability_id": "jira.sprint_move.request",
+        "required_context": [
+          {
+            "input": "issue_keys",
+            "posture": "required",
+            "semantic_type": "issue_ref"
+          },
+          {
+            "input": "target_sprint",
+            "posture": "required",
+            "semantic_type": "sprint_ref"
+          },
+          {
+            "input": "reason",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "approval_required",
+        "summary": "Request moving Jira issue(s) into a sprint or backlog with approval and actor-visible board scope.",
+        "title": "Request Sprint Move"
+      },
+      {
+        "capability_id": "jira.assignee_change.request",
+        "required_context": [
+          {
+            "input": "issue_key",
+            "posture": "required",
+            "semantic_type": "issue_ref"
+          },
+          {
+            "input": "assignee_ref",
+            "posture": "required",
+            "semantic_type": "user_ref"
+          },
+          {
+            "input": "reason",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "approval_required",
+        "summary": "Request reassignment of a Jira issue with backend user resolution, preview, approval, and audit.",
+        "title": "Request Assignee Change"
+      },
+      {
+        "capability_id": "jira.issue_link.request",
+        "required_context": [
+          {
+            "input": "source_issue_key",
+            "posture": "required",
+            "semantic_type": "issue_ref"
+          },
+          {
+            "input": "target_issue_key",
+            "posture": "required",
+            "semantic_type": "issue_ref"
+          },
+          {
+            "input": "link_type",
+            "posture": "required",
+            "semantic_type": "relationship_type"
+          },
+          {
+            "input": "reason",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "approval_required",
+        "summary": "Request linking two Jira issues with a declared relationship and cross-project policy checks.",
+        "title": "Request Issue Link"
+      },
+      {
+        "capability_id": "jira.release_notes.prepare",
+        "required_context": [
+          {
+            "input": "project_key",
+            "posture": "required",
+            "semantic_type": "project_scope"
+          },
+          {
+            "input": "release_ref",
+            "posture": "required",
+            "semantic_type": "release_ref"
+          },
+          {
+            "input": "issue_query",
+            "posture": "required",
+            "semantic_type": "search_query"
+          },
+          {
+            "input": "audience",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "backend_options",
+            "posture": "optional",
+            "semantic_type": "backend_options"
+          }
+        ],
+        "side_effect_level": "read",
+        "summary": "Prepare release notes from bounded Jira issues without publishing or mutating Jira.",
+        "title": "Prepare Release Notes"
+      }
+    ],
+    "schema_version": "anip-agent-consumability/v0"
+  },
+  "agent_consumption_readiness": {
+    "artifact_type": "agent_consumption_readiness",
+    "findings": [],
+    "probes": [
+      {
+        "capability_id": "jira.backlog.search_context",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "jira.issue.get_context",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "jira.incident_bug.prepare",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "jira.story.prepare",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "jira.subtask.prepare",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "jira.customer_escalation.comment.prepare",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "jira.workflow_transition.request",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "jira.sprint_move.request",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "jira.assignee_change.request",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "jira.issue_link.request",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "jira.release_notes.prepare",
+        "kind": "contract_declared",
+        "status": "ready"
+      }
+    ],
+    "required_app_glue": [],
+    "schema_version": "anip-agent-consumption-readiness/v0",
+    "score": 100,
+    "status": "ready",
+    "summary": {
+      "blockers": 0,
+      "capability_surface": 11,
+      "info": 0,
+      "probes": 11,
+      "required_app_glue": 0,
+      "warnings": 0
+    }
+  },
+  "anip_spec_version": "anip/0.24",
+  "artifact_type": "anip_package_manifest",
+  "blueprint_id": "jira-fronting-showcase",
+  "build_packs": {
+    "recommended": [
+      "anip-build-pack@local"
+    ]
+  },
+  "capability_count": 11,
+  "generated_at": "2026-05-15T00:00:00Z",
+  "lineage": {
+    "developer_revision": {
+      "artifact_id": "jira-fronting-studio-20260516233655-developer-definition-revision-1",
+      "contract_signature": "sha256:aeb36c8ae2c27865ed31b577349daeeb742d49dd542b80fd81606445626d8cec",
+      "ref": "jira-fronting-studio-20260516233655-developer-definition-revision-1",
+      "revision_number": 1
+    },
+    "product_revision": {
+      "artifact_id": "jira-fronting-studio-20260516233655-product-design-revision-1@r1",
+      "baseline_locked_at": "2026-05-15T00:00:00Z",
+      "ref": "jira-fronting-studio-20260516233655-product-design-revision-1@r1",
+      "revision_number": 1
+    },
+    "project_ref": "studio:jira-fronting-studio-20260516233655"
+  },
+  "name": "jira_governed_fronting_showcase Service Blueprint",
+  "package_id": "jira-fronting-showcase",
+  "package_kind": "anip_service_blueprint",
+  "package_version": "0.2.0",
+  "publisher": {
+    "display_name": "Local development registry",
+    "id": "local-dev-registry"
+  },
+  "readme": "# jira_governed_fronting_showcase\n\nANIP package `jira-fronting-showcase@0.2.0` for local showcase and registry smoke usage.\n\n## Contents\n\n- Services: 1\n- Capabilities: 11\n- ANIP spec: `anip/0.24`\n\n## Capability Surface\n\n- `jira.backlog.search_context`\n- `jira.issue.get_context`\n- `jira.incident_bug.prepare`\n- `jira.story.prepare`\n- `jira.subtask.prepare`\n- `jira.customer_escalation.comment.prepare`\n- `jira.workflow_transition.request`\n- `jira.sprint_move.request`\n- `jira.assignee_change.request`\n- `jira.issue_link.request`\n- `jira.release_notes.prepare`\n\n## Generate\n\nFrom a downloaded package bundle:\n\n```bash\ngo run ./cmd/anip-generate --package-bundle \u003cdownloaded-package\u003e.anip-package.json --target python --dependency-source local --output ./generated/jira-fronting-showcase --force\n```\n\nFrom a trusted registry package:\n\n```bash\ngo run ./cmd/anip-generate --registry-url \u003cregistry-url\u003e --package-id jira-fronting-showcase --package-version 0.2.0 --target python --dependency-source registry --output ./generated/jira-fronting-showcase --force\n```\n\n## Verify\n\n```bash\ngo run ./cmd/anip-verify --definition anip-service-definition.json\ngo run ./cmd/anip-verify --package-bundle \u003cdownloaded-package\u003e.anip-package.json\n```\n\n## Run Locally\n\nGenerated services default to port `9140` unless overridden by the generated runtime configuration.",
+  "schema_version": "anip-service-definition/v1",
+  "service_count": 1,
+  "service_definition": "anip-service-definition.json",
+  "service_definition_digest": "sha256:aeb36c8ae2c27865ed31b577349daeeb742d49dd542b80fd81606445626d8cec",
+  "service_definition_digest_algorithm": "sha256",
+  "service_ids": [
+    "jira-governance-service"
+  ],
+  "source_links": [],
+  "usage": {
+    "generate_from_bundle": "go run ./cmd/anip-generate --package-bundle \u003cdownloaded-package\u003e.anip-package.json --target python --dependency-source local --output ./generated/jira-fronting-showcase --force",
+    "generate_from_registry": "go run ./cmd/anip-generate --registry-url \u003cregistry-url\u003e --package-id jira-fronting-showcase --package-version 0.2.0 --target python --dependency-source registry --output ./generated/jira-fronting-showcase --force",
+    "local_port": 9140,
+    "verify_bundle": "go run ./cmd/anip-verify --package-bundle \u003cdownloaded-package\u003e.anip-package.json",
+    "verify_definition": "go run ./cmd/anip-verify --definition anip-service-definition.json"
+  },
+  "verifier_packs": {
+    "recommended": [
+      "anip-verifier@local"
+    ]
+  },
+  "version": "0.2.0"
+}

@@ -1,0 +1,178 @@
+{
+  "package_kind": "anip_service_blueprint",
+  "artifact_type": "anip_package_manifest",
+  "blueprint_id": "travel-booking-showcase",
+  "package_id": "travel-booking-showcase",
+  "name": "Travel Booking Showcase Service Blueprint",
+  "version": "0.1.0",
+  "package_version": "0.1.0",
+  "schema_version": "anip-service-definition/v1",
+  "publisher": {
+    "id": "local-studio-source",
+    "display_name": "Local Studio Source Export"
+  },
+  "service_definition": "anip-service-definition.json",
+  "service_definition_digest": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f",
+  "service_definition_digest_algorithm": "sha256",
+  "build_packs": {
+    "recommended": [
+      "anip-build-pack@local"
+    ]
+  },
+  "verifier_packs": {
+    "recommended": [
+      "anip-verifier@local"
+    ]
+  },
+  "readme": "# Travel Booking Showcase\n\nGenerated example ANIP package from Studio-style source docs.\n",
+  "source_links": [
+    {
+      "title": "Source documentation",
+      "url": "https://github.com/anip-protocol/anip/tree/main/docs/examples/travel-showcase"
+    },
+    {
+      "title": "Legacy implementation reference",
+      "url": "https://github.com/anip-protocol/anip/tree/main/examples/showcase/travel"
+    }
+  ],
+  "capability_count": 4,
+  "service_count": 1,
+  "service_ids": [
+    "travel-booking-service"
+  ],
+  "lineage": {
+    "project_ref": "studio-source:travel",
+    "product_revision": {
+      "ref": "travel:source-spec:v1",
+      "artifact_id": "travel-source-spec",
+      "revision_number": 1,
+      "baseline_locked_at": "2026-05-08T00:00:00Z"
+    },
+    "developer_revision": {
+      "ref": "travel:developer-definition:v1",
+      "artifact_id": "travel-developer-definition",
+      "revision_number": 1,
+      "contract_signature": "sha256:274ede86a1bf2c9991005a328e11d1aef4f896efb2361124cc7fb77173b4e78f"
+    }
+  },
+  "source": {
+    "business_source_path": "docs/examples/travel-showcase/source-spec.md",
+    "product_revision_ref": "travel:source-spec:v1",
+    "developer_revision_ref": "travel:developer-definition:v1"
+  },
+  "agent_consumption_readiness": {
+    "status": "ready",
+    "score": 100,
+    "summary": {
+      "blockers": 0,
+      "warnings": 0,
+      "info": 0,
+      "probes": 0,
+      "required_app_glue": 0
+    }
+  },
+  "agent_consumability": {
+    "schema_version": "anip-agent-consumability/v0",
+    "capabilities": {
+      "travel.search_flights": {
+        "intent": {
+          "category": "travel.search.flights",
+          "summary": "Search available flights by origin and destination and return priced quote references."
+        },
+        "business_effects": {
+          "produces": [
+            "Summarize information",
+            "Return bounded options"
+          ],
+          "does_not_produce": [
+            "Book travel",
+            "Charge payment"
+          ]
+        },
+        "required_context": [
+          {
+            "input": "origin",
+            "behavior": "clarify",
+            "summary": "Departure airport IATA code."
+          },
+          {
+            "input": "destination",
+            "behavior": "clarify",
+            "summary": "Arrival airport IATA code."
+          }
+        ]
+      },
+      "travel.check_availability": {
+        "intent": {
+          "category": "travel.check.availability",
+          "summary": "Check seat availability and current price for a specific flight."
+        },
+        "business_effects": {
+          "produces": [
+            "Read bounded data"
+          ],
+          "does_not_produce": [
+            "Book travel",
+            "Charge payment"
+          ]
+        },
+        "required_context": [
+          {
+            "input": "flight_number",
+            "behavior": "clarify",
+            "summary": "Flight number to check."
+          }
+        ]
+      },
+      "travel.book_flight": {
+        "intent": {
+          "category": "travel.book.flight",
+          "summary": "Book a confirmed flight reservation from a current quote."
+        },
+        "business_effects": {
+          "produces": [
+            "Execute approved action"
+          ],
+          "does_not_produce": [
+            "Book without quote",
+            "Ignore budget authority"
+          ]
+        },
+        "required_context": [
+          {
+            "input": "flight_number",
+            "behavior": "clarify",
+            "summary": "Flight to book."
+          },
+          {
+            "input": "quote_id",
+            "behavior": "clarify",
+            "summary": "Priced quote returned by search_flights."
+          }
+        ]
+      },
+      "travel.cancel_booking": {
+        "intent": {
+          "category": "travel.cancel.booking",
+          "summary": "Cancel an existing booking within the transactional cancellation window."
+        },
+        "business_effects": {
+          "produces": [
+            "Change system state"
+          ],
+          "does_not_produce": [
+            "Delete booking history"
+          ]
+        },
+        "required_context": [
+          {
+            "input": "booking_id",
+            "behavior": "clarify",
+            "summary": "Booking identifier to cancel."
+          }
+        ]
+      }
+    }
+  },
+  "generated_at": "2026-05-08T00:00:00Z"
+}

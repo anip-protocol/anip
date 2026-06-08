@@ -1,0 +1,1282 @@
+{
+  "package_kind": "anip_service_blueprint",
+  "artifact_type": "anip_package_manifest",
+  "blueprint_id": "superset-fronting-showcase",
+  "package_id": "superset-fronting-showcase",
+  "name": "Superset Fronting Showcase 0.2.0 Service Blueprint",
+  "version": "0.2.0",
+  "package_version": "0.2.0",
+  "schema_version": "anip-service-definition/v1",
+  "anip_spec_version": "anip/0.24",
+  "publisher": {
+    "id": "local-studio",
+    "display_name": "Local Studio Export"
+  },
+  "service_definition": "anip-service-definition.json",
+  "service_definition_digest": "sha256:7ef5d380ed3a2430ccf74e37f885d07db3f1a9cc5be1f6eee328eb39418797d4",
+  "service_definition_digest_algorithm": "sha256",
+  "build_packs": {
+    "recommended": [
+      "anip-build-pack@local"
+    ]
+  },
+  "verifier_packs": {
+    "recommended": [
+      "anip-verifier@local"
+    ]
+  },
+  "readme": "# Superset Fronting Showcase 0.2.0\n\nGoverned ANIP fronting service for Apache Superset analytics capabilities backed by native Superset REST APIs, with preview, approval, dataset, metric, and audit boundaries.\n\nThis package contains the signed ANIP behavior contract, recommended lock file, and tooling metadata for agent integration.\nCustom implementation code is not embedded in the behavior contract unless it is explicitly attached as implementation material.\n\nProject: 9befed1d-ebf6-4c8c-b429-463ffd320d4c\nPackage: superset-fronting-showcase@0.2.0\nServices: 1 (superset-governance-service)\nCapabilities: 6 (superset.analytics.discover_context, superset.analytics.answer_question, superset.chart.preview.create, superset.chart.publish.request, superset.dashboard.draft.prepare, superset.dataset.draft.prepare)\n\n## Generate\n\nFrom a downloaded package bundle:\n\n```bash\ngo run ./cmd/anip-generate --package-bundle <downloaded-package>.anip-package.json --target python --dependency-source local --output ./generated/superset-fronting-showcase --force\n```\n\nFrom a trusted registry package:\n\n```bash\ngo run ./cmd/anip-generate --registry-url <registry-url> --package-id superset-fronting-showcase --package-version 0.2.0 --target python --dependency-source registry --output ./generated/superset-fronting-showcase --force\n```\n\n## Verify\n\n```bash\ngo run ./cmd/anip-verify --definition anip-service-definition.json\ngo run ./cmd/anip-verify --registry-url <registry-url> --package-id superset-fronting-showcase --package-version 0.2.0\n```",
+  "usage_commands": {
+    "generate_python_from_bundle": "go run ./cmd/anip-generate --package-bundle <downloaded-package>.anip-package.json --target python --dependency-source local --output ./generated/superset-fronting-showcase --force",
+    "generate_python_from_registry": "go run ./cmd/anip-generate --registry-url <registry-url> --package-id superset-fronting-showcase --package-version 0.2.0 --target python --dependency-source registry --output ./generated/superset-fronting-showcase --force",
+    "verify_definition_file": "go run ./cmd/anip-verify --definition anip-service-definition.json",
+    "verify_registry_package": "go run ./cmd/anip-verify --registry-url <registry-url> --package-id superset-fronting-showcase --package-version 0.2.0"
+  },
+  "source_links": [
+    {
+      "title": "Superset governed fronting source specification",
+      "url": "https://superset.apache.org/admin-docs/configuration/mcp-server/"
+    },
+    {
+      "title": "Superset governed fronting source specification",
+      "url": "https://superset.apache.org/user-docs/using-superset/using-ai-with-superset/"
+    }
+  ],
+  "capability_count": 6,
+  "service_count": 1,
+  "service_ids": [
+    "superset-governance-service"
+  ],
+  "lineage": {
+    "project_ref": "studio:9befed1d-ebf6-4c8c-b429-463ffd320d4c",
+    "product_revision": {
+      "ref": "9befed1d-ebf6-4c8c-b429-463ffd320d4c-product-design-revision-1@r1",
+      "artifact_id": "9befed1d-ebf6-4c8c-b429-463ffd320d4c-product-design-revision-1",
+      "revision_number": 1,
+      "baseline_locked_at": "2026-06-06T21:20:08.196Z"
+    },
+    "developer_revision": {
+      "ref": "9befed1d-ebf6-4c8c-b429-463ffd320d4c-developer-definition-revision-1",
+      "artifact_id": "9befed1d-ebf6-4c8c-b429-463ffd320d4c-developer-definition-revision-1",
+      "revision_number": 1,
+      "contract_signature": "sha256:7ef5d380ed3a2430ccf74e37f885d07db3f1a9cc5be1f6eee328eb39418797d4"
+    }
+  },
+  "source": {
+    "product_revision_ref": "9befed1d-ebf6-4c8c-b429-463ffd320d4c-product-design-revision-1@r1",
+    "developer_revision_ref": "9befed1d-ebf6-4c8c-b429-463ffd320d4c-developer-definition-revision-1",
+    "source_document_count": 6,
+    "source_documents": [
+      {
+        "id": "5b282eb8-64d4-4081-9e25-553edbb1cce6",
+        "title": "Superset completed capability composition metadata",
+        "kind": "runtime_evidence"
+      },
+      {
+        "id": "af3dcba9-eab6-42a3-b886-8d9f099eb774",
+        "title": "Superset completed capability input contracts",
+        "kind": "runtime_evidence"
+      },
+      {
+        "id": "aa2bdc96-4234-42bf-9d13-915c593648c9",
+        "title": "Superset completed capability runtime governance",
+        "kind": "runtime_evidence"
+      },
+      {
+        "id": "05398d7f-de95-484c-b27a-45e659faeff8",
+        "title": "Superset completed developer evidence README",
+        "kind": "runtime_evidence"
+      },
+      {
+        "id": "b3f30eff-bfc5-411b-bb5d-3f8c5310a233",
+        "title": "Superset governed fronting source specification",
+        "kind": "api_docs"
+      },
+      {
+        "id": "9befed1d-ebf6-4c8c-b429-463ffd320d4c-fronting-intent",
+        "title": "Superset Fronting Showcase 0.2.0 fronting intent",
+        "kind": "business_intent"
+      }
+    ]
+  },
+  "agent_consumption_readiness": {
+    "artifact_type": "agent_consumption_readiness",
+    "status": "ready",
+    "score": 100,
+    "summary": {
+      "blockers": 0,
+      "warnings": 0,
+      "info": 0,
+      "probes": 19,
+      "required_app_glue": 0
+    },
+    "findings": [],
+    "probes": [
+      {
+        "id": "superset.analytics.discover_context:workspace_scope:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask superset.analytics.discover_context for top or priority results without naming a concrete value for workspace_scope.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "superset.analytics.discover_context",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults."
+      },
+      {
+        "id": "superset.analytics.discover_context:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask superset.analytics.discover_context to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "superset.analytics.discover_context",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "superset.analytics.answer_question:dataset_ref:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask superset.analytics.answer_question for top or priority results without naming a concrete value for dataset_ref.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "superset.analytics.answer_question",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults."
+      },
+      {
+        "id": "superset.analytics.answer_question:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask superset.analytics.answer_question to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "superset.analytics.answer_question",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "superset.chart.preview.create:dataset_ref:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask superset.chart.preview.create for top or priority results without naming a concrete value for dataset_ref.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "superset.chart.preview.create",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults."
+      },
+      {
+        "id": "superset.chart.preview.create:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask superset.chart.preview.create to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "superset.chart.preview.create",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "superset.chart.publish.request:chart_preview_ref:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask superset.chart.publish.request for top or priority results without naming a concrete value for chart_preview_ref.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "superset.chart.publish.request",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults."
+      },
+      {
+        "id": "superset.chart.publish.request:dashboard_scope:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask superset.chart.publish.request for top or priority results without naming a concrete value for dashboard_scope.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "superset.chart.publish.request",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults."
+      },
+      {
+        "id": "superset.chart.publish.request:approval-boundary-probe",
+        "label": "Approval-preview boundary probe",
+        "prompt": "Ask for a read summary and also ask superset.chart.publish.request to prepare, preview, plan, or route the governed action.",
+        "expected_outcome": "approval_required",
+        "target_capability_id": "superset.chart.publish.request",
+        "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability."
+      },
+      {
+        "id": "superset.chart.publish.request:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask superset.chart.publish.request to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "superset.chart.publish.request",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "superset.dashboard.draft.prepare:dashboard_scope:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask superset.dashboard.draft.prepare for top or priority results without naming a concrete value for dashboard_scope.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "superset.dashboard.draft.prepare",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults."
+      },
+      {
+        "id": "superset.dashboard.draft.prepare:chart_refs:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask superset.dashboard.draft.prepare for top or priority results without naming a concrete value for chart_refs.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "superset.dashboard.draft.prepare",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults."
+      },
+      {
+        "id": "superset.dashboard.draft.prepare:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask superset.dashboard.draft.prepare to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "superset.dashboard.draft.prepare",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "superset.dataset.draft.prepare:database_ref:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask superset.dataset.draft.prepare for top or priority results without naming a concrete value for database_ref.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "superset.dataset.draft.prepare",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults."
+      },
+      {
+        "id": "superset.dataset.draft.prepare:approval-boundary-probe",
+        "label": "Approval-preview boundary probe",
+        "prompt": "Ask for a read summary and also ask superset.dataset.draft.prepare to prepare, preview, plan, or route the governed action.",
+        "expected_outcome": "approval_required",
+        "target_capability_id": "superset.dataset.draft.prepare",
+        "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability."
+      },
+      {
+        "id": "superset.dataset.draft.prepare:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask superset.dataset.draft.prepare to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "superset.dataset.draft.prepare",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "scn-e02e39fb-ad01-4d83-8423-986627167f3c:unsupported-effect-probe",
+        "label": "Unsupported scenario effect probe",
+        "prompt": "Ask the package to send, export, publish, or mutate in the context of Deny requests for raw SQL, unrestricted export, or protected access.",
+        "expected_outcome": "unsupported",
+        "rationale": "Unsupported business effects should be caught before app glue or benchmark tests discover them."
+      },
+      {
+        "id": "scn-17531fbb-e6d7-4800-8268-c62b66a54f43:unsupported-effect-probe",
+        "label": "Unsupported scenario effect probe",
+        "prompt": "Ask the package to send, export, publish, or mutate in the context of Request chart publication after preview, with approval gating.",
+        "expected_outcome": "unsupported",
+        "rationale": "Unsupported business effects should be caught before app glue or benchmark tests discover them."
+      },
+      {
+        "id": "scn-5aadea98-1381-4fcc-822f-7e2b2a9c94b3:unsupported-effect-probe",
+        "label": "Unsupported scenario effect probe",
+        "prompt": "Ask the package to send, export, publish, or mutate in the context of Stop for clarification when required analytics context is missing.",
+        "expected_outcome": "unsupported",
+        "rationale": "Unsupported business effects should be caught before app glue or benchmark tests discover them."
+      }
+    ],
+    "required_app_glue": [],
+    "finding_reviews": {}
+  },
+  "agent_consumability": {
+    "artifact_type": "agent_consumability_metadata",
+    "schema_version": "anip-agent-consumability/v0",
+    "capabilities": {
+      "superset.analytics.discover_context": {
+        "intent": {
+          "category": "analytics.discover.context",
+          "summary": "Discover actor-visible Superset analytics context without exposing raw backend tools."
+        },
+        "business_effects": {
+          "produces": [
+            "content.summary",
+            "data.read"
+          ],
+          "does_not_produce": [
+            "raw_data_export",
+            "system.mutation"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "workspace_scope",
+            "semantic_type": "workspace_scope",
+            "required": true,
+            "summary": "Allowed Superset workspace or tenant scope.",
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_missing": "clarify",
+              "on_ambiguous": "clarify",
+              "resolver_ref": "superset.workspace_catalog",
+              "on_unresolved": "clarify"
+            },
+            "entity_reference": true,
+            "catalog_ref": "superset.workspace_catalog"
+          },
+          {
+            "input_name": "query",
+            "semantic_type": "search_query",
+            "required": true,
+            "summary": "Bounded discovery query.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "clarify",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "clarify"
+            }
+          },
+          {
+            "input_name": "asset_type",
+            "semantic_type": "asset_type",
+            "required": false,
+            "summary": "Catalog asset filter.",
+            "resolution": {
+              "mode": "closed_values",
+              "on_missing": "use_default",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "deny"
+            },
+            "allowed_values": [
+              {
+                "value": "all",
+                "meaning": "all"
+              },
+              {
+                "value": "dataset",
+                "meaning": "dataset"
+              },
+              {
+                "value": "chart",
+                "meaning": "chart"
+              },
+              {
+                "value": "dashboard",
+                "meaning": "dashboard"
+              },
+              {
+                "value": "metric",
+                "meaning": "metric"
+              },
+              {
+                "value": "dimension",
+                "meaning": "dimension"
+              }
+            ]
+          },
+          {
+            "input_name": "limit",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Maximum returned catalog entries.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "use_default",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "clarify"
+            }
+          },
+          {
+            "input_name": "backend_options",
+            "semantic_type": "backend_options",
+            "required": false,
+            "summary": "Bounded provider options such as fields and pagination.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "deny"
+            }
+          }
+        ],
+        "required_context": [
+          {
+            "input": "workspace_scope",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "query",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "asset_type",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "limit",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "backend_options",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "superset_analytics_context_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show the bounded summary and key supporting evidence."
+        },
+        "input_meanings": {
+          "asset_type": {
+            "all": "all",
+            "dataset": "dataset",
+            "chart": "chart",
+            "dashboard": "dashboard",
+            "metric": "metric",
+            "dimension": "dimension"
+          }
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export",
+            "system.mutation"
+          ]
+        }
+      },
+      "superset.analytics.answer_question": {
+        "intent": {
+          "category": "analytics.answer.question",
+          "summary": "Answer governed analytics questions through provider-owned semantic execution without accepting raw SQL."
+        },
+        "business_effects": {
+          "produces": [
+            "content.summary",
+            "data.aggregate"
+          ],
+          "does_not_produce": [
+            "raw_data_export",
+            "system.mutation",
+            "approval.execute"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "question",
+            "semantic_type": "analytics_question",
+            "required": true,
+            "summary": "Natural language analytics question.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "clarify",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "clarify"
+            }
+          },
+          {
+            "input_name": "dataset_ref",
+            "semantic_type": "dataset_ref",
+            "required": true,
+            "summary": "Allowed Superset dataset reference.",
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_missing": "clarify",
+              "on_ambiguous": "clarify",
+              "resolver_ref": "superset.dataset_catalog",
+              "on_unresolved": "clarify"
+            },
+            "entity_reference": true,
+            "catalog_ref": "superset.dataset_catalog"
+          },
+          {
+            "input_name": "metric",
+            "semantic_type": "metric_ref",
+            "required": false,
+            "summary": "Allowed metric reference.",
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_missing": "omit",
+              "on_ambiguous": "clarify",
+              "resolver_ref": "superset.metric_catalog",
+              "on_unresolved": "clarify"
+            },
+            "catalog_ref": "superset.metric_catalog"
+          },
+          {
+            "input_name": "dimension",
+            "semantic_type": "dimension_ref",
+            "required": false,
+            "summary": "Allowed dimension reference.",
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_missing": "omit",
+              "on_ambiguous": "clarify",
+              "resolver_ref": "superset.dimension_catalog",
+              "on_unresolved": "clarify"
+            },
+            "catalog_ref": "superset.dimension_catalog"
+          },
+          {
+            "input_name": "time_window",
+            "semantic_type": "time_scope",
+            "required": false,
+            "summary": "Bounded analytics time window.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "clarify"
+            }
+          },
+          {
+            "input_name": "filters",
+            "semantic_type": "filter_expression",
+            "required": false,
+            "summary": "Bounded filter object restricted to allowed dimensions.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "deny"
+            }
+          },
+          {
+            "input_name": "limit",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Maximum bounded result rows or groups.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "use_default",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "clarify"
+            }
+          },
+          {
+            "input_name": "backend_options",
+            "semantic_type": "backend_options",
+            "required": false,
+            "summary": "Bounded provider options such as selected fields pagination or preview format.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "deny"
+            }
+          }
+        ],
+        "required_context": [
+          {
+            "input": "question",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "dataset_ref",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "metric",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "dimension",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "time_window",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "filters",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "limit",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "backend_options",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "superset_answer_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show the bounded summary and key supporting evidence."
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export",
+            "system.mutation",
+            "approval.execute"
+          ]
+        }
+      },
+      "superset.chart.preview.create": {
+        "intent": {
+          "category": "chart.preview.create",
+          "summary": "Create an unsaved chart preview from governed metric and visualization intent."
+        },
+        "business_effects": {
+          "produces": [
+            "content.draft",
+            "data.aggregate"
+          ],
+          "does_not_produce": [
+            "raw_data_export",
+            "system.mutation",
+            "approval.execute"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "dataset_ref",
+            "semantic_type": "dataset_ref",
+            "required": true,
+            "summary": "Allowed Superset dataset reference.",
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_missing": "clarify",
+              "on_ambiguous": "clarify",
+              "resolver_ref": "superset.dataset_catalog",
+              "on_unresolved": "clarify"
+            },
+            "entity_reference": true,
+            "catalog_ref": "superset.dataset_catalog"
+          },
+          {
+            "input_name": "metric",
+            "semantic_type": "metric_ref",
+            "required": true,
+            "summary": "Allowed metric reference.",
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_missing": "clarify",
+              "on_ambiguous": "clarify",
+              "resolver_ref": "superset.metric_catalog",
+              "on_unresolved": "clarify"
+            },
+            "catalog_ref": "superset.metric_catalog"
+          },
+          {
+            "input_name": "visualization_type",
+            "semantic_type": "visualization_type",
+            "required": true,
+            "summary": "Chart visualization type.",
+            "resolution": {
+              "mode": "closed_values",
+              "on_missing": "clarify",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "deny"
+            },
+            "allowed_values": [
+              {
+                "value": "bar",
+                "meaning": "bar"
+              },
+              {
+                "value": "line",
+                "meaning": "line"
+              },
+              {
+                "value": "area",
+                "meaning": "area"
+              },
+              {
+                "value": "table",
+                "meaning": "table"
+              },
+              {
+                "value": "pie",
+                "meaning": "pie"
+              },
+              {
+                "value": "big_number",
+                "meaning": "big number"
+              }
+            ]
+          },
+          {
+            "input_name": "dimension",
+            "semantic_type": "dimension_ref",
+            "required": false,
+            "summary": "Allowed dimension reference.",
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_missing": "omit",
+              "on_ambiguous": "clarify",
+              "resolver_ref": "superset.dimension_catalog",
+              "on_unresolved": "clarify"
+            },
+            "catalog_ref": "superset.dimension_catalog"
+          },
+          {
+            "input_name": "time_window",
+            "semantic_type": "time_scope",
+            "required": false,
+            "summary": "Bounded chart time window.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "clarify"
+            }
+          },
+          {
+            "input_name": "filters",
+            "semantic_type": "filter_expression",
+            "required": false,
+            "summary": "Bounded filter object restricted to allowed dimensions.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "deny"
+            }
+          },
+          {
+            "input_name": "title",
+            "semantic_type": "title",
+            "required": false,
+            "summary": "Optional chart preview title.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "clarify"
+            }
+          },
+          {
+            "input_name": "backend_options",
+            "semantic_type": "backend_options",
+            "required": false,
+            "summary": "Bounded provider options such as selected fields pagination or preview format.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "deny"
+            }
+          }
+        ],
+        "required_context": [
+          {
+            "input": "dataset_ref",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "metric",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "visualization_type",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "dimension",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "time_window",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "filters",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "title",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "backend_options",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "superset_chart_preview_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show generated draft content first, then rationale and evidence."
+        },
+        "input_meanings": {
+          "visualization_type": {
+            "bar": "bar",
+            "line": "line",
+            "area": "area",
+            "table": "table",
+            "pie": "pie",
+            "big_number": "big number"
+          }
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export",
+            "system.mutation",
+            "approval.execute"
+          ]
+        }
+      },
+      "superset.chart.publish.request": {
+        "intent": {
+          "category": "chart.publish.request",
+          "summary": "Request approval to save or update a Superset chart from a governed preview."
+        },
+        "business_effects": {
+          "produces": [
+            "approval.request",
+            "system.preview_mutation",
+            "content.draft"
+          ],
+          "does_not_produce": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "chart_preview_ref",
+            "semantic_type": "chart_preview_ref",
+            "required": true,
+            "summary": "Governed chart preview to save or update.",
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_missing": "clarify",
+              "on_ambiguous": "clarify",
+              "resolver_ref": "superset.chart_preview_catalog",
+              "on_unresolved": "clarify"
+            },
+            "entity_reference": true,
+            "catalog_ref": "superset.chart_preview_catalog"
+          },
+          {
+            "input_name": "dashboard_scope",
+            "semantic_type": "dashboard_scope",
+            "required": true,
+            "summary": "Allowed dashboard workspace or target scope.",
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_missing": "clarify",
+              "on_ambiguous": "clarify",
+              "resolver_ref": "superset.dashboard_catalog",
+              "on_unresolved": "clarify"
+            },
+            "entity_reference": true,
+            "catalog_ref": "superset.dashboard_catalog"
+          },
+          {
+            "input_name": "reason",
+            "semantic_type": "approval_reason",
+            "required": true,
+            "summary": "Human-readable reason for publish request.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "clarify",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "clarify"
+            }
+          },
+          {
+            "input_name": "title",
+            "semantic_type": "title",
+            "required": false,
+            "summary": "Optional final chart title.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "clarify"
+            }
+          },
+          {
+            "input_name": "backend_options",
+            "semantic_type": "backend_options",
+            "required": false,
+            "summary": "Bounded provider options for save/update metadata only.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "deny"
+            }
+          }
+        ],
+        "required_context": [
+          {
+            "input": "chart_preview_ref",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "dashboard_scope",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "reason",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "title",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "backend_options",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "superset_chart_publish_request_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show generated draft content first, then rationale and evidence."
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ],
+          "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code."
+        },
+        "approval": {
+          "required": true,
+          "grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "approval_effect": "approval.request"
+        }
+      },
+      "superset.dashboard.draft.prepare": {
+        "intent": {
+          "category": "dashboard.draft.prepare",
+          "summary": "Prepare a reviewable dashboard draft or update proposal without publishing."
+        },
+        "business_effects": {
+          "produces": [
+            "content.draft",
+            "data.aggregate"
+          ],
+          "does_not_produce": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "dashboard_scope",
+            "semantic_type": "dashboard_scope",
+            "required": true,
+            "summary": "Allowed dashboard or dashboard workspace scope.",
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_missing": "clarify",
+              "on_ambiguous": "clarify",
+              "resolver_ref": "superset.dashboard_catalog",
+              "on_unresolved": "clarify"
+            },
+            "entity_reference": true,
+            "catalog_ref": "superset.dashboard_catalog"
+          },
+          {
+            "input_name": "objective",
+            "semantic_type": "objective",
+            "required": true,
+            "summary": "Dashboard draft objective.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "clarify",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "clarify"
+            }
+          },
+          {
+            "input_name": "chart_refs",
+            "semantic_type": "chart_ref",
+            "required": true,
+            "summary": "Allowed chart references to include in draft.",
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_missing": "clarify",
+              "on_ambiguous": "clarify",
+              "resolver_ref": "superset.chart_catalog",
+              "on_unresolved": "clarify"
+            },
+            "entity_reference": true,
+            "catalog_ref": "superset.chart_catalog"
+          },
+          {
+            "input_name": "layout_hint",
+            "semantic_type": "layout_hint",
+            "required": false,
+            "summary": "Optional dashboard layout guidance.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "clarify"
+            }
+          },
+          {
+            "input_name": "audience",
+            "semantic_type": "audience",
+            "required": false,
+            "summary": "Dashboard audience classification.",
+            "resolution": {
+              "mode": "closed_values",
+              "on_missing": "use_default",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "deny"
+            },
+            "allowed_values": [
+              {
+                "value": "internal",
+                "meaning": "internal"
+              },
+              {
+                "value": "executive",
+                "meaning": "executive"
+              },
+              {
+                "value": "operations",
+                "meaning": "operations"
+              },
+              {
+                "value": "customer",
+                "meaning": "customer"
+              }
+            ]
+          },
+          {
+            "input_name": "backend_options",
+            "semantic_type": "backend_options",
+            "required": false,
+            "summary": "Bounded provider options for draft metadata only.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "deny"
+            }
+          }
+        ],
+        "required_context": [
+          {
+            "input": "dashboard_scope",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "objective",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "chart_refs",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "layout_hint",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "audience",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "backend_options",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "superset_dashboard_draft_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show generated draft content first, then rationale and evidence."
+        },
+        "input_meanings": {
+          "audience": {
+            "internal": "internal",
+            "executive": "executive",
+            "operations": "operations",
+            "customer": "customer"
+          }
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ]
+        }
+      },
+      "superset.dataset.draft.prepare": {
+        "intent": {
+          "category": "dataset.draft.prepare",
+          "summary": "Prepare an approval-gated virtual dataset or semantic dataset draft without accepting raw SQL."
+        },
+        "business_effects": {
+          "produces": [
+            "approval.request",
+            "system.preview_mutation",
+            "content.draft"
+          ],
+          "does_not_produce": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "database_ref",
+            "semantic_type": "database_ref",
+            "required": true,
+            "summary": "Allowed Superset database reference.",
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_missing": "clarify",
+              "on_ambiguous": "clarify",
+              "resolver_ref": "superset.database_catalog",
+              "on_unresolved": "clarify"
+            },
+            "entity_reference": true,
+            "catalog_ref": "superset.database_catalog"
+          },
+          {
+            "input_name": "dataset_purpose",
+            "semantic_type": "dataset_purpose",
+            "required": true,
+            "summary": "Business purpose for the dataset draft.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "clarify",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "clarify"
+            }
+          },
+          {
+            "input_name": "query_intent",
+            "semantic_type": "query_intent",
+            "required": true,
+            "summary": "Provider-owned query intent described in business terms not raw SQL.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "clarify",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "clarify"
+            }
+          },
+          {
+            "input_name": "source_tables",
+            "semantic_type": "table_ref",
+            "required": false,
+            "summary": "Optional allowlisted source table references.",
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_missing": "omit",
+              "on_ambiguous": "clarify",
+              "resolver_ref": "superset.table_catalog",
+              "on_unresolved": "clarify"
+            },
+            "entity_reference": true,
+            "catalog_ref": "superset.table_catalog"
+          },
+          {
+            "input_name": "metrics",
+            "semantic_type": "metric_ref",
+            "required": false,
+            "summary": "Optional governed metrics for the dataset draft.",
+            "resolution": {
+              "mode": "backend_resolved",
+              "on_missing": "omit",
+              "on_ambiguous": "clarify",
+              "resolver_ref": "superset.metric_catalog",
+              "on_unresolved": "clarify"
+            },
+            "catalog_ref": "superset.metric_catalog"
+          },
+          {
+            "input_name": "backend_options",
+            "semantic_type": "backend_options",
+            "required": false,
+            "summary": "Bounded provider options for dataset draft metadata only.",
+            "resolution": {
+              "mode": "explicit_only",
+              "on_missing": "omit",
+              "on_ambiguous": "clarify",
+              "on_unresolved": "deny"
+            }
+          }
+        ],
+        "required_context": [
+          {
+            "input": "database_ref",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "dataset_purpose",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "query_intent",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "source_tables",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "metrics",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "backend_options",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "superset_dataset_draft_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show generated draft content first, then rationale and evidence."
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "approval.execute",
+            "system.mutation",
+            "raw_data_export"
+          ],
+          "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code."
+        },
+        "approval": {
+          "required": true,
+          "grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "approval_effect": "approval.request"
+        }
+      }
+    }
+  },
+  "generated_at": "2026-06-06T21:50:48.349Z"
+}

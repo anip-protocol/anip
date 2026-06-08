@@ -1,0 +1,21 @@
+{
+  "artifact_type": "anip_package_manifest",
+  "capability_count": 17,
+  "contract_signature": "sha256:946654d5f73eb55bf9cc1b50720536819dd6c9cd83e80a67f85052afa66eca1a",
+  "package_id": "gtm-pipeline-q2-review",
+  "package_version": "0.2.0",
+  "project_ref": "studio:gtm-pipeline-q2-review",
+  "schema_version": "anip-service-definition/v1",
+  "service_count": 4,
+  "service_ids": [
+    "gtm-pipeline-service",
+    "gtm-enrichment-service",
+    "gtm-prioritization-service",
+    "gtm-outreach-service"
+  ],
+  "source": {
+    "business_source_path": "docs/examples/gtm-showcase/gtm-revenue-operations-business-spec.md",
+    "developer_revision_ref": "seed:gtm-revenue-operations-four-service-estate:v1",
+    "product_revision_ref": "seed:gtm-revenue-operations-business-spec:v1"
+  }
+}

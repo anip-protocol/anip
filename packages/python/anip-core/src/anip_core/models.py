@@ -172,6 +172,7 @@ class CapabilityInput(BaseModel):
     type: str
     required: bool = True
     default: Any = None
+    allowed_values: list[Any] = Field(default_factory=list)
     description: str = ""
     semantic_type: str | None = None
     entity_reference: bool = False

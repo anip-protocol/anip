@@ -1,0 +1,446 @@
+import type { ArtifactRecord, ShapeRecord } from './project-types'
+import {
+  findLatestProductDesignRevisionArtifact,
+  findProductSummaryArtifact,
+  type ProductDesignRevisionData,
+  type ProductSummaryData,
+} from './product-design'
+
+export interface DeveloperEvidenceScaffoldFile {
+  filename: string
+  mediaType: string
+  content: string
+}
+
+interface CapabilitySeed {
+  capabilityId: string
+  serviceId: string
+  serviceName: string
+  summary: string
+}
+
+interface BaselineSeed {
+  productRevisionArtifactId: string
+  productRevisionNumber: string
+  productDesignHash: string
+}
+
+const EVIDENCE_SCHEMA_VERSION = 'anip-studio-developer-evidence/v1'
+
+const BASELINE_HEADERS = [
+  'project_id',
+  'product_revision_artifact_id',
+  'product_revision_number',
+  'product_design_hash',
+]
+
+const GOVERNANCE_HEADERS = [
+  ...BASELINE_HEADERS,
+  'capability_id',
+  'service_id',
+  'service_name',
+  'kind',
+  'operation_type',
+  'side_effect_level',
+  'grant_policy',
+  'produces',
+  'does_not_produce',
+  'minimum_scope',
+  'backend_operation',
+  'output_shape',
+  'output_intent',
+  'intent_type',
+  'subject_kind',
+  'context_type',
+  'summary',
+  'needs_developer_input',
+  'developer_notes',
+]
+
+const INPUT_CONTRACT_HEADERS = [
+  ...BASELINE_HEADERS,
+  'capability_id',
+  'input_name',
+  'input_type',
+  'required',
+  'semantic_type',
+  'entity_reference',
+  'resolution_mode',
+  'on_missing',
+  'on_ambiguous',
+  'on_unresolved',
+  'default_value',
+  'allowed_values',
+  'catalog_ref',
+  'resolver_ref',
+  'summary',
+  'clarification_hint',
+  'needs_developer_input',
+  'developer_notes',
+]
+
+const COMPOSITION_HEADERS = [
+  ...BASELINE_HEADERS,
+  'capability_id',
+  'composition_required',
+  'authority_boundary',
+  'step_id',
+  'step_order',
+  'child_capability_id',
+  'input_mapping_json',
+  'output_mapping_json',
+  'failure_policy_json',
+  'audit_policy_json',
+  'needs_developer_input',
+  'developer_notes',
+]
+
+function text(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map((item) => text(item)).filter(Boolean) : []
+}
+
+function csvCell(value: unknown): string {
+  const raw = String(value ?? '')
+  if (!/[",\n\r]/.test(raw)) return raw
+  return `"${raw.replace(/"/g, '""')}"`
+}
+
+function toCsv(headers: string[], rows: Array<Record<string, unknown>>): string {
+  return [
+    headers.join(','),
+    ...rows.map((row) => headers.map((header) => csvCell(row[header])).join(',')),
+  ].join('\n') + '\n'
+}
+
+function serviceShape(shape: ShapeRecord | null | undefined): Record<string, unknown> | null {
+  const raw = shape?.data?.shape
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : null
+}
+
+function collectCapabilities(shape: ShapeRecord | null | undefined): CapabilitySeed[] {
+  const rawShape = serviceShape(shape)
+  const services = Array.isArray(rawShape?.services) ? rawShape.services : []
+  const result: CapabilitySeed[] = []
+  const seen = new Set<string>()
+
+  for (const service of services) {
+    if (!service || typeof service !== 'object' || Array.isArray(service)) continue
+    const serviceRecord = service as Record<string, unknown>
+    const serviceId = text(serviceRecord.id) || text(serviceRecord.name)
+    const serviceName = text(serviceRecord.name) || serviceId
+    const serviceRole = text(serviceRecord.role)
+    for (const capabilityId of stringList(serviceRecord.capabilities)) {
+      if (!capabilityId || seen.has(capabilityId)) continue
+      seen.add(capabilityId)
+      result.push({
+        capabilityId,
+        serviceId,
+        serviceName,
+        summary: serviceRole,
+      })
+    }
+  }
+
+  return result.sort((a, b) => a.capabilityId.localeCompare(b.capabilityId))
+}
+
+function projectSlug(projectId: string): string {
+  return projectId
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    || 'project'
+}
+
+function latestBaseline(pmArtifacts: ArtifactRecord[]): BaselineSeed {
+  const revision = findLatestProductDesignRevisionArtifact(pmArtifacts)?.data as ProductDesignRevisionData | undefined
+  return {
+    productRevisionArtifactId: text(revision?.revision_artifact_id),
+    productRevisionNumber: revision?.revision_number ? String(revision.revision_number) : '',
+    productDesignHash: text(revision?.product_design_hash),
+  }
+}
+
+function baselineCells(projectId: string, baseline: BaselineSeed): Record<string, unknown> {
+  return {
+    project_id: projectId,
+    product_revision_artifact_id: baseline.productRevisionArtifactId,
+    product_revision_number: baseline.productRevisionNumber,
+    product_design_hash: baseline.productDesignHash,
+  }
+}
+
+function buildReadme(params: {
+  projectId: string
+  baseline: BaselineSeed
+  capabilityCount: number
+  governanceFilename: string
+  inputContractsFilename: string
+  compositionFilename: string
+}): string {
+  return `# Developer Evidence Worksheets
+
+These files were generated by ANIP Studio from a locked Product Design baseline.
+Fill them before running Developer Autopilot or saving Developer Design.
+
+## Baseline
+
+- Project: ${params.projectId}
+- Product revision artifact: ${params.baseline.productRevisionArtifactId || '(missing)'}
+- Product revision number: ${params.baseline.productRevisionNumber || '(missing)'}
+- Product design hash: ${params.baseline.productDesignHash || '(missing)'}
+- Capability count: ${params.capabilityCount}
+
+Do not edit these columns in any CSV:
+
+- project_id
+- product_revision_artifact_id
+- product_revision_number
+- product_design_hash
+- capability_id
+
+Studio uses them to prove the uploaded evidence still belongs to the locked Product Design revision.
+
+## Files
+
+1. \`${params.governanceFilename}\`
+
+   Fill one row per capability. This declares runtime governance: atomic vs composed, operation type, side-effect level, grant policy, effects produced, effects forbidden, minimum scope, backend operation, output shape, and summary.
+
+2. \`${params.inputContractsFilename}\`
+
+   Fill one row per public input. If a capability has three public inputs, it should have three rows. Remove placeholder rows after replacing them with real input rows.
+
+3. \`${params.compositionFilename}\`
+
+   Fill composition metadata. For atomic capabilities, set \`composition_required=false\` and remove placeholder-only rows. For composed capabilities, add one row per child step and provide \`authority_boundary\`, \`input_mapping_json\`, \`output_mapping_json\`, and \`failure_policy_json\`.
+
+   Important mapping rule: do not map broad inputs such as cohort, scope, time window, ranking basis, or quantity directly into a child input that requires a concrete entity target. If the provider owns target selection and exposes that selection as a child ANIP capability, add the selection/lookup step first and map the child target from \`$.steps.<selection_step>.output.<selected_target_field>\`. If the provider owns the derivation internally and there is no valid child ANIP capability under the supported authority boundary, keep the capability atomic and describe the provider-owned backend operation in the governance worksheet. If the caller must choose the target, keep the target input required so Studio and generated services clarify.
+
+4. \`developer-evidence-manifest.json\`
+
+   Keep this with the completed CSVs. It describes the expected project, revision, capability list, and worksheet schemas.
+
+## Required Rule
+
+Before upload, no completed CSV row may contain:
+
+\`\`\`csv
+needs_developer_input=true
+\`\`\`
+
+Studio rejects those rows. This is intentional: placeholder evidence must not become contract truth.
+
+## Recommended AI Assistant Prompt
+
+Use this prompt with the README, manifest, and CSVs:
+
+\`\`\`text
+You are helping fill ANIP Studio developer evidence worksheets.
+
+Use the locked Product Design intent and implementation notes to complete the CSV files.
+Keep project_id, product_revision_artifact_id, product_revision_number, product_design_hash, and capability_id unchanged.
+Do not invent unsupported capabilities.
+Use stable snake_case input names.
+Use canonical business effect IDs only.
+If a capability is composed, fill child steps, mappings, authority boundary, and failure policy.
+Only mark a capability composed when the child ANIP capabilities really exist and the mappings are valid under the supported authority boundary.
+For composed mappings, never feed cohort/scope/time/category/quantity inputs directly into concrete entity target inputs. Add a provider-owned selection/lookup step and map from that step output when a concrete value is derived.
+If the provider derives the concrete target internally and no valid child ANIP step exists, mark the capability atomic and explain the provider-owned backend operation in the governance CSV instead of inventing composition.
+If evidence is missing, leave a clear developer_notes value and keep needs_developer_input=true so Studio blocks the import.
+When a row is complete and reviewed, set needs_developer_input=false.
+Return only valid CSV content for the requested file.
+\`\`\`
+
+## Upload Flow
+
+1. Download all generated files.
+2. Fill the three CSV worksheets.
+3. Keep the manifest and README with the completed worksheets for review.
+4. Upload the completed CSVs on Developer Source Docs.
+5. Run Developer Autopilot.
+6. If Studio reports placeholders, unknown effects, missing input contracts, or incomplete composition metadata, fix the CSVs and upload again.
+
+## Why This Exists
+
+Product Design tells developers what business capability must exist.
+Developer evidence tells Studio how that capability is implemented safely enough to generate a concrete ANIP contract.
+
+The split prevents Studio from guessing implementation-owned details such as runtime inputs, side effects, approval posture, and composed service steps.
+`
+}
+
+export function buildDeveloperEvidenceScaffoldFiles(params: {
+  projectId: string
+  shape: ShapeRecord | null | undefined
+  pmArtifacts: ArtifactRecord[]
+  generatedAt?: string
+}): DeveloperEvidenceScaffoldFile[] {
+  const capabilities = collectCapabilities(params.shape)
+  const baseline = latestBaseline(params.pmArtifacts)
+  const baselineRow = baselineCells(params.projectId, baseline)
+  const productSummary = findProductSummaryArtifact(params.pmArtifacts)?.data as ProductSummaryData | undefined
+  const defaultSummary = text(productSummary?.governed_behavior_summary)
+  const slug = projectSlug(params.projectId)
+
+  const governanceRows = capabilities.map((capability) => ({
+    ...baselineRow,
+    capability_id: capability.capabilityId,
+    service_id: capability.serviceId,
+    service_name: capability.serviceName,
+    kind: '',
+    operation_type: '',
+    side_effect_level: '',
+    grant_policy: '',
+    produces: '',
+    does_not_produce: '',
+    minimum_scope: capability.capabilityId,
+    backend_operation: capability.capabilityId,
+    output_shape: '',
+    output_intent: '',
+    intent_type: '',
+    subject_kind: '',
+    context_type: '',
+    summary: capability.summary || defaultSummary,
+    needs_developer_input: 'true',
+    developer_notes: 'Fill operation/side-effect posture, effects, output shape, and composition kind before importing.',
+  }))
+
+  const inputRows = capabilities.map((capability) => ({
+    ...baselineRow,
+    capability_id: capability.capabilityId,
+    input_name: '',
+    input_type: '',
+    required: '',
+    semantic_type: '',
+    entity_reference: '',
+    resolution_mode: '',
+    on_missing: '',
+    on_ambiguous: '',
+    on_unresolved: '',
+    default_value: '',
+    allowed_values: '',
+    catalog_ref: '',
+    resolver_ref: '',
+    summary: '',
+    clarification_hint: '',
+    needs_developer_input: 'true',
+    developer_notes: `Add one row per public input for ${capability.capabilityId}. Leave no placeholder rows before importing.`,
+  }))
+
+  const compositionRows = capabilities.map((capability) => ({
+    ...baselineRow,
+    capability_id: capability.capabilityId,
+    composition_required: '',
+    authority_boundary: '',
+    step_id: '',
+    step_order: '',
+    child_capability_id: '',
+    input_mapping_json: '',
+    output_mapping_json: '',
+    failure_policy_json: '',
+    audit_policy_json: '',
+    needs_developer_input: 'true',
+    developer_notes: `If ${capability.capabilityId} is composed, add one row per child step and set composition_required=true. If it is atomic, set composition_required=false and remove placeholder rows before importing.`,
+  }))
+
+  const governanceFilename = `${slug}-capability-runtime-governance.todo.csv`
+  const inputContractsFilename = `${slug}-capability-input-contracts.todo.csv`
+  const compositionFilename = `${slug}-capability-composition.todo.csv`
+  const readmeFilename = `${slug}-developer-evidence-readme.md`
+  const manifestFilename = `${slug}-developer-evidence-manifest.json`
+  const manifest = {
+    artifact_type: 'developer_source_evidence_manifest',
+    schema_version: EVIDENCE_SCHEMA_VERSION,
+    project_id: params.projectId,
+    product_revision_artifact_id: baseline.productRevisionArtifactId,
+    product_revision_number: baseline.productRevisionNumber,
+    product_design_hash: baseline.productDesignHash,
+    generated_at: params.generatedAt ?? new Date().toISOString(),
+    capability_count: capabilities.length,
+    capabilities: capabilities.map((capability) => ({
+      capability_id: capability.capabilityId,
+      service_id: capability.serviceId,
+      service_name: capability.serviceName,
+    })),
+    files: [
+      {
+        filename: readmeFilename,
+        purpose: 'Explain how developers or AI assistants should complete and review the evidence worksheets.',
+        schema: 'developer-evidence-readme/v1',
+      },
+      {
+        filename: governanceFilename,
+        purpose: 'Declare reviewed runtime governance for every Product Design capability.',
+        schema: 'capability-runtime-governance/v1',
+      },
+      {
+        filename: inputContractsFilename,
+        purpose: 'Declare one row per public runtime input used by each capability.',
+        schema: 'capability-input-contracts/v1',
+      },
+      {
+        filename: compositionFilename,
+        purpose: 'Declare composition metadata for composed capabilities; mark atomic capabilities as not composed.',
+        schema: 'capability-composition/v1',
+      },
+    ],
+    instructions: [
+      'Keep project_id, product_revision_artifact_id, product_revision_number, product_design_hash, and capability_id unchanged.',
+      'Replace placeholder rows before uploading. Studio rejects rows with needs_developer_input=true.',
+      'Use canonical business effect IDs in produces and does_not_produce.',
+      'For composed capabilities, provide authority_boundary, real child steps, input_mapping_json, output_mapping_json, and failure_policy_json.',
+      'Do not mark provider-owned internal derivation as composition unless the child ANIP steps and mappings can be declared.',
+    ],
+  }
+
+  return [
+    {
+      filename: readmeFilename,
+      mediaType: 'text/markdown;charset=utf-8',
+      content: buildReadme({
+        projectId: params.projectId,
+        baseline,
+        capabilityCount: capabilities.length,
+        governanceFilename,
+        inputContractsFilename,
+        compositionFilename,
+      }),
+    },
+    {
+      filename: manifestFilename,
+      mediaType: 'application/json;charset=utf-8',
+      content: `${JSON.stringify(manifest, null, 2)}\n`,
+    },
+    {
+      filename: governanceFilename,
+      mediaType: 'text/csv;charset=utf-8',
+      content: toCsv(GOVERNANCE_HEADERS, governanceRows),
+    },
+    {
+      filename: inputContractsFilename,
+      mediaType: 'text/csv;charset=utf-8',
+      content: toCsv(INPUT_CONTRACT_HEADERS, inputRows),
+    },
+    {
+      filename: compositionFilename,
+      mediaType: 'text/csv;charset=utf-8',
+      content: toCsv(COMPOSITION_HEADERS, compositionRows),
+    },
+  ]
+}
+
+export function downloadDeveloperEvidenceScaffoldFile(file: DeveloperEvidenceScaffoldFile): void {
+  const blob = new Blob([file.content], { type: file.mediaType })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = file.filename
+  link.click()
+  URL.revokeObjectURL(url)
+}

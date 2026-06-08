@@ -1,0 +1,1758 @@
+{
+  "artifact_type": "agent_capability_index",
+  "capabilities": [
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "capability_id": "gtm.account_enrichment_summary",
+      "inputs": [
+        {
+          "catalog_ref": "gtm.account_catalog",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "account_names",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "backend_resolved",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify",
+            "resolver_ref": "gtm.account_catalog"
+          },
+          "semantic_type": "entity_reference",
+          "summary": "Comma-separated account names"
+        },
+        {
+          "default_value": "",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum accounts to summarize"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-enrichment-service",
+      "summary": "Return bounded firmographic context and fit signals for selected accounts; raw records, full exports, underlying notes, and debug payloads are not supported.",
+      "title": "account_enrichment_summary"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "capability_id": "gtm.account_risk_summary",
+      "inputs": [
+        {
+          "default_value": "",
+          "input_name": "quarter",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "time_scope",
+          "summary": "Quarter label like 2017-Q2"
+        },
+        {
+          "allowed_values": [
+            "risk_score"
+          ],
+          "default_value": "risk_score",
+          "input_name": "ranking_basis",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "Risk ranking basis"
+        },
+        {
+          "default_value": "",
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "actor_policy_or_explicit",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_actor_scope",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "scope_reference",
+          "summary": "Regional office or company"
+        },
+        {
+          "default_value": "",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum accounts to return"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-pipeline-service",
+      "summary": "Rank at-risk accounts with explicit evidence for why they need attention.",
+      "title": "account_risk_summary"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "capability_id": "gtm.at_risk_account_enrichment_summary",
+      "inputs": [
+        {
+          "default_value": "",
+          "input_name": "quarter",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "time_scope",
+          "summary": "Quarter label like 2017-Q2"
+        },
+        {
+          "allowed_values": [
+            "risk_score"
+          ],
+          "default_value": "risk_score",
+          "input_name": "ranking_basis",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "Risk ranking basis"
+        },
+        {
+          "default_value": "",
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "actor_policy_or_explicit",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_actor_scope",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "scope_reference",
+          "summary": "Regional office or company"
+        },
+        {
+          "default_value": "",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum accounts to enrich"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-enrichment-service",
+      "summary": "Rank at-risk accounts and return bounded enrichment context for the selected accounts.",
+      "title": "at_risk_account_enrichment_summary"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export",
+          "approval.execute"
+        ],
+        "produces": [
+          "content.summary",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_id": "gtm.at_risk_followup_preparation",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "default_value": "",
+          "input_name": "quarter",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "time_scope",
+          "summary": "Quarter label like 2017-Q2"
+        },
+        {
+          "allowed_values": [
+            "risk_score"
+          ],
+          "default_value": "risk_score",
+          "input_name": "ranking_basis",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "Risk ranking basis"
+        },
+        {
+          "default_value": "",
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "actor_policy_or_explicit",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_actor_scope",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "scope_reference",
+          "summary": "Regional office or company"
+        },
+        {
+          "default_value": "",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum accounts to return"
+        }
+      ],
+      "kind": "composed",
+      "service_id": "gtm-pipeline-service",
+      "summary": "Compose gtm.account_risk_summary -\u003e gtm.prepare_followup_tasks when the requested business action needs derived targets before governed preparation.",
+      "title": "Gtm.At Risk Followup Preparation"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export",
+          "approval.execute"
+        ],
+        "produces": [
+          "content.summary",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_id": "gtm.at_risk_reassignment_preparation",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "default_value": "",
+          "input_name": "quarter",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "time_scope",
+          "summary": "Quarter label like 2017-Q2"
+        },
+        {
+          "allowed_values": [
+            "risk_score"
+          ],
+          "default_value": "risk_score",
+          "input_name": "ranking_basis",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "Risk ranking basis"
+        },
+        {
+          "default_value": "",
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "actor_policy_or_explicit",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_actor_scope",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "scope_reference",
+          "summary": "Regional office or company"
+        },
+        {
+          "default_value": "",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum accounts to return"
+        }
+      ],
+      "kind": "composed",
+      "service_id": "gtm-pipeline-service",
+      "summary": "Compose gtm.account_risk_summary -\u003e gtm.prepare_reassignment_plan when the requested business action needs derived targets before governed preparation.",
+      "title": "Gtm.At Risk Reassignment Preparation"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "external_dispatch",
+          "system.mutation",
+          "approval.execute"
+        ],
+        "produces": [
+          "content.draft",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_id": "gtm.bottleneck_account_outreach_draft",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "default_value": "",
+          "input_name": "quarter",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "time_scope",
+          "summary": "Quarter label like 2017-Q2"
+        },
+        {
+          "catalog_ref": "gtm.account_catalog",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "target_ref",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "backend_resolved",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify",
+            "resolver_ref": "gtm.account_catalog"
+          },
+          "semantic_type": "entity_reference",
+          "summary": "Specific account selected from the bottleneck review"
+        },
+        {
+          "default_value": "",
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "actor_policy_or_explicit",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_actor_scope",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "scope_reference",
+          "summary": "Regional office or company"
+        },
+        {
+          "allowed_values": [
+            "first_touch",
+            "follow_up",
+            "revive_stalled"
+          ],
+          "default_value": "first_touch",
+          "input_name": "objective",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "Message objective"
+        },
+        {
+          "allowed_values": [
+            "email",
+            "linkedin",
+            "call_follow_up"
+          ],
+          "default_value": "email",
+          "input_name": "channel",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "Requested outreach channel"
+        },
+        {
+          "default_value": "",
+          "input_name": "persona",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Target persona or audience"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-outreach-service",
+      "summary": "Draft outreach only for a specific account already selected from a bounded bottleneck or at-risk account review. Do not use this capability to choose the top or affected account from analysis; use the approval-gated follow-up preparation flow for derived-target bottleneck or at-risk requests.",
+      "title": "bottleneck_account_outreach_draft"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "external_dispatch",
+          "system.mutation"
+        ],
+        "produces": [
+          "content.draft"
+        ]
+      },
+      "capability_id": "gtm.draft_outreach_message",
+      "inputs": [
+        {
+          "catalog_ref": "gtm.account_or_lead_catalog",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "target_ref",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "backend_resolved",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify",
+            "resolver_ref": "gtm.account_or_lead_catalog"
+          },
+          "semantic_type": "entity_reference",
+          "summary": "Lead or account reference"
+        },
+        {
+          "allowed_values": [
+            "first_touch",
+            "follow_up",
+            "revive_stalled"
+          ],
+          "default_value": "first_touch",
+          "input_name": "objective",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "Message objective"
+        },
+        {
+          "allowed_values": [
+            "email",
+            "linkedin",
+            "call_follow_up"
+          ],
+          "default_value": "email",
+          "input_name": "channel",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "Requested outreach channel"
+        },
+        {
+          "default_value": "",
+          "input_name": "persona",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Target persona or audience"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-outreach-service",
+      "summary": "Draft a bounded outreach message for a selected target and explicit objective; send actions and raw transcripts are not supported.",
+      "title": "draft_outreach_message"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "capability_id": "gtm.lookalike_accounts",
+      "inputs": [
+        {
+          "catalog_ref": "gtm.account_catalog",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "reference_account",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "backend_resolved",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify",
+            "resolver_ref": "gtm.account_catalog"
+          },
+          "semantic_type": "entity_reference",
+          "summary": "Reference account name"
+        },
+        {
+          "default_value": "",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum lookalike accounts to return"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-enrichment-service",
+      "summary": "Return bounded lookalike accounts using explainable similarity logic; raw payloads and underlying model data are not supported.",
+      "title": "lookalike_accounts"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "external_dispatch",
+          "system.mutation"
+        ],
+        "produces": [
+          "content.draft",
+          "content.recommendation"
+        ]
+      },
+      "capability_id": "gtm.objection_response_variants",
+      "inputs": [
+        {
+          "allowed_values": [
+            "pricing",
+            "competitor",
+            "implementation_risk"
+          ],
+          "default_value": "",
+          "input_name": "objection_theme",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "summary": "Named objection theme. Use competitor for competitor objections."
+        },
+        {
+          "catalog_ref": "gtm.account_or_lead_catalog",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "target_ref",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "backend_resolved",
+            "on_ambiguous": "clarify",
+            "on_missing": "omit",
+            "on_unresolved": "clarify",
+            "resolver_ref": "gtm.account_or_lead_catalog"
+          },
+          "semantic_type": "entity_reference",
+          "summary": "Optional GTM target reference"
+        },
+        {
+          "default_value": "",
+          "input_name": "persona",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Target persona or audience"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-outreach-service",
+      "summary": "Return bounded objection-response variants for a selected competitor or concern.",
+      "title": "objection_response_variants"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "capability_id": "gtm.pipeline_forecast_summary",
+      "inputs": [
+        {
+          "default_value": "",
+          "input_name": "quarter",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "time_scope",
+          "summary": "Quarter label like 2017-Q2"
+        },
+        {
+          "default_value": "",
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "actor_policy_or_explicit",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_actor_scope",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "scope_reference",
+          "summary": "Regional office or company"
+        },
+        {
+          "allowed_values": [
+            "risk_adjusted",
+            "likely",
+            "best_case"
+          ],
+          "default_value": "risk_adjusted",
+          "input_name": "forecast_mode",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "risk_adjusted, likely, or best_case"
+        },
+        {
+          "default_value": "",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum contributing accounts to return"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-pipeline-service",
+      "summary": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+      "title": "pipeline_forecast_summary"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "capability_id": "gtm.pipeline_summary",
+      "inputs": [
+        {
+          "default_value": "",
+          "input_name": "quarter",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "time_scope",
+          "summary": "Quarter label like 2017-Q2"
+        },
+        {
+          "default_value": "",
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "actor_policy_or_explicit",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_actor_scope",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "scope_reference",
+          "summary": "Regional office or company"
+        },
+        {
+          "allowed_values": [
+            "summary",
+            "stage_breakdown"
+          ],
+          "default_value": "summary",
+          "input_name": "detail_level",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "summary or stage_breakdown"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-pipeline-service",
+      "summary": "Return a bounded pipeline health summary for a quarter and optional scope.",
+      "title": "pipeline_summary"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute"
+        ],
+        "produces": [
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_id": "gtm.prepare_followup_tasks",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "default_value": "",
+          "input_name": "quarter",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "time_scope",
+          "summary": "Quarter label like 2017-Q2"
+        },
+        {
+          "allowed_values": [
+            "risk_score"
+          ],
+          "default_value": "risk_score",
+          "input_name": "ranking_basis",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "Risk ranking basis"
+        },
+        {
+          "default_value": "",
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "actor_policy_or_explicit",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_actor_scope",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "scope_reference",
+          "summary": "Regional office or company"
+        },
+        {
+          "default_value": "",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum accounts to include"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-pipeline-service",
+      "summary": "Prepare follow-up tasks for high-risk accounts without executing downstream mutations.",
+      "title": "prepare_followup_tasks"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute"
+        ],
+        "produces": [
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_id": "gtm.prepare_reassignment_plan",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "default_value": "",
+          "input_name": "quarter",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "time_scope",
+          "summary": "Quarter label like 2017-Q2"
+        },
+        {
+          "allowed_values": [
+            "manager_capacity",
+            "stalled_risk_mix"
+          ],
+          "default_value": "manager_capacity",
+          "input_name": "selection_basis",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "manager_capacity or stalled_risk_mix"
+        },
+        {
+          "default_value": "",
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "actor_policy_or_explicit",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_actor_scope",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "scope_reference",
+          "summary": "Regional office or company"
+        },
+        {
+          "default_value": "",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum reassignment candidates to include"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-pipeline-service",
+      "summary": "Prepare a reassignment preview for overloaded pipeline coverage without executing downstream mutations.",
+      "title": "prepare_reassignment_plan"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary",
+          "content.recommendation"
+        ]
+      },
+      "capability_id": "gtm.prioritize_accounts",
+      "inputs": [
+        {
+          "allowed_values": [
+            "expansion_candidates_q2",
+            "at_risk_q2"
+          ],
+          "catalog_ref": "gtm.cohort_catalog",
+          "default_value": "",
+          "input_name": "cohort_ref",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "cohort_reference",
+          "summary": "Account cohort; map phrases like expansion candidates to expansion_candidates_q2 and at risk q2 to at_risk_q2"
+        },
+        {
+          "allowed_values": [
+            "deal_likelihood"
+          ],
+          "default_value": "deal_likelihood",
+          "input_name": "ranking_basis",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "Priority ranking basis"
+        },
+        {
+          "default_value": "",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum accounts to return"
+        },
+        {
+          "default_value": "",
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "actor_policy_or_explicit",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_actor_scope",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "scope_reference",
+          "summary": "Actor-safe ownership scope"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-prioritization-service",
+      "summary": "Rank bounded accounts or enriched cohorts by explainable GTM priority.",
+      "title": "prioritize_accounts"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "external_dispatch",
+          "system.mutation"
+        ],
+        "produces": [
+          "content.draft",
+          "content.recommendation"
+        ]
+      },
+      "capability_id": "gtm.prioritized_outreach_draft",
+      "inputs": [
+        {
+          "allowed_values": [
+            "expansion_candidates_q2",
+            "at_risk_q2"
+          ],
+          "catalog_ref": "gtm.cohort_catalog",
+          "default_value": "",
+          "input_name": "cohort_ref",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "cohort_reference",
+          "summary": "Account cohort to prioritize, such as expansion_candidates_q2"
+        },
+        {
+          "allowed_values": [
+            "deal_likelihood"
+          ],
+          "default_value": "deal_likelihood",
+          "input_name": "ranking_basis",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "Priority ranking basis"
+        },
+        {
+          "default_value": "",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum accounts to consider before drafting"
+        },
+        {
+          "default_value": "",
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "actor_policy_or_explicit",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_actor_scope",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "scope_reference",
+          "summary": "Regional office or company"
+        },
+        {
+          "allowed_values": [
+            "first_touch",
+            "follow_up",
+            "revive_stalled"
+          ],
+          "default_value": "first_touch",
+          "input_name": "objective",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "Message objective"
+        },
+        {
+          "allowed_values": [
+            "email",
+            "linkedin",
+            "call_follow_up"
+          ],
+          "default_value": "email",
+          "input_name": "channel",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "Requested outreach channel"
+        },
+        {
+          "default_value": "",
+          "input_name": "persona",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Target persona or audience"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-outreach-service",
+      "summary": "Prioritize a bounded account cohort, include bounded enrichment context for the top accounts, and draft one outreach message for the highest-priority account; this is for prioritization-to-enrichment-to-draft requests, not lead routing.",
+      "title": "prioritized_outreach_draft"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute"
+        ],
+        "produces": [
+          "content.recommendation",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_id": "gtm.prioritized_routing_preparation",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [
+            "expansion_candidates_q2",
+            "at_risk_q2"
+          ],
+          "catalog_ref": "gtm.cohort_catalog",
+          "default_value": "",
+          "input_name": "cohort_ref",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "cohort_reference",
+          "summary": "Account cohort; map phrases like expansion candidates to expansion_candidates_q2 and at risk q2 to at_risk_q2"
+        },
+        {
+          "allowed_values": [
+            "deal_likelihood"
+          ],
+          "default_value": "deal_likelihood",
+          "input_name": "ranking_basis",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "Priority ranking basis"
+        },
+        {
+          "default_value": "",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum accounts to return"
+        },
+        {
+          "default_value": "",
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "actor_policy_or_explicit",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_actor_scope",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "scope_reference",
+          "summary": "Actor-safe ownership scope"
+        }
+      ],
+      "kind": "composed",
+      "service_id": "gtm-prioritization-service",
+      "summary": "Compose gtm.prioritize_accounts -\u003e gtm.route_leads when the requested business action needs derived targets before governed preparation.",
+      "title": "Gtm.Prioritized Routing Preparation"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "capability_id": "gtm.product_pipeline_summary",
+      "inputs": [
+        {
+          "default_value": "",
+          "input_name": "quarter",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "time_scope",
+          "summary": "Quarter label like 2017-Q2"
+        },
+        {
+          "default_value": "",
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "actor_policy_or_explicit",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_actor_scope",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "scope_reference",
+          "summary": "Regional office or company"
+        },
+        {
+          "catalog_ref": "gtm.product_catalog",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "product_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "backend_resolved",
+            "on_ambiguous": "clarify",
+            "on_missing": "omit",
+            "on_unresolved": "clarify",
+            "resolver_ref": "gtm.product_catalog"
+          },
+          "semantic_type": "entity_reference",
+          "summary": "Specific product to focus on"
+        },
+        {
+          "default_value": "",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum product rows to return"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-pipeline-service",
+      "summary": "Return a bounded product pipeline summary for a quarter and optional scope.",
+      "title": "product_pipeline_summary"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "external_dispatch",
+          "system.mutation",
+          "approval.execute"
+        ],
+        "produces": [
+          "content.draft",
+          "content.recommendation",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_id": "gtm.route_leads",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [
+            "inbound_last_week",
+            "webinar_q2"
+          ],
+          "catalog_ref": "gtm.cohort_catalog",
+          "default_value": "",
+          "input_name": "cohort_ref",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "cohort_reference",
+          "summary": "Lead cohort; map phrases like inbound leads or last week inbound leads to inbound_last_week"
+        },
+        {
+          "allowed_values": [
+            "sales",
+            "sdr"
+          ],
+          "default_value": "sales",
+          "input_name": "target_queue",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "Destination queue or team; defaults to sales when the user asks for routing recommendations without naming a queue"
+        },
+        {
+          "default_value": "",
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "actor_policy_or_explicit",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_actor_scope",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "scope_reference",
+          "summary": "Actor-safe ownership scope"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-prioritization-service",
+      "summary": "Prepare an approval-gated routing preview for scored or hot leads in a named cohort; outreach drafting is not supported by this capability.",
+      "title": "route_leads"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "capability_id": "gtm.sales_team_performance_summary",
+      "inputs": [
+        {
+          "default_value": "",
+          "input_name": "quarter",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "time_scope",
+          "summary": "Quarter label like 2017-Q2"
+        },
+        {
+          "default_value": "",
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "actor_policy_or_explicit",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_actor_scope",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "scope_reference",
+          "summary": "Regional office or company"
+        },
+        {
+          "allowed_values": [
+            "manager_name",
+            "regional_office"
+          ],
+          "default_value": "manager_name",
+          "input_name": "slice_by",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "manager_name or regional_office"
+        },
+        {
+          "default_value": "",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum team rows to return"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-pipeline-service",
+      "summary": "Return a bounded sales team performance summary for a quarter and optional scope.",
+      "title": "sales_team_performance_summary"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary",
+          "content.recommendation"
+        ]
+      },
+      "capability_id": "gtm.score_leads",
+      "inputs": [
+        {
+          "allowed_values": [
+            "inbound_last_week",
+            "webinar_q2"
+          ],
+          "catalog_ref": "gtm.cohort_catalog",
+          "default_value": "",
+          "input_name": "cohort_ref",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "cohort_reference",
+          "summary": "Cohort reference; map phrases like inbound leads or last week inbound leads to inbound_last_week"
+        },
+        {
+          "default_value": "",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum leads to return"
+        },
+        {
+          "default_value": "",
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "actor_policy_or_explicit",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_actor_scope",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "scope_reference",
+          "summary": "Actor-safe ownership scope"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-prioritization-service",
+      "summary": "Return bounded lead scores and explainable priority bands for a named cohort.",
+      "title": "score_leads"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "capability_id": "gtm.stage_bottleneck_summary",
+      "inputs": [
+        {
+          "default_value": "",
+          "input_name": "quarter",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "time_scope",
+          "summary": "Quarter label like 2017-Q2"
+        },
+        {
+          "default_value": "",
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "actor_policy_or_explicit",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_actor_scope",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "scope_reference",
+          "summary": "Regional office or company"
+        },
+        {
+          "allowed_values": [
+            "regional_office",
+            "manager_name",
+            "product_name"
+          ],
+          "default_value": "regional_office",
+          "input_name": "slice_by",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "closed_values",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_default",
+            "on_unresolved": "clarify"
+          },
+          "summary": "regional_office, manager_name, or product_name"
+        },
+        {
+          "default_value": "",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum bottleneck rows to return"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-pipeline-service",
+      "summary": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+      "title": "stage_bottleneck_summary"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export"
+        ],
+        "produces": [
+          "content.summary"
+        ]
+      },
+      "capability_id": "gtm.stalled_opportunity_review",
+      "inputs": [
+        {
+          "default_value": "",
+          "input_name": "quarter",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "clarify",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "time_scope",
+          "summary": "Quarter label like 2017-Q2"
+        },
+        {
+          "default_value": "",
+          "input_name": "min_days_open",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Minimum days open"
+        },
+        {
+          "default_value": "",
+          "input_name": "owner_scope",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "actor_policy_or_explicit",
+            "on_ambiguous": "clarify",
+            "on_missing": "use_actor_scope",
+            "on_unresolved": "clarify"
+          },
+          "semantic_type": "scope_reference",
+          "summary": "Regional office or company"
+        },
+        {
+          "default_value": "",
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum opportunities to return"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-pipeline-service",
+      "summary": "Return stalled open opportunities with bounded evidence and explainable stall reasoning.",
+      "title": "stalled_opportunity_review"
+    },
+    {
+      "business_effects": {
+        "does_not_produce": [
+          "external_dispatch",
+          "system.mutation"
+        ],
+        "produces": [
+          "content.draft",
+          "content.recommendation"
+        ]
+      },
+      "capability_id": "gtm.suggest_followup_content",
+      "inputs": [
+        {
+          "catalog_ref": "gtm.account_or_lead_catalog",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "target_ref",
+          "input_type": "string",
+          "required": true,
+          "resolution": {
+            "mode": "backend_resolved",
+            "on_ambiguous": "clarify",
+            "on_missing": "clarify",
+            "on_unresolved": "clarify",
+            "resolver_ref": "gtm.account_or_lead_catalog"
+          },
+          "semantic_type": "entity_reference",
+          "summary": "Lead or account reference"
+        },
+        {
+          "default_value": "",
+          "input_name": "variant_count",
+          "input_type": "integer",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Maximum variants to return"
+        },
+        {
+          "default_value": "",
+          "input_name": "persona",
+          "input_type": "string",
+          "required": false,
+          "resolution": {
+            "mode": "explicit_only",
+            "on_missing": "omit"
+          },
+          "summary": "Target persona or audience"
+        }
+      ],
+      "kind": "atomic",
+      "service_id": "gtm-outreach-service",
+      "summary": "Return bounded follow-up content variants for an explicit GTM target.",
+      "title": "suggest_followup_content"
+    }
+  ],
+  "schema_version": "anip-agent-consumption-kit/v0"
+}

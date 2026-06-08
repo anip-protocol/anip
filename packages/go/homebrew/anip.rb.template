@@ -1,0 +1,40 @@
+class Anip < Formula
+  desc "ANIP contract generator and validator CLI"
+  homepage "https://anip.dev"
+  version "__VERSION__"
+  license "Apache-2.0"
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://github.com/anip-protocol/anip/releases/download/v__VERSION__/anip___VERSION___darwin_arm64.tar.gz"
+      sha256 "__DARWIN_ARM64_SHA256__"
+    else
+      url "https://github.com/anip-protocol/anip/releases/download/v__VERSION__/anip___VERSION___darwin_amd64.tar.gz"
+      sha256 "__DARWIN_AMD64_SHA256__"
+    end
+  end
+
+  on_linux do
+    if Hardware::CPU.arm?
+      url "https://github.com/anip-protocol/anip/releases/download/v__VERSION__/anip___VERSION___linux_arm64.tar.gz"
+      sha256 "__LINUX_ARM64_SHA256__"
+    else
+      url "https://github.com/anip-protocol/anip/releases/download/v__VERSION__/anip___VERSION___linux_amd64.tar.gz"
+      sha256 "__LINUX_AMD64_SHA256__"
+    end
+  end
+
+  def install
+    bin.install "anip"
+    bin.install "anip-generate"
+    bin.install "anip-verify"
+  end
+
+  test do
+    version_output = shell_output("#{bin}/anip version")
+    assert_match "anip CLI #{version}", version_output
+    assert_match "ANIP spec anip/0.24", version_output
+    assert_match "anip generate --definition <file>", shell_output("#{bin}/anip generate --help")
+    assert_match "anip validate --definition <file>", shell_output("#{bin}/anip validate --help")
+  end
+end

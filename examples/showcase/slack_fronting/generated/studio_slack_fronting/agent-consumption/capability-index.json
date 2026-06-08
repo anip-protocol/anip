@@ -1,0 +1,504 @@
+{
+  "artifact_type": "agent_capability_index",
+  "capabilities": [
+    {
+      "agent_consumability": {
+        "app_owned_behavior": [
+          "Select native Slack Web API or Slack MCP backend at deployment time.",
+          "Never route agents directly to raw Slack API or MCP operations."
+        ],
+        "business_effects": {
+          "does_not_produce": [
+            "Send outside the system",
+            "Bypass communication policy"
+          ],
+          "produces": [
+            "Preview a change",
+            "Ask for approval"
+          ]
+        },
+        "intent": {
+          "category": "slack.announcement.request",
+          "summary": "Prepare a channel announcement request that requires approval before posting."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "channel_id",
+            "summary": "Slack channel ID."
+          },
+          {
+            "behavior": "clarify",
+            "input": "announcement",
+            "summary": "Announcement text."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Send outside the system",
+          "Bypass communication policy"
+        ],
+        "produces": [
+          "Preview a change",
+          "Ask for approval"
+        ]
+      },
+      "capability_id": "slack.announcement.request",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for channel_id when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "channel_id",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "channel_ref",
+          "summary": "Slack channel ID."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for announcement when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "announcement",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Announcement text."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for audience when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "audience",
+          "input_type": "string",
+          "required": false,
+          "semantic_type": "",
+          "summary": "Intended audience."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "slack.announcement.request"
+      ],
+      "service_id": "slack-governance-service",
+      "summary": "Prepare a channel announcement request that requires approval before posting.",
+      "title": "Request Channel Announcement"
+    },
+    {
+      "agent_consumability": {
+        "app_owned_behavior": [
+          "Select native Slack Web API or Slack MCP backend at deployment time.",
+          "Never route agents directly to raw Slack API or MCP operations."
+        ],
+        "business_effects": {
+          "does_not_produce": [
+            "Send outside the system",
+            "Export raw data"
+          ],
+          "produces": [
+            "Read bounded data",
+            "Summarize information"
+          ]
+        },
+        "intent": {
+          "category": "slack.channel.read_context",
+          "summary": "Read bounded recent Slack channel messages for declared context without exposing raw workspace tools."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "channel_id",
+            "summary": "Slack channel ID."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Send outside the system",
+          "Export raw data"
+        ],
+        "produces": [
+          "Read bounded data",
+          "Summarize information"
+        ]
+      },
+      "capability_id": "slack.channel.read_context",
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for channel_id when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "channel_id",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "channel_ref",
+          "summary": "Slack channel ID."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for query when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "query",
+          "input_type": "string",
+          "required": false,
+          "semantic_type": "",
+          "summary": "Optional text filter for recent messages."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+          "default_value": "20",
+          "entity_reference": false,
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "semantic_type": "",
+          "summary": "Maximum messages to return."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "slack.read"
+      ],
+      "service_id": "slack-governance-service",
+      "summary": "Read bounded recent Slack channel messages for declared context without exposing raw workspace tools.",
+      "title": "Read Channel Context"
+    },
+    {
+      "agent_consumability": {
+        "app_owned_behavior": [
+          "Select native Slack Web API or Slack MCP backend at deployment time.",
+          "Never route agents directly to raw Slack API or MCP operations."
+        ],
+        "business_effects": {
+          "does_not_produce": [
+            "Send outside the system",
+            "Change workspace state"
+          ],
+          "produces": [
+            "Draft content",
+            "Preview a change",
+            "Ask for approval"
+          ]
+        },
+        "intent": {
+          "category": "slack.incident_update.prepare",
+          "summary": "Prepare a structured incident update for a Slack channel and stop before sending."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "channel_id",
+            "summary": "Slack channel ID."
+          },
+          {
+            "behavior": "clarify",
+            "input": "incident_id",
+            "summary": "Incident identifier."
+          },
+          {
+            "behavior": "clarify",
+            "input": "status",
+            "summary": "Incident status."
+          },
+          {
+            "behavior": "clarify",
+            "input": "summary",
+            "summary": "Human-readable update summary."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Send outside the system",
+          "Change workspace state"
+        ],
+        "produces": [
+          "Draft content",
+          "Preview a change",
+          "Ask for approval"
+        ]
+      },
+      "capability_id": "slack.incident_update.prepare",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for channel_id when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "channel_id",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "channel_ref",
+          "summary": "Slack channel ID."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for incident_id when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "incident_id",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "incident_ref",
+          "summary": "Incident identifier."
+        },
+        {
+          "allowed_values": [
+            "investigating",
+            "identified",
+            "monitoring",
+            "resolved"
+          ],
+          "clarification_hint": "Ask for status when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "status",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Incident status."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for summary when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "summary",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Human-readable update summary."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for next_update_time when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "next_update_time",
+          "input_type": "string",
+          "required": false,
+          "semantic_type": "",
+          "summary": "Optional next update time."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "slack.message.prepare"
+      ],
+      "service_id": "slack-governance-service",
+      "summary": "Prepare a structured incident update for a Slack channel and stop before sending.",
+      "title": "Prepare Incident Update"
+    },
+    {
+      "agent_consumability": {
+        "app_owned_behavior": [
+          "Select native Slack Web API or Slack MCP backend at deployment time.",
+          "Never route agents directly to raw Slack API or MCP operations."
+        ],
+        "business_effects": {
+          "does_not_produce": [
+            "Send outside the system",
+            "Change workspace state"
+          ],
+          "produces": [
+            "Draft content",
+            "Preview a change",
+            "Ask for approval"
+          ]
+        },
+        "intent": {
+          "category": "slack.message.prepare",
+          "summary": "Prepare a Slack channel message preview without sending it."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "channel_id",
+            "summary": "Slack channel ID."
+          },
+          {
+            "behavior": "clarify",
+            "input": "text",
+            "summary": "Message text to preview."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Send outside the system",
+          "Change workspace state"
+        ],
+        "produces": [
+          "Draft content",
+          "Preview a change",
+          "Ask for approval"
+        ]
+      },
+      "capability_id": "slack.message.prepare",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for channel_id when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "channel_id",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "channel_ref",
+          "summary": "Slack channel ID."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for text when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "text",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Message text to preview."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for thread_ts when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "thread_ts",
+          "input_type": "string",
+          "required": false,
+          "semantic_type": "thread_ref",
+          "summary": "Optional thread timestamp."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "slack.message.prepare"
+      ],
+      "service_id": "slack-governance-service",
+      "summary": "Prepare a Slack channel message preview without sending it.",
+      "title": "Prepare Channel Message"
+    },
+    {
+      "agent_consumability": {
+        "app_owned_behavior": [
+          "Select native Slack Web API or Slack MCP backend at deployment time.",
+          "Never route agents directly to raw Slack API or MCP operations."
+        ],
+        "business_effects": {
+          "does_not_produce": [
+            "Send outside the system",
+            "Export raw data"
+          ],
+          "produces": [
+            "Read bounded data",
+            "Summarize information"
+          ]
+        },
+        "intent": {
+          "category": "slack.thread.summarize",
+          "summary": "Retrieve bounded Slack thread replies and return context for summarization without posting."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "channel_id",
+            "summary": "Slack channel ID."
+          },
+          {
+            "behavior": "clarify",
+            "input": "thread_ts",
+            "summary": "Slack thread timestamp."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Send outside the system",
+          "Export raw data"
+        ],
+        "produces": [
+          "Read bounded data",
+          "Summarize information"
+        ]
+      },
+      "capability_id": "slack.thread.summarize",
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for channel_id when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "channel_id",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "channel_ref",
+          "summary": "Slack channel ID."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for thread_ts when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "thread_ts",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "thread_ref",
+          "summary": "Slack thread timestamp."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for focus when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "focus",
+          "input_type": "string",
+          "required": false,
+          "semantic_type": "",
+          "summary": "Optional summary focus."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "slack.read"
+      ],
+      "service_id": "slack-governance-service",
+      "summary": "Retrieve bounded Slack thread replies and return context for summarization without posting.",
+      "title": "Summarize Thread"
+    }
+  ],
+  "schema_version": "anip-agent-consumption-kit/v0"
+}

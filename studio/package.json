@@ -1,16 +1,19 @@
 {
   "name": "studio",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.8.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "build:packs": "tsx scripts/build-design-packs.ts"
+    "build:packs": "tsx scripts/build-design-packs.ts",
+    "compare:package-semantics": "tsx scripts/compare-package-semantics.ts",
+    "verify:showcase-release": "python3 scripts/verify-showcase-release-parity.py"
   },
   "dependencies": {
+    "@vue-flow/core": "^1.48.2",
     "ajv": "^8.18.0",
     "js-yaml": "^4.1.1",
     "vue": "^3.5.30",

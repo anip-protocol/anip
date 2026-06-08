@@ -2,7 +2,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { checkDbAvailable, loadWorkspaces, projectStore } from '../design/project-store'
-import { createWorkspace, deleteWorkspace } from '../design/project-api'
+import { cloneWorkspace, createWorkspace, deleteWorkspace } from '../design/project-api'
+import { requestConfirmation } from '../design/confirm'
 
 const router = useRouter()
 
@@ -17,11 +18,17 @@ const dbAvailable = computed(() => projectStore.dbAvailable)
 const workspaces = computed(() => projectStore.workspaces)
 const loading = computed(() => projectStore.loading)
 const error = computed(() => projectStore.error)
+const readOnlyMode = computed(() => projectStore.runtimeStatus?.read_only_mode !== false)
+const readOnlyReason = computed(
+  () =>
+    projectStore.runtimeStatus?.read_only_reason ||
+    'Studio is running in read-only mode. Explore the design here, then run Studio locally to make changes.',
+)
 const pageTitle = computed(() => dbAvailable.value ? 'Workspaces' : 'Showcase Examples')
 const pageDescription = computed(() =>
   dbAvailable.value
     ? 'Organize multiple design projects under a shared workspace, then move into service shaping and evaluation inside each project.'
-    : 'Studio cannot reach its sidecar right now, so you are looking at read-only example packs instead of real workspaces and projects.',
+    : 'Studio cannot reach its API right now, so you are looking at read-only example packs instead of real workspaces and projects.',
 )
 const junkWorkspaces = computed(() =>
   workspaces.value.filter(workspace =>
@@ -29,6 +36,17 @@ const junkWorkspaces = computed(() =>
     workspace.projects_count === 0,
   ),
 )
+
+function resetCreateForm() {
+  newName.value = ''
+  newSummary.value = ''
+}
+
+function cancelCreateWorkspace() {
+  if (creating.value) return
+  resetCreateForm()
+  showCreateForm.value = false
+}
 
 onMounted(async () => {
   await checkDbAvailable()
@@ -42,6 +60,7 @@ function openWorkspace(id: string) {
 }
 
 async function handleCreate() {
+  if (readOnlyMode.value) return
   const name = newName.value.trim()
   if (!name) return
   creating.value = true
@@ -52,8 +71,7 @@ async function handleCreate() {
       name,
       summary: newSummary.value.trim() || undefined,
     })
-    newName.value = ''
-    newSummary.value = ''
+    resetCreateForm()
     showCreateForm.value = false
     await loadWorkspaces()
     router.push(`/design/workspaces/${id}`)
@@ -63,8 +81,16 @@ async function handleCreate() {
 }
 
 async function handleDeleteWorkspace(workspaceId: string, workspaceName: string, event: Event) {
+  if (readOnlyMode.value) return
   event.stopPropagation()
-  if (!window.confirm(`Delete workspace "${workspaceName}"?`)) return
+  const confirmed = await requestConfirmation({
+    title: 'Delete workspace?',
+    message: `Delete workspace "${workspaceName}"?`,
+    confirmLabel: 'Delete Workspace',
+    cancelLabel: 'Cancel',
+    tone: 'danger',
+  })
+  if (!confirmed) return
   deletingWorkspaceId.value = workspaceId
   try {
     await deleteWorkspace(workspaceId)
@@ -74,9 +100,37 @@ async function handleDeleteWorkspace(workspaceId: string, workspaceName: string,
   }
 }
 
+async function handleCloneWorkspace(workspaceId: string, workspaceName: string, workspaceSummary: string, event: Event) {
+  if (readOnlyMode.value) return
+  event.stopPropagation()
+  const cloneName = `${workspaceName} Copy`
+  const confirmed = await requestConfirmation({
+    title: 'Clone workspace?',
+    message: `Create a full copy of "${workspaceName}" and all of its projects as "${cloneName}"?`,
+    confirmLabel: 'Clone Workspace',
+    cancelLabel: 'Cancel',
+    tone: 'neutral',
+  })
+  if (!confirmed) return
+  const clone = await cloneWorkspace(workspaceId, {
+    name: cloneName,
+    summary: workspaceSummary ? `${workspaceSummary} (copy)` : '',
+  })
+  await loadWorkspaces()
+  router.push(`/design/workspaces/${clone.id}`)
+}
+
 async function handleCleanWorkspaces() {
+  if (readOnlyMode.value) return
   if (junkWorkspaces.value.length === 0) return
-  if (!window.confirm(`Delete ${junkWorkspaces.value.length} empty test workspaces from the local Studio database?`)) return
+  const confirmed = await requestConfirmation({
+    title: 'Delete empty test workspaces?',
+    message: `Delete ${junkWorkspaces.value.length} empty test workspaces from the local Studio database?`,
+    confirmLabel: 'Delete Workspaces',
+    cancelLabel: 'Cancel',
+    tone: 'danger',
+  })
+  if (!confirmed) return
   cleaningWorkspaces.value = true
   try {
     for (const workspace of junkWorkspaces.value) {
@@ -95,28 +149,35 @@ async function handleCleanWorkspaces() {
     <p class="page-desc">{{ pageDescription }}</p>
 
     <template v-if="!dbAvailable">
-      <div class="banner banner-warning">Studio sidecar unavailable</div>
+      <div class="banner banner-warning">Studio API unavailable</div>
       <p class="fallback-note">
-        Workspaces, projects, service shaping, and evaluation require the Studio sidecar. Bring the sidecar back up to keep working in Studio.
+        Workspaces, projects, service shaping, and evaluation require the Studio API. Bring the backend back up to keep working in Studio.
       </p>
     </template>
 
     <template v-else>
+      <div v-if="readOnlyMode" class="banner banner-warning">
+        {{ readOnlyReason }}
+      </div>
       <div class="toolbar">
-        <button class="btn btn-primary" @click="showCreateForm = !showCreateForm">
+        <button
+          class="btn btn-primary"
+          :disabled="readOnlyMode"
+          @click="showCreateForm ? cancelCreateWorkspace() : showCreateForm = true"
+        >
           {{ showCreateForm ? 'Cancel' : 'Create Workspace' }}
         </button>
         <button
           v-if="junkWorkspaces.length > 0"
           class="btn btn-secondary"
           @click="handleCleanWorkspaces"
-          :disabled="cleaningWorkspaces"
+          :disabled="cleaningWorkspaces || readOnlyMode"
         >
           {{ cleaningWorkspaces ? 'Cleaning...' : `Clean Empty Test Workspaces (${junkWorkspaces.length})` }}
         </button>
       </div>
 
-      <div v-if="showCreateForm" class="create-form">
+      <div v-if="showCreateForm && !readOnlyMode" class="create-form">
         <div class="field-group">
           <label class="field-label">Workspace Name</label>
           <input
@@ -142,16 +203,24 @@ async function handleCleanWorkspaces() {
           >
             {{ creating ? 'Creating...' : 'Create Workspace' }}
           </button>
+          <button
+            class="btn btn-secondary btn-create"
+            type="button"
+            :disabled="creating"
+            @click="cancelCreateWorkspace"
+          >
+            Cancel
+          </button>
         </div>
       </div>
 
-      <div v-if="loading && workspaces.length === 0" class="empty-state">Loading workspaces...</div>
+      <div v-if="!showCreateForm && loading && workspaces.length === 0" class="empty-state">Loading workspaces...</div>
       <div v-if="error" class="banner banner-error">{{ error }}</div>
-      <div v-if="!loading && workspaces.length === 0 && !error" class="empty-state">
+      <div v-if="!showCreateForm && !loading && workspaces.length === 0 && !error" class="empty-state">
         No workspaces yet. Create one to group related design projects together.
       </div>
 
-      <div class="pack-grid">
+      <div v-if="!showCreateForm" class="pack-grid">
         <div
           v-for="workspace in workspaces"
           :key="workspace.id"
@@ -166,9 +235,16 @@ async function handleCleanWorkspaces() {
           <p class="card-summary">{{ workspace.summary || 'No summary' }}</p>
           <div class="card-meta">
             <button
+              class="action-link"
+              :disabled="deletingWorkspaceId !== null || cleaningWorkspaces || readOnlyMode"
+              @click="handleCloneWorkspace(workspace.id, workspace.name, workspace.summary, $event)"
+            >
+              Clone
+            </button>
+            <button
               v-if="workspace.id !== 'default'"
               class="delete-link"
-              :disabled="deletingWorkspaceId !== null || cleaningWorkspaces"
+              :disabled="deletingWorkspaceId !== null || cleaningWorkspaces || readOnlyMode"
               @click="handleDeleteWorkspace(workspace.id, workspace.name, $event)"
             >
               {{ deletingWorkspaceId === workspace.id ? 'Deleting...' : 'Delete' }}
@@ -252,6 +328,17 @@ async function handleCleanWorkspaces() {
   background: var(--accent-hover);
 }
 
+.btn-secondary {
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -267,7 +354,7 @@ async function handleCleanWorkspaces() {
   border-radius: var(--radius);
   margin: 0 0 1.25rem;
   width: 100%;
-  max-width: none;
+  max-width: 720px;
   box-sizing: border-box;
 }
 
@@ -330,6 +417,8 @@ async function handleCleanWorkspaces() {
 .form-actions {
   display: flex;
   justify-content: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .btn-create {
@@ -409,16 +498,29 @@ async function handleCleanWorkspaces() {
 .card-meta {
   display: flex;
   justify-content: flex-end;
+  gap: 12px;
 }
 
+.action-link,
 .delete-link {
   border: none;
   background: transparent;
-  color: #ef4444;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   padding: 0;
+}
+
+.action-link {
+  color: var(--accent);
+}
+
+.action-link:hover:not(:disabled) {
+  color: var(--accent-hover);
+}
+
+.delete-link {
+  color: #ef4444;
 }
 
 .delete-link:hover:not(:disabled) {

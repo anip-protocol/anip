@@ -1,0 +1,3119 @@
+{
+  "generated_at": "2026-04-14T13-22-07Z",
+  "runtime_url": "http://127.0.0.1:9303",
+  "suite": "gtm_phase5_question_bank",
+  "summary": {
+    "passed": 5,
+    "total": 50,
+    "by_category": {
+      "outreach-draft": {
+        "passed": 0,
+        "total": 19
+      },
+      "outreach-clarification": {
+        "passed": 0,
+        "total": 2
+      },
+      "outreach-denied": {
+        "passed": 5,
+        "total": 5
+      },
+      "outreach-actor-aware": {
+        "passed": 0,
+        "total": 24
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "draft-acme-corporation-first_touch",
+      "category": "outreach-draft",
+      "question": "Draft a first-touch message for Acme Corporation.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a first-touch message for Acme Corporation.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "draft-acme-corporation-follow_up",
+      "category": "outreach-draft",
+      "question": "Draft a follow-up message for Acme Corporation.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a follow-up message for Acme Corporation.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "draft-acme-corporation-revive_stalled",
+      "category": "outreach-draft",
+      "question": "Draft a revive stalled message for Acme Corporation.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a revive stalled message for Acme Corporation.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "draft-codehow-first_touch",
+      "category": "outreach-draft",
+      "question": "Draft a first-touch message for Codehow.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a first-touch message for Codehow.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "draft-codehow-follow_up",
+      "category": "outreach-draft",
+      "question": "Draft a follow-up message for Codehow.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a follow-up message for Codehow.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "draft-codehow-revive_stalled",
+      "category": "outreach-draft",
+      "question": "Draft a revive stalled message for Codehow.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a revive stalled message for Codehow.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "draft-condax-first_touch",
+      "category": "outreach-draft",
+      "question": "Draft a first-touch message for Condax.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a first-touch message for Condax.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "draft-condax-follow_up",
+      "category": "outreach-draft",
+      "question": "Draft a follow-up message for Condax.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a follow-up message for Condax.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "draft-condax-revive_stalled",
+      "category": "outreach-draft",
+      "question": "Draft a revive stalled message for Condax.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a revive stalled message for Condax.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "draft-acme-corporation-email",
+      "category": "outreach-draft",
+      "question": "Draft a email message for Acme Corporation.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a email message for Acme Corporation.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "draft-acme-corporation-linkedin",
+      "category": "outreach-draft",
+      "question": "Draft a LinkedIn message for Acme Corporation.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a LinkedIn message for Acme Corporation.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "draft-acme-corporation-call-follow-up",
+      "category": "outreach-draft",
+      "question": "Draft a call follow-up message for Acme Corporation.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a call follow-up message for Acme Corporation.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "draft-codehow-email",
+      "category": "outreach-draft",
+      "question": "Draft a email message for Codehow.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a email message for Codehow.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "draft-codehow-linkedin",
+      "category": "outreach-draft",
+      "question": "Draft a LinkedIn message for Codehow.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a LinkedIn message for Codehow.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "draft-codehow-call-follow-up",
+      "category": "outreach-draft",
+      "question": "Draft a call follow-up message for Codehow.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a call follow-up message for Codehow.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "draft-condax-email",
+      "category": "outreach-draft",
+      "question": "Draft a email message for Condax.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a email message for Condax.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "draft-condax-linkedin",
+      "category": "outreach-draft",
+      "question": "Draft a LinkedIn message for Condax.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a LinkedIn message for Condax.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "draft-condax-call-follow-up",
+      "category": "outreach-draft",
+      "question": "Draft a call follow-up message for Condax.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a call follow-up message for Condax.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "clarify-draft-missing-target",
+      "category": "outreach-clarification",
+      "question": "Draft a first-touch email for the top account.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a first-touch email for the top account.",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "clarification_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "clarify-followup-missing-target",
+      "category": "outreach-clarification",
+      "question": "Draft a follow-up email for the account we should focus on first.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a follow-up email for the account we should focus on first.",
+          "expected": {
+            "outcome": "clarification_required"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome clarification_required, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "clarification_required"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome clarification_required, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "clarify-objection-missing-target",
+      "category": "outreach-draft",
+      "question": "Give me objection-response variants for the competitor objection.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for the competitor objection.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "deny-send-now",
+      "category": "outreach-denied",
+      "question": "Draft a first-touch email for Acme Corporation and send it now.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a first-touch email for Acme Corporation and send it now.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "denied",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This request asks the system to execute a send or direct routing step rather than stop at a bounded preview or approval boundary.",
+              "user_message": "Direct send or execution requests are out of scope. The governed GTM services stop at bounded previews or approval_required."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Draft a first-touch email for Acme Corporation and send it now.",
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This request asks the system to execute a send or direct routing step rather than stop at a bounded preview or approval boundary.",
+              "user_message": "Direct send or execution requests are out of scope. The governed GTM services stop at bounded previews or approval_required."
+            },
+            "selected_capability": null,
+            "parameters": {},
+            "capability_metadata": null,
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Direct send or execution requests are out of scope for the governed GTM services.",
+                "resolution": {
+                  "action": "request_preview_or_approval",
+                  "requires": "a bounded preview, draft, or approval-gated action"
+                }
+              }
+            },
+            "actor_id": "sales_leader"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "denied",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This request asks the system to execute a send or direct routing step rather than stop at a bounded preview or approval boundary.",
+          "user_message": "Direct send or execution requests are out of scope. The governed GTM services stop at bounded previews or approval_required."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Draft a first-touch email for Acme Corporation and send it now.",
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This request asks the system to execute a send or direct routing step rather than stop at a bounded preview or approval boundary.",
+          "user_message": "Direct send or execution requests are out of scope. The governed GTM services stop at bounded previews or approval_required."
+        },
+        "selected_capability": null,
+        "parameters": {},
+        "capability_metadata": null,
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Direct send or execution requests are out of scope for the governed GTM services.",
+            "resolution": {
+              "action": "request_preview_or_approval",
+              "requires": "a bounded preview, draft, or approval-gated action"
+            }
+          }
+        },
+        "actor_id": "sales_leader"
+      }
+    },
+    {
+      "id": "deny-raw-transcripts",
+      "category": "outreach-denied",
+      "question": "Give me the raw sales conversation transcripts for Condax.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me the raw sales conversation transcripts for Condax.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "denied",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+              "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Give me the raw sales conversation transcripts for Condax.",
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+              "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+            },
+            "selected_capability": null,
+            "parameters": {},
+            "capability_metadata": null,
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Raw exports and underlying payload requests are out of scope for the governed GTM services.",
+                "resolution": {
+                  "action": "request_bounded_output",
+                  "requires": "a bounded summary, ranked list, preview, or governed scenario"
+                }
+              }
+            },
+            "actor_id": "sales_leader"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "denied",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+          "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Give me the raw sales conversation transcripts for Condax.",
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+          "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+        },
+        "selected_capability": null,
+        "parameters": {},
+        "capability_metadata": null,
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Raw exports and underlying payload requests are out of scope for the governed GTM services.",
+            "resolution": {
+              "action": "request_bounded_output",
+              "requires": "a bounded summary, ranked list, preview, or governed scenario"
+            }
+          }
+        },
+        "actor_id": "sales_leader"
+      }
+    },
+    {
+      "id": "deny-training-corpus",
+      "category": "outreach-denied",
+      "question": "Return the raw training corpus behind the outreach drafts.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Return the raw training corpus behind the outreach drafts.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "denied",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+              "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Return the raw training corpus behind the outreach drafts.",
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+              "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+            },
+            "selected_capability": null,
+            "parameters": {},
+            "capability_metadata": null,
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Raw exports and underlying payload requests are out of scope for the governed GTM services.",
+                "resolution": {
+                  "action": "request_bounded_output",
+                  "requires": "a bounded summary, ranked list, preview, or governed scenario"
+                }
+              }
+            },
+            "actor_id": "sales_leader"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "denied",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+          "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Return the raw training corpus behind the outreach drafts.",
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+          "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+        },
+        "selected_capability": null,
+        "parameters": {},
+        "capability_metadata": null,
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Raw exports and underlying payload requests are out of scope for the governed GTM services.",
+            "resolution": {
+              "action": "request_bounded_output",
+              "requires": "a bounded summary, ranked list, preview, or governed scenario"
+            }
+          }
+        },
+        "actor_id": "sales_leader"
+      }
+    },
+    {
+      "id": "deny-send-sequence",
+      "category": "outreach-denied",
+      "question": "Draft a follow-up sequence for Codehow and send it immediately.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Draft a follow-up sequence for Codehow and send it immediately.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "denied",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This request asks the system to execute a send or direct routing step rather than stop at a bounded preview or approval boundary.",
+              "user_message": "Direct send or execution requests are out of scope. The governed GTM services stop at bounded previews or approval_required."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Draft a follow-up sequence for Codehow and send it immediately.",
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This request asks the system to execute a send or direct routing step rather than stop at a bounded preview or approval boundary.",
+              "user_message": "Direct send or execution requests are out of scope. The governed GTM services stop at bounded previews or approval_required."
+            },
+            "selected_capability": null,
+            "parameters": {},
+            "capability_metadata": null,
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Direct send or execution requests are out of scope for the governed GTM services.",
+                "resolution": {
+                  "action": "request_preview_or_approval",
+                  "requires": "a bounded preview, draft, or approval-gated action"
+                }
+              }
+            },
+            "actor_id": "sales_leader"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "denied",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This request asks the system to execute a send or direct routing step rather than stop at a bounded preview or approval boundary.",
+          "user_message": "Direct send or execution requests are out of scope. The governed GTM services stop at bounded previews or approval_required."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Draft a follow-up sequence for Codehow and send it immediately.",
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This request asks the system to execute a send or direct routing step rather than stop at a bounded preview or approval boundary.",
+          "user_message": "Direct send or execution requests are out of scope. The governed GTM services stop at bounded previews or approval_required."
+        },
+        "selected_capability": null,
+        "parameters": {},
+        "capability_metadata": null,
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Direct send or execution requests are out of scope for the governed GTM services.",
+            "resolution": {
+              "action": "request_preview_or_approval",
+              "requires": "a bounded preview, draft, or approval-gated action"
+            }
+          }
+        },
+        "actor_id": "sales_leader"
+      }
+    },
+    {
+      "id": "deny-export-objections",
+      "category": "outreach-denied",
+      "question": "Export the raw objection corpus for the pricing theme.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Export the raw objection corpus for the pricing theme.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "denied",
+            "parameters": {},
+            "prior_service_calls": [],
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+              "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+            }
+          },
+          "data_check": null,
+          "pass": true,
+          "notes": [],
+          "response": {
+            "runtime": "llm",
+            "question": "Export the raw objection corpus for the pricing theme.",
+            "loop_counts": {
+              "planner_loops": 0,
+              "service_invoke_loops": 0,
+              "total_loops": 0
+            },
+            "planner": {
+              "model": "",
+              "base_url": "https://api.openai.com/v1",
+              "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+              "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+            },
+            "selected_capability": null,
+            "parameters": {},
+            "capability_metadata": null,
+            "anip_result": {
+              "success": false,
+              "failure": {
+                "type": "denied",
+                "detail": "Raw exports and underlying payload requests are out of scope for the governed GTM services.",
+                "resolution": {
+                  "action": "request_bounded_output",
+                  "requires": "a bounded summary, ranked list, preview, or governed scenario"
+                }
+              }
+            },
+            "actor_id": "sales_leader"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "denied",
+        "parameters": {},
+        "prior_service_calls": [],
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+          "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+        }
+      },
+      "pass": true,
+      "notes": [],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "runtime": "llm",
+        "question": "Export the raw objection corpus for the pricing theme.",
+        "loop_counts": {
+          "planner_loops": 0,
+          "service_invoke_loops": 0,
+          "total_loops": 0
+        },
+        "planner": {
+          "model": "",
+          "base_url": "https://api.openai.com/v1",
+          "rationale": "This is an explicit raw export or underlying payload request. The GTM showcase only permits bounded summaries and previews.",
+          "user_message": "Raw exports and underlying payload dumps are out of scope for the governed GTM services."
+        },
+        "selected_capability": null,
+        "parameters": {},
+        "capability_metadata": null,
+        "anip_result": {
+          "success": false,
+          "failure": {
+            "type": "denied",
+            "detail": "Raw exports and underlying payload requests are out of scope for the governed GTM services.",
+            "resolution": {
+              "action": "request_bounded_output",
+              "requires": "a bounded summary, ranked list, preview, or governed scenario"
+            }
+          }
+        },
+        "actor_id": "sales_leader"
+      }
+    },
+    {
+      "id": "outreach-matrix-27",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Condax around implementation risk.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Condax around implementation risk.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-28",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Acme Corporation around pricing.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Acme Corporation around pricing.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-29",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Codehow around competitor.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Codehow around competitor.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-30",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Condax around implementation risk.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Condax around implementation risk.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-31",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Acme Corporation around pricing.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Acme Corporation around pricing.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-32",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Codehow around competitor.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Codehow around competitor.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-33",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Condax around implementation risk.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Condax around implementation risk.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-34",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Acme Corporation around pricing.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Acme Corporation around pricing.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-35",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Codehow around competitor.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Codehow around competitor.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-36",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Condax around implementation risk.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Condax around implementation risk.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-37",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Acme Corporation around pricing.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Acme Corporation around pricing.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-38",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Codehow around competitor.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Codehow around competitor.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-39",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Condax around implementation risk.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Condax around implementation risk.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-40",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Acme Corporation around pricing.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Acme Corporation around pricing.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-41",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Codehow around competitor.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Codehow around competitor.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-42",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Condax around implementation risk.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Condax around implementation risk.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-43",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Acme Corporation around pricing.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Acme Corporation around pricing.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-44",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Codehow around competitor.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Codehow around competitor.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-45",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Condax around implementation risk.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Condax around implementation risk.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-46",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Acme Corporation around pricing.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Acme Corporation around pricing.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-47",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Codehow around competitor.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Codehow around competitor.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-48",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Condax around implementation risk.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Condax around implementation risk.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-49",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Acme Corporation around pricing.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Acme Corporation around pricing.",
+          "expected": {
+            "outcome": "denied"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome denied, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "denied"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome denied, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    },
+    {
+      "id": "outreach-matrix-50",
+      "category": "outreach-actor-aware",
+      "question": "Give me objection-response variants for Codehow around competitor.",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Give me objection-response variants for Codehow around competitor.",
+          "expected": {
+            "outcome": "success"
+          },
+          "actual": {
+            "planned_capability": null,
+            "capability": null,
+            "service": null,
+            "outcome": "unknown",
+            "parameters": null,
+            "prior_service_calls": [],
+            "loop_counts": {},
+            "planner": null
+          },
+          "data_check": null,
+          "pass": false,
+          "notes": [
+            "expected outcome success, got unknown"
+          ],
+          "response": {
+            "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+          }
+        }
+      ],
+      "expected": {
+        "outcome": "success"
+      },
+      "actual": {
+        "planned_capability": null,
+        "capability": null,
+        "service": null,
+        "outcome": "unknown",
+        "parameters": null,
+        "prior_service_calls": [],
+        "loop_counts": {},
+        "planner": null
+      },
+      "pass": false,
+      "notes": [
+        "turn 1: expected outcome success, got unknown"
+      ],
+      "data_check": null,
+      "audit_check": null,
+      "approval_check": null,
+      "response": {
+        "detail": "GTM_AGENT_MODEL or OPENAI_MODEL is not configured"
+      }
+    }
+  ]
+}

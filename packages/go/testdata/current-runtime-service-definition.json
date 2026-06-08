@@ -1,0 +1,212 @@
+{
+  "artifact_type": "anip_service_definition",
+  "contract_schema_version": "anip-service-definition/v1",
+  "compiled_contract_identity": {
+    "signature": "sha256:current-runtime-contract",
+    "signature_algorithm": "sha256"
+  },
+  "identity": {
+    "system_name": "current-runtime-compatibility-service",
+    "domain_name": "compatibility",
+    "delivery_model": "service_platform",
+    "architecture_shape": "multi_service"
+  },
+  "generation": {
+    "protocols": ["https"],
+    "layout_strategy": "service_topology",
+    "selected_service_ids": ["compat-primary-service", "compat-secondary-service"]
+  },
+  "service_topology_bindings": [
+    {
+      "id": "svc-primary",
+      "service_id": "compat-primary-service",
+      "service_name": "Compat Primary Service",
+      "source_role": "application_integration",
+      "source_capabilities": ["compat.lookup", "compat.prepare_change"],
+      "formalized_capability_ids": ["compat.lookup", "compat.prepare_change", "compat.lookup_and_prepare"],
+      "owned_concept_ids": ["compat_record"]
+    },
+    {
+      "id": "svc-secondary",
+      "service_id": "compat-secondary-service",
+      "service_name": "Compat Secondary Service",
+      "source_role": "application_integration",
+      "source_capabilities": ["compat.secondary_lookup"],
+      "formalized_capability_ids": ["compat.secondary_lookup"],
+      "owned_concept_ids": ["compat_secondary_record"]
+    }
+  ],
+  "capability_formalizations": [
+    {
+      "id": "cap-lookup",
+      "kind": "atomic",
+      "source_kind": "application_integration",
+      "service_id": "compat-primary-service",
+      "capability_id": "compat.lookup",
+      "title": "Lookup compat records",
+      "summary": "Lookup compatibility records.",
+      "intent_type": "read_only",
+      "operation_type": "query",
+      "side_effect_level": "none",
+      "backend_operation": "lookupCompatRecords",
+      "path_template": "/compat/lookup",
+      "output_shape": "compat_lookup_result",
+      "inputs": [
+        {
+          "input_name": "query",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "search_query",
+          "clarification_hint": "Ask for the compatibility lookup query when it is missing.",
+          "summary": "Lookup query.",
+          "default_value": "",
+          "allowed_values": []
+        }
+      ]
+    },
+    {
+      "id": "cap-prepare-change",
+      "kind": "atomic",
+      "source_kind": "application_integration",
+      "service_id": "compat-primary-service",
+      "capability_id": "compat.prepare_change",
+      "title": "Prepare compat change",
+      "summary": "Prepare a governed compatibility change.",
+      "intent_type": "approval_gated",
+      "operation_type": "prepare_change",
+      "side_effect_level": "approval_required",
+      "backend_operation": "prepareCompatChange",
+      "path_template": "/compat/prepare-change",
+      "output_shape": "compat_change_preview",
+      "grant_policy": {
+        "allowed_grant_types": ["one_time", "session_bound"],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "input_name": "query",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "search_query",
+          "clarification_hint": "Ask for the compatibility lookup query when it is missing.",
+          "summary": "Lookup query.",
+          "default_value": "",
+          "allowed_values": []
+        },
+        {
+          "input_name": "change_reason",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "approval_reason",
+          "clarification_hint": "Ask for the business reason before preparing the governed change.",
+          "summary": "Reason for preparing the change.",
+          "default_value": "",
+          "allowed_values": []
+        }
+      ]
+    },
+    {
+      "id": "cap-lookup-and-prepare",
+      "kind": "composed",
+      "source_kind": "application_integration",
+      "service_id": "compat-primary-service",
+      "capability_id": "compat.lookup_and_prepare",
+      "title": "Lookup and prepare compat change",
+      "summary": "Lookup compatibility records and prepare a governed change.",
+      "intent_type": "business_action",
+      "operation_type": "approval_gated",
+      "side_effect_level": "approval_required",
+      "backend_operation": "lookupAndPrepareCompatChange",
+      "path_template": "/compat/lookup-and-prepare",
+      "output_shape": "compat_lookup_and_prepare_result",
+      "composition": {
+        "authority_boundary": "same_service",
+        "steps": [
+          {
+            "id": "lookup",
+            "capability": "compat.lookup",
+            "empty_result_source": true
+          },
+          {
+            "id": "prepare_change",
+            "capability": "compat.prepare_change"
+          }
+        ],
+        "input_mapping": {
+          "lookup": {
+            "query": "$.input.query"
+          },
+          "prepare_change": {
+            "query": "$.input.query",
+            "change_reason": "$.steps.lookup.output.result"
+          }
+        },
+        "output_mapping": {
+          "result": "$.steps.prepare_change.output.result"
+        },
+        "empty_result_policy": "return_success_no_results",
+        "empty_result_output": {
+          "result": null,
+          "empty": true
+        },
+        "failure_policy": {
+          "child_clarification": "propagate",
+          "child_denial": "propagate",
+          "child_approval_required": "propagate",
+          "child_error": "fail_parent"
+        },
+        "audit_policy": {
+          "record_child_invocations": true,
+          "parent_task_lineage": true
+        }
+      },
+      "grant_policy": {
+        "allowed_grant_types": ["one_time", "session_bound"],
+        "default_grant_type": "session_bound",
+        "expires_in_seconds": 1800,
+        "max_uses": 5
+      },
+      "inputs": [
+        {
+          "input_name": "query",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "search_query",
+          "clarification_hint": "Ask for the compatibility lookup query when it is missing.",
+          "summary": "Lookup query.",
+          "default_value": "",
+          "allowed_values": []
+        }
+      ]
+    },
+    {
+      "id": "cap-secondary-lookup",
+      "kind": "atomic",
+      "source_kind": "application_integration",
+      "service_id": "compat-secondary-service",
+      "capability_id": "compat.secondary_lookup",
+      "title": "Lookup secondary compat records",
+      "summary": "Lookup secondary compatibility records.",
+      "intent_type": "read_only",
+      "operation_type": "query",
+      "side_effect_level": "none",
+      "backend_operation": "lookupSecondaryCompatRecords",
+      "path_template": "/compat/secondary-lookup",
+      "output_shape": "compat_secondary_lookup_result",
+      "inputs": [
+        {
+          "input_name": "query",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "search_query",
+          "clarification_hint": "Ask for the secondary compatibility lookup query when it is missing.",
+          "summary": "Lookup query.",
+          "default_value": "",
+          "allowed_values": []
+        }
+      ]
+    }
+  ]
+}

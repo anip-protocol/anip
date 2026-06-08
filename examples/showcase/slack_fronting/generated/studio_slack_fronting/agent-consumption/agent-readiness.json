@@ -1,0 +1,33 @@
+{
+  "probes": [
+    {
+      "expected_outcome": "success",
+      "id": "slack-channel-read-scope"
+    },
+    {
+      "expected_outcome": "clarification_required",
+      "id": "slack-message-missing-channel"
+    },
+    {
+      "expected_outcome": "approval_required",
+      "id": "slack-send-without-approval"
+    },
+    {
+      "expected_outcome": "approval_required",
+      "id": "slack-announcement-without-approval"
+    },
+    {
+      "expected_outcome": "unsupported",
+      "id": "slack-raw-export-denied"
+    }
+  ],
+  "score": 100,
+  "status": "ready",
+  "summary": {
+    "blockers": 0,
+    "info": 0,
+    "probes": 5,
+    "required_app_glue": 0,
+    "warnings": 0
+  }
+}

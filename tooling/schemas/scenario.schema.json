@@ -45,9 +45,39 @@
         "context": {
           "type": "object",
           "description": "Scenario-specific execution context. Kept flexible so domain packs can evolve quickly.",
-          "minProperties": 1,
           "additionalProperties": {
             "$ref": "#/$defs/contextValue"
+          }
+        },
+        "context_not_applicable": {
+          "type": "boolean"
+        },
+        "participating_services": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "orchestration_steps": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "derived_from": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/contextValue"
+          }
+        },
+        "additional_context": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/additionalContextEntry"
           }
         },
         "expected_behavior": {
@@ -68,10 +98,75 @@
             "maxLength": 256
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "anyOf": [
+            {
+              "properties": {
+                "context_not_applicable": {
+                  "const": true
+                }
+              },
+              "required": [
+                "context_not_applicable"
+              ]
+            },
+            {
+              "properties": {
+                "context": {
+                  "minProperties": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
     }
   },
   "$defs": {
+    "additionalContextEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "value"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "semantic_type": {
+          "type": "string",
+          "enum": [
+            "descriptive_only",
+            "actor_context",
+            "business_scope",
+            "time_scope",
+            "participating_services",
+            "orchestration_step"
+          ]
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "descriptive",
+            "design_driving"
+          ]
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      }
+    },
     "contextValue": {
       "oneOf": [
         {

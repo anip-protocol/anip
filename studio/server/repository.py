@@ -9,9 +9,11 @@ parameter placeholders.  JSONB columns are written with
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Optional
+from uuid import uuid4
 
 from psycopg.types.json import Json
 
@@ -53,6 +55,18 @@ class ProjectCoherenceError(Exception):
 
     def __init__(self, message: str) -> None:
         super().__init__(message)
+
+
+class LocalPublicationExistsError(Exception):
+    """Raised when a Studio-local package/version already exists."""
+
+    def __init__(self, project_id: str, package_id: str, package_version: str) -> None:
+        self.project_id = project_id
+        self.package_id = package_id
+        self.package_version = package_version
+        super().__init__(
+            f"Local publication {package_id!r}@{package_version!r} already exists for project {project_id!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -197,7 +211,9 @@ def get_project_detail(conn: Any, project_id: str) -> dict:
         "  (SELECT count(*) FROM scenarios WHERE project_id = p.id) AS scenarios_count,"
         "  (SELECT count(*) FROM proposals WHERE project_id = p.id) AS proposals_count,"
         "  (SELECT count(*) FROM evaluations WHERE project_id = p.id) AS evaluations_count,"
-        "  (SELECT count(*) FROM shapes WHERE project_id = p.id) AS shapes_count"
+        "  (SELECT count(*) FROM shapes WHERE project_id = p.id) AS shapes_count,"
+        "  (SELECT count(*) FROM project_documents WHERE project_id = p.id) AS documents_count,"
+        "  (SELECT count(*) FROM pm_artifacts WHERE project_id = p.id) AS pm_artifacts_count"
         " FROM projects p WHERE p.id = %s",
         (project_id,),
     ).fetchone()
@@ -208,14 +224,17 @@ def get_project_detail(conn: Any, project_id: str) -> dict:
 
 def create_project(conn: Any, project_id: str, name: str, summary: str = "",
                    domain: str = "", labels: list | None = None,
-                   workspace_id: str | None = None) -> dict:
+                   workspace_id: str | None = None,
+                   project_type: str = "standard",
+                   integration_profile: dict[str, Any] | None = None) -> dict:
     labels = labels if labels is not None else []
+    integration_profile = integration_profile or {"kind": "none", "systems": []}
     workspace_id = workspace_id or get_default_workspace_id(conn)
     get_workspace(conn, workspace_id)
     row = conn.execute(
-        "INSERT INTO projects (id, workspace_id, name, summary, domain, labels)"
-        " VALUES (%s, %s, %s, %s, %s, %s) RETURNING *",
-        (project_id, workspace_id, name, summary, domain, Json(labels)),
+        "INSERT INTO projects (id, workspace_id, name, summary, domain, labels, project_type, integration_profile)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING *",
+        (project_id, workspace_id, name, summary, domain, Json(labels), project_type, Json(integration_profile)),
     ).fetchone()
     conn.commit()
     return row
@@ -223,13 +242,13 @@ def create_project(conn: Any, project_id: str, name: str, summary: str = "",
 
 def update_project(conn: Any, project_id: str, **fields: Any) -> dict:
     # Build SET clause from provided fields
-    allowed = {"name", "summary", "domain", "labels"}
+    allowed = {"name", "summary", "domain", "labels", "project_type", "integration_profile"}
     sets: list[str] = []
     params: list[Any] = []
     for key, value in fields.items():
         if key not in allowed or value is None:
             continue
-        if key == "labels":
+        if key in {"labels", "integration_profile"}:
             sets.append(f"{key} = %s")
             params.append(Json(value))
         else:
@@ -253,6 +272,866 @@ def delete_project(conn: Any, project_id: str) -> None:
     cur = conn.execute("DELETE FROM projects WHERE id = %s", (project_id,))
     if cur.rowcount == 0:
         raise NotFoundError("project", project_id)
+    conn.commit()
+
+
+def _generated_clone_id(prefix: str) -> str:
+    return f"{prefix}-{uuid4()}"
+
+
+def _remap_nested_ids(value: Any, id_map: dict[str, str]) -> Any:
+    if isinstance(value, dict):
+        return {key: _remap_nested_ids(item, id_map) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_remap_nested_ids(item, id_map) for item in value]
+    if isinstance(value, str):
+        if value in id_map:
+            return id_map[value]
+        remapped = value
+        # Some artifact references embed IDs inside stable target strings, for
+        # example developer_definition.scenario_formalization:<scenario_id>:...
+        # Those must move with the cloned artifacts or automatic coverage
+        # recomputation will point back to the source project.
+        for old_id, new_id in sorted(id_map.items(), key=lambda item: len(item[0]), reverse=True):
+            if old_id in remapped:
+                remapped = remapped.replace(old_id, new_id)
+        return remapped
+    return value
+
+
+def _clone_generic_artifact_rows(
+    conn: Any,
+    *,
+    table: str,
+    source_project_id: str,
+    target_project_id: str,
+    id_map: dict[str, str],
+    include_role: bool = False,
+) -> dict[str, str]:
+    rows = conn.execute(
+        f"SELECT * FROM {table} WHERE project_id = %s ORDER BY created_at ASC",
+        (source_project_id,),
+    ).fetchall()
+    content_hash_map: dict[str, str] = {}
+    for row in rows:
+        old_id = row["id"]
+        new_id = id_map.setdefault(old_id, _generated_clone_id(table.rstrip("s")))
+        data = _remap_nested_ids(row["data"], id_map)
+        columns = ["id", "project_id", "title", "status", "data", "content_hash"]
+        values: list[Any] = [
+            new_id,
+            target_project_id,
+            row["title"],
+            row["status"],
+            Json(data),
+            content_hash(data),
+        ]
+        if include_role:
+            columns.append("role")
+            values.append(row.get("role") or "alternative")
+        conn.execute(
+            f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({', '.join(['%s'] * len(columns))})",
+            values,
+        )
+        content_hash_map[old_id] = values[5]
+    return content_hash_map
+
+
+def _clone_project_into(
+    conn: Any,
+    *,
+    source_project_id: str,
+    target_project_id: str,
+    target_workspace_id: str,
+    target_name: str,
+    target_summary: str,
+) -> dict:
+    source_project = get_project(conn, source_project_id)
+    get_workspace(conn, target_workspace_id)
+    conn.execute(
+        "INSERT INTO projects (id, workspace_id, name, summary, domain, labels, project_type, integration_profile)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+        (
+            target_project_id,
+            target_workspace_id,
+            target_name,
+            target_summary,
+            source_project["domain"],
+            Json(source_project["labels"]),
+            source_project.get("project_type") or "standard",
+            Json(source_project.get("integration_profile") or {"kind": "none", "systems": []}),
+        ),
+    )
+
+    id_map: dict[str, str] = {
+        source_project_id: target_project_id,
+    }
+    preallocate_tables = [
+        ("requirements_sets", "requirement"),
+        ("scenarios", "scenario"),
+        ("service_metadata_artifacts", "service-metadata"),
+        ("integration_discovery_records", "integration-discovery"),
+        ("pm_artifacts", "pm-artifact"),
+        ("proposals", "proposal"),
+        ("shapes", "shape"),
+        ("evaluations", "evaluation"),
+        ("project_documents", "document"),
+    ]
+    for table, prefix in preallocate_tables:
+        rows = conn.execute(
+            f"SELECT id FROM {table} WHERE project_id = %s",
+            (source_project_id,),
+        ).fetchall()
+        for row in rows:
+            id_map.setdefault(row["id"], _generated_clone_id(prefix))
+    for table, prefix in [
+        ("data_access_projects", "data-access"),
+        ("application_integration_projects", "app-int"),
+    ]:
+        rows = conn.execute(
+            f"SELECT id FROM {table} WHERE studio_project_id = %s",
+            (source_project_id,),
+        ).fetchall()
+        for row in rows:
+            id_map.setdefault(row["id"], _generated_clone_id(prefix))
+
+    requirements_hash_map = _clone_generic_artifact_rows(
+        conn,
+        table="requirements_sets",
+        source_project_id=source_project_id,
+        target_project_id=target_project_id,
+        id_map=id_map,
+        include_role=True,
+    )
+    scenario_hash_by_old_id = _clone_generic_artifact_rows(
+        conn,
+        table="scenarios",
+        source_project_id=source_project_id,
+        target_project_id=target_project_id,
+        id_map=id_map,
+    )
+    _clone_generic_artifact_rows(
+        conn,
+        table="service_metadata_artifacts",
+        source_project_id=source_project_id,
+        target_project_id=target_project_id,
+        id_map=id_map,
+    )
+    discovery_rows = conn.execute(
+        "SELECT * FROM integration_discovery_records WHERE project_id = %s ORDER BY created_at ASC",
+        (source_project_id,),
+    ).fetchall()
+    for row in discovery_rows:
+        old_id = row["id"]
+        new_id = id_map.setdefault(old_id, _generated_clone_id("integration-discovery"))
+        data = _remap_nested_ids(row["data"], id_map)
+        record_payload = {
+            "connection_id": row.get("connection_id"),
+            "operation_id": row["operation_id"],
+            "backend_kind": row["backend_kind"],
+            "method": row["method"],
+            "path_template": row["path_template"],
+            "side_effect_level": row["side_effect_level"],
+            "input_schema_summary": row["input_schema_summary"],
+            "risk_notes": row["risk_notes"],
+            "data": data,
+        }
+        conn.execute(
+            "INSERT INTO integration_discovery_records"
+            " (id, project_id, connection_id, operation_id, backend_kind, method, path_template,"
+            "  side_effect_level, input_schema_summary, risk_notes, data, content_hash)"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (
+                new_id,
+                target_project_id,
+                row.get("connection_id"),
+                row["operation_id"],
+                row["backend_kind"],
+                row["method"],
+                row["path_template"],
+                row["side_effect_level"],
+                Json(row["input_schema_summary"]),
+                Json(row["risk_notes"]),
+                Json(data),
+                content_hash(record_payload),
+            ),
+        )
+    _clone_generic_artifact_rows(
+        conn,
+        table="pm_artifacts",
+        source_project_id=source_project_id,
+        target_project_id=target_project_id,
+        id_map=id_map,
+    )
+
+    proposal_hash_map: dict[str, str] = {}
+    proposal_rows = conn.execute(
+        "SELECT * FROM proposals WHERE project_id = %s ORDER BY created_at ASC",
+        (source_project_id,),
+    ).fetchall()
+    for row in proposal_rows:
+        old_id = row["id"]
+        new_id = id_map.setdefault(old_id, _generated_clone_id("proposal"))
+        data = _remap_nested_ids(row["data"], id_map)
+        new_requirements_id = id_map[row["requirements_id"]]
+        hash_value = content_hash(data)
+        conn.execute(
+            "INSERT INTO proposals (id, project_id, requirements_id, title, status, data, content_hash)"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (
+                new_id,
+                target_project_id,
+                new_requirements_id,
+                row["title"],
+                row["status"],
+                Json(data),
+                hash_value,
+            ),
+        )
+        proposal_hash_map[old_id] = hash_value
+
+    shape_hash_map: dict[str, str] = {}
+    shape_rows = conn.execute(
+        "SELECT * FROM shapes WHERE project_id = %s ORDER BY created_at ASC",
+        (source_project_id,),
+    ).fetchall()
+    for row in shape_rows:
+        old_id = row["id"]
+        new_id = id_map.setdefault(old_id, _generated_clone_id("shape"))
+        data = _remap_nested_ids(row["data"], id_map)
+        new_requirements_id = id_map[row["requirements_id"]]
+        hash_value = content_hash(data)
+        conn.execute(
+            "INSERT INTO shapes (id, project_id, requirements_id, title, status, data, content_hash)"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (
+                new_id,
+                target_project_id,
+                new_requirements_id,
+                row["title"],
+                row["status"],
+                Json(data),
+                hash_value,
+            ),
+        )
+        shape_hash_map[old_id] = hash_value
+
+    evaluation_rows = conn.execute(
+        "SELECT * FROM evaluations WHERE project_id = %s ORDER BY created_at ASC",
+        (source_project_id,),
+    ).fetchall()
+    for row in evaluation_rows:
+        old_id = row["id"]
+        new_id = id_map.setdefault(old_id, _generated_clone_id("evaluation"))
+        evaluation_data = _remap_nested_ids(row["data"], id_map)
+        input_snapshot = _remap_nested_ids(row["input_snapshot"], id_map)
+        derived_expectations = _remap_nested_ids(row.get("derived_expectations"), id_map)
+        old_proposal_id = row.get("proposal_id")
+        old_shape_id = row.get("shape_id")
+        old_scenario_id = row["scenario_id"]
+        conn.execute(
+            "INSERT INTO evaluations"
+            " (id, project_id, proposal_id, scenario_id, requirements_id, result, source, data, input_snapshot,"
+            "  requirements_hash, proposal_hash, scenario_hash, shape_id, shape_hash, derived_expectations)"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (
+                new_id,
+                target_project_id,
+                id_map.get(old_proposal_id) if old_proposal_id else None,
+                id_map[old_scenario_id],
+                id_map[row["requirements_id"]],
+                row["result"],
+                row["source"],
+                Json(evaluation_data),
+                Json(input_snapshot),
+                requirements_hash_map.get(row["requirements_id"], row["requirements_hash"]),
+                proposal_hash_map.get(old_proposal_id, row["proposal_hash"]) if old_proposal_id else "",
+                scenario_hash_by_old_id.get(old_scenario_id, row["scenario_hash"]),
+                id_map.get(old_shape_id) if old_shape_id else None,
+                shape_hash_map.get(old_shape_id, row["shape_hash"]) if old_shape_id else "",
+                Json(derived_expectations) if derived_expectations is not None else None,
+            ),
+        )
+
+    document_rows = conn.execute(
+        "SELECT * FROM project_documents WHERE project_id = %s ORDER BY created_at ASC",
+        (source_project_id,),
+    ).fetchall()
+    for row in document_rows:
+        old_id = row["id"]
+        new_id = id_map.setdefault(old_id, _generated_clone_id("document"))
+        conn.execute(
+            "INSERT INTO project_documents"
+            " (id, project_id, title, kind, filename, media_type, source_path, content, content_hash)"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (
+                new_id,
+                target_project_id,
+                row["title"],
+                row["kind"],
+                row["filename"],
+                row["media_type"],
+                row["source_path"],
+                row["content"],
+                row["content_hash"],
+            ),
+        )
+
+    data_access_rows = conn.execute(
+        "SELECT * FROM data_access_projects WHERE studio_project_id = %s ORDER BY created_at ASC",
+        (source_project_id,),
+    ).fetchall()
+    for row in data_access_rows:
+        old_id = row["id"]
+        new_id = id_map.setdefault(old_id, _generated_clone_id("data-access"))
+        state = _remap_nested_ids(row["state"], id_map)
+        conn.execute(
+            "INSERT INTO data_access_projects (id, name, studio_project_id, state)"
+            " VALUES (%s, %s, %s, %s)",
+            (new_id, row["name"], target_project_id, Json(state)),
+        )
+
+    integration_rows = conn.execute(
+        "SELECT * FROM application_integration_projects WHERE studio_project_id = %s ORDER BY created_at ASC",
+        (source_project_id,),
+    ).fetchall()
+    for row in integration_rows:
+        old_id = row["id"]
+        new_id = id_map.setdefault(old_id, _generated_clone_id("app-int"))
+        state = _remap_nested_ids(row["state"], id_map)
+        conn.execute(
+            "INSERT INTO application_integration_projects (id, title, studio_project_id, state)"
+            " VALUES (%s, %s, %s, %s)",
+            (new_id, row["title"], target_project_id, Json(state)),
+        )
+
+    return get_project(conn, target_project_id)
+
+
+def clone_project(
+    conn: Any,
+    source_project_id: str,
+    *,
+    target_project_id: str | None = None,
+    target_workspace_id: str | None = None,
+    name: str | None = None,
+    summary: str | None = None,
+) -> dict:
+    source_project = get_project(conn, source_project_id)
+    cloned = _clone_project_into(
+        conn,
+        source_project_id=source_project_id,
+        target_project_id=target_project_id or _generated_clone_id("project"),
+        target_workspace_id=target_workspace_id or source_project["workspace_id"],
+        target_name=name or f"{source_project['name']} Copy",
+        target_summary=source_project["summary"] if summary is None else summary,
+    )
+    conn.commit()
+    return cloned
+
+
+def clone_workspace(
+    conn: Any,
+    source_workspace_id: str,
+    *,
+    target_workspace_id: str | None = None,
+    name: str | None = None,
+    summary: str | None = None,
+) -> dict:
+    source_workspace = get_workspace(conn, source_workspace_id)
+    new_workspace_id = target_workspace_id or _generated_clone_id("workspace")
+    conn.execute(
+        "INSERT INTO workspaces (id, name, summary) VALUES (%s, %s, %s)",
+        (
+            new_workspace_id,
+            name or f"{source_workspace['name']} Copy",
+            source_workspace["summary"] if summary is None else summary,
+        ),
+    )
+    projects = list_projects(conn, workspace_id=source_workspace_id)
+    for project in projects:
+        _clone_project_into(
+            conn,
+            source_project_id=project["id"],
+            target_project_id=_generated_clone_id("project"),
+            target_workspace_id=new_workspace_id,
+            target_name=project["name"],
+            target_summary=project["summary"],
+        )
+    conn.commit()
+    return get_workspace(conn, new_workspace_id)
+
+
+# ---------------------------------------------------------------------------
+# Project Documents
+# ---------------------------------------------------------------------------
+
+def list_project_documents(conn: Any, project_id: str) -> list[dict]:
+    get_project(conn, project_id)
+    return conn.execute(
+        "SELECT id, project_id, title, kind, filename, media_type, source_path, content_hash, created_at, updated_at "
+        "FROM project_documents WHERE project_id = %s ORDER BY updated_at DESC, created_at DESC",
+        (project_id,),
+    ).fetchall()
+
+
+def get_project_document(conn: Any, project_id: str, document_id: str) -> dict:
+    row = conn.execute(
+        "SELECT * FROM project_documents WHERE project_id = %s AND id = %s",
+        (project_id, document_id),
+    ).fetchone()
+    if row is None:
+        raise NotFoundError("project_document", document_id)
+    return row
+
+
+def create_project_document(
+    conn: Any,
+    *,
+    project_id: str,
+    document_id: str,
+    title: str,
+    kind: str,
+    filename: str,
+    media_type: str,
+    source_path: str,
+    content: bytes,
+) -> dict:
+    get_project(conn, project_id)
+    digest = hashlib.sha256(content).hexdigest()
+    row = conn.execute(
+        "INSERT INTO project_documents "
+        "(id, project_id, title, kind, filename, media_type, source_path, content, content_hash) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) "
+        "RETURNING id, project_id, title, kind, filename, media_type, source_path, content_hash, created_at, updated_at",
+        (document_id, project_id, title, kind, filename, media_type, source_path, content, digest),
+    ).fetchone()
+    conn.commit()
+    return row
+
+
+def delete_project_document(conn: Any, project_id: str, document_id: str) -> None:
+    cur = conn.execute(
+        "DELETE FROM project_documents WHERE project_id = %s AND id = %s",
+        (project_id, document_id),
+    )
+    if cur.rowcount == 0:
+        raise NotFoundError("project_document", document_id)
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# Integration Fronting Foundation
+# ---------------------------------------------------------------------------
+
+def list_workspace_connections(conn: Any, workspace_id: str) -> list[dict]:
+    get_workspace(conn, workspace_id)
+    return conn.execute(
+        "SELECT * FROM workspace_connections WHERE workspace_id = %s ORDER BY updated_at DESC, created_at DESC",
+        (workspace_id,),
+    ).fetchall()
+
+
+def get_workspace_connection(conn: Any, workspace_id: str, connection_id: str) -> dict:
+    row = conn.execute(
+        "SELECT * FROM workspace_connections WHERE workspace_id = %s AND id = %s",
+        (workspace_id, connection_id),
+    ).fetchone()
+    if row is None:
+        raise NotFoundError("workspace_connection", connection_id)
+    return row
+
+
+def create_workspace_connection(
+    conn: Any,
+    *,
+    workspace_id: str,
+    connection_id: str,
+    display_name: str,
+    backend_kind: str,
+    system_kind: str = "",
+    endpoint_ref: str = "",
+    auth_mode: str,
+    identity_provider_ref: str = "",
+    secret_ref: str = "",
+    allowed_project_refs: list[str] | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> dict:
+    get_workspace(conn, workspace_id)
+    allowed_project_refs = allowed_project_refs or []
+    metadata = metadata or {}
+    row = conn.execute(
+        "INSERT INTO workspace_connections"
+        " (id, workspace_id, display_name, backend_kind, system_kind, endpoint_ref, auth_mode,"
+        "  identity_provider_ref, secret_ref, allowed_project_refs, metadata)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *",
+        (
+            connection_id,
+            workspace_id,
+            display_name,
+            backend_kind,
+            system_kind,
+            endpoint_ref,
+            auth_mode,
+            identity_provider_ref,
+            secret_ref,
+            Json(allowed_project_refs),
+            Json(metadata),
+        ),
+    ).fetchone()
+    conn.commit()
+    return row
+
+
+def update_workspace_connection(
+    conn: Any,
+    workspace_id: str,
+    connection_id: str,
+    **fields: Any,
+) -> dict:
+    allowed = {
+        "display_name",
+        "backend_kind",
+        "system_kind",
+        "endpoint_ref",
+        "auth_mode",
+        "identity_provider_ref",
+        "secret_ref",
+        "allowed_project_refs",
+        "metadata",
+    }
+    sets: list[str] = []
+    params: list[Any] = []
+    for key, value in fields.items():
+        if key not in allowed or value is None:
+            continue
+        if key in {"allowed_project_refs", "metadata"}:
+            sets.append(f"{key} = %s")
+            params.append(Json(value))
+        else:
+            sets.append(f"{key} = %s")
+            params.append(value)
+    if not sets:
+        return get_workspace_connection(conn, workspace_id, connection_id)
+    sets.append("updated_at = now()")
+    params.extend([workspace_id, connection_id])
+    row = conn.execute(
+        f"UPDATE workspace_connections SET {', '.join(sets)} WHERE workspace_id = %s AND id = %s RETURNING *",
+        params,
+    ).fetchone()
+    if row is None:
+        raise NotFoundError("workspace_connection", connection_id)
+    conn.commit()
+    return row
+
+
+def delete_workspace_connection(conn: Any, workspace_id: str, connection_id: str) -> None:
+    cur = conn.execute(
+        "DELETE FROM workspace_connections WHERE workspace_id = %s AND id = %s",
+        (workspace_id, connection_id),
+    )
+    if cur.rowcount == 0:
+        raise NotFoundError("workspace_connection", connection_id)
+    conn.commit()
+
+
+def _assert_connection_available_for_project(conn: Any, project: dict, connection_id: str | None) -> None:
+    if not connection_id:
+        return
+    connection = get_workspace_connection(conn, project["workspace_id"], connection_id)
+    allowed_refs = connection.get("allowed_project_refs") or []
+    if allowed_refs and project["id"] not in allowed_refs:
+        raise ProjectCoherenceError(
+            f"workspace_connection {connection_id!r} is not allowed for project {project['id']!r}"
+        )
+
+
+def _discovery_record_hash(payload: dict[str, Any]) -> str:
+    return content_hash(payload)
+
+
+def list_integration_discovery_records(conn: Any, project_id: str) -> list[dict]:
+    get_project(conn, project_id)
+    return conn.execute(
+        "SELECT * FROM integration_discovery_records WHERE project_id = %s ORDER BY updated_at DESC, created_at DESC",
+        (project_id,),
+    ).fetchall()
+
+
+def get_integration_discovery_record(conn: Any, project_id: str, record_id: str) -> dict:
+    row = conn.execute(
+        "SELECT * FROM integration_discovery_records WHERE project_id = %s AND id = %s",
+        (project_id, record_id),
+    ).fetchone()
+    if row is None:
+        raise NotFoundError("integration_discovery_record", record_id)
+    return row
+
+
+def create_integration_discovery_record(
+    conn: Any,
+    *,
+    project_id: str,
+    record_id: str,
+    connection_id: str | None = None,
+    operation_id: str,
+    backend_kind: str,
+    method: str = "",
+    path_template: str = "",
+    side_effect_level: str = "read",
+    input_schema_summary: dict[str, Any] | None = None,
+    risk_notes: list[str] | None = None,
+    data: dict[str, Any] | None = None,
+) -> dict:
+    project = get_project(conn, project_id)
+    _assert_connection_available_for_project(conn, project, connection_id)
+    input_schema_summary = input_schema_summary or {}
+    risk_notes = risk_notes or []
+    data = data or {}
+    payload = {
+        "connection_id": connection_id,
+        "operation_id": operation_id,
+        "backend_kind": backend_kind,
+        "method": method,
+        "path_template": path_template,
+        "side_effect_level": side_effect_level,
+        "input_schema_summary": input_schema_summary,
+        "risk_notes": risk_notes,
+        "data": data,
+    }
+    row = conn.execute(
+        "INSERT INTO integration_discovery_records"
+        " (id, project_id, connection_id, operation_id, backend_kind, method, path_template,"
+        "  side_effect_level, input_schema_summary, risk_notes, data, content_hash)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *",
+        (
+            record_id,
+            project_id,
+            connection_id,
+            operation_id,
+            backend_kind,
+            method,
+            path_template,
+            side_effect_level,
+            Json(input_schema_summary),
+            Json(risk_notes),
+            Json(data),
+            _discovery_record_hash(payload),
+        ),
+    ).fetchone()
+    conn.commit()
+    return row
+
+
+def update_integration_discovery_record(
+    conn: Any,
+    project_id: str,
+    record_id: str,
+    **fields: Any,
+) -> dict:
+    existing = get_integration_discovery_record(conn, project_id, record_id)
+    project = get_project(conn, project_id)
+    next_payload = {
+        "connection_id": existing.get("connection_id"),
+        "operation_id": existing["operation_id"],
+        "backend_kind": existing["backend_kind"],
+        "method": existing["method"],
+        "path_template": existing["path_template"],
+        "side_effect_level": existing["side_effect_level"],
+        "input_schema_summary": existing["input_schema_summary"],
+        "risk_notes": existing["risk_notes"],
+        "data": existing["data"],
+    }
+    for key, value in fields.items():
+        if value is not None and key in next_payload:
+            next_payload[key] = value
+    _assert_connection_available_for_project(conn, project, next_payload.get("connection_id"))
+    row = conn.execute(
+        "UPDATE integration_discovery_records"
+        " SET connection_id = %s, operation_id = %s, backend_kind = %s, method = %s, path_template = %s,"
+        " side_effect_level = %s, input_schema_summary = %s, risk_notes = %s, data = %s,"
+        " content_hash = %s, updated_at = now()"
+        " WHERE project_id = %s AND id = %s RETURNING *",
+        (
+            next_payload["connection_id"],
+            next_payload["operation_id"],
+            next_payload["backend_kind"],
+            next_payload["method"],
+            next_payload["path_template"],
+            next_payload["side_effect_level"],
+            Json(next_payload["input_schema_summary"]),
+            Json(next_payload["risk_notes"]),
+            Json(next_payload["data"]),
+            _discovery_record_hash(next_payload),
+            project_id,
+            record_id,
+        ),
+    ).fetchone()
+    if row is None:
+        raise NotFoundError("integration_discovery_record", record_id)
+    conn.commit()
+    return row
+
+
+def delete_integration_discovery_record(conn: Any, project_id: str, record_id: str) -> None:
+    cur = conn.execute(
+        "DELETE FROM integration_discovery_records WHERE project_id = %s AND id = %s",
+        (project_id, record_id),
+    )
+    if cur.rowcount == 0:
+        raise NotFoundError("integration_discovery_record", record_id)
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# Data Access Projects
+# ---------------------------------------------------------------------------
+
+def list_data_access_projects(conn: Any, studio_project_id: str | None = None) -> list[dict]:
+    if studio_project_id:
+        return conn.execute(
+            "SELECT id, name, studio_project_id, created_at, updated_at FROM data_access_projects"
+            " WHERE studio_project_id = %s ORDER BY updated_at DESC",
+            (studio_project_id,),
+        ).fetchall()
+    return conn.execute(
+        "SELECT id, name, studio_project_id, created_at, updated_at FROM data_access_projects ORDER BY updated_at DESC"
+    ).fetchall()
+
+
+def get_data_access_project(conn: Any, project_id: str) -> dict:
+    row = conn.execute(
+        "SELECT * FROM data_access_projects WHERE id = %s",
+        (project_id,),
+    ).fetchone()
+    if row is None:
+        raise NotFoundError("data_access_project", project_id)
+    return row
+
+
+def create_data_access_project(
+    conn: Any,
+    project_id: str,
+    state: dict[str, Any],
+    *,
+    studio_project_id: str | None = None,
+) -> dict:
+    name = str(state.get("name") or project_id)
+    if studio_project_id:
+        get_project(conn, studio_project_id)
+    row = conn.execute(
+        "INSERT INTO data_access_projects (id, name, studio_project_id, state) VALUES (%s, %s, %s, %s) RETURNING *",
+        (project_id, name, studio_project_id, Json(state)),
+    ).fetchone()
+    conn.commit()
+    return row
+
+
+def update_data_access_project(
+    conn: Any,
+    project_id: str,
+    state: dict[str, Any],
+    *,
+    studio_project_id: str | None = None,
+) -> dict:
+    name = str(state.get("name") or project_id)
+    if studio_project_id:
+        get_project(conn, studio_project_id)
+    row = conn.execute(
+        "UPDATE data_access_projects"
+        " SET name = %s, studio_project_id = COALESCE(%s, studio_project_id), state = %s, updated_at = now()"
+        " WHERE id = %s RETURNING *",
+        (name, studio_project_id, Json(state), project_id),
+    ).fetchone()
+    if row is None:
+        raise NotFoundError("data_access_project", project_id)
+    conn.commit()
+    return row
+
+
+def delete_data_access_project(conn: Any, project_id: str) -> None:
+    cur = conn.execute(
+        "DELETE FROM data_access_projects WHERE id = %s",
+        (project_id,),
+    )
+    if cur.rowcount == 0:
+        raise NotFoundError("data_access_project", project_id)
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# Application Integration Projects
+# ---------------------------------------------------------------------------
+
+def list_application_integration_projects(conn: Any, studio_project_id: str | None = None) -> list[dict]:
+    if studio_project_id:
+        return conn.execute(
+            "SELECT id, title, studio_project_id, created_at, updated_at FROM application_integration_projects"
+            " WHERE studio_project_id = %s ORDER BY updated_at DESC",
+            (studio_project_id,),
+        ).fetchall()
+    return conn.execute(
+        "SELECT id, title, studio_project_id, created_at, updated_at FROM application_integration_projects ORDER BY updated_at DESC"
+    ).fetchall()
+
+
+def get_application_integration_project(conn: Any, project_id: str) -> dict:
+    row = conn.execute(
+        "SELECT * FROM application_integration_projects WHERE id = %s",
+        (project_id,),
+    ).fetchone()
+    if row is None:
+        raise NotFoundError("application_integration_project", project_id)
+    return row
+
+
+def create_application_integration_project(
+    conn: Any,
+    project_id: str,
+    state: dict[str, Any],
+    *,
+    studio_project_id: str | None = None,
+) -> dict:
+    title = str(state.get("title") or project_id)
+    if studio_project_id:
+        get_project(conn, studio_project_id)
+    row = conn.execute(
+        "INSERT INTO application_integration_projects (id, title, studio_project_id, state) VALUES (%s, %s, %s, %s) RETURNING *",
+        (project_id, title, studio_project_id, Json(state)),
+    ).fetchone()
+    conn.commit()
+    return row
+
+
+def update_application_integration_project(
+    conn: Any,
+    project_id: str,
+    state: dict[str, Any],
+    *,
+    studio_project_id: str | None = None,
+) -> dict:
+    title = str(state.get("title") or project_id)
+    if studio_project_id:
+        get_project(conn, studio_project_id)
+    row = conn.execute(
+        "UPDATE application_integration_projects"
+        " SET title = %s, studio_project_id = COALESCE(%s, studio_project_id), state = %s, updated_at = now()"
+        " WHERE id = %s RETURNING *",
+        (title, studio_project_id, Json(state), project_id),
+    ).fetchone()
+    if row is None:
+        raise NotFoundError("application_integration_project", project_id)
+    conn.commit()
+    return row
+
+
+def delete_application_integration_project(conn: Any, project_id: str) -> None:
+    cur = conn.execute(
+        "DELETE FROM application_integration_projects WHERE id = %s",
+        (project_id,),
+    )
+    if cur.rowcount == 0:
+        raise NotFoundError("application_integration_project", project_id)
     conn.commit()
 
 
@@ -461,6 +1340,194 @@ def delete_scenario(conn: Any, project_id: str, scenario_id: str) -> None:
     _delete_artifact(conn, "scenarios", project_id, scenario_id,
                      blocked_by_table="evaluations",
                      blocked_by_fk="scenario_id")
+
+
+# --- Service Metadata Artifacts ---
+
+def list_service_metadata_artifacts(conn: Any, project_id: str) -> list[dict]:
+    return _list_artifacts(conn, "service_metadata_artifacts", project_id)
+
+
+def get_service_metadata_artifact(conn: Any, project_id: str, artifact_id: str) -> dict:
+    return _get_artifact(conn, "service_metadata_artifacts", project_id, artifact_id)
+
+
+def create_service_metadata_artifact(
+    conn: Any,
+    project_id: str,
+    artifact_id: str,
+    title: str,
+    data: dict,
+) -> dict:
+    return _create_artifact(
+        conn,
+        "service_metadata_artifacts",
+        project_id,
+        artifact_id,
+        title,
+        data,
+    )
+
+
+def update_service_metadata_artifact(
+    conn: Any,
+    project_id: str,
+    artifact_id: str,
+    **fields: Any,
+) -> dict:
+    return _update_artifact(
+        conn,
+        "service_metadata_artifacts",
+        project_id,
+        artifact_id,
+        **fields,
+    )
+
+
+def delete_service_metadata_artifact(conn: Any, project_id: str, artifact_id: str) -> None:
+    _delete_artifact(conn, "service_metadata_artifacts", project_id, artifact_id)
+
+
+# --- PM Artifacts ---
+
+def list_pm_artifacts(conn: Any, project_id: str) -> list[dict]:
+    return _list_artifacts(conn, "pm_artifacts", project_id)
+
+
+def get_pm_artifact(conn: Any, project_id: str, artifact_id: str) -> dict:
+    return _get_artifact(conn, "pm_artifacts", project_id, artifact_id)
+
+
+def create_pm_artifact(
+    conn: Any,
+    project_id: str,
+    artifact_id: str,
+    title: str,
+    data: dict,
+) -> dict:
+    return _create_artifact(
+        conn,
+        "pm_artifacts",
+        project_id,
+        artifact_id,
+        title,
+        data,
+    )
+
+
+def update_pm_artifact(
+    conn: Any,
+    project_id: str,
+    artifact_id: str,
+    **fields: Any,
+) -> dict:
+    return _update_artifact(
+        conn,
+        "pm_artifacts",
+        project_id,
+        artifact_id,
+        **fields,
+    )
+
+
+def delete_pm_artifact(conn: Any, project_id: str, artifact_id: str) -> None:
+    _delete_artifact(conn, "pm_artifacts", project_id, artifact_id)
+
+
+# --- Studio-local publication records ---
+
+def _local_publication_summary(row: dict) -> dict:
+    package_record = row.get("package_record") or {}
+    receipt = row.get("receipt") or {}
+    return {
+        "id": row["id"],
+        "project_id": row["project_id"],
+        "authority": row.get("authority") or "local-studio",
+        "publication": {
+            "package_id": row["package_id"],
+            "package_version": row["package_version"],
+            "project_ref": row["project_ref"],
+            "product_revision_ref": row["product_revision_ref"],
+            "developer_revision_ref": row["developer_revision_ref"],
+            "contract_signature": row["contract_signature"],
+            "lineage": package_record.get("lineage") or package_record.get("manifest", {}).get("lineage") or package_record.get("recommended_lock", {}).get("lineage") or {},
+            "published_at": row["published_at"].isoformat() if hasattr(row["published_at"], "isoformat") else row["published_at"],
+        },
+        "package": package_record,
+        "receipt": receipt,
+        "created_at": row["created_at"].isoformat() if hasattr(row["created_at"], "isoformat") else row["created_at"],
+    }
+
+
+def list_local_publications(conn: Any, project_id: str) -> list[dict]:
+    get_project(conn, project_id)
+    rows = conn.execute(
+        "SELECT * FROM local_publications WHERE project_id = %s ORDER BY published_at DESC",
+        (project_id,),
+    ).fetchall()
+    return [_local_publication_summary(row) for row in rows]
+
+
+def get_local_publication(conn: Any, project_id: str, publication_id: str) -> dict:
+    get_project(conn, project_id)
+    row = conn.execute(
+        "SELECT * FROM local_publications WHERE project_id = %s AND id = %s",
+        (project_id, publication_id),
+    ).fetchone()
+    if row is None:
+        raise NotFoundError("local_publication", publication_id)
+    return _local_publication_summary(row)
+
+
+def create_local_publication(
+    conn: Any,
+    *,
+    project_id: str,
+    publication_id: str,
+    package_id: str,
+    package_version: str,
+    project_ref: str,
+    product_revision_ref: str,
+    developer_revision_ref: str,
+    contract_signature: str,
+    schema_version: str,
+    manifest_digest: str,
+    definition_digest: str,
+    package_record: dict,
+    receipt: dict,
+) -> dict:
+    get_project(conn, project_id)
+    existing = conn.execute(
+        "SELECT id FROM local_publications WHERE project_id = %s AND package_id = %s AND package_version = %s",
+        (project_id, package_id, package_version),
+    ).fetchone()
+    if existing is not None:
+        raise LocalPublicationExistsError(project_id, package_id, package_version)
+    row = conn.execute(
+        "INSERT INTO local_publications"
+        " (id, project_id, package_id, package_version, project_ref, product_revision_ref,"
+        "  developer_revision_ref, contract_signature, schema_version, manifest_digest,"
+        "  definition_digest, package_record, receipt)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+        " RETURNING *",
+        (
+            publication_id,
+            project_id,
+            package_id,
+            package_version,
+            project_ref,
+            product_revision_ref,
+            developer_revision_ref,
+            contract_signature,
+            schema_version,
+            manifest_digest,
+            definition_digest,
+            Json(package_record),
+            Json(receipt),
+        ),
+    ).fetchone()
+    conn.commit()
+    return _local_publication_summary(row)
 
 
 # ---------------------------------------------------------------------------

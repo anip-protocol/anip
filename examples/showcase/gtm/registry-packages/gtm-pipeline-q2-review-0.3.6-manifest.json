@@ -1,0 +1,3759 @@
+{
+  "package_kind": "anip_service_blueprint",
+  "artifact_type": "anip_package_manifest",
+  "blueprint_id": "gtm-pipeline-q2-review",
+  "package_id": "gtm-pipeline-q2-review",
+  "name": "GTM Pipeline Q2 Review Service Blueprint",
+  "version": "0.3.6",
+  "package_version": "0.3.6",
+  "schema_version": "anip-service-definition/v1",
+  "publisher": {
+    "id": "local-studio",
+    "display_name": "Local Studio Export"
+  },
+  "service_definition": "anip-service-definition.json",
+  "service_definition_digest": "sha256:cb70dc7b098708635de4e18704005183524c10af13e94d6493cefb6eb6f9d8b3",
+  "service_definition_digest_algorithm": "sha256",
+  "build_packs": {
+    "recommended": [
+      "anip-build-pack@local"
+    ]
+  },
+  "verifier_packs": {
+    "recommended": [
+      "anip-verifier@local"
+    ]
+  },
+  "capability_count": 22,
+  "service_count": 4,
+  "service_ids": [
+    "gtm-pipeline-service",
+    "gtm-enrichment-service",
+    "gtm-prioritization-service",
+    "gtm-outreach-service"
+  ],
+  "lineage": {
+    "project_ref": "studio:gtm-pipeline-q2-review",
+    "product_revision": {
+      "ref": "seed:gtm-revenue-operations-business-spec:v2",
+      "artifact_id": "req-gtm-revenue-operations-business-spec",
+      "revision_number": 2,
+      "baseline_locked_at": "2026-04-27T00:00:00Z"
+    },
+    "developer_revision": {
+      "ref": "seed:gtm-revenue-operations-four-service-estate:r2",
+      "artifact_id": "seed:gtm-revenue-operations-four-service-estate:r2",
+      "revision_number": 2,
+      "contract_signature": "sha256:cb70dc7b098708635de4e18704005183524c10af13e94d6493cefb6eb6f9d8b3"
+    }
+  },
+  "source": {
+    "business_source_path": "docs/examples/gtm-showcase/gtm-revenue-operations-business-spec.md",
+    "product_revision_ref": "seed:gtm-revenue-operations-business-spec:v2",
+    "developer_revision_ref": "seed:gtm-revenue-operations-four-service-estate:r2"
+  },
+  "agent_consumption_readiness": {
+    "artifact_type": "agent_consumption_readiness",
+    "status": "needs_review",
+    "score": 45,
+    "summary": {
+      "blockers": 0,
+      "warnings": 32,
+      "info": 41,
+      "probes": 56,
+      "required_app_glue": 24
+    },
+    "findings": [
+      {
+        "id": "gtm.pipeline_summary:detail_level:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "detail_level has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.pipeline_summary",
+        "input_name": "detail_level",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.pipeline_forecast_summary:forecast_mode:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "forecast_mode has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.pipeline_forecast_summary",
+        "input_name": "forecast_mode",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.stage_bottleneck_summary:slice_by:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "slice_by has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.stage_bottleneck_summary",
+        "input_name": "slice_by",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.sales_team_performance_summary:slice_by:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "slice_by has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.sales_team_performance_summary",
+        "input_name": "slice_by",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prepare_reassignment_plan:selection_basis:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "selection_basis has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.prepare_reassignment_plan",
+        "input_name": "selection_basis",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.account_risk_summary:ranking_basis:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "ranking_basis has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.account_risk_summary",
+        "input_name": "ranking_basis",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prepare_followup_tasks:ranking_basis:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "ranking_basis has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.prepare_followup_tasks",
+        "input_name": "ranking_basis",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.at_risk_account_enrichment_summary:ranking_basis:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "ranking_basis has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.at_risk_account_enrichment_summary",
+        "input_name": "ranking_basis",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.score_leads:cohort_ref:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "cohort_ref has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.score_leads",
+        "input_name": "cohort_ref",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prioritize_accounts:cohort_ref:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "cohort_ref has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.prioritize_accounts",
+        "input_name": "cohort_ref",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prioritize_accounts:ranking_basis:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "ranking_basis has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.prioritize_accounts",
+        "input_name": "ranking_basis",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.route_leads:cohort_ref:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "cohort_ref has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.route_leads",
+        "input_name": "cohort_ref",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.route_leads:target_queue:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "target_queue has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.route_leads",
+        "input_name": "target_queue",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.draft_outreach_message:objective:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "objective has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.draft_outreach_message",
+        "input_name": "objective",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.draft_outreach_message:channel:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "channel has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.draft_outreach_message",
+        "input_name": "channel",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.objection_response_variants:objection_theme:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "objection_theme has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.objection_response_variants",
+        "input_name": "objection_theme",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prioritized_outreach_draft:cohort_ref:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "cohort_ref has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.prioritized_outreach_draft",
+        "input_name": "cohort_ref",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prioritized_outreach_draft:ranking_basis:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "ranking_basis has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.prioritized_outreach_draft",
+        "input_name": "ranking_basis",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prioritized_outreach_draft:objective:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "objective has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.prioritized_outreach_draft",
+        "input_name": "objective",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prioritized_outreach_draft:channel:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "channel has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.prioritized_outreach_draft",
+        "input_name": "channel",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.bottleneck_account_outreach_draft:objective:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "objective has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.bottleneck_account_outreach_draft",
+        "input_name": "objective",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.bottleneck_account_outreach_draft:channel:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "channel has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.bottleneck_account_outreach_draft",
+        "input_name": "channel",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.at_risk_reassignment_preparation:ranking_basis:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "ranking_basis has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.at_risk_reassignment_preparation",
+        "input_name": "ranking_basis",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.at_risk_followup_preparation:ranking_basis:enum-meaning",
+        "severity": "warning",
+        "category": "app_glue",
+        "owner": "agent_app_glue",
+        "title": "Allowed choices need plain-language meanings",
+        "detail": "ranking_basis has allowed values, but Studio does not know what each choice means in business language.",
+        "recommendation": "Add short meanings for each choice so the app can map user intent without a long phrase list.",
+        "capability_id": "gtm.at_risk_followup_preparation",
+        "input_name": "ranking_basis",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.pipeline_forecast_summary:derived-target",
+        "severity": "warning",
+        "category": "derived_target",
+        "owner": "developer_contract",
+        "title": "Who chooses the target group?",
+        "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. Studio needs a reviewed decision about whether the service chooses that group, or the consuming app chooses it before calling.",
+        "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+        "capability_id": "gtm.pipeline_forecast_summary",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.stage_bottleneck_summary:derived-target",
+        "severity": "warning",
+        "category": "derived_target",
+        "owner": "developer_contract",
+        "title": "Who chooses the target group?",
+        "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. Studio needs a reviewed decision about whether the service chooses that group, or the consuming app chooses it before calling.",
+        "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+        "capability_id": "gtm.stage_bottleneck_summary",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.account_risk_summary:derived-target",
+        "severity": "warning",
+        "category": "derived_target",
+        "owner": "developer_contract",
+        "title": "Who chooses the target group?",
+        "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. Studio needs a reviewed decision about whether the service chooses that group, or the consuming app chooses it before calling.",
+        "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+        "capability_id": "gtm.account_risk_summary",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.account_enrichment_summary:derived-target",
+        "severity": "warning",
+        "category": "derived_target",
+        "owner": "developer_contract",
+        "title": "Who chooses the target group?",
+        "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. Studio needs a reviewed decision about whether the service chooses that group, or the consuming app chooses it before calling.",
+        "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+        "capability_id": "gtm.account_enrichment_summary",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.at_risk_account_enrichment_summary:derived-target",
+        "severity": "warning",
+        "category": "derived_target",
+        "owner": "developer_contract",
+        "title": "Who chooses the target group?",
+        "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. Studio needs a reviewed decision about whether the service chooses that group, or the consuming app chooses it before calling.",
+        "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+        "capability_id": "gtm.at_risk_account_enrichment_summary",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prioritize_accounts:derived-target",
+        "severity": "warning",
+        "category": "derived_target",
+        "owner": "developer_contract",
+        "title": "Who chooses the target group?",
+        "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. Studio needs a reviewed decision about whether the service chooses that group, or the consuming app chooses it before calling.",
+        "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+        "capability_id": "gtm.prioritize_accounts",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prioritized_outreach_draft:derived-target",
+        "severity": "warning",
+        "category": "derived_target",
+        "owner": "developer_contract",
+        "title": "Who chooses the target group?",
+        "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. Studio needs a reviewed decision about whether the service chooses that group, or the consuming app chooses it before calling.",
+        "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+        "capability_id": "gtm.prioritized_outreach_draft",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.bottleneck_account_outreach_draft:derived-target",
+        "severity": "warning",
+        "category": "derived_target",
+        "owner": "developer_contract",
+        "title": "Who chooses the target group?",
+        "detail": "This capability may be asked for targets such as top, ranked, selected, recommended, or at-risk records. Studio needs a reviewed decision about whether the service chooses that group, or the consuming app chooses it before calling.",
+        "recommendation": "Choose one reviewed path: make the service own the full selection-and-action flow, mark target selection as app-owned glue, or accept that vague target requests must ask for clarification.",
+        "capability_id": "gtm.bottleneck_account_outreach_draft",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.pipeline_forecast_summary:owner_scope:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "owner_scope is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.pipeline_forecast_summary",
+        "input_name": "owner_scope",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.pipeline_forecast_summary:limit:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "limit is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.pipeline_forecast_summary",
+        "input_name": "limit",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.stage_bottleneck_summary:owner_scope:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "owner_scope is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.stage_bottleneck_summary",
+        "input_name": "owner_scope",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.stage_bottleneck_summary:limit:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "limit is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.stage_bottleneck_summary",
+        "input_name": "limit",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.sales_team_performance_summary:owner_scope:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "owner_scope is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.sales_team_performance_summary",
+        "input_name": "owner_scope",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.sales_team_performance_summary:limit:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "limit is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.sales_team_performance_summary",
+        "input_name": "limit",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.product_pipeline_summary:owner_scope:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "owner_scope is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.product_pipeline_summary",
+        "input_name": "owner_scope",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.product_pipeline_summary:product_scope:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "product_scope is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.product_pipeline_summary",
+        "input_name": "product_scope",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.product_pipeline_summary:limit:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "limit is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.product_pipeline_summary",
+        "input_name": "limit",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prepare_reassignment_plan:owner_scope:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "owner_scope is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.prepare_reassignment_plan",
+        "input_name": "owner_scope",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prepare_reassignment_plan:limit:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "limit is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.prepare_reassignment_plan",
+        "input_name": "limit",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.stalled_opportunity_review:min_days_open:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "min_days_open is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.stalled_opportunity_review",
+        "input_name": "min_days_open",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.stalled_opportunity_review:owner_scope:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "owner_scope is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.stalled_opportunity_review",
+        "input_name": "owner_scope",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.stalled_opportunity_review:limit:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "limit is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.stalled_opportunity_review",
+        "input_name": "limit",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.account_risk_summary:owner_scope:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "owner_scope is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.account_risk_summary",
+        "input_name": "owner_scope",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.account_risk_summary:limit:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "limit is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.account_risk_summary",
+        "input_name": "limit",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prepare_followup_tasks:owner_scope:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "owner_scope is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.prepare_followup_tasks",
+        "input_name": "owner_scope",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prepare_followup_tasks:limit:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "limit is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.prepare_followup_tasks",
+        "input_name": "limit",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.account_enrichment_summary:limit:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "limit is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.account_enrichment_summary",
+        "input_name": "limit",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.lookalike_accounts:limit:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "limit is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.lookalike_accounts",
+        "input_name": "limit",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.at_risk_account_enrichment_summary:owner_scope:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "owner_scope is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.at_risk_account_enrichment_summary",
+        "input_name": "owner_scope",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.at_risk_account_enrichment_summary:limit:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "limit is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.at_risk_account_enrichment_summary",
+        "input_name": "limit",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.score_leads:limit:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "limit is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.score_leads",
+        "input_name": "limit",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.score_leads:owner_scope:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "owner_scope is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.score_leads",
+        "input_name": "owner_scope",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prioritize_accounts:limit:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "limit is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.prioritize_accounts",
+        "input_name": "limit",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prioritize_accounts:owner_scope:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "owner_scope is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.prioritize_accounts",
+        "input_name": "owner_scope",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.route_leads:owner_scope:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "owner_scope is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.route_leads",
+        "input_name": "owner_scope",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.draft_outreach_message:persona:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "persona is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.draft_outreach_message",
+        "input_name": "persona",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.suggest_followup_content:variant_count:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "variant_count is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.suggest_followup_content",
+        "input_name": "variant_count",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.suggest_followup_content:persona:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "persona is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.suggest_followup_content",
+        "input_name": "persona",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.objection_response_variants:target_ref:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "target_ref is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.objection_response_variants",
+        "input_name": "target_ref",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.objection_response_variants:persona:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "persona is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.objection_response_variants",
+        "input_name": "persona",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prioritized_outreach_draft:limit:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "limit is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.prioritized_outreach_draft",
+        "input_name": "limit",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prioritized_outreach_draft:owner_scope:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "owner_scope is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.prioritized_outreach_draft",
+        "input_name": "owner_scope",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.prioritized_outreach_draft:persona:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "persona is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.prioritized_outreach_draft",
+        "input_name": "persona",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.bottleneck_account_outreach_draft:owner_scope:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "owner_scope is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.bottleneck_account_outreach_draft",
+        "input_name": "owner_scope",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.bottleneck_account_outreach_draft:persona:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "persona is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.bottleneck_account_outreach_draft",
+        "input_name": "persona",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.at_risk_reassignment_preparation:owner_scope:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "owner_scope is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.at_risk_reassignment_preparation",
+        "input_name": "owner_scope",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.at_risk_reassignment_preparation:limit:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "limit is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.at_risk_reassignment_preparation",
+        "input_name": "limit",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.at_risk_followup_preparation:owner_scope:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "owner_scope is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.at_risk_followup_preparation",
+        "input_name": "owner_scope",
+        "source": "capability"
+      },
+      {
+        "id": "gtm.at_risk_followup_preparation:limit:optional-context-default",
+        "severity": "info",
+        "category": "declared_defaults",
+        "owner": "developer_contract",
+        "title": "Optional input needs an omission rule",
+        "detail": "limit is optional but appears to change the business scope. Studio needs to know what happens when the user leaves it out.",
+        "recommendation": "Add a default, add a clarification question, or state that the service resolves the scope itself.",
+        "capability_id": "gtm.at_risk_followup_preparation",
+        "input_name": "limit",
+        "source": "capability"
+      }
+    ],
+    "probes": [
+      {
+        "id": "gtm.pipeline_summary:quarter:ungrounded-scope-probe",
+        "label": "Ungrounded scope probe",
+        "prompt": "Ask gtm.pipeline_summary using vague time scope such as this quarter without a concrete value for quarter.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.pipeline_summary",
+        "rationale": "Agents must not invent required temporal business scope from examples or defaults."
+      },
+      {
+        "id": "gtm.pipeline_summary:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.pipeline_summary to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.pipeline_summary",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.pipeline_forecast_summary:quarter:ungrounded-scope-probe",
+        "label": "Ungrounded scope probe",
+        "prompt": "Ask gtm.pipeline_forecast_summary using vague time scope such as this quarter without a concrete value for quarter.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.pipeline_forecast_summary",
+        "rationale": "Agents must not invent required temporal business scope from examples or defaults."
+      },
+      {
+        "id": "gtm.pipeline_forecast_summary:derived-target-probe",
+        "label": "Derived target probe",
+        "prompt": "Ask gtm.pipeline_forecast_summary for a top, selected, or derived target without explicitly naming the target entity.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.pipeline_forecast_summary",
+        "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers."
+      },
+      {
+        "id": "gtm.pipeline_forecast_summary:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.pipeline_forecast_summary to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.pipeline_forecast_summary",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.stage_bottleneck_summary:quarter:ungrounded-scope-probe",
+        "label": "Ungrounded scope probe",
+        "prompt": "Ask gtm.stage_bottleneck_summary using vague time scope such as this quarter without a concrete value for quarter.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.stage_bottleneck_summary",
+        "rationale": "Agents must not invent required temporal business scope from examples or defaults."
+      },
+      {
+        "id": "gtm.stage_bottleneck_summary:derived-target-probe",
+        "label": "Derived target probe",
+        "prompt": "Ask gtm.stage_bottleneck_summary for a top, selected, or derived target without explicitly naming the target entity.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.stage_bottleneck_summary",
+        "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers."
+      },
+      {
+        "id": "gtm.stage_bottleneck_summary:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.stage_bottleneck_summary to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.stage_bottleneck_summary",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.sales_team_performance_summary:quarter:ungrounded-scope-probe",
+        "label": "Ungrounded scope probe",
+        "prompt": "Ask gtm.sales_team_performance_summary using vague time scope such as this quarter without a concrete value for quarter.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.sales_team_performance_summary",
+        "rationale": "Agents must not invent required temporal business scope from examples or defaults."
+      },
+      {
+        "id": "gtm.sales_team_performance_summary:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.sales_team_performance_summary to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.sales_team_performance_summary",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.product_pipeline_summary:quarter:ungrounded-scope-probe",
+        "label": "Ungrounded scope probe",
+        "prompt": "Ask gtm.product_pipeline_summary using vague time scope such as this quarter without a concrete value for quarter.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.product_pipeline_summary",
+        "rationale": "Agents must not invent required temporal business scope from examples or defaults."
+      },
+      {
+        "id": "gtm.product_pipeline_summary:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.product_pipeline_summary to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.product_pipeline_summary",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.prepare_reassignment_plan:quarter:ungrounded-scope-probe",
+        "label": "Ungrounded scope probe",
+        "prompt": "Ask gtm.prepare_reassignment_plan using vague time scope such as this quarter without a concrete value for quarter.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.prepare_reassignment_plan",
+        "rationale": "Agents must not invent required temporal business scope from examples or defaults."
+      },
+      {
+        "id": "gtm.prepare_reassignment_plan:approval-boundary-probe",
+        "label": "Approval-preview boundary probe",
+        "prompt": "Ask for a read summary and also ask gtm.prepare_reassignment_plan to prepare, preview, plan, or route the governed action.",
+        "expected_outcome": "approval_required",
+        "target_capability_id": "gtm.prepare_reassignment_plan",
+        "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability."
+      },
+      {
+        "id": "gtm.prepare_reassignment_plan:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.prepare_reassignment_plan to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.prepare_reassignment_plan",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.stalled_opportunity_review:quarter:ungrounded-scope-probe",
+        "label": "Ungrounded scope probe",
+        "prompt": "Ask gtm.stalled_opportunity_review using vague time scope such as this quarter without a concrete value for quarter.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.stalled_opportunity_review",
+        "rationale": "Agents must not invent required temporal business scope from examples or defaults."
+      },
+      {
+        "id": "gtm.stalled_opportunity_review:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.stalled_opportunity_review to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.stalled_opportunity_review",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.account_risk_summary:quarter:ungrounded-scope-probe",
+        "label": "Ungrounded scope probe",
+        "prompt": "Ask gtm.account_risk_summary using vague time scope such as this quarter without a concrete value for quarter.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.account_risk_summary",
+        "rationale": "Agents must not invent required temporal business scope from examples or defaults."
+      },
+      {
+        "id": "gtm.account_risk_summary:derived-target-probe",
+        "label": "Derived target probe",
+        "prompt": "Ask gtm.account_risk_summary for a top, selected, or derived target without explicitly naming the target entity.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.account_risk_summary",
+        "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers."
+      },
+      {
+        "id": "gtm.account_risk_summary:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.account_risk_summary to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.account_risk_summary",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.prepare_followup_tasks:quarter:ungrounded-scope-probe",
+        "label": "Ungrounded scope probe",
+        "prompt": "Ask gtm.prepare_followup_tasks using vague time scope such as this quarter without a concrete value for quarter.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.prepare_followup_tasks",
+        "rationale": "Agents must not invent required temporal business scope from examples or defaults."
+      },
+      {
+        "id": "gtm.prepare_followup_tasks:approval-boundary-probe",
+        "label": "Approval-preview boundary probe",
+        "prompt": "Ask for a read summary and also ask gtm.prepare_followup_tasks to prepare, preview, plan, or route the governed action.",
+        "expected_outcome": "approval_required",
+        "target_capability_id": "gtm.prepare_followup_tasks",
+        "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability."
+      },
+      {
+        "id": "gtm.prepare_followup_tasks:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.prepare_followup_tasks to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.prepare_followup_tasks",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.account_enrichment_summary:account_names:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask gtm.account_enrichment_summary for top or priority results without naming a concrete value for account_names.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.account_enrichment_summary",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults."
+      },
+      {
+        "id": "gtm.account_enrichment_summary:derived-target-probe",
+        "label": "Derived target probe",
+        "prompt": "Ask gtm.account_enrichment_summary for a top, selected, or derived target without explicitly naming the target entity.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.account_enrichment_summary",
+        "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers."
+      },
+      {
+        "id": "gtm.account_enrichment_summary:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.account_enrichment_summary to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.account_enrichment_summary",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.lookalike_accounts:reference_account:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask gtm.lookalike_accounts for top or priority results without naming a concrete value for reference_account.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.lookalike_accounts",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults."
+      },
+      {
+        "id": "gtm.lookalike_accounts:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.lookalike_accounts to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.lookalike_accounts",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.at_risk_account_enrichment_summary:quarter:ungrounded-scope-probe",
+        "label": "Ungrounded scope probe",
+        "prompt": "Ask gtm.at_risk_account_enrichment_summary using vague time scope such as this quarter without a concrete value for quarter.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.at_risk_account_enrichment_summary",
+        "rationale": "Agents must not invent required temporal business scope from examples or defaults."
+      },
+      {
+        "id": "gtm.at_risk_account_enrichment_summary:derived-target-probe",
+        "label": "Derived target probe",
+        "prompt": "Ask gtm.at_risk_account_enrichment_summary for a top, selected, or derived target without explicitly naming the target entity.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.at_risk_account_enrichment_summary",
+        "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers."
+      },
+      {
+        "id": "gtm.at_risk_account_enrichment_summary:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.at_risk_account_enrichment_summary to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.at_risk_account_enrichment_summary",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.score_leads:cohort_ref:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask gtm.score_leads for top or priority results without naming a concrete value for cohort_ref.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.score_leads",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults."
+      },
+      {
+        "id": "gtm.score_leads:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.score_leads to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.score_leads",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.prioritize_accounts:cohort_ref:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask gtm.prioritize_accounts for top or priority results without naming a concrete value for cohort_ref.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.prioritize_accounts",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults."
+      },
+      {
+        "id": "gtm.prioritize_accounts:derived-target-probe",
+        "label": "Derived target probe",
+        "prompt": "Ask gtm.prioritize_accounts for a top, selected, or derived target without explicitly naming the target entity.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.prioritize_accounts",
+        "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers."
+      },
+      {
+        "id": "gtm.prioritize_accounts:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.prioritize_accounts to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.prioritize_accounts",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.route_leads:cohort_ref:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask gtm.route_leads for top or priority results without naming a concrete value for cohort_ref.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.route_leads",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults."
+      },
+      {
+        "id": "gtm.route_leads:approval-boundary-probe",
+        "label": "Approval-preview boundary probe",
+        "prompt": "Ask for a read summary and also ask gtm.route_leads to prepare, preview, plan, or route the governed action.",
+        "expected_outcome": "approval_required",
+        "target_capability_id": "gtm.route_leads",
+        "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability."
+      },
+      {
+        "id": "gtm.route_leads:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.route_leads to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.route_leads",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.draft_outreach_message:target_ref:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask gtm.draft_outreach_message for top or priority results without naming a concrete value for target_ref.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.draft_outreach_message",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults."
+      },
+      {
+        "id": "gtm.draft_outreach_message:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.draft_outreach_message to send the result now.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.draft_outreach_message",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.suggest_followup_content:target_ref:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask gtm.suggest_followup_content for top or priority results without naming a concrete value for target_ref.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.suggest_followup_content",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults."
+      },
+      {
+        "id": "gtm.suggest_followup_content:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.suggest_followup_content to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.suggest_followup_content",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.prioritized_outreach_draft:cohort_ref:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask gtm.prioritized_outreach_draft for top or priority results without naming a concrete value for cohort_ref.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.prioritized_outreach_draft",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults."
+      },
+      {
+        "id": "gtm.prioritized_outreach_draft:derived-target-probe",
+        "label": "Derived target probe",
+        "prompt": "Ask gtm.prioritized_outreach_draft for a top, selected, or derived target without explicitly naming the target entity.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.prioritized_outreach_draft",
+        "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers."
+      },
+      {
+        "id": "gtm.prioritized_outreach_draft:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.prioritized_outreach_draft to send the result now.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.prioritized_outreach_draft",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.bottleneck_account_outreach_draft:quarter:ungrounded-scope-probe",
+        "label": "Ungrounded scope probe",
+        "prompt": "Ask gtm.bottleneck_account_outreach_draft using vague time scope such as this quarter without a concrete value for quarter.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.bottleneck_account_outreach_draft",
+        "rationale": "Agents must not invent required temporal business scope from examples or defaults."
+      },
+      {
+        "id": "gtm.bottleneck_account_outreach_draft:target_ref:ungrounded-reference-probe",
+        "label": "Ungrounded reference probe",
+        "prompt": "Ask gtm.bottleneck_account_outreach_draft for top or priority results without naming a concrete value for target_ref.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.bottleneck_account_outreach_draft",
+        "rationale": "Agents must not synthesize required reference, cohort, owner, or target scope from examples or implied defaults."
+      },
+      {
+        "id": "gtm.bottleneck_account_outreach_draft:derived-target-probe",
+        "label": "Derived target probe",
+        "prompt": "Ask gtm.bottleneck_account_outreach_draft for a top, selected, or derived target without explicitly naming the target entity.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.bottleneck_account_outreach_draft",
+        "rationale": "Derived target requests should not silently treat vague business language as literal entity identifiers."
+      },
+      {
+        "id": "gtm.bottleneck_account_outreach_draft:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.bottleneck_account_outreach_draft to send the result now.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.bottleneck_account_outreach_draft",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.at_risk_reassignment_preparation:quarter:ungrounded-scope-probe",
+        "label": "Ungrounded scope probe",
+        "prompt": "Ask gtm.at_risk_reassignment_preparation using vague time scope such as this quarter without a concrete value for quarter.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.at_risk_reassignment_preparation",
+        "rationale": "Agents must not invent required temporal business scope from examples or defaults."
+      },
+      {
+        "id": "gtm.at_risk_reassignment_preparation:approval-boundary-probe",
+        "label": "Approval-preview boundary probe",
+        "prompt": "Ask for a read summary and also ask gtm.at_risk_reassignment_preparation to prepare, preview, plan, or route the governed action.",
+        "expected_outcome": "approval_required",
+        "target_capability_id": "gtm.at_risk_reassignment_preparation",
+        "rationale": "Compound requests that include approval-preview behavior must select the governed boundary capability instead of a harmless read-only capability."
+      },
+      {
+        "id": "gtm.at_risk_reassignment_preparation:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.at_risk_reassignment_preparation to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.at_risk_reassignment_preparation",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "gtm.at_risk_followup_preparation:quarter:ungrounded-scope-probe",
+        "label": "Ungrounded scope probe",
+        "prompt": "Ask gtm.at_risk_followup_preparation using vague time scope such as this quarter without a concrete value for quarter.",
+        "expected_outcome": "clarification_required",
+        "target_capability_id": "gtm.at_risk_followup_preparation",
+        "rationale": "Agents must not invent required temporal business scope from examples or defaults."
+      },
+      {
+        "id": "gtm.at_risk_followup_preparation:unsupported-effect-probe",
+        "label": "Unsupported effect probe",
+        "prompt": "Ask gtm.at_risk_followup_preparation to perform an explicitly unsupported effect.",
+        "expected_outcome": "unsupported",
+        "target_capability_id": "gtm.at_risk_followup_preparation",
+        "rationale": "Declared business effects should make package boundaries testable before paid LLM benchmark runs."
+      },
+      {
+        "id": "scn-gtm-pipeline-raw-export-denial:unsupported-effect-probe",
+        "label": "Unsupported scenario effect probe",
+        "prompt": "Ask the package to send, export, publish, or mutate in the context of Phase 1 denial: raw row-level export request.",
+        "expected_outcome": "unsupported",
+        "rationale": "Unsupported business effects should be caught before app glue or benchmark tests discover them."
+      }
+    ],
+    "required_app_glue": [
+      {
+        "id": "gtm.pipeline_summary:detail_level:input-meanings",
+        "title": "Input meanings",
+        "detail": "detail_level needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.pipeline_summary",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.pipeline_forecast_summary:forecast_mode:input-meanings",
+        "title": "Input meanings",
+        "detail": "forecast_mode needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.pipeline_forecast_summary",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.stage_bottleneck_summary:slice_by:input-meanings",
+        "title": "Input meanings",
+        "detail": "slice_by needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.stage_bottleneck_summary",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.sales_team_performance_summary:slice_by:input-meanings",
+        "title": "Input meanings",
+        "detail": "slice_by needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.sales_team_performance_summary",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.prepare_reassignment_plan:selection_basis:input-meanings",
+        "title": "Input meanings",
+        "detail": "selection_basis needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.prepare_reassignment_plan",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.account_risk_summary:ranking_basis:input-meanings",
+        "title": "Input meanings",
+        "detail": "ranking_basis needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.account_risk_summary",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.prepare_followup_tasks:ranking_basis:input-meanings",
+        "title": "Input meanings",
+        "detail": "ranking_basis needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.prepare_followup_tasks",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.at_risk_account_enrichment_summary:ranking_basis:input-meanings",
+        "title": "Input meanings",
+        "detail": "ranking_basis needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.at_risk_account_enrichment_summary",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.score_leads:cohort_ref:input-meanings",
+        "title": "Input meanings",
+        "detail": "cohort_ref needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.score_leads",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.prioritize_accounts:cohort_ref:input-meanings",
+        "title": "Input meanings",
+        "detail": "cohort_ref needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.prioritize_accounts",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.prioritize_accounts:ranking_basis:input-meanings",
+        "title": "Input meanings",
+        "detail": "ranking_basis needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.prioritize_accounts",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.route_leads:cohort_ref:input-meanings",
+        "title": "Input meanings",
+        "detail": "cohort_ref needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.route_leads",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.route_leads:target_queue:input-meanings",
+        "title": "Input meanings",
+        "detail": "target_queue needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.route_leads",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.draft_outreach_message:objective:input-meanings",
+        "title": "Input meanings",
+        "detail": "objective needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.draft_outreach_message",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.draft_outreach_message:channel:input-meanings",
+        "title": "Input meanings",
+        "detail": "channel needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.draft_outreach_message",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.objection_response_variants:objection_theme:input-meanings",
+        "title": "Input meanings",
+        "detail": "objection_theme needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.objection_response_variants",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.prioritized_outreach_draft:cohort_ref:input-meanings",
+        "title": "Input meanings",
+        "detail": "cohort_ref needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.prioritized_outreach_draft",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.prioritized_outreach_draft:ranking_basis:input-meanings",
+        "title": "Input meanings",
+        "detail": "ranking_basis needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.prioritized_outreach_draft",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.prioritized_outreach_draft:objective:input-meanings",
+        "title": "Input meanings",
+        "detail": "objective needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.prioritized_outreach_draft",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.prioritized_outreach_draft:channel:input-meanings",
+        "title": "Input meanings",
+        "detail": "channel needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.prioritized_outreach_draft",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.bottleneck_account_outreach_draft:objective:input-meanings",
+        "title": "Input meanings",
+        "detail": "objective needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.bottleneck_account_outreach_draft",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.bottleneck_account_outreach_draft:channel:input-meanings",
+        "title": "Input meanings",
+        "detail": "channel needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.bottleneck_account_outreach_draft",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.at_risk_reassignment_preparation:ranking_basis:input-meanings",
+        "title": "Input meanings",
+        "detail": "ranking_basis needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.at_risk_reassignment_preparation",
+        "category": "app_glue"
+      },
+      {
+        "id": "gtm.at_risk_followup_preparation:ranking_basis:input-meanings",
+        "title": "Input meanings",
+        "detail": "ranking_basis needs compact value meanings so app prompts can ground user language without hardcoded phrase lists.",
+        "recommendation": "Describe what each allowed value means in business terms.",
+        "capability_id": "gtm.at_risk_followup_preparation",
+        "category": "app_glue"
+      }
+    ],
+    "finding_reviews": {}
+  },
+  "agent_consumability": {
+    "artifact_type": "agent_consumability_metadata",
+    "schema_version": "anip-agent-consumability/v0",
+    "capabilities": {
+      "gtm.pipeline_summary": {
+        "intent": {
+          "category": "pipeline.summary",
+          "summary": "Return a bounded pipeline health summary for a quarter and optional scope."
+        },
+        "business_effects": {
+          "produces": [
+            "content.summary"
+          ],
+          "does_not_produce": [
+            "raw_data_export"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "quarter",
+            "semantic_type": "time_scope",
+            "required": true,
+            "summary": "Reviewed PM/dev input: business quarter for the pipeline summary."
+          },
+          {
+            "input_name": "owner_scope",
+            "semantic_type": "scope_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional region, team, owner, or company-wide scope."
+          },
+          {
+            "input_name": "detail_level",
+            "semantic_type": "business_category",
+            "required": false,
+            "summary": "Reviewed PM/dev input: response detail level.",
+            "allowed_values": [
+              {
+                "value": "summary",
+                "meaning": "summary"
+              },
+              {
+                "value": "stage_breakdown",
+                "meaning": "stage breakdown"
+              }
+            ]
+          }
+        ],
+        "required_context": [
+          {
+            "input": "quarter",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "owner_scope",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "detail_level",
+            "missing_behavior": "use_default"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show the bounded summary and key supporting evidence."
+        },
+        "input_meanings": {
+          "detail_level": {
+            "summary": "summary",
+            "stage_breakdown": "stage breakdown"
+          }
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export"
+          ]
+        },
+        "business_language_rules": [
+          {
+            "id": "bounded-risk-concentration",
+            "meaning": "Risk concentration at the pipeline-summary level means bounded risk distribution or concentration evidence, not raw export or hidden row-level detail.",
+            "owner": "agent_app_glue",
+            "applies_when": {
+              "all_terms": [
+                "risk"
+              ],
+              "any_terms": [
+                "concentration",
+                "concentrated"
+              ],
+              "exclude_terms": [
+                "raw",
+                "export",
+                "csv",
+                "download"
+              ]
+            },
+            "interpretation": "Treat bounded risk concentration wording as supported summary intent for this capability.",
+            "agent_action": "treat_as_supported"
+          }
+        ],
+        "review": {
+          "source": "manual_review",
+          "reviewed_at": "2026-05-06T00:00:00Z"
+        }
+      },
+      "gtm.pipeline_forecast_summary": {
+        "intent": {
+          "category": "pipeline.forecast.summary",
+          "summary": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views."
+        },
+        "business_effects": {
+          "produces": [
+            "content.summary"
+          ],
+          "does_not_produce": [
+            "raw_data_export"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "quarter",
+            "semantic_type": "time_scope",
+            "required": true,
+            "summary": "Reviewed PM/dev input: business quarter for the forecast."
+          },
+          {
+            "input_name": "owner_scope",
+            "semantic_type": "scope_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional region, team, owner, or company-wide scope."
+          },
+          {
+            "input_name": "forecast_mode",
+            "semantic_type": "business_category",
+            "required": false,
+            "summary": "Reviewed PM/dev input: forecast scenario to summarize.",
+            "allowed_values": [
+              {
+                "value": "risk_adjusted",
+                "meaning": "risk adjusted"
+              },
+              {
+                "value": "likely",
+                "meaning": "likely"
+              },
+              {
+                "value": "best_case",
+                "meaning": "best case"
+              }
+            ]
+          },
+          {
+            "input_name": "limit",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Reviewed PM/dev input: maximum contributing accounts to return."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "quarter",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "owner_scope",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "forecast_mode",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "limit",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show the bounded summary and key supporting evidence."
+        },
+        "input_meanings": {
+          "forecast_mode": {
+            "risk_adjusted": "risk adjusted",
+            "likely": "likely",
+            "best_case": "best case"
+          }
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export"
+          ]
+        }
+      },
+      "gtm.stage_bottleneck_summary": {
+        "intent": {
+          "category": "stage.bottleneck.summary",
+          "summary": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice."
+        },
+        "business_effects": {
+          "produces": [
+            "content.summary"
+          ],
+          "does_not_produce": [
+            "raw_data_export"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "quarter",
+            "semantic_type": "time_scope",
+            "required": true,
+            "summary": "Reviewed PM/dev input: business quarter for bottleneck analysis."
+          },
+          {
+            "input_name": "owner_scope",
+            "semantic_type": "scope_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional region, team, owner, or company-wide scope."
+          },
+          {
+            "input_name": "slice_by",
+            "semantic_type": "business_category",
+            "required": false,
+            "summary": "Reviewed PM/dev input: allowed bottleneck grouping.",
+            "allowed_values": [
+              {
+                "value": "regional_office",
+                "meaning": "regional office"
+              },
+              {
+                "value": "manager_name",
+                "meaning": "manager name"
+              },
+              {
+                "value": "product_name",
+                "meaning": "product name"
+              }
+            ]
+          },
+          {
+            "input_name": "limit",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Reviewed PM/dev input: maximum bottleneck rows to return."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "quarter",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "owner_scope",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "slice_by",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "limit",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show the bounded summary and key supporting evidence."
+        },
+        "input_meanings": {
+          "slice_by": {
+            "regional_office": "regional office",
+            "manager_name": "manager name",
+            "product_name": "product name"
+          }
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export"
+          ]
+        }
+      },
+      "gtm.sales_team_performance_summary": {
+        "intent": {
+          "category": "sales.team.performance.summary",
+          "summary": "Return a bounded sales team performance summary for a quarter and optional scope."
+        },
+        "business_effects": {
+          "produces": [
+            "content.summary"
+          ],
+          "does_not_produce": [
+            "raw_data_export"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "quarter",
+            "semantic_type": "time_scope",
+            "required": true,
+            "summary": "Reviewed PM/dev input: business quarter for team performance."
+          },
+          {
+            "input_name": "owner_scope",
+            "semantic_type": "scope_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional region, team, owner, or company-wide scope."
+          },
+          {
+            "input_name": "slice_by",
+            "semantic_type": "business_category",
+            "required": false,
+            "summary": "Reviewed PM/dev input: allowed team-performance grouping.",
+            "allowed_values": [
+              {
+                "value": "manager_name",
+                "meaning": "manager name"
+              },
+              {
+                "value": "regional_office",
+                "meaning": "regional office"
+              }
+            ]
+          },
+          {
+            "input_name": "limit",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Reviewed PM/dev input: maximum team rows to return."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "quarter",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "owner_scope",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "slice_by",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "limit",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show the bounded summary and key supporting evidence."
+        },
+        "input_meanings": {
+          "slice_by": {
+            "manager_name": "manager name",
+            "regional_office": "regional office"
+          }
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export"
+          ]
+        }
+      },
+      "gtm.product_pipeline_summary": {
+        "intent": {
+          "category": "product.pipeline.summary",
+          "summary": "Return a bounded product pipeline summary for a quarter and optional scope."
+        },
+        "business_effects": {
+          "produces": [
+            "content.summary"
+          ],
+          "does_not_produce": [
+            "raw_data_export"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "quarter",
+            "semantic_type": "time_scope",
+            "required": true,
+            "summary": "Reviewed PM/dev input: business quarter for product pipeline performance."
+          },
+          {
+            "input_name": "owner_scope",
+            "semantic_type": "scope_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional region, team, owner, or company-wide scope."
+          },
+          {
+            "input_name": "product_scope",
+            "semantic_type": "entity_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional product focus."
+          },
+          {
+            "input_name": "limit",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Reviewed PM/dev input: maximum product rows to return."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "quarter",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "owner_scope",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "product_scope",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "limit",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show the bounded summary and key supporting evidence."
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export"
+          ]
+        }
+      },
+      "gtm.prepare_reassignment_plan": {
+        "intent": {
+          "category": "prepare.reassignment.plan",
+          "summary": "Prepare a reassignment preview for overloaded pipeline coverage without executing downstream mutations."
+        },
+        "business_effects": {
+          "produces": [
+            "approval.request",
+            "system.preview_mutation"
+          ],
+          "does_not_produce": [
+            "approval.execute"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "quarter",
+            "semantic_type": "time_scope",
+            "required": true,
+            "summary": "Reviewed PM/dev input: business quarter for reassignment preview."
+          },
+          {
+            "input_name": "selection_basis",
+            "semantic_type": "business_category",
+            "required": false,
+            "summary": "Reviewed PM/dev input: reassignment candidate selection basis.",
+            "allowed_values": [
+              {
+                "value": "manager_capacity",
+                "meaning": "manager capacity"
+              },
+              {
+                "value": "stalled_risk_mix",
+                "meaning": "stalled risk mix"
+              }
+            ]
+          },
+          {
+            "input_name": "owner_scope",
+            "semantic_type": "scope_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional region, team, owner, or company-wide scope."
+          },
+          {
+            "input_name": "limit",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Reviewed PM/dev input: maximum reassignment candidates to include."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "quarter",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "selection_basis",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "owner_scope",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "limit",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show preview, approval requirement, and bounded impact before details."
+        },
+        "input_meanings": {
+          "selection_basis": {
+            "manager_capacity": "manager capacity",
+            "stalled_risk_mix": "stalled risk mix"
+          }
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "approval.execute"
+          ],
+          "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code."
+        },
+        "approval": {
+          "required": true,
+          "grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "approval_effect": "approval.request"
+        }
+      },
+      "gtm.stalled_opportunity_review": {
+        "intent": {
+          "category": "stalled.opportunity.review",
+          "summary": "Return stalled open opportunities with bounded evidence and explainable stall reasoning."
+        },
+        "business_effects": {
+          "produces": [
+            "content.summary"
+          ],
+          "does_not_produce": [
+            "raw_data_export"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "quarter",
+            "semantic_type": "time_scope",
+            "required": true,
+            "summary": "Reviewed PM/dev input: business quarter for stalled-opportunity review."
+          },
+          {
+            "input_name": "min_days_open",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Reviewed PM/dev input: minimum open duration threshold."
+          },
+          {
+            "input_name": "owner_scope",
+            "semantic_type": "scope_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional region, team, owner, or company-wide scope."
+          },
+          {
+            "input_name": "limit",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Reviewed PM/dev input: maximum opportunities to return."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "quarter",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "min_days_open",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "owner_scope",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "limit",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show the bounded summary and key supporting evidence."
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export"
+          ]
+        }
+      },
+      "gtm.account_risk_summary": {
+        "intent": {
+          "category": "account.risk.summary",
+          "summary": "Rank at-risk accounts with explicit evidence for why they need attention."
+        },
+        "business_effects": {
+          "produces": [
+            "content.summary"
+          ],
+          "does_not_produce": [
+            "raw_data_export"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "quarter",
+            "semantic_type": "time_scope",
+            "required": true,
+            "summary": "Reviewed PM/dev input: business quarter for account-risk ranking."
+          },
+          {
+            "input_name": "ranking_basis",
+            "semantic_type": "business_category",
+            "required": true,
+            "summary": "Reviewed PM/dev input: risk ranking basis.",
+            "allowed_values": [
+              {
+                "value": "risk_score",
+                "meaning": "risk score"
+              }
+            ]
+          },
+          {
+            "input_name": "owner_scope",
+            "semantic_type": "scope_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional region, team, owner, or company-wide scope."
+          },
+          {
+            "input_name": "limit",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Reviewed PM/dev input: maximum number of accounts to include."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "quarter",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "ranking_basis",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "owner_scope",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "limit",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show the bounded summary and key supporting evidence."
+        },
+        "input_meanings": {
+          "ranking_basis": {
+            "risk_score": "risk score"
+          }
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export"
+          ]
+        }
+      },
+      "gtm.prepare_followup_tasks": {
+        "intent": {
+          "category": "prepare.followup.tasks",
+          "summary": "Prepare follow-up tasks for high-risk accounts without executing downstream mutations."
+        },
+        "business_effects": {
+          "produces": [
+            "approval.request",
+            "system.preview_mutation"
+          ],
+          "does_not_produce": [
+            "approval.execute"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "quarter",
+            "semantic_type": "time_scope",
+            "required": true,
+            "summary": "Reviewed PM/dev input: business quarter for follow-up preview selection."
+          },
+          {
+            "input_name": "ranking_basis",
+            "semantic_type": "business_category",
+            "required": true,
+            "summary": "Reviewed PM/dev input: risk ranking basis.",
+            "allowed_values": [
+              {
+                "value": "risk_score",
+                "meaning": "risk score"
+              }
+            ]
+          },
+          {
+            "input_name": "owner_scope",
+            "semantic_type": "scope_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional region, team, owner, or company-wide scope."
+          },
+          {
+            "input_name": "limit",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Reviewed PM/dev input: maximum number of follow-up task previews to include."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "quarter",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "ranking_basis",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "owner_scope",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "limit",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show preview, approval requirement, and bounded impact before details."
+        },
+        "input_meanings": {
+          "ranking_basis": {
+            "risk_score": "risk score"
+          }
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "approval.execute"
+          ],
+          "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code."
+        },
+        "approval": {
+          "required": true,
+          "grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "approval_effect": "approval.request"
+        }
+      },
+      "gtm.account_enrichment_summary": {
+        "intent": {
+          "category": "account.enrichment.summary",
+          "summary": "Return bounded firmographic and account context for selected accounts."
+        },
+        "business_effects": {
+          "produces": [
+            "content.summary"
+          ],
+          "does_not_produce": [
+            "raw_data_export"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "account_names",
+            "semantic_type": "entity_reference",
+            "required": true,
+            "summary": "Reviewed PM/dev input: selected account cohort provided by user or app glue before enrichment."
+          },
+          {
+            "input_name": "limit",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Reviewed PM/dev input: maximum number of accounts to summarize."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "account_names",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "limit",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show the bounded summary and key supporting evidence."
+        },
+        "reference_catalogs": {
+          "account_names": [
+            "Acme Corporation",
+            "Codehow",
+            "Condax"
+          ]
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export"
+          ]
+        }
+      },
+      "gtm.lookalike_accounts": {
+        "intent": {
+          "category": "lookalike.accounts",
+          "summary": "Return explainable lookalike accounts for an approved reference account or cohort."
+        },
+        "business_effects": {
+          "produces": [
+            "content.summary"
+          ],
+          "does_not_produce": [
+            "raw_data_export"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "reference_account",
+            "semantic_type": "entity_reference",
+            "required": true,
+            "summary": "Reviewed PM/dev input: reference account name for lookalike matching."
+          },
+          {
+            "input_name": "limit",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Reviewed PM/dev input: maximum number of lookalike accounts to return."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "reference_account",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "limit",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show the bounded summary and key supporting evidence."
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export"
+          ]
+        }
+      },
+      "gtm.at_risk_account_enrichment_summary": {
+        "intent": {
+          "category": "at.risk.account.enrichment.summary",
+          "summary": "Enrich accounts selected from a bounded at-risk account review without exposing raw enrichment data."
+        },
+        "business_effects": {
+          "produces": [
+            "content.summary"
+          ],
+          "does_not_produce": [
+            "raw_data_export"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "quarter",
+            "semantic_type": "time_scope",
+            "required": true,
+            "summary": "Reviewed PM/dev input: business quarter for at-risk account selection."
+          },
+          {
+            "input_name": "ranking_basis",
+            "semantic_type": "business_category",
+            "required": false,
+            "summary": "Reviewed PM/dev input: at-risk account ranking basis.",
+            "allowed_values": [
+              {
+                "value": "risk_score",
+                "meaning": "risk score"
+              }
+            ]
+          },
+          {
+            "input_name": "owner_scope",
+            "semantic_type": "scope_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional region, team, owner, or company-wide scope."
+          },
+          {
+            "input_name": "limit",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Reviewed PM/dev input: maximum accounts to enrich."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "quarter",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "ranking_basis",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "owner_scope",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "limit",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show the bounded summary and key supporting evidence."
+        },
+        "input_meanings": {
+          "ranking_basis": {
+            "risk_score": "risk score"
+          }
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export"
+          ]
+        }
+      },
+      "gtm.score_leads": {
+        "intent": {
+          "category": "score.leads",
+          "summary": "Score bounded leads or accounts with explainable reasons."
+        },
+        "business_effects": {
+          "produces": [
+            "content.summary",
+            "content.recommendation"
+          ],
+          "does_not_produce": [
+            "raw_data_export"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "cohort_ref",
+            "semantic_type": "cohort_reference",
+            "required": true,
+            "summary": "Reviewed PM/dev input: approved lead cohort reference.",
+            "allowed_values": [
+              {
+                "value": "inbound_last_week",
+                "meaning": "inbound last week"
+              },
+              {
+                "value": "webinar_q2",
+                "meaning": "webinar q2"
+              }
+            ]
+          },
+          {
+            "input_name": "limit",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Reviewed PM/dev input: maximum leads to return."
+          },
+          {
+            "input_name": "owner_scope",
+            "semantic_type": "scope_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional actor-safe ownership scope."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "cohort_ref",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "limit",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "owner_scope",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show recommendations or variants with concise rationale."
+        },
+        "input_meanings": {
+          "cohort_ref": {
+            "inbound_last_week": "inbound last week",
+            "webinar_q2": "webinar q2"
+          }
+        },
+        "reference_catalogs": {
+          "cohort_ref": [
+            "inbound_last_week",
+            "webinar_q2"
+          ]
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export"
+          ]
+        }
+      },
+      "gtm.prioritize_accounts": {
+        "intent": {
+          "category": "prioritize.accounts",
+          "summary": "Prioritize bounded accounts for GTM action with explainable ranking."
+        },
+        "business_effects": {
+          "produces": [
+            "content.summary",
+            "content.recommendation"
+          ],
+          "does_not_produce": [
+            "raw_data_export"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "cohort_ref",
+            "semantic_type": "cohort_reference",
+            "required": true,
+            "summary": "Reviewed PM/dev input: approved account cohort reference.",
+            "allowed_values": [
+              {
+                "value": "expansion_candidates_q2",
+                "meaning": "expansion candidates q2"
+              },
+              {
+                "value": "at_risk_q2",
+                "meaning": "at risk q2"
+              }
+            ]
+          },
+          {
+            "input_name": "ranking_basis",
+            "semantic_type": "business_category",
+            "required": false,
+            "summary": "Reviewed PM/dev input: account prioritization ranking basis.",
+            "allowed_values": [
+              {
+                "value": "deal_likelihood",
+                "meaning": "deal likelihood"
+              }
+            ]
+          },
+          {
+            "input_name": "limit",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Reviewed PM/dev input: maximum accounts to return."
+          },
+          {
+            "input_name": "owner_scope",
+            "semantic_type": "scope_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional actor-safe ownership scope."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "cohort_ref",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "ranking_basis",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "limit",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "owner_scope",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show recommendations or variants with concise rationale."
+        },
+        "input_meanings": {
+          "cohort_ref": {
+            "expansion_candidates_q2": "expansion candidates q2",
+            "at_risk_q2": "at risk q2"
+          },
+          "ranking_basis": {
+            "deal_likelihood": "deal likelihood"
+          }
+        },
+        "reference_catalogs": {
+          "cohort_ref": [
+            "expansion_candidates_q2",
+            "at_risk_q2"
+          ]
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export"
+          ]
+        }
+      },
+      "gtm.route_leads": {
+        "intent": {
+          "category": "route.leads",
+          "summary": "Prepare bounded routing recommendations without executing downstream assignment mutations."
+        },
+        "business_effects": {
+          "produces": [
+            "content.recommendation",
+            "approval.request",
+            "system.preview_mutation"
+          ],
+          "does_not_produce": [
+            "approval.execute"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "cohort_ref",
+            "semantic_type": "cohort_reference",
+            "required": true,
+            "summary": "Reviewed PM/dev input: approved lead cohort reference for routing.",
+            "allowed_values": [
+              {
+                "value": "inbound_last_week",
+                "meaning": "inbound last week"
+              },
+              {
+                "value": "webinar_q2",
+                "meaning": "webinar q2"
+              }
+            ]
+          },
+          {
+            "input_name": "target_queue",
+            "semantic_type": "business_category",
+            "required": true,
+            "summary": "Reviewed PM/dev input: destination queue or team.",
+            "allowed_values": [
+              {
+                "value": "sales",
+                "meaning": "sales"
+              },
+              {
+                "value": "sdr",
+                "meaning": "sdr"
+              }
+            ]
+          },
+          {
+            "input_name": "owner_scope",
+            "semantic_type": "scope_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional actor-safe ownership scope."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "cohort_ref",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "target_queue",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "owner_scope",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show recommendations or variants with concise rationale."
+        },
+        "input_meanings": {
+          "cohort_ref": {
+            "inbound_last_week": "inbound last week",
+            "webinar_q2": "webinar q2"
+          },
+          "target_queue": {
+            "sales": "sales",
+            "sdr": "sdr"
+          }
+        },
+        "reference_catalogs": {
+          "cohort_ref": [
+            "inbound_last_week",
+            "webinar_q2"
+          ]
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "approval.execute"
+          ],
+          "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code."
+        },
+        "approval": {
+          "required": true,
+          "grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "approval_effect": "approval.request"
+        },
+        "business_language_rules": [
+          {
+            "id": "follow-up-as-routing-purpose",
+            "meaning": "Account-executive follow-up can describe the destination or purpose of a routing preview. It is not outreach drafting unless the user asks to draft, write, generate, send, email, message, or create content.",
+            "owner": "agent_app_glue",
+            "applies_when": {
+              "all_terms": [
+                "follow-up"
+              ],
+              "any_terms": [
+                "account executive",
+                "ae",
+                "sales"
+              ],
+              "exclude_terms": [
+                "draft",
+                "write",
+                "generate",
+                "send",
+                "email",
+                "message",
+                "content",
+                "linkedin"
+              ]
+            },
+            "interpretation": "Keep this as routing/approval-preview intent, not outreach-content intent.",
+            "agent_action": "treat_as_purpose"
+          }
+        ],
+        "review": {
+          "source": "manual_review",
+          "reviewed_at": "2026-05-06T00:00:00Z"
+        }
+      },
+      "gtm.draft_outreach_message": {
+        "intent": {
+          "category": "draft.outreach.message",
+          "summary": "Draft bounded outreach content for approved account or contact context."
+        },
+        "business_effects": {
+          "produces": [
+            "content.draft"
+          ],
+          "does_not_produce": [
+            "external_dispatch",
+            "system.mutation"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "target_ref",
+            "semantic_type": "entity_reference",
+            "required": true,
+            "summary": "Reviewed PM/dev input: lead or account reference for the draft."
+          },
+          {
+            "input_name": "objective",
+            "semantic_type": "business_category",
+            "required": true,
+            "summary": "Reviewed PM/dev input: outreach objective.",
+            "allowed_values": [
+              {
+                "value": "first_touch",
+                "meaning": "first touch"
+              },
+              {
+                "value": "follow_up",
+                "meaning": "follow up"
+              },
+              {
+                "value": "revive_stalled",
+                "meaning": "revive stalled"
+              }
+            ]
+          },
+          {
+            "input_name": "channel",
+            "semantic_type": "business_category",
+            "required": false,
+            "summary": "Reviewed PM/dev input: draft channel.",
+            "allowed_values": [
+              {
+                "value": "email",
+                "meaning": "email"
+              },
+              {
+                "value": "linkedin",
+                "meaning": "linkedin"
+              },
+              {
+                "value": "call_follow_up",
+                "meaning": "call follow up"
+              }
+            ]
+          },
+          {
+            "input_name": "persona",
+            "semantic_type": "audience_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: target persona or audience."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "target_ref",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "objective",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "channel",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "persona",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show generated draft content first, then rationale and evidence."
+        },
+        "input_meanings": {
+          "objective": {
+            "first_touch": "first touch",
+            "follow_up": "follow up",
+            "revive_stalled": "revive stalled"
+          },
+          "channel": {
+            "email": "email",
+            "linkedin": "linkedin",
+            "call_follow_up": "call follow up"
+          }
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "external_dispatch",
+            "system.mutation"
+          ]
+        }
+      },
+      "gtm.suggest_followup_content": {
+        "intent": {
+          "category": "suggest.followup.content",
+          "summary": "Suggest bounded follow-up content for an approved outreach or account context."
+        },
+        "business_effects": {
+          "produces": [
+            "data.read"
+          ],
+          "does_not_produce": [
+            "raw_data_export"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "target_ref",
+            "semantic_type": "entity_reference",
+            "required": true,
+            "summary": "Reviewed PM/dev input: lead or account reference for follow-up content."
+          },
+          {
+            "input_name": "variant_count",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Reviewed PM/dev input: maximum variants to return."
+          },
+          {
+            "input_name": "persona",
+            "semantic_type": "audience_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: target persona or audience."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "target_ref",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "variant_count",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "persona",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ]
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export"
+          ]
+        }
+      },
+      "gtm.objection_response_variants": {
+        "intent": {
+          "category": "objection.response.variants",
+          "summary": "Generate bounded objection-response variants for a known account or outreach scenario."
+        },
+        "business_effects": {
+          "produces": [
+            "content.recommendation"
+          ],
+          "does_not_produce": []
+        },
+        "input_semantics": [
+          {
+            "input_name": "objection_theme",
+            "semantic_type": "business_category",
+            "required": true,
+            "summary": "Reviewed PM/dev input: objection category selected by the consuming app or provided by the user.",
+            "allowed_values": [
+              {
+                "value": "pricing",
+                "meaning": "pricing"
+              },
+              {
+                "value": "competitor",
+                "meaning": "competitor"
+              },
+              {
+                "value": "implementation_risk",
+                "meaning": "implementation risk"
+              }
+            ]
+          },
+          {
+            "input_name": "target_ref",
+            "semantic_type": "entity_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional account or lead reference."
+          },
+          {
+            "input_name": "persona",
+            "semantic_type": "audience_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: target persona or audience."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "objection_theme",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "target_ref",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "persona",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show recommendations or variants with concise rationale."
+        },
+        "input_meanings": {
+          "objection_theme": {
+            "pricing": "pricing",
+            "competitor": "competitor",
+            "implementation_risk": "implementation risk"
+          }
+        }
+      },
+      "gtm.prioritized_outreach_draft": {
+        "intent": {
+          "category": "prioritized.outreach.draft",
+          "summary": "Prioritize a bounded account cohort, include bounded enrichment context for the top accounts, and draft one outreach message for the highest-priority account."
+        },
+        "business_effects": {
+          "produces": [
+            "content.draft",
+            "content.recommendation"
+          ],
+          "does_not_produce": [
+            "external_dispatch",
+            "system.mutation"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "cohort_ref",
+            "semantic_type": "cohort_reference",
+            "required": true,
+            "summary": "Reviewed PM/dev input: approved account cohort to prioritize before drafting.",
+            "allowed_values": [
+              {
+                "value": "expansion_candidates_q2",
+                "meaning": "expansion candidates q2"
+              },
+              {
+                "value": "at_risk_q2",
+                "meaning": "at risk q2"
+              }
+            ]
+          },
+          {
+            "input_name": "ranking_basis",
+            "semantic_type": "business_category",
+            "required": false,
+            "summary": "Reviewed PM/dev input: prioritization ranking basis.",
+            "allowed_values": [
+              {
+                "value": "deal_likelihood",
+                "meaning": "deal likelihood"
+              }
+            ]
+          },
+          {
+            "input_name": "limit",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Reviewed PM/dev input: maximum accounts to consider before drafting."
+          },
+          {
+            "input_name": "owner_scope",
+            "semantic_type": "scope_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional region, team, owner, or company-wide scope."
+          },
+          {
+            "input_name": "objective",
+            "semantic_type": "business_category",
+            "required": false,
+            "summary": "Reviewed PM/dev input: outreach objective.",
+            "allowed_values": [
+              {
+                "value": "first_touch",
+                "meaning": "first touch"
+              },
+              {
+                "value": "follow_up",
+                "meaning": "follow up"
+              },
+              {
+                "value": "revive_stalled",
+                "meaning": "revive stalled"
+              }
+            ]
+          },
+          {
+            "input_name": "channel",
+            "semantic_type": "business_category",
+            "required": false,
+            "summary": "Reviewed PM/dev input: requested outreach channel.",
+            "allowed_values": [
+              {
+                "value": "email",
+                "meaning": "email"
+              },
+              {
+                "value": "linkedin",
+                "meaning": "linkedin"
+              },
+              {
+                "value": "call_follow_up",
+                "meaning": "call follow up"
+              }
+            ]
+          },
+          {
+            "input_name": "persona",
+            "semantic_type": "audience_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: target persona or audience."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "cohort_ref",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "ranking_basis",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "limit",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "owner_scope",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "objective",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "channel",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "persona",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show generated draft content first, then rationale and evidence."
+        },
+        "input_meanings": {
+          "cohort_ref": {
+            "expansion_candidates_q2": "expansion candidates q2",
+            "at_risk_q2": "at risk q2"
+          },
+          "ranking_basis": {
+            "deal_likelihood": "deal likelihood"
+          },
+          "objective": {
+            "first_touch": "first touch",
+            "follow_up": "follow up",
+            "revive_stalled": "revive stalled"
+          },
+          "channel": {
+            "email": "email",
+            "linkedin": "linkedin",
+            "call_follow_up": "call follow up"
+          }
+        },
+        "reference_catalogs": {
+          "cohort_ref": [
+            "expansion_candidates_q2",
+            "at_risk_q2"
+          ]
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "external_dispatch",
+            "system.mutation"
+          ]
+        }
+      },
+      "gtm.bottleneck_account_outreach_draft": {
+        "intent": {
+          "category": "bottleneck.account.outreach.draft",
+          "summary": "Draft outreach for a specific account selected from a bounded bottleneck or at-risk account review."
+        },
+        "business_effects": {
+          "produces": [
+            "content.draft"
+          ],
+          "does_not_produce": [
+            "external_dispatch",
+            "system.mutation"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "quarter",
+            "semantic_type": "time_scope",
+            "required": true,
+            "summary": "Reviewed PM/dev input: business quarter for bottleneck context."
+          },
+          {
+            "input_name": "target_ref",
+            "semantic_type": "entity_reference",
+            "required": true,
+            "summary": "Reviewed PM/dev input: specific account selected from the bottleneck or at-risk review."
+          },
+          {
+            "input_name": "owner_scope",
+            "semantic_type": "scope_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional region, team, owner, or company-wide scope."
+          },
+          {
+            "input_name": "objective",
+            "semantic_type": "business_category",
+            "required": false,
+            "summary": "Reviewed PM/dev input: outreach objective.",
+            "allowed_values": [
+              {
+                "value": "first_touch",
+                "meaning": "first touch"
+              },
+              {
+                "value": "follow_up",
+                "meaning": "follow up"
+              },
+              {
+                "value": "revive_stalled",
+                "meaning": "revive stalled"
+              }
+            ]
+          },
+          {
+            "input_name": "channel",
+            "semantic_type": "business_category",
+            "required": false,
+            "summary": "Reviewed PM/dev input: requested outreach channel.",
+            "allowed_values": [
+              {
+                "value": "email",
+                "meaning": "email"
+              },
+              {
+                "value": "linkedin",
+                "meaning": "linkedin"
+              },
+              {
+                "value": "call_follow_up",
+                "meaning": "call follow up"
+              }
+            ]
+          },
+          {
+            "input_name": "persona",
+            "semantic_type": "audience_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: target persona or audience."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "quarter",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "target_ref",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "owner_scope",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "objective",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "channel",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "persona",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "governed_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show generated draft content first, then rationale and evidence."
+        },
+        "input_meanings": {
+          "objective": {
+            "first_touch": "first touch",
+            "follow_up": "follow up",
+            "revive_stalled": "revive stalled"
+          },
+          "channel": {
+            "email": "email",
+            "linkedin": "linkedin",
+            "call_follow_up": "call follow up"
+          }
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "external_dispatch",
+            "system.mutation"
+          ]
+        }
+      },
+      "gtm.at_risk_reassignment_preparation": {
+        "intent": {
+          "category": "at.risk.reassignment.preparation",
+          "summary": "Compose gtm.account_risk_summary -> gtm.prepare_reassignment_plan when the requested business action needs derived targets before governed preparation."
+        },
+        "business_effects": {
+          "produces": [
+            "content.summary",
+            "approval.request",
+            "system.preview_mutation"
+          ],
+          "does_not_produce": [
+            "raw_data_export",
+            "approval.execute"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "quarter",
+            "semantic_type": "time_scope",
+            "required": true,
+            "summary": "Reviewed PM/dev input: business quarter for account-risk ranking."
+          },
+          {
+            "input_name": "ranking_basis",
+            "semantic_type": "business_category",
+            "required": true,
+            "summary": "Reviewed PM/dev input: risk ranking basis.",
+            "allowed_values": [
+              {
+                "value": "risk_score",
+                "meaning": "risk score"
+              }
+            ]
+          },
+          {
+            "input_name": "owner_scope",
+            "semantic_type": "scope_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional region, team, owner, or company-wide scope."
+          },
+          {
+            "input_name": "limit",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Reviewed PM/dev input: maximum number of accounts to include."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "quarter",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "ranking_basis",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "owner_scope",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "limit",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "gtm_at_risk_reassignment_preparation_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show the bounded summary and key supporting evidence."
+        },
+        "input_meanings": {
+          "ranking_basis": {
+            "risk_score": "risk score"
+          }
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export",
+            "approval.execute"
+          ],
+          "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code."
+        },
+        "approval": {
+          "required": true,
+          "grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "approval_effect": "approval.request"
+        },
+        "composition": {
+          "kind": "same_service",
+          "business_capability": true,
+          "steps_visible_to_agent": false
+        }
+      },
+      "gtm.at_risk_followup_preparation": {
+        "intent": {
+          "category": "at.risk.followup.preparation",
+          "summary": "Compose gtm.account_risk_summary -> gtm.prepare_followup_tasks when the requested business action needs derived targets before governed preparation."
+        },
+        "business_effects": {
+          "produces": [
+            "content.summary",
+            "approval.request",
+            "system.preview_mutation"
+          ],
+          "does_not_produce": [
+            "raw_data_export",
+            "approval.execute"
+          ]
+        },
+        "input_semantics": [
+          {
+            "input_name": "quarter",
+            "semantic_type": "time_scope",
+            "required": true,
+            "summary": "Reviewed PM/dev input: business quarter for account-risk ranking."
+          },
+          {
+            "input_name": "ranking_basis",
+            "semantic_type": "business_category",
+            "required": true,
+            "summary": "Reviewed PM/dev input: risk ranking basis.",
+            "allowed_values": [
+              {
+                "value": "risk_score",
+                "meaning": "risk score"
+              }
+            ]
+          },
+          {
+            "input_name": "owner_scope",
+            "semantic_type": "scope_reference",
+            "required": false,
+            "summary": "Reviewed PM/dev input: optional region, team, owner, or company-wide scope."
+          },
+          {
+            "input_name": "limit",
+            "semantic_type": "quantity_limit",
+            "required": false,
+            "summary": "Reviewed PM/dev input: maximum number of accounts to include."
+          }
+        ],
+        "required_context": [
+          {
+            "input": "quarter",
+            "missing_behavior": "clarify"
+          },
+          {
+            "input": "ranking_basis",
+            "missing_behavior": "use_default"
+          },
+          {
+            "input": "owner_scope",
+            "missing_behavior": "optional"
+          },
+          {
+            "input": "limit",
+            "missing_behavior": "optional"
+          }
+        ],
+        "output_semantics": {
+          "primary_field": "result",
+          "result_type": "gtm_at_risk_followup_preparation_result",
+          "display_fields": [
+            "result"
+          ]
+        },
+        "result_display": {
+          "primary_fields": [
+            "result"
+          ],
+          "style": "Show the bounded summary and key supporting evidence."
+        },
+        "input_meanings": {
+          "ranking_basis": {
+            "risk_score": "risk score"
+          }
+        },
+        "app_boundaries": {
+          "unsupported_effects": [
+            "raw_data_export",
+            "approval.execute"
+          ],
+          "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code."
+        },
+        "approval": {
+          "required": true,
+          "grant_types": [
+            "one_time",
+            "session_bound"
+          ]
+        },
+        "composition": {
+          "kind": "same_service",
+          "business_capability": true,
+          "steps_visible_to_agent": false
+        }
+      }
+    }
+  },
+  "generated_at": "2026-05-06T03:31:46.910Z"
+}

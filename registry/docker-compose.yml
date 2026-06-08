@@ -1,0 +1,40 @@
+services:
+  registry-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: anip_registry
+      POSTGRES_USER: anip
+      POSTGRES_PASSWORD: anip
+    volumes:
+      - registry-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U anip -d anip_registry"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+
+  registry:
+    image: "anipprotocol/registry:${ANIP_IMAGE_TAG:-local}"
+    build:
+      context: ..
+      dockerfile: registry/Dockerfile
+    environment:
+      ANIP_REGISTRY_ADDR: ":8200"
+      ANIP_REGISTRY_DATABASE_URL: "postgres://anip:anip@registry-db:5432/anip_registry?sslmode=disable"
+      ANIP_REGISTRY_MODE: "${ANIP_REGISTRY_MODE:-dev}"
+      ANIP_REGISTRY_KEY_ID: "${ANIP_REGISTRY_KEY_ID:-}"
+      ANIP_REGISTRY_ED25519_PRIVATE_KEY: "${ANIP_REGISTRY_ED25519_PRIVATE_KEY:-}"
+      ANIP_REGISTRY_PUBLISH_TOKEN: "${ANIP_REGISTRY_PUBLISH_TOKEN:-local-dev-registry-token}"
+      ANIP_REGISTRY_PUBLISHER_ID: "${ANIP_REGISTRY_PUBLISHER_ID:-local-registry}"
+      ANIP_REGISTRY_PUBLISHER_TYPE: "${ANIP_REGISTRY_PUBLISHER_TYPE:-local}"
+      ANIP_REGISTRY_SEED_DEMO: "${ANIP_REGISTRY_SEED_DEMO:-0}"
+      ANIP_REGISTRY_RUN_MIGRATIONS: "${ANIP_REGISTRY_RUN_MIGRATIONS:-1}"
+      ANIP_REGISTRY_MIGRATE_ONLY: "${ANIP_REGISTRY_MIGRATE_ONLY:-0}"
+    ports:
+      - "${ANIP_REGISTRY_PORT:-8200}:8200"
+    depends_on:
+      registry-db:
+        condition: service_healthy
+
+volumes:
+  registry-pgdata:

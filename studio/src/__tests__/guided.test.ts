@@ -170,8 +170,8 @@ describe('requirements summary', () => {
         },
       },
     })
-    expect(summary.some(s => s.includes('High-risk capabilities'))).toBe(true)
-    expect(summary.some(s => s.includes('deploy_service'))).toBe(true)
+    expect(summary.some(s => s.includes('High-risk actions include'))).toBe(true)
+    expect(summary.some(s => s.includes('Deploy Service'))).toBe(true)
   })
 })
 

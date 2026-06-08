@@ -1,0 +1,43 @@
+{
+  "artifact_type": "agent_runtime_customization",
+  "capability_selection": {
+    "approval_boundary_min_score": 0.12,
+    "business_language_rules": null,
+    "effect_floor_margin": 0.02,
+    "effect_floor_min_score": 0.12,
+    "effect_rewrite_margin": 0.1,
+    "effect_rewrite_min_score": 0.12,
+    "selection_hints": null
+  },
+  "description": "Generated starter rules for package-specific agent consumption. Review and edit custom/runtime-overrides.json instead of changing generic runtime libraries.",
+  "normalization": {
+    "deictic_terms": [
+      "one",
+      "ones"
+    ],
+    "token_variant_rules": [
+      {
+        "example": "regional -\u003e region",
+        "id": "adjective-al",
+        "min_length": 6,
+        "replacement": "",
+        "suffix": "al"
+      },
+      {
+        "example": "territorial -\u003e territor",
+        "id": "adjective-ial",
+        "min_length": 7,
+        "replacement": "",
+        "suffix": "ial"
+      },
+      {
+        "example": "risky -\u003e risk",
+        "id": "adjective-y",
+        "min_length": 5,
+        "replacement": "",
+        "suffix": "y"
+      }
+    ]
+  },
+  "schema_version": "anip-agent-consumption-kit/v0"
+}

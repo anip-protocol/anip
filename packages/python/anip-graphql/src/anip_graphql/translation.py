@@ -1,27 +1,33 @@
-"""ANIP → GraphQL translation layer.
+"""ANIP -> GraphQL translation layer.
 
 Generates SDL schema from ANIP capabilities with custom directives,
 camelCase field names, and query/mutation separation.
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from anip_core.models import CapabilityDeclaration
 
 
+def _split_identifier(value: str) -> list[str]:
+    return [part for part in re.split(r"[^A-Za-z0-9]+", value) if part]
+
+
 def to_camel_case(snake: str) -> str:
-    parts = snake.split("_")
+    parts = _split_identifier(snake)
+    if not parts:
+        return snake
     return parts[0] + "".join(p.capitalize() for p in parts[1:])
 
 
 def to_snake_case(camel: str) -> str:
-    import re
     return re.sub(r"([A-Z])", r"_\1", camel).lower().lstrip("_")
 
 
 def _to_pascal_case(snake: str) -> str:
-    return "".join(p.capitalize() for p in snake.split("_"))
+    return "".join(p.capitalize() for p in _split_identifier(snake))
 
 
 _GQL_TYPE_MAP = {

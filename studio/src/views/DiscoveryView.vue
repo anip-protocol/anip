@@ -1,11 +1,26 @@
 <script setup lang="ts">
 import { watch, onMounted, computed } from 'vue'
-import { useAnipDiscovery } from '@anip-dev/vue'
+import { useAnipDiscovery, useAnipManifest } from '@anip-dev/vue'
 import { store } from '../store'
+import {
+  designStore,
+  recordObservedServiceMetadata,
+  setSelectedObservedServiceMetadataId,
+} from '../design/store'
+import { projectStore } from '../design/project-store'
+import { createServiceMetadata, updateServiceMetadata } from '../design/project-api'
+import {
+  buildObservedServiceMetadataArtifactId,
+  buildObservedServiceMetadataTitle,
+  mergeObservedServiceMetadata,
+  normalizeInspectionToObservedServiceMetadata,
+} from '../design/service-metadata'
+import { formatStudioTimestamp } from '../design/time'
 import StatusBadge from '../components/StatusBadge.vue'
 import JsonPanel from '../components/JsonPanel.vue'
 
 const { data, loading, error, load: loadDiscoveryData } = useAnipDiscovery()
+const { data: manifestData, load: loadManifestData } = useAnipManifest()
 
 async function load() {
   if (!store.connected) return
@@ -13,6 +28,11 @@ async function load() {
     await loadDiscoveryData()
   } catch {
     // useAnipDiscovery already populates reactive error state
+  }
+  try {
+    await loadManifestData()
+  } catch {
+    // Manifest enrichment is optional in Discovery.
   }
 }
 
@@ -24,6 +44,66 @@ watch(() => store.connected, (connected) => {
 
 const discovery = computed(() => data.value)
 const discoveryDoc = computed<any | null>(() => discovery.value as any)
+const manifestDoc = computed<any | null>(() => manifestData.value as any)
+const observedServiceMetadata = computed(() =>
+  normalizeInspectionToObservedServiceMetadata({
+    discoveryDoc: discoveryDoc.value,
+    manifestDoc: manifestDoc.value,
+    fallback: {
+      serviceId: store.serviceId,
+      baseUrl: store.baseUrl,
+    },
+  }),
+)
+
+watch(observedServiceMetadata, (metadata) => {
+  if (metadata) {
+    recordObservedServiceMetadata(metadata)
+  }
+}, { immediate: true })
+
+const metadataArtifactId = computed(() =>
+  observedServiceMetadata.value ? buildObservedServiceMetadataArtifactId(observedServiceMetadata.value) : null,
+)
+
+const persistedObservedMetadataArtifacts = computed(() => projectStore.artifacts.serviceMetadata)
+const selectedObservedMetadataArtifactId = computed(() => designStore.selectedObservedServiceMetadataId)
+
+async function persistObservedMetadata(metadata: NonNullable<typeof observedServiceMetadata.value>) {
+  const project = projectStore.activeProject
+  if (!project) return
+  const artifactId = buildObservedServiceMetadataArtifactId(metadata)
+  const title = buildObservedServiceMetadataTitle(metadata)
+  const existing = projectStore.artifacts.serviceMetadata.find((item) => item.id === artifactId) ?? null
+  const merged = mergeObservedServiceMetadata((existing?.data as any) ?? null, metadata)
+  if (!merged) return
+  if (
+    existing &&
+    existing.title === title &&
+    JSON.stringify(existing.data) === JSON.stringify(merged)
+  ) {
+    return
+  }
+  const saved = existing
+    ? await updateServiceMetadata(project.id, artifactId, { title, data: merged, status: 'active' })
+    : await createServiceMetadata(project.id, { id: artifactId, title, data: merged })
+  const rest = projectStore.artifacts.serviceMetadata.filter((item) => item.id !== saved.id)
+  projectStore.artifacts.serviceMetadata = [saved, ...rest]
+}
+
+function useObservedMetadataArtifact(artifactId: string | null) {
+  setSelectedObservedServiceMetadataId(artifactId)
+}
+
+watch(
+  () => [observedServiceMetadata.value, projectStore.activeProject?.id] as const,
+  ([metadata, projectId]) => {
+    if (metadata && projectId) {
+      void persistObservedMetadata(metadata)
+    }
+  },
+  { immediate: true },
+)
 
 function trustBadgeType(level: string): 'success' | 'info' | 'warning' | 'neutral' {
   const map: Record<string, 'success' | 'info' | 'warning' | 'neutral'> = {
@@ -55,7 +135,7 @@ function sideEffectType(se: string): 'success' | 'warning' | 'danger' | 'neutral
 
     <div v-if="!store.connected" class="placeholder">
       <div class="placeholder-icon">&#x1F50D;</div>
-      <p>Connect to an ANIP service to inspect its discovery document.</p>
+      <p>Connect to an ANIP capability service to inspect its discovery document.</p>
     </div>
 
     <div v-else-if="loading" class="placeholder">
@@ -80,6 +160,89 @@ function sideEffectType(se: string): 'success' | 'warning' | 'danger' | 'neutral
             :type="trustBadgeType(discoveryDoc?.trustLevel || 'unknown')"
           />
           <span v-if="discoveryDoc?.baseUrl" class="base-url">{{ discoveryDoc.baseUrl }}</span>
+        </div>
+      </section>
+
+      <section class="section" v-if="observedServiceMetadata">
+        <h3 class="section-title">Inspect to Validation Handoff</h3>
+        <div class="posture-card">
+          <div class="posture-label">Observed Implementation Snapshot</div>
+          <div class="posture-values">
+            <span class="posture-item">
+              Service:
+              <strong>{{ observedServiceMetadata.service_id || observedServiceMetadata.base_url || 'unknown' }}</strong>
+            </span>
+            <span class="posture-item">
+              Capabilities:
+              <strong>{{ observedServiceMetadata.capabilities.length }}</strong>
+            </span>
+            <span class="posture-item">
+              Available to validation:
+              <StatusBadge
+                :label="designStore.observedServiceMetadata ? 'yes' : 'no'"
+                :type="designStore.observedServiceMetadata ? 'success' : 'neutral'"
+              />
+            </span>
+            <span class="posture-item" v-if="projectStore.activeProject && metadataArtifactId">
+              Project artifact:
+              <strong>{{ metadataArtifactId }}</strong>
+            </span>
+            <span class="posture-item">
+              Observed: <strong>{{ formatStudioTimestamp(observedServiceMetadata.observed_at) }}</strong>
+            </span>
+          </div>
+        </div>
+        <div class="posture-card" v-if="projectStore.activeProject && persistedObservedMetadataArtifacts.length">
+          <div class="posture-label">Observed Implementation Snapshots</div>
+          <div class="snapshot-actions" v-if="metadataArtifactId">
+            <button
+              class="snapshot-btn"
+              type="button"
+              @click="useObservedMetadataArtifact(metadataArtifactId)"
+            >
+              Use latest observed implementation
+            </button>
+            <button
+              v-if="selectedObservedMetadataArtifactId"
+              class="snapshot-btn snapshot-btn-secondary"
+              type="button"
+              @click="useObservedMetadataArtifact(null)"
+            >
+              Use automatic best match
+            </button>
+          </div>
+          <ul class="snapshot-list">
+            <li
+              v-for="artifact in persistedObservedMetadataArtifacts"
+              :key="artifact.id"
+              class="snapshot-item"
+            >
+              <div class="snapshot-copy">
+                <strong>{{ artifact.title }}</strong>
+                <span class="snapshot-detail">
+                  {{ artifact.data.service_id || artifact.data.base_url || artifact.id }}
+                </span>
+                <span class="snapshot-detail" v-if="artifact.data.observed_at">
+                  {{ formatStudioTimestamp(artifact.data.observed_at) }}
+                </span>
+              </div>
+              <div class="snapshot-controls">
+                <StatusBadge
+                  v-if="selectedObservedMetadataArtifactId === artifact.id"
+                  label="active comparison snapshot"
+                  type="success"
+                />
+                <button
+                  v-else
+                  class="snapshot-btn"
+                  type="button"
+                  @click="useObservedMetadataArtifact(artifact.id)"
+                >
+                  Use for validation
+                </button>
+              </div>
+            </li>
+          </ul>
         </div>
       </section>
 
@@ -349,6 +512,75 @@ function sideEffectType(se: string): 'success' | 'warning' | 'danger' | 'neutral
 .posture-item strong {
   color: var(--text-primary);
   font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.snapshot-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.snapshot-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.snapshot-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.snapshot-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.snapshot-copy strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.snapshot-detail {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.snapshot-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.snapshot-btn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.snapshot-btn:hover {
+  background: var(--bg-hover);
+}
+
+.snapshot-btn-secondary {
+  color: var(--text-secondary);
 }
 
 /* Data Table */

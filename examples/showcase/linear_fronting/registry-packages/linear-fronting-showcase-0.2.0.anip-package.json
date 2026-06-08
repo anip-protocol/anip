@@ -1,0 +1,2878 @@
+{
+  "authority": "local-dev-registry",
+  "bundle_schema_version": "anip-package-bundle/v1",
+  "digests": {
+    "lock": "sha256:81e23e35c0db4893c64b248916663ff5557842a075bcc59a3d415be4c3d38faa",
+    "manifest": "sha256:fb7c3db8bf368eb5a5b63002f05f01cd7bf952fb4de9ed8024434e93754fe1bf",
+    "receipt": "sha256:14f9d6b3dd5d71537138479a47548ebc6cfda7714b2eed76016c60e3ecf948bb",
+    "service_definition": "sha256:5788fa7351151ac6abba11738dc3c67c2bb802807c1329e128b60b4a545594ad"
+  },
+  "lineage": {
+    "developer_revision": {
+      "artifact_id": "linear-fronting-studio-20260516234232-developer-definition-revision-1",
+      "contract_signature": "sha256:5788fa7351151ac6abba11738dc3c67c2bb802807c1329e128b60b4a545594ad",
+      "ref": "linear-fronting-studio-20260516234232-developer-definition-revision-1",
+      "revision_number": 1
+    },
+    "product_revision": {
+      "artifact_id": "linear-fronting-studio-20260516234232-product-design-revision-1@r1",
+      "baseline_locked_at": "2026-05-15T00:00:00Z",
+      "ref": "linear-fronting-studio-20260516234232-product-design-revision-1@r1",
+      "revision_number": 1
+    },
+    "project_ref": "studio:linear-fronting-studio-20260516234232"
+  },
+  "lock": {
+    "agent_consumability": {
+      "artifact_type": "agent_consumability_metadata",
+      "capabilities": {
+        "linear.comment.prepare": {
+          "business_effects": {},
+          "intent": {
+            "category": "linear.comment.prepare",
+            "summary": "Prepare a Linear issue comment from review or incident context without posting it."
+          },
+          "required_context": [
+            {
+              "input": "issue_id",
+              "posture": "required:clarify",
+              "semantic_type": "issue_ref"
+            },
+            {
+              "input": "comment_purpose",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "context",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        },
+        "linear.cycle_move.request": {
+          "business_effects": {},
+          "intent": {
+            "category": "linear.cycle_move.request",
+            "summary": "Prepare a governed request to move a Linear issue into a cycle or project and stop for approval."
+          },
+          "required_context": [
+            {
+              "input": "issue_id",
+              "posture": "required:clarify",
+              "semantic_type": "issue_ref"
+            },
+            {
+              "input": "target_cycle",
+              "posture": "required:clarify",
+              "semantic_type": "cycle_ref"
+            },
+            {
+              "input": "reason",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        },
+        "linear.issue.prepare": {
+          "business_effects": {},
+          "intent": {
+            "category": "linear.issue.prepare",
+            "summary": "Prepare a Linear issue preview with team, project, labels, and priority before creating anything."
+          },
+          "required_context": [
+            {
+              "input": "team_key",
+              "posture": "required:clarify",
+              "semantic_type": "team_ref"
+            },
+            {
+              "input": "title",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "description",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "project_id",
+              "posture": "optional:clarify",
+              "semantic_type": "project_ref"
+            },
+            {
+              "input": "labels",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        },
+        "linear.issue.search_context": {
+          "business_effects": {},
+          "intent": {
+            "category": "linear.issue.search_context",
+            "summary": "Search bounded Linear issues, projects, and cycles without exposing raw workspace tools."
+          },
+          "required_context": [
+            {
+              "input": "team_key",
+              "posture": "required:clarify",
+              "semantic_type": "team_ref"
+            },
+            {
+              "input": "query",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "limit",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        },
+        "linear.status_transition.request": {
+          "business_effects": {},
+          "intent": {
+            "category": "linear.status_transition.request",
+            "summary": "Prepare a governed Linear issue status transition request and stop for approval."
+          },
+          "required_context": [
+            {
+              "input": "issue_id",
+              "posture": "required:clarify",
+              "semantic_type": "issue_ref"
+            },
+            {
+              "input": "target_status",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "reason",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        }
+      },
+      "capability_hints": [
+        {
+          "capability_id": "linear.issue.search_context",
+          "required_context": [
+            {
+              "input": "team_key",
+              "posture": "required:clarify",
+              "semantic_type": "team_ref"
+            },
+            {
+              "input": "query",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "limit",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "read",
+          "summary": "Search bounded Linear issues, projects, and cycles without exposing raw workspace tools.",
+          "title": "Search Issue Context"
+        },
+        {
+          "capability_id": "linear.issue.prepare",
+          "required_context": [
+            {
+              "input": "team_key",
+              "posture": "required:clarify",
+              "semantic_type": "team_ref"
+            },
+            {
+              "input": "title",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "description",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "project_id",
+              "posture": "optional:clarify",
+              "semantic_type": "project_ref"
+            },
+            {
+              "input": "labels",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "write_adjacent",
+          "summary": "Prepare a Linear issue preview with team, project, labels, and priority before creating anything.",
+          "title": "Prepare Issue"
+        },
+        {
+          "capability_id": "linear.comment.prepare",
+          "required_context": [
+            {
+              "input": "issue_id",
+              "posture": "required:clarify",
+              "semantic_type": "issue_ref"
+            },
+            {
+              "input": "comment_purpose",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "context",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "write_adjacent",
+          "summary": "Prepare a Linear issue comment from review or incident context without posting it.",
+          "title": "Prepare Issue Comment"
+        },
+        {
+          "capability_id": "linear.status_transition.request",
+          "required_context": [
+            {
+              "input": "issue_id",
+              "posture": "required:clarify",
+              "semantic_type": "issue_ref"
+            },
+            {
+              "input": "target_status",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "reason",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "write_adjacent",
+          "summary": "Prepare a governed Linear issue status transition request and stop for approval.",
+          "title": "Request Status Transition"
+        },
+        {
+          "capability_id": "linear.cycle_move.request",
+          "required_context": [
+            {
+              "input": "issue_id",
+              "posture": "required:clarify",
+              "semantic_type": "issue_ref"
+            },
+            {
+              "input": "target_cycle",
+              "posture": "required:clarify",
+              "semantic_type": "cycle_ref"
+            },
+            {
+              "input": "reason",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "write_adjacent",
+          "summary": "Prepare a governed request to move a Linear issue into a cycle or project and stop for approval.",
+          "title": "Request Cycle Move"
+        }
+      ],
+      "schema_version": "anip-agent-consumability/v0"
+    },
+    "agent_consumption_readiness": {
+      "artifact_type": "agent_consumption_readiness",
+      "findings": [],
+      "probes": [
+        {
+          "capability_id": "linear.issue.search_context",
+          "kind": "contract_declared",
+          "status": "ready"
+        },
+        {
+          "capability_id": "linear.issue.prepare",
+          "kind": "contract_declared",
+          "status": "ready"
+        },
+        {
+          "capability_id": "linear.comment.prepare",
+          "kind": "contract_declared",
+          "status": "ready"
+        },
+        {
+          "capability_id": "linear.status_transition.request",
+          "kind": "contract_declared",
+          "status": "ready"
+        },
+        {
+          "capability_id": "linear.cycle_move.request",
+          "kind": "contract_declared",
+          "status": "ready"
+        }
+      ],
+      "required_app_glue": [],
+      "schema_version": "anip-agent-consumption-readiness/v0",
+      "score": 100,
+      "status": "ready",
+      "summary": {
+        "blockers": 0,
+        "capability_surface": 5,
+        "info": 0,
+        "probes": 5,
+        "required_app_glue": 0,
+        "warnings": 0
+      }
+    },
+    "anip_spec_version": "anip/0.24",
+    "artifact_type": "anip_package_lock",
+    "blueprint_id": "linear-fronting-showcase",
+    "blueprint_version": "0.2.0",
+    "build_packs": [
+      "anip-build-pack@local"
+    ],
+    "capability_ids": [
+      "linear.issue.search_context",
+      "linear.issue.prepare",
+      "linear.comment.prepare",
+      "linear.status_transition.request",
+      "linear.cycle_move.request"
+    ],
+    "contract_signature": "sha256:5788fa7351151ac6abba11738dc3c67c2bb802807c1329e128b60b4a545594ad",
+    "extension_packs": [],
+    "generated_at": "2026-05-15T00:00:00Z",
+    "lineage": {
+      "developer_revision": {
+        "artifact_id": "linear-fronting-studio-20260516234232-developer-definition-revision-1",
+        "contract_signature": "sha256:5788fa7351151ac6abba11738dc3c67c2bb802807c1329e128b60b4a545594ad",
+        "ref": "linear-fronting-studio-20260516234232-developer-definition-revision-1",
+        "revision_number": 1
+      },
+      "product_revision": {
+        "artifact_id": "linear-fronting-studio-20260516234232-product-design-revision-1@r1",
+        "baseline_locked_at": "2026-05-15T00:00:00Z",
+        "ref": "linear-fronting-studio-20260516234232-product-design-revision-1@r1",
+        "revision_number": 1
+      },
+      "project_ref": "studio:linear-fronting-studio-20260516234232"
+    },
+    "lock_kind": "publisher_recommended_lock",
+    "package_id": "linear-fronting-showcase",
+    "package_version": "0.2.0",
+    "regression_packs": [],
+    "runtime_packages": [],
+    "schema_version": "anip-service-definition/v1",
+    "selected_service_ids": [
+      "linear-governance-service"
+    ],
+    "service_definition_digest": "sha256:5788fa7351151ac6abba11738dc3c67c2bb802807c1329e128b60b4a545594ad",
+    "verifier_packs": [
+      "anip-verifier@local"
+    ]
+  },
+  "manifest": {
+    "agent_consumability": {
+      "artifact_type": "agent_consumability_metadata",
+      "capabilities": {
+        "linear.comment.prepare": {
+          "business_effects": {},
+          "intent": {
+            "category": "linear.comment.prepare",
+            "summary": "Prepare a Linear issue comment from review or incident context without posting it."
+          },
+          "required_context": [
+            {
+              "input": "issue_id",
+              "posture": "required:clarify",
+              "semantic_type": "issue_ref"
+            },
+            {
+              "input": "comment_purpose",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "context",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        },
+        "linear.cycle_move.request": {
+          "business_effects": {},
+          "intent": {
+            "category": "linear.cycle_move.request",
+            "summary": "Prepare a governed request to move a Linear issue into a cycle or project and stop for approval."
+          },
+          "required_context": [
+            {
+              "input": "issue_id",
+              "posture": "required:clarify",
+              "semantic_type": "issue_ref"
+            },
+            {
+              "input": "target_cycle",
+              "posture": "required:clarify",
+              "semantic_type": "cycle_ref"
+            },
+            {
+              "input": "reason",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        },
+        "linear.issue.prepare": {
+          "business_effects": {},
+          "intent": {
+            "category": "linear.issue.prepare",
+            "summary": "Prepare a Linear issue preview with team, project, labels, and priority before creating anything."
+          },
+          "required_context": [
+            {
+              "input": "team_key",
+              "posture": "required:clarify",
+              "semantic_type": "team_ref"
+            },
+            {
+              "input": "title",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "description",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "project_id",
+              "posture": "optional:clarify",
+              "semantic_type": "project_ref"
+            },
+            {
+              "input": "labels",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        },
+        "linear.issue.search_context": {
+          "business_effects": {},
+          "intent": {
+            "category": "linear.issue.search_context",
+            "summary": "Search bounded Linear issues, projects, and cycles without exposing raw workspace tools."
+          },
+          "required_context": [
+            {
+              "input": "team_key",
+              "posture": "required:clarify",
+              "semantic_type": "team_ref"
+            },
+            {
+              "input": "query",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "limit",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        },
+        "linear.status_transition.request": {
+          "business_effects": {},
+          "intent": {
+            "category": "linear.status_transition.request",
+            "summary": "Prepare a governed Linear issue status transition request and stop for approval."
+          },
+          "required_context": [
+            {
+              "input": "issue_id",
+              "posture": "required:clarify",
+              "semantic_type": "issue_ref"
+            },
+            {
+              "input": "target_status",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "reason",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ]
+        }
+      },
+      "capability_hints": [
+        {
+          "capability_id": "linear.issue.search_context",
+          "required_context": [
+            {
+              "input": "team_key",
+              "posture": "required:clarify",
+              "semantic_type": "team_ref"
+            },
+            {
+              "input": "query",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "limit",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "read",
+          "summary": "Search bounded Linear issues, projects, and cycles without exposing raw workspace tools.",
+          "title": "Search Issue Context"
+        },
+        {
+          "capability_id": "linear.issue.prepare",
+          "required_context": [
+            {
+              "input": "team_key",
+              "posture": "required:clarify",
+              "semantic_type": "team_ref"
+            },
+            {
+              "input": "title",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "description",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "project_id",
+              "posture": "optional:clarify",
+              "semantic_type": "project_ref"
+            },
+            {
+              "input": "labels",
+              "posture": "optional:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "write_adjacent",
+          "summary": "Prepare a Linear issue preview with team, project, labels, and priority before creating anything.",
+          "title": "Prepare Issue"
+        },
+        {
+          "capability_id": "linear.comment.prepare",
+          "required_context": [
+            {
+              "input": "issue_id",
+              "posture": "required:clarify",
+              "semantic_type": "issue_ref"
+            },
+            {
+              "input": "comment_purpose",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "context",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "write_adjacent",
+          "summary": "Prepare a Linear issue comment from review or incident context without posting it.",
+          "title": "Prepare Issue Comment"
+        },
+        {
+          "capability_id": "linear.status_transition.request",
+          "required_context": [
+            {
+              "input": "issue_id",
+              "posture": "required:clarify",
+              "semantic_type": "issue_ref"
+            },
+            {
+              "input": "target_status",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "reason",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "write_adjacent",
+          "summary": "Prepare a governed Linear issue status transition request and stop for approval.",
+          "title": "Request Status Transition"
+        },
+        {
+          "capability_id": "linear.cycle_move.request",
+          "required_context": [
+            {
+              "input": "issue_id",
+              "posture": "required:clarify",
+              "semantic_type": "issue_ref"
+            },
+            {
+              "input": "target_cycle",
+              "posture": "required:clarify",
+              "semantic_type": "cycle_ref"
+            },
+            {
+              "input": "reason",
+              "posture": "required:clarify",
+              "semantic_type": ""
+            },
+            {
+              "input": "backend_options",
+              "posture": "optional:clarify",
+              "semantic_type": "backend_options"
+            }
+          ],
+          "side_effect_level": "write_adjacent",
+          "summary": "Prepare a governed request to move a Linear issue into a cycle or project and stop for approval.",
+          "title": "Request Cycle Move"
+        }
+      ],
+      "schema_version": "anip-agent-consumability/v0"
+    },
+    "agent_consumption_readiness": {
+      "artifact_type": "agent_consumption_readiness",
+      "findings": [],
+      "probes": [
+        {
+          "capability_id": "linear.issue.search_context",
+          "kind": "contract_declared",
+          "status": "ready"
+        },
+        {
+          "capability_id": "linear.issue.prepare",
+          "kind": "contract_declared",
+          "status": "ready"
+        },
+        {
+          "capability_id": "linear.comment.prepare",
+          "kind": "contract_declared",
+          "status": "ready"
+        },
+        {
+          "capability_id": "linear.status_transition.request",
+          "kind": "contract_declared",
+          "status": "ready"
+        },
+        {
+          "capability_id": "linear.cycle_move.request",
+          "kind": "contract_declared",
+          "status": "ready"
+        }
+      ],
+      "required_app_glue": [],
+      "schema_version": "anip-agent-consumption-readiness/v0",
+      "score": 100,
+      "status": "ready",
+      "summary": {
+        "blockers": 0,
+        "capability_surface": 5,
+        "info": 0,
+        "probes": 5,
+        "required_app_glue": 0,
+        "warnings": 0
+      }
+    },
+    "anip_spec_version": "anip/0.24",
+    "artifact_type": "anip_package_manifest",
+    "blueprint_id": "linear-fronting-showcase",
+    "build_packs": {
+      "recommended": [
+        "anip-build-pack@local"
+      ]
+    },
+    "capability_count": 5,
+    "generated_at": "2026-05-15T00:00:00Z",
+    "lineage": {
+      "developer_revision": {
+        "artifact_id": "linear-fronting-studio-20260516234232-developer-definition-revision-1",
+        "contract_signature": "sha256:5788fa7351151ac6abba11738dc3c67c2bb802807c1329e128b60b4a545594ad",
+        "ref": "linear-fronting-studio-20260516234232-developer-definition-revision-1",
+        "revision_number": 1
+      },
+      "product_revision": {
+        "artifact_id": "linear-fronting-studio-20260516234232-product-design-revision-1@r1",
+        "baseline_locked_at": "2026-05-15T00:00:00Z",
+        "ref": "linear-fronting-studio-20260516234232-product-design-revision-1@r1",
+        "revision_number": 1
+      },
+      "project_ref": "studio:linear-fronting-studio-20260516234232"
+    },
+    "name": "linear_governed_fronting_showcase Service Blueprint",
+    "package_id": "linear-fronting-showcase",
+    "package_kind": "anip_service_blueprint",
+    "package_version": "0.2.0",
+    "publisher": {
+      "display_name": "Local development registry",
+      "id": "local-dev-registry"
+    },
+    "readme": "# linear_governed_fronting_showcase\n\nANIP package `linear-fronting-showcase@0.2.0` for local showcase and registry smoke usage.\n\n## Contents\n\n- Services: 1\n- Capabilities: 5\n- ANIP spec: `anip/0.24`\n\n## Capability Surface\n\n- `linear.issue.search_context`\n- `linear.issue.prepare`\n- `linear.comment.prepare`\n- `linear.status_transition.request`\n- `linear.cycle_move.request`\n\n## Generate\n\nFrom a downloaded package bundle:\n\n```bash\ngo run ./cmd/anip-generate --package-bundle \u003cdownloaded-package\u003e.anip-package.json --target python --dependency-source local --output ./generated/linear-fronting-showcase --force\n```\n\nFrom a trusted registry package:\n\n```bash\ngo run ./cmd/anip-generate --registry-url \u003cregistry-url\u003e --package-id linear-fronting-showcase --package-version 0.2.0 --target python --dependency-source registry --output ./generated/linear-fronting-showcase --force\n```\n\n## Verify\n\n```bash\ngo run ./cmd/anip-verify --definition anip-service-definition.json\ngo run ./cmd/anip-verify --package-bundle \u003cdownloaded-package\u003e.anip-package.json\n```\n\n## Run Locally\n\nGenerated services default to port `9152` unless overridden by the generated runtime configuration.",
+    "schema_version": "anip-service-definition/v1",
+    "service_count": 1,
+    "service_definition": "anip-service-definition.json",
+    "service_definition_digest": "sha256:5788fa7351151ac6abba11738dc3c67c2bb802807c1329e128b60b4a545594ad",
+    "service_definition_digest_algorithm": "sha256",
+    "service_ids": [
+      "linear-governance-service"
+    ],
+    "source_links": [],
+    "usage": {
+      "generate_from_bundle": "go run ./cmd/anip-generate --package-bundle \u003cdownloaded-package\u003e.anip-package.json --target python --dependency-source local --output ./generated/linear-fronting-showcase --force",
+      "generate_from_registry": "go run ./cmd/anip-generate --registry-url \u003cregistry-url\u003e --package-id linear-fronting-showcase --package-version 0.2.0 --target python --dependency-source registry --output ./generated/linear-fronting-showcase --force",
+      "local_port": 9152,
+      "verify_bundle": "go run ./cmd/anip-verify --package-bundle \u003cdownloaded-package\u003e.anip-package.json",
+      "verify_definition": "go run ./cmd/anip-verify --definition anip-service-definition.json"
+    },
+    "verifier_packs": {
+      "recommended": [
+        "anip-verifier@local"
+      ]
+    },
+    "version": "0.2.0"
+  },
+  "package": {
+    "package_id": "linear-fronting-showcase",
+    "package_version": "0.2.0",
+    "project_ref": "studio:linear-fronting-studio-20260516234232",
+    "product_revision_ref": "linear-fronting-studio-20260516234232-product-design-revision-1@r1",
+    "developer_revision_ref": "linear-fronting-studio-20260516234232-developer-definition-revision-1",
+    "contract_signature": "sha256:5788fa7351151ac6abba11738dc3c67c2bb802807c1329e128b60b4a545594ad",
+    "publisher_id": "local-dev-registry",
+    "publisher_type": "local",
+    "lineage": {
+      "developer_revision": {
+        "artifact_id": "linear-fronting-studio-20260516234232-developer-definition-revision-1",
+        "contract_signature": "sha256:5788fa7351151ac6abba11738dc3c67c2bb802807c1329e128b60b4a545594ad",
+        "ref": "linear-fronting-studio-20260516234232-developer-definition-revision-1",
+        "revision_number": 1
+      },
+      "product_revision": {
+        "artifact_id": "linear-fronting-studio-20260516234232-product-design-revision-1@r1",
+        "baseline_locked_at": "2026-05-15T00:00:00Z",
+        "ref": "linear-fronting-studio-20260516234232-product-design-revision-1@r1",
+        "revision_number": 1
+      },
+      "project_ref": "studio:linear-fronting-studio-20260516234232"
+    },
+    "schema_version": "anip-service-definition/v1",
+    "manifest_digest": "sha256:fb7c3db8bf368eb5a5b63002f05f01cd7bf952fb4de9ed8024434e93754fe1bf",
+    "definition_digest": "sha256:5788fa7351151ac6abba11738dc3c67c2bb802807c1329e128b60b4a545594ad",
+    "lock_digest": "sha256:81e23e35c0db4893c64b248916663ff5557842a075bcc59a3d415be4c3d38faa",
+    "published_at": "2026-05-15T00:00:00Z",
+    "download_count": 0,
+    "manifest": {
+      "agent_consumability": {
+        "artifact_type": "agent_consumability_metadata",
+        "capabilities": {
+          "linear.comment.prepare": {
+            "business_effects": {},
+            "intent": {
+              "category": "linear.comment.prepare",
+              "summary": "Prepare a Linear issue comment from review or incident context without posting it."
+            },
+            "required_context": [
+              {
+                "input": "issue_id",
+                "posture": "required:clarify",
+                "semantic_type": "issue_ref"
+              },
+              {
+                "input": "comment_purpose",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "context",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          },
+          "linear.cycle_move.request": {
+            "business_effects": {},
+            "intent": {
+              "category": "linear.cycle_move.request",
+              "summary": "Prepare a governed request to move a Linear issue into a cycle or project and stop for approval."
+            },
+            "required_context": [
+              {
+                "input": "issue_id",
+                "posture": "required:clarify",
+                "semantic_type": "issue_ref"
+              },
+              {
+                "input": "target_cycle",
+                "posture": "required:clarify",
+                "semantic_type": "cycle_ref"
+              },
+              {
+                "input": "reason",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          },
+          "linear.issue.prepare": {
+            "business_effects": {},
+            "intent": {
+              "category": "linear.issue.prepare",
+              "summary": "Prepare a Linear issue preview with team, project, labels, and priority before creating anything."
+            },
+            "required_context": [
+              {
+                "input": "team_key",
+                "posture": "required:clarify",
+                "semantic_type": "team_ref"
+              },
+              {
+                "input": "title",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "description",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "project_id",
+                "posture": "optional:clarify",
+                "semantic_type": "project_ref"
+              },
+              {
+                "input": "labels",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          },
+          "linear.issue.search_context": {
+            "business_effects": {},
+            "intent": {
+              "category": "linear.issue.search_context",
+              "summary": "Search bounded Linear issues, projects, and cycles without exposing raw workspace tools."
+            },
+            "required_context": [
+              {
+                "input": "team_key",
+                "posture": "required:clarify",
+                "semantic_type": "team_ref"
+              },
+              {
+                "input": "query",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "limit",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          },
+          "linear.status_transition.request": {
+            "business_effects": {},
+            "intent": {
+              "category": "linear.status_transition.request",
+              "summary": "Prepare a governed Linear issue status transition request and stop for approval."
+            },
+            "required_context": [
+              {
+                "input": "issue_id",
+                "posture": "required:clarify",
+                "semantic_type": "issue_ref"
+              },
+              {
+                "input": "target_status",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "reason",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          }
+        },
+        "capability_hints": [
+          {
+            "capability_id": "linear.issue.search_context",
+            "required_context": [
+              {
+                "input": "team_key",
+                "posture": "required:clarify",
+                "semantic_type": "team_ref"
+              },
+              {
+                "input": "query",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "limit",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "read",
+            "summary": "Search bounded Linear issues, projects, and cycles without exposing raw workspace tools.",
+            "title": "Search Issue Context"
+          },
+          {
+            "capability_id": "linear.issue.prepare",
+            "required_context": [
+              {
+                "input": "team_key",
+                "posture": "required:clarify",
+                "semantic_type": "team_ref"
+              },
+              {
+                "input": "title",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "description",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "project_id",
+                "posture": "optional:clarify",
+                "semantic_type": "project_ref"
+              },
+              {
+                "input": "labels",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "write_adjacent",
+            "summary": "Prepare a Linear issue preview with team, project, labels, and priority before creating anything.",
+            "title": "Prepare Issue"
+          },
+          {
+            "capability_id": "linear.comment.prepare",
+            "required_context": [
+              {
+                "input": "issue_id",
+                "posture": "required:clarify",
+                "semantic_type": "issue_ref"
+              },
+              {
+                "input": "comment_purpose",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "context",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "write_adjacent",
+            "summary": "Prepare a Linear issue comment from review or incident context without posting it.",
+            "title": "Prepare Issue Comment"
+          },
+          {
+            "capability_id": "linear.status_transition.request",
+            "required_context": [
+              {
+                "input": "issue_id",
+                "posture": "required:clarify",
+                "semantic_type": "issue_ref"
+              },
+              {
+                "input": "target_status",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "reason",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "write_adjacent",
+            "summary": "Prepare a governed Linear issue status transition request and stop for approval.",
+            "title": "Request Status Transition"
+          },
+          {
+            "capability_id": "linear.cycle_move.request",
+            "required_context": [
+              {
+                "input": "issue_id",
+                "posture": "required:clarify",
+                "semantic_type": "issue_ref"
+              },
+              {
+                "input": "target_cycle",
+                "posture": "required:clarify",
+                "semantic_type": "cycle_ref"
+              },
+              {
+                "input": "reason",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "write_adjacent",
+            "summary": "Prepare a governed request to move a Linear issue into a cycle or project and stop for approval.",
+            "title": "Request Cycle Move"
+          }
+        ],
+        "schema_version": "anip-agent-consumability/v0"
+      },
+      "agent_consumption_readiness": {
+        "artifact_type": "agent_consumption_readiness",
+        "findings": [],
+        "probes": [
+          {
+            "capability_id": "linear.issue.search_context",
+            "kind": "contract_declared",
+            "status": "ready"
+          },
+          {
+            "capability_id": "linear.issue.prepare",
+            "kind": "contract_declared",
+            "status": "ready"
+          },
+          {
+            "capability_id": "linear.comment.prepare",
+            "kind": "contract_declared",
+            "status": "ready"
+          },
+          {
+            "capability_id": "linear.status_transition.request",
+            "kind": "contract_declared",
+            "status": "ready"
+          },
+          {
+            "capability_id": "linear.cycle_move.request",
+            "kind": "contract_declared",
+            "status": "ready"
+          }
+        ],
+        "required_app_glue": [],
+        "schema_version": "anip-agent-consumption-readiness/v0",
+        "score": 100,
+        "status": "ready",
+        "summary": {
+          "blockers": 0,
+          "capability_surface": 5,
+          "info": 0,
+          "probes": 5,
+          "required_app_glue": 0,
+          "warnings": 0
+        }
+      },
+      "anip_spec_version": "anip/0.24",
+      "artifact_type": "anip_package_manifest",
+      "blueprint_id": "linear-fronting-showcase",
+      "build_packs": {
+        "recommended": [
+          "anip-build-pack@local"
+        ]
+      },
+      "capability_count": 5,
+      "generated_at": "2026-05-15T00:00:00Z",
+      "lineage": {
+        "developer_revision": {
+          "artifact_id": "linear-fronting-studio-20260516234232-developer-definition-revision-1",
+          "contract_signature": "sha256:5788fa7351151ac6abba11738dc3c67c2bb802807c1329e128b60b4a545594ad",
+          "ref": "linear-fronting-studio-20260516234232-developer-definition-revision-1",
+          "revision_number": 1
+        },
+        "product_revision": {
+          "artifact_id": "linear-fronting-studio-20260516234232-product-design-revision-1@r1",
+          "baseline_locked_at": "2026-05-15T00:00:00Z",
+          "ref": "linear-fronting-studio-20260516234232-product-design-revision-1@r1",
+          "revision_number": 1
+        },
+        "project_ref": "studio:linear-fronting-studio-20260516234232"
+      },
+      "name": "linear_governed_fronting_showcase Service Blueprint",
+      "package_id": "linear-fronting-showcase",
+      "package_kind": "anip_service_blueprint",
+      "package_version": "0.2.0",
+      "publisher": {
+        "display_name": "Local development registry",
+        "id": "local-dev-registry"
+      },
+      "readme": "# linear_governed_fronting_showcase\n\nANIP package `linear-fronting-showcase@0.2.0` for local showcase and registry smoke usage.\n\n## Contents\n\n- Services: 1\n- Capabilities: 5\n- ANIP spec: `anip/0.24`\n\n## Capability Surface\n\n- `linear.issue.search_context`\n- `linear.issue.prepare`\n- `linear.comment.prepare`\n- `linear.status_transition.request`\n- `linear.cycle_move.request`\n\n## Generate\n\nFrom a downloaded package bundle:\n\n```bash\ngo run ./cmd/anip-generate --package-bundle \u003cdownloaded-package\u003e.anip-package.json --target python --dependency-source local --output ./generated/linear-fronting-showcase --force\n```\n\nFrom a trusted registry package:\n\n```bash\ngo run ./cmd/anip-generate --registry-url \u003cregistry-url\u003e --package-id linear-fronting-showcase --package-version 0.2.0 --target python --dependency-source registry --output ./generated/linear-fronting-showcase --force\n```\n\n## Verify\n\n```bash\ngo run ./cmd/anip-verify --definition anip-service-definition.json\ngo run ./cmd/anip-verify --package-bundle \u003cdownloaded-package\u003e.anip-package.json\n```\n\n## Run Locally\n\nGenerated services default to port `9152` unless overridden by the generated runtime configuration.",
+      "schema_version": "anip-service-definition/v1",
+      "service_count": 1,
+      "service_definition": "anip-service-definition.json",
+      "service_definition_digest": "sha256:5788fa7351151ac6abba11738dc3c67c2bb802807c1329e128b60b4a545594ad",
+      "service_definition_digest_algorithm": "sha256",
+      "service_ids": [
+        "linear-governance-service"
+      ],
+      "source_links": [],
+      "usage": {
+        "generate_from_bundle": "go run ./cmd/anip-generate --package-bundle \u003cdownloaded-package\u003e.anip-package.json --target python --dependency-source local --output ./generated/linear-fronting-showcase --force",
+        "generate_from_registry": "go run ./cmd/anip-generate --registry-url \u003cregistry-url\u003e --package-id linear-fronting-showcase --package-version 0.2.0 --target python --dependency-source registry --output ./generated/linear-fronting-showcase --force",
+        "local_port": 9152,
+        "verify_bundle": "go run ./cmd/anip-verify --package-bundle \u003cdownloaded-package\u003e.anip-package.json",
+        "verify_definition": "go run ./cmd/anip-verify --definition anip-service-definition.json"
+      },
+      "verifier_packs": {
+        "recommended": [
+          "anip-verifier@local"
+        ]
+      },
+      "version": "0.2.0"
+    },
+    "service_definition": {
+      "artifact_type": "anip_service_definition",
+      "audit": {
+        "durable_records_required": true,
+        "searchable_history_required": true
+      },
+      "authority": {
+        "approval_expectation": "approval_gated_for_write_like_actions",
+        "blocked_failure_posture": "clarify_or_stop"
+      },
+      "capability_formalizations": [
+        {
+          "backend_operation": "linear_issue_search_context",
+          "capability_id": "linear.issue.search_context",
+          "context_type": "issue_context_search",
+          "id": "cap-linear-issue-search_context",
+          "inputs": [
+            {
+              "clarification_hint": "Ask for team_key when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "team_key",
+              "input_type": "string",
+              "required": true,
+              "semantic_type": "team_ref",
+              "summary": "Linear team key or identifier."
+            },
+            {
+              "clarification_hint": "Ask for query when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "query",
+              "input_type": "string",
+              "required": true,
+              "summary": "Bounded issue search query."
+            },
+            {
+              "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+              "default_value": "20",
+              "input_name": "limit",
+              "input_type": "integer",
+              "required": false,
+              "summary": "Maximum results to return."
+            },
+            {
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "default_value": "",
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "semantic_type": "backend_options",
+              "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy."
+            }
+          ],
+          "intent_type": "read_only",
+          "kind": "atomic",
+          "operation_type": "read",
+          "output_intent": "bounded_issue_results",
+          "output_shape": "linear_issue_search_context_result",
+          "path_template": "/linear/issue_search_context",
+          "service_id": "linear-governance-service",
+          "side_effect_level": "read",
+          "source_kind": "integration_fronting_source_doc",
+          "subject_kind": "linear_workspace",
+          "summary": "Search bounded Linear issues, projects, and cycles without exposing raw workspace tools.",
+          "title": "Search Issue Context"
+        },
+        {
+          "backend_operation": "linear_issue_prepare",
+          "capability_id": "linear.issue.prepare",
+          "context_type": "issue_creation_preparation",
+          "grant_policy": {
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ],
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "max_uses": 1
+          },
+          "id": "cap-linear-issue-prepare",
+          "inputs": [
+            {
+              "clarification_hint": "Ask for team_key when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "team_key",
+              "input_type": "string",
+              "required": true,
+              "semantic_type": "team_ref",
+              "summary": "Linear team key or identifier."
+            },
+            {
+              "clarification_hint": "Ask for title when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "title",
+              "input_type": "string",
+              "required": true,
+              "summary": "Proposed issue title."
+            },
+            {
+              "clarification_hint": "Ask for description when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "description",
+              "input_type": "string",
+              "required": true,
+              "summary": "Proposed issue description."
+            },
+            {
+              "clarification_hint": "Ask for project_id when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "project_id",
+              "input_type": "string",
+              "required": false,
+              "semantic_type": "project_ref",
+              "summary": "Optional Linear project identifier."
+            },
+            {
+              "clarification_hint": "Ask for labels when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "labels",
+              "input_type": "string",
+              "required": false,
+              "summary": "Optional labels to apply."
+            },
+            {
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "default_value": "",
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "semantic_type": "backend_options",
+              "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy."
+            }
+          ],
+          "intent_type": "prepare_only",
+          "kind": "atomic",
+          "operation_type": "write",
+          "output_intent": "issue_creation_preview",
+          "output_shape": "linear_issue_prepare_result",
+          "path_template": "/linear/issue_prepare",
+          "service_id": "linear-governance-service",
+          "side_effect_level": "write_adjacent",
+          "source_kind": "integration_fronting_source_doc",
+          "subject_kind": "linear_issue",
+          "summary": "Prepare a Linear issue preview with team, project, labels, and priority before creating anything.",
+          "title": "Prepare Issue"
+        },
+        {
+          "backend_operation": "linear_comment_prepare",
+          "capability_id": "linear.comment.prepare",
+          "context_type": "issue_comment_preparation",
+          "grant_policy": {
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ],
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "max_uses": 1
+          },
+          "id": "cap-linear-comment-prepare",
+          "inputs": [
+            {
+              "clarification_hint": "Ask for issue_id when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "issue_id",
+              "input_type": "string",
+              "required": true,
+              "semantic_type": "issue_ref",
+              "summary": "Linear issue identifier."
+            },
+            {
+              "clarification_hint": "Ask for comment_purpose when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "comment_purpose",
+              "input_type": "string",
+              "required": true,
+              "summary": "Purpose of the comment."
+            },
+            {
+              "clarification_hint": "Ask for context when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "context",
+              "input_type": "string",
+              "required": true,
+              "summary": "Bounded context for the proposed comment."
+            },
+            {
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "default_value": "",
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "semantic_type": "backend_options",
+              "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy."
+            }
+          ],
+          "intent_type": "prepare_only",
+          "kind": "atomic",
+          "operation_type": "write",
+          "output_intent": "comment_preview",
+          "output_shape": "linear_comment_prepare_result",
+          "path_template": "/linear/comment_prepare",
+          "service_id": "linear-governance-service",
+          "side_effect_level": "write_adjacent",
+          "source_kind": "integration_fronting_source_doc",
+          "subject_kind": "linear_issue",
+          "summary": "Prepare a Linear issue comment from review or incident context without posting it.",
+          "title": "Prepare Issue Comment"
+        },
+        {
+          "backend_operation": "linear_status_transition_request",
+          "capability_id": "linear.status_transition.request",
+          "context_type": "status_transition_request",
+          "grant_policy": {
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ],
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "max_uses": 1
+          },
+          "id": "cap-linear-status_transition-request",
+          "inputs": [
+            {
+              "clarification_hint": "Ask for issue_id when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "issue_id",
+              "input_type": "string",
+              "required": true,
+              "semantic_type": "issue_ref",
+              "summary": "Linear issue identifier."
+            },
+            {
+              "clarification_hint": "Ask for target_status when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "target_status",
+              "input_type": "string",
+              "required": true,
+              "summary": "Requested target status."
+            },
+            {
+              "clarification_hint": "Ask for reason when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "reason",
+              "input_type": "string",
+              "required": true,
+              "summary": "Business reason for the transition."
+            },
+            {
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "default_value": "",
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "semantic_type": "backend_options",
+              "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy."
+            }
+          ],
+          "intent_type": "prepare_only",
+          "kind": "atomic",
+          "operation_type": "write",
+          "output_intent": "status_transition_preview",
+          "output_shape": "linear_status_transition_request_result",
+          "path_template": "/linear/status_transition_request",
+          "service_id": "linear-governance-service",
+          "side_effect_level": "write_adjacent",
+          "source_kind": "integration_fronting_source_doc",
+          "subject_kind": "linear_issue",
+          "summary": "Prepare a governed Linear issue status transition request and stop for approval.",
+          "title": "Request Status Transition"
+        },
+        {
+          "backend_operation": "linear_cycle_move_request",
+          "capability_id": "linear.cycle_move.request",
+          "context_type": "cycle_move_request",
+          "grant_policy": {
+            "allowed_grant_types": [
+              "one_time",
+              "session_bound"
+            ],
+            "default_grant_type": "one_time",
+            "expires_in_seconds": 900,
+            "max_uses": 1
+          },
+          "id": "cap-linear-cycle_move-request",
+          "inputs": [
+            {
+              "clarification_hint": "Ask for issue_id when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "issue_id",
+              "input_type": "string",
+              "required": true,
+              "semantic_type": "issue_ref",
+              "summary": "Linear issue identifier."
+            },
+            {
+              "clarification_hint": "Ask for target_cycle when it is missing or ambiguous.",
+              "default_value": "",
+              "entity_reference": true,
+              "input_name": "target_cycle",
+              "input_type": "string",
+              "required": true,
+              "semantic_type": "cycle_ref",
+              "summary": "Target cycle identifier or name."
+            },
+            {
+              "clarification_hint": "Ask for reason when it is missing or ambiguous.",
+              "default_value": "",
+              "input_name": "reason",
+              "input_type": "string",
+              "required": true,
+              "summary": "Business reason for the move."
+            },
+            {
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "default_value": "",
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "semantic_type": "backend_options",
+              "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy."
+            }
+          ],
+          "intent_type": "prepare_only",
+          "kind": "atomic",
+          "operation_type": "write",
+          "output_intent": "cycle_move_preview",
+          "output_shape": "linear_cycle_move_request_result",
+          "path_template": "/linear/cycle_move_request",
+          "service_id": "linear-governance-service",
+          "side_effect_level": "write_adjacent",
+          "source_kind": "integration_fronting_source_doc",
+          "subject_kind": "linear_cycle",
+          "summary": "Prepare a governed request to move a Linear issue into a cycle or project and stop for approval.",
+          "title": "Request Cycle Move"
+        }
+      ],
+      "compiled_contract_identity": {
+        "signature": "sha256:3840c59baee62993e1b0cb82e8a8c083b2f72c6133b734b170bd2245d19b3d29",
+        "signature_algorithm": "sha256"
+      },
+      "contract_schema_version": "anip-service-definition/v1",
+      "generation": {
+        "layout_strategy": "single_package",
+        "protocols": [
+          "https"
+        ],
+        "selected_service_ids": [
+          "linear-governance-service"
+        ]
+      },
+      "identity": {
+        "architecture_shape": "single_service",
+        "delivery_model": "governed_integration_fronting",
+        "domain_name": "linear",
+        "system_name": "linear_governed_fronting_showcase"
+      },
+      "integration_fronting": {
+        "capability_mappings": [
+          {
+            "audit_required": true,
+            "backend_input_mode": "explicit",
+            "backend_kind": "native_api",
+            "capability_id": "linear.issue.search_context",
+            "clarification_rule_refs": [
+              "missing_required_inputs"
+            ],
+            "connection_ref": "linear_fronting",
+            "context_type": "issue_context_search",
+            "execution_posture": "read_only",
+            "id": "map-linear-issue-search_context",
+            "intent": "Search bounded Linear issues, projects, and cycles without exposing raw workspace tools.",
+            "optional_inputs": [
+              "limit",
+              "backend_options"
+            ],
+            "outbound_controls": {
+              "raw_backend_not_agent_visible": true,
+              "redaction_required": true
+            },
+            "output_intent": "bounded_issue_results",
+            "raw_operation_refs": [
+              "linear.api.issue_search_context"
+            ],
+            "required_inputs": [
+              "team_key",
+              "query"
+            ],
+            "service_id": "linear-governance-service",
+            "service_name": "Linear Governance Service",
+            "side_effect_level": "read",
+            "subject_kind": "linear_workspace",
+            "title": "Search Issue Context"
+          },
+          {
+            "audit_required": true,
+            "backend_input_mode": "explicit",
+            "backend_kind": "native_api",
+            "capability_id": "linear.issue.prepare",
+            "clarification_rule_refs": [
+              "missing_required_inputs"
+            ],
+            "connection_ref": "linear_fronting",
+            "context_type": "issue_creation_preparation",
+            "execution_posture": "prepare_only",
+            "id": "map-linear-issue-prepare",
+            "intent": "Prepare a Linear issue preview with team, project, labels, and priority before creating anything.",
+            "optional_inputs": [
+              "project_id",
+              "labels",
+              "backend_options"
+            ],
+            "outbound_controls": {
+              "raw_backend_not_agent_visible": true,
+              "redaction_required": true
+            },
+            "output_intent": "issue_creation_preview",
+            "raw_operation_refs": [
+              "linear.api.issue_prepare"
+            ],
+            "required_inputs": [
+              "team_key",
+              "title",
+              "description"
+            ],
+            "service_id": "linear-governance-service",
+            "service_name": "Linear Governance Service",
+            "side_effect_level": "write_adjacent",
+            "subject_kind": "linear_issue",
+            "title": "Prepare Issue"
+          },
+          {
+            "audit_required": true,
+            "backend_input_mode": "explicit",
+            "backend_kind": "native_api",
+            "capability_id": "linear.comment.prepare",
+            "clarification_rule_refs": [
+              "missing_required_inputs"
+            ],
+            "connection_ref": "linear_fronting",
+            "context_type": "issue_comment_preparation",
+            "execution_posture": "prepare_only",
+            "id": "map-linear-comment-prepare",
+            "intent": "Prepare a Linear issue comment from review or incident context without posting it.",
+            "optional_inputs": [
+              "backend_options"
+            ],
+            "outbound_controls": {
+              "raw_backend_not_agent_visible": true,
+              "redaction_required": true
+            },
+            "output_intent": "comment_preview",
+            "raw_operation_refs": [
+              "linear.api.comment_prepare"
+            ],
+            "required_inputs": [
+              "issue_id",
+              "comment_purpose",
+              "context"
+            ],
+            "service_id": "linear-governance-service",
+            "service_name": "Linear Governance Service",
+            "side_effect_level": "write_adjacent",
+            "subject_kind": "linear_issue",
+            "title": "Prepare Issue Comment"
+          },
+          {
+            "audit_required": true,
+            "backend_input_mode": "explicit",
+            "backend_kind": "native_api",
+            "capability_id": "linear.status_transition.request",
+            "clarification_rule_refs": [
+              "missing_required_inputs"
+            ],
+            "connection_ref": "linear_fronting",
+            "context_type": "status_transition_request",
+            "execution_posture": "prepare_only",
+            "id": "map-linear-status_transition-request",
+            "intent": "Prepare a governed Linear issue status transition request and stop for approval.",
+            "optional_inputs": [
+              "backend_options"
+            ],
+            "outbound_controls": {
+              "raw_backend_not_agent_visible": true,
+              "redaction_required": true
+            },
+            "output_intent": "status_transition_preview",
+            "raw_operation_refs": [
+              "linear.api.status_transition_request"
+            ],
+            "required_inputs": [
+              "issue_id",
+              "target_status",
+              "reason"
+            ],
+            "service_id": "linear-governance-service",
+            "service_name": "Linear Governance Service",
+            "side_effect_level": "write_adjacent",
+            "subject_kind": "linear_issue",
+            "title": "Request Status Transition"
+          },
+          {
+            "audit_required": true,
+            "backend_input_mode": "explicit",
+            "backend_kind": "native_api",
+            "capability_id": "linear.cycle_move.request",
+            "clarification_rule_refs": [
+              "missing_required_inputs"
+            ],
+            "connection_ref": "linear_fronting",
+            "context_type": "cycle_move_request",
+            "execution_posture": "prepare_only",
+            "id": "map-linear-cycle_move-request",
+            "intent": "Prepare a governed request to move a Linear issue into a cycle or project and stop for approval.",
+            "optional_inputs": [
+              "backend_options"
+            ],
+            "outbound_controls": {
+              "raw_backend_not_agent_visible": true,
+              "redaction_required": true
+            },
+            "output_intent": "cycle_move_preview",
+            "raw_operation_refs": [
+              "linear.api.cycle_move_request"
+            ],
+            "required_inputs": [
+              "issue_id",
+              "target_cycle",
+              "reason"
+            ],
+            "service_id": "linear-governance-service",
+            "service_name": "Linear Governance Service",
+            "side_effect_level": "write_adjacent",
+            "subject_kind": "linear_cycle",
+            "title": "Request Cycle Move"
+          }
+        ],
+        "project_type": "governed_api_fronting"
+      },
+      "service_topology_bindings": [
+        {
+          "formalized_capability_ids": [
+            "linear.issue.search_context",
+            "linear.issue.prepare",
+            "linear.comment.prepare",
+            "linear.status_transition.request",
+            "linear.cycle_move.request"
+          ],
+          "id": "svc-linear-governance-service",
+          "owned_concept_ids": [
+            "fronted_resource"
+          ],
+          "service_id": "linear-governance-service",
+          "service_name": "Linear Governance Service",
+          "source_capabilities": [
+            "linear.issue.search_context",
+            "linear.issue.prepare",
+            "linear.comment.prepare",
+            "linear.status_transition.request",
+            "linear.cycle_move.request"
+          ],
+          "source_role": "integration_fronting"
+        }
+      ]
+    },
+    "recommended_lock": {
+      "agent_consumability": {
+        "artifact_type": "agent_consumability_metadata",
+        "capabilities": {
+          "linear.comment.prepare": {
+            "business_effects": {},
+            "intent": {
+              "category": "linear.comment.prepare",
+              "summary": "Prepare a Linear issue comment from review or incident context without posting it."
+            },
+            "required_context": [
+              {
+                "input": "issue_id",
+                "posture": "required:clarify",
+                "semantic_type": "issue_ref"
+              },
+              {
+                "input": "comment_purpose",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "context",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          },
+          "linear.cycle_move.request": {
+            "business_effects": {},
+            "intent": {
+              "category": "linear.cycle_move.request",
+              "summary": "Prepare a governed request to move a Linear issue into a cycle or project and stop for approval."
+            },
+            "required_context": [
+              {
+                "input": "issue_id",
+                "posture": "required:clarify",
+                "semantic_type": "issue_ref"
+              },
+              {
+                "input": "target_cycle",
+                "posture": "required:clarify",
+                "semantic_type": "cycle_ref"
+              },
+              {
+                "input": "reason",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          },
+          "linear.issue.prepare": {
+            "business_effects": {},
+            "intent": {
+              "category": "linear.issue.prepare",
+              "summary": "Prepare a Linear issue preview with team, project, labels, and priority before creating anything."
+            },
+            "required_context": [
+              {
+                "input": "team_key",
+                "posture": "required:clarify",
+                "semantic_type": "team_ref"
+              },
+              {
+                "input": "title",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "description",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "project_id",
+                "posture": "optional:clarify",
+                "semantic_type": "project_ref"
+              },
+              {
+                "input": "labels",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          },
+          "linear.issue.search_context": {
+            "business_effects": {},
+            "intent": {
+              "category": "linear.issue.search_context",
+              "summary": "Search bounded Linear issues, projects, and cycles without exposing raw workspace tools."
+            },
+            "required_context": [
+              {
+                "input": "team_key",
+                "posture": "required:clarify",
+                "semantic_type": "team_ref"
+              },
+              {
+                "input": "query",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "limit",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          },
+          "linear.status_transition.request": {
+            "business_effects": {},
+            "intent": {
+              "category": "linear.status_transition.request",
+              "summary": "Prepare a governed Linear issue status transition request and stop for approval."
+            },
+            "required_context": [
+              {
+                "input": "issue_id",
+                "posture": "required:clarify",
+                "semantic_type": "issue_ref"
+              },
+              {
+                "input": "target_status",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "reason",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ]
+          }
+        },
+        "capability_hints": [
+          {
+            "capability_id": "linear.issue.search_context",
+            "required_context": [
+              {
+                "input": "team_key",
+                "posture": "required:clarify",
+                "semantic_type": "team_ref"
+              },
+              {
+                "input": "query",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "limit",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "read",
+            "summary": "Search bounded Linear issues, projects, and cycles without exposing raw workspace tools.",
+            "title": "Search Issue Context"
+          },
+          {
+            "capability_id": "linear.issue.prepare",
+            "required_context": [
+              {
+                "input": "team_key",
+                "posture": "required:clarify",
+                "semantic_type": "team_ref"
+              },
+              {
+                "input": "title",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "description",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "project_id",
+                "posture": "optional:clarify",
+                "semantic_type": "project_ref"
+              },
+              {
+                "input": "labels",
+                "posture": "optional:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "write_adjacent",
+            "summary": "Prepare a Linear issue preview with team, project, labels, and priority before creating anything.",
+            "title": "Prepare Issue"
+          },
+          {
+            "capability_id": "linear.comment.prepare",
+            "required_context": [
+              {
+                "input": "issue_id",
+                "posture": "required:clarify",
+                "semantic_type": "issue_ref"
+              },
+              {
+                "input": "comment_purpose",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "context",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "write_adjacent",
+            "summary": "Prepare a Linear issue comment from review or incident context without posting it.",
+            "title": "Prepare Issue Comment"
+          },
+          {
+            "capability_id": "linear.status_transition.request",
+            "required_context": [
+              {
+                "input": "issue_id",
+                "posture": "required:clarify",
+                "semantic_type": "issue_ref"
+              },
+              {
+                "input": "target_status",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "reason",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "write_adjacent",
+            "summary": "Prepare a governed Linear issue status transition request and stop for approval.",
+            "title": "Request Status Transition"
+          },
+          {
+            "capability_id": "linear.cycle_move.request",
+            "required_context": [
+              {
+                "input": "issue_id",
+                "posture": "required:clarify",
+                "semantic_type": "issue_ref"
+              },
+              {
+                "input": "target_cycle",
+                "posture": "required:clarify",
+                "semantic_type": "cycle_ref"
+              },
+              {
+                "input": "reason",
+                "posture": "required:clarify",
+                "semantic_type": ""
+              },
+              {
+                "input": "backend_options",
+                "posture": "optional:clarify",
+                "semantic_type": "backend_options"
+              }
+            ],
+            "side_effect_level": "write_adjacent",
+            "summary": "Prepare a governed request to move a Linear issue into a cycle or project and stop for approval.",
+            "title": "Request Cycle Move"
+          }
+        ],
+        "schema_version": "anip-agent-consumability/v0"
+      },
+      "agent_consumption_readiness": {
+        "artifact_type": "agent_consumption_readiness",
+        "findings": [],
+        "probes": [
+          {
+            "capability_id": "linear.issue.search_context",
+            "kind": "contract_declared",
+            "status": "ready"
+          },
+          {
+            "capability_id": "linear.issue.prepare",
+            "kind": "contract_declared",
+            "status": "ready"
+          },
+          {
+            "capability_id": "linear.comment.prepare",
+            "kind": "contract_declared",
+            "status": "ready"
+          },
+          {
+            "capability_id": "linear.status_transition.request",
+            "kind": "contract_declared",
+            "status": "ready"
+          },
+          {
+            "capability_id": "linear.cycle_move.request",
+            "kind": "contract_declared",
+            "status": "ready"
+          }
+        ],
+        "required_app_glue": [],
+        "schema_version": "anip-agent-consumption-readiness/v0",
+        "score": 100,
+        "status": "ready",
+        "summary": {
+          "blockers": 0,
+          "capability_surface": 5,
+          "info": 0,
+          "probes": 5,
+          "required_app_glue": 0,
+          "warnings": 0
+        }
+      },
+      "anip_spec_version": "anip/0.24",
+      "artifact_type": "anip_package_lock",
+      "blueprint_id": "linear-fronting-showcase",
+      "blueprint_version": "0.2.0",
+      "build_packs": [
+        "anip-build-pack@local"
+      ],
+      "capability_ids": [
+        "linear.issue.search_context",
+        "linear.issue.prepare",
+        "linear.comment.prepare",
+        "linear.status_transition.request",
+        "linear.cycle_move.request"
+      ],
+      "contract_signature": "sha256:5788fa7351151ac6abba11738dc3c67c2bb802807c1329e128b60b4a545594ad",
+      "extension_packs": [],
+      "generated_at": "2026-05-15T00:00:00Z",
+      "lineage": {
+        "developer_revision": {
+          "artifact_id": "linear-fronting-studio-20260516234232-developer-definition-revision-1",
+          "contract_signature": "sha256:5788fa7351151ac6abba11738dc3c67c2bb802807c1329e128b60b4a545594ad",
+          "ref": "linear-fronting-studio-20260516234232-developer-definition-revision-1",
+          "revision_number": 1
+        },
+        "product_revision": {
+          "artifact_id": "linear-fronting-studio-20260516234232-product-design-revision-1@r1",
+          "baseline_locked_at": "2026-05-15T00:00:00Z",
+          "ref": "linear-fronting-studio-20260516234232-product-design-revision-1@r1",
+          "revision_number": 1
+        },
+        "project_ref": "studio:linear-fronting-studio-20260516234232"
+      },
+      "lock_kind": "publisher_recommended_lock",
+      "package_id": "linear-fronting-showcase",
+      "package_version": "0.2.0",
+      "regression_packs": [],
+      "runtime_packages": [],
+      "schema_version": "anip-service-definition/v1",
+      "selected_service_ids": [
+        "linear-governance-service"
+      ],
+      "service_definition_digest": "sha256:5788fa7351151ac6abba11738dc3c67c2bb802807c1329e128b60b4a545594ad",
+      "verifier_packs": [
+        "anip-verifier@local"
+      ]
+    },
+    "readme": "# linear_governed_fronting_showcase\n\nANIP package `linear-fronting-showcase@0.2.0` for local showcase and registry smoke usage.\n\n## Contents\n\n- Services: 1\n- Capabilities: 5\n- ANIP spec: `anip/0.24`\n\n## Capability Surface\n\n- `linear.issue.search_context`\n- `linear.issue.prepare`\n- `linear.comment.prepare`\n- `linear.status_transition.request`\n- `linear.cycle_move.request`\n\n## Generate\n\nFrom a downloaded package bundle:\n\n```bash\ngo run ./cmd/anip-generate --package-bundle \u003cdownloaded-package\u003e.anip-package.json --target python --dependency-source local --output ./generated/linear-fronting-showcase --force\n```\n\nFrom a trusted registry package:\n\n```bash\ngo run ./cmd/anip-generate --registry-url \u003cregistry-url\u003e --package-id linear-fronting-showcase --package-version 0.2.0 --target python --dependency-source registry --output ./generated/linear-fronting-showcase --force\n```\n\n## Verify\n\n```bash\ngo run ./cmd/anip-verify --definition anip-service-definition.json\ngo run ./cmd/anip-verify --package-bundle \u003cdownloaded-package\u003e.anip-package.json\n```\n\n## Run Locally\n\nGenerated services default to port `9152` unless overridden by the generated runtime configuration."
+  },
+  "publication": {
+    "package_id": "linear-fronting-showcase",
+    "package_version": "0.2.0",
+    "project_ref": "studio:linear-fronting-studio-20260516234232",
+    "product_revision_ref": "linear-fronting-studio-20260516234232-product-design-revision-1@r1",
+    "developer_revision_ref": "linear-fronting-studio-20260516234232-developer-definition-revision-1",
+    "contract_signature": "sha256:5788fa7351151ac6abba11738dc3c67c2bb802807c1329e128b60b4a545594ad",
+    "publisher_id": "local-dev-registry",
+    "publisher_type": "local",
+    "lineage": {
+      "developer_revision": {
+        "artifact_id": "linear-fronting-studio-20260516234232-developer-definition-revision-1",
+        "contract_signature": "sha256:5788fa7351151ac6abba11738dc3c67c2bb802807c1329e128b60b4a545594ad",
+        "ref": "linear-fronting-studio-20260516234232-developer-definition-revision-1",
+        "revision_number": 1
+      },
+      "product_revision": {
+        "artifact_id": "linear-fronting-studio-20260516234232-product-design-revision-1@r1",
+        "baseline_locked_at": "2026-05-15T00:00:00Z",
+        "ref": "linear-fronting-studio-20260516234232-product-design-revision-1@r1",
+        "revision_number": 1
+      },
+      "project_ref": "studio:linear-fronting-studio-20260516234232"
+    },
+    "published_at": "2026-05-15T00:00:00Z",
+    "download_count": 0
+  },
+  "receipt": {
+    "receipt_id": "sha256:14f9d6b3dd5d71537138479a47548ebc6cfda7714b2eed76016c60e3ecf948bb",
+    "package_id": "linear-fronting-showcase",
+    "package_version": "0.2.0",
+    "registry_signature": "ed25519:anip-registry-dev-ed25519-v1:ov/IBw2MUfRkm7DpHz1NUvm6RYw4iVt6IwvPlceGr2c5d7z2ssWfewFGQ809gQCq0l8zx1wcKPNHzpLN7apLBQ==",
+    "signature_algorithm": "ed25519",
+    "key_id": "anip-registry-dev-ed25519-v1",
+    "publisher_id": "local-dev-registry",
+    "publisher_type": "local",
+    "issued_at": "2026-05-15T00:00:00Z"
+  },
+  "registry_keys": [
+    {
+      "algorithm": "ed25519",
+      "key_id": "anip-registry-dev-ed25519-v1",
+      "public_key": "NZ8bIweTW/SJ14NTpSOCV/ITzTL7TIJP/Sl0CPAQV14="
+    }
+  ],
+  "service_definition": {
+    "artifact_type": "anip_service_definition",
+    "audit": {
+      "durable_records_required": true,
+      "searchable_history_required": true
+    },
+    "authority": {
+      "approval_expectation": "approval_gated_for_write_like_actions",
+      "blocked_failure_posture": "clarify_or_stop"
+    },
+    "capability_formalizations": [
+      {
+        "backend_operation": "linear_issue_search_context",
+        "capability_id": "linear.issue.search_context",
+        "context_type": "issue_context_search",
+        "id": "cap-linear-issue-search_context",
+        "inputs": [
+          {
+            "clarification_hint": "Ask for team_key when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "team_key",
+            "input_type": "string",
+            "required": true,
+            "semantic_type": "team_ref",
+            "summary": "Linear team key or identifier."
+          },
+          {
+            "clarification_hint": "Ask for query when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "query",
+            "input_type": "string",
+            "required": true,
+            "summary": "Bounded issue search query."
+          },
+          {
+            "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+            "default_value": "20",
+            "input_name": "limit",
+            "input_type": "integer",
+            "required": false,
+            "summary": "Maximum results to return."
+          },
+          {
+            "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+            "default_value": "",
+            "input_name": "backend_options",
+            "input_type": "object",
+            "required": false,
+            "semantic_type": "backend_options",
+            "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy."
+          }
+        ],
+        "intent_type": "read_only",
+        "kind": "atomic",
+        "operation_type": "read",
+        "output_intent": "bounded_issue_results",
+        "output_shape": "linear_issue_search_context_result",
+        "path_template": "/linear/issue_search_context",
+        "service_id": "linear-governance-service",
+        "side_effect_level": "read",
+        "source_kind": "integration_fronting_source_doc",
+        "subject_kind": "linear_workspace",
+        "summary": "Search bounded Linear issues, projects, and cycles without exposing raw workspace tools.",
+        "title": "Search Issue Context"
+      },
+      {
+        "backend_operation": "linear_issue_prepare",
+        "capability_id": "linear.issue.prepare",
+        "context_type": "issue_creation_preparation",
+        "grant_policy": {
+          "allowed_grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "default_grant_type": "one_time",
+          "expires_in_seconds": 900,
+          "max_uses": 1
+        },
+        "id": "cap-linear-issue-prepare",
+        "inputs": [
+          {
+            "clarification_hint": "Ask for team_key when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "team_key",
+            "input_type": "string",
+            "required": true,
+            "semantic_type": "team_ref",
+            "summary": "Linear team key or identifier."
+          },
+          {
+            "clarification_hint": "Ask for title when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "title",
+            "input_type": "string",
+            "required": true,
+            "summary": "Proposed issue title."
+          },
+          {
+            "clarification_hint": "Ask for description when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "description",
+            "input_type": "string",
+            "required": true,
+            "summary": "Proposed issue description."
+          },
+          {
+            "clarification_hint": "Ask for project_id when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "project_id",
+            "input_type": "string",
+            "required": false,
+            "semantic_type": "project_ref",
+            "summary": "Optional Linear project identifier."
+          },
+          {
+            "clarification_hint": "Ask for labels when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "labels",
+            "input_type": "string",
+            "required": false,
+            "summary": "Optional labels to apply."
+          },
+          {
+            "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+            "default_value": "",
+            "input_name": "backend_options",
+            "input_type": "object",
+            "required": false,
+            "semantic_type": "backend_options",
+            "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy."
+          }
+        ],
+        "intent_type": "prepare_only",
+        "kind": "atomic",
+        "operation_type": "write",
+        "output_intent": "issue_creation_preview",
+        "output_shape": "linear_issue_prepare_result",
+        "path_template": "/linear/issue_prepare",
+        "service_id": "linear-governance-service",
+        "side_effect_level": "write_adjacent",
+        "source_kind": "integration_fronting_source_doc",
+        "subject_kind": "linear_issue",
+        "summary": "Prepare a Linear issue preview with team, project, labels, and priority before creating anything.",
+        "title": "Prepare Issue"
+      },
+      {
+        "backend_operation": "linear_comment_prepare",
+        "capability_id": "linear.comment.prepare",
+        "context_type": "issue_comment_preparation",
+        "grant_policy": {
+          "allowed_grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "default_grant_type": "one_time",
+          "expires_in_seconds": 900,
+          "max_uses": 1
+        },
+        "id": "cap-linear-comment-prepare",
+        "inputs": [
+          {
+            "clarification_hint": "Ask for issue_id when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "issue_id",
+            "input_type": "string",
+            "required": true,
+            "semantic_type": "issue_ref",
+            "summary": "Linear issue identifier."
+          },
+          {
+            "clarification_hint": "Ask for comment_purpose when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "comment_purpose",
+            "input_type": "string",
+            "required": true,
+            "summary": "Purpose of the comment."
+          },
+          {
+            "clarification_hint": "Ask for context when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "context",
+            "input_type": "string",
+            "required": true,
+            "summary": "Bounded context for the proposed comment."
+          },
+          {
+            "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+            "default_value": "",
+            "input_name": "backend_options",
+            "input_type": "object",
+            "required": false,
+            "semantic_type": "backend_options",
+            "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy."
+          }
+        ],
+        "intent_type": "prepare_only",
+        "kind": "atomic",
+        "operation_type": "write",
+        "output_intent": "comment_preview",
+        "output_shape": "linear_comment_prepare_result",
+        "path_template": "/linear/comment_prepare",
+        "service_id": "linear-governance-service",
+        "side_effect_level": "write_adjacent",
+        "source_kind": "integration_fronting_source_doc",
+        "subject_kind": "linear_issue",
+        "summary": "Prepare a Linear issue comment from review or incident context without posting it.",
+        "title": "Prepare Issue Comment"
+      },
+      {
+        "backend_operation": "linear_status_transition_request",
+        "capability_id": "linear.status_transition.request",
+        "context_type": "status_transition_request",
+        "grant_policy": {
+          "allowed_grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "default_grant_type": "one_time",
+          "expires_in_seconds": 900,
+          "max_uses": 1
+        },
+        "id": "cap-linear-status_transition-request",
+        "inputs": [
+          {
+            "clarification_hint": "Ask for issue_id when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "issue_id",
+            "input_type": "string",
+            "required": true,
+            "semantic_type": "issue_ref",
+            "summary": "Linear issue identifier."
+          },
+          {
+            "clarification_hint": "Ask for target_status when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "target_status",
+            "input_type": "string",
+            "required": true,
+            "summary": "Requested target status."
+          },
+          {
+            "clarification_hint": "Ask for reason when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "reason",
+            "input_type": "string",
+            "required": true,
+            "summary": "Business reason for the transition."
+          },
+          {
+            "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+            "default_value": "",
+            "input_name": "backend_options",
+            "input_type": "object",
+            "required": false,
+            "semantic_type": "backend_options",
+            "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy."
+          }
+        ],
+        "intent_type": "prepare_only",
+        "kind": "atomic",
+        "operation_type": "write",
+        "output_intent": "status_transition_preview",
+        "output_shape": "linear_status_transition_request_result",
+        "path_template": "/linear/status_transition_request",
+        "service_id": "linear-governance-service",
+        "side_effect_level": "write_adjacent",
+        "source_kind": "integration_fronting_source_doc",
+        "subject_kind": "linear_issue",
+        "summary": "Prepare a governed Linear issue status transition request and stop for approval.",
+        "title": "Request Status Transition"
+      },
+      {
+        "backend_operation": "linear_cycle_move_request",
+        "capability_id": "linear.cycle_move.request",
+        "context_type": "cycle_move_request",
+        "grant_policy": {
+          "allowed_grant_types": [
+            "one_time",
+            "session_bound"
+          ],
+          "default_grant_type": "one_time",
+          "expires_in_seconds": 900,
+          "max_uses": 1
+        },
+        "id": "cap-linear-cycle_move-request",
+        "inputs": [
+          {
+            "clarification_hint": "Ask for issue_id when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "issue_id",
+            "input_type": "string",
+            "required": true,
+            "semantic_type": "issue_ref",
+            "summary": "Linear issue identifier."
+          },
+          {
+            "clarification_hint": "Ask for target_cycle when it is missing or ambiguous.",
+            "default_value": "",
+            "entity_reference": true,
+            "input_name": "target_cycle",
+            "input_type": "string",
+            "required": true,
+            "semantic_type": "cycle_ref",
+            "summary": "Target cycle identifier or name."
+          },
+          {
+            "clarification_hint": "Ask for reason when it is missing or ambiguous.",
+            "default_value": "",
+            "input_name": "reason",
+            "input_type": "string",
+            "required": true,
+            "summary": "Business reason for the move."
+          },
+          {
+            "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+            "default_value": "",
+            "input_name": "backend_options",
+            "input_type": "object",
+            "required": false,
+            "semantic_type": "backend_options",
+            "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy."
+          }
+        ],
+        "intent_type": "prepare_only",
+        "kind": "atomic",
+        "operation_type": "write",
+        "output_intent": "cycle_move_preview",
+        "output_shape": "linear_cycle_move_request_result",
+        "path_template": "/linear/cycle_move_request",
+        "service_id": "linear-governance-service",
+        "side_effect_level": "write_adjacent",
+        "source_kind": "integration_fronting_source_doc",
+        "subject_kind": "linear_cycle",
+        "summary": "Prepare a governed request to move a Linear issue into a cycle or project and stop for approval.",
+        "title": "Request Cycle Move"
+      }
+    ],
+    "compiled_contract_identity": {
+      "signature": "sha256:3840c59baee62993e1b0cb82e8a8c083b2f72c6133b734b170bd2245d19b3d29",
+      "signature_algorithm": "sha256"
+    },
+    "contract_schema_version": "anip-service-definition/v1",
+    "generation": {
+      "layout_strategy": "single_package",
+      "protocols": [
+        "https"
+      ],
+      "selected_service_ids": [
+        "linear-governance-service"
+      ]
+    },
+    "identity": {
+      "architecture_shape": "single_service",
+      "delivery_model": "governed_integration_fronting",
+      "domain_name": "linear",
+      "system_name": "linear_governed_fronting_showcase"
+    },
+    "integration_fronting": {
+      "capability_mappings": [
+        {
+          "audit_required": true,
+          "backend_input_mode": "explicit",
+          "backend_kind": "native_api",
+          "capability_id": "linear.issue.search_context",
+          "clarification_rule_refs": [
+            "missing_required_inputs"
+          ],
+          "connection_ref": "linear_fronting",
+          "context_type": "issue_context_search",
+          "execution_posture": "read_only",
+          "id": "map-linear-issue-search_context",
+          "intent": "Search bounded Linear issues, projects, and cycles without exposing raw workspace tools.",
+          "optional_inputs": [
+            "limit",
+            "backend_options"
+          ],
+          "outbound_controls": {
+            "raw_backend_not_agent_visible": true,
+            "redaction_required": true
+          },
+          "output_intent": "bounded_issue_results",
+          "raw_operation_refs": [
+            "linear.api.issue_search_context"
+          ],
+          "required_inputs": [
+            "team_key",
+            "query"
+          ],
+          "service_id": "linear-governance-service",
+          "service_name": "Linear Governance Service",
+          "side_effect_level": "read",
+          "subject_kind": "linear_workspace",
+          "title": "Search Issue Context"
+        },
+        {
+          "audit_required": true,
+          "backend_input_mode": "explicit",
+          "backend_kind": "native_api",
+          "capability_id": "linear.issue.prepare",
+          "clarification_rule_refs": [
+            "missing_required_inputs"
+          ],
+          "connection_ref": "linear_fronting",
+          "context_type": "issue_creation_preparation",
+          "execution_posture": "prepare_only",
+          "id": "map-linear-issue-prepare",
+          "intent": "Prepare a Linear issue preview with team, project, labels, and priority before creating anything.",
+          "optional_inputs": [
+            "project_id",
+            "labels",
+            "backend_options"
+          ],
+          "outbound_controls": {
+            "raw_backend_not_agent_visible": true,
+            "redaction_required": true
+          },
+          "output_intent": "issue_creation_preview",
+          "raw_operation_refs": [
+            "linear.api.issue_prepare"
+          ],
+          "required_inputs": [
+            "team_key",
+            "title",
+            "description"
+          ],
+          "service_id": "linear-governance-service",
+          "service_name": "Linear Governance Service",
+          "side_effect_level": "write_adjacent",
+          "subject_kind": "linear_issue",
+          "title": "Prepare Issue"
+        },
+        {
+          "audit_required": true,
+          "backend_input_mode": "explicit",
+          "backend_kind": "native_api",
+          "capability_id": "linear.comment.prepare",
+          "clarification_rule_refs": [
+            "missing_required_inputs"
+          ],
+          "connection_ref": "linear_fronting",
+          "context_type": "issue_comment_preparation",
+          "execution_posture": "prepare_only",
+          "id": "map-linear-comment-prepare",
+          "intent": "Prepare a Linear issue comment from review or incident context without posting it.",
+          "optional_inputs": [
+            "backend_options"
+          ],
+          "outbound_controls": {
+            "raw_backend_not_agent_visible": true,
+            "redaction_required": true
+          },
+          "output_intent": "comment_preview",
+          "raw_operation_refs": [
+            "linear.api.comment_prepare"
+          ],
+          "required_inputs": [
+            "issue_id",
+            "comment_purpose",
+            "context"
+          ],
+          "service_id": "linear-governance-service",
+          "service_name": "Linear Governance Service",
+          "side_effect_level": "write_adjacent",
+          "subject_kind": "linear_issue",
+          "title": "Prepare Issue Comment"
+        },
+        {
+          "audit_required": true,
+          "backend_input_mode": "explicit",
+          "backend_kind": "native_api",
+          "capability_id": "linear.status_transition.request",
+          "clarification_rule_refs": [
+            "missing_required_inputs"
+          ],
+          "connection_ref": "linear_fronting",
+          "context_type": "status_transition_request",
+          "execution_posture": "prepare_only",
+          "id": "map-linear-status_transition-request",
+          "intent": "Prepare a governed Linear issue status transition request and stop for approval.",
+          "optional_inputs": [
+            "backend_options"
+          ],
+          "outbound_controls": {
+            "raw_backend_not_agent_visible": true,
+            "redaction_required": true
+          },
+          "output_intent": "status_transition_preview",
+          "raw_operation_refs": [
+            "linear.api.status_transition_request"
+          ],
+          "required_inputs": [
+            "issue_id",
+            "target_status",
+            "reason"
+          ],
+          "service_id": "linear-governance-service",
+          "service_name": "Linear Governance Service",
+          "side_effect_level": "write_adjacent",
+          "subject_kind": "linear_issue",
+          "title": "Request Status Transition"
+        },
+        {
+          "audit_required": true,
+          "backend_input_mode": "explicit",
+          "backend_kind": "native_api",
+          "capability_id": "linear.cycle_move.request",
+          "clarification_rule_refs": [
+            "missing_required_inputs"
+          ],
+          "connection_ref": "linear_fronting",
+          "context_type": "cycle_move_request",
+          "execution_posture": "prepare_only",
+          "id": "map-linear-cycle_move-request",
+          "intent": "Prepare a governed request to move a Linear issue into a cycle or project and stop for approval.",
+          "optional_inputs": [
+            "backend_options"
+          ],
+          "outbound_controls": {
+            "raw_backend_not_agent_visible": true,
+            "redaction_required": true
+          },
+          "output_intent": "cycle_move_preview",
+          "raw_operation_refs": [
+            "linear.api.cycle_move_request"
+          ],
+          "required_inputs": [
+            "issue_id",
+            "target_cycle",
+            "reason"
+          ],
+          "service_id": "linear-governance-service",
+          "service_name": "Linear Governance Service",
+          "side_effect_level": "write_adjacent",
+          "subject_kind": "linear_cycle",
+          "title": "Request Cycle Move"
+        }
+      ],
+      "project_type": "governed_api_fronting"
+    },
+    "service_topology_bindings": [
+      {
+        "formalized_capability_ids": [
+          "linear.issue.search_context",
+          "linear.issue.prepare",
+          "linear.comment.prepare",
+          "linear.status_transition.request",
+          "linear.cycle_move.request"
+        ],
+        "id": "svc-linear-governance-service",
+        "owned_concept_ids": [
+          "fronted_resource"
+        ],
+        "service_id": "linear-governance-service",
+        "service_name": "Linear Governance Service",
+        "source_capabilities": [
+          "linear.issue.search_context",
+          "linear.issue.prepare",
+          "linear.comment.prepare",
+          "linear.status_transition.request",
+          "linear.cycle_move.request"
+        ],
+        "source_role": "integration_fronting"
+      }
+    ]
+  }
+}

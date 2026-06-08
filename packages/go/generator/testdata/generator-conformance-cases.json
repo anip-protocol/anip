@@ -1,0 +1,196 @@
+{
+  "schema_version": "anip-generator-conformance/v0",
+  "definition_fixture": "generator-conformance-definition.json",
+  "cases": [
+    {
+      "id": "runtime-metadata-preserves-contract-semantics",
+      "description": "Every target must emit the same runtime metadata for capabilities, policies, v0.24 input resolution, composition, and fronting bindings.",
+      "runtime_markers": [
+        "\"conformance.lookup\"",
+        "\"conformance.prepare_change\"",
+        "\"conformance.lookup_and_prepare\"",
+        "\"grant_policy\": {",
+        "\"policy_bindings\": [",
+        "\"decision\": \"allow_with_limits\"",
+        "\"decision\": \"deny\"",
+        "\"decision\": \"approval_required\"",
+        "\"resolution\": {",
+        "\"mode\": \"backend_resolved\"",
+        "\"resolver_ref\": \"conformance.record_catalog\"",
+        "\"mode\": \"closed_values\"",
+        "\"catalog_ref\": \"conformance.status_catalog\"",
+        "\"child_approval_required\": \"propagate\"",
+        "\"backend_input_mode\": \"hybrid\"",
+        "\"explicit_required_backend_inputs\": ["
+      ]
+    },
+    {
+      "id": "generated-host-uses-filtered-adapter-input",
+      "description": "Generated hosts must build adapter_input from semantic plus backend-contract keys and must not forward arbitrary request parameters.",
+      "target_markers": {
+        "python": [
+          {
+            "path": "src/generator_conformance_service/capabilities.py",
+            "contains": [
+              "adapter_keys = semantic_keys | set(contract[\"required\"]) | set(contract[\"optional\"])",
+              "adapter_input = {key: value for key, value in params.items() if key in adapter_keys}",
+              "backend_adapter.execute(capability, plan, plan[\"adapter_input\"]"
+            ]
+          }
+        ],
+        "typescript": [
+          {
+            "path": "src/generated/capabilities.ts",
+            "contains": [
+              "const adapterKeys = new Set([...semanticKeys, ...backendInputContract.required, ...backendInputContract.optional]);",
+              "const adapterInput = Object.fromEntries(Object.entries(params).filter(([key]) => adapterKeys.has(key)));",
+              "backendAdapter.execute(capability, plan, plan.adapter_input"
+            ]
+          }
+        ],
+        "go": [
+          {
+            "path": "host/capabilities.go",
+            "contains": [
+              "adapterKeys := map[string]struct{}{}",
+              "if _, ok := adapterKeys[key]; ok {",
+              "BackendAdapterInstance.Execute(capability, plan, plan.AdapterInput"
+            ]
+          }
+        ],
+        "java": [
+          {
+            "path": "src/main/java/dev/anip/generated/generator_conformance_service/GeneratedCapabilities.java",
+            "contains": [
+              "Set<String> adapterKeys = new LinkedHashSet<>(semanticKeys);",
+              "if (adapterKeys.contains(entry.getKey())) {",
+              "backendAdapter.execute(capability, plan, objectMap(plan.get(\"adapter_input\")), ctx)"
+            ]
+          }
+        ],
+        "csharp": [
+          {
+            "path": "GeneratedCapabilities.cs",
+            "contains": [
+              "var adapterKeys = new HashSet<string>(semanticKeys);",
+              "if (adapterKeys.Contains(entry.Key))",
+              "backendAdapter(capability, plan, (Dictionary<string, object?>)plan[\"adapter_input\"]!, ctx)"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "generated-policy-precedence-is-consistent",
+      "description": "Every target must implement the same sparse policy override semantics and governed-stop precedence.",
+      "target_markers": {
+        "python": [
+          {
+            "path": "src/generator_conformance_service/policy.py",
+            "contains": [
+              "def _requires_governed_stop(capability: dict[str, Any]) -> bool:",
+              "approval = next((binding for binding in matching if binding.get('decision') == 'approval_required'), None)",
+              "allowed = next((binding for binding in matching if binding.get('decision') not in {'deny', 'clarify', 'approval_required'}), None)",
+              "No matching runtime policy binding; continuing."
+            ]
+          }
+        ],
+        "typescript": [
+          {
+            "path": "src/runtime/policy.ts",
+            "contains": [
+              "function requiresGovernedStop(capability: GeneratedCapabilityRuntimeMetadata): boolean",
+              "const approval = matching.find((binding) => binding.decision === \"approval_required\");",
+              "const allowed = matching.find((binding) => binding.decision !== \"deny\" && binding.decision !== \"clarify\" && binding.decision !== \"approval_required\");",
+              "No matching runtime policy binding; continuing."
+            ]
+          }
+        ],
+        "go": [
+          {
+            "path": "extensions/policy.go",
+            "contains": [
+              "func requiresGovernedStop(capability generated.GeneratedCapabilityRuntimeMetadata) bool",
+              "if binding.Decision == \"approval_required\"",
+              "if binding.Decision != \"deny\" && binding.Decision != \"clarify\" && binding.Decision != \"approval_required\"",
+              "No matching runtime policy binding; continuing."
+            ]
+          }
+        ],
+        "java": [
+          {
+            "path": "src/main/java/dev/anip/generated/generator_conformance_service/Policy.java",
+            "contains": [
+              "private static boolean requiresGovernedStop(Map<String, Object> capability)",
+              "if (\"approval_required\".equals(stringValue(binding, \"decision\"))) return decisionFor(binding);",
+              "if (!\"deny\".equals(decision) && !\"clarify\".equals(decision) && !\"approval_required\".equals(decision)) return decisionFor(binding);",
+              "No matching runtime policy binding; continuing."
+            ]
+          }
+        ],
+        "csharp": [
+          {
+            "path": "Policy.cs",
+            "contains": [
+              "private static bool RequiresGovernedStop(Dictionary<string, object?> capability)",
+              "var approval = matching.FirstOrDefault(binding => binding.Decision == \"approval_required\");",
+              "var allowed = matching.FirstOrDefault(binding => binding.Decision != \"deny\" && binding.Decision != \"clarify\" && binding.Decision != \"approval_required\");",
+              "No matching runtime policy binding; continuing."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "default-backend-keeps-approval-as-preview-stop",
+      "description": "Generated default adapters must produce preview-only output for governed-stop capabilities rather than executing downstream mutations.",
+      "target_markers": {
+        "python": [
+          {
+            "path": "src/generator_conformance_service/backend_adapter.py",
+            "contains": [
+              "Generated host prepared a governed preview and did not execute the backend.",
+              "Replace DefaultBackendAdapter.execute() with provider-specific backend execution."
+            ]
+          }
+        ],
+        "typescript": [
+          {
+            "path": "src/runtime/backend-adapter.ts",
+            "contains": [
+              "Generated host prepared a governed preview and did not execute the backend.",
+              "Replace createDefaultBackendAdapter() with provider-specific backend execution."
+            ]
+          }
+        ],
+        "go": [
+          {
+            "path": "extensions/backend_adapter.go",
+            "contains": [
+              "Generated host prepared a governed preview and did not execute the backend.",
+              "Replace CreateDefaultBackendAdapter() with provider-specific backend execution."
+            ]
+          }
+        ],
+        "java": [
+          {
+            "path": "src/main/java/dev/anip/generated/generator_conformance_service/BackendAdapter.java",
+            "contains": [
+              "Generated host prepared a governed preview and did not execute the backend.",
+              "Replace BackendAdapter.defaultAdapter() with provider-specific backend execution."
+            ]
+          }
+        ],
+        "csharp": [
+          {
+            "path": "BackendAdapter.cs",
+            "contains": [
+              "Generated host prepared a governed preview and did not execute the backend.",
+              "Replace BackendAdapter.Default with provider-specific backend execution."
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

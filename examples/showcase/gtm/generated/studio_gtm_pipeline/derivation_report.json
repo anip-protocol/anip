@@ -1,0 +1,32 @@
+{
+  "mapped_fields": [
+    "source.project_id",
+    "payload.intent.problem_statement",
+    "payload.intent.intended_consumers",
+    "payload.scenarios",
+    "payload.current_posture"
+  ],
+  "suggested_fields": [
+    "backend.type",
+    "backend.implementationLanguage",
+    "scenarioPack.categories",
+    "scenarioPack.targetCount",
+    "clarification.rules",
+    "domain.name",
+    "serviceContract"
+  ],
+  "unresolved_fields": [
+    "domain.metrics",
+    "domain.dimensions",
+    "domain.filters",
+    "permissions.metricRules",
+    "permissions.dimensionRules",
+    "permissions.limitRules",
+    "permissions.useRules"
+  ],
+  "notes": [
+    "This developer draft was seeded from current Product Design state.",
+    "When a service design snapshot is available, Studio carries capability contracts forward into the generated data-access service scaffold.",
+    "Metrics, dimensions, filters, and permission rules still require developer confirmation."
+  ]
+}

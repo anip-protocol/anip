@@ -1,0 +1,275 @@
+// Generated from an exported ANIP Service Definition.
+export const serviceDefinition = {
+  "artifact_type": "anip_service_definition",
+  "contract_schema_version": "anip-service-definition/v1",
+  "compiled_contract_identity": {
+    "signature": "021c4b1cfdb65586e8bae605edf9f14a738318e091cfa27346211629b6f9c63d",
+    "signature_algorithm": "sha256"
+  },
+  "identity": {
+    "system_name": "GTM Pipeline Q2 Review",
+    "domain_name": "revenue_operations",
+    "delivery_model": "standalone_service",
+    "architecture_shape": "single_service"
+  },
+  "authority": {
+    "trust_mode": "signed",
+    "trust_checkpoints_required": true,
+    "spending_actions_present": true,
+    "irreversible_actions_present": false,
+    "cost_visibility_required": true,
+    "preflight_authority_discovery": true,
+    "grantable_restrictions": true,
+    "restricted_vs_denied": true,
+    "delegation_tokens": true,
+    "scoped_authority": true,
+    "purpose_binding": true,
+    "approval_expectation": "approval_required_for_high_risk",
+    "recovery_sensitive": true,
+    "blocked_failure_posture": "human_review_for_unresolved_or_approval_gated_work"
+  },
+  "audit": {
+    "durable_records_required": true,
+    "searchable_history_required": true,
+    "invocation_tracking": true,
+    "task_tracking": true,
+    "parent_invocation_tracking": true,
+    "client_reference_ids": true,
+    "service_handoffs_required": false,
+    "cross_service_reconstruction_required": false,
+    "cross_service_continuity_required": false
+  },
+  "generation": {
+    "protocols": [
+      "anip_http"
+    ],
+    "layout_strategy": "monorepo",
+    "selected_service_ids": [
+      "gtm-pipeline-service"
+    ]
+  },
+  "service_topology_bindings": [
+    {
+      "id": "service_topology_gtm-pipeline-service",
+      "service_id": "gtm-pipeline-service",
+      "service_name": "GTM Pipeline Service",
+      "source_role": "answers bounded pipeline review questions and prepares follow-up and reassignment previews",
+      "source_capabilities": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.prepare_reassignment_plan",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks"
+      ],
+      "source_concepts": [
+        "pipeline-review",
+        "account-risk",
+        "followup-plan",
+        "reassignment-plan"
+      ],
+      "formalized_capability_ids": [
+        "gtm.pipeline_summary",
+        "gtm.pipeline_forecast_summary",
+        "gtm.stage_bottleneck_summary",
+        "gtm.sales_team_performance_summary",
+        "gtm.product_pipeline_summary",
+        "gtm.prepare_reassignment_plan",
+        "gtm.stalled_opportunity_review",
+        "gtm.account_risk_summary",
+        "gtm.prepare_followup_tasks"
+      ],
+      "owned_concept_ids": [
+        "pipeline-review",
+        "account-risk",
+        "followup-plan",
+        "reassignment-plan"
+      ],
+      "implementation_notes": ""
+    }
+  ],
+  "capability_formalizations": [
+    {
+      "id": "application_integration:gtm.pipeline_summary",
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.pipeline_summary",
+      "title": "Gtm.Pipeline Summary",
+      "summary": "Capability owned by GTM Pipeline Service.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "none",
+      "backend_operation": "gtm.pipeline_summary",
+      "path_template": "",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.pipeline_forecast_summary",
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.pipeline_forecast_summary",
+      "title": "Gtm.Pipeline Forecast Summary",
+      "summary": "Capability owned by GTM Pipeline Service.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "none",
+      "backend_operation": "gtm.pipeline_forecast_summary",
+      "path_template": "",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.stage_bottleneck_summary",
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.stage_bottleneck_summary",
+      "title": "Gtm.Stage Bottleneck Summary",
+      "summary": "Capability owned by GTM Pipeline Service.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "none",
+      "backend_operation": "gtm.stage_bottleneck_summary",
+      "path_template": "",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.sales_team_performance_summary",
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.sales_team_performance_summary",
+      "title": "Gtm.Sales Team Performance Summary",
+      "summary": "Capability owned by GTM Pipeline Service.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "none",
+      "backend_operation": "gtm.sales_team_performance_summary",
+      "path_template": "",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.product_pipeline_summary",
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.product_pipeline_summary",
+      "title": "Gtm.Product Pipeline Summary",
+      "summary": "Capability owned by GTM Pipeline Service.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "none",
+      "backend_operation": "gtm.product_pipeline_summary",
+      "path_template": "",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.prepare_reassignment_plan",
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.prepare_reassignment_plan",
+      "title": "Gtm.Prepare Reassignment Plan",
+      "summary": "Capability owned by GTM Pipeline Service.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "none",
+      "backend_operation": "gtm.prepare_reassignment_plan",
+      "path_template": "",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.stalled_opportunity_review",
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.stalled_opportunity_review",
+      "title": "Gtm.Stalled Opportunity Review",
+      "summary": "Capability owned by GTM Pipeline Service.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "none",
+      "backend_operation": "gtm.stalled_opportunity_review",
+      "path_template": "",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.account_risk_summary",
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.account_risk_summary",
+      "title": "Gtm.Account Risk Summary",
+      "summary": "Capability owned by GTM Pipeline Service.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "none",
+      "backend_operation": "gtm.account_risk_summary",
+      "path_template": "",
+      "output_shape": "governed_result",
+      "inputs": []
+    },
+    {
+      "id": "application_integration:gtm.prepare_followup_tasks",
+      "source_kind": "application_integration",
+      "service_id": "gtm-pipeline-service",
+      "capability_id": "gtm.prepare_followup_tasks",
+      "title": "Gtm.Prepare Followup Tasks",
+      "summary": "Capability owned by GTM Pipeline Service.",
+      "entity_targeted": false,
+      "subject_kind": "",
+      "context_type": "",
+      "output_intent": "",
+      "intent_type": "business_action",
+      "operation_type": "read",
+      "side_effect_level": "none",
+      "backend_operation": "gtm.prepare_followup_tasks",
+      "path_template": "",
+      "output_shape": "governed_result",
+      "inputs": []
+    }
+  ],
+  "integration_fronting": {
+    "project_type": "standard",
+    "integration_profile": {
+      "kind": "none",
+      "systems": []
+    },
+    "capability_mappings": []
+  }
+} as const;

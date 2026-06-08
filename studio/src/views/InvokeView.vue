@@ -3,6 +3,8 @@ import { ref, watch, onMounted, computed } from 'vue'
 import { useAnipInvoke, useAnipManifest } from '@anip-dev/vue'
 import { useRoute, useRouter } from 'vue-router'
 import { store } from '../store'
+import { recordRuntimeObservation } from '../design/store'
+import type { RuntimeObservation } from '../design/types'
 import StatusBadge from '../components/StatusBadge.vue'
 import BearerInput from '../components/BearerInput.vue'
 import PermissionsPanel from '../components/PermissionsPanel.vue'
@@ -93,6 +95,91 @@ const responseModes = computed(() => declaration.value?.responseModes || ['unary
 const hasStreaming = computed(() => responseModes.value.includes('streaming'))
 const invokeBusy = computed(() => invokeLoading.value)
 
+function deriveObservedOutcomeFromInvocation(): RuntimeObservation['observed_outcome'] {
+  if (!invokeResult.value) return null
+  if (invokeResult.value.success) return 'available'
+
+  const failure = invokeResult.value.failure
+  if (!failure) return null
+
+  const detail = String(failure.detail || '').toLowerCase()
+  const type = String(failure.type || '').toLowerCase()
+  const action = String(failure.resolution?.action || '').toLowerCase()
+  const requires = String(failure.resolution?.requires || '').toLowerCase()
+
+  if (
+    detail.includes('approval') ||
+    action.includes('approval') ||
+    requires.includes('approval')
+  ) {
+    return 'approval_required'
+  }
+  if (
+    detail.includes('ambiguous') ||
+    detail.includes('missing') ||
+    detail.includes('clarif') ||
+    action.includes('clarify')
+  ) {
+    return 'clarification_required'
+  }
+  if (
+    type.includes('restrict') ||
+    action.includes('restrict') ||
+    action.includes('narrow') ||
+    requires.includes('narrow')
+  ) {
+    return 'restricted'
+  }
+  if (
+    type.includes('denied') ||
+    type.includes('forbidden') ||
+    detail.includes('denied') ||
+    detail.includes('forbidden')
+  ) {
+    return 'denied'
+  }
+  return null
+}
+
+function deriveUnresolvedInputs(): string[] {
+  if (!invokeResult.value?.failure?.resolution?.requires) return []
+  const requires = String(invokeResult.value.failure.resolution.requires)
+  if (/approval|scope/i.test(requires)) return []
+  return requires
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function capturePendingRuntimeObservation() {
+  if (!selectedCapability.value || !invokeResult.value) return
+
+  const observation: RuntimeObservation = {
+    observation_id: invokeResult.value.invocationId ?? `${selectedCapability.value}:${Date.now()}`,
+    source: 'invoke',
+    observed_at: new Date().toISOString(),
+    invocation_id: invokeResult.value.invocationId ?? null,
+    task_id: invokeResult.value.taskId ?? null,
+    parent_invocation_id: parentInvocationId.value.trim() || null,
+    invoked_capability: selectedCapability.value,
+    observed_outcome: deriveObservedOutcomeFromInvocation(),
+    reason_code: invokeResult.value.failure?.type ?? null,
+    unresolved_inputs: deriveUnresolvedInputs(),
+    retry_without_progress: Boolean(
+      invokeResult.value.failure?.resolution?.action &&
+      /retry/i.test(String(invokeResult.value.failure.resolution.action)) &&
+      deriveUnresolvedInputs().length > 0,
+    ),
+    agent_behavior:
+      invokeResult.value.failure?.recoveryClass ??
+      invokeResult.value.failure?.resolution?.action ??
+      null,
+    backend_context: `${selectedCapability.value}:${sideEffectType.value}`,
+  }
+
+  recordRuntimeObservation(observation)
+}
+
 const displayInvokeResult = computed(() => {
   if (!invokeResult.value) return null
   return {
@@ -135,7 +222,7 @@ const displayInvokeResult = computed(() => {
 })
 
 function selectCapability(name: string) {
-  router.push(`/invoke/${name}`)
+  router.push(`/inspect/invoke/${name}`)
 }
 
 function onFormUpdate(inputs: Record<string, string>) {
@@ -157,6 +244,7 @@ async function onInvoke(inputs: Record<string, string>) {
         parentInvocationId: parentInvocationId.value.trim() || undefined,
       },
     )
+    capturePendingRuntimeObservation()
   } catch {
     // Transport error — wrap as a failure-like object for InvokeResult
   }
@@ -173,7 +261,7 @@ async function onInvoke(inputs: Record<string, string>) {
     <!-- Not connected -->
     <div v-if="!store.connected" class="placeholder">
       <div class="placeholder-icon">&#x26A1;</div>
-      <p>Connect to an ANIP service to invoke capabilities.</p>
+      <p>Connect to an ANIP capability service to invoke capabilities.</p>
     </div>
 
     <!-- Loading manifest -->
@@ -191,7 +279,7 @@ async function onInvoke(inputs: Record<string, string>) {
     <!-- Invalid capability -->
     <div v-else-if="invalidCapability" class="placeholder">
       <p class="error-text">Unknown capability: {{ selectedCapability }}</p>
-      <button class="retry-btn" @click="router.push('/invoke')">Back to picker</button>
+      <button class="retry-btn" @click="router.push('/inspect/invoke')">Back to picker</button>
     </div>
 
     <!-- Main content -->
@@ -216,7 +304,7 @@ async function onInvoke(inputs: Record<string, string>) {
           </div>
         </div>
         <div v-else class="declaration-bar">
-          <button class="back-btn" @click="router.push('/invoke')" title="Back to picker">&larr;</button>
+          <button class="back-btn" @click="router.push('/inspect/invoke')" title="Back to picker">&larr;</button>
           <span class="cap-name">{{ selectedCapability }}</span>
           <StatusBadge :label="sideEffectBadge.label" :type="sideEffectBadge.type" />
           <span v-for="s in scope" :key="s" class="scope-chip">{{ s }}</span>
@@ -291,7 +379,11 @@ async function onInvoke(inputs: Record<string, string>) {
           <div v-if="invokeError && !invokeResult" class="transport-error">
             {{ invokeError }}
           </div>
-          <InvokeResult :result="displayInvokeResult" />
+          <InvokeResult
+            :result="displayInvokeResult"
+            :capability-name="selectedCapability"
+            :side-effect-type="sideEffectType"
+          />
         </section>
       </template>
     </div>

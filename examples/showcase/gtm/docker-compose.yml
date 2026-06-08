@@ -1,0 +1,369 @@
+name: anip-gtm-showcase
+
+services:
+  gtm-postgres:
+    image: postgres:16
+    container_name: anip-gtm-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-anip_gtm}
+      POSTGRES_USER: ${POSTGRES_USER:-anip}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-anip}
+    ports:
+      - "${POSTGRES_PORT:-5454}:5432"
+    volumes:
+      - gtm-postgres-data:/var/lib/postgresql/data
+      - ./data:/seed:ro
+      - ./data/init:/docker-entrypoint-initdb.d:ro
+
+  gtm-dbt:
+    build:
+      context: ./dbt
+    container_name: anip-gtm-dbt
+    depends_on:
+      - gtm-postgres
+    environment:
+      DBT_PROFILES_DIR: /app/profiles
+      PGHOST: gtm-postgres
+      PGPORT: 5432
+      PGUSER: ${POSTGRES_USER:-anip}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-anip}
+      PGDATABASE: ${POSTGRES_DB:-anip_gtm}
+      PGSCHEMA: analytics_gtm
+    volumes:
+      - ./dbt:/app
+    command: >
+      sh -c "dbt deps --project-dir /app &&
+             dbt build --project-dir /app --profiles-dir /app/profiles"
+
+  gtm-cube:
+    image: cubejs/cube:latest
+    container_name: anip-gtm-cube
+    depends_on:
+      - gtm-postgres
+    environment:
+      CUBEJS_DEV_MODE: "true"
+      CUBEJS_DB_TYPE: postgres
+      CUBEJS_DB_HOST: gtm-postgres
+      CUBEJS_DB_PORT: 5432
+      CUBEJS_DB_NAME: ${POSTGRES_DB:-anip_gtm}
+      CUBEJS_DB_USER: ${POSTGRES_USER:-anip}
+      CUBEJS_DB_PASS: ${POSTGRES_PASSWORD:-anip}
+      CUBEJS_API_SECRET: ${CUBEJS_API_SECRET:-anip-gtm-cube-dev-secret}
+    expose:
+      - "4000"
+    volumes:
+      - ./cube:/cube/conf
+
+  gtm-metabase:
+    image: metabase/metabase:latest
+    container_name: anip-gtm-metabase
+    depends_on:
+      - gtm-postgres
+      - gtm-dbt
+    environment:
+      MB_DB_FILE: /metabase-data/metabase.db
+      JAVA_TIMEZONE: ${TZ:-America/Los_Angeles}
+      MB_SITE_URL: http://127.0.0.1:${GTM_METABASE_PORT:-3035}
+    volumes:
+      - gtm-metabase-data:/metabase-data
+    ports:
+      - "${GTM_METABASE_PORT:-3035}:3000"
+
+  gtm-metabase-setup:
+    image: python:3.12-slim
+    container_name: anip-gtm-metabase-setup
+    depends_on:
+      - gtm-metabase
+      - gtm-dbt
+    environment:
+      GTM_METABASE_URL: http://gtm-metabase:3000
+      GTM_METABASE_DB_HOST: gtm-postgres
+      GTM_METABASE_DB_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-anip_gtm}
+      POSTGRES_USER: ${POSTGRES_USER:-anip}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-anip}
+    volumes:
+      - ./scripts:/scripts:ro
+    command: ["python", "/scripts/setup_metabase_verification.py"]
+
+  gtm-pipeline-service:
+    build:
+      context: ../../..
+      dockerfile: examples/showcase/gtm/generated/studio_gtm_pipeline/Dockerfile
+    container_name: anip-gtm-pipeline-service
+    depends_on:
+      - gtm-postgres
+      - gtm-cube
+    environment:
+      PORT: 9200
+      DATABASE_URL: postgresql://${POSTGRES_USER:-anip}:${POSTGRES_PASSWORD:-anip}@anip-gtm-postgres:5432/${POSTGRES_DB:-anip_gtm}
+      CUBE_API_URL: http://gtm-cube:4000/cubejs-api/v1/load
+      CUBE_API_SECRET: ${CUBEJS_API_SECRET:-anip-gtm-cube-dev-secret}
+      ANIP_STORAGE: ":memory:"
+      ANIP_TRUST_LEVEL: signed
+      ANIP_KEY_PATH: /app/.anip-keys/keys.json
+      GTM_APPROVAL_STORE_PATH: /app/.gtm-state/approvals.json
+    volumes:
+      - gtm-pipeline-keys:/app/.anip-keys
+      - gtm-pipeline-state:/app/.gtm-state
+    ports:
+      - "${GTM_PIPELINE_PORT:-9200}:9200"
+
+  gtm-enrichment-service:
+    build:
+      context: ../../..
+      dockerfile: examples/showcase/gtm/generated/studio_gtm_enrichment/Dockerfile
+    container_name: anip-gtm-enrichment-service
+    depends_on:
+      - gtm-postgres
+    environment:
+      PORT: 9200
+      DATABASE_URL: postgresql://${POSTGRES_USER:-anip}:${POSTGRES_PASSWORD:-anip}@anip-gtm-postgres:5432/${POSTGRES_DB:-anip_gtm}
+      ANIP_STORAGE: ":memory:"
+      ANIP_TRUST_LEVEL: signed
+      ANIP_KEY_PATH: /app/.anip-keys/keys.json
+    volumes:
+      - gtm-enrichment-keys:/app/.anip-keys
+    ports:
+      - "${GTM_ENRICHMENT_PORT:-9202}:9200"
+
+  gtm-prioritization-backend:
+    build:
+      context: ../../..
+      dockerfile: examples/showcase/gtm/services/gtm_prioritization_backend/Dockerfile
+    container_name: anip-gtm-prioritization-backend
+
+  gtm-prioritization-service:
+    build:
+      context: ../../..
+      dockerfile: examples/showcase/gtm/generated/studio_gtm_prioritization_rest/Dockerfile
+    container_name: anip-gtm-prioritization-service
+    depends_on:
+      - gtm-prioritization-backend
+    environment:
+      PORT: 9200
+      ANIP_STORAGE: ":memory:"
+      ANIP_TRUST_LEVEL: signed
+      ANIP_KEY_PATH: /app/.anip-keys/keys.json
+      GTM_APPROVAL_STORE_PATH: /app/.gtm-state/prioritization-approvals.json
+      GTM_PRIORITIZATION_BACKEND_URL: http://gtm-prioritization-backend:9400
+      GTM_PRIORITIZATION_BACKEND_TOKEN: ${GTM_PRIORITIZATION_BACKEND_TOKEN:-demo-prioritization-backend-token}
+    volumes:
+      - gtm-prioritization-keys:/app/.anip-keys
+      - gtm-prioritization-state:/app/.gtm-state
+    ports:
+      - "${GTM_PRIORITIZATION_PORT:-9204}:9200"
+
+  gtm-outreach-mcp-backend:
+    build:
+      context: ../../..
+      dockerfile: examples/showcase/gtm/services/gtm_outreach_mcp_backend/Dockerfile
+    container_name: anip-gtm-outreach-mcp-backend
+
+  gtm-outreach-service:
+    build:
+      context: ../../..
+      dockerfile: examples/showcase/gtm/generated/studio_gtm_outreach_mcp/Dockerfile
+    container_name: anip-gtm-outreach-service
+    depends_on:
+      - gtm-outreach-mcp-backend
+      - gtm-prioritization-backend
+    environment:
+      PORT: 9200
+      ANIP_STORAGE: ":memory:"
+      ANIP_TRUST_LEVEL: signed
+      ANIP_KEY_PATH: /app/.anip-keys/keys.json
+      GTM_OUTREACH_BACKEND_URL: http://gtm-outreach-mcp-backend:9500/mcp
+      GTM_OUTREACH_BACKEND_TOKEN: ${GTM_OUTREACH_BACKEND_TOKEN:-demo-outreach-backend-token}
+      GTM_PRIORITIZATION_BACKEND_URL: http://gtm-prioritization-backend:9400
+      GTM_PRIORITIZATION_BACKEND_TOKEN: ${GTM_PRIORITIZATION_BACKEND_TOKEN:-demo-prioritization-backend-token}
+    volumes:
+      - gtm-outreach-keys:/app/.anip-keys
+    ports:
+      - "${GTM_OUTREACH_PORT:-9206}:9200"
+
+  gtm-agent-ui:
+    build:
+      context: ../../..
+      dockerfile: examples/showcase/gtm/agents/baseline/Dockerfile
+    container_name: anip-gtm-agent-ui
+    depends_on:
+      - gtm-pipeline-service
+    environment:
+      PORT: 9300
+      PIPELINE_SERVICE_URL: http://gtm-pipeline-service:9200
+    ports:
+      - "${GTM_AGENT_UI_PORT:-9300}:9300"
+
+  gtm-agent-manifest-ui:
+    build:
+      context: ../../..
+      dockerfile: examples/showcase/gtm/agents/manifest_aware/Dockerfile
+    container_name: anip-gtm-agent-manifest-ui
+    depends_on:
+      - gtm-pipeline-service
+    environment:
+      PORT: 9300
+      PIPELINE_SERVICE_URL: http://gtm-pipeline-service:9200
+    ports:
+      - "${GTM_AGENT_MANIFEST_UI_PORT:-9302}:9300"
+
+  gtm-agent-llm-ui:
+    build:
+      context: ../../..
+      dockerfile: examples/showcase/gtm/agents/llm_runtime/Dockerfile
+    container_name: anip-gtm-agent-llm-ui
+    depends_on:
+      - gtm-pipeline-service
+      - gtm-enrichment-service
+      - gtm-prioritization-service
+      - gtm-outreach-service
+    environment:
+      PORT: 9300
+      ANIP_AGENT_SERVICES_JSON: >-
+        [
+          {"name":"pipeline","url":"http://gtm-pipeline-service:9200","approval_list_path":"/gtm/approvals","approval_approve_path_template":"/gtm/approvals/{approval_request_id}/approve"},
+          {"name":"enrichment","url":"http://gtm-enrichment-service:9200"},
+          {"name":"prioritization","url":"http://gtm-prioritization-service:9200","approval_list_path":"/gtm/approvals","approval_approve_path_template":"/gtm/approvals/{approval_request_id}/approve"},
+          {"name":"outreach","url":"http://gtm-outreach-service:9200"}
+        ]
+      ANIP_AGENT_ACTORS_JSON: >-
+        [
+          {"actor_id":"sales_leader","label":"Sales leader","bearer_token":"demo-sales-leader-key"},
+          {"actor_id":"account_manager_east","label":"Account manager east","bearer_token":"demo-account-manager-east-key"},
+          {"actor_id":"sales_analyst","label":"Sales analyst","bearer_token":"demo-sales-analyst-key"},
+          {"actor_id":"rev_ops_manager","label":"RevOps manager","bearer_token":"demo-rev-ops-manager-key"}
+        ]
+      ANIP_AGENT_DEFAULT_ACTOR_ID: sales_leader
+      ANIP_AGENT_APP_MODULE: gtm_agent_app
+      ANIP_AGENT_BASE_URL: ${ANIP_AGENT_BASE_URL:-https://api.openai.com/v1}
+      ANIP_AGENT_MODEL: ${ANIP_AGENT_MODEL:-}
+      ANIP_AGENT_API_KEY: ${ANIP_AGENT_API_KEY:-}
+      ANIP_AGENT_TEMPERATURE: ${ANIP_AGENT_TEMPERATURE:-0.1}
+      ANIP_AGENT_TIMEOUT_SECONDS: ${ANIP_AGENT_TIMEOUT_SECONDS:-30}
+    ports:
+      - "${GTM_AGENT_LLM_UI_PORT:-9303}:9300"
+
+  gtm-studio-db:
+    image: postgres:16-alpine
+    container_name: anip-gtm-studio-db
+    environment:
+      POSTGRES_DB: ${GTM_STUDIO_DB_NAME:-anip_studio}
+      POSTGRES_USER: ${GTM_STUDIO_DB_USER:-anip}
+      POSTGRES_PASSWORD: ${GTM_STUDIO_DB_PASSWORD:-anip}
+    volumes:
+      - gtm-studio-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${GTM_STUDIO_DB_USER:-anip} -d ${GTM_STUDIO_DB_NAME:-anip_studio}"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+
+  gtm-studio-api:
+    build:
+      context: ../../..
+      dockerfile: studio/server/Dockerfile
+    container_name: anip-gtm-studio-api
+    depends_on:
+      gtm-studio-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${GTM_STUDIO_DB_USER:-anip}:${GTM_STUDIO_DB_PASSWORD:-anip}@gtm-studio-db:5432/${GTM_STUDIO_DB_NAME:-anip_studio}
+    networks:
+      default:
+        aliases:
+          - studio-api
+    ports:
+      - "${GTM_STUDIO_API_PORT:-8110}:8100"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/api/health')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  gtm-studio-web:
+    build:
+      context: ../../..
+      dockerfile: studio/Dockerfile.standalone
+    container_name: anip-gtm-studio-web
+    depends_on:
+      gtm-studio-api:
+        condition: service_healthy
+    ports:
+      - "${GTM_STUDIO_WEB_PORT:-8089}:8080"
+
+  gtm-studio-seed:
+    image: curlimages/curl:8.14.1
+    container_name: anip-gtm-studio-seed
+    depends_on:
+      gtm-studio-api:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - >
+        curl -fsS -X POST http://gtm-studio-api:8100/api/seed
+    restart: "no"
+
+  gtm-studio-observe:
+    image: python:3.12-slim
+    container_name: anip-gtm-studio-observe
+    depends_on:
+      gtm-studio-api:
+        condition: service_healthy
+      gtm-studio-seed:
+        condition: service_completed_successfully
+      gtm-pipeline-service:
+        condition: service_started
+    environment:
+      STUDIO_API_URL: http://gtm-studio-api:8100
+      STUDIO_PROJECT_ID: gtm-pipeline-q2-review
+      OBSERVED_SERVICE_ID: anip-gtm-pipeline-showcase
+      OBSERVED_SERVICE_BASE_URL: http://gtm-pipeline-service:9200
+    volumes:
+      - ./studio:/app:ro
+    command:
+      - python
+      - /app/sync_observed_metadata.py
+    restart: "no"
+
+  gtm-studio-observe-enrichment:
+    image: python:3.12-slim
+    container_name: anip-gtm-studio-observe-enrichment
+    depends_on:
+      gtm-studio-api:
+        condition: service_healthy
+      gtm-studio-seed:
+        condition: service_completed_successfully
+      gtm-enrichment-service:
+        condition: service_started
+    environment:
+      STUDIO_API_URL: http://gtm-studio-api:8100
+      STUDIO_PROJECT_ID: gtm-account-enrichment
+      OBSERVED_SERVICE_ID: anip-gtm-enrichment-showcase
+      OBSERVED_SERVICE_BASE_URL: http://gtm-enrichment-service:9200
+    volumes:
+      - ./studio:/app:ro
+    command:
+      - python
+      - /app/sync_observed_metadata.py
+    restart: "no"
+
+  # Planned services:
+  # - gtm-enrichment-service
+  # - gtm-outreach-service
+  # - gtm-studio
+  # - gtm-agent-openai
+  # - gtm-agent-langgraph
+  # - gtm-agent-custom
+
+volumes:
+  gtm-postgres-data:
+  gtm-metabase-data:
+  gtm-studio-pgdata:
+  gtm-pipeline-keys:
+  gtm-pipeline-state:
+  gtm-enrichment-keys:
+  gtm-prioritization-keys:
+  gtm-prioritization-state:
+  gtm-outreach-keys:

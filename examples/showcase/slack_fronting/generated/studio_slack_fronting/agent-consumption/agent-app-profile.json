@@ -1,0 +1,196 @@
+{
+  "artifact_type": "agent_app_profile",
+  "capability_metadata": {
+    "slack.announcement.request": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "Bypass communication policy",
+          "Send outside the system",
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Bypass communication policy",
+          "Send outside the system",
+          "approval.execute"
+        ],
+        "produces": [
+          "Ask for approval",
+          "Preview a change",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Prepare a channel announcement request that requires approval before posting.",
+      "required_context": [
+        {
+          "input": "channel_id",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "announcement",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "slack.channel.read_context": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "Export raw data",
+          "Send outside the system"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Export raw data",
+          "Send outside the system"
+        ],
+        "produces": [
+          "Read bounded data",
+          "Summarize information"
+        ]
+      },
+      "capability_framing": "Read bounded recent Slack channel messages for declared context without exposing raw workspace tools.",
+      "required_context": [
+        {
+          "input": "channel_id",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "slack.incident_update.prepare": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "Change workspace state",
+          "Send outside the system",
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Change workspace state",
+          "Send outside the system",
+          "approval.execute"
+        ],
+        "produces": [
+          "Ask for approval",
+          "Draft content",
+          "Preview a change",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Prepare a structured incident update for a Slack channel and stop before sending.",
+      "required_context": [
+        {
+          "input": "channel_id",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "incident_id",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "status",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "summary",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "slack.message.prepare": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "Change workspace state",
+          "Send outside the system",
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Change workspace state",
+          "Send outside the system",
+          "approval.execute"
+        ],
+        "produces": [
+          "Ask for approval",
+          "Draft content",
+          "Preview a change",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Prepare a Slack channel message preview without sending it.",
+      "required_context": [
+        {
+          "input": "channel_id",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "text",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "slack.thread.summarize": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "Export raw data",
+          "Send outside the system"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Export raw data",
+          "Send outside the system"
+        ],
+        "produces": [
+          "Read bounded data",
+          "Summarize information"
+        ]
+      },
+      "capability_framing": "Retrieve bounded Slack thread replies and return context for summarization without posting.",
+      "required_context": [
+        {
+          "input": "channel_id",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "thread_ts",
+          "missing_behavior": "clarify"
+        }
+      ]
+    }
+  },
+  "schema_version": "anip-agent-app-profile/v0"
+}

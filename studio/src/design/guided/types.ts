@@ -21,9 +21,19 @@ export interface GuidedQuestion {
   id: string
   prompt: string
   helpText?: string
+  inlineDetails?: string[]
+  helpDialog?: {
+    title?: string
+    summary?: string
+    bullets?: string[]
+    example?: string
+    decisionOwner?: string
+  }
   answerType: AnswerType
   /** Render text answers as a multiline field when the content is narrative */
   multiline?: boolean
+  /** Maximum character length for text answers */
+  maxLength?: number
   /** For select answers */
   options?: SelectOption[]
   /** Which artifact fields this question maps to */
@@ -37,6 +47,14 @@ export interface GuidedSection {
   id: string
   title: string
   description: string
+  inlineDetails?: string[]
+  helpDialog?: {
+    title?: string
+    summary?: string
+    bullets?: string[]
+    example?: string
+    decisionOwner?: string
+  }
   questions: GuidedQuestion[]
 }
 

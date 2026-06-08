@@ -1,0 +1,22 @@
+[
+  {
+    "scenario_id": "draft-first-touch",
+    "expected_outcome": "available",
+    "expected_backend_operation": "draft_outreach_message"
+  },
+  {
+    "scenario_id": "clarify-missing-target",
+    "expected_outcome": "clarification_required",
+    "expected_backend_operation": "draft_outreach_message"
+  },
+  {
+    "scenario_id": "deny-send-request",
+    "expected_outcome": "denied",
+    "expected_backend_operation": "draft_outreach_message"
+  },
+  {
+    "scenario_id": "deny-raw-transcript-export",
+    "expected_outcome": "denied",
+    "expected_backend_operation": "objection_response_variants"
+  }
+]

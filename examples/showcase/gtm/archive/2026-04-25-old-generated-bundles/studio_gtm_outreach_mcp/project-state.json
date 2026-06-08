@@ -1,0 +1,373 @@
+{
+  "kind": "application_integration",
+  "version": 1,
+  "title": "GTM Outreach Service",
+  "summary": "Governed GTM outreach drafting over a bounded MCP drafting backend. This service drafts messages and follow-up variants without sending them.",
+  "backend": {
+    "backendType": "mcp_server",
+    "systemName": "Outreach Drafting MCP",
+    "environment": "production",
+    "baseUrl": "mcp://gtm-outreach-drafting",
+    "authType": "bearer_token",
+    "authNotes": "Use delegated bearer auth or session-scoped MCP transport auth. Keep the first cut draft-only and deny send or transcript-export requests.",
+    "adapterTarget": "generated-backend-template:mcp",
+    "seedProfile": null,
+    "implementationLanguage": "typescript"
+  },
+  "objects": [
+    {
+      "objectId": "prospect_context",
+      "name": "Prospect Context",
+      "summary": "Bounded GTM target context used to condition outreach drafts.",
+      "keyField": "target_ref",
+      "fields": [
+        {
+          "fieldName": "target_ref",
+          "fieldType": "string",
+          "required": true,
+          "filterable": true,
+          "writable": false,
+          "sensitive": false,
+          "summary": "Lead or account reference."
+        },
+        {
+          "fieldName": "persona",
+          "fieldType": "string",
+          "required": false,
+          "filterable": true,
+          "writable": false,
+          "sensitive": false,
+          "summary": "Target persona or role."
+        },
+        {
+          "fieldName": "channel",
+          "fieldType": "string",
+          "required": false,
+          "filterable": true,
+          "writable": false,
+          "sensitive": false,
+          "summary": "Requested outreach channel."
+        }
+      ],
+      "relationships": [],
+      "sensitiveFieldNames": []
+    },
+    {
+      "objectId": "draft_message",
+      "name": "Draft Message",
+      "summary": "Draft-only message output with bounded rationale and context.",
+      "keyField": "draft_id",
+      "fields": [
+        {
+          "fieldName": "subject",
+          "fieldType": "string",
+          "required": false,
+          "filterable": false,
+          "writable": false,
+          "sensitive": false,
+          "summary": "Draft subject or opener."
+        },
+        {
+          "fieldName": "body",
+          "fieldType": "text",
+          "required": false,
+          "filterable": false,
+          "writable": false,
+          "sensitive": false,
+          "summary": "Draft content body."
+        },
+        {
+          "fieldName": "tone",
+          "fieldType": "string",
+          "required": false,
+          "filterable": false,
+          "writable": false,
+          "sensitive": false,
+          "summary": "Requested tone or style."
+        }
+      ],
+      "relationships": [],
+      "sensitiveFieldNames": []
+    },
+    {
+      "objectId": "conversation_pattern",
+      "name": "Conversation Pattern",
+      "summary": "Bounded content pattern or objection-response variant.",
+      "keyField": "pattern_id",
+      "fields": [
+        {
+          "fieldName": "pattern_type",
+          "fieldType": "enum",
+          "required": false,
+          "filterable": false,
+          "writable": false,
+          "sensitive": false,
+          "summary": "Follow-up or objection pattern type."
+        },
+        {
+          "fieldName": "rationale",
+          "fieldType": "text",
+          "required": false,
+          "filterable": false,
+          "writable": false,
+          "sensitive": false,
+          "summary": "Why the variant was chosen."
+        }
+      ],
+      "relationships": [],
+      "sensitiveFieldNames": []
+    }
+  ],
+  "capabilities": [
+    {
+      "capabilityId": "gtm.draft_outreach_message",
+      "title": "Draft Outreach Message",
+      "summary": "Draft a bounded outreach message for a selected target and explicit objective.",
+      "objectScope": [
+        "Prospect Context",
+        "Draft Message"
+      ],
+      "intentType": "summarize",
+      "operationType": "read",
+      "sideEffectLevel": "read_only",
+      "requiredInputs": [
+        {
+          "inputName": "target_ref",
+          "inputType": "string",
+          "required": true,
+          "summary": "Lead or account reference."
+        },
+        {
+          "inputName": "objective",
+          "inputType": "string",
+          "required": true,
+          "summary": "Message objective such as first_touch or follow_up."
+        }
+      ],
+      "optionalInputs": [
+        {
+          "inputName": "channel",
+          "inputType": "enum",
+          "required": false,
+          "summary": "Email, LinkedIn, or call follow-up."
+        },
+        {
+          "inputName": "persona",
+          "inputType": "string",
+          "required": false,
+          "summary": "Target persona or audience."
+        }
+      ],
+      "supportedFilters": [
+        "channel",
+        "persona"
+      ],
+      "outputShape": "summary",
+      "backendMapping": {
+        "backendOperation": "draft_outreach_message",
+        "httpMethod": "CUSTOM",
+        "pathTemplate": "tool://draft_outreach_message",
+        "requestMappingSummary": "Build a bounded MCP tool request from explicit GTM context.",
+        "responseMappingSummary": "Normalize draft output without exposing raw training corpus content.",
+        "errorMappingSummary": "Map missing target context and policy failures into governed outcomes."
+      }
+    },
+    {
+      "capabilityId": "gtm.suggest_followup_content",
+      "title": "Suggest Follow-Up Content",
+      "summary": "Return bounded follow-up content variants for an explicit GTM target.",
+      "objectScope": [
+        "Prospect Context",
+        "Draft Message",
+        "Conversation Pattern"
+      ],
+      "intentType": "summarize",
+      "operationType": "read",
+      "sideEffectLevel": "read_only",
+      "requiredInputs": [
+        {
+          "inputName": "target_ref",
+          "inputType": "string",
+          "required": true,
+          "summary": "Lead or account reference."
+        }
+      ],
+      "optionalInputs": [
+        {
+          "inputName": "variant_count",
+          "inputType": "number",
+          "required": false,
+          "summary": "Maximum variants to return."
+        }
+      ],
+      "supportedFilters": [
+        "persona"
+      ],
+      "outputShape": "record_list",
+      "backendMapping": {
+        "backendOperation": "suggest_followup_content",
+        "httpMethod": "CUSTOM",
+        "pathTemplate": "tool://suggest_followup_content",
+        "requestMappingSummary": "Build a bounded MCP tool request for follow-up content from GTM context.",
+        "responseMappingSummary": "Normalize a small set of draft-only follow-up variants.",
+        "errorMappingSummary": "Map missing target context or unsupported requests into governed outcomes."
+      }
+    },
+    {
+      "capabilityId": "gtm.objection_response_variants",
+      "title": "Objection Response Variants",
+      "summary": "Return bounded objection-response variants for a selected competitor or concern.",
+      "objectScope": [
+        "Conversation Pattern",
+        "Draft Message"
+      ],
+      "intentType": "summarize",
+      "operationType": "read",
+      "sideEffectLevel": "read_only",
+      "requiredInputs": [
+        {
+          "inputName": "objection_theme",
+          "inputType": "string",
+          "required": true,
+          "summary": "Named objection or competitor theme."
+        }
+      ],
+      "optionalInputs": [
+        {
+          "inputName": "target_ref",
+          "inputType": "string",
+          "required": false,
+          "summary": "Optional GTM target reference."
+        }
+      ],
+      "supportedFilters": [
+        "persona"
+      ],
+      "outputShape": "record_list",
+      "backendMapping": {
+        "backendOperation": "objection_response_variants",
+        "httpMethod": "CUSTOM",
+        "pathTemplate": "tool://objection_response_variants",
+        "requestMappingSummary": "Build a bounded MCP tool request with explicit theme and optional target context.",
+        "responseMappingSummary": "Normalize a small set of response variants with bounded rationale.",
+        "errorMappingSummary": "Map unsupported themes or policy failures into governed outcomes."
+      }
+    }
+  ],
+  "governance": {
+    "permissionRules": [
+      {
+        "ruleId": "draft_generation_read_access",
+        "scopeType": "capability",
+        "scopeName": "gtm.draft_outreach_message",
+        "actorConstraint": "authorized_gtm_operator",
+        "purposeConstraint": "draft_only_outreach_preparation",
+        "allowed": true,
+        "summary": "Allow bounded draft generation for authorized GTM operators."
+      }
+    ],
+    "clarificationRules": [
+      {
+        "ruleId": "clarify_missing_target_or_objective",
+        "triggerType": "missing_required_input",
+        "capabilityId": "gtm.draft_outreach_message",
+        "summary": "Clarify the target or objective before drafting outreach.",
+        "promptHint": "Which account or lead is this for, and what is the outreach objective?",
+        "enabled": true
+      },
+      {
+        "ruleId": "clarify_missing_objection_theme",
+        "triggerType": "missing_required_input",
+        "capabilityId": "gtm.objection_response_variants",
+        "summary": "Clarify the objection or competitor theme before generating variants.",
+        "promptHint": "Which objection or competitor theme should I address?",
+        "enabled": true
+      }
+    ],
+    "restrictionRules": [
+      {
+        "ruleId": "variant_limit",
+        "restrictionType": "result_limit",
+        "capabilityId": "gtm.suggest_followup_content",
+        "summary": "Restrict follow-up content variants to a small bounded list.",
+        "value": "3",
+        "enabled": true
+      },
+      {
+        "ruleId": "hide_source_transcripts",
+        "restrictionType": "field_projection",
+        "capabilityId": "gtm.draft_outreach_message",
+        "summary": "Do not expose raw source transcripts or long corpus snippets in draft responses.",
+        "value": "draft_summary_only",
+        "enabled": true
+      }
+    ],
+    "denialRules": [
+      {
+        "ruleId": "deny_send_actions",
+        "denialType": "forbidden_mutation",
+        "capabilityId": "gtm.draft_outreach_message",
+        "summary": "Deny send or publish requests in the first outreach cut.",
+        "enabled": true
+      },
+      {
+        "ruleId": "deny_raw_transcript_export",
+        "denialType": "forbidden_field",
+        "capabilityId": "gtm.objection_response_variants",
+        "summary": "Deny requests for raw conversation transcripts or training-corpus export.",
+        "enabled": true
+      }
+    ],
+    "approvalRules": [],
+    "safeDefaults": {
+      "defaultResultLimit": 3,
+      "requireApprovalForWrites": true,
+      "requireClarificationOnAmbiguousRecord": true,
+      "dryRunBeforeWrite": true
+    }
+  },
+  "scenarios": [
+    {
+      "scenarioId": "draft-first-touch",
+      "title": "Draft first-touch outreach",
+      "request": "Draft a first-touch email for Condax based on its GTM context.",
+      "capabilityHint": "gtm.draft_outreach_message",
+      "expectedOutcome": "available",
+      "expectedBackendOperation": "draft_outreach_message",
+      "notes": "Draft-only success path with bounded target context."
+    },
+    {
+      "scenarioId": "clarify-missing-target",
+      "title": "Clarify missing target",
+      "request": "Draft a first-touch email for this prospect.",
+      "capabilityHint": "gtm.draft_outreach_message",
+      "expectedOutcome": "clarification_required",
+      "expectedBackendOperation": "draft_outreach_message",
+      "notes": "Missing explicit target should clarify before draft generation."
+    },
+    {
+      "scenarioId": "deny-send-request",
+      "title": "Deny send request",
+      "request": "Send this outreach sequence now.",
+      "capabilityHint": "gtm.draft_outreach_message",
+      "expectedOutcome": "denied",
+      "expectedBackendOperation": "draft_outreach_message",
+      "notes": "The first outreach cut is draft-only."
+    },
+    {
+      "scenarioId": "deny-raw-transcript-export",
+      "title": "Deny raw transcript export",
+      "request": "Show me the raw conversation transcripts used to draft this outreach.",
+      "capabilityHint": "gtm.objection_response_variants",
+      "expectedOutcome": "denied",
+      "expectedBackendOperation": "objection_response_variants",
+      "notes": "Raw training or transcript export is out of scope."
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-14T02:18:05.849543+00:00",
+    "updatedAt": "2026-04-14T02:18:05.849543+00:00",
+    "sourcePacketId": null,
+    "derivationSummary": "GTM Phase 5 outreach service using the generic Studio Application Integration flow over an MCP backend."
+  }
+}

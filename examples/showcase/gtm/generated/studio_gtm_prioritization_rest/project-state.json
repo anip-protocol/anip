@@ -1,0 +1,406 @@
+{
+  "kind": "application_integration",
+  "version": 1,
+  "title": "GTM Prioritization Service",
+  "summary": "Governed GTM prioritization over a bounded scoring and routing backend. This service scores leads or accounts, ranks the top candidates, and previews routing without mutating downstream systems by default.",
+  "backend": {
+    "backendType": "rest_api",
+    "systemName": "Lead Prioritization API",
+    "environment": "production",
+    "baseUrl": "https://prioritization.internal.example.com",
+    "authType": "bearer_token",
+    "authNotes": "Use delegated bearer auth. Keep scoring reads bounded and require explicit approval before downstream routing or assignment.",
+    "adapterTarget": "generated-backend-template:native-api",
+    "seedProfile": null,
+    "implementationLanguage": "python"
+  },
+  "objects": [
+    {
+      "objectId": "lead",
+      "name": "Lead",
+      "summary": "Lead or contact candidate scored for GTM follow-up.",
+      "keyField": "lead_id",
+      "fields": [
+        {
+          "fieldName": "lead_id",
+          "fieldType": "string",
+          "required": true,
+          "filterable": true,
+          "writable": false,
+          "sensitive": false,
+          "summary": "Lead identifier."
+        },
+        {
+          "fieldName": "source",
+          "fieldType": "string",
+          "required": false,
+          "filterable": true,
+          "writable": false,
+          "sensitive": false,
+          "summary": "Acquisition source or channel."
+        },
+        {
+          "fieldName": "segment",
+          "fieldType": "string",
+          "required": false,
+          "filterable": true,
+          "writable": false,
+          "sensitive": false,
+          "summary": "Primary segment or ICP bucket."
+        },
+        {
+          "fieldName": "owner_scope",
+          "fieldType": "string",
+          "required": false,
+          "filterable": true,
+          "writable": false,
+          "sensitive": false,
+          "summary": "Actor-safe ownership or regional scope."
+        }
+      ],
+      "relationships": [],
+      "sensitiveFieldNames": []
+    },
+    {
+      "objectId": "scorecard",
+      "name": "Scorecard",
+      "summary": "Explainable prioritization outcome for a bounded lead or account cohort.",
+      "keyField": "scorecard_id",
+      "fields": [
+        {
+          "fieldName": "priority_band",
+          "fieldType": "enum",
+          "required": false,
+          "filterable": true,
+          "writable": false,
+          "sensitive": false,
+          "summary": "Hot, warm, or cold."
+        },
+        {
+          "fieldName": "confidence",
+          "fieldType": "number",
+          "required": false,
+          "filterable": false,
+          "writable": false,
+          "sensitive": false,
+          "summary": "Model confidence for the prioritization outcome."
+        },
+        {
+          "fieldName": "rationale",
+          "fieldType": "text",
+          "required": false,
+          "filterable": false,
+          "writable": false,
+          "sensitive": false,
+          "summary": "Bounded reason summary."
+        }
+      ],
+      "relationships": [],
+      "sensitiveFieldNames": []
+    },
+    {
+      "objectId": "routing_preview",
+      "name": "Routing Preview",
+      "summary": "Approval-gated routing recommendation before any mutation.",
+      "keyField": "preview_id",
+      "fields": [
+        {
+          "fieldName": "recommended_queue",
+          "fieldType": "string",
+          "required": false,
+          "filterable": false,
+          "writable": false,
+          "sensitive": false,
+          "summary": "Recommended target queue or team."
+        },
+        {
+          "fieldName": "action_posture",
+          "fieldType": "enum",
+          "required": false,
+          "filterable": false,
+          "writable": false,
+          "sensitive": false,
+          "summary": "Preview, approve, or deny posture."
+        }
+      ],
+      "relationships": [],
+      "sensitiveFieldNames": []
+    }
+  ],
+  "capabilities": [
+    {
+      "capabilityId": "gtm.score_leads",
+      "title": "Score Leads",
+      "summary": "Return bounded lead scores and explainable priority bands for a named cohort.",
+      "objectScope": [
+        "Lead",
+        "Scorecard"
+      ],
+      "intentType": "summarize",
+      "operationType": "read",
+      "sideEffectLevel": "read_only",
+      "requiredInputs": [
+        {
+          "inputName": "cohort_ref",
+          "inputType": "string",
+          "required": true,
+          "summary": "Cohort reference such as inbound_last_week."
+        }
+      ],
+      "optionalInputs": [
+        {
+          "inputName": "limit",
+          "inputType": "number",
+          "required": false,
+          "summary": "Maximum leads to return."
+        },
+        {
+          "inputName": "owner_scope",
+          "inputType": "string",
+          "required": false,
+          "summary": "Actor-safe ownership scope."
+        }
+      ],
+      "supportedFilters": [
+        "source",
+        "segment",
+        "owner_scope"
+      ],
+      "outputShape": "record_list",
+      "backendMapping": {
+        "backendOperation": "score_leads",
+        "httpMethod": "POST",
+        "pathTemplate": "/v1/prioritization/score",
+        "requestMappingSummary": "Map the bounded cohort into the scoring API request.",
+        "responseMappingSummary": "Normalize to bounded lead scorecards without exposing raw feature vectors.",
+        "errorMappingSummary": "Map unsupported cohorts, permission failures, and model unavailability into governed outcomes."
+      }
+    },
+    {
+      "capabilityId": "gtm.prioritize_accounts",
+      "title": "Prioritize Accounts",
+      "summary": "Rank bounded accounts or enriched cohorts by explainable GTM priority.",
+      "objectScope": [
+        "Lead",
+        "Scorecard"
+      ],
+      "intentType": "summarize",
+      "operationType": "read",
+      "sideEffectLevel": "read_only",
+      "requiredInputs": [
+        {
+          "inputName": "cohort_ref",
+          "inputType": "string",
+          "required": true,
+          "summary": "Account cohort or upstream GTM slice."
+        }
+      ],
+      "optionalInputs": [
+        {
+          "inputName": "ranking_basis",
+          "inputType": "enum",
+          "required": false,
+          "summary": "Priority ranking basis such as deal_likelihood."
+        },
+        {
+          "inputName": "limit",
+          "inputType": "number",
+          "required": false,
+          "summary": "Maximum accounts to return."
+        }
+      ],
+      "supportedFilters": [
+        "segment",
+        "owner_scope"
+      ],
+      "outputShape": "record_list",
+      "backendMapping": {
+        "backendOperation": "prioritize_accounts",
+        "httpMethod": "POST",
+        "pathTemplate": "/v1/prioritization/accounts",
+        "requestMappingSummary": "Map the bounded account cohort into a prioritization request.",
+        "responseMappingSummary": "Normalize into bounded ranked accounts with explainable rationale.",
+        "errorMappingSummary": "Map ambiguous ranking basis and permission failures into governed outcomes."
+      }
+    },
+    {
+      "capabilityId": "gtm.route_leads",
+      "title": "Route Leads",
+      "summary": "Preview or approve routing recommendations for a bounded lead cohort.",
+      "objectScope": [
+        "Lead",
+        "Routing Preview"
+      ],
+      "intentType": "trigger_workflow",
+      "operationType": "write",
+      "sideEffectLevel": "approval_required_write",
+      "requiredInputs": [
+        {
+          "inputName": "cohort_ref",
+          "inputType": "string",
+          "required": true,
+          "summary": "Bounded lead cohort to route."
+        },
+        {
+          "inputName": "target_queue",
+          "inputType": "string",
+          "required": true,
+          "summary": "Target queue, team, or posture."
+        }
+      ],
+      "optionalInputs": [
+        {
+          "inputName": "owner_scope",
+          "inputType": "string",
+          "required": false,
+          "summary": "Actor-safe routing scope."
+        }
+      ],
+      "supportedFilters": [
+        "owner_scope"
+      ],
+      "outputShape": "action_receipt",
+      "backendMapping": {
+        "backendOperation": "route_leads",
+        "httpMethod": "POST",
+        "pathTemplate": "/v1/prioritization/route",
+        "requestMappingSummary": "Build a routing preview or approved routing request from bounded inputs.",
+        "responseMappingSummary": "Normalize to a preview or action receipt with approval semantics.",
+        "errorMappingSummary": "Map authority gaps, approval requirements, and unsupported targets into governed outcomes."
+      }
+    }
+  ],
+  "governance": {
+    "permissionRules": [
+      {
+        "ruleId": "prioritization_read_revops_sales",
+        "scopeType": "capability",
+        "scopeName": "gtm.score_leads",
+        "actorConstraint": "sales_leader_or_rev_ops_or_authorized_manager",
+        "purposeConstraint": "bounded_pipeline_and_followup_prioritization",
+        "allowed": true,
+        "summary": "Allow bounded scoring reads for authorized GTM operators."
+      },
+      {
+        "ruleId": "routing_write_authority",
+        "scopeType": "capability",
+        "scopeName": "gtm.route_leads",
+        "actorConstraint": "routing_authority_actor",
+        "purposeConstraint": "approved_operational_routing",
+        "allowed": true,
+        "summary": "Only actors with routing authority can proceed to approved routing."
+      }
+    ],
+    "clarificationRules": [
+      {
+        "ruleId": "clarify_missing_cohort",
+        "triggerType": "missing_required_input",
+        "capabilityId": "gtm.score_leads",
+        "summary": "Clarify when the requested lead or account cohort is not explicit.",
+        "promptHint": "Which lead or account cohort should I score?",
+        "enabled": true
+      },
+      {
+        "ruleId": "clarify_missing_route_target",
+        "triggerType": "missing_required_input",
+        "capabilityId": "gtm.route_leads",
+        "summary": "Clarify the intended route target before routing preview.",
+        "promptHint": "Which queue or routing target should I use?",
+        "enabled": true
+      }
+    ],
+    "restrictionRules": [
+      {
+        "ruleId": "default_prioritization_limit",
+        "restrictionType": "result_limit",
+        "capabilityId": "gtm.score_leads",
+        "summary": "Restrict prioritized result sets to a bounded list.",
+        "value": "25",
+        "enabled": true
+      },
+      {
+        "ruleId": "hide_raw_model_features",
+        "restrictionType": "field_projection",
+        "capabilityId": "gtm.score_leads",
+        "summary": "Do not expose raw model features or feature weights in normal scoring responses.",
+        "value": "priority_band,confidence,rationale",
+        "enabled": true
+      }
+    ],
+    "denialRules": [
+      {
+        "ruleId": "deny_raw_scoring_export",
+        "denialType": "forbidden_field",
+        "capabilityId": "gtm.score_leads",
+        "summary": "Deny requests for raw model features, feature weights, or unconstrained export.",
+        "enabled": true
+      },
+      {
+        "ruleId": "deny_outreach_in_prioritization",
+        "denialType": "unsupported_object",
+        "capabilityId": "gtm.route_leads",
+        "summary": "Deny outreach drafting or message-generation work in the prioritization service.",
+        "enabled": true
+      }
+    ],
+    "approvalRules": [
+      {
+        "ruleId": "approval_required_for_routing",
+        "capabilityId": "gtm.route_leads",
+        "required": true,
+        "approverType": "manager",
+        "summary": "Routing mutations require explicit approval before execution."
+      }
+    ],
+    "safeDefaults": {
+      "defaultResultLimit": 25,
+      "requireApprovalForWrites": true,
+      "requireClarificationOnAmbiguousRecord": true,
+      "dryRunBeforeWrite": true
+    }
+  },
+  "scenarios": [
+    {
+      "scenarioId": "score-bounded-cohort",
+      "title": "Score bounded cohort",
+      "request": "Score inbound leads from last week and rank the hottest 10.",
+      "capabilityHint": "gtm.score_leads",
+      "expectedOutcome": "available",
+      "expectedBackendOperation": "score_leads",
+      "notes": "Bounded cohort scoring with explainable rationale."
+    },
+    {
+      "scenarioId": "clarify-missing-cohort",
+      "title": "Clarify missing cohort",
+      "request": "Score our latest leads.",
+      "capabilityHint": "gtm.score_leads",
+      "expectedOutcome": "clarification_required",
+      "expectedBackendOperation": "score_leads",
+      "notes": "Missing cohort should clarify before scoring."
+    },
+    {
+      "scenarioId": "deny-raw-model-export",
+      "title": "Deny raw model export",
+      "request": "Show me every raw model feature and weight behind the lead scores.",
+      "capabilityHint": "gtm.score_leads",
+      "expectedOutcome": "denied",
+      "expectedBackendOperation": "score_leads",
+      "notes": "Raw scoring internals remain out of scope."
+    },
+    {
+      "scenarioId": "approval-gated-routing",
+      "title": "Approval-gated routing",
+      "request": "Route the highest-priority leads to sales right now.",
+      "capabilityHint": "gtm.route_leads",
+      "expectedOutcome": "approval_required",
+      "expectedBackendOperation": "route_leads",
+      "notes": "Routing should stop at approval before mutation."
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-13T05:42:52.986301+00:00",
+    "updatedAt": "2026-04-13T05:42:52.986301+00:00",
+    "sourcePacketId": null,
+    "derivationSummary": "GTM Phase 4 prioritization service using the generic Studio Application Integration flow over a REST backend."
+  }
+}

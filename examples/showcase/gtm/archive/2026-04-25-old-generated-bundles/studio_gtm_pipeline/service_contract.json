@@ -1,0 +1,468 @@
+{
+  "serviceId": "anip-gtm-pipeline-showcase",
+  "serviceName": "GTM Pipeline Service",
+  "serviceSummary": "PM brief: Revenue operations needs a bounded GTM agent that can answer pipeline health questions, identify at-risk accounts, prepare follow-up work, and stop safely before any downstream mutation. The first release should stay on one CRM pipeline dataset, one pipeline-focused ANIP service, and one clear hero flow that can be validated against implementation metadata in Studio.",
+  "capabilities": [
+    {
+      "capabilityId": "gtm.pipeline_summary",
+      "title": "Return a bounded pipeline health summary for a quarter and optional scope.",
+      "summary": "Return a bounded pipeline health summary for a quarter and optional scope.",
+      "operationType": "read",
+      "sideEffectLevel": "read",
+      "backendOperation": "fetch_pipeline_summary",
+      "requiredInputs": [
+        {
+          "inputName": "quarter",
+          "inputType": "string",
+          "required": true,
+          "summary": "Quarter label like 2017-Q2"
+        }
+      ],
+      "optionalInputs": [
+        {
+          "inputName": "owner_scope",
+          "inputType": "string",
+          "required": false,
+          "summary": "Regional office or company"
+        },
+        {
+          "inputName": "detail_level",
+          "inputType": "string",
+          "required": false,
+          "summary": "summary or stage_breakdown"
+        }
+      ],
+      "clarificationRules": [
+        "quarter is missing",
+        "scope is underspecified for the requested comparison"
+      ],
+      "denialRules": [
+        "the user asks for raw row-level export instead of a bounded summary"
+      ],
+      "approvalRules": [],
+      "boundedEvidence": [
+        "stage mix",
+        "pipeline totals",
+        "bounded risk indicators"
+      ],
+      "notes": [
+        "read from dbt-modeled pipeline views",
+        "use Cube measures for bounded aggregations"
+      ]
+    },
+    {
+      "capabilityId": "gtm.pipeline_forecast_summary",
+      "title": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+      "summary": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+      "operationType": "read",
+      "sideEffectLevel": "read",
+      "backendOperation": "fetch_pipeline_forecast_summary",
+      "requiredInputs": [
+        {
+          "inputName": "quarter",
+          "inputType": "string",
+          "required": true,
+          "summary": "Quarter label like 2017-Q2"
+        }
+      ],
+      "optionalInputs": [
+        {
+          "inputName": "owner_scope",
+          "inputType": "string",
+          "required": false,
+          "summary": "Regional office or company"
+        },
+        {
+          "inputName": "forecast_mode",
+          "inputType": "string",
+          "required": false,
+          "summary": "risk_adjusted, likely, or best_case"
+        },
+        {
+          "inputName": "limit",
+          "inputType": "integer",
+          "required": false,
+          "summary": "Maximum contributing accounts to return"
+        }
+      ],
+      "clarificationRules": [
+        "quarter is missing"
+      ],
+      "denialRules": [
+        "the user asks for raw row-level forecast export instead of a bounded summary"
+      ],
+      "approvalRules": [],
+      "boundedEvidence": [
+        "forecast totals",
+        "stage-level forecast mix",
+        "top contributing accounts"
+      ],
+      "notes": [
+        "read aggregate forecast slices through Cube over dbt-modeled GTM opportunities"
+      ]
+    },
+    {
+      "capabilityId": "gtm.stage_bottleneck_summary",
+      "title": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+      "summary": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+      "operationType": "read",
+      "sideEffectLevel": "read",
+      "backendOperation": "fetch_stage_bottleneck_summary",
+      "requiredInputs": [
+        {
+          "inputName": "quarter",
+          "inputType": "string",
+          "required": true,
+          "summary": "Quarter label like 2017-Q2"
+        }
+      ],
+      "optionalInputs": [
+        {
+          "inputName": "owner_scope",
+          "inputType": "string",
+          "required": false,
+          "summary": "Regional office or company"
+        },
+        {
+          "inputName": "slice_by",
+          "inputType": "string",
+          "required": false,
+          "summary": "regional_office, manager_name, or product_name"
+        },
+        {
+          "inputName": "limit",
+          "inputType": "integer",
+          "required": false,
+          "summary": "Maximum bottleneck rows to return"
+        }
+      ],
+      "clarificationRules": [
+        "quarter is missing"
+      ],
+      "denialRules": [
+        "the user asks for raw export or unsupported slicing instead of a bounded bottleneck summary"
+      ],
+      "approvalRules": [],
+      "boundedEvidence": [
+        "open opportunity accumulation by stage",
+        "average days open by allowed slice",
+        "average risk concentration by allowed slice"
+      ],
+      "notes": [
+        "read aggregate stage bottleneck slices through Cube over dbt-modeled GTM opportunities"
+      ]
+    },
+    {
+      "capabilityId": "gtm.sales_team_performance_summary",
+      "title": "Return a bounded sales team performance summary for a quarter and optional scope.",
+      "summary": "Return a bounded sales team performance summary for a quarter and optional scope.",
+      "operationType": "read",
+      "sideEffectLevel": "read",
+      "backendOperation": "fetch_sales_team_performance_summary",
+      "requiredInputs": [
+        {
+          "inputName": "quarter",
+          "inputType": "string",
+          "required": true,
+          "summary": "Quarter label like 2017-Q2"
+        }
+      ],
+      "optionalInputs": [
+        {
+          "inputName": "owner_scope",
+          "inputType": "string",
+          "required": false,
+          "summary": "Regional office or company"
+        },
+        {
+          "inputName": "slice_by",
+          "inputType": "string",
+          "required": false,
+          "summary": "manager_name or regional_office"
+        },
+        {
+          "inputName": "limit",
+          "inputType": "integer",
+          "required": false,
+          "summary": "Maximum team rows to return"
+        }
+      ],
+      "clarificationRules": [
+        "quarter is missing"
+      ],
+      "denialRules": [
+        "the user asks for raw export or unsupported slicing instead of a bounded team performance summary"
+      ],
+      "approvalRules": [],
+      "boundedEvidence": [
+        "open pipeline by team",
+        "won revenue by team",
+        "open risk and stall indicators by team"
+      ],
+      "notes": [
+        "read aggregate team performance slices through Cube over dbt-modeled GTM pipeline views"
+      ]
+    },
+    {
+      "capabilityId": "gtm.product_pipeline_summary",
+      "title": "Return a bounded product pipeline summary for a quarter and optional scope.",
+      "summary": "Return a bounded product pipeline summary for a quarter and optional scope.",
+      "operationType": "read",
+      "sideEffectLevel": "read",
+      "backendOperation": "fetch_product_pipeline_summary",
+      "requiredInputs": [
+        {
+          "inputName": "quarter",
+          "inputType": "string",
+          "required": true,
+          "summary": "Quarter label like 2017-Q2"
+        }
+      ],
+      "optionalInputs": [
+        {
+          "inputName": "owner_scope",
+          "inputType": "string",
+          "required": false,
+          "summary": "Regional office or company"
+        },
+        {
+          "inputName": "product_scope",
+          "inputType": "string",
+          "required": false,
+          "summary": "Specific product to focus on"
+        },
+        {
+          "inputName": "limit",
+          "inputType": "integer",
+          "required": false,
+          "summary": "Maximum product rows to return"
+        }
+      ],
+      "clarificationRules": [
+        "quarter is missing"
+      ],
+      "denialRules": [
+        "the user asks for raw export instead of a bounded product summary"
+      ],
+      "approvalRules": [],
+      "boundedEvidence": [
+        "open pipeline by product",
+        "won revenue by product",
+        "loss and risk posture by product"
+      ],
+      "notes": [
+        "read aggregate product slices through Cube over dbt-modeled GTM opportunities"
+      ]
+    },
+    {
+      "capabilityId": "gtm.stalled_opportunity_review",
+      "title": "Return stalled open opportunities with bounded evidence and explainable stall reasoning.",
+      "summary": "Return stalled open opportunities with bounded evidence and explainable stall reasoning.",
+      "operationType": "read",
+      "sideEffectLevel": "read",
+      "backendOperation": "fetch_stalled_opportunities",
+      "requiredInputs": [
+        {
+          "inputName": "quarter",
+          "inputType": "string",
+          "required": true,
+          "summary": "Quarter label like 2017-Q2"
+        }
+      ],
+      "optionalInputs": [
+        {
+          "inputName": "min_days_open",
+          "inputType": "integer",
+          "required": false,
+          "summary": "Minimum days open"
+        },
+        {
+          "inputName": "owner_scope",
+          "inputType": "string",
+          "required": false,
+          "summary": "Regional office or company"
+        },
+        {
+          "inputName": "limit",
+          "inputType": "integer",
+          "required": false,
+          "summary": "Maximum opportunities to return"
+        }
+      ],
+      "clarificationRules": [
+        "stalled-days threshold is missing when the request is ambiguous"
+      ],
+      "denialRules": [
+        "the user asks for unconstrained raw pipeline export"
+      ],
+      "approvalRules": [],
+      "boundedEvidence": [
+        "days in stage",
+        "owner",
+        "account",
+        "amount bucket"
+      ],
+      "notes": [
+        "derive stall duration from modeled opportunity dates"
+      ]
+    },
+    {
+      "capabilityId": "gtm.account_risk_summary",
+      "title": "Rank at-risk accounts with explicit evidence for why they need attention.",
+      "summary": "Rank at-risk accounts with explicit evidence for why they need attention.",
+      "operationType": "read",
+      "sideEffectLevel": "read",
+      "backendOperation": "fetch_account_risk_summary",
+      "requiredInputs": [
+        {
+          "inputName": "quarter",
+          "inputType": "string",
+          "required": true,
+          "summary": "Quarter label like 2017-Q2"
+        },
+        {
+          "inputName": "ranking_basis",
+          "inputType": "string",
+          "required": true,
+          "summary": "Risk ranking basis"
+        }
+      ],
+      "optionalInputs": [
+        {
+          "inputName": "owner_scope",
+          "inputType": "string",
+          "required": false,
+          "summary": "Regional office or company"
+        },
+        {
+          "inputName": "limit",
+          "inputType": "integer",
+          "required": false,
+          "summary": "Maximum accounts to return"
+        }
+      ],
+      "clarificationRules": [
+        "quarter is missing",
+        "ranking basis is missing"
+      ],
+      "denialRules": [
+        "the request asks for unconstrained export or out-of-scope outreach work"
+      ],
+      "approvalRules": [],
+      "boundedEvidence": [
+        "open opportunity count",
+        "stalled opportunity indicators",
+        "risk score components"
+      ],
+      "notes": [
+        "risk ranking must stay explainable in the response payload"
+      ]
+    },
+    {
+      "capabilityId": "gtm.prepare_reassignment_plan",
+      "title": "Prepare a reassignment preview for overloaded pipeline coverage without executing downstream mutations.",
+      "summary": "Prepare a reassignment preview for overloaded pipeline coverage without executing downstream mutations.",
+      "operationType": "write",
+      "sideEffectLevel": "approval-gated write contract; the runtime returns an approval_required preview until approval exists",
+      "backendOperation": "preview_reassignment_plan",
+      "requiredInputs": [
+        {
+          "inputName": "quarter",
+          "inputType": "string",
+          "required": true,
+          "summary": "Quarter label like 2017-Q2"
+        }
+      ],
+      "optionalInputs": [
+        {
+          "inputName": "selection_basis",
+          "inputType": "string",
+          "required": false,
+          "summary": "manager_capacity or stalled_risk_mix"
+        },
+        {
+          "inputName": "owner_scope",
+          "inputType": "string",
+          "required": false,
+          "summary": "Regional office or company"
+        },
+        {
+          "inputName": "limit",
+          "inputType": "integer",
+          "required": false,
+          "summary": "Maximum reassignment candidates to include"
+        }
+      ],
+      "clarificationRules": [
+        "quarter is missing"
+      ],
+      "denialRules": [
+        "the request asks to execute assignment mutations directly"
+      ],
+      "approvalRules": [
+        "any downstream reassignment execution would occur"
+      ],
+      "boundedEvidence": [
+        "proposed reassignment preview",
+        "source and target managers",
+        "reason each reassignment was suggested"
+      ],
+      "notes": [
+        "return approval_required with a preview payload instead of mutating assignment ownership"
+      ]
+    },
+    {
+      "capabilityId": "gtm.prepare_followup_tasks",
+      "title": "Prepare follow-up tasks for high-risk accounts without executing downstream mutations.",
+      "summary": "Prepare follow-up tasks for high-risk accounts without executing downstream mutations.",
+      "operationType": "write",
+      "sideEffectLevel": "approval-gated write contract; the Phase 1 runtime returns an approval_required preview until approval exists",
+      "backendOperation": "preview_followup_task_plan",
+      "requiredInputs": [
+        {
+          "inputName": "quarter",
+          "inputType": "string",
+          "required": true,
+          "summary": "Quarter label like 2017-Q2"
+        },
+        {
+          "inputName": "ranking_basis",
+          "inputType": "string",
+          "required": true,
+          "summary": "Risk ranking basis"
+        }
+      ],
+      "optionalInputs": [
+        {
+          "inputName": "owner_scope",
+          "inputType": "string",
+          "required": false,
+          "summary": "Regional office or company"
+        },
+        {
+          "inputName": "limit",
+          "inputType": "integer",
+          "required": false,
+          "summary": "Maximum accounts to include"
+        }
+      ],
+      "clarificationRules": [
+        "target accounts or quarter are missing"
+      ],
+      "denialRules": [
+        "the request asks to execute CRM mutations directly in phase 1"
+      ],
+      "approvalRules": [
+        "any downstream task creation or CRM mutation would occur"
+      ],
+      "boundedEvidence": [
+        "proposed task preview",
+        "target account list",
+        "reason each task was suggested"
+      ],
+      "notes": [
+        "return approval_required with a preview payload instead of mutating downstream systems"
+      ]
+    }
+  ]
+}

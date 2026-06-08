@@ -1,0 +1,148 @@
+{
+  "suite": "gtm_phase4_llm_runtime",
+  "cases": [
+    {
+      "id": "phase4-score-inbound-last-week",
+      "category": "prioritization-read",
+      "actor_id": "sales_leader",
+      "question": "Score inbound leads from last week and rank the hottest 10.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.score_leads",
+        "service": "prioritization",
+        "max_total_loops": 2
+      },
+      "data_check": "score_leads_inbound_last_week",
+      "audit_check": {
+        "actor_id": "sales_leader",
+        "service": "prioritization",
+        "capability": "gtm.score_leads",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": true,
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_leader", "role=sales_leader"]
+        }
+      }
+    },
+    {
+      "id": "phase4-clarify-latest-leads-followup",
+      "category": "prioritization-clarification",
+      "actor_id": "sales_leader",
+      "turns": [
+        {
+          "question": "Score our latest leads.",
+          "expected": {
+            "outcome": "clarification_required",
+            "capability": "gtm.score_leads",
+            "service": "prioritization",
+            "max_total_loops": 2
+          }
+        },
+        {
+          "question": "Use inbound_last_week.",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.score_leads",
+            "service": "prioritization",
+            "planned_capability": "gtm.score_leads",
+            "max_total_loops": 2
+          },
+          "data_check": "score_leads_inbound_last_week"
+        }
+      ]
+    },
+    {
+      "id": "phase4-prioritize-expansion-candidates",
+      "category": "prioritization-read",
+      "actor_id": "sales_leader",
+      "question": "Prioritize the expansion candidates in 2017-Q2.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.prioritize_accounts",
+        "service": "prioritization",
+        "max_total_loops": 2
+      },
+      "data_check": "prioritize_accounts_expansion_candidates_q2",
+      "audit_check": {
+        "actor_id": "sales_leader",
+        "service": "prioritization",
+        "capability": "gtm.prioritize_accounts",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": true,
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_leader", "role=sales_leader"]
+        }
+      }
+    },
+    {
+      "id": "phase4-deny-raw-model-export",
+      "category": "prioritization-denied",
+      "actor_id": "sales_leader",
+      "question": "Show me every raw model feature and weight behind the lead scores.",
+      "expected": {
+        "outcome": "denied",
+        "max_total_loops": 0
+      }
+    },
+    {
+      "id": "phase4-route-webinar-leads-approval",
+      "category": "prioritization-approval",
+      "actor_id": "rev_ops_manager",
+      "question": "Route the webinar leads to sales right now.",
+      "expected": {
+        "outcome": "approval_required",
+        "capability": "gtm.route_leads",
+        "service": "prioritization",
+        "max_total_loops": 2
+      },
+      "data_check": "route_preview_webinar_q2_sales",
+      "approval_check": {
+        "service": "prioritization",
+        "approver_actor_id": "sales_leader",
+        "expected_required_role": "sales_leader",
+        "expected_requester_actor_id": "rev_ops_manager",
+        "expected_approved_by_actor_id": "sales_leader",
+        "expected_pre_approval_status": "pending",
+        "expected_post_approval_status": "approved"
+      },
+      "audit_check": {
+        "actor_id": "rev_ops_manager",
+        "service": "prioritization",
+        "capability": "gtm.route_leads",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "approval_required",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=rev_ops_manager", "role=rev_ops_manager"]
+        }
+      }
+    },
+    {
+      "id": "phase4-sales-analyst-routing-denied",
+      "category": "prioritization-approval",
+      "actor_id": "sales_analyst",
+      "question": "Route the webinar leads to sales right now.",
+      "expected": {
+        "outcome": "denied",
+        "capability": "gtm.route_leads",
+        "service": "prioritization",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "sales_analyst",
+        "service": "prioritization",
+        "capability": "gtm.route_leads",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "denied",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_analyst", "role=sales_analyst"]
+        }
+      }
+    }
+  ]
+}

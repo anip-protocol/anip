@@ -1,0 +1,361 @@
+{
+  "schema_version": "anip-fronting-starter/v0",
+  "system_name": "gitlab_governed_fronting_showcase",
+  "domain_name": "gitlab",
+  "service_id": "gitlab-governance-service",
+  "service_name": "GitLab Governance Service",
+  "backend_kind": "native_api",
+  "connection_ref": "gitlab_fronting",
+  "operations": [
+    {
+      "capability_id": "gitlab.project.search_context",
+      "title": "Search Project Context",
+      "summary": "Search bounded GitLab project issues and merge requests without exposing raw project tools.",
+      "subject_kind": "gitlab_project",
+      "context_type": "project_context_search",
+      "output_intent": "bounded_project_results",
+      "backend_kind": "native_api",
+      "connection_ref": "gitlab_fronting",
+      "path": "/gitlab/projects/{namespace}/{project}/context/search",
+      "raw_operation_refs": [
+        "gitlab.api.search_project_context"
+      ],
+      "side_effect_level": "read",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "namespace",
+          "type": "string",
+          "required": true,
+          "summary": "GitLab project namespace.",
+          "semantic_type": "project_namespace",
+          "clarification_hint": "Ask for namespace when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": true,
+          "summary": "GitLab project name.",
+          "semantic_type": "project_name",
+          "clarification_hint": "Ask for project when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "query",
+          "type": "string",
+          "required": true,
+          "summary": "Bounded project search query.",
+          "clarification_hint": "Ask for query when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "summary": "Maximum results to return.",
+          "default_value": "20",
+          "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded GitLab provider options such as selected fields or pagination. Must not bypass project scope, approval, protected refs, or secret policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    },
+    {
+      "capability_id": "gitlab.issue.prepare",
+      "title": "Prepare Issue",
+      "summary": "Prepare a GitLab issue preview with labels and assignees before any issue is created.",
+      "subject_kind": "gitlab_issue",
+      "context_type": "issue_preparation",
+      "output_intent": "issue_creation_preview",
+      "backend_kind": "native_api",
+      "connection_ref": "gitlab_fronting",
+      "path": "/gitlab/projects/{namespace}/{project}/issues/preview",
+      "raw_operation_refs": [
+        "gitlab.api.prepare_issue"
+      ],
+      "side_effect_level": "write_adjacent",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "namespace",
+          "type": "string",
+          "required": true,
+          "summary": "GitLab project namespace.",
+          "semantic_type": "project_namespace",
+          "clarification_hint": "Ask for namespace when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": true,
+          "summary": "GitLab project name.",
+          "semantic_type": "project_name",
+          "clarification_hint": "Ask for project when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "summary": "Issue title.",
+          "clarification_hint": "Ask for title when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "body",
+          "type": "string",
+          "required": true,
+          "summary": "Issue body.",
+          "clarification_hint": "Ask for body when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "labels",
+          "type": "array<string>",
+          "required": false,
+          "summary": "Labels to propose.",
+          "clarification_hint": "Ask for labels when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "assignees",
+          "type": "array<string>",
+          "required": false,
+          "summary": "Assignees to propose.",
+          "clarification_hint": "Ask for assignees when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded GitLab provider options such as selected fields or pagination. Must not bypass project scope, approval, protected refs, or secret policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    },
+    {
+      "capability_id": "gitlab.mr.comment.prepare",
+      "title": "Prepare Merge Request Comment",
+      "summary": "Prepare a merge request comment from review or release context without posting it.",
+      "subject_kind": "gitlab_merge_request",
+      "context_type": "merge_request_comment_preparation",
+      "output_intent": "comment_preview",
+      "backend_kind": "native_api",
+      "connection_ref": "gitlab_fronting",
+      "path": "/gitlab/projects/{namespace}/{project}/merge_requests/{merge_request_iid}/comments/preview",
+      "raw_operation_refs": [
+        "gitlab.api.prepare_merge_request_comment"
+      ],
+      "side_effect_level": "write_adjacent",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "namespace",
+          "type": "string",
+          "required": true,
+          "summary": "GitLab project namespace.",
+          "semantic_type": "project_namespace",
+          "clarification_hint": "Ask for namespace when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": true,
+          "summary": "GitLab project name.",
+          "semantic_type": "project_name",
+          "clarification_hint": "Ask for project when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "merge_request_iid",
+          "type": "integer",
+          "required": true,
+          "summary": "Merge request number.",
+          "semantic_type": "merge_request_ref",
+          "clarification_hint": "Ask for merge_request_iid when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "comment_purpose",
+          "type": "string",
+          "required": true,
+          "summary": "Purpose of the comment.",
+          "allowed_values": [
+            "review_note",
+            "release_note",
+            "triage_update"
+          ],
+          "clarification_hint": "Ask for comment_purpose when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "context",
+          "type": "string",
+          "required": true,
+          "summary": "Context to include in the comment.",
+          "clarification_hint": "Ask for context when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded GitLab provider options such as selected fields or pagination. Must not bypass project scope, approval, protected refs, or secret policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    },
+    {
+      "capability_id": "gitlab.pipeline.trigger.request",
+      "title": "Request Pipeline Trigger",
+      "summary": "Prepare a governed GitLab pipeline trigger request and stop for approval.",
+      "subject_kind": "gitlab_pipeline",
+      "context_type": "pipeline_trigger",
+      "output_intent": "pipeline_trigger_preview",
+      "backend_kind": "native_api",
+      "connection_ref": "gitlab_fronting",
+      "path": "/gitlab/projects/{namespace}/{project}/pipelines/{pipeline_ref}/trigger/preview",
+      "raw_operation_refs": [
+        "gitlab.api.request_pipeline_trigger"
+      ],
+      "side_effect_level": "write_adjacent",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "namespace",
+          "type": "string",
+          "required": true,
+          "summary": "GitLab project namespace.",
+          "semantic_type": "project_namespace",
+          "clarification_hint": "Ask for namespace when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": true,
+          "summary": "GitLab project name.",
+          "semantic_type": "project_name",
+          "clarification_hint": "Ask for project when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "pipeline_ref",
+          "type": "string",
+          "required": true,
+          "summary": "Pipeline ref, branch, or tag.",
+          "semantic_type": "pipeline_ref",
+          "clarification_hint": "Ask for pipeline_ref when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "ref",
+          "type": "string",
+          "required": true,
+          "summary": "Git ref for the pipeline trigger.",
+          "clarification_hint": "Ask for ref when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "inputs",
+          "type": "object",
+          "required": false,
+          "summary": "Pipeline variables.",
+          "clarification_hint": "Ask for inputs when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded GitLab provider options such as selected fields or pagination. Must not bypass project scope, approval, protected refs, or secret policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    },
+    {
+      "capability_id": "gitlab.release_notes.prepare",
+      "title": "Prepare Release Notes",
+      "summary": "Prepare bounded release notes from selected issues or merge requests without creating a GitLab release.",
+      "subject_kind": "gitlab_release",
+      "context_type": "release_notes_preparation",
+      "output_intent": "release_notes_draft",
+      "backend_kind": "native_api",
+      "connection_ref": "gitlab_fronting",
+      "path": "/gitlab/projects/{namespace}/{project}/release-notes/preview",
+      "raw_operation_refs": [
+        "gitlab.api.prepare_release_notes"
+      ],
+      "side_effect_level": "read",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "namespace",
+          "type": "string",
+          "required": true,
+          "summary": "GitLab project namespace.",
+          "semantic_type": "project_namespace",
+          "clarification_hint": "Ask for namespace when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": true,
+          "summary": "GitLab project name.",
+          "semantic_type": "project_name",
+          "clarification_hint": "Ask for project when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "range",
+          "type": "string",
+          "required": true,
+          "summary": "Release range, milestone, or comparison reference.",
+          "clarification_hint": "Ask for range when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "audience",
+          "type": "string",
+          "required": false,
+          "summary": "Release-note audience.",
+          "allowed_values": [
+            "engineering",
+            "customer",
+            "internal"
+          ],
+          "clarification_hint": "Ask for audience when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded GitLab provider options such as selected fields or pagination. Must not bypass project scope, approval, protected refs, or secret policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    }
+  ]
+}

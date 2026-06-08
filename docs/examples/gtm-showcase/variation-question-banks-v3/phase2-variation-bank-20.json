@@ -1,0 +1,185 @@
+{
+  "suite": "gtm_phase2_variation_bank_20_v3",
+  "cases": [
+    {
+      "id": "p2v2-01",
+      "category": "positive_supported_entity",
+      "actor_id": "sales_leader",
+      "question": "Enrich Acme Corporation for account fit, key signals, and recommended GTM angle.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p2v2-02",
+      "category": "positive_supported_entity",
+      "actor_id": "sales_leader",
+      "question": "Give me firmographic and pipeline context for Codehow.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p2v2-03",
+      "category": "positive_supported_entity",
+      "actor_id": "account_manager_east",
+      "question": "Summarize enrichment for my East account J-Texon.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p2v2-04",
+      "category": "positive_supported_entity",
+      "actor_id": "sales_leader",
+      "question": "Find lookalike accounts similar to Acme Corporation and explain the match basis.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p2v2-05",
+      "category": "positive_supported_entity",
+      "actor_id": "sales_leader",
+      "question": "Which accounts resemble Codehow for expansion targeting?",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p2v2-06",
+      "category": "positive_temporal_variation",
+      "actor_id": "sales_leader",
+      "question": "From the Q2 2017 at-risk list, enrich the top three accounts with bounded context.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p2v2-07",
+      "category": "positive_temporal_variation",
+      "actor_id": "sales_leader",
+      "question": "Identify Q2 2017 risky accounts first, then add enrichment for the top two.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p2v2-08",
+      "category": "positive_temporal_variation",
+      "actor_id": "sales_leader",
+      "question": "For East Q2 2017 risk accounts, enrich the accounts contributing most to risk.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p2v2-09",
+      "category": "positive_supported_entity",
+      "actor_id": "sales_leader",
+      "question": "Explain why Acme Corporation is a good or weak account fit.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p2v2-10",
+      "category": "positive_supported_entity",
+      "actor_id": "sales_leader",
+      "question": "Show bounded enrichment evidence for Condax.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p2v2-11",
+      "category": "negative_missing_reference",
+      "actor_id": "sales_leader",
+      "question": "Enrich the account.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p2v2-12",
+      "category": "negative_missing_reference",
+      "actor_id": "sales_leader",
+      "question": "Find companies like that one.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p2v2-13",
+      "category": "negative_missing_reference",
+      "actor_id": "sales_leader",
+      "question": "Give me account fit context without naming an account.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p2v2-14",
+      "category": "negative_actor_boundary",
+      "actor_id": "sales_analyst",
+      "question": "Find lookalike accounts similar to Acme Corporation.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p2v2-15",
+      "category": "negative_unknown_entity",
+      "actor_id": "sales_leader",
+      "question": "Find lookalike accounts similar to Globex and explain the match basis.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p2v2-16",
+      "category": "positive_supported_entity",
+      "actor_id": "sales_leader",
+      "question": "Compare enrichment notes for Acme Corporation and Codehow.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p2v2-17",
+      "category": "positive_temporal_variation",
+      "actor_id": "sales_leader",
+      "question": "Take the highest-risk Q2 2017 account and provide enrichment evidence for it.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p2v2-18",
+      "category": "negative_unknown_entity",
+      "actor_id": "account_manager_east",
+      "question": "Give bounded enrichment for Globex without raw data export.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p2v2-19",
+      "category": "negative_actor_boundary",
+      "actor_id": "account_manager_east",
+      "question": "Find lookalike accounts similar to a West region account outside my scope.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p2v2-20",
+      "category": "negative_unknown_entity",
+      "actor_id": "sales_leader",
+      "question": "Show bounded enrichment evidence for Umbrella Labs.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    }
+  ]
+}

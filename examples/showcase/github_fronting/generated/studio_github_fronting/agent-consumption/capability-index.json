@@ -1,0 +1,620 @@
+{
+  "artifact_type": "agent_capability_index",
+  "capabilities": [
+    {
+      "agent_consumability": {
+        "app_owned_behavior": [
+          "Select native GitHub REST/GraphQL or GitHub MCP backend at deployment time.",
+          "Never route agents directly to raw GitHub API or MCP operations."
+        ],
+        "business_effects": {
+          "does_not_produce": [
+            "Change repository state",
+            "Create issue"
+          ],
+          "produces": [
+            "Preview a change",
+            "Ask for approval"
+          ]
+        },
+        "intent": {
+          "category": "github.issue.prepare",
+          "summary": "Prepare a GitHub issue preview with labels and assignees before any issue is created."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "owner",
+            "summary": "GitHub repository owner."
+          },
+          {
+            "behavior": "clarify",
+            "input": "repo",
+            "summary": "GitHub repository name."
+          },
+          {
+            "behavior": "clarify",
+            "input": "title",
+            "summary": "Issue title."
+          },
+          {
+            "behavior": "clarify",
+            "input": "body",
+            "summary": "Issue body."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Change repository state",
+          "Create issue"
+        ],
+        "produces": [
+          "Preview a change",
+          "Ask for approval"
+        ]
+      },
+      "capability_id": "github.issue.prepare",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for owner when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "owner",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "repo_owner",
+          "summary": "GitHub repository owner."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for repo when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "repo",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "repo_name",
+          "summary": "GitHub repository name."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for title when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "title",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Issue title."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for body when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "body",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Issue body."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for labels when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "labels",
+          "input_type": "array\u003cstring\u003e",
+          "required": false,
+          "semantic_type": "",
+          "summary": "Labels to propose."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for assignees when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "assignees",
+          "input_type": "array\u003cstring\u003e",
+          "required": false,
+          "semantic_type": "",
+          "summary": "Assignees to propose."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "github.write.prepare"
+      ],
+      "service_id": "github-governance-service",
+      "summary": "Prepare a GitHub issue preview with labels and assignees before any issue is created.",
+      "title": "Prepare Issue"
+    },
+    {
+      "agent_consumability": {
+        "app_owned_behavior": [
+          "Select native GitHub REST/GraphQL or GitHub MCP backend at deployment time.",
+          "Never route agents directly to raw GitHub API or MCP operations."
+        ],
+        "business_effects": {
+          "does_not_produce": [
+            "Send outside the system",
+            "Change repository state"
+          ],
+          "produces": [
+            "Draft content",
+            "Preview a change"
+          ]
+        },
+        "intent": {
+          "category": "github.pr.comment.prepare",
+          "summary": "Prepare a pull request comment from review or release context without posting it."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "owner",
+            "summary": "GitHub repository owner."
+          },
+          {
+            "behavior": "clarify",
+            "input": "repo",
+            "summary": "GitHub repository name."
+          },
+          {
+            "behavior": "clarify",
+            "input": "pull_number",
+            "summary": "Pull request number."
+          },
+          {
+            "behavior": "clarify",
+            "input": "comment_purpose",
+            "summary": "Purpose of the comment."
+          },
+          {
+            "behavior": "clarify",
+            "input": "context",
+            "summary": "Context to include in the comment."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Send outside the system",
+          "Change repository state"
+        ],
+        "produces": [
+          "Draft content",
+          "Preview a change"
+        ]
+      },
+      "capability_id": "github.pr.comment.prepare",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for owner when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "owner",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "repo_owner",
+          "summary": "GitHub repository owner."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for repo when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "repo",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "repo_name",
+          "summary": "GitHub repository name."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for pull_number when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "pull_number",
+          "input_type": "integer",
+          "required": true,
+          "semantic_type": "pull_request_ref",
+          "summary": "Pull request number."
+        },
+        {
+          "allowed_values": [
+            "review_note",
+            "release_note",
+            "triage_update"
+          ],
+          "clarification_hint": "Ask for comment_purpose when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "comment_purpose",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Purpose of the comment."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for context when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "context",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Context to include in the comment."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "github.comment.prepare"
+      ],
+      "service_id": "github-governance-service",
+      "summary": "Prepare a pull request comment from review or release context without posting it.",
+      "title": "Prepare Pull Request Comment"
+    },
+    {
+      "agent_consumability": {
+        "app_owned_behavior": [
+          "Select native GitHub REST/GraphQL or GitHub MCP backend at deployment time.",
+          "Never route agents directly to raw GitHub API or MCP operations."
+        ],
+        "business_effects": {
+          "does_not_produce": [
+            "Create release",
+            "Change repository state"
+          ],
+          "produces": [
+            "Draft content",
+            "Summarize information"
+          ]
+        },
+        "intent": {
+          "category": "github.release_notes.prepare",
+          "summary": "Prepare bounded release notes from selected issues or pull requests without creating a GitHub release."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "owner",
+            "summary": "GitHub repository owner."
+          },
+          {
+            "behavior": "clarify",
+            "input": "repo",
+            "summary": "GitHub repository name."
+          },
+          {
+            "behavior": "clarify",
+            "input": "range",
+            "summary": "Release range, milestone, or comparison reference."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Create release",
+          "Change repository state"
+        ],
+        "produces": [
+          "Draft content",
+          "Summarize information"
+        ]
+      },
+      "capability_id": "github.release_notes.prepare",
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for owner when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "owner",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "repo_owner",
+          "summary": "GitHub repository owner."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for repo when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "repo",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "repo_name",
+          "summary": "GitHub repository name."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for range when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "range",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Release range, milestone, or comparison reference."
+        },
+        {
+          "allowed_values": [
+            "engineering",
+            "customer",
+            "internal"
+          ],
+          "clarification_hint": "Ask for audience when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "audience",
+          "input_type": "string",
+          "required": false,
+          "semantic_type": "",
+          "summary": "Release-note audience."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "github.read"
+      ],
+      "service_id": "github-governance-service",
+      "summary": "Prepare bounded release notes from selected issues or pull requests without creating a GitHub release.",
+      "title": "Prepare Release Notes"
+    },
+    {
+      "agent_consumability": {
+        "app_owned_behavior": [
+          "Select native GitHub REST/GraphQL or GitHub MCP backend at deployment time.",
+          "Never route agents directly to raw GitHub API or MCP operations."
+        ],
+        "business_effects": {
+          "does_not_produce": [
+            "Change repository state",
+            "Export raw data"
+          ],
+          "produces": [
+            "Read bounded data",
+            "Summarize information"
+          ]
+        },
+        "intent": {
+          "category": "github.repo.search_context",
+          "summary": "Search bounded GitHub repository issues and pull requests without exposing raw repository tools."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "owner",
+            "summary": "GitHub repository owner."
+          },
+          {
+            "behavior": "clarify",
+            "input": "repo",
+            "summary": "GitHub repository name."
+          },
+          {
+            "behavior": "clarify",
+            "input": "query",
+            "summary": "Bounded repository search query."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Change repository state",
+          "Export raw data"
+        ],
+        "produces": [
+          "Read bounded data",
+          "Summarize information"
+        ]
+      },
+      "capability_id": "github.repo.search_context",
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for owner when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "owner",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "repo_owner",
+          "summary": "GitHub repository owner."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for repo when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "repo",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "repo_name",
+          "summary": "GitHub repository name."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for query when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "query",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Bounded repository search query."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+          "default_value": "20",
+          "entity_reference": false,
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "semantic_type": "",
+          "summary": "Maximum results to return."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "github.read"
+      ],
+      "service_id": "github-governance-service",
+      "summary": "Search bounded GitHub repository issues and pull requests without exposing raw repository tools.",
+      "title": "Search Repository Context"
+    },
+    {
+      "agent_consumability": {
+        "app_owned_behavior": [
+          "Select native GitHub REST/GraphQL or GitHub MCP backend at deployment time.",
+          "Never route agents directly to raw GitHub API or MCP operations."
+        ],
+        "business_effects": {
+          "does_not_produce": [
+            "Execute approved action",
+            "Bypass workflow policy"
+          ],
+          "produces": [
+            "Preview a change",
+            "Ask for approval"
+          ]
+        },
+        "intent": {
+          "category": "github.workflow.dispatch.request",
+          "summary": "Prepare a governed GitHub Actions workflow dispatch request and stop for approval."
+        },
+        "required_context": [
+          {
+            "behavior": "clarify",
+            "input": "owner",
+            "summary": "GitHub repository owner."
+          },
+          {
+            "behavior": "clarify",
+            "input": "repo",
+            "summary": "GitHub repository name."
+          },
+          {
+            "behavior": "clarify",
+            "input": "workflow_id",
+            "summary": "Workflow file name or workflow ID."
+          },
+          {
+            "behavior": "clarify",
+            "input": "ref",
+            "summary": "Git ref for dispatch."
+          }
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Execute approved action",
+          "Bypass workflow policy"
+        ],
+        "produces": [
+          "Preview a change",
+          "Ask for approval"
+        ]
+      },
+      "capability_id": "github.workflow.dispatch.request",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "inputs": [
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for owner when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "owner",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "repo_owner",
+          "summary": "GitHub repository owner."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for repo when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "repo",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "repo_name",
+          "summary": "GitHub repository name."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for workflow_id when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": true,
+          "input_name": "workflow_id",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "workflow_ref",
+          "summary": "Workflow file name or workflow ID."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for ref when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "ref",
+          "input_type": "string",
+          "required": true,
+          "semantic_type": "",
+          "summary": "Git ref for dispatch."
+        },
+        {
+          "allowed_values": [],
+          "clarification_hint": "Ask for inputs when it is missing or ambiguous.",
+          "default_value": "",
+          "entity_reference": false,
+          "input_name": "inputs",
+          "input_type": "object",
+          "required": false,
+          "semantic_type": "",
+          "summary": "Workflow inputs."
+        }
+      ],
+      "kind": "atomic",
+      "minimum_scope": [
+        "github.workflow.request"
+      ],
+      "service_id": "github-governance-service",
+      "summary": "Prepare a governed GitHub Actions workflow dispatch request and stop for approval.",
+      "title": "Request Workflow Dispatch"
+    }
+  ],
+  "schema_version": "anip-agent-consumption-kit/v0"
+}

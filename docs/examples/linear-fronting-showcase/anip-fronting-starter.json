@@ -1,0 +1,290 @@
+{
+  "schema_version": "anip-fronting-starter/v0",
+  "system_name": "linear_governed_fronting_showcase",
+  "domain_name": "linear",
+  "service_id": "linear-governance-service",
+  "service_name": "Linear Governance Service",
+  "backend_kind": "native_api",
+  "connection_ref": "linear_fronting",
+  "operations": [
+    {
+      "capability_id": "linear.issue.search_context",
+      "title": "Search Issue Context",
+      "summary": "Search bounded Linear issues, projects, and cycles without exposing raw workspace tools.",
+      "subject_kind": "linear_workspace",
+      "context_type": "issue_context_search",
+      "output_intent": "bounded_issue_results",
+      "backend_kind": "native_api",
+      "connection_ref": "linear_fronting",
+      "path": "/linear/issue_search_context",
+      "raw_operation_refs": [
+        "linear.api.issue_search_context"
+      ],
+      "side_effect_level": "read",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "team_key",
+          "type": "string",
+          "required": true,
+          "summary": "Linear team key or identifier.",
+          "semantic_type": "team_ref",
+          "clarification_hint": "Ask for team_key when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "query",
+          "type": "string",
+          "required": true,
+          "summary": "Bounded issue search query.",
+          "clarification_hint": "Ask for query when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "summary": "Maximum results to return.",
+          "default_value": "20",
+          "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    },
+    {
+      "capability_id": "linear.issue.prepare",
+      "title": "Prepare Issue",
+      "summary": "Prepare a Linear issue preview with team, project, labels, and priority before creating anything.",
+      "subject_kind": "linear_issue",
+      "context_type": "issue_creation_preparation",
+      "output_intent": "issue_creation_preview",
+      "backend_kind": "native_api",
+      "connection_ref": "linear_fronting",
+      "path": "/linear/issue_prepare",
+      "raw_operation_refs": [
+        "linear.api.issue_prepare"
+      ],
+      "side_effect_level": "write_adjacent",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "team_key",
+          "type": "string",
+          "required": true,
+          "summary": "Linear team key or identifier.",
+          "semantic_type": "team_ref",
+          "clarification_hint": "Ask for team_key when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "summary": "Proposed issue title.",
+          "clarification_hint": "Ask for title when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": true,
+          "summary": "Proposed issue description.",
+          "clarification_hint": "Ask for description when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "project_id",
+          "type": "string",
+          "required": false,
+          "summary": "Optional Linear project identifier.",
+          "semantic_type": "project_ref",
+          "clarification_hint": "Ask for project_id when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "labels",
+          "type": "string",
+          "required": false,
+          "summary": "Optional labels to apply.",
+          "clarification_hint": "Ask for labels when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    },
+    {
+      "capability_id": "linear.comment.prepare",
+      "title": "Prepare Issue Comment",
+      "summary": "Prepare a Linear issue comment from review or incident context without posting it.",
+      "subject_kind": "linear_issue",
+      "context_type": "issue_comment_preparation",
+      "output_intent": "comment_preview",
+      "backend_kind": "native_api",
+      "connection_ref": "linear_fronting",
+      "path": "/linear/comment_prepare",
+      "raw_operation_refs": [
+        "linear.api.comment_prepare"
+      ],
+      "side_effect_level": "write_adjacent",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "issue_id",
+          "type": "string",
+          "required": true,
+          "summary": "Linear issue identifier.",
+          "semantic_type": "issue_ref",
+          "clarification_hint": "Ask for issue_id when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "comment_purpose",
+          "type": "string",
+          "required": true,
+          "summary": "Purpose of the comment.",
+          "clarification_hint": "Ask for comment_purpose when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "context",
+          "type": "string",
+          "required": true,
+          "summary": "Bounded context for the proposed comment.",
+          "clarification_hint": "Ask for context when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    },
+    {
+      "capability_id": "linear.status_transition.request",
+      "title": "Request Status Transition",
+      "summary": "Prepare a governed Linear issue status transition request and stop for approval.",
+      "subject_kind": "linear_issue",
+      "context_type": "status_transition_request",
+      "output_intent": "status_transition_preview",
+      "backend_kind": "native_api",
+      "connection_ref": "linear_fronting",
+      "path": "/linear/status_transition_request",
+      "raw_operation_refs": [
+        "linear.api.status_transition_request"
+      ],
+      "side_effect_level": "write_adjacent",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "issue_id",
+          "type": "string",
+          "required": true,
+          "summary": "Linear issue identifier.",
+          "semantic_type": "issue_ref",
+          "clarification_hint": "Ask for issue_id when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "target_status",
+          "type": "string",
+          "required": true,
+          "summary": "Requested target status.",
+          "clarification_hint": "Ask for target_status when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "required": true,
+          "summary": "Business reason for the transition.",
+          "clarification_hint": "Ask for reason when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    },
+    {
+      "capability_id": "linear.cycle_move.request",
+      "title": "Request Cycle Move",
+      "summary": "Prepare a governed request to move a Linear issue into a cycle or project and stop for approval.",
+      "subject_kind": "linear_cycle",
+      "context_type": "cycle_move_request",
+      "output_intent": "cycle_move_preview",
+      "backend_kind": "native_api",
+      "connection_ref": "linear_fronting",
+      "path": "/linear/cycle_move_request",
+      "raw_operation_refs": [
+        "linear.api.cycle_move_request"
+      ],
+      "side_effect_level": "write_adjacent",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "issue_id",
+          "type": "string",
+          "required": true,
+          "summary": "Linear issue identifier.",
+          "semantic_type": "issue_ref",
+          "clarification_hint": "Ask for issue_id when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "target_cycle",
+          "type": "string",
+          "required": true,
+          "summary": "Target cycle identifier or name.",
+          "semantic_type": "cycle_ref",
+          "clarification_hint": "Ask for target_cycle when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "required": true,
+          "summary": "Business reason for the move.",
+          "clarification_hint": "Ask for reason when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    }
+  ]
+}

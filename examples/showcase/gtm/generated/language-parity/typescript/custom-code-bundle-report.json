@@ -1,0 +1,78 @@
+{
+  "bundle_path": "../../examples/showcase/gtm/custom-code-bundles/gtm_pipeline_typescript",
+  "bundle_sha256": "sha256:f3cadf405d04ea2aa319a736bfe6ef6c48e8d4d830bc0886a42427daf3746bde",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "sha256:2523a6287a03fa7888035264facd6459a18bd994ef2da4b9a54599108ad19b5d",
+      "seam": "custom_file",
+      "mode": "extension_overlay",
+      "bytes": 1050,
+      "overlaid": true,
+      "substrate": false
+    },
+    {
+      "path": "package.json",
+      "sha256": "sha256:8a3aca98e4d786f592bd23744acc75c20c78f9d6c5a7be4daf5df4b2abea70c1",
+      "seam": "custom_file",
+      "mode": "extension_overlay",
+      "bytes": 1159,
+      "overlaid": true,
+      "substrate": false
+    },
+    {
+      "path": "src/app.ts",
+      "sha256": "sha256:162c123b5d595e8b543e411b57e575097b2a4d090e1d0e052bd050f16f8727f6",
+      "seam": "application_entrypoint",
+      "mode": "extension_overlay",
+      "bytes": 5886,
+      "overlaid": true,
+      "substrate": false
+    },
+    {
+      "path": "src/runtime/actor.ts",
+      "sha256": "sha256:d32dc96d44a78f1fcade795d0872ea1b6e2a7f99bf1418dbe010e623af05bad5",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 2608,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/runtime/approval-store.ts",
+      "sha256": "sha256:b8d922966d8e90822bbad8774dd51065e77f1b26c1d6b189a7c79d61cf048e37",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 2584,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/runtime/backend-adapter.ts",
+      "sha256": "sha256:81bea5d90495bebad3e756e00927eb90d64c8698eadcfb4390563b0a31b73472",
+      "seam": "backend_adapter",
+      "mode": "extension_overlay",
+      "bytes": 40364,
+      "overlaid": true,
+      "substrate": false
+    },
+    {
+      "path": "src/runtime/fixtures.ts",
+      "sha256": "sha256:a0ae2455c724dbf14e9fe9802ab17059a5c6802838599b4aac47d0c3c0cdb70a",
+      "seam": "custom_file",
+      "mode": "custom_file",
+      "bytes": 6255,
+      "overlaid": false,
+      "substrate": false
+    },
+    {
+      "path": "src/runtime/policy.ts",
+      "sha256": "sha256:5bff4cc0c46c1a7477d7533e330c5c1eb8a792a99528d047eb8387b8f6cc768f",
+      "seam": "policy",
+      "mode": "extension_overlay",
+      "bytes": 587,
+      "overlaid": true,
+      "substrate": false
+    }
+  ]
+}

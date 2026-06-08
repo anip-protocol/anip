@@ -1,0 +1,1033 @@
+{
+  "artifact_type": "anip_service_definition",
+  "contract_schema_version": "anip-service-definition/v1",
+  "compiled_contract_identity": {
+    "signature": "local-github-fronting-contract-signature",
+    "signature_algorithm": "sha256"
+  },
+  "identity": {
+    "system_name": "GitHub Governed Fronting Showcase",
+    "domain_name": "github",
+    "delivery_model": "governed_integration_fronting",
+    "architecture_shape": "single_service"
+  },
+  "authority": {
+    "approval_expectation": "approval_gated_for_write_like_actions",
+    "blocked_failure_posture": "clarify_or_stop"
+  },
+  "audit": {
+    "durable_records_required": true,
+    "searchable_history_required": true
+  },
+  "generation": {
+    "protocols": [
+      "https",
+      "mcp"
+    ],
+    "layout_strategy": "service_oriented",
+    "selected_service_ids": [
+      "github-governance-service"
+    ]
+  },
+  "service_topology_bindings": [
+    {
+      "id": "github-governance-service",
+      "service_id": "github-governance-service",
+      "service_name": "GitHub Governance Service",
+      "source_role": "governed_integration_fronting",
+      "source_capabilities": [
+        "github.repo.search_context",
+        "github.issue.prepare",
+        "github.pr.comment.prepare",
+        "github.workflow.dispatch.request",
+        "github.release_notes.prepare"
+      ],
+      "formalized_capability_ids": [
+        "github.repo.search_context",
+        "github.issue.prepare",
+        "github.pr.comment.prepare",
+        "github.workflow.dispatch.request",
+        "github.release_notes.prepare"
+      ],
+      "owned_concept_ids": [
+        "github_repository",
+        "github_issue",
+        "github_pull_request",
+        "github_workflow"
+      ]
+    }
+  ],
+  "capability_formalizations": [
+    {
+      "id": "github:github.repo.search_context",
+      "kind": "atomic",
+      "source_kind": "integration_fronting_source_doc",
+      "service_id": "github-governance-service",
+      "capability_id": "github.repo.search_context",
+      "title": "Search Repository Context",
+      "summary": "Search bounded GitHub repository issues and pull requests without exposing raw repository tools.",
+      "entity_targeted": true,
+      "subject_kind": "github_repository",
+      "context_type": "repository_context_search",
+      "output_intent": "bounded_repository_results",
+      "intent_type": "read_only",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "business_effects": {
+        "produces": [
+          "Read bounded data",
+          "Summarize information"
+        ],
+        "does_not_produce": [
+          "Change repository state",
+          "Export raw data"
+        ]
+      },
+      "minimum_scope": [
+        "github.read"
+      ],
+      "backend_operation": "search_repository_context",
+      "path_template": "/github/repos/{owner}/{repo}/context/search",
+      "output_shape": "bounded_repository_results",
+      "inputs": [
+        {
+          "input_name": "owner",
+          "input_type": "string",
+          "required": true,
+          "summary": "GitHub repository owner.",
+          "default_value": "",
+          "clarification_hint": "Ask for owner when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "repo",
+          "input_type": "string",
+          "required": true,
+          "summary": "GitHub repository name.",
+          "default_value": "",
+          "clarification_hint": "Ask for repo when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "query",
+          "input_type": "string",
+          "required": true,
+          "summary": "Bounded repository search query.",
+          "default_value": "",
+          "clarification_hint": "Ask for query when it is missing or ambiguous."
+        },
+        {
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "summary": "Maximum results to return.",
+          "default_value": "20",
+          "clarification_hint": "Ask for limit when it is missing or ambiguous."
+        }
+      ]
+    },
+    {
+      "id": "github:github.issue.prepare",
+      "kind": "atomic",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "source_kind": "integration_fronting_source_doc",
+      "service_id": "github-governance-service",
+      "capability_id": "github.issue.prepare",
+      "title": "Prepare Issue",
+      "summary": "Prepare a GitHub issue preview with labels and assignees before any issue is created.",
+      "entity_targeted": true,
+      "subject_kind": "github_issue",
+      "context_type": "issue_preparation",
+      "output_intent": "issue_creation_preview",
+      "intent_type": "prepare_only",
+      "operation_type": "write",
+      "side_effect_level": "write_adjacent",
+      "business_effects": {
+        "produces": [
+          "Preview a change",
+          "Ask for approval"
+        ],
+        "does_not_produce": [
+          "Change repository state",
+          "Create issue"
+        ]
+      },
+      "minimum_scope": [
+        "github.write.prepare"
+      ],
+      "backend_operation": "prepare_issue",
+      "path_template": "/github/repos/{owner}/{repo}/issues/preview",
+      "output_shape": "issue_creation_preview",
+      "inputs": [
+        {
+          "input_name": "owner",
+          "input_type": "string",
+          "required": true,
+          "summary": "GitHub repository owner.",
+          "default_value": "",
+          "clarification_hint": "Ask for owner when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "repo",
+          "input_type": "string",
+          "required": true,
+          "summary": "GitHub repository name.",
+          "default_value": "",
+          "clarification_hint": "Ask for repo when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "title",
+          "input_type": "string",
+          "required": true,
+          "summary": "Issue title.",
+          "default_value": "",
+          "clarification_hint": "Ask for title when it is missing or ambiguous."
+        },
+        {
+          "input_name": "body",
+          "input_type": "string",
+          "required": true,
+          "summary": "Issue body.",
+          "default_value": "",
+          "clarification_hint": "Ask for body when it is missing or ambiguous."
+        },
+        {
+          "input_name": "labels",
+          "input_type": "array\u003cstring\u003e",
+          "required": false,
+          "summary": "Labels to propose.",
+          "default_value": "",
+          "clarification_hint": "Ask for labels when it is missing or ambiguous."
+        },
+        {
+          "input_name": "assignees",
+          "input_type": "array\u003cstring\u003e",
+          "required": false,
+          "summary": "Assignees to propose.",
+          "default_value": "",
+          "clarification_hint": "Ask for assignees when it is missing or ambiguous."
+        }
+      ]
+    },
+    {
+      "id": "github:github.pr.comment.prepare",
+      "kind": "atomic",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "source_kind": "integration_fronting_source_doc",
+      "service_id": "github-governance-service",
+      "capability_id": "github.pr.comment.prepare",
+      "title": "Prepare Pull Request Comment",
+      "summary": "Prepare a pull request comment from review or release context without posting it.",
+      "entity_targeted": true,
+      "subject_kind": "github_pull_request",
+      "context_type": "pull_request_comment_preparation",
+      "output_intent": "comment_preview",
+      "intent_type": "prepare_only",
+      "operation_type": "write",
+      "side_effect_level": "write_adjacent",
+      "business_effects": {
+        "produces": [
+          "Draft content",
+          "Preview a change"
+        ],
+        "does_not_produce": [
+          "Send outside the system",
+          "Change repository state"
+        ]
+      },
+      "minimum_scope": [
+        "github.comment.prepare"
+      ],
+      "backend_operation": "prepare_pull_request_comment",
+      "path_template": "/github/repos/{owner}/{repo}/pulls/{pull_number}/comments/preview",
+      "output_shape": "comment_preview",
+      "inputs": [
+        {
+          "input_name": "owner",
+          "input_type": "string",
+          "required": true,
+          "summary": "GitHub repository owner.",
+          "default_value": "",
+          "clarification_hint": "Ask for owner when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "repo",
+          "input_type": "string",
+          "required": true,
+          "summary": "GitHub repository name.",
+          "default_value": "",
+          "clarification_hint": "Ask for repo when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "pull_number",
+          "input_type": "integer",
+          "required": true,
+          "summary": "Pull request number.",
+          "default_value": "",
+          "clarification_hint": "Ask for pull_number when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "comment_purpose",
+          "input_type": "string",
+          "required": true,
+          "summary": "Purpose of the comment.",
+          "default_value": "",
+          "allowed_values": [
+            "review_note",
+            "release_note",
+            "triage_update"
+          ],
+          "clarification_hint": "Ask for comment_purpose when it is missing or ambiguous."
+        },
+        {
+          "input_name": "context",
+          "input_type": "string",
+          "required": true,
+          "summary": "Context to include in the comment.",
+          "default_value": "",
+          "clarification_hint": "Ask for context when it is missing or ambiguous."
+        }
+      ]
+    },
+    {
+      "id": "github:github.workflow.dispatch.request",
+      "kind": "atomic",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "source_kind": "integration_fronting_source_doc",
+      "service_id": "github-governance-service",
+      "capability_id": "github.workflow.dispatch.request",
+      "title": "Request Workflow Dispatch",
+      "summary": "Prepare a governed GitHub Actions workflow dispatch request and stop for approval.",
+      "entity_targeted": true,
+      "subject_kind": "github_workflow",
+      "context_type": "workflow_dispatch",
+      "output_intent": "workflow_dispatch_preview",
+      "intent_type": "approval_gated_action",
+      "operation_type": "approval_gated",
+      "side_effect_level": "write_adjacent",
+      "business_effects": {
+        "produces": [
+          "Preview a change",
+          "Ask for approval"
+        ],
+        "does_not_produce": [
+          "Execute approved action",
+          "Bypass workflow policy"
+        ]
+      },
+      "minimum_scope": [
+        "github.workflow.request"
+      ],
+      "backend_operation": "request_workflow_dispatch",
+      "path_template": "/github/repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches/preview",
+      "output_shape": "workflow_dispatch_preview",
+      "inputs": [
+        {
+          "input_name": "owner",
+          "input_type": "string",
+          "required": true,
+          "summary": "GitHub repository owner.",
+          "default_value": "",
+          "clarification_hint": "Ask for owner when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "repo",
+          "input_type": "string",
+          "required": true,
+          "summary": "GitHub repository name.",
+          "default_value": "",
+          "clarification_hint": "Ask for repo when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "workflow_id",
+          "input_type": "string",
+          "required": true,
+          "summary": "Workflow file name or workflow ID.",
+          "default_value": "",
+          "clarification_hint": "Ask for workflow_id when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "ref",
+          "input_type": "string",
+          "required": true,
+          "summary": "Git ref for dispatch.",
+          "default_value": "",
+          "clarification_hint": "Ask for ref when it is missing or ambiguous."
+        },
+        {
+          "input_name": "inputs",
+          "input_type": "object",
+          "required": false,
+          "summary": "Workflow inputs.",
+          "default_value": "",
+          "clarification_hint": "Ask for inputs when it is missing or ambiguous."
+        }
+      ]
+    },
+    {
+      "id": "github:github.release_notes.prepare",
+      "kind": "atomic",
+      "source_kind": "integration_fronting_source_doc",
+      "service_id": "github-governance-service",
+      "capability_id": "github.release_notes.prepare",
+      "title": "Prepare Release Notes",
+      "summary": "Prepare bounded release notes from selected issues or pull requests without creating a GitHub release.",
+      "entity_targeted": true,
+      "subject_kind": "github_release",
+      "context_type": "release_notes_preparation",
+      "output_intent": "release_notes_draft",
+      "intent_type": "prepare_only",
+      "operation_type": "draft",
+      "side_effect_level": "read",
+      "business_effects": {
+        "produces": [
+          "Draft content",
+          "Summarize information"
+        ],
+        "does_not_produce": [
+          "Create release",
+          "Change repository state"
+        ]
+      },
+      "minimum_scope": [
+        "github.read"
+      ],
+      "backend_operation": "prepare_release_notes",
+      "path_template": "/github/repos/{owner}/{repo}/release-notes/preview",
+      "output_shape": "release_notes_draft",
+      "inputs": [
+        {
+          "input_name": "owner",
+          "input_type": "string",
+          "required": true,
+          "summary": "GitHub repository owner.",
+          "default_value": "",
+          "clarification_hint": "Ask for owner when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "repo",
+          "input_type": "string",
+          "required": true,
+          "summary": "GitHub repository name.",
+          "default_value": "",
+          "clarification_hint": "Ask for repo when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "range",
+          "input_type": "string",
+          "required": true,
+          "summary": "Release range, milestone, or comparison reference.",
+          "default_value": "",
+          "clarification_hint": "Ask for range when it is missing or ambiguous."
+        },
+        {
+          "input_name": "audience",
+          "input_type": "string",
+          "required": false,
+          "summary": "Release-note audience.",
+          "default_value": "",
+          "allowed_values": [
+            "engineering",
+            "customer",
+            "internal"
+          ],
+          "clarification_hint": "Ask for audience when it is missing or ambiguous."
+        }
+      ]
+    }
+  ],
+  "permission_intent_bindings": [
+    {
+      "id": "github_developer_access",
+      "actor_id": "developer",
+      "business_area": "github_engineering",
+      "business_area_label": "GitHub Engineering",
+      "access_posture": "bounded",
+      "governed_outcome_type": "bounded_result",
+      "governed_outcome": "Developers can search repository context and prepare governed previews.",
+      "target_service_ids": [
+        "github-governance-service"
+      ],
+      "target_capability_ids": [
+        "github.repo.search_context",
+        "github.issue.prepare",
+        "github.pr.comment.prepare",
+        "github.workflow.dispatch.request",
+        "github.release_notes.prepare"
+      ],
+      "formalization_strategy": "Generated policy keeps raw GitHub/MCP operations behind reviewed ANIP capabilities."
+    }
+  ],
+  "runtime_policy_bindings": [
+    {
+      "id": "github_developer_policy",
+      "source_permission_id": "github_developer_access",
+      "actor_id": "developer",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "developer"
+      },
+      "business_area": "github_engineering",
+      "business_area_label": "GitHub Engineering",
+      "service_ids": [
+        "github-governance-service"
+      ],
+      "capability_ids": [
+        "github.repo.search_context",
+        "github.issue.prepare",
+        "github.pr.comment.prepare",
+        "github.workflow.dispatch.request",
+        "github.release_notes.prepare"
+      ],
+      "required_scopes": [
+        "github.comment.prepare",
+        "github.read",
+        "github.workflow.request",
+        "github.write.prepare"
+      ],
+      "decision": "allow_with_limits",
+      "business_rule": "Allow only declared governed GitHub capabilities; write-like actions stop at preview or approval.",
+      "enforcement_notes": "Raw backend operations remain implementation detail behind the generated adapter seam."
+    }
+  ],
+  "integration_fronting": {
+    "project_type": "governed_service_project",
+    "capability_mappings": [
+      {
+        "id": "github_repo_search_context_fronting",
+        "capability_id": "github.repo.search_context",
+        "title": "Search Repository Context",
+        "intent": "Search bounded GitHub repository issues and pull requests without exposing raw repository tools.",
+        "service_id": "github-governance-service",
+        "service_name": "GitHub Governance Service",
+        "backend_kind": "hybrid",
+        "connection_ref": "github_fronting",
+        "raw_operation_refs": [
+          "github.api.search_repository_context",
+          "github.mcp.search_repository_context"
+        ],
+        "backend_bindings": [
+          {
+            "backend_kind": "native_api",
+            "connection_ref": "github_rest_graphql_api",
+            "raw_operation_refs": [
+              "github.api.search_repository_context"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "owner",
+              "repo",
+              "query"
+            ],
+            "explicit_optional_backend_inputs": [
+              "limit"
+            ],
+            "matched_discovery_record_ids": [
+              "github-api-search_repository_context"
+            ],
+            "status": "ready",
+            "status_detail": "Native GitHub REST/GraphQL implementation seam."
+          },
+          {
+            "backend_kind": "mcp",
+            "connection_ref": "github_mcp",
+            "raw_operation_refs": [
+              "github.mcp.search_repository_context"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "owner",
+              "repo",
+              "query"
+            ],
+            "explicit_optional_backend_inputs": [
+              "limit"
+            ],
+            "matched_discovery_record_ids": [
+              "github-mcp-search_repository_context"
+            ],
+            "status": "candidate",
+            "status_detail": "Alternative MCP-backed adapter realization for teams that already standardize on GitHub MCP."
+          }
+        ],
+        "execution_posture": "read_only",
+        "side_effect_level": "read",
+        "subject_kind": "github_repository",
+        "context_type": "repository_context_search",
+        "output_intent": "bounded_repository_results",
+        "required_inputs": [
+          "owner",
+          "repo",
+          "query"
+        ],
+        "optional_inputs": [
+          "limit"
+        ],
+        "backend_input_mode": "explicit",
+        "explicit_required_backend_inputs": [
+          "owner",
+          "repo",
+          "query"
+        ],
+        "explicit_optional_backend_inputs": [
+          "limit"
+        ],
+        "denial_rule_refs": [
+          "deny.raw_export",
+          "deny.unapproved_mutation",
+          "deny.direct_workflow_bypass"
+        ],
+        "clarification_rule_refs": [
+          "clarify.owner",
+          "clarify.repo",
+          "clarify.query"
+        ],
+        "audit_required": true,
+        "outbound_controls": {
+          "block_repository_secret_exfiltration": true,
+          "block_unbounded_payloads": true,
+          "redact_sensitive_values": true
+        }
+      },
+      {
+        "id": "github_issue_prepare_fronting",
+        "capability_id": "github.issue.prepare",
+        "title": "Prepare Issue",
+        "intent": "Prepare a GitHub issue preview with labels and assignees before any issue is created.",
+        "service_id": "github-governance-service",
+        "service_name": "GitHub Governance Service",
+        "backend_kind": "hybrid",
+        "connection_ref": "github_fronting",
+        "raw_operation_refs": [
+          "github.api.prepare_issue",
+          "github.mcp.prepare_issue"
+        ],
+        "backend_bindings": [
+          {
+            "backend_kind": "native_api",
+            "connection_ref": "github_rest_graphql_api",
+            "raw_operation_refs": [
+              "github.api.prepare_issue"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "owner",
+              "repo",
+              "title",
+              "body"
+            ],
+            "explicit_optional_backend_inputs": [
+              "labels",
+              "assignees"
+            ],
+            "matched_discovery_record_ids": [
+              "github-api-prepare_issue"
+            ],
+            "status": "ready",
+            "status_detail": "Native GitHub REST/GraphQL implementation seam."
+          },
+          {
+            "backend_kind": "mcp",
+            "connection_ref": "github_mcp",
+            "raw_operation_refs": [
+              "github.mcp.prepare_issue"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "owner",
+              "repo",
+              "title",
+              "body"
+            ],
+            "explicit_optional_backend_inputs": [
+              "labels",
+              "assignees"
+            ],
+            "matched_discovery_record_ids": [
+              "github-mcp-prepare_issue"
+            ],
+            "status": "candidate",
+            "status_detail": "Alternative MCP-backed adapter realization for teams that already standardize on GitHub MCP."
+          }
+        ],
+        "execution_posture": "prepare_only",
+        "side_effect_level": "write_adjacent",
+        "subject_kind": "github_issue",
+        "context_type": "issue_preparation",
+        "output_intent": "issue_creation_preview",
+        "required_inputs": [
+          "owner",
+          "repo",
+          "title",
+          "body"
+        ],
+        "optional_inputs": [
+          "labels",
+          "assignees"
+        ],
+        "backend_input_mode": "explicit",
+        "explicit_required_backend_inputs": [
+          "owner",
+          "repo",
+          "title",
+          "body"
+        ],
+        "explicit_optional_backend_inputs": [
+          "labels",
+          "assignees"
+        ],
+        "approval_rule_refs": [
+          "approval.write_preview_required"
+        ],
+        "denial_rule_refs": [
+          "deny.raw_export",
+          "deny.unapproved_mutation",
+          "deny.direct_workflow_bypass"
+        ],
+        "clarification_rule_refs": [
+          "clarify.owner",
+          "clarify.repo",
+          "clarify.title",
+          "clarify.body"
+        ],
+        "audit_required": true,
+        "outbound_controls": {
+          "block_repository_secret_exfiltration": true,
+          "block_unbounded_payloads": true,
+          "redact_sensitive_values": true
+        }
+      },
+      {
+        "id": "github_pr_comment_prepare_fronting",
+        "capability_id": "github.pr.comment.prepare",
+        "title": "Prepare Pull Request Comment",
+        "intent": "Prepare a pull request comment from review or release context without posting it.",
+        "service_id": "github-governance-service",
+        "service_name": "GitHub Governance Service",
+        "backend_kind": "hybrid",
+        "connection_ref": "github_fronting",
+        "raw_operation_refs": [
+          "github.api.prepare_pull_request_comment",
+          "github.mcp.prepare_pull_request_comment"
+        ],
+        "backend_bindings": [
+          {
+            "backend_kind": "native_api",
+            "connection_ref": "github_rest_graphql_api",
+            "raw_operation_refs": [
+              "github.api.prepare_pull_request_comment"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "owner",
+              "repo",
+              "pull_number",
+              "comment_purpose",
+              "context"
+            ],
+            "matched_discovery_record_ids": [
+              "github-api-prepare_pull_request_comment"
+            ],
+            "status": "ready",
+            "status_detail": "Native GitHub REST/GraphQL implementation seam."
+          },
+          {
+            "backend_kind": "mcp",
+            "connection_ref": "github_mcp",
+            "raw_operation_refs": [
+              "github.mcp.prepare_pull_request_comment"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "owner",
+              "repo",
+              "pull_number",
+              "comment_purpose",
+              "context"
+            ],
+            "matched_discovery_record_ids": [
+              "github-mcp-prepare_pull_request_comment"
+            ],
+            "status": "candidate",
+            "status_detail": "Alternative MCP-backed adapter realization for teams that already standardize on GitHub MCP."
+          }
+        ],
+        "execution_posture": "prepare_only",
+        "side_effect_level": "write_adjacent",
+        "subject_kind": "github_pull_request",
+        "context_type": "pull_request_comment_preparation",
+        "output_intent": "comment_preview",
+        "required_inputs": [
+          "owner",
+          "repo",
+          "pull_number",
+          "comment_purpose",
+          "context"
+        ],
+        "backend_input_mode": "explicit",
+        "explicit_required_backend_inputs": [
+          "owner",
+          "repo",
+          "pull_number",
+          "comment_purpose",
+          "context"
+        ],
+        "approval_rule_refs": [
+          "approval.write_preview_required"
+        ],
+        "denial_rule_refs": [
+          "deny.raw_export",
+          "deny.unapproved_mutation",
+          "deny.direct_workflow_bypass"
+        ],
+        "clarification_rule_refs": [
+          "clarify.owner",
+          "clarify.repo",
+          "clarify.pull_number",
+          "clarify.comment_purpose",
+          "clarify.context"
+        ],
+        "audit_required": true,
+        "outbound_controls": {
+          "block_repository_secret_exfiltration": true,
+          "block_unbounded_payloads": true,
+          "redact_sensitive_values": true
+        }
+      },
+      {
+        "id": "github_workflow_dispatch_request_fronting",
+        "capability_id": "github.workflow.dispatch.request",
+        "title": "Request Workflow Dispatch",
+        "intent": "Prepare a governed GitHub Actions workflow dispatch request and stop for approval.",
+        "service_id": "github-governance-service",
+        "service_name": "GitHub Governance Service",
+        "backend_kind": "hybrid",
+        "connection_ref": "github_fronting",
+        "raw_operation_refs": [
+          "github.api.request_workflow_dispatch",
+          "github.mcp.request_workflow_dispatch"
+        ],
+        "backend_bindings": [
+          {
+            "backend_kind": "native_api",
+            "connection_ref": "github_rest_graphql_api",
+            "raw_operation_refs": [
+              "github.api.request_workflow_dispatch"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "owner",
+              "repo",
+              "workflow_id",
+              "ref"
+            ],
+            "explicit_optional_backend_inputs": [
+              "inputs"
+            ],
+            "matched_discovery_record_ids": [
+              "github-api-request_workflow_dispatch"
+            ],
+            "status": "ready",
+            "status_detail": "Native GitHub REST/GraphQL implementation seam."
+          },
+          {
+            "backend_kind": "mcp",
+            "connection_ref": "github_mcp",
+            "raw_operation_refs": [
+              "github.mcp.request_workflow_dispatch"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "owner",
+              "repo",
+              "workflow_id",
+              "ref"
+            ],
+            "explicit_optional_backend_inputs": [
+              "inputs"
+            ],
+            "matched_discovery_record_ids": [
+              "github-mcp-request_workflow_dispatch"
+            ],
+            "status": "candidate",
+            "status_detail": "Alternative MCP-backed adapter realization for teams that already standardize on GitHub MCP."
+          }
+        ],
+        "execution_posture": "approval_gated_action",
+        "side_effect_level": "write_adjacent",
+        "subject_kind": "github_workflow",
+        "context_type": "workflow_dispatch",
+        "output_intent": "workflow_dispatch_preview",
+        "required_inputs": [
+          "owner",
+          "repo",
+          "workflow_id",
+          "ref"
+        ],
+        "optional_inputs": [
+          "inputs"
+        ],
+        "backend_input_mode": "explicit",
+        "explicit_required_backend_inputs": [
+          "owner",
+          "repo",
+          "workflow_id",
+          "ref"
+        ],
+        "explicit_optional_backend_inputs": [
+          "inputs"
+        ],
+        "approval_rule_refs": [
+          "approval.write_preview_required"
+        ],
+        "denial_rule_refs": [
+          "deny.raw_export",
+          "deny.unapproved_mutation",
+          "deny.direct_workflow_bypass"
+        ],
+        "clarification_rule_refs": [
+          "clarify.owner",
+          "clarify.repo",
+          "clarify.workflow_id",
+          "clarify.ref"
+        ],
+        "audit_required": true,
+        "outbound_controls": {
+          "block_repository_secret_exfiltration": true,
+          "block_unbounded_payloads": true,
+          "redact_sensitive_values": true
+        }
+      },
+      {
+        "id": "github_release_notes_prepare_fronting",
+        "capability_id": "github.release_notes.prepare",
+        "title": "Prepare Release Notes",
+        "intent": "Prepare bounded release notes from selected issues or pull requests without creating a GitHub release.",
+        "service_id": "github-governance-service",
+        "service_name": "GitHub Governance Service",
+        "backend_kind": "hybrid",
+        "connection_ref": "github_fronting",
+        "raw_operation_refs": [
+          "github.api.prepare_release_notes",
+          "github.mcp.prepare_release_notes"
+        ],
+        "backend_bindings": [
+          {
+            "backend_kind": "native_api",
+            "connection_ref": "github_rest_graphql_api",
+            "raw_operation_refs": [
+              "github.api.prepare_release_notes"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "owner",
+              "repo",
+              "range"
+            ],
+            "explicit_optional_backend_inputs": [
+              "audience"
+            ],
+            "matched_discovery_record_ids": [
+              "github-api-prepare_release_notes"
+            ],
+            "status": "ready",
+            "status_detail": "Native GitHub REST/GraphQL implementation seam."
+          },
+          {
+            "backend_kind": "mcp",
+            "connection_ref": "github_mcp",
+            "raw_operation_refs": [
+              "github.mcp.prepare_release_notes"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "owner",
+              "repo",
+              "range"
+            ],
+            "explicit_optional_backend_inputs": [
+              "audience"
+            ],
+            "matched_discovery_record_ids": [
+              "github-mcp-prepare_release_notes"
+            ],
+            "status": "candidate",
+            "status_detail": "Alternative MCP-backed adapter realization for teams that already standardize on GitHub MCP."
+          }
+        ],
+        "execution_posture": "prepare_only",
+        "side_effect_level": "read",
+        "subject_kind": "github_release",
+        "context_type": "release_notes_preparation",
+        "output_intent": "release_notes_draft",
+        "required_inputs": [
+          "owner",
+          "repo",
+          "range"
+        ],
+        "optional_inputs": [
+          "audience"
+        ],
+        "backend_input_mode": "explicit",
+        "explicit_required_backend_inputs": [
+          "owner",
+          "repo",
+          "range"
+        ],
+        "explicit_optional_backend_inputs": [
+          "audience"
+        ],
+        "denial_rule_refs": [
+          "deny.raw_export",
+          "deny.unapproved_mutation",
+          "deny.direct_workflow_bypass"
+        ],
+        "clarification_rule_refs": [
+          "clarify.owner",
+          "clarify.repo",
+          "clarify.range"
+        ],
+        "audit_required": true,
+        "outbound_controls": {
+          "block_repository_secret_exfiltration": true,
+          "block_unbounded_payloads": true,
+          "redact_sensitive_values": true
+        }
+      }
+    ]
+  }
+}

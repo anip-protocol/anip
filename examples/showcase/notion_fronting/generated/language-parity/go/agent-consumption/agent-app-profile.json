@@ -1,0 +1,227 @@
+{
+  "artifact_type": "agent_app_profile",
+  "capability_metadata": {
+    "notion.comment.prepare": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
+        ],
+        "produces": [
+          "approval.request",
+          "content.draft",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Prepare a Notion page comment from supplied context without posting it.",
+      "required_context": [
+        {
+          "input": "page_id",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "comment_purpose",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "context",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "backend_options",
+          "missing_behavior": "optional"
+        }
+      ]
+    },
+    "notion.database.query_context": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export",
+          "system.mutation"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export",
+          "system.mutation"
+        ],
+        "produces": [
+          "content.summary",
+          "data.read"
+        ]
+      },
+      "capability_framing": "Query a bounded Notion database view with declared filters and return summarized context.",
+      "required_context": [
+        {
+          "input": "database_id",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "filter",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "use_default"
+        },
+        {
+          "input": "backend_options",
+          "missing_behavior": "optional"
+        }
+      ]
+    },
+    "notion.page.create.prepare": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
+        ],
+        "produces": [
+          "approval.request",
+          "content.draft",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Prepare a Notion page creation preview under an explicit parent before creating anything.",
+      "required_context": [
+        {
+          "input": "parent_id",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "title",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "content_summary",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "backend_options",
+          "missing_behavior": "optional"
+        }
+      ]
+    },
+    "notion.page.update.prepare": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "approval.execute",
+          "raw_data_export",
+          "system.mutation"
+        ],
+        "produces": [
+          "approval.request",
+          "content.draft",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Prepare a Notion page update preview for an explicit page without applying the update.",
+      "required_context": [
+        {
+          "input": "page_id",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "change_summary",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "content_patch",
+          "missing_behavior": "optional"
+        },
+        {
+          "input": "backend_options",
+          "missing_behavior": "optional"
+        }
+      ]
+    },
+    "notion.workspace.search_context": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "raw_data_export",
+          "system.mutation"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "raw_data_export",
+          "system.mutation"
+        ],
+        "produces": [
+          "content.summary",
+          "data.read"
+        ]
+      },
+      "capability_framing": "Search bounded Notion pages and databases without exposing raw workspace tools.",
+      "required_context": [
+        {
+          "input": "workspace_scope",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "query",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "limit",
+          "missing_behavior": "use_default"
+        },
+        {
+          "input": "backend_options",
+          "missing_behavior": "optional"
+        }
+      ]
+    }
+  },
+  "schema_version": "anip-agent-app-profile/v0"
+}

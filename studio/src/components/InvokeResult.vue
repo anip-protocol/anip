@@ -2,9 +2,13 @@
 import { computed } from 'vue'
 import StatusBadge from './StatusBadge.vue'
 import JsonPanel from './JsonPanel.vue'
+import type { GlueAnalysis } from '../design/project-types'
+import { developerLabel } from '../design/developer-vocabulary'
 
 const props = defineProps<{
   result: Record<string, any> | null
+  capabilityName?: string | null
+  sideEffectType?: string | null
 }>()
 
 const isSuccess = computed(() => props.result?.success === true)
@@ -24,6 +28,114 @@ const RECOVERY_CLASS_COLORS: Record<string, string> = {
 const recoveryClassColor = computed(() =>
   recoveryClass.value ? (RECOVERY_CLASS_COLORS[recoveryClass.value] || 'rc-default') : ''
 )
+
+type RuntimeGlueSignal = Pick<
+  GlueAnalysis,
+  'gap_category' | 'likely_owner' | 'fix_priority' | 'recommended_fix' | 'diagnostic_evidence'
+> & {
+  title: string
+}
+
+const runtimeGlueSignal = computed<RuntimeGlueSignal | null>(() => {
+  if (isSuccess.value || !failure.value) return null
+
+  const detail = String(failure.value.detail || '').toLowerCase()
+  const action = String(resolution.value?.action || '').toLowerCase()
+  const requires = String(resolution.value?.requires || '').toLowerCase()
+  const failureType = String(failure.value.type || '').toLowerCase()
+  const recovery = String(recoveryClass.value || '').toLowerCase()
+  const sideEffect = String(props.sideEffectType || '').toLowerCase()
+  const diagnosticEvidence = {
+    capability_id: props.capabilityName || null,
+    reason_code: failure.value.type || null,
+    agent_behavior: recoveryClass.value || resolution.value?.action || null,
+    backend_context: resolution.value?.requires || null,
+  }
+
+  if (
+    recovery === 'redelegation_then_retry' ||
+    action.includes('approval') ||
+    action.includes('request_broader_scope') ||
+    requires.includes('approval') ||
+    requires.includes('scope')
+  ) {
+    return {
+      title: 'Authority Posture Mismatch',
+      gap_category: action.includes('approval') || requires.includes('approval')
+        ? 'approval_control_missing'
+        : 'agent_planning_misaligned',
+      likely_owner: action.includes('approval') || requires.includes('approval')
+        ? 'developer_design'
+        : 'consuming_agent',
+      fix_priority: sideEffect === 'write' || sideEffect === 'transactional' || sideEffect === 'irreversible'
+        ? 'high'
+        : 'medium',
+      recommended_fix: action.includes('approval') || requires.includes('approval')
+        ? 'Issue an approval-bound retry path with an explicit binding or stronger delegated token before retrying.'
+        : 'Retry only after obtaining the required delegation, broader scope, or approval binding.',
+      diagnostic_evidence: diagnosticEvidence,
+    }
+  }
+
+  if (detail.includes('ambiguous') || detail.includes('missing') || detail.includes('clarif')) {
+    return {
+      title: 'Clarification Not Resolved',
+      gap_category: detail.includes('clarif') ? 'clarification_loop_detected' : 'service_metadata_insufficient',
+      likely_owner: detail.includes('clarif') ? 'consuming_agent' : 'service_implementation',
+      fix_priority: 'high',
+      recommended_fix: detail.includes('clarif')
+        ? 'Stop retrying until the missing business inputs are resolved or the service returns a clearer clarification target.'
+        : 'Expose the missing inputs or clarification targets more explicitly so the caller can resolve them before retrying.',
+      diagnostic_evidence: diagnosticEvidence,
+    }
+  }
+
+  if (recovery === 'revalidate_then_retry') {
+    return {
+      title: 'Revalidation Needed',
+      gap_category: 'backend_semantics_mismatch',
+      likely_owner: 'backend',
+      fix_priority: 'medium',
+      recommended_fix: 'Revalidate backend state or freshness before retrying the capability.',
+      diagnostic_evidence: diagnosticEvidence,
+    }
+  }
+
+  if (
+    failureType.includes('restrict') ||
+    action.includes('narrow') ||
+    action.includes('restrict') ||
+    requires.includes('narrow')
+  ) {
+    return {
+      title: 'Restriction Mapping Missing',
+      gap_category: 'restriction_mapping_missing',
+      likely_owner: 'developer_design',
+      fix_priority: 'medium',
+      recommended_fix: 'Define the safe narrowing rule explicitly so the next restricted attempt can proceed instead of failing again.',
+      diagnostic_evidence: diagnosticEvidence,
+    }
+  }
+
+  return {
+    title: 'Runtime Drift Detected',
+    gap_category: 'developer_binding_incomplete',
+    likely_owner: 'service_implementation',
+    fix_priority: sideEffect === 'read' ? 'medium' : 'high',
+    recommended_fix: 'Review the service contract and failure handling so the next safe step is clearer to the caller.',
+    diagnostic_evidence: diagnosticEvidence,
+  }
+})
+
+const auditQuery = computed(() => {
+  if (!props.result || !props.capabilityName) return null
+  return {
+    capability: props.capabilityName,
+    invocationId: props.result.invocation_id || undefined,
+    taskId: props.result.task_id || undefined,
+    parentInvocationId: props.result.parent_invocation_id || undefined,
+  }
+})
 </script>
 
 <template>
@@ -119,6 +231,38 @@ const recoveryClassColor = computed(() =>
 
       <!-- Failure detail -->
       <p v-if="failure?.detail" class="failure-detail">{{ failure.detail }}</p>
+
+      <div v-if="runtimeGlueSignal" class="runtime-glue-callout">
+        <div class="runtime-glue-title">Runtime Drift Signals</div>
+        <div class="runtime-glue-body">
+          <div class="runtime-glue-summary">{{ runtimeGlueSignal.title }}</div>
+          <div class="runtime-glue-badges">
+            <span class="runtime-glue-pill">{{ developerLabel(runtimeGlueSignal.gap_category) }}</span>
+            <span class="runtime-glue-pill">{{ developerLabel(runtimeGlueSignal.likely_owner) }}</span>
+            <span class="runtime-glue-pill">{{ runtimeGlueSignal.fix_priority }} priority</span>
+          </div>
+          <div class="runtime-glue-meta">
+            <span>capability: {{ capabilityName || 'unknown' }}</span>
+            <span v-if="runtimeGlueSignal.diagnostic_evidence.reason_code">
+              reason: {{ runtimeGlueSignal.diagnostic_evidence.reason_code }}
+            </span>
+            <span v-if="runtimeGlueSignal.diagnostic_evidence.agent_behavior">
+              behavior: {{ runtimeGlueSignal.diagnostic_evidence.agent_behavior }}
+            </span>
+            <span v-if="runtimeGlueSignal.diagnostic_evidence.backend_context">
+              backend: {{ runtimeGlueSignal.diagnostic_evidence.backend_context }}
+            </span>
+          </div>
+          <p class="runtime-glue-fix">{{ runtimeGlueSignal.recommended_fix }}</p>
+          <router-link
+            v-if="auditQuery"
+            class="runtime-glue-link"
+            :to="{ name: 'audit', query: auditQuery }"
+          >
+            Open filtered audit trail
+          </router-link>
+        </div>
+      </div>
 
       <!-- Resolution callout -->
       <div v-if="resolution" class="resolution-callout">
@@ -238,6 +382,81 @@ const recoveryClassColor = computed(() =>
   color: var(--text-primary);
   line-height: 1.5;
   margin: 0;
+}
+
+.runtime-glue-callout {
+  padding: 12px 14px;
+  border: 1px solid rgba(249, 115, 22, 0.26);
+  background: rgba(249, 115, 22, 0.08);
+  border-radius: 8px;
+}
+
+.runtime-glue-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9a3412;
+  margin-bottom: 6px;
+}
+
+.runtime-glue-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.runtime-glue-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.runtime-glue-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.14);
+  color: #9a3412;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.runtime-glue-summary {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.runtime-glue-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--text-muted);
+}
+
+.runtime-glue-fix {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.runtime-glue-link {
+  width: fit-content;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.runtime-glue-link:hover {
+  text-decoration: underline;
 }
 
 .resolution-callout {

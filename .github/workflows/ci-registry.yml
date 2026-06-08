@@ -1,0 +1,59 @@
+name: CI — Registry
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should_test: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+              - "registry/**"
+              - "packages/go/registryapi/**"
+              - "packages/go/cmd/anip-registry/**"
+              - "packages/go/cmd/anip-registry-smoke/**"
+              - "packages/go/cmd/anip-registry-keygen/**"
+              - ".github/workflows/ci-registry.yml"
+
+  test:
+    needs: changes
+    if: needs.changes.outputs.should_test == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Test registry packages
+        working-directory: packages/go
+        run: |
+          go test ./registryapi ./cmd/anip-registry ./cmd/anip-registry-smoke ./cmd/anip-registry-keygen -v
+
+      - name: Docker build smoke test
+        run: docker build -t anip-registry-test -f registry/Dockerfile .
+
+      - name: Compose smoke test
+        run: registry/scripts/smoke-compose.sh
+
+  registry-ci:
+    if: always()
+    needs: [changes, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Passed
+        if: needs.test.result == 'success' || needs.test.result == 'skipped'
+        run: echo "Registry CI passed"
+      - name: Failed
+        if: needs.test.result == 'failure' || needs.test.result == 'cancelled'
+        run: exit 1

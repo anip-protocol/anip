@@ -1,0 +1,135 @@
+{
+  "artifact_type": "agent_app_profile",
+  "capability_metadata": {
+    "travel.book_flight": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "Book without quote",
+          "Ignore budget authority",
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Book without quote",
+          "Ignore budget authority",
+          "approval.execute"
+        ],
+        "produces": [
+          "Execute approved action",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Book a confirmed flight reservation from a current quote.",
+      "required_context": [
+        {
+          "input": "flight_number",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "quote_id",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "travel.cancel_booking": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "Delete booking history",
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Delete booking history",
+          "approval.execute"
+        ],
+        "produces": [
+          "Change system state",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Cancel an existing booking within the transactional cancellation window.",
+      "required_context": [
+        {
+          "input": "booking_id",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "travel.check_availability": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "Book travel",
+          "Charge payment"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Book travel",
+          "Charge payment"
+        ],
+        "produces": [
+          "Read bounded data"
+        ]
+      },
+      "capability_framing": "Check seat availability and current price for a specific flight.",
+      "required_context": [
+        {
+          "input": "flight_number",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "travel.search_flights": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "Book travel",
+          "Charge payment"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Book travel",
+          "Charge payment"
+        ],
+        "produces": [
+          "Return bounded options",
+          "Summarize information"
+        ]
+      },
+      "capability_framing": "Search available flights by origin and destination and return priced quote references.",
+      "required_context": [
+        {
+          "input": "origin",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "destination",
+          "missing_behavior": "clarify"
+        }
+      ]
+    }
+  },
+  "schema_version": "anip-agent-app-profile/v0"
+}

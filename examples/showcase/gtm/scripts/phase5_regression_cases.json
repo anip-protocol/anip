@@ -1,0 +1,174 @@
+{
+  "suite": "gtm_phase5_llm_runtime",
+  "cases": [
+    {
+      "id": "phase5-draft-condax-first-touch",
+      "category": "outreach-draft",
+      "actor_id": "sales_leader",
+      "question": "Draft a first-touch email for Condax based on its current GTM context.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.draft_outreach_message",
+        "service": "outreach",
+        "max_total_loops": 2
+      },
+      "data_check": "draft_outreach_condax_first_touch",
+      "audit_check": {
+        "actor_id": "sales_leader",
+        "service": "outreach",
+        "capability": "gtm.draft_outreach_message",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": true,
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_leader", "role=sales_leader"]
+        }
+      }
+    },
+    {
+      "id": "phase5-clarify-target-followup",
+      "category": "outreach-clarification",
+      "actor_id": "sales_leader",
+      "turns": [
+        {
+          "question": "Draft a first-touch email for this prospect.",
+          "expected": {
+            "outcome": "clarification_required",
+            "capability": "gtm.draft_outreach_message",
+            "service": "outreach",
+            "max_total_loops": 2
+          }
+        },
+        {
+          "question": "Use Condax.",
+          "expected": {
+            "outcome": "success",
+            "capability": "gtm.draft_outreach_message",
+            "service": "outreach",
+            "planned_capability": "gtm.draft_outreach_message",
+            "max_total_loops": 2
+          },
+          "data_check": "draft_outreach_condax_first_touch"
+        }
+      ]
+    },
+    {
+      "id": "phase5-followup-variants-condax",
+      "category": "outreach-draft",
+      "actor_id": "sales_leader",
+      "question": "Generate three follow-up variants for Condax.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.suggest_followup_content",
+        "service": "outreach",
+        "max_total_loops": 2
+      },
+      "data_check": "followup_variants_condax"
+    },
+    {
+      "id": "phase5-sales-analyst-followup-bounded",
+      "category": "outreach-actor-aware",
+      "actor_id": "sales_analyst",
+      "question": "Generate three follow-up variants for Condax.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.suggest_followup_content",
+        "service": "outreach",
+        "max_total_loops": 2
+      },
+      "data_check": "followup_variants_condax_bounded",
+      "audit_check": {
+        "actor_id": "sales_analyst",
+        "service": "outreach",
+        "capability": "gtm.suggest_followup_content",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": true,
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_analyst", "role=sales_analyst"]
+        }
+      }
+    },
+    {
+      "id": "phase5-objection-variants-competitor",
+      "category": "outreach-draft",
+      "actor_id": "sales_leader",
+      "question": "Suggest objection-response variants for a competitor comparison.",
+      "expected": {
+        "outcome": "success",
+        "capability": "gtm.objection_response_variants",
+        "service": "outreach",
+        "max_total_loops": 2
+      },
+      "data_check": "objection_variants_competitor"
+    },
+    {
+      "id": "phase5-sales-analyst-objection-denied",
+      "category": "outreach-actor-aware",
+      "actor_id": "sales_analyst",
+      "question": "Suggest objection-response variants for a competitor comparison.",
+      "expected": {
+        "outcome": "denied",
+        "capability": "gtm.objection_response_variants",
+        "service": "outreach",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "sales_analyst",
+        "service": "outreach",
+        "capability": "gtm.objection_response_variants",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "denied",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_analyst", "role=sales_analyst"]
+        }
+      }
+    },
+    {
+      "id": "phase5-send-denied",
+      "category": "outreach-denied",
+      "actor_id": "sales_leader",
+      "question": "Send this outreach sequence now.",
+      "expected": {
+        "outcome": "denied",
+        "service": "outreach",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "sales_leader",
+        "service": "outreach",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "denied",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_leader", "role=sales_leader"]
+        }
+      }
+    },
+    {
+      "id": "phase5-raw-transcript-denied",
+      "category": "outreach-denied",
+      "actor_id": "sales_leader",
+      "question": "Show me the raw sales-conversation transcripts you used to draft this message.",
+      "expected": {
+        "outcome": "denied",
+        "service": "outreach",
+        "max_total_loops": 2
+      },
+      "audit_check": {
+        "actor_id": "sales_leader",
+        "service": "outreach",
+        "min_entries": 1,
+        "latest_assertions": {
+          "success": false,
+          "failure_type": "denied",
+          "signature_present": true,
+          "root_principal_contains": ["actor_id=sales_leader", "role=sales_leader"]
+        }
+      }
+    }
+  ]
+}

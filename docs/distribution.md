@@ -1,41 +1,92 @@
 # ANIP Distribution
 
-What ANIP artifacts are currently distributed, where they are published, and what still remains source-only.
+This page tracks the release artifact story for the current public-release branch. It covers what the release workflow is configured to build and what users should expect from the first public release.
 
-## Current Status
+## Artifact Summary
 
-| Ecosystem | Registry | Status |
-|-----------|----------|--------|
-| TypeScript | npm | Published |
-| Python | PyPI | Published |
-| Java | Maven Central | Published |
-| Go | Module tags | Published |
-| C# | — | In-repo, NuGet not yet configured |
-| Studio | — | Docker build path, image publishing not yet configured |
+| Artifact | Distribution path | Status |
+| --- | --- | --- |
+| ANIP spec | Repository + website | Current spec target: `anip/0.24` |
+| CLI | GitHub release archives + Homebrew tap | CI artifact build + release workflow configured |
+| TypeScript runtime | npm | Published/release workflow configured |
+| Python runtime | PyPI | Published/release workflow configured |
+| Java runtime | Maven Central | Published/release workflow configured |
+| Go runtime | Go module tags | Published via repository tags |
+| C# runtime | NuGet | Release workflow configured |
+| Registry | Docker image + local compose | Release workflow configured |
+| Studio API | Docker image + local compose | Release workflow configured |
+| Studio web | Docker image + local compose | Release workflow configured |
+| GTM showcase | In-repo generated stacks + compose + Docker images | Release baseline committed; image pipeline configured |
+| Fronting showcases | In-repo packages + custom bundles | Release baseline committed |
+| Conformance suite | In-repo | Packaging TBD |
+| Contract testing harness | In-repo | Packaging TBD |
 
-## TypeScript
+## CLI
 
-Published to npm. Install:
+The release workflow builds prebuilt archives for:
+
+- `darwin/arm64`
+- `darwin/amd64`
+- `linux/arm64`
+- `linux/amd64`
+- `windows/arm64`
+- `windows/amd64`
+
+Each release includes checksums and a rendered Homebrew formula.
+
+The CLI artifact workflow also builds the same cross-platform archive set on relevant pull requests, pushes to `main`, and manual dispatches. That catches packaging regressions before a release dispatch.
+
+Homebrew installation uses the `anip-protocol/homebrew-anip` tap, installed as:
+
+```bash
+brew tap anip-protocol/anip
+brew install anip
+```
+
+Validate:
+
+```bash
+anip version
+anip generate --help
+anip validate --help
+anip verify --help
+```
+
+The primary binary is `anip`. Compatibility wrappers `anip-generate` and `anip-verify` are included.
+
+## Runtime Packages
+
+### TypeScript
+
+Published to npm:
 
 ```bash
 npm install @anip-dev/service @anip-dev/hono
 ```
 
-Full package family: `@anip-dev/core`, `@anip-dev/crypto`, `@anip-dev/server`, `@anip-dev/service`, `@anip-dev/hono`, `@anip-dev/express`, `@anip-dev/fastify`, `@anip-dev/rest`, `@anip-dev/graphql`, `@anip-dev/mcp`, `@anip-dev/mcp-hono`, `@anip-dev/mcp-express`, `@anip-dev/mcp-fastify`, `@anip-dev/stdio`.
+Primary package families:
 
-## Python
+- Core/runtime: `@anip-dev/core`, `@anip-dev/crypto`, `@anip-dev/server`, `@anip-dev/service`
+- Frameworks: `@anip-dev/hono`, `@anip-dev/express`, `@anip-dev/fastify`
+- Interfaces/transports: `@anip-dev/rest`, `@anip-dev/graphql`, `@anip-dev/mcp`, `@anip-dev/mcp-hono`, `@anip-dev/mcp-express`, `@anip-dev/mcp-fastify`, `@anip-dev/stdio`
 
-Published to PyPI. Install:
+### Python
+
+Published to PyPI:
 
 ```bash
 pip install anip-service anip-fastapi
 ```
 
-Full package family: `anip-core`, `anip-crypto`, `anip-server`, `anip-service`, `anip-fastapi`, `anip-rest`, `anip-graphql`, `anip-mcp`, `anip-studio`, `anip-stdio`, `anip-grpc`.
+Primary package families:
 
-## Java
+- Core/runtime: `anip-core`, `anip-crypto`, `anip-server`, `anip-service`
+- Frameworks: `anip-fastapi`
+- Interfaces/transports: `anip-rest`, `anip-graphql`, `anip-mcp`, `anip-stdio`, `anip-grpc`
 
-Published to Maven Central under group `dev.anip`. Install:
+### Java
+
+Published to Maven Central under group `dev.anip`:
 
 ```xml
 <dependency>
@@ -45,76 +96,184 @@ Published to Maven Central under group `dev.anip`. Install:
 </dependency>
 ```
 
-Full module family: `anip-core`, `anip-crypto`, `anip-server`, `anip-service`, `anip-spring-boot`, `anip-quarkus`, `anip-rest`, `anip-rest-spring`, `anip-rest-quarkus`, `anip-graphql`, `anip-graphql-spring`, `anip-graphql-quarkus`, `anip-mcp`, `anip-mcp-spring`, `anip-mcp-quarkus`, `anip-stdio`.
+Primary modules:
 
-## Go
+- Core/runtime: `anip-core`, `anip-crypto`, `anip-server`, `anip-service`
+- Frameworks: `anip-spring-boot`, `anip-quarkus`
+- Interfaces/transports: `anip-rest`, `anip-rest-spring`, `anip-rest-quarkus`, `anip-graphql`, `anip-graphql-spring`, `anip-graphql-quarkus`, `anip-mcp`, `anip-mcp-spring`, `anip-mcp-quarkus`, `anip-stdio`
 
-Consumed as a module via version tags:
+### Go
+
+Consumed as a Go module:
 
 ```bash
 go get github.com/anip-protocol/anip/packages/go@vVERSION
 ```
 
-## C\#
+### C#
 
-In-repo packages: `Anip.Core`, `Anip.Crypto`, `Anip.Server`, `Anip.Service`, `Anip.AspNetCore`, `Anip.Rest`, `Anip.Rest.AspNetCore`, `Anip.GraphQL`, `Anip.GraphQL.AspNetCore`, `Anip.Mcp`, `Anip.Mcp.AspNetCore`, `Anip.Stdio`.
+The release workflow is configured to publish NuGet packages:
 
-NuGet publishing is not yet configured. C# is part of the codebase and release planning, but not yet part of the public package-registry story.
+```bash
+dotnet add package Anip.Service --version VERSION
+dotnet add package Anip.AspNetCore --version VERSION
+```
+
+Primary packages:
+
+- Core/runtime: `Anip.Core`, `Anip.Crypto`, `Anip.Server`, `Anip.Service`
+- Frameworks: `Anip.AspNetCore`
+- Interfaces/transports: `Anip.Rest`, `Anip.Rest.AspNetCore`, `Anip.GraphQL`, `Anip.GraphQL.AspNetCore`, `Anip.Mcp`, `Anip.Mcp.AspNetCore`, `Anip.Stdio`
+
+## Registry
+
+Registry is distributed as a Docker image and local compose stack.
+
+Local:
+
+```bash
+cd registry
+docker compose up --build
+```
+
+Open:
+
+```text
+http://127.0.0.1:8200/registry/packages
+```
+
+Published image:
+
+```bash
+docker pull anipprotocol/registry:VERSION
+```
+
+Important environment variables:
+
+- `ANIP_REGISTRY_DATABASE_URL`
+- `ANIP_REGISTRY_MODE`
+- `ANIP_REGISTRY_PUBLISH_TOKEN`
+- `ANIP_REGISTRY_KEY_ID`
+- `ANIP_REGISTRY_ED25519_PRIVATE_KEY`
+- `ANIP_REGISTRY_SEED_DEMO`
+
+Smoke:
+
+```bash
+registry/scripts/smoke-compose.sh
+```
 
 ## Studio
 
-Two deployment modes:
-
-- **Embedded**: `pip install anip-studio` then mount at `/studio` inside a Python ANIP service
-- **Standalone**: build and run as a Docker container
+Studio is distributed as separate API and web images:
 
 ```bash
-docker build -t anip-studio studio/
-docker run -p 3000:8080 anip-studio
+docker pull anipprotocol/studio-api:VERSION
+docker pull anipprotocol/studio-web:VERSION
 ```
 
-Docker image publishing (GHCR or similar) is not yet configured. CI smoke-builds the image to catch drift.
+Local compose:
 
-## Conformance Suite
+```bash
+cd studio
+docker compose up --build
+```
 
-Validates that an ANIP implementation speaks the protocol correctly. Currently in-repo (PyPI publishing planned):
+Read-only seeded hosted-demo mode:
+
+```bash
+STUDIO_READ_ONLY=1 STUDIO_SEED_SHOWCASES=1 docker compose up --build
+```
+
+Smoke:
+
+```bash
+studio/scripts/smoke-compose.sh
+```
+
+## Showcase Artifacts
+
+### GTM
+
+The GTM showcase release baseline lives in:
+
+```text
+examples/showcase/gtm/
+```
+
+Important artifacts:
+
+- `examples/showcase/gtm/registry-packages/gtm-pipeline-q2-review-0.4.3.anip-package.json`
+- `examples/showcase/gtm/generated/language-parity/`
+- `examples/showcase/gtm/docker-compose.language-parity-{python,typescript,go,java,csharp}.yml`
+- `examples/showcase/gtm/custom-code-bundles/`
+- `.github/workflows/publish-gtm-showcase-images.yml`
+
+Docker image names:
+
+- `anipprotocol/showcase-gtm-agent-ui`
+- `anipprotocol/showcase-gtm-python`
+- `anipprotocol/showcase-gtm-typescript`
+- `anipprotocol/showcase-gtm-go`
+- `anipprotocol/showcase-gtm-java`
+- `anipprotocol/showcase-gtm-csharp`
+
+The manual GTM image workflow accepts a GTM image tag, usually the GTM package version such as `0.4.3`. The main release workflow also publishes the same image set tagged with the ANIP release version and `latest`.
+
+Smoke:
+
+```bash
+examples/showcase/gtm/scripts/smoke-language-compose.sh python
+examples/showcase/gtm/scripts/smoke-language-compose.sh typescript
+examples/showcase/gtm/scripts/smoke-language-compose.sh go
+examples/showcase/gtm/scripts/smoke-language-compose.sh java
+examples/showcase/gtm/scripts/smoke-language-compose.sh csharp
+```
+
+### Fronting
+
+Fronting showcase packages live under:
+
+```text
+examples/showcase/*_fronting/registry-packages/
+```
+
+Current first-release set:
+
+- `jira-fronting-showcase@0.2.0`
+- `github-fronting-showcase@0.2.0`
+- `slack-fronting-showcase@0.2.0`
+- `gitlab-fronting-showcase@0.2.0`
+- `linear-fronting-showcase@0.2.0`
+- `notion-fronting-showcase@0.2.0`
+- `superset-fronting-showcase@0.2.0`
+
+These packages use native APIs as their execution binding. MCP is documented as a comparison surface, not as the signed behavior contract.
+
+## Testing Tools
+
+### Conformance
 
 ```bash
 pip install -e ./conformance
 pytest conformance/ --base-url=http://localhost:9100 --bootstrap-bearer=demo-human-key
 ```
 
-Required options: `--base-url` and `--bootstrap-bearer`. Optional: `--sample-inputs` (JSON file mapping capability names to test parameters).
-
-## Contract Testing
-
-Validates that declared side effects match observed behavior. Distinct from conformance:
-
-- **Conformance**: does this implementation speak ANIP correctly?
-- **Contract testing**: does this service behave as it declares?
-
-Currently in-repo (not yet on PyPI):
+### Contract Testing
 
 ```bash
 pip install -e ./contract-tests
 anip-contract-tests --base-url=http://localhost:9100 --test-pack=contract-tests/packs/travel.json
 ```
 
-## Showcase and Demo Apps
+## Release Validation Still Required
 
-Runnable reference applications in the repository covering travel booking, financial operations, and DevOps infrastructure. Not yet packaged as standalone installable artifacts.
+Before public release:
 
-## Release Workflow
-
-Today's release workflow publishes:
-
-- TypeScript packages to npm
-- Python packages to PyPI
-- Java modules to Maven Central
-
-Not yet published:
-
-- C# NuGet packages
-- Docker images (Studio, showcases)
-- Conformance suite to PyPI
-- Contract-testing harness to PyPI
+- Run release workflow dry run or prerelease.
+- Validate Homebrew formula install on macOS arm64.
+- Run Registry compose smoke.
+- Run Studio read-only compose smoke.
+- Run generator conformance across supported targets/framework variants.
+- Run GTM language compose smokes.
+- Build the website docs.

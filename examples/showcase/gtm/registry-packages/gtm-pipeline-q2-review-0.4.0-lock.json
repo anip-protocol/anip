@@ -1,0 +1,1669 @@
+{
+  "agent_consumability": {
+    "artifact_type": "agent_consumability_metadata",
+    "capabilities": {
+      "gtm.account_enrichment_summary": {
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export"
+          ],
+          "produces": [
+            "content.summary"
+          ]
+        },
+        "intent": {
+          "category": "gtm.account_enrichment_summary",
+          "summary": "Return bounded firmographic context and fit signals for selected accounts; raw records, full exports, underlying notes, and debug payloads are not supported."
+        },
+        "required_context": [
+          {
+            "input": "account_names",
+            "posture": "required",
+            "semantic_type": "entity_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      },
+      "gtm.account_risk_summary": {
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export"
+          ],
+          "produces": [
+            "content.summary"
+          ]
+        },
+        "intent": {
+          "category": "gtm.account_risk_summary",
+          "summary": "Rank at-risk accounts with explicit evidence for why they need attention."
+        },
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "ranking_basis",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      },
+      "gtm.at_risk_account_enrichment_summary": {
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export"
+          ],
+          "produces": [
+            "content.summary"
+          ]
+        },
+        "intent": {
+          "category": "gtm.at_risk_account_enrichment_summary",
+          "summary": "Rank at-risk accounts and return bounded enrichment context for the selected accounts."
+        },
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "ranking_basis",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      },
+      "gtm.at_risk_followup_preparation": {
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export",
+            "approval.execute"
+          ],
+          "produces": [
+            "content.summary",
+            "approval.request",
+            "system.preview_mutation"
+          ]
+        },
+        "intent": {
+          "category": "gtm.at_risk_followup_preparation",
+          "summary": "Compose gtm.account_risk_summary -\u003e gtm.prepare_followup_tasks when the requested business action needs derived targets before governed preparation."
+        },
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "ranking_basis",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      },
+      "gtm.at_risk_reassignment_preparation": {
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export",
+            "approval.execute"
+          ],
+          "produces": [
+            "content.summary",
+            "approval.request",
+            "system.preview_mutation"
+          ]
+        },
+        "intent": {
+          "category": "gtm.at_risk_reassignment_preparation",
+          "summary": "Compose gtm.account_risk_summary -\u003e gtm.prepare_reassignment_plan when the requested business action needs derived targets before governed preparation."
+        },
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "ranking_basis",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      },
+      "gtm.bottleneck_account_outreach_draft": {
+        "business_effects": {
+          "does_not_produce": [
+            "external_dispatch",
+            "system.mutation",
+            "approval.execute"
+          ],
+          "produces": [
+            "content.draft",
+            "approval.request",
+            "system.preview_mutation"
+          ]
+        },
+        "intent": {
+          "category": "gtm.bottleneck_account_outreach_draft",
+          "summary": "Draft outreach only for a specific account already selected from a bounded bottleneck or at-risk account review. Do not use this capability to choose the top or affected account from analysis; use the approval-gated follow-up preparation flow for derived-target bottleneck or at-risk requests."
+        },
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "target_ref",
+            "posture": "required",
+            "semantic_type": "entity_reference"
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "objective",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "channel",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "persona",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      },
+      "gtm.draft_outreach_message": {
+        "business_effects": {
+          "does_not_produce": [
+            "external_dispatch",
+            "system.mutation"
+          ],
+          "produces": [
+            "content.draft"
+          ]
+        },
+        "intent": {
+          "category": "gtm.draft_outreach_message",
+          "summary": "Draft a bounded outreach message for a selected target and explicit objective; send actions and raw transcripts are not supported."
+        },
+        "required_context": [
+          {
+            "input": "target_ref",
+            "posture": "required",
+            "semantic_type": "entity_reference"
+          },
+          {
+            "input": "objective",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "channel",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "persona",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      },
+      "gtm.lookalike_accounts": {
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export"
+          ],
+          "produces": [
+            "content.summary"
+          ]
+        },
+        "intent": {
+          "category": "gtm.lookalike_accounts",
+          "summary": "Return bounded lookalike accounts using explainable similarity logic; raw payloads and underlying model data are not supported."
+        },
+        "required_context": [
+          {
+            "input": "reference_account",
+            "posture": "required",
+            "semantic_type": "entity_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      },
+      "gtm.objection_response_variants": {
+        "business_effects": {
+          "does_not_produce": [
+            "external_dispatch",
+            "system.mutation"
+          ],
+          "produces": [
+            "content.draft",
+            "content.recommendation"
+          ]
+        },
+        "intent": {
+          "category": "gtm.objection_response_variants",
+          "summary": "Return bounded objection-response variants for a selected competitor or concern."
+        },
+        "required_context": [
+          {
+            "input": "objection_theme",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "target_ref",
+            "posture": "optional",
+            "semantic_type": "entity_reference"
+          },
+          {
+            "input": "persona",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      },
+      "gtm.pipeline_forecast_summary": {
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export"
+          ],
+          "produces": [
+            "content.summary"
+          ]
+        },
+        "intent": {
+          "category": "gtm.pipeline_forecast_summary",
+          "summary": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views."
+        },
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "forecast_mode",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      },
+      "gtm.pipeline_summary": {
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export"
+          ],
+          "produces": [
+            "content.summary"
+          ]
+        },
+        "intent": {
+          "category": "gtm.pipeline_summary",
+          "summary": "Return a bounded pipeline health summary for a quarter and optional scope."
+        },
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "detail_level",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      },
+      "gtm.prepare_followup_tasks": {
+        "business_effects": {
+          "does_not_produce": [
+            "approval.execute"
+          ],
+          "produces": [
+            "approval.request",
+            "system.preview_mutation"
+          ]
+        },
+        "intent": {
+          "category": "gtm.prepare_followup_tasks",
+          "summary": "Prepare follow-up tasks for high-risk accounts without executing downstream mutations."
+        },
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "ranking_basis",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      },
+      "gtm.prepare_reassignment_plan": {
+        "business_effects": {
+          "does_not_produce": [
+            "approval.execute"
+          ],
+          "produces": [
+            "approval.request",
+            "system.preview_mutation"
+          ]
+        },
+        "intent": {
+          "category": "gtm.prepare_reassignment_plan",
+          "summary": "Prepare a reassignment preview for overloaded pipeline coverage without executing downstream mutations."
+        },
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "selection_basis",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      },
+      "gtm.prioritize_accounts": {
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export"
+          ],
+          "produces": [
+            "content.summary",
+            "content.recommendation"
+          ]
+        },
+        "intent": {
+          "category": "gtm.prioritize_accounts",
+          "summary": "Rank bounded accounts or enriched cohorts by explainable GTM priority."
+        },
+        "required_context": [
+          {
+            "input": "cohort_ref",
+            "posture": "required",
+            "semantic_type": "cohort_reference"
+          },
+          {
+            "input": "ranking_basis",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          }
+        ]
+      },
+      "gtm.prioritized_outreach_draft": {
+        "business_effects": {
+          "does_not_produce": [
+            "external_dispatch",
+            "system.mutation"
+          ],
+          "produces": [
+            "content.draft",
+            "content.recommendation"
+          ]
+        },
+        "intent": {
+          "category": "gtm.prioritized_outreach_draft",
+          "summary": "Prioritize a bounded account cohort, include bounded enrichment context for the top accounts, and draft one outreach message for the highest-priority account; this is for prioritization-to-enrichment-to-draft requests, not lead routing."
+        },
+        "required_context": [
+          {
+            "input": "cohort_ref",
+            "posture": "required",
+            "semantic_type": "cohort_reference"
+          },
+          {
+            "input": "ranking_basis",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "objective",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "channel",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "persona",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      },
+      "gtm.prioritized_routing_preparation": {
+        "business_effects": {
+          "does_not_produce": [
+            "approval.execute"
+          ],
+          "produces": [
+            "content.recommendation",
+            "approval.request",
+            "system.preview_mutation"
+          ]
+        },
+        "intent": {
+          "category": "gtm.prioritized_routing_preparation",
+          "summary": "Compose gtm.prioritize_accounts -\u003e gtm.route_leads when the requested business action needs derived targets before governed preparation."
+        },
+        "required_context": [
+          {
+            "input": "cohort_ref",
+            "posture": "required",
+            "semantic_type": "cohort_reference"
+          },
+          {
+            "input": "ranking_basis",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          }
+        ]
+      },
+      "gtm.product_pipeline_summary": {
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export"
+          ],
+          "produces": [
+            "content.summary"
+          ]
+        },
+        "intent": {
+          "category": "gtm.product_pipeline_summary",
+          "summary": "Return a bounded product pipeline summary for a quarter and optional scope."
+        },
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "product_scope",
+            "posture": "optional",
+            "semantic_type": "entity_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      },
+      "gtm.route_leads": {
+        "business_effects": {
+          "does_not_produce": [
+            "external_dispatch",
+            "system.mutation",
+            "approval.execute"
+          ],
+          "produces": [
+            "content.draft",
+            "content.recommendation",
+            "approval.request",
+            "system.preview_mutation"
+          ]
+        },
+        "intent": {
+          "category": "gtm.route_leads",
+          "summary": "Prepare an approval-gated routing preview for scored or hot leads in a named cohort; outreach drafting is not supported by this capability."
+        },
+        "required_context": [
+          {
+            "input": "cohort_ref",
+            "posture": "required",
+            "semantic_type": "cohort_reference"
+          },
+          {
+            "input": "target_queue",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          }
+        ]
+      },
+      "gtm.sales_team_performance_summary": {
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export"
+          ],
+          "produces": [
+            "content.summary"
+          ]
+        },
+        "intent": {
+          "category": "gtm.sales_team_performance_summary",
+          "summary": "Return a bounded sales team performance summary for a quarter and optional scope."
+        },
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "slice_by",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      },
+      "gtm.score_leads": {
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export"
+          ],
+          "produces": [
+            "content.summary",
+            "content.recommendation"
+          ]
+        },
+        "intent": {
+          "category": "gtm.score_leads",
+          "summary": "Return bounded lead scores and explainable priority bands for a named cohort."
+        },
+        "required_context": [
+          {
+            "input": "cohort_ref",
+            "posture": "required",
+            "semantic_type": "cohort_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          }
+        ]
+      },
+      "gtm.stage_bottleneck_summary": {
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export"
+          ],
+          "produces": [
+            "content.summary"
+          ]
+        },
+        "intent": {
+          "category": "gtm.stage_bottleneck_summary",
+          "summary": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice."
+        },
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "slice_by",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      },
+      "gtm.stalled_opportunity_review": {
+        "business_effects": {
+          "does_not_produce": [
+            "raw_data_export"
+          ],
+          "produces": [
+            "content.summary"
+          ]
+        },
+        "intent": {
+          "category": "gtm.stalled_opportunity_review",
+          "summary": "Return stalled open opportunities with bounded evidence and explainable stall reasoning."
+        },
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "min_days_open",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      },
+      "gtm.suggest_followup_content": {
+        "business_effects": {
+          "does_not_produce": [
+            "external_dispatch",
+            "system.mutation"
+          ],
+          "produces": [
+            "content.draft",
+            "content.recommendation"
+          ]
+        },
+        "intent": {
+          "category": "gtm.suggest_followup_content",
+          "summary": "Return bounded follow-up content variants for an explicit GTM target."
+        },
+        "required_context": [
+          {
+            "input": "target_ref",
+            "posture": "required",
+            "semantic_type": "entity_reference"
+          },
+          {
+            "input": "variant_count",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "persona",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ]
+      }
+    },
+    "capability_hints": [
+      {
+        "capability_id": "gtm.pipeline_summary",
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "detail_level",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "read_only",
+        "summary": "Return a bounded pipeline health summary for a quarter and optional scope.",
+        "title": "pipeline_summary"
+      },
+      {
+        "capability_id": "gtm.pipeline_forecast_summary",
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "forecast_mode",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "read_only",
+        "summary": "Return a bounded forecast summary for open pipeline with likely, best-case, and risk-adjusted views.",
+        "title": "pipeline_forecast_summary"
+      },
+      {
+        "capability_id": "gtm.stage_bottleneck_summary",
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "slice_by",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "read_only",
+        "summary": "Return a bounded stage bottleneck summary for open pipeline by an allowed slice.",
+        "title": "stage_bottleneck_summary"
+      },
+      {
+        "capability_id": "gtm.sales_team_performance_summary",
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "slice_by",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "read_only",
+        "summary": "Return a bounded sales team performance summary for a quarter and optional scope.",
+        "title": "sales_team_performance_summary"
+      },
+      {
+        "capability_id": "gtm.product_pipeline_summary",
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "product_scope",
+            "posture": "optional",
+            "semantic_type": "entity_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "read_only",
+        "summary": "Return a bounded product pipeline summary for a quarter and optional scope.",
+        "title": "product_pipeline_summary"
+      },
+      {
+        "capability_id": "gtm.stalled_opportunity_review",
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "min_days_open",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "read_only",
+        "summary": "Return stalled open opportunities with bounded evidence and explainable stall reasoning.",
+        "title": "stalled_opportunity_review"
+      },
+      {
+        "capability_id": "gtm.account_risk_summary",
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "ranking_basis",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "read_only",
+        "summary": "Rank at-risk accounts with explicit evidence for why they need attention.",
+        "title": "account_risk_summary"
+      },
+      {
+        "capability_id": "gtm.prepare_followup_tasks",
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "ranking_basis",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "approval_required",
+        "summary": "Prepare follow-up tasks for high-risk accounts without executing downstream mutations.",
+        "title": "prepare_followup_tasks"
+      },
+      {
+        "capability_id": "gtm.prepare_reassignment_plan",
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "selection_basis",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "approval_required",
+        "summary": "Prepare a reassignment preview for overloaded pipeline coverage without executing downstream mutations.",
+        "title": "prepare_reassignment_plan"
+      },
+      {
+        "capability_id": "gtm.account_enrichment_summary",
+        "required_context": [
+          {
+            "input": "account_names",
+            "posture": "required",
+            "semantic_type": "entity_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "read_only",
+        "summary": "Return bounded firmographic context and fit signals for selected accounts; raw records, full exports, underlying notes, and debug payloads are not supported.",
+        "title": "account_enrichment_summary"
+      },
+      {
+        "capability_id": "gtm.lookalike_accounts",
+        "required_context": [
+          {
+            "input": "reference_account",
+            "posture": "required",
+            "semantic_type": "entity_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "read_only",
+        "summary": "Return bounded lookalike accounts using explainable similarity logic; raw payloads and underlying model data are not supported.",
+        "title": "lookalike_accounts"
+      },
+      {
+        "capability_id": "gtm.at_risk_account_enrichment_summary",
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "ranking_basis",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "read_only",
+        "summary": "Rank at-risk accounts and return bounded enrichment context for the selected accounts.",
+        "title": "at_risk_account_enrichment_summary"
+      },
+      {
+        "capability_id": "gtm.score_leads",
+        "required_context": [
+          {
+            "input": "cohort_ref",
+            "posture": "required",
+            "semantic_type": "cohort_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          }
+        ],
+        "side_effect_level": "read_only",
+        "summary": "Return bounded lead scores and explainable priority bands for a named cohort.",
+        "title": "score_leads"
+      },
+      {
+        "capability_id": "gtm.prioritize_accounts",
+        "required_context": [
+          {
+            "input": "cohort_ref",
+            "posture": "required",
+            "semantic_type": "cohort_reference"
+          },
+          {
+            "input": "ranking_basis",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          }
+        ],
+        "side_effect_level": "read_only",
+        "summary": "Rank bounded accounts or enriched cohorts by explainable GTM priority.",
+        "title": "prioritize_accounts"
+      },
+      {
+        "capability_id": "gtm.route_leads",
+        "required_context": [
+          {
+            "input": "cohort_ref",
+            "posture": "required",
+            "semantic_type": "cohort_reference"
+          },
+          {
+            "input": "target_queue",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          }
+        ],
+        "side_effect_level": "approval_required",
+        "summary": "Prepare an approval-gated routing preview for scored or hot leads in a named cohort; outreach drafting is not supported by this capability.",
+        "title": "route_leads"
+      },
+      {
+        "capability_id": "gtm.draft_outreach_message",
+        "required_context": [
+          {
+            "input": "target_ref",
+            "posture": "required",
+            "semantic_type": "entity_reference"
+          },
+          {
+            "input": "objective",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "channel",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "persona",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "read_only",
+        "summary": "Draft a bounded outreach message for a selected target and explicit objective; send actions and raw transcripts are not supported.",
+        "title": "draft_outreach_message"
+      },
+      {
+        "capability_id": "gtm.suggest_followup_content",
+        "required_context": [
+          {
+            "input": "target_ref",
+            "posture": "required",
+            "semantic_type": "entity_reference"
+          },
+          {
+            "input": "variant_count",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "persona",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "read_only",
+        "summary": "Return bounded follow-up content variants for an explicit GTM target.",
+        "title": "suggest_followup_content"
+      },
+      {
+        "capability_id": "gtm.objection_response_variants",
+        "required_context": [
+          {
+            "input": "objection_theme",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "target_ref",
+            "posture": "optional",
+            "semantic_type": "entity_reference"
+          },
+          {
+            "input": "persona",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "read_only",
+        "summary": "Return bounded objection-response variants for a selected competitor or concern.",
+        "title": "objection_response_variants"
+      },
+      {
+        "capability_id": "gtm.bottleneck_account_outreach_draft",
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "target_ref",
+            "posture": "required",
+            "semantic_type": "entity_reference"
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "objective",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "channel",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "persona",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "read_only",
+        "summary": "Draft outreach only for a specific account already selected from a bounded bottleneck or at-risk account review. Do not use this capability to choose the top or affected account from analysis; use the approval-gated follow-up preparation flow for derived-target bottleneck or at-risk requests.",
+        "title": "bottleneck_account_outreach_draft"
+      },
+      {
+        "capability_id": "gtm.prioritized_outreach_draft",
+        "required_context": [
+          {
+            "input": "cohort_ref",
+            "posture": "required",
+            "semantic_type": "cohort_reference"
+          },
+          {
+            "input": "ranking_basis",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "objective",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "channel",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "persona",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "read_only",
+        "summary": "Prioritize a bounded account cohort, include bounded enrichment context for the top accounts, and draft one outreach message for the highest-priority account; this is for prioritization-to-enrichment-to-draft requests, not lead routing.",
+        "title": "prioritized_outreach_draft"
+      },
+      {
+        "capability_id": "gtm.at_risk_followup_preparation",
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "ranking_basis",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "approval_required",
+        "summary": "Compose gtm.account_risk_summary -\u003e gtm.prepare_followup_tasks when the requested business action needs derived targets before governed preparation.",
+        "title": "Gtm.At Risk Followup Preparation"
+      },
+      {
+        "capability_id": "gtm.at_risk_reassignment_preparation",
+        "required_context": [
+          {
+            "input": "quarter",
+            "posture": "required",
+            "semantic_type": "time_scope"
+          },
+          {
+            "input": "ranking_basis",
+            "posture": "required",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          }
+        ],
+        "side_effect_level": "approval_required",
+        "summary": "Compose gtm.account_risk_summary -\u003e gtm.prepare_reassignment_plan when the requested business action needs derived targets before governed preparation.",
+        "title": "Gtm.At Risk Reassignment Preparation"
+      },
+      {
+        "capability_id": "gtm.prioritized_routing_preparation",
+        "required_context": [
+          {
+            "input": "cohort_ref",
+            "posture": "required",
+            "semantic_type": "cohort_reference"
+          },
+          {
+            "input": "ranking_basis",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "limit",
+            "posture": "optional",
+            "semantic_type": ""
+          },
+          {
+            "input": "owner_scope",
+            "posture": "optional",
+            "semantic_type": "scope_reference"
+          }
+        ],
+        "side_effect_level": "approval_required",
+        "summary": "Compose gtm.prioritize_accounts -\u003e gtm.route_leads when the requested business action needs derived targets before governed preparation.",
+        "title": "Gtm.Prioritized Routing Preparation"
+      }
+    ],
+    "schema_version": "anip-agent-consumability/v0"
+  },
+  "agent_consumption_readiness": {
+    "artifact_type": "agent_consumption_readiness",
+    "findings": [],
+    "probes": [
+      {
+        "capability_id": "gtm.pipeline_summary",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.pipeline_forecast_summary",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.stage_bottleneck_summary",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.sales_team_performance_summary",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.product_pipeline_summary",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.stalled_opportunity_review",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.account_risk_summary",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.prepare_followup_tasks",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.prepare_reassignment_plan",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.account_enrichment_summary",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.lookalike_accounts",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.at_risk_account_enrichment_summary",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.score_leads",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.prioritize_accounts",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.route_leads",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.draft_outreach_message",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.suggest_followup_content",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.objection_response_variants",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.bottleneck_account_outreach_draft",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.prioritized_outreach_draft",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.at_risk_followup_preparation",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.at_risk_reassignment_preparation",
+        "kind": "contract_declared",
+        "status": "ready"
+      },
+      {
+        "capability_id": "gtm.prioritized_routing_preparation",
+        "kind": "contract_declared",
+        "status": "ready"
+      }
+    ],
+    "required_app_glue": [],
+    "schema_version": "anip-agent-consumption-readiness/v0",
+    "score": 100,
+    "status": "ready",
+    "summary": {
+      "blockers": 0,
+      "capability_surface": 23,
+      "info": 0,
+      "probes": 23,
+      "required_app_glue": 0,
+      "warnings": 0
+    }
+  },
+  "anip_spec_version": "anip/0.24",
+  "artifact_type": "anip_package_lock",
+  "blueprint_id": "gtm-pipeline-q2-review",
+  "blueprint_version": "0.4.0",
+  "build_packs": [
+    "anip-build-pack@local"
+  ],
+  "capability_ids": [
+    "gtm.pipeline_summary",
+    "gtm.pipeline_forecast_summary",
+    "gtm.stage_bottleneck_summary",
+    "gtm.sales_team_performance_summary",
+    "gtm.product_pipeline_summary",
+    "gtm.stalled_opportunity_review",
+    "gtm.account_risk_summary",
+    "gtm.prepare_followup_tasks",
+    "gtm.prepare_reassignment_plan",
+    "gtm.account_enrichment_summary",
+    "gtm.lookalike_accounts",
+    "gtm.at_risk_account_enrichment_summary",
+    "gtm.score_leads",
+    "gtm.prioritize_accounts",
+    "gtm.route_leads",
+    "gtm.draft_outreach_message",
+    "gtm.suggest_followup_content",
+    "gtm.objection_response_variants",
+    "gtm.bottleneck_account_outreach_draft",
+    "gtm.prioritized_outreach_draft",
+    "gtm.at_risk_followup_preparation",
+    "gtm.at_risk_reassignment_preparation",
+    "gtm.prioritized_routing_preparation"
+  ],
+  "contract_signature": "sha256:3dca5aca53447b5205d85d27c6c859e820b80e92b4c63e368fa2db9da20be9a9",
+  "extension_packs": [],
+  "generated_at": "2026-05-15T00:00:00Z",
+  "lineage": {
+    "developer_revision": {
+      "artifact_id": "gtm-operator-contract-20260512235040:developer-definition:r1",
+      "contract_signature": "sha256:3dca5aca53447b5205d85d27c6c859e820b80e92b4c63e368fa2db9da20be9a9",
+      "ref": "gtm-operator-contract-20260512235040:developer-definition:r1",
+      "revision_number": 1
+    },
+    "product_revision": {
+      "artifact_id": "gtm-operator-contract-20260512235040:product-design:r1",
+      "baseline_locked_at": "2026-05-15T00:00:00Z",
+      "ref": "gtm-operator-contract-20260512235040:product-design:r1",
+      "revision_number": 1
+    },
+    "project_ref": "studio:gtm-operator-contract-20260512235040"
+  },
+  "lock_kind": "publisher_recommended_lock",
+  "package_id": "gtm-pipeline-q2-review",
+  "package_version": "0.4.0",
+  "regression_packs": [],
+  "runtime_packages": [],
+  "schema_version": "anip-service-definition/v1",
+  "selected_service_ids": [
+    "gtm-pipeline-service",
+    "gtm-enrichment-service",
+    "gtm-prioritization-service",
+    "gtm-outreach-service"
+  ],
+  "service_definition_digest": "sha256:3dca5aca53447b5205d85d27c6c859e820b80e92b4c63e368fa2db9da20be9a9",
+  "verifier_packs": [
+    "anip-verifier@local"
+  ]
+}

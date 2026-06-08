@@ -1,0 +1,357 @@
+{
+  "phase": 6,
+  "title": "Forecast, Bottleneck, Team, Product, And Reassignment Questions",
+  "count": 50,
+  "entries": [
+    {
+      "id": "forecast-2017-q1",
+      "category": "forecast-read",
+      "question": "Show the risk-adjusted forecast for 2017-Q1.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "bottleneck-2017-q1",
+      "category": "bottleneck-read",
+      "question": "Show the biggest bottlenecks in 2017-Q1.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "team-performance-2017-q1",
+      "category": "team-performance-read",
+      "question": "Show sales-team performance for 2017-Q1.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "product-pipeline-2017-q1",
+      "category": "product-pipeline-read",
+      "question": "Show product pipeline performance for 2017-Q1.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "forecast-2017-q2",
+      "category": "forecast-read",
+      "question": "Show the risk-adjusted forecast for 2017-Q2.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "bottleneck-2017-q2",
+      "category": "bottleneck-read",
+      "question": "Show the biggest bottlenecks in 2017-Q2.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "team-performance-2017-q2",
+      "category": "team-performance-read",
+      "question": "Show sales-team performance for 2017-Q2.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "product-pipeline-2017-q2",
+      "category": "product-pipeline-read",
+      "question": "Show product pipeline performance for 2017-Q2.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "forecast-2017-q3",
+      "category": "forecast-read",
+      "question": "Show the risk-adjusted forecast for 2017-Q3.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "bottleneck-2017-q3",
+      "category": "bottleneck-read",
+      "question": "Show the biggest bottlenecks in 2017-Q3.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "team-performance-2017-q3",
+      "category": "team-performance-read",
+      "question": "Show sales-team performance for 2017-Q3.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "product-pipeline-2017-q3",
+      "category": "product-pipeline-read",
+      "question": "Show product pipeline performance for 2017-Q3.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "forecast-2017-q4",
+      "category": "forecast-read",
+      "question": "Show the risk-adjusted forecast for 2017-Q4.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "bottleneck-2017-q4",
+      "category": "bottleneck-read",
+      "question": "Show the biggest bottlenecks in 2017-Q4.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "team-performance-2017-q4",
+      "category": "team-performance-read",
+      "question": "Show sales-team performance for 2017-Q4.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "product-pipeline-2017-q4",
+      "category": "product-pipeline-read",
+      "question": "Show product pipeline performance for 2017-Q4.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "forecast-east-q2",
+      "category": "forecast-read",
+      "question": "Show the risk-adjusted forecast for 2017-Q2 in the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "bottleneck-east-q2",
+      "category": "bottleneck-read",
+      "question": "Show the biggest bottlenecks in 2017-Q2 for the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "product-east-q2",
+      "category": "product-pipeline-read",
+      "question": "Show product pipeline performance for 2017-Q2 in the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "forecast-west-q2",
+      "category": "forecast-read",
+      "question": "Show the risk-adjusted forecast for 2017-Q2 in the West region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "bottleneck-west-q2",
+      "category": "bottleneck-read",
+      "question": "Show the biggest bottlenecks in 2017-Q2 for the West region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "product-west-q2",
+      "category": "product-pipeline-read",
+      "question": "Show product pipeline performance for 2017-Q2 in the West region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "forecast-central-q2",
+      "category": "forecast-read",
+      "question": "Show the risk-adjusted forecast for 2017-Q2 in the Central region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "bottleneck-central-q2",
+      "category": "bottleneck-read",
+      "question": "Show the biggest bottlenecks in 2017-Q2 for the Central region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "product-central-q2",
+      "category": "product-pipeline-read",
+      "question": "Show product pipeline performance for 2017-Q2 in the Central region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "forecast-clarify-quarter",
+      "category": "forecast-clarification",
+      "question": "Show the risk-adjusted forecast.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "bottleneck-clarify-quarter",
+      "category": "bottleneck-clarification",
+      "question": "Show the biggest bottlenecks.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "team-clarify-quarter",
+      "category": "team-performance-clarification",
+      "question": "Show sales-team performance.",
+      "expected_outcome": "clarification_required",
+      "notes": null
+    },
+    {
+      "id": "reassign-preview-revops",
+      "category": "reassignment-preview",
+      "question": "[rev_ops_manager] Prepare a reassignment plan for the highest-risk accounts in 2017-Q2.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "reassign-preview-analyst",
+      "category": "reassignment-preview",
+      "question": "[sales_analyst] Prepare a reassignment plan for the highest-risk accounts in 2017-Q2.",
+      "expected_outcome": "denied",
+      "notes": null
+    },
+    {
+      "id": "reassign-preview-east",
+      "category": "reassignment-preview",
+      "question": "[rev_ops_manager] Prepare a reassignment plan for the top 5 at-risk East accounts in 2017-Q2.",
+      "expected_outcome": "approval_required",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-32",
+      "category": "phase6-matrix",
+      "question": "[rev_ops_manager] Show product pipeline performance for 2017-Q2 in the West region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-33",
+      "category": "phase6-matrix",
+      "question": "[sales_leader] Show the risk-adjusted forecast for 2017-Q2 in the Central region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-34",
+      "category": "phase6-matrix",
+      "question": "[sales_analyst] Show the biggest bottlenecks in 2017-Q2 for the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-35",
+      "category": "phase6-matrix",
+      "question": "[account_manager_east] Show sales-team performance for 2017-Q2 in the West region.",
+      "expected_outcome": "restricted",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-36",
+      "category": "phase6-matrix",
+      "question": "[rev_ops_manager] Show product pipeline performance for 2017-Q2 in the Central region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-37",
+      "category": "phase6-matrix",
+      "question": "[sales_leader] Show the risk-adjusted forecast for 2017-Q2 in the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-38",
+      "category": "phase6-matrix",
+      "question": "[sales_analyst] Show the biggest bottlenecks in 2017-Q2 for the West region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-39",
+      "category": "phase6-matrix",
+      "question": "[account_manager_east] Show sales-team performance for 2017-Q2 in the Central region.",
+      "expected_outcome": "restricted",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-40",
+      "category": "phase6-matrix",
+      "question": "[rev_ops_manager] Show product pipeline performance for 2017-Q2 in the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-41",
+      "category": "phase6-matrix",
+      "question": "[sales_leader] Show the risk-adjusted forecast for 2017-Q2 in the West region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-42",
+      "category": "phase6-matrix",
+      "question": "[sales_analyst] Show the biggest bottlenecks in 2017-Q2 for the Central region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-43",
+      "category": "phase6-matrix",
+      "question": "[account_manager_east] Show sales-team performance for 2017-Q2 in the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-44",
+      "category": "phase6-matrix",
+      "question": "[rev_ops_manager] Show product pipeline performance for 2017-Q2 in the West region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-45",
+      "category": "phase6-matrix",
+      "question": "[sales_leader] Show the risk-adjusted forecast for 2017-Q2 in the Central region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-46",
+      "category": "phase6-matrix",
+      "question": "[sales_analyst] Show the biggest bottlenecks in 2017-Q2 for the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-47",
+      "category": "phase6-matrix",
+      "question": "[account_manager_east] Show sales-team performance for 2017-Q2 in the West region.",
+      "expected_outcome": "restricted",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-48",
+      "category": "phase6-matrix",
+      "question": "[rev_ops_manager] Show product pipeline performance for 2017-Q2 in the Central region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-49",
+      "category": "phase6-matrix",
+      "question": "[sales_leader] Show the risk-adjusted forecast for 2017-Q2 in the East region.",
+      "expected_outcome": "success",
+      "notes": null
+    },
+    {
+      "id": "phase6-matrix-50",
+      "category": "phase6-matrix",
+      "question": "[sales_analyst] Show the biggest bottlenecks in 2017-Q2 for the West region.",
+      "expected_outcome": "success",
+      "notes": null
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "dependencies": {
+    "@anip-dev/core": "file:../../../../../../packages/typescript/core",
+    "@anip-dev/crypto": "file:../../../../../../packages/typescript/crypto",
+    "@anip-dev/hono": "file:../../../../../../packages/typescript/hono",
+    "@anip-dev/server": "file:../../../../../../packages/typescript/server",
+    "@anip-dev/service": "file:../../../../../../packages/typescript/service",
+    "@hono/node-server": "^1.19.0",
+    "hono": "^4.6.0",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.0"
+  },
+  "name": "gtm-pipeline-typescript-native",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/main.ts",
+    "start": "node dist/main.js",
+    "test": "vitest run"
+  },
+  "type": "module",
+  "version": "0.1.0"
+}

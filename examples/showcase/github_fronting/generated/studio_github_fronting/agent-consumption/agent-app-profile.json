@@ -1,0 +1,226 @@
+{
+  "artifact_type": "agent_app_profile",
+  "capability_metadata": {
+    "github.issue.prepare": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "Change repository state",
+          "Create issue",
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Change repository state",
+          "Create issue",
+          "approval.execute"
+        ],
+        "produces": [
+          "Ask for approval",
+          "Preview a change",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Prepare a GitHub issue preview with labels and assignees before any issue is created.",
+      "required_context": [
+        {
+          "input": "owner",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "repo",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "title",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "body",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "github.pr.comment.prepare": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "Change repository state",
+          "Send outside the system",
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Change repository state",
+          "Send outside the system",
+          "approval.execute"
+        ],
+        "produces": [
+          "Draft content",
+          "Preview a change",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Prepare a pull request comment from review or release context without posting it.",
+      "required_context": [
+        {
+          "input": "owner",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "repo",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "pull_number",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "comment_purpose",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "context",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "github.release_notes.prepare": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "Change repository state",
+          "Create release"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Change repository state",
+          "Create release"
+        ],
+        "produces": [
+          "Draft content",
+          "Summarize information"
+        ]
+      },
+      "capability_framing": "Prepare bounded release notes from selected issues or pull requests without creating a GitHub release.",
+      "required_context": [
+        {
+          "input": "owner",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "repo",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "range",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "github.repo.search_context": {
+      "app_boundaries": {
+        "unsupported_effects": [
+          "Change repository state",
+          "Export raw data"
+        ]
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Change repository state",
+          "Export raw data"
+        ],
+        "produces": [
+          "Read bounded data",
+          "Summarize information"
+        ]
+      },
+      "capability_framing": "Search bounded GitHub repository issues and pull requests without exposing raw repository tools.",
+      "required_context": [
+        {
+          "input": "owner",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "repo",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "query",
+          "missing_behavior": "clarify"
+        }
+      ]
+    },
+    "github.workflow.dispatch.request": {
+      "app_boundaries": {
+        "guidance": "This capability is approval-governed. Invoke it to produce the service-owned preview/request; do not execute the governed action in app code.",
+        "unsupported_effects": [
+          "Bypass workflow policy",
+          "Execute approved action",
+          "approval.execute"
+        ]
+      },
+      "approval": {
+        "approval_effect": "approval.request",
+        "grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "required": true
+      },
+      "business_effects": {
+        "does_not_produce": [
+          "Bypass workflow policy",
+          "Execute approved action",
+          "approval.execute"
+        ],
+        "produces": [
+          "Ask for approval",
+          "Preview a change",
+          "approval.request",
+          "system.preview_mutation"
+        ]
+      },
+      "capability_framing": "Prepare a governed GitHub Actions workflow dispatch request and stop for approval.",
+      "required_context": [
+        {
+          "input": "owner",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "repo",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "workflow_id",
+          "missing_behavior": "clarify"
+        },
+        {
+          "input": "ref",
+          "missing_behavior": "clarify"
+        }
+      ]
+    }
+  },
+  "schema_version": "anip-agent-app-profile/v0"
+}

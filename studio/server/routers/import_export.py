@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Literal
 
 import jsonschema
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from ..db import get_pool
 from ..hashing import content_hash
@@ -18,6 +20,7 @@ from ..repository import (
     ReferentialIntegrityError,
 )
 from .. import repository
+from ..project_snapshots import export_project_snapshot, import_project_snapshot
 from ..seed import seed_from_examples
 
 router = APIRouter(tags=["import_export"])
@@ -36,6 +39,26 @@ _SCHEMA_FILES: dict[str, str] = {
 }
 
 _loaded_schemas: dict[str, dict] = {}
+
+
+class RetiredTypeScriptGeneratorRequest(BaseModel):
+    definition: dict[str, Any] | None = None
+    package_name: str | None = None
+    dependency_source: Literal["registry", "local"] | None = None
+
+
+class RunLocalProofRequest(BaseModel):
+    generation_run_artifact_id: str
+
+
+class ProjectSnapshotImportRequest(BaseModel):
+    snapshot: dict[str, Any]
+    replace_existing: bool = True
+
+
+class ProjectSnapshotExportRequest(BaseModel):
+    published_packages: list[dict[str, Any]] | None = None
+    source: str = "studio-api"
 
 
 def _get_schema(artifact_type: str) -> dict | None:
@@ -64,6 +87,45 @@ def _validate_against_schema(artifact_type: str, data: dict) -> list[str]:
     errors = sorted(validator.iter_errors(data), key=lambda e: list(e.path))
     return [f"{'.'.join(str(p) for p in e.path) or '<root>'}: {e.message}"
             for e in errors]
+
+
+@router.post(
+    "/api/projects/{pid}/generator/typescript",
+)
+def generate_typescript_project(pid: str, body: RetiredTypeScriptGeneratorRequest):
+    with get_pool().connection() as conn:
+        try:
+            repository.get_project(conn, pid)
+        except NotFoundError:
+            raise HTTPException(status_code=404, detail=f"Project {pid!r} not found")
+
+    raise HTTPException(
+        status_code=410,
+        detail=(
+            "The Studio-coupled TypeScript generator has been retired. "
+            "Publish the saved Developer Definition to Registry and run the generator/verifier outside Studio."
+        ),
+    )
+
+
+@router.post(
+    "/api/projects/{pid}/proofs/local-runtime",
+)
+def run_local_runtime_proof(pid: str, body: RunLocalProofRequest):
+    with get_pool().connection() as conn:
+        try:
+            repository.get_project(conn, pid)
+            repository.get_pm_artifact(conn, pid, body.generation_run_artifact_id)
+        except NotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc))
+
+    raise HTTPException(
+        status_code=410,
+        detail=(
+            "Studio local runtime proof has been retired with the TypeScript generator. "
+            "Use the verifier against a Registry package or portable package bundle."
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -357,6 +419,45 @@ def export_project(pid: str):
             "proposals": repository.list_proposals(conn, pid),
             "evaluations": evaluations_export,
         }
+
+
+@router.get("/api/projects/{pid}/snapshot")
+def export_project_snapshot_route(pid: str):
+    """Export a full restoreable Studio project snapshot."""
+    with get_pool().connection() as conn:
+        try:
+            return export_project_snapshot(conn, pid, source="studio-api")
+        except NotFoundError:
+            raise HTTPException(status_code=404, detail=f"Project {pid!r} not found")
+
+
+@router.post("/api/projects/{pid}/snapshot")
+def export_project_snapshot_with_metadata(pid: str, body: ProjectSnapshotExportRequest):
+    """Export a full restoreable snapshot with explicit publication metadata."""
+    with get_pool().connection() as conn:
+        try:
+            return export_project_snapshot(
+                conn,
+                pid,
+                published_packages=body.published_packages,
+                source=body.source,
+            )
+        except NotFoundError:
+            raise HTTPException(status_code=404, detail=f"Project {pid!r} not found")
+
+
+@router.post("/api/project-snapshots/import")
+def import_project_snapshot_route(body: ProjectSnapshotImportRequest):
+    """Restore a full Studio project snapshot."""
+    with get_pool().connection() as conn:
+        try:
+            return import_project_snapshot(
+                conn,
+                body.snapshot,
+                replace_existing=body.replace_existing,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
 
 
 # ---------------------------------------------------------------------------

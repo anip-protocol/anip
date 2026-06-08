@@ -1,0 +1,273 @@
+{
+  "schema_version": "anip-fronting-starter/v0",
+  "system_name": "notion_governed_fronting_showcase",
+  "domain_name": "notion",
+  "service_id": "notion-governance-service",
+  "service_name": "Notion Governance Service",
+  "backend_kind": "native_api",
+  "connection_ref": "notion_fronting",
+  "operations": [
+    {
+      "capability_id": "notion.workspace.search_context",
+      "title": "Search Workspace Context",
+      "summary": "Search bounded Notion pages and databases without exposing raw workspace tools.",
+      "subject_kind": "notion_workspace",
+      "context_type": "workspace_context_search",
+      "output_intent": "bounded_workspace_results",
+      "backend_kind": "native_api",
+      "connection_ref": "notion_fronting",
+      "path": "/notion/workspace_search_context",
+      "raw_operation_refs": [
+        "notion.api.workspace_search_context"
+      ],
+      "side_effect_level": "read",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "workspace_scope",
+          "type": "string",
+          "required": true,
+          "summary": "Declared workspace or team scope.",
+          "semantic_type": "workspace_scope",
+          "clarification_hint": "Ask for workspace_scope when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "query",
+          "type": "string",
+          "required": true,
+          "summary": "Bounded workspace search query.",
+          "clarification_hint": "Ask for query when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "summary": "Maximum results to return.",
+          "default_value": "20",
+          "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    },
+    {
+      "capability_id": "notion.database.query_context",
+      "title": "Query Database Context",
+      "summary": "Query a bounded Notion database view with declared filters and return summarized context.",
+      "subject_kind": "notion_database",
+      "context_type": "database_query",
+      "output_intent": "bounded_database_rows",
+      "backend_kind": "native_api",
+      "connection_ref": "notion_fronting",
+      "path": "/notion/database_query_context",
+      "raw_operation_refs": [
+        "notion.api.database_query_context"
+      ],
+      "side_effect_level": "read",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "database_id",
+          "type": "string",
+          "required": true,
+          "summary": "Notion database identifier.",
+          "semantic_type": "database_ref",
+          "clarification_hint": "Ask for database_id when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "filter",
+          "type": "string",
+          "required": false,
+          "summary": "Declared filter expression or business filter.",
+          "clarification_hint": "Ask for filter when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "summary": "Maximum rows to return.",
+          "default_value": "20",
+          "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    },
+    {
+      "capability_id": "notion.page.create.prepare",
+      "title": "Prepare Page Creation",
+      "summary": "Prepare a Notion page creation preview under an explicit parent before creating anything.",
+      "subject_kind": "notion_page",
+      "context_type": "page_creation_preparation",
+      "output_intent": "page_creation_preview",
+      "backend_kind": "native_api",
+      "connection_ref": "notion_fronting",
+      "path": "/notion/page_create_prepare",
+      "raw_operation_refs": [
+        "notion.api.page_create_prepare"
+      ],
+      "side_effect_level": "write_adjacent",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "parent_id",
+          "type": "string",
+          "required": true,
+          "summary": "Parent page or database identifier.",
+          "semantic_type": "page_or_database_ref",
+          "clarification_hint": "Ask for parent_id when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "summary": "Proposed page title.",
+          "clarification_hint": "Ask for title when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "content_summary",
+          "type": "string",
+          "required": true,
+          "summary": "Bounded content summary for the new page.",
+          "clarification_hint": "Ask for content_summary when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    },
+    {
+      "capability_id": "notion.page.update.prepare",
+      "title": "Prepare Page Update",
+      "summary": "Prepare a Notion page update preview for an explicit page without applying the update.",
+      "subject_kind": "notion_page",
+      "context_type": "page_update_preparation",
+      "output_intent": "page_update_preview",
+      "backend_kind": "native_api",
+      "connection_ref": "notion_fronting",
+      "path": "/notion/page_update_prepare",
+      "raw_operation_refs": [
+        "notion.api.page_update_prepare"
+      ],
+      "side_effect_level": "write_adjacent",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "page_id",
+          "type": "string",
+          "required": true,
+          "summary": "Notion page identifier.",
+          "semantic_type": "page_ref",
+          "clarification_hint": "Ask for page_id when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "change_summary",
+          "type": "string",
+          "required": true,
+          "summary": "Plain-language change summary.",
+          "clarification_hint": "Ask for change_summary when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "content_patch",
+          "type": "string",
+          "required": false,
+          "summary": "Optional bounded content patch.",
+          "clarification_hint": "Ask for content_patch when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    },
+    {
+      "capability_id": "notion.comment.prepare",
+      "title": "Prepare Page Comment",
+      "summary": "Prepare a Notion page comment from supplied context without posting it.",
+      "subject_kind": "notion_comment",
+      "context_type": "comment_preparation",
+      "output_intent": "comment_preview",
+      "backend_kind": "native_api",
+      "connection_ref": "notion_fronting",
+      "path": "/notion/comment_prepare",
+      "raw_operation_refs": [
+        "notion.api.comment_prepare"
+      ],
+      "side_effect_level": "write_adjacent",
+      "backend_input_mode": "explicit",
+      "inputs": [
+        {
+          "name": "page_id",
+          "type": "string",
+          "required": true,
+          "summary": "Notion page identifier.",
+          "semantic_type": "page_ref",
+          "clarification_hint": "Ask for page_id when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "name": "comment_purpose",
+          "type": "string",
+          "required": true,
+          "summary": "Purpose of the comment.",
+          "clarification_hint": "Ask for comment_purpose when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "context",
+          "type": "string",
+          "required": true,
+          "summary": "Bounded context for the proposed comment.",
+          "clarification_hint": "Ask for context when it is missing or ambiguous.",
+          "entity_reference": false
+        },
+        {
+          "name": "backend_options",
+          "type": "object",
+          "required": false,
+          "summary": "Bounded Notion provider options such as selected properties, page size, or safe filter fragments. Must not bypass page scope or approval policy.",
+          "semantic_type": "backend_options",
+          "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+          "entity_reference": false
+        }
+      ]
+    }
+  ]
+}

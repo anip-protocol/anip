@@ -1,0 +1,185 @@
+{
+  "suite": "gtm_phase7_variation_bank_20_v3",
+  "cases": [
+    {
+      "id": "p7v2-01",
+      "category": "compound_positive",
+      "actor_id": "sales_leader",
+      "question": "Prioritize expansion_candidates_q2, add bounded context, and draft a first-touch email for the top account.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p7v2-02",
+      "category": "negative_ambiguous_cohort",
+      "actor_id": "sales_leader",
+      "question": "Prioritize Q2 candidates, add enrichment for the top three, and draft LinkedIn outreach for the top account.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p7v2-03",
+      "category": "compound_approval",
+      "actor_id": "sales_leader",
+      "question": "Find Q2 at-risk accounts, enrich the top three, and draft a follow-up message for the highest-risk one.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p7v2-04",
+      "category": "compound_positive",
+      "actor_id": "sales_leader",
+      "question": "Use expansion_candidates_q2 to draft outreach for the highest-priority account.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p7v2-05",
+      "category": "compound_positive",
+      "actor_id": "sales_leader",
+      "question": "Prioritize at_risk_q2 accounts and prepare a revive-stalled outreach draft for the top account.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p7v2-06",
+      "category": "compound_approval",
+      "actor_id": "rev_ops_manager",
+      "question": "Show the Q2 2017 risk-adjusted forecast and prepare follow-up task previews for the top at-risk accounts.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p7v2-07",
+      "category": "compound_approval",
+      "actor_id": "rev_ops_manager",
+      "question": "Review Q2 2017 at-risk pipeline and prepare follow-up task previews for the top three accounts.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p7v2-08",
+      "category": "compound_approval",
+      "actor_id": "rev_ops_manager",
+      "question": "For West Q2 2017 bottlenecks, identify top at-risk accounts and prepare follow-up previews.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p7v2-09",
+      "category": "compound_approval",
+      "actor_id": "rev_ops_manager",
+      "question": "Prepare a reassignment preview after reviewing Q2 2017 forecast risk.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p7v2-10",
+      "category": "negative_actor_boundary",
+      "actor_id": "sales_analyst",
+      "question": "Review Q2 2017 at-risk pipeline and prepare follow-up previews.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p7v2-11",
+      "category": "negative_actor_boundary",
+      "actor_id": "account_manager_east",
+      "question": "Show West Q2 2017 bottlenecks and prepare follow-up previews for those accounts.",
+      "expected": {
+        "outcome": "restricted"
+      }
+    },
+    {
+      "id": "p7v2-12",
+      "category": "negative_missing_reference",
+      "actor_id": "sales_leader",
+      "question": "Draft outreach for the highest-priority account from the priority list.",
+      "expected": {
+        "outcome": "clarification_required"
+      }
+    },
+    {
+      "id": "p7v2-13",
+      "category": "compound_approval",
+      "actor_id": "sales_leader",
+      "question": "Show East Q2 2017 bottlenecks, enrich the affected accounts, and draft outreach for the top account.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p7v2-14",
+      "category": "negative_unsupported_effect",
+      "actor_id": "sales_leader",
+      "question": "Prioritize expansion_candidates_q2 and send the outreach to the top account.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p7v2-15",
+      "category": "compound_positive",
+      "actor_id": "sales_leader",
+      "question": "Use the expansion_candidates_q2 priority list to draft a bounded first-touch email for the highest-priority account.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p7v2-16",
+      "category": "compound_approval",
+      "actor_id": "rev_ops_manager",
+      "question": "Prepare routing recommendations for inbound leads from last week and stop at approval.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p7v2-17",
+      "category": "negative_unknown_entity",
+      "actor_id": "sales_leader",
+      "question": "Find lookalike accounts for Globex and draft first-touch outreach for the best match.",
+      "expected": {
+        "outcome": "denied"
+      }
+    },
+    {
+      "id": "p7v2-18",
+      "category": "compound_positive",
+      "actor_id": "sales_leader",
+      "question": "Draft outreach for the top account in at_risk_q2 using a follow-up objective.",
+      "expected": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "p7v2-19",
+      "category": "compound_approval",
+      "actor_id": "sales_leader",
+      "question": "Prepare routing recommendations for hot inbound leads and draft outreach for the highest-priority routed account.",
+      "expected": {
+        "outcome": "approval_required"
+      }
+    },
+    {
+      "id": "p7v2-20",
+      "category": "compound_positive",
+      "actor_id": "sales_leader",
+      "question": "Prioritize East expansion_candidates_q2, enrich top accounts, and draft outreach for the top East account.",
+      "expected": {
+        "outcome": "success"
+      }
+    }
+  ]
+}

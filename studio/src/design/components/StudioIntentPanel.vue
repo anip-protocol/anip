@@ -9,6 +9,9 @@ const props = defineProps<{
   loading: boolean
   error: string | null
   pendingIntent?: string
+  sourceArtifactTitle?: string | null
+  sourceArtifactPath?: string | null
+  sourceLocked?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -44,12 +47,24 @@ function handleRun() {
       <span class="intent-badge">Powered by ANIP</span>
     </div>
 
-    <label class="intent-label">Describe what you are trying to build</label>
+    <label class="intent-label">
+      {{ sourceLocked ? 'Canonical business spec source' : 'Describe what you are trying to build' }}
+    </label>
+    <div v-if="sourceLocked" class="intent-source-note">
+      <strong>{{ sourceArtifactTitle || 'Business spec artifact' }}</strong>
+      <span v-if="sourceArtifactPath"> · {{ sourceArtifactPath }}</span>
+      <div class="intent-source-subnote">
+        Studio is using the canonical business spec artifact as the source of truth for interpretation. The freeform brief is locked to reduce drift.
+      </div>
+    </div>
     <textarea
       v-model="intent"
       class="intent-input"
       rows="5"
-      placeholder="Example: We need a travel booking service that searches options, books flights, blocks bookings over budget, and escalates exceptions for approval."
+      :readonly="sourceLocked"
+      :placeholder="sourceLocked
+        ? 'Studio is using the canonical business spec artifact for interpretation.'
+        : 'Example: We need a travel booking service that searches options, books flights, blocks bookings over budget, and escalates exceptions for approval.'"
     ></textarea>
 
     <div class="intent-actions">
@@ -135,8 +150,8 @@ function handleRun() {
   text-transform: uppercase;
   padding: 0.35rem 0.6rem;
   border-radius: 999px;
-  background: rgba(59, 130, 246, 0.12);
-  color: #2563eb;
+  background: var(--accent-glow);
+  color: var(--accent-hover);
 }
 
 .intent-label {
@@ -145,6 +160,21 @@ function handleRun() {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.intent-source-note {
+  margin-bottom: 0.65rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-content);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.intent-source-subnote {
+  margin-top: 0.35rem;
 }
 
 .intent-input {
@@ -164,6 +194,11 @@ function handleRun() {
 .intent-input:focus {
   outline: none;
   border-color: var(--border-focus);
+}
+
+.intent-input[readonly] {
+  cursor: default;
+  color: var(--text-secondary);
 }
 
 .intent-actions {
@@ -194,14 +229,14 @@ function handleRun() {
 
 .intent-error {
   margin-top: 0.85rem;
-  color: #dc2626;
+  color: var(--error);
   font-size: 13px;
 }
 
 .intent-result {
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  border-top: 1px solid var(--border);
 }
 
 .draft-actions {
@@ -223,29 +258,29 @@ function handleRun() {
   gap: 1rem;
   align-items: flex-start;
   padding: 0.95rem 1rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--bg-content);
 }
 
 .proposal-note {
   margin-top: 0.9rem;
   padding: 0.85rem 0.95rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.52);
+  background: var(--bg-app);
   color: var(--text-secondary);
   line-height: 1.55;
 }
 
 .intent-btn-primary {
-  border-color: rgba(59, 130, 246, 0.35);
-  background: rgba(59, 130, 246, 0.1);
-  color: #2563eb;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
 }
 
 .intent-btn-primary:hover:not(:disabled) {
-  background: rgba(59, 130, 246, 0.16);
+  background: var(--accent-hover);
 }
 
 @media (max-width: 720px) {

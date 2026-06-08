@@ -1,5 +1,12 @@
 import { reactive, watch } from 'vue'
-import type { Evaluation, DeclaredSurfaces, EditState, ValidationError } from './types'
+import type {
+  Evaluation,
+  RuntimeObservation,
+  DeclaredSurfaces,
+  EditState,
+  ValidationError,
+  ObservedServiceMetadata,
+} from './types'
 import type { RequirementsMode } from './types'
 import type { ScenarioMode } from './types'
 import type { CompletenessHint } from './guided/types'
@@ -12,6 +19,10 @@ import { validateProposal, validateRequirements, validateScenario } from './sche
 
 interface DesignState {
   liveEvaluation: Evaluation | null
+  observedServiceMetadata: ObservedServiceMetadata | null
+  selectedObservedServiceMetadataId: string | null
+  pendingRuntimeObservation: RuntimeObservation | null
+  runtimeObservationHistory: RuntimeObservation[]
   validating: boolean
   validationError: string | null
   apiAvailable: boolean
@@ -35,6 +46,10 @@ interface DesignState {
 
 export const designStore = reactive<DesignState>({
   liveEvaluation: null,
+  observedServiceMetadata: null,
+  selectedObservedServiceMetadataId: null,
+  pendingRuntimeObservation: null,
+  runtimeObservationHistory: [],
   validating: false,
   validationError: null,
   apiAvailable: false,
@@ -58,6 +73,37 @@ export const designStore = reactive<DesignState>({
 
 export async function checkApiAvailability(): Promise<void> {
   designStore.apiAvailable = await checkHealth()
+}
+
+export function setPendingRuntimeObservation(observation: RuntimeObservation | null): void {
+  designStore.pendingRuntimeObservation = observation
+}
+
+export function recordObservedServiceMetadata(metadata: ObservedServiceMetadata | null): void {
+  designStore.observedServiceMetadata = metadata
+}
+
+export function setSelectedObservedServiceMetadataId(artifactId: string | null): void {
+  designStore.selectedObservedServiceMetadataId = artifactId
+}
+
+export function recordRuntimeObservation(observation: RuntimeObservation): void {
+  designStore.pendingRuntimeObservation = observation
+  const existingIndex = designStore.runtimeObservationHistory.findIndex((item) =>
+    item.observation_id === observation.observation_id ||
+    (!!item.invocation_id && item.invocation_id === observation.invocation_id),
+  )
+  if (existingIndex >= 0) {
+    designStore.runtimeObservationHistory.splice(existingIndex, 1)
+  }
+  designStore.runtimeObservationHistory.unshift(observation)
+  if (designStore.runtimeObservationHistory.length > 12) {
+    designStore.runtimeObservationHistory = designStore.runtimeObservationHistory.slice(0, 12)
+  }
+}
+
+export function clearPendingRuntimeObservation(): void {
+  designStore.pendingRuntimeObservation = null
 }
 
 // ---------------------------------------------------------------------------
@@ -139,6 +185,8 @@ export function validateDraft(): boolean {
         errors.push({
           path: `requirements${err.instancePath}`,
           message: err.message ?? 'validation error',
+          keyword: err.keyword,
+          params: err.params as Record<string, unknown>,
         })
       }
     }
@@ -151,6 +199,8 @@ export function validateDraft(): boolean {
         errors.push({
           path: `scenario${err.instancePath}`,
           message: err.message ?? 'validation error',
+          keyword: err.keyword,
+          params: err.params as Record<string, unknown>,
         })
       }
     }
@@ -164,6 +214,8 @@ export function validateDraft(): boolean {
         errors.push({
           path: `proposal${err.instancePath}`,
           message: err.message ?? 'validation error',
+          keyword: err.keyword,
+          params: err.params as Record<string, unknown>,
         })
       }
     }

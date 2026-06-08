@@ -5,199 +5,169 @@ description: Structured failures with recovery guidance, cost signaling, and pro
 
 # Failures, Cost, and Audit
 
-ANIP does not stop at "success or error." It makes failures actionable, costs predictable, and execution verifiable.
+ANIP does not stop at "success or error." It makes failures actionable, costs bounded before execution, and execution evidence queryable after the fact.
 
-## Structured failures
+These three pieces are connected:
 
-When an ANIP invocation fails, the response includes structured information the agent can act on — not just an HTTP status code:
+```text
+failure semantics tell the agent what happened and how to recover
+cost signaling tells the agent what an action may cost
+budget enforcement prevents execution outside delegated authority
+audit records what happened, who authorized it, and how it can be verified
+```
+
+## Structured Failures
+
+When an ANIP invocation fails, the service returns a failure object the agent can act on. The response still includes an `invocation_id` when the request reached the service invocation boundary.
 
 ```json
 {
   "success": false,
-  "invocation_id": "inv_8b2f4a",
+  "invocation_id": "inv-8b2f4a9c1e2f",
   "failure": {
     "type": "budget_exceeded",
-    "detail": "Requested booking costs $487.00 which exceeds the delegated budget of $200.00",
+    "detail": "Capability cost $487 exceeds delegated budget of $200",
     "retry": false,
     "resolution": {
       "action": "request_budget_increase",
-      "requires": "higher_budget_delegation",
+      "recovery_class": "redelegation_then_retry",
+      "requires": "delegation token with higher budget",
       "grantable_by": "human:manager@company.com",
       "estimated_availability": "immediate"
     }
+  },
+  "budget_context": {
+    "budget_currency": "USD",
+    "budget_max": 200,
+    "cost_check_amount": 487,
+    "cost_certainty": "fixed",
+    "within_budget": false
   }
 }
 ```
 
-### Failure fields
+Transport-level authentication failures can still be HTTP 401. Once the request reaches the ANIP invocation boundary, authorization, budget, purpose, approval, and capability failures should be returned as structured ANIP failure objects.
+
+### Failure Fields
 
 | Field | Purpose |
 |-------|---------|
 | `failure.type` | Machine-readable failure category |
-| `failure.detail` | Human-readable explanation |
-| `failure.retry` | Whether retrying the same call might succeed |
-| `failure.resolution.action` | What to do to resolve the failure |
-| `failure.resolution.requires` | What's needed (scope, budget, approval) |
-| `failure.resolution.grantable_by` | Who can grant what's needed |
-| `failure.resolution.estimated_availability` | How soon resolution is possible |
+| `failure.detail` | Human-readable explanation, subject to disclosure policy |
+| `failure.retry` | Whether the same request might succeed after the resolution is applied |
+| `failure.resolution.action` | Canonical next action |
+| `failure.resolution.recovery_class` | Coarse routing class for the recovery strategy |
+| `failure.resolution.requires` | What is needed, such as scope, budget, binding, approval, or credentials |
+| `failure.resolution.grantable_by` | Who can grant or perform the needed recovery, when known |
+| `failure.resolution.estimated_availability` | When recovery may become possible |
+| `failure.resolution.recovery_target` | Optional v0.21 structured target for refresh, revalidation, redelegation, or escalation |
+| `failure.approval_required` | Optional v0.23 metadata, present only for `approval_required` failures |
 
-### Why this matters
+## Recovery Actions
 
-Compare these two failure experiences:
-
-**REST API**: Agent gets `403 Forbidden`. What does that mean? Missing auth? Wrong scope? Expired token? Rate limited? The agent has to guess.
-
-**ANIP**: Agent gets a structured failure that says "you need a higher budget, your manager can grant it, and it's available immediately." The agent can report this to the user and take specific action to resolve the block.
-
-### v0.15 failure types
-
-v0.15 adds `non_delegable_action` for capabilities that require the direct (root) principal:
-
-| Failure type | Description |
-|-------------|-------------|
-| `non_delegable_action` | The capability requires the direct principal (root of the delegation chain) and cannot be invoked by a delegated agent. The human must invoke this capability directly. |
-
-Example:
-
-```json
-{
-  "success": false,
-  "invocation_id": "inv-9c1e2f3a4b5d",
-  "failure": {
-    "type": "non_delegable_action",
-    "detail": "destroy_environment requires direct principal action and cannot be delegated",
-    "retry": false,
-    "resolution": {
-      "action": "invoke_as_root_principal",
-      "requires": "direct_principal_invocation"
-    }
-  }
-}
-```
-
-### v0.16 recovery_class — coarse recovery strategy
-
-v0.16 adds `recovery_class` to every `resolution` object. It is a coarser classification of the recovery strategy implied by `resolution.action`, enabling agents to route failures without pattern-matching on individual action strings.
-
-> **Advisory:** `recovery_class` is advisory. It does **not** override or replace the `retry` boolean. `retry` retains its meaning — whether the same request could succeed after the resolution is applied. `recovery_class` conveys *how* to recover, not *whether* to retry.
-
-**`recovery_class` vocabulary:**
-
-| `recovery_class` | Meaning |
-|---|---|
-| `retry_now` | Retry immediately — no external change required. |
-| `wait_then_retry` | Wait for a time-bounded condition (e.g. rate-limit window, service cooldown), then retry. |
-| `refresh_then_retry` | Refresh a local artifact (binding, quote, token) and retry. |
-| `redelegation_then_retry` | Obtain a new or modified delegation token from an authority, then retry. |
-| `revalidate_then_retry` | Re-fetch and validate service-side state (manifest, capability graph) before retrying. |
-| `terminal` | No automated recovery path — requires human escalation or service-owner intervention. |
-
-**`terminal` invariant:** a failure with `recovery_class: "terminal"` MUST have `retry: false`. All other classes are compatible with either `retry` value.
-
-Example failure response with `recovery_class`:
-
-```json
-{
-  "success": false,
-  "invocation_id": "inv-9c1e2f3a4b5d",
-  "failure": {
-    "type": "insufficient_scope",
-    "detail": "Token lacks travel.book scope required by book_flight",
-    "retry": false,
-    "resolution": {
-      "action": "request_broader_scope",
-      "requires": "travel.book",
-      "grantable_by": "human:admin@company.com",
-      "recovery_class": "redelegation_then_retry"
-    }
-  }
-}
-```
-
-### Canonical authority resolution actions (v0.15)
-
-The `resolution.action` field uses canonical string values. The table below lists all authority-related resolution actions, including five new ones added in v0.16:
+`resolution.action` uses canonical values. Services must not invent ad-hoc recovery strings.
 
 | `resolution.action` | `recovery_class` | Meaning |
-|--------------------|-----------------|---------|
-| `request_broader_scope` | `redelegation_then_retry` | Obtain a delegation token with wider scope |
-| `request_budget_increase` | `redelegation_then_retry` | Obtain a higher-budget delegation |
-| `invoke_as_root_principal` | `terminal` | The human must invoke directly (non-delegable) |
+|---------------------|------------------|---------|
+| `retry_now` | `retry_now` | Retry immediately without an external change |
+| `provide_credentials` | `retry_now` | Provide or refresh required credentials |
+| `wait_and_retry` | `wait_then_retry` | Wait for a time-bound condition |
+| `request_approval` | `wait_then_retry` | Wait for a persisted approval request to be approved |
 | `obtain_binding` | `refresh_then_retry` | Invoke the source capability first to get a binding |
-| `refresh_binding` | `refresh_then_retry` | Re-invoke the source capability for a fresh quote |
+| `refresh_binding` | `refresh_then_retry` | Refresh an expired or stale binding |
 | `obtain_quote_first` | `refresh_then_retry` | Get a bound price before invoking an estimated-cost capability |
-| `obtain_matching_currency` | `redelegation_then_retry` | Re-delegate with matching budget currency |
-| `retry_now` | `retry_now` | Retry immediately — transient condition resolved |
-| `provide_credentials` | `retry_now` | Provide or refresh credentials and retry |
-| `wait_and_retry` | `wait_then_retry` | Wait for a time-bounded window, then retry |
 | `revalidate_state` | `revalidate_then_retry` | Re-fetch service-side state before retrying |
 | `check_manifest` | `revalidate_then_retry` | Re-fetch the manifest and verify capability declarations |
-| `request_budget_bound_delegation` | `redelegation_then_retry` | Request a delegation with an explicit budget bound |
-| `request_matching_currency_delegation` | `redelegation_then_retry` | Re-delegate with a currency that matches the capability cost |
-| `request_new_delegation` | `redelegation_then_retry` | Obtain a fresh delegation token (existing token expired or revoked) |
-| `request_capability_binding` | `redelegation_then_retry` | Obtain a delegation that binds to a specific capability |
-| `request_deeper_delegation` | `redelegation_then_retry` | Obtain a delegation from a principal higher in the chain |
-| `escalate_to_root_principal` | `terminal` | Escalate to the root principal; no automated recovery |
-| `contact_service_owner` | `terminal` | The service owner must intervene; no automated recovery |
+| `request_broader_scope` | `redelegation_then_retry` | Obtain a token with wider scope |
+| `request_budget_increase` | `redelegation_then_retry` | Obtain a higher-budget token |
+| `request_budget_bound_delegation` | `redelegation_then_retry` | Obtain a token with an explicit budget constraint |
+| `request_matching_currency_delegation` | `redelegation_then_retry` | Obtain a token whose budget currency matches the capability cost |
+| `request_new_delegation` | `redelegation_then_retry` | Obtain a fresh delegation token |
+| `request_capability_binding` | `redelegation_then_retry` | Obtain a token bound to the required capability |
+| `request_deeper_delegation` | `redelegation_then_retry` | Obtain a token with more remaining delegation depth |
+| `escalate_to_root_principal` | `terminal` | The root principal must act directly |
+| `contact_service_owner` | `terminal` | Service-owner intervention is required |
 
-> **Deprecation:** The `request_scope_grant` value for `resolution.action` was removed in v0.15. All conformant implementations must use `request_broader_scope` instead. Clients that check for `request_scope_grant` should be updated.
+`request_scope_grant` is deprecated. Use `request_broader_scope`.
 
-### v0.14 failure types
+The `terminal` invariant is strict: a failure with `recovery_class: "terminal"` must have `retry: false`.
 
-v0.14 adds six failure types for budget, binding, and control scenarios:
+### Structured Recovery Target
 
-| Failure type | Description |
-|-------------|-------------|
-| `budget_exceeded` | The invocation cost exceeds the token's budget constraint. When cost certainty is `exact`, the check compares the exact amount; when `estimated`, the check uses `range_max`. |
-| `budget_currency_mismatch` | The token's budget currency does not match the capability's cost currency. |
-| `budget_not_enforceable` | The capability declares cost but the token lacks a budget constraint required by the service's control requirements. |
-| `binding_missing` | The capability has `requires_binding: true` but no binding reference was provided in the invocation request. |
-| `binding_stale` | A binding reference was provided but has expired or is no longer valid. |
-| `control_requirement_unsatisfied` | A `control_requirements` entry (e.g. `cost_ceiling`, `stronger_delegation_required`) was not met. |
-
-### Budget context
-
-v0.14 invoke responses include a `budget_context` object on both success and failure, giving agents visibility into budget consumption:
+`recovery_target` is optional but useful when the agent can recover by invoking another capability or revalidating a specific service.
 
 ```json
 {
-  "success": true,
-  "result": { "booking_id": "BK-7291" },
-  "cost_actual": { "currency": "USD", "amount": 487.00 },
-  "budget_context": {
-    "budget_currency": "USD",
-    "budget_max": 500.00,
-    "budget_consumed": 487.00,
-    "budget_remaining": 13.00
+  "type": "binding_stale",
+  "detail": "Binding quote_id has exceeded max_age of 15 minutes",
+  "retry": false,
+  "resolution": {
+    "action": "refresh_binding",
+    "recovery_class": "refresh_then_retry",
+    "requires": "invoke search_flights again for a fresh quote_id",
+    "recovery_target": {
+      "kind": "refresh",
+      "target": {
+        "service": "travel-search",
+        "capability": "search_flights"
+      },
+      "continuity": "same_task",
+      "retry_after_target": true
+    }
   }
 }
 ```
 
-On failure, `budget_context` shows why the budget check failed:
+`recovery_target` is not a workflow language. It points to one recovery step; it does not encode a multi-step plan.
+
+## Approval-Required Failures
+
+Some capabilities should stop before mutation and return `approval_required`. v0.23 makes this a persisted, signed continuation flow rather than a boolean parameter.
 
 ```json
 {
   "success": false,
+  "invocation_id": "inv-9c1e2f3a4b5d",
   "failure": {
-    "type": "budget_exceeded",
-    "detail": "Estimated max cost $800.00 exceeds budget of $500.00"
-  },
-  "budget_context": {
-    "budget_currency": "USD",
-    "budget_max": 500.00,
-    "check_amount": 800.00,
-    "check_basis": "range_max"
+    "type": "approval_required",
+    "detail": "Posting to the incident channel requires approval.",
+    "retry": false,
+    "resolution": {
+      "action": "request_approval",
+      "recovery_class": "wait_then_retry"
+    },
+    "approval_required": {
+      "approval_request_id": "apr_123",
+      "preview_digest": "sha256:...",
+      "requested_parameters_digest": "sha256:...",
+      "grant_policy": {
+        "allowed_grant_types": ["one_time", "session_bound"],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      }
+    }
   }
 }
 ```
 
-The `check_basis` field indicates how the enforcement amount was determined: `exact` when cost certainty is exact, or `range_max` when cost certainty is estimated (the service uses the worst-case amount to protect the budget).
+The continuation invocation supplies the grant ID:
 
-## Cost signaling
+```json
+{
+  "approval_grant": "grant_456",
+  "parameters": {
+    "channel_id": "C0123456789",
+    "text": "Approved incident update"
+  }
+}
+```
 
-ANIP lets services declare cost expectations before invocation and return actual costs after:
+The runtime validates the grant before executing: signature, expiry, capability binding, parameter digest, session binding when applicable, and use count. If the grant is reserved and the handler later fails, the grant remains consumed; the audit trail records the failed attempt.
 
-### Before invoke (from manifest)
+## Cost Signaling
+
+Services declare expected cost in the manifest before invocation.
 
 ```json
 {
@@ -205,73 +175,181 @@ ANIP lets services declare cost expectations before invocation and return actual
     "certainty": "estimated",
     "financial": {
       "currency": "USD",
-      "range_min": 200,
-      "range_max": 800,
+      "range_min": 280,
+      "range_max": 500,
       "typical": 420
-    }
+    },
+    "determined_by": "search_flights"
   }
 }
 ```
 
-### After invoke (in response)
+ANIP cost certainty has three levels:
+
+| Certainty | Budget check |
+|-----------|--------------|
+| `fixed` | Use `cost.financial.amount` |
+| `estimated` with binding | Use the bound price returned by the source capability |
+| `estimated` without binding | Reject with `budget_not_enforceable` |
+| `dynamic` | Use `cost.financial.upper_bound` |
+
+For estimated and dynamic capabilities, successful responses should include actual cost:
 
 ```json
 {
   "success": true,
-  "cost_actual": { "currency": "USD", "amount": 487.00 },
-  "result": { "booking_id": "BK-7291" }
+  "invocation_id": "inv-a1b2c3d4e5f6",
+  "result": { "booking_id": "BK-7291" },
+  "cost_actual": {
+    "financial": {
+      "currency": "USD",
+      "amount": 487
+    },
+    "variance_from_estimate": "+16.0%"
+  }
 }
 ```
 
-This lets agents:
-- Compare alternatives before committing (search multiple options, pick the cheapest)
-- Stay within budget constraints from their delegation chain
-- Report cost to the user before and after execution
+## Budget Enforcement
 
-## Audit logging
+Budget constraints in delegation tokens are enforceable ceilings. Invocation-request budgets are only negotiation hints and may narrow, never widen, the token budget.
 
-Every ANIP invocation is automatically logged with:
+When budget is evaluated, the response includes `budget_context` on both success and failure:
 
-- Capability name and invocation ID
-- Caller identity (from the delegation chain)
-- Event classification (`low_risk_success`, `high_risk_success`, `low_risk_failure`, etc.)
-- Timestamp
-- Retention policy compliance
+```json
+{
+  "success": true,
+  "result": { "booking_id": "BK-7291" },
+  "cost_actual": {
+    "financial": {
+      "currency": "USD",
+      "amount": 487
+    }
+  },
+  "budget_context": {
+    "budget_currency": "USD",
+    "budget_max": 500,
+    "cost_check_amount": 487,
+    "cost_certainty": "fixed",
+    "cost_actual": 487,
+    "within_budget": true
+  }
+}
+```
 
-### Querying audit
+Failure example:
+
+```json
+{
+  "success": false,
+  "failure": {
+    "type": "budget_exceeded",
+    "detail": "Capability cost $800 exceeds delegated budget of $500",
+    "retry": false,
+    "resolution": {
+      "action": "request_budget_increase",
+      "recovery_class": "redelegation_then_retry",
+      "requires": "delegation token with higher budget"
+    }
+  },
+  "budget_context": {
+    "budget_currency": "USD",
+    "budget_max": 500,
+    "cost_check_amount": 800,
+    "cost_certainty": "dynamic",
+    "within_budget": false
+  }
+}
+```
+
+If the token budget currency does not match the capability cost currency, the service must reject with `budget_currency_mismatch`.
+
+## Audit Logging
+
+ANIP audit logs are protocol-level execution evidence. They are not just application logs.
+
+Every invocation that reaches the service invocation boundary is recorded with:
+
+- Capability name and `invocation_id`.
+- Caller identity and delegation context.
+- `task_id`, `client_reference_id`, `parent_invocation_id`, and `upstream_service` when present.
+- Success/failure status and `failure_type` when applicable.
+- Event classification.
+- Retention tier and expiration.
+- Budget, binding, approval, and lineage context when applicable.
+
+### Querying Audit
 
 ```bash
-curl -X POST https://service.example/anip/audit \
-  -H "Authorization: Bearer <bootstrap-token>" \
+curl -X POST "https://service.example/anip/audit?capability=book_flight&limit=5" \
+  -H "Authorization: Bearer <delegation-token>" \
   -H "Content-Type: application/json" \
-  -d '{"capability": "book_flight", "limit": 5}'
+  -d '{}'
 ```
 
 ```json
 {
   "entries": [
     {
-      "invocation_id": "inv_8b2f4a",
+      "sequence_number": 42,
+      "invocation_id": "inv-8b2f4a9c1e2f",
       "capability": "book_flight",
       "actor_key": "human:demo@example.com",
-      "event_class": "high_risk_failure",
+      "root_principal": "human:demo@example.com",
+      "event_class": "high_risk_denial",
+      "retention_tier": "medium",
+      "expires_at": "2026-09-27T10:30:00Z",
       "success": false,
-      "timestamp": "2026-03-27T10:30:00Z"
+      "failure_type": "budget_exceeded",
+      "task_id": "trip-2026",
+      "timestamp": "2026-06-27T10:30:00Z"
     }
   ]
 }
 ```
 
-### Security features
+Audit queries are scoped to the root principal of the caller's delegation token. A service must not return entries that belong to another principal.
 
-ANIP audit includes several hardening features:
+Supported filters include `capability`, `since`, `invocation_id`, `client_reference_id`, `task_id`, `parent_invocation_id`, and `limit`.
 
-- **Event classification**: Separates low-risk (reads) from high-risk (writes, financial) events for different retention and alerting
-- **Retention policy**: Services declare how long audit entries are kept, with separate policies for different risk levels
-- **Failure redaction**: Sensitive details can be redacted from audit entries based on caller class
-- **Aggregation**: High-volume read operations can be aggregated to manage storage without losing audit coverage
+### Audit Hardening
 
-## Next steps
+ANIP audit includes several security and operations features:
 
-- **[Checkpoints & Trust](/docs/protocol/checkpoints-trust)** — Merkle checkpoints and verification
-- **[Quickstart](/docs/getting-started/quickstart)** — See failures and audit in action
+| Feature | Purpose |
+|---------|---------|
+| Event classification | Classifies entries as `high_risk_success`, `high_risk_denial`, `low_risk_success`, `malformed_or_spam`, or `repeated_low_value_denial` |
+| Retention enforcement | Assigns `retention_tier` and `expires_at`; services that claim enforced retention must run cleanup |
+| Response-boundary redaction | Redacts failure responses based on disclosure policy before returning to caller |
+| Caller-class-aware disclosure | Uses `anip:caller_class` and service policy to choose full, reduced, or redacted failure detail |
+| Audit aggregation | Collapses repeated low-value denials into summary records |
+| Storage-side redaction | Strips request parameters from low-value persisted entries while keeping enough evidence for audit |
+| Checkpoint interaction | Checkpoints remain valid after retention, but inclusion proof regeneration can become unavailable after rows expire |
+
+The redaction layers are intentionally separate:
+
+```text
+request -> classify -> optional aggregation -> storage redaction -> persist
+persist -> response-boundary redaction -> caller
+```
+
+Storage-side redaction controls what is saved. Response-boundary redaction controls what a caller sees. Neither replaces the other.
+
+## Why This Matters
+
+Without structured failures, an agent sees "403" and guesses.
+
+Without cost signaling, an agent can spend outside the user's expectations.
+
+Without budget enforcement, a declared budget is just advisory.
+
+Without audit lineage and retention, operators cannot reconstruct what happened or prove that records were not silently changed.
+
+ANIP ties these together: the same capability contract that tells an agent what can happen also tells the service how to fail, how to enforce budget, and how to preserve execution evidence.
+
+## Next Steps
+
+- [Capabilities](/docs/protocol/capabilities) — How capabilities declare side effects, controls, approval posture, and input resolution.
+- [Delegation & Permissions](/docs/protocol/delegation-permissions) — How authority and permission discovery interact with failures.
+- [Lineage](/docs/protocol/lineage) — How invocation, approval, and composition evidence is connected.
+- [Checkpoints & Trust](/docs/protocol/checkpoints-trust) — How audit evidence is verified.

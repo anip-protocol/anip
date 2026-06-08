@@ -1,0 +1,941 @@
+{
+  "artifact_type": "anip_service_definition",
+  "contract_schema_version": "anip-service-definition/v1",
+  "compiled_contract_identity": {
+    "signature": "local-slack-fronting-contract-signature",
+    "signature_algorithm": "sha256"
+  },
+  "identity": {
+    "system_name": "Slack Governed Fronting Showcase",
+    "domain_name": "slack",
+    "delivery_model": "governed_integration_fronting",
+    "architecture_shape": "single_service"
+  },
+  "authority": {
+    "approval_expectation": "approval_gated_for_send_actions",
+    "blocked_failure_posture": "clarify_or_stop"
+  },
+  "audit": {
+    "durable_records_required": true,
+    "searchable_history_required": true
+  },
+  "generation": {
+    "protocols": [
+      "https",
+      "mcp"
+    ],
+    "layout_strategy": "service_oriented",
+    "selected_service_ids": [
+      "slack-governance-service"
+    ]
+  },
+  "service_topology_bindings": [
+    {
+      "id": "slack-governance-service",
+      "service_id": "slack-governance-service",
+      "service_name": "Slack Governance Service",
+      "source_role": "governed_integration_fronting",
+      "source_capabilities": [
+        "slack.channel.read_context",
+        "slack.thread.summarize",
+        "slack.message.prepare",
+        "slack.incident_update.prepare",
+        "slack.announcement.request"
+      ],
+      "formalized_capability_ids": [
+        "slack.channel.read_context",
+        "slack.thread.summarize",
+        "slack.message.prepare",
+        "slack.incident_update.prepare",
+        "slack.announcement.request"
+      ],
+      "owned_concept_ids": [
+        "slack_channel",
+        "slack_thread",
+        "slack_message"
+      ]
+    }
+  ],
+  "capability_formalizations": [
+    {
+      "id": "slack:slack.channel.read_context",
+      "kind": "atomic",
+      "source_kind": "integration_fronting_source_doc",
+      "service_id": "slack-governance-service",
+      "capability_id": "slack.channel.read_context",
+      "title": "Read Channel Context",
+      "summary": "Read bounded recent Slack channel messages for declared context without exposing raw workspace tools.",
+      "entity_targeted": true,
+      "subject_kind": "slack_channel",
+      "context_type": "channel_context",
+      "output_intent": "bounded_message_results",
+      "intent_type": "read_only",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "business_effects": {
+        "produces": [
+          "Read bounded data",
+          "Summarize information"
+        ],
+        "does_not_produce": [
+          "Send outside the system",
+          "Export raw data"
+        ]
+      },
+      "minimum_scope": [
+        "slack.read"
+      ],
+      "backend_operation": "read_channel_context",
+      "path_template": "/slack/channels/{channel_id}/context",
+      "output_shape": "bounded_channel_messages",
+      "inputs": [
+        {
+          "input_name": "channel_id",
+          "input_type": "string",
+          "required": true,
+          "summary": "Slack channel ID.",
+          "default_value": "",
+          "clarification_hint": "Ask for channel_id when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "query",
+          "input_type": "string",
+          "required": false,
+          "summary": "Optional text filter for recent messages.",
+          "default_value": "",
+          "clarification_hint": "Ask for query when it is missing or ambiguous."
+        },
+        {
+          "input_name": "limit",
+          "input_type": "integer",
+          "required": false,
+          "summary": "Maximum messages to return.",
+          "default_value": "20",
+          "clarification_hint": "Ask for limit when it is missing or ambiguous."
+        }
+      ]
+    },
+    {
+      "id": "slack:slack.thread.summarize",
+      "kind": "atomic",
+      "source_kind": "integration_fronting_source_doc",
+      "service_id": "slack-governance-service",
+      "capability_id": "slack.thread.summarize",
+      "title": "Summarize Thread",
+      "summary": "Retrieve bounded Slack thread replies and return context for summarization without posting.",
+      "entity_targeted": true,
+      "subject_kind": "slack_thread",
+      "context_type": "thread_context",
+      "output_intent": "thread_summary_context",
+      "intent_type": "read_only",
+      "operation_type": "read",
+      "side_effect_level": "read",
+      "business_effects": {
+        "produces": [
+          "Read bounded data",
+          "Summarize information"
+        ],
+        "does_not_produce": [
+          "Send outside the system",
+          "Export raw data"
+        ]
+      },
+      "minimum_scope": [
+        "slack.read"
+      ],
+      "backend_operation": "summarize_thread",
+      "path_template": "/slack/channels/{channel_id}/threads/{thread_ts}/summary",
+      "output_shape": "bounded_thread_context",
+      "inputs": [
+        {
+          "input_name": "channel_id",
+          "input_type": "string",
+          "required": true,
+          "summary": "Slack channel ID.",
+          "default_value": "",
+          "clarification_hint": "Ask for channel_id when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "thread_ts",
+          "input_type": "string",
+          "required": true,
+          "summary": "Slack thread timestamp.",
+          "default_value": "",
+          "clarification_hint": "Ask for thread_ts when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "focus",
+          "input_type": "string",
+          "required": false,
+          "summary": "Optional summary focus.",
+          "default_value": "",
+          "clarification_hint": "Ask for focus when it is missing or ambiguous."
+        }
+      ]
+    },
+    {
+      "id": "slack:slack.message.prepare",
+      "kind": "atomic",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "source_kind": "integration_fronting_source_doc",
+      "service_id": "slack-governance-service",
+      "capability_id": "slack.message.prepare",
+      "title": "Prepare Channel Message",
+      "summary": "Prepare a Slack channel message preview without sending it.",
+      "entity_targeted": true,
+      "subject_kind": "slack_message",
+      "context_type": "message_preparation",
+      "output_intent": "message_preview",
+      "intent_type": "prepare_only",
+      "operation_type": "write",
+      "side_effect_level": "write_adjacent",
+      "business_effects": {
+        "produces": [
+          "Draft content",
+          "Preview a change",
+          "Ask for approval"
+        ],
+        "does_not_produce": [
+          "Send outside the system",
+          "Change workspace state"
+        ]
+      },
+      "minimum_scope": [
+        "slack.message.prepare"
+      ],
+      "backend_operation": "prepare_channel_message",
+      "path_template": "/slack/channels/{channel_id}/messages/preview",
+      "output_shape": "message_preview",
+      "inputs": [
+        {
+          "input_name": "channel_id",
+          "input_type": "string",
+          "required": true,
+          "summary": "Slack channel ID.",
+          "default_value": "",
+          "clarification_hint": "Ask for channel_id when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "text",
+          "input_type": "string",
+          "required": true,
+          "summary": "Message text to preview.",
+          "default_value": "",
+          "clarification_hint": "Ask for text when it is missing or ambiguous."
+        },
+        {
+          "input_name": "thread_ts",
+          "input_type": "string",
+          "required": false,
+          "summary": "Optional thread timestamp.",
+          "default_value": "",
+          "clarification_hint": "Ask for thread_ts when it is missing or ambiguous.",
+          "entity_reference": true
+        }
+      ]
+    },
+    {
+      "id": "slack:slack.incident_update.prepare",
+      "kind": "atomic",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "source_kind": "integration_fronting_source_doc",
+      "service_id": "slack-governance-service",
+      "capability_id": "slack.incident_update.prepare",
+      "title": "Prepare Incident Update",
+      "summary": "Prepare a structured incident update for a Slack channel and stop before sending.",
+      "entity_targeted": true,
+      "subject_kind": "slack_message",
+      "context_type": "incident_update",
+      "output_intent": "incident_update_preview",
+      "intent_type": "prepare_only",
+      "operation_type": "write",
+      "side_effect_level": "write_adjacent",
+      "business_effects": {
+        "produces": [
+          "Draft content",
+          "Preview a change",
+          "Ask for approval"
+        ],
+        "does_not_produce": [
+          "Send outside the system",
+          "Change workspace state"
+        ]
+      },
+      "minimum_scope": [
+        "slack.message.prepare"
+      ],
+      "backend_operation": "prepare_incident_update",
+      "path_template": "/slack/channels/{channel_id}/incident-updates/preview",
+      "output_shape": "incident_update_preview",
+      "inputs": [
+        {
+          "input_name": "channel_id",
+          "input_type": "string",
+          "required": true,
+          "summary": "Slack channel ID.",
+          "default_value": "",
+          "clarification_hint": "Ask for channel_id when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "incident_id",
+          "input_type": "string",
+          "required": true,
+          "summary": "Incident identifier.",
+          "default_value": "",
+          "clarification_hint": "Ask for incident_id when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "status",
+          "input_type": "string",
+          "required": true,
+          "summary": "Incident status.",
+          "default_value": "",
+          "allowed_values": [
+            "investigating",
+            "identified",
+            "monitoring",
+            "resolved"
+          ],
+          "clarification_hint": "Ask for status when it is missing or ambiguous."
+        },
+        {
+          "input_name": "summary",
+          "input_type": "string",
+          "required": true,
+          "summary": "Human-readable update summary.",
+          "default_value": "",
+          "clarification_hint": "Ask for summary when it is missing or ambiguous."
+        },
+        {
+          "input_name": "next_update_time",
+          "input_type": "string",
+          "required": false,
+          "summary": "Optional next update time.",
+          "default_value": "",
+          "clarification_hint": "Ask for next_update_time when it is missing or ambiguous."
+        }
+      ]
+    },
+    {
+      "id": "slack:slack.announcement.request",
+      "kind": "atomic",
+      "grant_policy": {
+        "allowed_grant_types": [
+          "one_time",
+          "session_bound"
+        ],
+        "default_grant_type": "one_time",
+        "expires_in_seconds": 900,
+        "max_uses": 1
+      },
+      "source_kind": "integration_fronting_source_doc",
+      "service_id": "slack-governance-service",
+      "capability_id": "slack.announcement.request",
+      "title": "Request Channel Announcement",
+      "summary": "Prepare a channel announcement request that requires approval before posting.",
+      "entity_targeted": true,
+      "subject_kind": "slack_message",
+      "context_type": "announcement_request",
+      "output_intent": "announcement_preview",
+      "intent_type": "approval_gated_action",
+      "operation_type": "approval_gated",
+      "side_effect_level": "write_adjacent",
+      "business_effects": {
+        "produces": [
+          "Preview a change",
+          "Ask for approval"
+        ],
+        "does_not_produce": [
+          "Send outside the system",
+          "Bypass communication policy"
+        ]
+      },
+      "minimum_scope": [
+        "slack.announcement.request"
+      ],
+      "backend_operation": "request_channel_announcement",
+      "path_template": "/slack/channels/{channel_id}/announcements/request",
+      "output_shape": "announcement_preview",
+      "inputs": [
+        {
+          "input_name": "channel_id",
+          "input_type": "string",
+          "required": true,
+          "summary": "Slack channel ID.",
+          "default_value": "",
+          "clarification_hint": "Ask for channel_id when it is missing or ambiguous.",
+          "entity_reference": true
+        },
+        {
+          "input_name": "announcement",
+          "input_type": "string",
+          "required": true,
+          "summary": "Announcement text.",
+          "default_value": "",
+          "clarification_hint": "Ask for announcement when it is missing or ambiguous."
+        },
+        {
+          "input_name": "audience",
+          "input_type": "string",
+          "required": false,
+          "summary": "Intended audience.",
+          "default_value": "",
+          "clarification_hint": "Ask for audience when it is missing or ambiguous."
+        }
+      ]
+    }
+  ],
+  "permission_intent_bindings": [
+    {
+      "id": "slack_collaborator_access",
+      "actor_id": "collaborator",
+      "business_area": "slack_collaboration",
+      "business_area_label": "Slack Collaboration",
+      "access_posture": "bounded",
+      "governed_outcome_type": "bounded_result",
+      "governed_outcome": "Collaborators can read bounded Slack context and prepare governed message previews.",
+      "target_service_ids": [
+        "slack-governance-service"
+      ],
+      "target_capability_ids": [
+        "slack.channel.read_context",
+        "slack.thread.summarize",
+        "slack.message.prepare",
+        "slack.incident_update.prepare",
+        "slack.announcement.request"
+      ],
+      "formalization_strategy": "Generated policy keeps raw Slack/MCP operations behind reviewed ANIP capabilities."
+    }
+  ],
+  "runtime_policy_bindings": [
+    {
+      "id": "slack_collaborator_policy",
+      "source_permission_id": "slack_collaborator_access",
+      "actor_id": "collaborator",
+      "principal_selector": {
+        "claim": "actor_id",
+        "equals": "collaborator"
+      },
+      "business_area": "slack_collaboration",
+      "business_area_label": "Slack Collaboration",
+      "service_ids": [
+        "slack-governance-service"
+      ],
+      "capability_ids": [
+        "slack.channel.read_context",
+        "slack.thread.summarize",
+        "slack.message.prepare",
+        "slack.incident_update.prepare",
+        "slack.announcement.request"
+      ],
+      "required_scopes": [
+        "slack.announcement.request",
+        "slack.message.prepare",
+        "slack.read"
+      ],
+      "decision": "allow_with_limits",
+      "business_rule": "Allow only declared governed Slack capabilities; send-like actions stop at preview or approval.",
+      "enforcement_notes": "Raw backend operations remain implementation detail behind the generated adapter seam."
+    }
+  ],
+  "integration_fronting": {
+    "project_type": "governed_service_project",
+    "capability_mappings": [
+      {
+        "id": "slack_channel_read_context_fronting",
+        "capability_id": "slack.channel.read_context",
+        "title": "Read Channel Context",
+        "intent": "Read bounded recent Slack channel messages for declared context without exposing raw workspace tools.",
+        "service_id": "slack-governance-service",
+        "service_name": "Slack Governance Service",
+        "backend_kind": "hybrid",
+        "connection_ref": "slack_fronting",
+        "raw_operation_refs": [
+          "slack.web.read_channel_context",
+          "slack.mcp.read_channel_context"
+        ],
+        "backend_bindings": [
+          {
+            "backend_kind": "native_api",
+            "connection_ref": "slack_web_api",
+            "raw_operation_refs": [
+              "slack.web.read_channel_context"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "channel_id"
+            ],
+            "explicit_optional_backend_inputs": [
+              "query",
+              "limit"
+            ],
+            "matched_discovery_record_ids": [
+              "slack-web-read_channel_context"
+            ],
+            "status": "ready",
+            "status_detail": "Native Slack Web API implementation seam."
+          },
+          {
+            "backend_kind": "mcp",
+            "connection_ref": "slack_mcp",
+            "raw_operation_refs": [
+              "slack.mcp.read_channel_context"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "channel_id"
+            ],
+            "explicit_optional_backend_inputs": [
+              "query",
+              "limit"
+            ],
+            "matched_discovery_record_ids": [
+              "slack-mcp-read_channel_context"
+            ],
+            "status": "candidate",
+            "status_detail": "Alternative MCP-backed adapter realization for teams that already standardize on Slack MCP."
+          }
+        ],
+        "execution_posture": "read_only",
+        "side_effect_level": "read",
+        "subject_kind": "slack_channel",
+        "context_type": "channel_context",
+        "output_intent": "bounded_message_results",
+        "required_inputs": [
+          "channel_id"
+        ],
+        "optional_inputs": [
+          "query",
+          "limit"
+        ],
+        "backend_input_mode": "explicit",
+        "explicit_required_backend_inputs": [
+          "channel_id"
+        ],
+        "explicit_optional_backend_inputs": [
+          "query",
+          "limit"
+        ],
+        "denial_rule_refs": [
+          "deny.raw_export",
+          "deny.unapproved_send",
+          "deny.workspace_admin_bypass"
+        ],
+        "clarification_rule_refs": [
+          "clarify.channel_id"
+        ],
+        "audit_required": true,
+        "outbound_controls": {
+          "block_private_channel_exfiltration": true,
+          "block_unbounded_payloads": true,
+          "redact_sensitive_values": true
+        }
+      },
+      {
+        "id": "slack_thread_summarize_fronting",
+        "capability_id": "slack.thread.summarize",
+        "title": "Summarize Thread",
+        "intent": "Retrieve bounded Slack thread replies and return context for summarization without posting.",
+        "service_id": "slack-governance-service",
+        "service_name": "Slack Governance Service",
+        "backend_kind": "hybrid",
+        "connection_ref": "slack_fronting",
+        "raw_operation_refs": [
+          "slack.web.summarize_thread",
+          "slack.mcp.summarize_thread"
+        ],
+        "backend_bindings": [
+          {
+            "backend_kind": "native_api",
+            "connection_ref": "slack_web_api",
+            "raw_operation_refs": [
+              "slack.web.summarize_thread"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "channel_id",
+              "thread_ts"
+            ],
+            "explicit_optional_backend_inputs": [
+              "focus"
+            ],
+            "matched_discovery_record_ids": [
+              "slack-web-summarize_thread"
+            ],
+            "status": "ready",
+            "status_detail": "Native Slack Web API implementation seam."
+          },
+          {
+            "backend_kind": "mcp",
+            "connection_ref": "slack_mcp",
+            "raw_operation_refs": [
+              "slack.mcp.summarize_thread"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "channel_id",
+              "thread_ts"
+            ],
+            "explicit_optional_backend_inputs": [
+              "focus"
+            ],
+            "matched_discovery_record_ids": [
+              "slack-mcp-summarize_thread"
+            ],
+            "status": "candidate",
+            "status_detail": "Alternative MCP-backed adapter realization for teams that already standardize on Slack MCP."
+          }
+        ],
+        "execution_posture": "read_only",
+        "side_effect_level": "read",
+        "subject_kind": "slack_thread",
+        "context_type": "thread_context",
+        "output_intent": "thread_summary_context",
+        "required_inputs": [
+          "channel_id",
+          "thread_ts"
+        ],
+        "optional_inputs": [
+          "focus"
+        ],
+        "backend_input_mode": "explicit",
+        "explicit_required_backend_inputs": [
+          "channel_id",
+          "thread_ts"
+        ],
+        "explicit_optional_backend_inputs": [
+          "focus"
+        ],
+        "denial_rule_refs": [
+          "deny.raw_export",
+          "deny.unapproved_send",
+          "deny.workspace_admin_bypass"
+        ],
+        "clarification_rule_refs": [
+          "clarify.channel_id",
+          "clarify.thread_ts"
+        ],
+        "audit_required": true,
+        "outbound_controls": {
+          "block_private_channel_exfiltration": true,
+          "block_unbounded_payloads": true,
+          "redact_sensitive_values": true
+        }
+      },
+      {
+        "id": "slack_message_prepare_fronting",
+        "capability_id": "slack.message.prepare",
+        "title": "Prepare Channel Message",
+        "intent": "Prepare a Slack channel message preview without sending it.",
+        "service_id": "slack-governance-service",
+        "service_name": "Slack Governance Service",
+        "backend_kind": "hybrid",
+        "connection_ref": "slack_fronting",
+        "raw_operation_refs": [
+          "slack.web.prepare_channel_message",
+          "slack.mcp.prepare_channel_message"
+        ],
+        "backend_bindings": [
+          {
+            "backend_kind": "native_api",
+            "connection_ref": "slack_web_api",
+            "raw_operation_refs": [
+              "slack.web.prepare_channel_message"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "channel_id",
+              "text"
+            ],
+            "explicit_optional_backend_inputs": [
+              "thread_ts"
+            ],
+            "matched_discovery_record_ids": [
+              "slack-web-prepare_channel_message"
+            ],
+            "status": "ready",
+            "status_detail": "Native Slack Web API implementation seam."
+          },
+          {
+            "backend_kind": "mcp",
+            "connection_ref": "slack_mcp",
+            "raw_operation_refs": [
+              "slack.mcp.prepare_channel_message"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "channel_id",
+              "text"
+            ],
+            "explicit_optional_backend_inputs": [
+              "thread_ts"
+            ],
+            "matched_discovery_record_ids": [
+              "slack-mcp-prepare_channel_message"
+            ],
+            "status": "candidate",
+            "status_detail": "Alternative MCP-backed adapter realization for teams that already standardize on Slack MCP."
+          }
+        ],
+        "execution_posture": "prepare_only",
+        "side_effect_level": "write_adjacent",
+        "subject_kind": "slack_message",
+        "context_type": "message_preparation",
+        "output_intent": "message_preview",
+        "required_inputs": [
+          "channel_id",
+          "text"
+        ],
+        "optional_inputs": [
+          "thread_ts"
+        ],
+        "backend_input_mode": "explicit",
+        "explicit_required_backend_inputs": [
+          "channel_id",
+          "text"
+        ],
+        "explicit_optional_backend_inputs": [
+          "thread_ts"
+        ],
+        "approval_rule_refs": [
+          "approval.message_send_required"
+        ],
+        "denial_rule_refs": [
+          "deny.raw_export",
+          "deny.unapproved_send",
+          "deny.workspace_admin_bypass"
+        ],
+        "clarification_rule_refs": [
+          "clarify.channel_id",
+          "clarify.text"
+        ],
+        "audit_required": true,
+        "outbound_controls": {
+          "block_private_channel_exfiltration": true,
+          "block_unbounded_payloads": true,
+          "redact_sensitive_values": true
+        }
+      },
+      {
+        "id": "slack_incident_update_prepare_fronting",
+        "capability_id": "slack.incident_update.prepare",
+        "title": "Prepare Incident Update",
+        "intent": "Prepare a structured incident update for a Slack channel and stop before sending.",
+        "service_id": "slack-governance-service",
+        "service_name": "Slack Governance Service",
+        "backend_kind": "hybrid",
+        "connection_ref": "slack_fronting",
+        "raw_operation_refs": [
+          "slack.web.prepare_incident_update",
+          "slack.mcp.prepare_incident_update"
+        ],
+        "backend_bindings": [
+          {
+            "backend_kind": "native_api",
+            "connection_ref": "slack_web_api",
+            "raw_operation_refs": [
+              "slack.web.prepare_incident_update"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "channel_id",
+              "incident_id",
+              "status",
+              "summary"
+            ],
+            "explicit_optional_backend_inputs": [
+              "next_update_time"
+            ],
+            "matched_discovery_record_ids": [
+              "slack-web-prepare_incident_update"
+            ],
+            "status": "ready",
+            "status_detail": "Native Slack Web API implementation seam."
+          },
+          {
+            "backend_kind": "mcp",
+            "connection_ref": "slack_mcp",
+            "raw_operation_refs": [
+              "slack.mcp.prepare_incident_update"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "channel_id",
+              "incident_id",
+              "status",
+              "summary"
+            ],
+            "explicit_optional_backend_inputs": [
+              "next_update_time"
+            ],
+            "matched_discovery_record_ids": [
+              "slack-mcp-prepare_incident_update"
+            ],
+            "status": "candidate",
+            "status_detail": "Alternative MCP-backed adapter realization for teams that already standardize on Slack MCP."
+          }
+        ],
+        "execution_posture": "prepare_only",
+        "side_effect_level": "write_adjacent",
+        "subject_kind": "slack_message",
+        "context_type": "incident_update",
+        "output_intent": "incident_update_preview",
+        "required_inputs": [
+          "channel_id",
+          "incident_id",
+          "status",
+          "summary"
+        ],
+        "optional_inputs": [
+          "next_update_time"
+        ],
+        "backend_input_mode": "explicit",
+        "explicit_required_backend_inputs": [
+          "channel_id",
+          "incident_id",
+          "status",
+          "summary"
+        ],
+        "explicit_optional_backend_inputs": [
+          "next_update_time"
+        ],
+        "approval_rule_refs": [
+          "approval.message_send_required"
+        ],
+        "denial_rule_refs": [
+          "deny.raw_export",
+          "deny.unapproved_send",
+          "deny.workspace_admin_bypass"
+        ],
+        "clarification_rule_refs": [
+          "clarify.channel_id",
+          "clarify.incident_id",
+          "clarify.status",
+          "clarify.summary"
+        ],
+        "audit_required": true,
+        "outbound_controls": {
+          "block_private_channel_exfiltration": true,
+          "block_unbounded_payloads": true,
+          "redact_sensitive_values": true
+        }
+      },
+      {
+        "id": "slack_announcement_request_fronting",
+        "capability_id": "slack.announcement.request",
+        "title": "Request Channel Announcement",
+        "intent": "Prepare a channel announcement request that requires approval before posting.",
+        "service_id": "slack-governance-service",
+        "service_name": "Slack Governance Service",
+        "backend_kind": "hybrid",
+        "connection_ref": "slack_fronting",
+        "raw_operation_refs": [
+          "slack.web.request_channel_announcement",
+          "slack.mcp.request_channel_announcement"
+        ],
+        "backend_bindings": [
+          {
+            "backend_kind": "native_api",
+            "connection_ref": "slack_web_api",
+            "raw_operation_refs": [
+              "slack.web.request_channel_announcement"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "channel_id",
+              "announcement"
+            ],
+            "explicit_optional_backend_inputs": [
+              "audience"
+            ],
+            "matched_discovery_record_ids": [
+              "slack-web-request_channel_announcement"
+            ],
+            "status": "ready",
+            "status_detail": "Native Slack Web API implementation seam."
+          },
+          {
+            "backend_kind": "mcp",
+            "connection_ref": "slack_mcp",
+            "raw_operation_refs": [
+              "slack.mcp.request_channel_announcement"
+            ],
+            "backend_input_mode": "explicit",
+            "explicit_required_backend_inputs": [
+              "channel_id",
+              "announcement"
+            ],
+            "explicit_optional_backend_inputs": [
+              "audience"
+            ],
+            "matched_discovery_record_ids": [
+              "slack-mcp-request_channel_announcement"
+            ],
+            "status": "candidate",
+            "status_detail": "Alternative MCP-backed adapter realization for teams that already standardize on Slack MCP."
+          }
+        ],
+        "execution_posture": "approval_gated_action",
+        "side_effect_level": "write_adjacent",
+        "subject_kind": "slack_message",
+        "context_type": "announcement_request",
+        "output_intent": "announcement_preview",
+        "required_inputs": [
+          "channel_id",
+          "announcement"
+        ],
+        "optional_inputs": [
+          "audience"
+        ],
+        "backend_input_mode": "explicit",
+        "explicit_required_backend_inputs": [
+          "channel_id",
+          "announcement"
+        ],
+        "explicit_optional_backend_inputs": [
+          "audience"
+        ],
+        "approval_rule_refs": [
+          "approval.message_send_required"
+        ],
+        "denial_rule_refs": [
+          "deny.raw_export",
+          "deny.unapproved_send",
+          "deny.workspace_admin_bypass"
+        ],
+        "clarification_rule_refs": [
+          "clarify.channel_id",
+          "clarify.announcement"
+        ],
+        "audit_required": true,
+        "outbound_controls": {
+          "block_private_channel_exfiltration": true,
+          "block_unbounded_payloads": true,
+          "redact_sensitive_values": true
+        }
+      }
+    ]
+  }
+}

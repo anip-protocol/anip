@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ANIP GTM Showcase</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Inter", sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+    }
+    .shell {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 40px 24px 56px;
+    }
+    .hero {
+      margin-bottom: 28px;
+    }
+    .eyebrow {
+      color: #7ee787;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    h1 {
+      margin: 8px 0 12px;
+      font-size: 38px;
+      line-height: 1.05;
+    }
+    .subtitle {
+      color: #9fb0c3;
+      max-width: 760px;
+      line-height: 1.6;
+    }
+    .panel {
+      background: #161b22;
+      border: 1px solid #2d333b;
+      border-radius: 18px;
+      padding: 20px;
+      margin-top: 20px;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.25);
+    }
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      background: #0d1117;
+      color: #e6edf3;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font: inherit;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 14px;
+      background: #238636;
+      color: #fff;
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .example {
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      background: #0d1117;
+      border-radius: 999px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-x: auto;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 16px;
+      color: #c9d1d9;
+    }
+    .status {
+      margin-top: 12px;
+      color: #9fb0c3;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="hero">
+      <div class="eyebrow">ANIP GTM Showcase</div>
+      <h1>Ask the Phase 1 GTM agent</h1>
+      <div class="subtitle">
+        This baseline runtime consumes one bounded ANIP pipeline service over HTTP.
+        It is intentionally thin: the governed service, not the agent wrapper, carries the GTM behavior.
+      </div>
+    </div>
+
+    <div class="panel">
+      <textarea id="question">Which deals in our Q2 pipeline are at risk this quarter, and why?</textarea>
+      <button id="askButton">Ask Agent</button>
+      <div class="examples">
+        <button class="example" data-question="Which deals in our Q2 pipeline are at risk this quarter, and why?">Hero path</button>
+        <button class="example" data-question="Prepare follow-up tasks for the highest-risk accounts in my Q2 pipeline.">Approval stop</button>
+        <button class="example" data-question="Show me raw row-level records for our Q2 pipeline.">Denied path</button>
+        <button class="example" data-question="Show me the top accounts.">Clarification path</button>
+      </div>
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="panel">
+      <pre id="result">No request yet.</pre>
+    </div>
+  </div>
+
+  <script>
+    const questionEl = document.getElementById('question');
+    const resultEl = document.getElementById('result');
+    const statusEl = document.getElementById('status');
+    const askButton = document.getElementById('askButton');
+
+    async function ask() {
+      const question = questionEl.value.trim();
+      if (!question) {
+        statusEl.textContent = 'Enter a question first.';
+        return;
+      }
+      statusEl.textContent = 'Calling baseline agent...';
+      resultEl.textContent = 'Loading...';
+      try {
+        const response = await fetch('/api/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question }),
+        });
+        const data = await response.json();
+        resultEl.textContent = JSON.stringify(data, null, 2);
+        statusEl.textContent = 'Completed.';
+      } catch (error) {
+        resultEl.textContent = String(error);
+        statusEl.textContent = 'Request failed.';
+      }
+    }
+
+    askButton.addEventListener('click', ask);
+    document.querySelectorAll('.example').forEach((button) => {
+      button.addEventListener('click', () => {
+        questionEl.value = button.dataset.question;
+      });
+    });
+  </script>
+</body>
+</html>

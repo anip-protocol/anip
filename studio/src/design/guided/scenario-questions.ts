@@ -163,6 +163,23 @@ export const SCENARIO_GUIDED_SECTIONS: GuidedSection[] = [
     id: 'scenario-context',
     title: 'Execution Context',
     description: 'What does the system know at decision time? What facts matter?',
+    inlineDetails: [
+      'This captures the facts the implementation needs at decision time, such as the capability being attempted, cost, permissions, and lineage identifiers.',
+      'These fields inform developer design, generated service expectations, and later verification of whether the implementation handled the scenario correctly.',
+      'If your scenario depends on domain-specific facts that are not covered by the guided questions, put them in Additional Context below.',
+    ],
+    helpDialog: {
+      title: 'Execution Context',
+      summary: 'Execution context records the decision-time facts ANIP services and surrounding logic need in order to behave correctly for this scenario.',
+      bullets: [
+        'Use this section for the facts that materially affect how the system should behave, such as capability, permissions, side effects, budget, or lineage.',
+        'These values become part of the scenario artifact that Studio uses when translating PM intent into developer design and verification expectations.',
+        'The context should explain why a particular outcome is expected. Without it, the scenario becomes hard to implement and hard to test.',
+        'Use Additional Context for domain-specific facts like business scope, reporting period, service chain, or actor identity when the generic questions do not cover them.',
+      ],
+      example: 'A governed business scenario may record the actor, reporting period, business scope, and planned service chain so the resulting ANIP design can preserve the same governed behavior across services.',
+      decisionOwner: 'Usually PM or product design with engineering input when the scenario depends on technical constraints.',
+    },
     questions: [
       {
         id: 'context-capability',
@@ -250,8 +267,7 @@ export const SCENARIO_GUIDED_SECTIONS: GuidedSection[] = [
       {
         id: 'context-task-id',
         prompt: 'What is the task ID for this work?',
-        helpText:
-          'Leave blank if task tracking is not relevant. Additional lineage fields (parent_invocation_id, client_reference_id) can be added in the context editor below.',
+        helpText: 'Leave blank if task tracking is not relevant.',
         answerType: 'text',
         fieldMappings: [
           { path: 'scenario.context.task_id', label: 'scenario.context.task_id' },

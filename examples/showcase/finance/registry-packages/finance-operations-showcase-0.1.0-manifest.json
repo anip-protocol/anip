@@ -1,0 +1,198 @@
+{
+  "package_kind": "anip_service_blueprint",
+  "artifact_type": "anip_package_manifest",
+  "blueprint_id": "finance-operations-showcase",
+  "package_id": "finance-operations-showcase",
+  "name": "Finance Operations Showcase Service Blueprint",
+  "version": "0.1.0",
+  "package_version": "0.1.0",
+  "schema_version": "anip-service-definition/v1",
+  "publisher": {
+    "id": "local-studio-source",
+    "display_name": "Local Studio Source Export"
+  },
+  "service_definition": "anip-service-definition.json",
+  "service_definition_digest": "sha256:cf0f2331179c00a4dfa0ae85790034b659ab19f20bc3358f35b6b102a61f9448",
+  "service_definition_digest_algorithm": "sha256",
+  "build_packs": {
+    "recommended": [
+      "anip-build-pack@local"
+    ]
+  },
+  "verifier_packs": {
+    "recommended": [
+      "anip-verifier@local"
+    ]
+  },
+  "readme": "# Finance Operations Showcase\n\nGenerated example ANIP package from Studio-style source docs.\n",
+  "source_links": [
+    {
+      "title": "Source documentation",
+      "url": "https://github.com/anip-protocol/anip/tree/main/docs/examples/finance-showcase"
+    },
+    {
+      "title": "Legacy implementation reference",
+      "url": "https://github.com/anip-protocol/anip/tree/main/examples/showcase/finance"
+    }
+  ],
+  "capability_count": 5,
+  "service_count": 1,
+  "service_ids": [
+    "finance-ops-service"
+  ],
+  "lineage": {
+    "project_ref": "studio-source:finance",
+    "product_revision": {
+      "ref": "finance:source-spec:v1",
+      "artifact_id": "finance-source-spec",
+      "revision_number": 1,
+      "baseline_locked_at": "2026-05-08T00:00:00Z"
+    },
+    "developer_revision": {
+      "ref": "finance:developer-definition:v1",
+      "artifact_id": "finance-developer-definition",
+      "revision_number": 1,
+      "contract_signature": "sha256:cf0f2331179c00a4dfa0ae85790034b659ab19f20bc3358f35b6b102a61f9448"
+    }
+  },
+  "source": {
+    "business_source_path": "docs/examples/finance-showcase/source-spec.md",
+    "product_revision_ref": "finance:source-spec:v1",
+    "developer_revision_ref": "finance:developer-definition:v1"
+  },
+  "agent_consumption_readiness": {
+    "status": "ready",
+    "score": 100,
+    "summary": {
+      "blockers": 0,
+      "warnings": 0,
+      "info": 0,
+      "probes": 0,
+      "required_app_glue": 0
+    }
+  },
+  "agent_consumability": {
+    "schema_version": "anip-agent-consumability/v0",
+    "capabilities": {
+      "finance.query_portfolio": {
+        "intent": {
+          "category": "finance.query.portfolio",
+          "summary": "Query current holdings and valuations."
+        },
+        "business_effects": {
+          "produces": [
+            "Summarize information"
+          ],
+          "does_not_produce": [
+            "Trade",
+            "Transfer funds"
+          ]
+        },
+        "required_context": []
+      },
+      "finance.get_market_data": {
+        "intent": {
+          "category": "finance.get.market.data",
+          "summary": "Get current market data for a ticker symbol."
+        },
+        "business_effects": {
+          "produces": [
+            "Read bounded data"
+          ],
+          "does_not_produce": [
+            "Trade"
+          ]
+        },
+        "required_context": [
+          {
+            "input": "symbol",
+            "behavior": "clarify",
+            "summary": "Ticker symbol."
+          }
+        ]
+      },
+      "finance.execute_trade": {
+        "intent": {
+          "category": "finance.execute.trade",
+          "summary": "Execute a buy or sell trade after current market data is available."
+        },
+        "business_effects": {
+          "produces": [
+            "Execute approved action"
+          ],
+          "does_not_produce": [
+            "Trade without authority",
+            "Ignore price context"
+          ]
+        },
+        "required_context": [
+          {
+            "input": "symbol",
+            "behavior": "clarify",
+            "summary": "Ticker symbol."
+          },
+          {
+            "input": "quantity",
+            "behavior": "clarify",
+            "summary": "Number of shares to trade."
+          }
+        ]
+      },
+      "finance.transfer_funds": {
+        "intent": {
+          "category": "finance.transfer.funds",
+          "summary": "Transfer funds between accounts with transactional recovery posture."
+        },
+        "business_effects": {
+          "produces": [
+            "Change system state"
+          ],
+          "does_not_produce": [
+            "Transfer without authority"
+          ]
+        },
+        "required_context": [
+          {
+            "input": "from_account",
+            "behavior": "clarify",
+            "summary": "Source account."
+          },
+          {
+            "input": "to_account",
+            "behavior": "clarify",
+            "summary": "Destination account."
+          },
+          {
+            "input": "amount",
+            "behavior": "clarify",
+            "summary": "Transfer amount in USD."
+          }
+        ]
+      },
+      "finance.generate_report": {
+        "intent": {
+          "category": "finance.generate.report",
+          "summary": "Generate a daily, holdings, or transaction report."
+        },
+        "business_effects": {
+          "produces": [
+            "Draft content",
+            "Summarize information"
+          ],
+          "does_not_produce": [
+            "Trade",
+            "Transfer funds"
+          ]
+        },
+        "required_context": [
+          {
+            "input": "report_type",
+            "behavior": "clarify",
+            "summary": "Report type."
+          }
+        ]
+      }
+    }
+  },
+  "generated_at": "2026-05-08T00:00:00Z"
+}

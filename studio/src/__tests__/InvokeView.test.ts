@@ -4,6 +4,8 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import { AnipClientKey } from '@anip-dev/vue'
 import InvokeView from '../views/InvokeView.vue'
 
+const recordRuntimeObservation = vi.fn()
+
 vi.mock('../store', () => ({
   store: {
     baseUrl: 'http://localhost:9100',
@@ -15,8 +17,12 @@ vi.mock('../store', () => ({
   },
 }))
 
+vi.mock('../design/store', () => ({
+  recordRuntimeObservation: (...args: any[]) => recordRuntimeObservation(...args),
+}))
+
 const normalizedManifest = {
-  protocol: 'anip/0.22',
+  protocol: 'anip/0.24',
   capabilities: {
     search_flights: {
       name: 'search_flights',
@@ -53,11 +59,11 @@ const mockClient = {
 function makeRouter() {
   return createRouter({
     history: createMemoryHistory('/studio'),
-    routes: [{ path: '/invoke/:capability?', name: 'invoke', component: InvokeView }],
+    routes: [{ path: '/inspect/invoke/:capability?', name: 'invoke', component: InvokeView }],
   })
 }
 
-async function mountView(initialRoute = '/invoke') {
+async function mountView(initialRoute = '/inspect/invoke') {
   const router = makeRouter()
   router.push(initialRoute)
   await router.isReady()
@@ -78,6 +84,7 @@ beforeEach(() => {
   mockGetManifest.mockReset()
   mockQueryPermissions.mockReset()
   mockInvoke.mockReset()
+  recordRuntimeObservation.mockReset()
   mockGetManifest.mockResolvedValue(normalizedManifest)
   mockQueryPermissions.mockResolvedValue({ available: [], restricted: [], denied: [] })
 })
@@ -89,7 +96,7 @@ describe('InvokeView', () => {
   })
 
   it('shows capability picker when no capability in route', async () => {
-    const { wrapper } = await mountView('/invoke')
+    const { wrapper } = await mountView('/inspect/invoke')
 
     expect(wrapper.find('.picker').exists()).toBe(true)
     const items = wrapper.findAll('.picker-item')
@@ -98,8 +105,17 @@ describe('InvokeView', () => {
     expect(items[1].text()).toContain('book_flight')
   })
 
+  it('keeps capability picker navigation inside the inspect route namespace', async () => {
+    const { wrapper, router } = await mountView('/inspect/invoke')
+
+    await wrapper.find('.picker-item').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/inspect/invoke/search_flights')
+  })
+
   it('renders permissions panel for selected capability', async () => {
-    const { wrapper } = await mountView('/invoke/search_flights')
+    const { wrapper } = await mountView('/inspect/invoke/search_flights')
     const panel = wrapper.findComponent({ name: 'PermissionsPanel' })
 
     expect(panel.exists()).toBe(true)
@@ -114,7 +130,7 @@ describe('InvokeView', () => {
       result: { flights: [] },
     })
 
-    const { wrapper } = await mountView('/invoke/search_flights')
+    const { wrapper } = await mountView('/inspect/invoke/search_flights')
     const form = wrapper.findComponent({ name: 'InvokeForm' })
 
     form.vm.$emit('submit', { origin: 'SEA', destination: 'SFO' })
@@ -137,6 +153,23 @@ describe('InvokeView', () => {
       budget_context: undefined,
       stream_summary: undefined,
     })
+    expect(result.props('capabilityName')).toBe('search_flights')
+    expect(result.props('sideEffectType')).toBe('read')
+    expect(recordRuntimeObservation).toHaveBeenCalledWith(expect.objectContaining({
+      observation_id: 'inv-1',
+      source: 'invoke',
+      invocation_id: 'inv-1',
+      task_id: null,
+      parent_invocation_id: null,
+      invoked_capability: 'search_flights',
+      observed_outcome: 'available',
+      reason_code: null,
+      unresolved_inputs: [],
+      retry_without_progress: false,
+      agent_behavior: null,
+      backend_context: 'search_flights:read',
+    }))
+    expect(recordRuntimeObservation.mock.calls[0][0].observed_at).toBeTruthy()
   })
 
   it('clears the previous result when switching capabilities', async () => {
@@ -146,14 +179,14 @@ describe('InvokeView', () => {
       result: {},
     })
 
-    const { wrapper, router } = await mountView('/invoke/search_flights')
+    const { wrapper, router } = await mountView('/inspect/invoke/search_flights')
     const form = wrapper.findComponent({ name: 'InvokeForm' })
 
     form.vm.$emit('submit', { origin: 'SEA' })
     await flushPromises()
     expect(wrapper.findComponent({ name: 'InvokeResult' }).props('result')).not.toBeNull()
 
-    router.push('/invoke/book_flight')
+    router.push('/inspect/invoke/book_flight')
     await flushPromises()
 
     expect(wrapper.findComponent({ name: 'InvokeResult' }).props('result')).toBeNull()
@@ -162,7 +195,7 @@ describe('InvokeView', () => {
   it('surfaces transport errors from the adapter', async () => {
     mockInvoke.mockRejectedValue(new Error('Network error'))
 
-    const { wrapper } = await mountView('/invoke/search_flights')
+    const { wrapper } = await mountView('/inspect/invoke/search_flights')
     const form = wrapper.findComponent({ name: 'InvokeForm' })
 
     form.vm.$emit('submit', { origin: 'SEA' })

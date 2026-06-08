@@ -136,11 +136,9 @@ export function makeRequirementsTemplateFromIntent(
   constraints.recovery_sensitive = mentionsRecovery
   constraints.primary_consumer = consumerModeLabel(consumerMode)
   constraints.agent_consumed_flow = consumerMode === 'agent_anip' || consumerMode === 'hybrid'
-  constraints.human_operated_flow = consumerMode === 'human_app' || consumerMode === 'hybrid'
+  constraints.human_operated_flow = consumerMode === 'hybrid'
   if (consumerMode === 'agent_anip') {
     constraints.low_glue_machine_consumption_required = true
-  } else if (consumerMode === 'human_app') {
-    constraints.operator_explainability_required = true
   } else {
     constraints.hybrid_handoff_expected = true
   }
@@ -158,8 +156,6 @@ export function makeScenarioTemplatesFromIntent(result: IntentInterpretation, co
   const biasedStarters = [...starters]
   if (consumerMode === 'agent_anip') {
     biasedStarters.push('Add a scenario where an ANIP consumer must recover from a blocked action without hidden UI-only workflow knowledge.')
-  } else if (consumerMode === 'human_app') {
-    biasedStarters.push('Add a scenario where a human operator needs a clear explanation for why work was blocked or routed elsewhere.')
   } else {
     biasedStarters.push('Add a scenario where a person starts the flow and an agent or tool continues it through a bounded handoff.')
   }
@@ -229,10 +225,8 @@ export function makeShapeTemplateFromIntent(result: IntentInterpretation, projec
     name: shapeName,
     role: 'primary service',
     responsibilities: [
-      consumerMode === 'human_app'
-        ? 'Keep the human-facing workflow easy to understand and explain.'
-        : consumerMode === 'agent_anip'
-          ? 'Keep the ANIP capability surface explicit so tools and agents do not need hidden local glue.'
+      consumerMode === 'agent_anip'
+          ? 'Keep the ANIP capability surface explicit so tools and agents can consume it directly without hidden local integration work.'
           : 'Own the main workflow in a way that stays understandable for people and explicit for ANIP consumers.',
       'Own the main action and the core control checks around it.',
       ...result.requirements_focus.slice(0, 2),

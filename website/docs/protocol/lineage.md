@@ -54,6 +54,8 @@ Every ANIP invocation returns identifiers for correlation and lineage:
 | `task_id` | Groups related invocations under a single task or workflow (v0.12) |
 | `parent_invocation_id` | Reference to the invocation that triggered this one (v0.12) |
 
+Lineage begins at the service `invoke()` boundary. Transport-level bearer failures, such as a missing or invalid token rejected with HTTP 401 before invocation handling starts, do not receive invocation lineage fields.
+
 ### Task identity (`task_id`)
 
 `task_id` groups multiple invocations under a single task, workflow, or agent objective. It can be set two ways:
@@ -123,7 +125,7 @@ Every audit entry records the full delegation context:
   "task_id": "trip-2026",
   "client_reference_id": "trip-planning-2026-booking-1",
   "parent_invocation_id": "inv-d4e5f6a7b8c9",
-  "timestamp": "2026-03-28T10:30:00Z"
+  "timestamp": "2026-06-28T10:30:00Z"
 }
 ```
 
@@ -131,21 +133,21 @@ The `actor_key` shows who directly invoked. The `root_principal` shows who origi
 
 ## Lineage across services
 
-When agents interact with multiple ANIP services as part of a single workflow, `client_reference_id` provides cross-service correlation:
+When agents interact with multiple ANIP services as part of a single workflow, lineage is reconstructed from `task_id`, `parent_invocation_id`, and `upstream_service`. `client_reference_id` remains useful for caller-side correlation, but it is not the protocol's cross-service grouping primitive.
 
 ```mermaid
 graph TD
-    W["Trip Planning Workflow<br/>ref: trip-2026"] --> T["Travel Service"]
+    W["Trip Planning Workflow<br/>task_id: trip-2026"] --> T["Travel Service"]
     W --> H["Hotel Service"]
     W --> E["Expense Service"]
 
-    T --> T1["search_flights<br/>ref: trip-2026-search → inv_1a2b"]
-    T --> T2["book_flight<br/>ref: trip-2026-book → inv_3c4d"]
-    H --> H1["book_hotel<br/>ref: trip-2026-hotel → inv_5e6f"]
-    E --> E1["create_expense<br/>ref: trip-2026-expense → inv_7g8h"]
+    T --> T1["search_flights<br/>task_id: trip-2026 → inv-a1b2c3d4e5f6"]
+    T --> T2["book_flight<br/>parent: inv-a1b2c3d4e5f6 → inv-d4e5f6a7b8c9"]
+    H --> H1["book_hotel<br/>task_id: trip-2026 → inv-c7d8e9f0a1b2"]
+    E --> E1["create_expense<br/>task_id: trip-2026 → inv-9a8b7c6d5e4f"]
 ```
 
-Each service has its own audit log with its own `invocation_id`, but the shared `client_reference_id` prefix lets an operator reconstruct the full workflow across services.
+Each service has its own audit log and service-local `invocation_id` values. Operators reconstruct the workflow by querying each relevant service by `task_id`, following `parent_invocation_id` links, and using `upstream_service` hints to understand which service initiated downstream work.
 
 ## Cross-service continuity (v0.18)
 
@@ -192,13 +194,13 @@ And the audit entry records it:
   "task_id": "trip-2026",
   "parent_invocation_id": "inv-a1b2c3d4e5f6",
   "upstream_service": "trip-planner-service",
-  "timestamp": "2026-03-30T10:30:00Z"
+  "timestamp": "2026-06-30T10:30:00Z"
 }
 ```
 
 ### Reconstructing a cross-service workflow
 
-With `upstream_service`, `task_id`, and `parent_invocation_id` all propagated, an operator can reconstruct the full call graph across services:
+With `upstream_service`, `task_id`, and `parent_invocation_id` all propagated, an operator can attempt to reconstruct the full call graph across services:
 
 1. Query each service's audit log by `task_id` to find all invocations in the workflow.
 2. Use `parent_invocation_id` to link invocations into a causal tree.
@@ -210,9 +212,64 @@ graph LR
     TP -->|"upstream_service=trip-planner-service<br/>parent=inv-a1b2"| HTL["hotel-service<br/>book_hotel → inv-9c8d7e6f5a4b"]
 ```
 
-This replaces ad-hoc service identity headers and custom tracing sidecars that teams previously built into their orchestration layers.
+This replaces ad-hoc service identity headers for ANIP-level causality. It is still best-effort across independently operated services because each service owns its own audit log and retention policy.
 
 For agents that need to discover which capabilities to invoke on other services as part of a workflow, see [Cross-service handoff hints (v0.19)](/docs/protocol/capabilities#cross-service-handoff-hints-v019) — capability declarations can now carry advisory `cross_service` hints that name the target service and capability for handoff, refresh, verification, and follow-up steps.
+
+## Composition lineage
+
+Starting in v0.23, ANIP also makes service-side composition visible to audit readers and verifiers.
+
+A composed capability is invoked by the agent as one business capability. Internally, the service may execute declared child steps. The composition declaration controls whether child invocations are recorded and whether they share the parent task identity:
+
+```json
+{
+  "kind": "composed",
+  "composition": {
+    "audit_policy": {
+      "record_child_invocations": true,
+      "parent_task_lineage": true
+    }
+  }
+}
+```
+
+When `record_child_invocations` is true, each child step generates its own audit entry linked to the parent invocation. When `parent_task_lineage` is true, child invocations inherit the parent `task_id`, so audit reconstruction can walk from the business-level capability into the internal steps without asking the agent to orchestrate those steps itself.
+
+This distinction matters:
+
+| Layer | Who owns it | What lineage shows |
+|-------|-------------|--------------------|
+| Agent invocation | Agent/client | The single governed business capability the agent selected |
+| Composition steps | Service/runtime | Internal child capabilities used to fulfill that business capability |
+| Audit reader | Operator/verifier | Parent invocation, child invocations, shared task identity, and failure propagation |
+
+## Approval lineage
+
+Approval flows have their own required lineage chain. If a capability stops at `approval_required`, the service must persist an approval request before returning that failure. After approval, the grant and continuation must be reconstructible from audit evidence.
+
+```text
+parent_invocation_id
+    -> approval_request_id
+    -> grant_id
+    -> continuation_invocation_id
+    -> child_invocation_ids when composed
+```
+
+The audit trail provides the links:
+
+- `approval_request_created` links the original invocation to the approval request.
+- `approval_grant_issued` links the approval request to the grant and approver.
+- The continuation invocation references the supplied `approval_grant`.
+- Composed child invocations inherit the parent task lineage when declared by composition audit policy.
+
+If an implementation cannot reconstruct this approval and composition chain, it does not satisfy the approval lineage requirements.
+
+## Runtime lineage vs package lineage
+
+This page describes runtime lineage: invocations, tasks, delegation, approvals, child steps, and audit evidence.
+
+Registry package lineage is different. Package lineage records where a published package came from, such as Studio project revision, product revision, developer revision, manifest digest, and recommended lock. Runtime lineage explains what happened during execution. Package lineage explains what contract and generated artifact were published.
 
 ## Lineage and trust
 
@@ -233,10 +290,12 @@ Together, these create a verifiable chain: a human authorized a specific scope �
 | **Compliance** | Prove that every agent action was authorized by a human with the right authority |
 | **Cost attribution** | Track which workflow and which human principal incurred each cost |
 | **Incident response** | When an agent does something unexpected, trace who delegated the authority and what scope was granted |
-| **Cross-service auditing** | Correlate actions across multiple services using `client_reference_id` |
+| **Cross-service auditing** | Correlate actions across multiple services using `task_id`, `parent_invocation_id`, and `upstream_service` |
+| **Approval review** | Reconstruct request, grant, continuation, and side-effect lineage |
+| **Composition verification** | Confirm which child steps ran under a composed business capability |
 
 ## Next steps
 
-- **[Authentication](/docs/protocol/authentication)** — How principals are identified and tokens issued
-- **[Delegation & Permissions](/docs/protocol/delegation-permissions)** — How authority flows through delegation chains
-- **[Checkpoints & Trust](/docs/protocol/checkpoints-trust)** — How audit evidence is verified
+- [Authentication](/docs/protocol/authentication) — How principals are identified and tokens issued.
+- [Delegation & Permissions](/docs/protocol/delegation-permissions) — How authority flows through delegation chains.
+- [Checkpoints & Trust](/docs/protocol/checkpoints-trust) — How audit evidence is verified.
