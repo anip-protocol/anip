@@ -16,25 +16,10 @@ def test_read_only_seed_defaults_to_public_showcase(monkeypatch):
     assert seed._seed_profile() == "public_showcase"
 
 
-def test_public_showcase_catalog_keeps_only_non_snapshot_projects():
+def test_public_showcase_catalog_is_snapshot_only():
     items = _public_seed_projects()
-    project_ids = {item["project"]["id"] for item in items}
-    workspace_ids = {item["project"].get("workspace_id") or item["workspace"]["id"] for item in items}
 
-    assert len(items) == 7
-    assert workspace_ids == {"ws-anip-showcases"}
-    assert "gtm-pipeline-q2-review" not in project_ids
-    assert "jira-fronting-starter" in project_ids
-    assert "github-fronting-starter" in project_ids
-    assert "slack-fronting-starter" in project_ids
-    assert "notion-fronting-starter" in project_ids
-    assert "linear-fronting-starter" in project_ids
-    assert "gitlab-fronting-starter" in project_ids
-    assert "superset-fronting-starter" in project_ids
-    assert "project-issue-tracker-fronting-showcase" not in project_ids
-    assert "gtm-account-enrichment" not in project_ids
-    assert "enterprise-deal-desk" not in project_ids
-    assert "returns-resolution-console" not in project_ids
+    assert items == []
 
 
 def test_public_showcase_gtm_project_is_snapshot_backed(monkeypatch):

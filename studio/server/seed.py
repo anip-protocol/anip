@@ -13,6 +13,11 @@ from .project_snapshots import import_showcase_snapshots_from_disk
 from .seed_catalog import SEED_PROJECTS
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
+PUBLIC_SHOWCASE_WORKSPACE = {
+    "id": "ws-anip-showcases",
+    "name": "ANIP Public Showcases",
+    "summary": "Curated public read-only showcase projects restored from the packages and templates published in the ANIP Registry.",
+}
 
 
 def _env_bool(name: str) -> bool:
@@ -29,7 +34,7 @@ def _seed_profile() -> str:
 
 
 def _seed_item_enabled(item: dict[str, Any], profile: str) -> bool:
-    if profile in {"showcase_snapshots", "snapshot_showcase", "snapshots"}:
+    if profile in {"public_showcase", "showcase_snapshots", "snapshot_showcase", "snapshots"}:
         return False
     if profile in {"all", "*"}:
         return True
@@ -990,7 +995,14 @@ def seed_from_examples(conn: Any) -> dict:
         created += 1
 
     snapshot_result: dict[str, Any] | None = None
-    if profile in {"public_showcase", "all", "*"}:
+    if profile == "public_showcase":
+        snapshot_result = import_showcase_snapshots_from_disk(
+            conn,
+            replace_existing=True,
+            latest_only=True,
+            workspace_override=PUBLIC_SHOWCASE_WORKSPACE,
+        )
+    if profile in {"all", "*"}:
         snapshot_result = import_showcase_snapshots_from_disk(conn, replace_existing=True, latest_only=True)
     if profile in {"showcase_snapshots", "snapshot_showcase", "snapshots"}:
         snapshot_result = import_showcase_snapshots_from_disk(conn, replace_existing=True, latest_only=True)

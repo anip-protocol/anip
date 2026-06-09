@@ -454,7 +454,7 @@ async function handleCleanJunkProjects() {
       <div v-if="readOnlyMode" class="banner banner-warning">
         {{ readOnlyReason }}
       </div>
-      <div class="toolbar">
+      <div v-if="!readOnlyMode" class="toolbar">
         <button
           class="btn btn-primary"
           :disabled="readOnlyMode"
@@ -728,11 +728,12 @@ async function handleCleanJunkProjects() {
             Govern API / MCP project
           </div>
           <p class="card-summary">{{ project.summary || 'No summary' }}</p>
-          <div class="card-meta">
+          <div v-if="!readOnlyMode || project.labels?.length" class="card-meta">
             <span v-if="project.labels?.length" class="card-labels">
               <span v-for="label in project.labels" :key="label" class="label-chip">{{ label }}</span>
             </span>
             <button
+              v-if="!readOnlyMode"
               class="action-link"
               :disabled="deletingProjectId !== null || cleaningJunk || readOnlyMode"
               @click="handleCloneProject(project.id, project.name, project.summary, $event)"
@@ -740,6 +741,7 @@ async function handleCleanJunkProjects() {
               Clone
             </button>
             <button
+              v-if="!readOnlyMode"
               class="delete-link"
               :disabled="deletingProjectId !== null || cleaningJunk || readOnlyMode"
               @click="handleDeleteProject(project.id, project.name, $event)"

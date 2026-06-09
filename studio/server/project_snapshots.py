@@ -9,6 +9,7 @@ from.
 from __future__ import annotations
 
 import base64
+import copy
 import json
 import re
 from datetime import date, datetime, timezone
@@ -490,6 +491,7 @@ def import_showcase_snapshots_from_disk(
     snapshot_dir: Path | None = None,
     replace_existing: bool = True,
     latest_only: bool = False,
+    workspace_override: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     directory = snapshot_dir or _DEFAULT_SNAPSHOT_DIR
     if not directory.exists():
@@ -502,9 +504,19 @@ def import_showcase_snapshots_from_disk(
     if latest_only:
         paths = _latest_snapshot_paths(paths)
     for path in paths:
+        snapshot = load_snapshot_file(path)
+        if workspace_override is not None:
+            snapshot = copy.deepcopy(snapshot)
+            snapshot["workspace"] = {
+                **snapshot["workspace"],
+                **workspace_override,
+            }
+            snapshot["project"]["workspace_id"] = workspace_override["id"]
+            for connection in snapshot.get("workspace_connections") or []:
+                connection["workspace_id"] = workspace_override["id"]
         result = import_project_snapshot(
             conn,
-            load_snapshot_file(path),
+            snapshot,
             replace_existing=replace_existing,
         )
         result["path"] = str(path)
