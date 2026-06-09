@@ -112,9 +112,13 @@ jobs:
             }
             const versionFile = 'studio/src/version.ts';
             const source = fs.readFileSync(versionFile, 'utf8');
+            const nextVersionLine = 'export const STUDIO_VERSION = \'' + process.env.VERSION + '\'';
+            if (!/export const STUDIO_VERSION = ['\"][^'\"]+['\"]/u.test(source)) {
+              throw new Error('studio/src/version.ts is missing export const STUDIO_VERSION');
+            }
             fs.writeFileSync(
               versionFile,
-              source.replace(/export const STUDIO_VERSION = '[^']+'/u, `export const STUDIO_VERSION = '${process.env.VERSION}'`)
+              source.replace(/export const STUDIO_VERSION = ['\"][^'\"]+['\"]/u, nextVersionLine)
             );
           "
           echo "OK: Studio version bumped"
