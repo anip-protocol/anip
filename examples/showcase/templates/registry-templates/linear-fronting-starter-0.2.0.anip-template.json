@@ -1,0 +1,2196 @@
+{
+  "template_id": "linear-fronting-starter",
+  "template_version": "0.2.0",
+  "manifest": {
+    "schema": "anip-starter-template-manifest/v0",
+    "template_id": "linear-fronting-starter",
+    "template_title": "Linear Fronting Starter",
+    "template_kind": "fronting_starter",
+    "package_version": "0.2.0",
+    "anip_spec_version": "anip/0.24",
+    "studio_version": "0.8.0",
+    "template_digest": "sha256:832d8a52ec9b6390182718a4cc6f8123b5a89d8ad5143a33e2f54ee5535faded",
+    "counts": {
+      "documents": 3,
+      "connections": 2,
+      "discovery_records": 5,
+      "capability_mappings": 5
+    },
+    "industry": "software_delivery",
+    "systems": [
+      "linear"
+    ]
+  },
+  "template": {
+    "schema": "anip-starter-template/v0",
+    "anipSpecVersion": "anip/0.24",
+    "id": "linear-fronting-starter",
+    "kind": "fronting_starter",
+    "projectType": "governed_service_project",
+    "title": "Linear Fronting Starter",
+    "summary": "Template-suggested Linear API/MCP fronting structure with reviewed capability candidates.",
+    "description": "Starts a governed Linear fronting project from reviewed starter data. Verify backend operations, auth posture, and policy boundaries against the real integration before locking.",
+    "domain": "linear",
+    "recommendedBrief": "Create a governed ANIP fronting layer for Linear. Expose selected behavior-shaped capabilities instead of raw backend operations. Read operations must preserve actor-visible scope. Write-adjacent operations must prepare previews or require approval before downstream mutation.",
+    "documents": [
+      {
+        "idSuffix": "template-fronting-intent",
+        "title": "Linear governed fronting intent",
+        "kind": "business_intent",
+        "filename": "linear-fronting-intent.md",
+        "content": "# Linear Governed Fronting Intent\n\n> Imported from starter template `linear-fronting-starter`. Treat this as draft guidance, not discovered truth.\n\nExpose a governed Linear capability surface in front of native API or MCP-backed operations.\n\n## Template-suggested capabilities\n- linear.issue.search_context: Search bounded Linear issues, projects, and cycles without exposing raw workspace tools.\n- linear.issue.prepare: Prepare a Linear issue preview with team, project, labels, and priority before creating anything.\n- linear.comment.prepare: Prepare a Linear issue comment from review or incident context without posting it.\n- linear.status_transition.request: Prepare a governed Linear issue status transition request and stop for approval.\n- linear.cycle_move.request: Prepare a governed request to move a Linear issue into a cycle or project and stop for approval.\n\n## Governance posture\n- Raw Linear tools are not exposed directly to agents.\n- Reads return bounded actor-visible context.\n- Write-adjacent actions prepare previews or require explicit approval before execution.\n- Missing required inputs trigger clarification instead of guessing."
+      },
+      {
+        "idSuffix": "template-integration-evidence",
+        "title": "Linear integration evidence",
+        "kind": "api_docs",
+        "filename": "linear-integration-evidence.template.md",
+        "content": "# Linear Integration Evidence Template\n\n> Imported from starter template `linear-fronting-starter`. Verify every operation against your chosen native API/MCP source before locking.\n\nNative API connection: LINEAR_API_URL\nMCP connection: LINEAR_MCP_ENDPOINT\n\n## Template-suggested backend operations\n- linear.api.issue_search_context: GET /linear/issue_search_context\n- linear.api.issue_prepare: POST /linear/issue_prepare\n- linear.api.comment_prepare: POST /linear/comment_prepare\n- linear.api.status_transition_request: POST /linear/status_transition_request\n- linear.api.cycle_move_request: POST /linear/cycle_move_request\n\n## Secret posture\n- Studio stores secret references only; project exports must not contain tokens.\n- Teams can implement either native API or MCP backend seams behind the same governed ANIP contract."
+      },
+      {
+        "idSuffix": "template-developer-evidence",
+        "title": "Linear developer evidence",
+        "kind": "api_docs",
+        "filename": "linear-developer-evidence.template.md",
+        "content": "# Linear Developer Evidence\n\nImported from starter template `linear-fronting-starter`. This is developer-owned evidence for Studio Autopilot and generated-service review.\n\nThis document turns starter operations into explicit ANIP runtime governance and input-contract evidence. Review it against the real integration before publishing.\n\n## Capability Evidence Summary\n\n| capability_id | service_id | operation_type | side_effect_level | inputs | backend_operation |\n| --- | --- | --- | --- | ---: | --- |\n| linear.issue.search_context | linear-fronting | read | read | 4 | linear.api.issue_search_context |\n| linear.issue.prepare | linear-fronting | write | write_adjacent | 6 | linear.api.issue_prepare |\n| linear.comment.prepare | linear-fronting | write | write_adjacent | 4 | linear.api.comment_prepare |\n| linear.status_transition.request | linear-governance | write | write_adjacent | 4 | linear.api.status_transition_request |\n| linear.cycle_move.request | linear-governance | write | write_adjacent | 4 | linear.api.cycle_move_request |\n\n## Reviewed Developer Evidence\n\nThe starter also carries first-class `integration_fronting_capability_mapping` records. Use this document as readable developer evidence, not as the only machine-readable source.\n\n### Runtime governance\n\n| capability_id | execution_posture | intent_type | produces | does_not_produce |\n| --- | --- | --- | --- | --- |\n| linear.issue.search_context | read_only | read_only | content.summary, data.read | raw_data_export, system.mutation |\n| linear.issue.prepare | prepare_only | prepare_only | approval.request, system.preview_mutation, content.draft | approval.execute, system.mutation, raw_data_export |\n| linear.comment.prepare | prepare_only | prepare_only | approval.request, system.preview_mutation, content.draft | approval.execute, system.mutation, raw_data_export |\n| linear.status_transition.request | prepare_only | prepare_only | approval.request, system.preview_mutation, content.draft | approval.execute, system.mutation, raw_data_export |\n| linear.cycle_move.request | prepare_only | prepare_only | approval.request, system.preview_mutation, content.draft | approval.execute, system.mutation, raw_data_export |\n\n### Input contracts\n\n| capability_id | input | type | required | semantic_type | entity_reference |\n| --- | --- | --- | --- | --- | --- |\n| linear.issue.search_context | team_key | string | yes | team_ref | yes |\n| linear.issue.search_context | query | string | yes |  | no |\n| linear.issue.search_context | limit | integer | no |  | no |\n| linear.issue.search_context | backend_options | object | no | backend_options | no |\n| linear.issue.prepare | team_key | string | yes | team_ref | yes |\n| linear.issue.prepare | title | string | yes |  | no |\n| linear.issue.prepare | description | string | yes |  | no |\n| linear.issue.prepare | project_id | string | no | project_ref | yes |\n| linear.issue.prepare | labels | string | no |  | no |\n| linear.issue.prepare | backend_options | object | no | backend_options | no |\n| linear.comment.prepare | issue_id | string | yes | issue_ref | yes |\n| linear.comment.prepare | comment_purpose | string | yes |  | no |\n| linear.comment.prepare | context | string | yes |  | no |\n| linear.comment.prepare | backend_options | object | no | backend_options | no |\n| linear.status_transition.request | issue_id | string | yes | issue_ref | yes |\n| linear.status_transition.request | target_status | string | yes |  | no |\n| linear.status_transition.request | reason | string | yes |  | no |\n| linear.status_transition.request | backend_options | object | no | backend_options | no |\n| linear.cycle_move.request | issue_id | string | yes | issue_ref | yes |\n| linear.cycle_move.request | target_cycle | string | yes | cycle_ref | yes |\n| linear.cycle_move.request | reason | string | yes |  | no |\n| linear.cycle_move.request | backend_options | object | no | backend_options | no |"
+      }
+    ],
+    "connections": [
+      {
+        "idSuffix": "linear-api",
+        "display_name": "Linear API",
+        "backend_kind": "native_api",
+        "system_kind": "linear",
+        "endpoint_ref": "LINEAR_API_URL",
+        "auth_mode": "service_delegated",
+        "identity_provider_ref": "workspace-identity",
+        "secret_ref": "LINEAR_API_TOKEN",
+        "metadata": {
+          "template_suggested": true,
+          "starter_template_id": "linear-fronting-starter"
+        }
+      },
+      {
+        "idSuffix": "linear-mcp",
+        "display_name": "Linear MCP",
+        "backend_kind": "mcp",
+        "system_kind": "linear",
+        "endpoint_ref": "LINEAR_MCP_ENDPOINT",
+        "auth_mode": "external",
+        "identity_provider_ref": "linear-oauth",
+        "secret_ref": "LINEAR_MCP_TOKEN",
+        "metadata": {
+          "template_suggested": true,
+          "starter_template_id": "linear-fronting-starter"
+        }
+      }
+    ],
+    "discoveryRecords": [
+      {
+        "idSuffix": "linear-issue-search-context-linear-api-issue-search-context",
+        "connectionIdSuffix": "linear-api",
+        "operation_id": "linear.api.issue_search_context",
+        "backend_kind": "native_api",
+        "method": "GET",
+        "path_template": "/linear/issue_search_context",
+        "side_effect_level": "read",
+        "input_schema_summary": {
+          "required": [
+            "team_key",
+            "query"
+          ],
+          "optional": [
+            "limit",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "linear-fronting-starter",
+          "capability_id": "linear.issue.search_context"
+        }
+      },
+      {
+        "idSuffix": "linear-issue-prepare-linear-api-issue-prepare",
+        "connectionIdSuffix": "linear-api",
+        "operation_id": "linear.api.issue_prepare",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/linear/issue_prepare",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "required": [
+            "team_key",
+            "title",
+            "description"
+          ],
+          "optional": [
+            "project_id",
+            "labels",
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "linear-fronting-starter",
+          "capability_id": "linear.issue.prepare"
+        }
+      },
+      {
+        "idSuffix": "linear-comment-prepare-linear-api-comment-prepare",
+        "connectionIdSuffix": "linear-api",
+        "operation_id": "linear.api.comment_prepare",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/linear/comment_prepare",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "required": [
+            "issue_id",
+            "comment_purpose",
+            "context"
+          ],
+          "optional": [
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "linear-fronting-starter",
+          "capability_id": "linear.comment.prepare"
+        }
+      },
+      {
+        "idSuffix": "linear-status-transition-request-linear-api-status-transition-request",
+        "connectionIdSuffix": "linear-api",
+        "operation_id": "linear.api.status_transition_request",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/linear/status_transition_request",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "required": [
+            "issue_id",
+            "target_status",
+            "reason"
+          ],
+          "optional": [
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "linear-fronting-starter",
+          "capability_id": "linear.status_transition.request"
+        }
+      },
+      {
+        "idSuffix": "linear-cycle-move-request-linear-api-cycle-move-request",
+        "connectionIdSuffix": "linear-api",
+        "operation_id": "linear.api.cycle_move_request",
+        "backend_kind": "native_api",
+        "method": "POST",
+        "path_template": "/linear/cycle_move_request",
+        "side_effect_level": "write_adjacent",
+        "input_schema_summary": {
+          "required": [
+            "issue_id",
+            "target_cycle",
+            "reason"
+          ],
+          "optional": [
+            "backend_options"
+          ]
+        },
+        "risk_notes": [
+          "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+        ],
+        "data": {
+          "template_suggested": true,
+          "starter_template_id": "linear-fronting-starter",
+          "capability_id": "linear.cycle_move.request"
+        }
+      }
+    ],
+    "capabilityMappings": [
+      {
+        "idSuffix": "mapping-linear-issue-search-context",
+        "title": "Search Issue Context",
+        "data": {
+          "artifact_type": "integration_fronting_capability_mapping",
+          "template_suggested": true,
+          "review_status": "template_suggested",
+          "title": "Search Issue Context",
+          "capability_id": "linear.issue.search_context",
+          "intent": "Search bounded Linear issues, projects, and cycles without exposing raw workspace tools.",
+          "service_id": "linear-fronting",
+          "service_name": "Linear Fronting",
+          "backend_kind": "native_api",
+          "connection_ref": "linear-api",
+          "raw_operation_refs": [
+            "linear.api.issue_search_context"
+          ],
+          "backend_bindings": [
+            {
+              "backend_kind": "native_api",
+              "connection_ref": "linear-api",
+              "raw_operation_refs": [
+                "linear.api.issue_search_context"
+              ],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "team_key",
+                "query"
+              ],
+              "derived_optional_backend_inputs": [
+                "limit",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "team_key",
+                "query"
+              ],
+              "explicit_optional_backend_inputs": [
+                "limit",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [
+                "linear-issue-search-context-linear-api-issue-search-context"
+              ],
+              "status": "ready",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking."
+            },
+            {
+              "backend_kind": "mcp",
+              "connection_ref": "linear-mcp",
+              "raw_operation_refs": [],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "team_key",
+                "query"
+              ],
+              "derived_optional_backend_inputs": [
+                "limit",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "team_key",
+                "query"
+              ],
+              "explicit_optional_backend_inputs": [
+                "limit",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [],
+              "status": "missing",
+              "status_detail": "No MCP operation was declared for this capability."
+            }
+          ],
+          "execution_posture": "read_only",
+          "side_effect_level": "read",
+          "subject_kind": "linear_workspace",
+          "context_type": "issue_context_search",
+          "output_intent": "bounded_issue_results",
+          "required_inputs": [
+            "team_key",
+            "query"
+          ],
+          "optional_inputs": [
+            "limit",
+            "backend_options"
+          ],
+          "inputs": [
+            {
+              "input_name": "team_key",
+              "input_type": "string",
+              "required": true,
+              "summary": "Linear team key or identifier.",
+              "allowed_values": [],
+              "semantic_type": "team_ref",
+              "clarification_hint": "Ask for team_key when it is missing or ambiguous.",
+              "entity_reference": true
+            },
+            {
+              "input_name": "query",
+              "input_type": "string",
+              "required": true,
+              "summary": "Bounded issue search query.",
+              "allowed_values": [],
+              "clarification_hint": "Ask for query when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "limit",
+              "input_type": "integer",
+              "required": false,
+              "summary": "Maximum results to return.",
+              "default_value": "20",
+              "allowed_values": [],
+              "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy.",
+              "allowed_values": [],
+              "semantic_type": "backend_options",
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "entity_reference": false
+            }
+          ],
+          "backend_input_mode": "explicit",
+          "derived_required_backend_inputs": [
+            "team_key",
+            "query"
+          ],
+          "derived_optional_backend_inputs": [
+            "limit",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "team_key",
+            "query"
+          ],
+          "explicit_optional_backend_inputs": [
+            "limit",
+            "backend_options"
+          ],
+          "approval_rule_refs": [],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "clarification_rule_refs": [
+            "clarify.team_key",
+            "clarify.query"
+          ],
+          "audit_required": true,
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ]
+        }
+      },
+      {
+        "idSuffix": "mapping-linear-issue-prepare",
+        "title": "Prepare Issue",
+        "data": {
+          "artifact_type": "integration_fronting_capability_mapping",
+          "template_suggested": true,
+          "review_status": "template_suggested",
+          "title": "Prepare Issue",
+          "capability_id": "linear.issue.prepare",
+          "intent": "Prepare a Linear issue preview with team, project, labels, and priority before creating anything.",
+          "service_id": "linear-fronting",
+          "service_name": "Linear Fronting",
+          "backend_kind": "native_api",
+          "connection_ref": "linear-api",
+          "raw_operation_refs": [
+            "linear.api.issue_prepare"
+          ],
+          "backend_bindings": [
+            {
+              "backend_kind": "native_api",
+              "connection_ref": "linear-api",
+              "raw_operation_refs": [
+                "linear.api.issue_prepare"
+              ],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "team_key",
+                "title",
+                "description"
+              ],
+              "derived_optional_backend_inputs": [
+                "project_id",
+                "labels",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "team_key",
+                "title",
+                "description"
+              ],
+              "explicit_optional_backend_inputs": [
+                "project_id",
+                "labels",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [
+                "linear-issue-prepare-linear-api-issue-prepare"
+              ],
+              "status": "ready",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking."
+            },
+            {
+              "backend_kind": "mcp",
+              "connection_ref": "linear-mcp",
+              "raw_operation_refs": [],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "team_key",
+                "title",
+                "description"
+              ],
+              "derived_optional_backend_inputs": [
+                "project_id",
+                "labels",
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "team_key",
+                "title",
+                "description"
+              ],
+              "explicit_optional_backend_inputs": [
+                "project_id",
+                "labels",
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [],
+              "status": "missing",
+              "status_detail": "No MCP operation was declared for this capability."
+            }
+          ],
+          "execution_posture": "prepare_only",
+          "side_effect_level": "write_adjacent",
+          "subject_kind": "linear_issue",
+          "context_type": "issue_creation_preparation",
+          "output_intent": "issue_creation_preview",
+          "required_inputs": [
+            "team_key",
+            "title",
+            "description"
+          ],
+          "optional_inputs": [
+            "project_id",
+            "labels",
+            "backend_options"
+          ],
+          "inputs": [
+            {
+              "input_name": "team_key",
+              "input_type": "string",
+              "required": true,
+              "summary": "Linear team key or identifier.",
+              "allowed_values": [],
+              "semantic_type": "team_ref",
+              "clarification_hint": "Ask for team_key when it is missing or ambiguous.",
+              "entity_reference": true
+            },
+            {
+              "input_name": "title",
+              "input_type": "string",
+              "required": true,
+              "summary": "Proposed issue title.",
+              "allowed_values": [],
+              "clarification_hint": "Ask for title when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "description",
+              "input_type": "string",
+              "required": true,
+              "summary": "Proposed issue description.",
+              "allowed_values": [],
+              "clarification_hint": "Ask for description when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "project_id",
+              "input_type": "string",
+              "required": false,
+              "summary": "Optional Linear project identifier.",
+              "allowed_values": [],
+              "semantic_type": "project_ref",
+              "clarification_hint": "Ask for project_id when it is missing or ambiguous.",
+              "entity_reference": true
+            },
+            {
+              "input_name": "labels",
+              "input_type": "string",
+              "required": false,
+              "summary": "Optional labels to apply.",
+              "allowed_values": [],
+              "clarification_hint": "Ask for labels when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy.",
+              "allowed_values": [],
+              "semantic_type": "backend_options",
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "entity_reference": false
+            }
+          ],
+          "backend_input_mode": "explicit",
+          "derived_required_backend_inputs": [
+            "team_key",
+            "title",
+            "description"
+          ],
+          "derived_optional_backend_inputs": [
+            "project_id",
+            "labels",
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "team_key",
+            "title",
+            "description"
+          ],
+          "explicit_optional_backend_inputs": [
+            "project_id",
+            "labels",
+            "backend_options"
+          ],
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "clarification_rule_refs": [
+            "clarify.team_key",
+            "clarify.title",
+            "clarify.description"
+          ],
+          "audit_required": true,
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ]
+        }
+      },
+      {
+        "idSuffix": "mapping-linear-comment-prepare",
+        "title": "Prepare Issue Comment",
+        "data": {
+          "artifact_type": "integration_fronting_capability_mapping",
+          "template_suggested": true,
+          "review_status": "template_suggested",
+          "title": "Prepare Issue Comment",
+          "capability_id": "linear.comment.prepare",
+          "intent": "Prepare a Linear issue comment from review or incident context without posting it.",
+          "service_id": "linear-fronting",
+          "service_name": "Linear Fronting",
+          "backend_kind": "native_api",
+          "connection_ref": "linear-api",
+          "raw_operation_refs": [
+            "linear.api.comment_prepare"
+          ],
+          "backend_bindings": [
+            {
+              "backend_kind": "native_api",
+              "connection_ref": "linear-api",
+              "raw_operation_refs": [
+                "linear.api.comment_prepare"
+              ],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "issue_id",
+                "comment_purpose",
+                "context"
+              ],
+              "derived_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "issue_id",
+                "comment_purpose",
+                "context"
+              ],
+              "explicit_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [
+                "linear-comment-prepare-linear-api-comment-prepare"
+              ],
+              "status": "ready",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking."
+            },
+            {
+              "backend_kind": "mcp",
+              "connection_ref": "linear-mcp",
+              "raw_operation_refs": [],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "issue_id",
+                "comment_purpose",
+                "context"
+              ],
+              "derived_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "issue_id",
+                "comment_purpose",
+                "context"
+              ],
+              "explicit_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [],
+              "status": "missing",
+              "status_detail": "No MCP operation was declared for this capability."
+            }
+          ],
+          "execution_posture": "prepare_only",
+          "side_effect_level": "write_adjacent",
+          "subject_kind": "linear_issue",
+          "context_type": "issue_comment_preparation",
+          "output_intent": "comment_preview",
+          "required_inputs": [
+            "issue_id",
+            "comment_purpose",
+            "context"
+          ],
+          "optional_inputs": [
+            "backend_options"
+          ],
+          "inputs": [
+            {
+              "input_name": "issue_id",
+              "input_type": "string",
+              "required": true,
+              "summary": "Linear issue identifier.",
+              "allowed_values": [],
+              "semantic_type": "issue_ref",
+              "clarification_hint": "Ask for issue_id when it is missing or ambiguous.",
+              "entity_reference": true
+            },
+            {
+              "input_name": "comment_purpose",
+              "input_type": "string",
+              "required": true,
+              "summary": "Purpose of the comment.",
+              "allowed_values": [],
+              "clarification_hint": "Ask for comment_purpose when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "context",
+              "input_type": "string",
+              "required": true,
+              "summary": "Bounded context for the proposed comment.",
+              "allowed_values": [],
+              "clarification_hint": "Ask for context when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy.",
+              "allowed_values": [],
+              "semantic_type": "backend_options",
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "entity_reference": false
+            }
+          ],
+          "backend_input_mode": "explicit",
+          "derived_required_backend_inputs": [
+            "issue_id",
+            "comment_purpose",
+            "context"
+          ],
+          "derived_optional_backend_inputs": [
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "issue_id",
+            "comment_purpose",
+            "context"
+          ],
+          "explicit_optional_backend_inputs": [
+            "backend_options"
+          ],
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "clarification_rule_refs": [
+            "clarify.issue_id",
+            "clarify.comment_purpose",
+            "clarify.context"
+          ],
+          "audit_required": true,
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ]
+        }
+      },
+      {
+        "idSuffix": "mapping-linear-status-transition-request",
+        "title": "Request Status Transition",
+        "data": {
+          "artifact_type": "integration_fronting_capability_mapping",
+          "template_suggested": true,
+          "review_status": "template_suggested",
+          "title": "Request Status Transition",
+          "capability_id": "linear.status_transition.request",
+          "intent": "Prepare a governed Linear issue status transition request and stop for approval.",
+          "service_id": "linear-governance",
+          "service_name": "Linear Governance",
+          "backend_kind": "native_api",
+          "connection_ref": "linear-api",
+          "raw_operation_refs": [
+            "linear.api.status_transition_request"
+          ],
+          "backend_bindings": [
+            {
+              "backend_kind": "native_api",
+              "connection_ref": "linear-api",
+              "raw_operation_refs": [
+                "linear.api.status_transition_request"
+              ],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "issue_id",
+                "target_status",
+                "reason"
+              ],
+              "derived_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "issue_id",
+                "target_status",
+                "reason"
+              ],
+              "explicit_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [
+                "linear-status-transition-request-linear-api-status-transition-request"
+              ],
+              "status": "ready",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking."
+            },
+            {
+              "backend_kind": "mcp",
+              "connection_ref": "linear-mcp",
+              "raw_operation_refs": [],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "issue_id",
+                "target_status",
+                "reason"
+              ],
+              "derived_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "issue_id",
+                "target_status",
+                "reason"
+              ],
+              "explicit_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [],
+              "status": "missing",
+              "status_detail": "No MCP operation was declared for this capability."
+            }
+          ],
+          "execution_posture": "prepare_only",
+          "side_effect_level": "write_adjacent",
+          "subject_kind": "linear_issue",
+          "context_type": "status_transition_request",
+          "output_intent": "status_transition_preview",
+          "required_inputs": [
+            "issue_id",
+            "target_status",
+            "reason"
+          ],
+          "optional_inputs": [
+            "backend_options"
+          ],
+          "inputs": [
+            {
+              "input_name": "issue_id",
+              "input_type": "string",
+              "required": true,
+              "summary": "Linear issue identifier.",
+              "allowed_values": [],
+              "semantic_type": "issue_ref",
+              "clarification_hint": "Ask for issue_id when it is missing or ambiguous.",
+              "entity_reference": true
+            },
+            {
+              "input_name": "target_status",
+              "input_type": "string",
+              "required": true,
+              "summary": "Requested target status.",
+              "allowed_values": [],
+              "clarification_hint": "Ask for target_status when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "reason",
+              "input_type": "string",
+              "required": true,
+              "summary": "Business reason for the transition.",
+              "allowed_values": [],
+              "clarification_hint": "Ask for reason when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy.",
+              "allowed_values": [],
+              "semantic_type": "backend_options",
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "entity_reference": false
+            }
+          ],
+          "backend_input_mode": "explicit",
+          "derived_required_backend_inputs": [
+            "issue_id",
+            "target_status",
+            "reason"
+          ],
+          "derived_optional_backend_inputs": [
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "issue_id",
+            "target_status",
+            "reason"
+          ],
+          "explicit_optional_backend_inputs": [
+            "backend_options"
+          ],
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "clarification_rule_refs": [
+            "clarify.issue_id",
+            "clarify.target_status",
+            "clarify.reason"
+          ],
+          "audit_required": true,
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ]
+        }
+      },
+      {
+        "idSuffix": "mapping-linear-cycle-move-request",
+        "title": "Request Cycle Move",
+        "data": {
+          "artifact_type": "integration_fronting_capability_mapping",
+          "template_suggested": true,
+          "review_status": "template_suggested",
+          "title": "Request Cycle Move",
+          "capability_id": "linear.cycle_move.request",
+          "intent": "Prepare a governed request to move a Linear issue into a cycle or project and stop for approval.",
+          "service_id": "linear-governance",
+          "service_name": "Linear Governance",
+          "backend_kind": "native_api",
+          "connection_ref": "linear-api",
+          "raw_operation_refs": [
+            "linear.api.cycle_move_request"
+          ],
+          "backend_bindings": [
+            {
+              "backend_kind": "native_api",
+              "connection_ref": "linear-api",
+              "raw_operation_refs": [
+                "linear.api.cycle_move_request"
+              ],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "issue_id",
+                "target_cycle",
+                "reason"
+              ],
+              "derived_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "issue_id",
+                "target_cycle",
+                "reason"
+              ],
+              "explicit_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [
+                "linear-cycle-move-request-linear-api-cycle-move-request"
+              ],
+              "status": "ready",
+              "status_detail": "Template-suggested native API implementation seam. Review before locking."
+            },
+            {
+              "backend_kind": "mcp",
+              "connection_ref": "linear-mcp",
+              "raw_operation_refs": [],
+              "backend_input_mode": "explicit",
+              "derived_required_backend_inputs": [
+                "issue_id",
+                "target_cycle",
+                "reason"
+              ],
+              "derived_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "explicit_required_backend_inputs": [
+                "issue_id",
+                "target_cycle",
+                "reason"
+              ],
+              "explicit_optional_backend_inputs": [
+                "backend_options"
+              ],
+              "matched_discovery_record_ids": [],
+              "status": "missing",
+              "status_detail": "No MCP operation was declared for this capability."
+            }
+          ],
+          "execution_posture": "prepare_only",
+          "side_effect_level": "write_adjacent",
+          "subject_kind": "linear_cycle",
+          "context_type": "cycle_move_request",
+          "output_intent": "cycle_move_preview",
+          "required_inputs": [
+            "issue_id",
+            "target_cycle",
+            "reason"
+          ],
+          "optional_inputs": [
+            "backend_options"
+          ],
+          "inputs": [
+            {
+              "input_name": "issue_id",
+              "input_type": "string",
+              "required": true,
+              "summary": "Linear issue identifier.",
+              "allowed_values": [],
+              "semantic_type": "issue_ref",
+              "clarification_hint": "Ask for issue_id when it is missing or ambiguous.",
+              "entity_reference": true
+            },
+            {
+              "input_name": "target_cycle",
+              "input_type": "string",
+              "required": true,
+              "summary": "Target cycle identifier or name.",
+              "allowed_values": [],
+              "semantic_type": "cycle_ref",
+              "clarification_hint": "Ask for target_cycle when it is missing or ambiguous.",
+              "entity_reference": true
+            },
+            {
+              "input_name": "reason",
+              "input_type": "string",
+              "required": true,
+              "summary": "Business reason for the move.",
+              "allowed_values": [],
+              "clarification_hint": "Ask for reason when it is missing or ambiguous.",
+              "entity_reference": false
+            },
+            {
+              "input_name": "backend_options",
+              "input_type": "object",
+              "required": false,
+              "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy.",
+              "allowed_values": [],
+              "semantic_type": "backend_options",
+              "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+              "entity_reference": false
+            }
+          ],
+          "backend_input_mode": "explicit",
+          "derived_required_backend_inputs": [
+            "issue_id",
+            "target_cycle",
+            "reason"
+          ],
+          "derived_optional_backend_inputs": [
+            "backend_options"
+          ],
+          "explicit_required_backend_inputs": [
+            "issue_id",
+            "target_cycle",
+            "reason"
+          ],
+          "explicit_optional_backend_inputs": [
+            "backend_options"
+          ],
+          "approval_rule_refs": [
+            "approval.write_adjacent"
+          ],
+          "denial_rule_refs": [
+            "deny.raw_backend_bypass"
+          ],
+          "clarification_rule_refs": [
+            "clarify.issue_id",
+            "clarify.target_cycle",
+            "clarify.reason"
+          ],
+          "audit_required": true,
+          "outbound_controls": {
+            "redaction_required": true,
+            "raw_backend_not_agent_visible": true
+          },
+          "template_notes": [
+            "Imported from an explicit starter template.",
+            "Review backend operations, auth posture, and approval rules before locking or generation."
+          ]
+        }
+      }
+    ]
+  },
+  "package": {
+    "schema": "anip-starter-template-package/v0",
+    "package_kind": "anip_starter_template",
+    "package_version": "0.2.0",
+    "exported_at": "2026-06-06T17:42:00Z",
+    "exported_by": {
+      "studio_version": "0.8.0",
+      "anip_spec_version": "anip/0.24"
+    },
+    "source_project": {
+      "id": "template-source:linear-fronting-starter",
+      "name": "Linear Fronting Starter",
+      "project_type": "governed_service_project",
+      "domain": "linear"
+    },
+    "manifest": {
+      "schema": "anip-starter-template-manifest/v0",
+      "template_id": "linear-fronting-starter",
+      "template_title": "Linear Fronting Starter",
+      "template_kind": "fronting_starter",
+      "package_version": "0.2.0",
+      "anip_spec_version": "anip/0.24",
+      "studio_version": "0.8.0",
+      "template_digest": "sha256:832d8a52ec9b6390182718a4cc6f8123b5a89d8ad5143a33e2f54ee5535faded",
+      "counts": {
+        "documents": 3,
+        "connections": 2,
+        "discovery_records": 5,
+        "capability_mappings": 5
+      },
+      "industry": "software_delivery",
+      "systems": [
+        "linear"
+      ]
+    },
+    "selection": {
+      "documents": 3,
+      "connections": 2,
+      "discovery_records": 5,
+      "capability_mappings": 5
+    },
+    "warnings": [
+      "Template-suggested starter data must be reviewed before baseline locking or publication.",
+      "Do not include workspace secrets or customer-private source documents in shared templates."
+    ],
+    "template": {
+      "schema": "anip-starter-template/v0",
+      "anipSpecVersion": "anip/0.24",
+      "id": "linear-fronting-starter",
+      "kind": "fronting_starter",
+      "projectType": "governed_service_project",
+      "title": "Linear Fronting Starter",
+      "summary": "Template-suggested Linear API/MCP fronting structure with reviewed capability candidates.",
+      "description": "Starts a governed Linear fronting project from reviewed starter data. Verify backend operations, auth posture, and policy boundaries against the real integration before locking.",
+      "domain": "linear",
+      "recommendedBrief": "Create a governed ANIP fronting layer for Linear. Expose selected behavior-shaped capabilities instead of raw backend operations. Read operations must preserve actor-visible scope. Write-adjacent operations must prepare previews or require approval before downstream mutation.",
+      "documents": [
+        {
+          "idSuffix": "template-fronting-intent",
+          "title": "Linear governed fronting intent",
+          "kind": "business_intent",
+          "filename": "linear-fronting-intent.md",
+          "content": "# Linear Governed Fronting Intent\n\n> Imported from starter template `linear-fronting-starter`. Treat this as draft guidance, not discovered truth.\n\nExpose a governed Linear capability surface in front of native API or MCP-backed operations.\n\n## Template-suggested capabilities\n- linear.issue.search_context: Search bounded Linear issues, projects, and cycles without exposing raw workspace tools.\n- linear.issue.prepare: Prepare a Linear issue preview with team, project, labels, and priority before creating anything.\n- linear.comment.prepare: Prepare a Linear issue comment from review or incident context without posting it.\n- linear.status_transition.request: Prepare a governed Linear issue status transition request and stop for approval.\n- linear.cycle_move.request: Prepare a governed request to move a Linear issue into a cycle or project and stop for approval.\n\n## Governance posture\n- Raw Linear tools are not exposed directly to agents.\n- Reads return bounded actor-visible context.\n- Write-adjacent actions prepare previews or require explicit approval before execution.\n- Missing required inputs trigger clarification instead of guessing."
+        },
+        {
+          "idSuffix": "template-integration-evidence",
+          "title": "Linear integration evidence",
+          "kind": "api_docs",
+          "filename": "linear-integration-evidence.template.md",
+          "content": "# Linear Integration Evidence Template\n\n> Imported from starter template `linear-fronting-starter`. Verify every operation against your chosen native API/MCP source before locking.\n\nNative API connection: LINEAR_API_URL\nMCP connection: LINEAR_MCP_ENDPOINT\n\n## Template-suggested backend operations\n- linear.api.issue_search_context: GET /linear/issue_search_context\n- linear.api.issue_prepare: POST /linear/issue_prepare\n- linear.api.comment_prepare: POST /linear/comment_prepare\n- linear.api.status_transition_request: POST /linear/status_transition_request\n- linear.api.cycle_move_request: POST /linear/cycle_move_request\n\n## Secret posture\n- Studio stores secret references only; project exports must not contain tokens.\n- Teams can implement either native API or MCP backend seams behind the same governed ANIP contract."
+        },
+        {
+          "idSuffix": "template-developer-evidence",
+          "title": "Linear developer evidence",
+          "kind": "api_docs",
+          "filename": "linear-developer-evidence.template.md",
+          "content": "# Linear Developer Evidence\n\nImported from starter template `linear-fronting-starter`. This is developer-owned evidence for Studio Autopilot and generated-service review.\n\nThis document turns starter operations into explicit ANIP runtime governance and input-contract evidence. Review it against the real integration before publishing.\n\n## Capability Evidence Summary\n\n| capability_id | service_id | operation_type | side_effect_level | inputs | backend_operation |\n| --- | --- | --- | --- | ---: | --- |\n| linear.issue.search_context | linear-fronting | read | read | 4 | linear.api.issue_search_context |\n| linear.issue.prepare | linear-fronting | write | write_adjacent | 6 | linear.api.issue_prepare |\n| linear.comment.prepare | linear-fronting | write | write_adjacent | 4 | linear.api.comment_prepare |\n| linear.status_transition.request | linear-governance | write | write_adjacent | 4 | linear.api.status_transition_request |\n| linear.cycle_move.request | linear-governance | write | write_adjacent | 4 | linear.api.cycle_move_request |\n\n## Reviewed Developer Evidence\n\nThe starter also carries first-class `integration_fronting_capability_mapping` records. Use this document as readable developer evidence, not as the only machine-readable source.\n\n### Runtime governance\n\n| capability_id | execution_posture | intent_type | produces | does_not_produce |\n| --- | --- | --- | --- | --- |\n| linear.issue.search_context | read_only | read_only | content.summary, data.read | raw_data_export, system.mutation |\n| linear.issue.prepare | prepare_only | prepare_only | approval.request, system.preview_mutation, content.draft | approval.execute, system.mutation, raw_data_export |\n| linear.comment.prepare | prepare_only | prepare_only | approval.request, system.preview_mutation, content.draft | approval.execute, system.mutation, raw_data_export |\n| linear.status_transition.request | prepare_only | prepare_only | approval.request, system.preview_mutation, content.draft | approval.execute, system.mutation, raw_data_export |\n| linear.cycle_move.request | prepare_only | prepare_only | approval.request, system.preview_mutation, content.draft | approval.execute, system.mutation, raw_data_export |\n\n### Input contracts\n\n| capability_id | input | type | required | semantic_type | entity_reference |\n| --- | --- | --- | --- | --- | --- |\n| linear.issue.search_context | team_key | string | yes | team_ref | yes |\n| linear.issue.search_context | query | string | yes |  | no |\n| linear.issue.search_context | limit | integer | no |  | no |\n| linear.issue.search_context | backend_options | object | no | backend_options | no |\n| linear.issue.prepare | team_key | string | yes | team_ref | yes |\n| linear.issue.prepare | title | string | yes |  | no |\n| linear.issue.prepare | description | string | yes |  | no |\n| linear.issue.prepare | project_id | string | no | project_ref | yes |\n| linear.issue.prepare | labels | string | no |  | no |\n| linear.issue.prepare | backend_options | object | no | backend_options | no |\n| linear.comment.prepare | issue_id | string | yes | issue_ref | yes |\n| linear.comment.prepare | comment_purpose | string | yes |  | no |\n| linear.comment.prepare | context | string | yes |  | no |\n| linear.comment.prepare | backend_options | object | no | backend_options | no |\n| linear.status_transition.request | issue_id | string | yes | issue_ref | yes |\n| linear.status_transition.request | target_status | string | yes |  | no |\n| linear.status_transition.request | reason | string | yes |  | no |\n| linear.status_transition.request | backend_options | object | no | backend_options | no |\n| linear.cycle_move.request | issue_id | string | yes | issue_ref | yes |\n| linear.cycle_move.request | target_cycle | string | yes | cycle_ref | yes |\n| linear.cycle_move.request | reason | string | yes |  | no |\n| linear.cycle_move.request | backend_options | object | no | backend_options | no |"
+        }
+      ],
+      "connections": [
+        {
+          "idSuffix": "linear-api",
+          "display_name": "Linear API",
+          "backend_kind": "native_api",
+          "system_kind": "linear",
+          "endpoint_ref": "LINEAR_API_URL",
+          "auth_mode": "service_delegated",
+          "identity_provider_ref": "workspace-identity",
+          "secret_ref": "LINEAR_API_TOKEN",
+          "metadata": {
+            "template_suggested": true,
+            "starter_template_id": "linear-fronting-starter"
+          }
+        },
+        {
+          "idSuffix": "linear-mcp",
+          "display_name": "Linear MCP",
+          "backend_kind": "mcp",
+          "system_kind": "linear",
+          "endpoint_ref": "LINEAR_MCP_ENDPOINT",
+          "auth_mode": "external",
+          "identity_provider_ref": "linear-oauth",
+          "secret_ref": "LINEAR_MCP_TOKEN",
+          "metadata": {
+            "template_suggested": true,
+            "starter_template_id": "linear-fronting-starter"
+          }
+        }
+      ],
+      "discoveryRecords": [
+        {
+          "idSuffix": "linear-issue-search-context-linear-api-issue-search-context",
+          "connectionIdSuffix": "linear-api",
+          "operation_id": "linear.api.issue_search_context",
+          "backend_kind": "native_api",
+          "method": "GET",
+          "path_template": "/linear/issue_search_context",
+          "side_effect_level": "read",
+          "input_schema_summary": {
+            "required": [
+              "team_key",
+              "query"
+            ],
+            "optional": [
+              "limit",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "linear-fronting-starter",
+            "capability_id": "linear.issue.search_context"
+          }
+        },
+        {
+          "idSuffix": "linear-issue-prepare-linear-api-issue-prepare",
+          "connectionIdSuffix": "linear-api",
+          "operation_id": "linear.api.issue_prepare",
+          "backend_kind": "native_api",
+          "method": "POST",
+          "path_template": "/linear/issue_prepare",
+          "side_effect_level": "write_adjacent",
+          "input_schema_summary": {
+            "required": [
+              "team_key",
+              "title",
+              "description"
+            ],
+            "optional": [
+              "project_id",
+              "labels",
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "linear-fronting-starter",
+            "capability_id": "linear.issue.prepare"
+          }
+        },
+        {
+          "idSuffix": "linear-comment-prepare-linear-api-comment-prepare",
+          "connectionIdSuffix": "linear-api",
+          "operation_id": "linear.api.comment_prepare",
+          "backend_kind": "native_api",
+          "method": "POST",
+          "path_template": "/linear/comment_prepare",
+          "side_effect_level": "write_adjacent",
+          "input_schema_summary": {
+            "required": [
+              "issue_id",
+              "comment_purpose",
+              "context"
+            ],
+            "optional": [
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "linear-fronting-starter",
+            "capability_id": "linear.comment.prepare"
+          }
+        },
+        {
+          "idSuffix": "linear-status-transition-request-linear-api-status-transition-request",
+          "connectionIdSuffix": "linear-api",
+          "operation_id": "linear.api.status_transition_request",
+          "backend_kind": "native_api",
+          "method": "POST",
+          "path_template": "/linear/status_transition_request",
+          "side_effect_level": "write_adjacent",
+          "input_schema_summary": {
+            "required": [
+              "issue_id",
+              "target_status",
+              "reason"
+            ],
+            "optional": [
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "linear-fronting-starter",
+            "capability_id": "linear.status_transition.request"
+          }
+        },
+        {
+          "idSuffix": "linear-cycle-move-request-linear-api-cycle-move-request",
+          "connectionIdSuffix": "linear-api",
+          "operation_id": "linear.api.cycle_move_request",
+          "backend_kind": "native_api",
+          "method": "POST",
+          "path_template": "/linear/cycle_move_request",
+          "side_effect_level": "write_adjacent",
+          "input_schema_summary": {
+            "required": [
+              "issue_id",
+              "target_cycle",
+              "reason"
+            ],
+            "optional": [
+              "backend_options"
+            ]
+          },
+          "risk_notes": [
+            "Template-suggested native API operation; verify endpoint, auth, and actor-visible scope before locking."
+          ],
+          "data": {
+            "template_suggested": true,
+            "starter_template_id": "linear-fronting-starter",
+            "capability_id": "linear.cycle_move.request"
+          }
+        }
+      ],
+      "capabilityMappings": [
+        {
+          "idSuffix": "mapping-linear-issue-search-context",
+          "title": "Search Issue Context",
+          "data": {
+            "artifact_type": "integration_fronting_capability_mapping",
+            "template_suggested": true,
+            "review_status": "template_suggested",
+            "title": "Search Issue Context",
+            "capability_id": "linear.issue.search_context",
+            "intent": "Search bounded Linear issues, projects, and cycles without exposing raw workspace tools.",
+            "service_id": "linear-fronting",
+            "service_name": "Linear Fronting",
+            "backend_kind": "native_api",
+            "connection_ref": "linear-api",
+            "raw_operation_refs": [
+              "linear.api.issue_search_context"
+            ],
+            "backend_bindings": [
+              {
+                "backend_kind": "native_api",
+                "connection_ref": "linear-api",
+                "raw_operation_refs": [
+                  "linear.api.issue_search_context"
+                ],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "team_key",
+                  "query"
+                ],
+                "derived_optional_backend_inputs": [
+                  "limit",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "team_key",
+                  "query"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "limit",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [
+                  "linear-issue-search-context-linear-api-issue-search-context"
+                ],
+                "status": "ready",
+                "status_detail": "Template-suggested native API implementation seam. Review before locking."
+              },
+              {
+                "backend_kind": "mcp",
+                "connection_ref": "linear-mcp",
+                "raw_operation_refs": [],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "team_key",
+                  "query"
+                ],
+                "derived_optional_backend_inputs": [
+                  "limit",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "team_key",
+                  "query"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "limit",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [],
+                "status": "missing",
+                "status_detail": "No MCP operation was declared for this capability."
+              }
+            ],
+            "execution_posture": "read_only",
+            "side_effect_level": "read",
+            "subject_kind": "linear_workspace",
+            "context_type": "issue_context_search",
+            "output_intent": "bounded_issue_results",
+            "required_inputs": [
+              "team_key",
+              "query"
+            ],
+            "optional_inputs": [
+              "limit",
+              "backend_options"
+            ],
+            "inputs": [
+              {
+                "input_name": "team_key",
+                "input_type": "string",
+                "required": true,
+                "summary": "Linear team key or identifier.",
+                "allowed_values": [],
+                "semantic_type": "team_ref",
+                "clarification_hint": "Ask for team_key when it is missing or ambiguous.",
+                "entity_reference": true
+              },
+              {
+                "input_name": "query",
+                "input_type": "string",
+                "required": true,
+                "summary": "Bounded issue search query.",
+                "allowed_values": [],
+                "clarification_hint": "Ask for query when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "limit",
+                "input_type": "integer",
+                "required": false,
+                "summary": "Maximum results to return.",
+                "default_value": "20",
+                "allowed_values": [],
+                "clarification_hint": "Ask for limit when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "backend_options",
+                "input_type": "object",
+                "required": false,
+                "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy.",
+                "allowed_values": [],
+                "semantic_type": "backend_options",
+                "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+                "entity_reference": false
+              }
+            ],
+            "backend_input_mode": "explicit",
+            "derived_required_backend_inputs": [
+              "team_key",
+              "query"
+            ],
+            "derived_optional_backend_inputs": [
+              "limit",
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "team_key",
+              "query"
+            ],
+            "explicit_optional_backend_inputs": [
+              "limit",
+              "backend_options"
+            ],
+            "approval_rule_refs": [],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "clarification_rule_refs": [
+              "clarify.team_key",
+              "clarify.query"
+            ],
+            "audit_required": true,
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "template_notes": [
+              "Imported from an explicit starter template.",
+              "Review backend operations, auth posture, and approval rules before locking or generation."
+            ]
+          }
+        },
+        {
+          "idSuffix": "mapping-linear-issue-prepare",
+          "title": "Prepare Issue",
+          "data": {
+            "artifact_type": "integration_fronting_capability_mapping",
+            "template_suggested": true,
+            "review_status": "template_suggested",
+            "title": "Prepare Issue",
+            "capability_id": "linear.issue.prepare",
+            "intent": "Prepare a Linear issue preview with team, project, labels, and priority before creating anything.",
+            "service_id": "linear-fronting",
+            "service_name": "Linear Fronting",
+            "backend_kind": "native_api",
+            "connection_ref": "linear-api",
+            "raw_operation_refs": [
+              "linear.api.issue_prepare"
+            ],
+            "backend_bindings": [
+              {
+                "backend_kind": "native_api",
+                "connection_ref": "linear-api",
+                "raw_operation_refs": [
+                  "linear.api.issue_prepare"
+                ],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "team_key",
+                  "title",
+                  "description"
+                ],
+                "derived_optional_backend_inputs": [
+                  "project_id",
+                  "labels",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "team_key",
+                  "title",
+                  "description"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "project_id",
+                  "labels",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [
+                  "linear-issue-prepare-linear-api-issue-prepare"
+                ],
+                "status": "ready",
+                "status_detail": "Template-suggested native API implementation seam. Review before locking."
+              },
+              {
+                "backend_kind": "mcp",
+                "connection_ref": "linear-mcp",
+                "raw_operation_refs": [],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "team_key",
+                  "title",
+                  "description"
+                ],
+                "derived_optional_backend_inputs": [
+                  "project_id",
+                  "labels",
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "team_key",
+                  "title",
+                  "description"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "project_id",
+                  "labels",
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [],
+                "status": "missing",
+                "status_detail": "No MCP operation was declared for this capability."
+              }
+            ],
+            "execution_posture": "prepare_only",
+            "side_effect_level": "write_adjacent",
+            "subject_kind": "linear_issue",
+            "context_type": "issue_creation_preparation",
+            "output_intent": "issue_creation_preview",
+            "required_inputs": [
+              "team_key",
+              "title",
+              "description"
+            ],
+            "optional_inputs": [
+              "project_id",
+              "labels",
+              "backend_options"
+            ],
+            "inputs": [
+              {
+                "input_name": "team_key",
+                "input_type": "string",
+                "required": true,
+                "summary": "Linear team key or identifier.",
+                "allowed_values": [],
+                "semantic_type": "team_ref",
+                "clarification_hint": "Ask for team_key when it is missing or ambiguous.",
+                "entity_reference": true
+              },
+              {
+                "input_name": "title",
+                "input_type": "string",
+                "required": true,
+                "summary": "Proposed issue title.",
+                "allowed_values": [],
+                "clarification_hint": "Ask for title when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "description",
+                "input_type": "string",
+                "required": true,
+                "summary": "Proposed issue description.",
+                "allowed_values": [],
+                "clarification_hint": "Ask for description when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "project_id",
+                "input_type": "string",
+                "required": false,
+                "summary": "Optional Linear project identifier.",
+                "allowed_values": [],
+                "semantic_type": "project_ref",
+                "clarification_hint": "Ask for project_id when it is missing or ambiguous.",
+                "entity_reference": true
+              },
+              {
+                "input_name": "labels",
+                "input_type": "string",
+                "required": false,
+                "summary": "Optional labels to apply.",
+                "allowed_values": [],
+                "clarification_hint": "Ask for labels when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "backend_options",
+                "input_type": "object",
+                "required": false,
+                "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy.",
+                "allowed_values": [],
+                "semantic_type": "backend_options",
+                "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+                "entity_reference": false
+              }
+            ],
+            "backend_input_mode": "explicit",
+            "derived_required_backend_inputs": [
+              "team_key",
+              "title",
+              "description"
+            ],
+            "derived_optional_backend_inputs": [
+              "project_id",
+              "labels",
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "team_key",
+              "title",
+              "description"
+            ],
+            "explicit_optional_backend_inputs": [
+              "project_id",
+              "labels",
+              "backend_options"
+            ],
+            "approval_rule_refs": [
+              "approval.write_adjacent"
+            ],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "clarification_rule_refs": [
+              "clarify.team_key",
+              "clarify.title",
+              "clarify.description"
+            ],
+            "audit_required": true,
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "template_notes": [
+              "Imported from an explicit starter template.",
+              "Review backend operations, auth posture, and approval rules before locking or generation."
+            ]
+          }
+        },
+        {
+          "idSuffix": "mapping-linear-comment-prepare",
+          "title": "Prepare Issue Comment",
+          "data": {
+            "artifact_type": "integration_fronting_capability_mapping",
+            "template_suggested": true,
+            "review_status": "template_suggested",
+            "title": "Prepare Issue Comment",
+            "capability_id": "linear.comment.prepare",
+            "intent": "Prepare a Linear issue comment from review or incident context without posting it.",
+            "service_id": "linear-fronting",
+            "service_name": "Linear Fronting",
+            "backend_kind": "native_api",
+            "connection_ref": "linear-api",
+            "raw_operation_refs": [
+              "linear.api.comment_prepare"
+            ],
+            "backend_bindings": [
+              {
+                "backend_kind": "native_api",
+                "connection_ref": "linear-api",
+                "raw_operation_refs": [
+                  "linear.api.comment_prepare"
+                ],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "issue_id",
+                  "comment_purpose",
+                  "context"
+                ],
+                "derived_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "issue_id",
+                  "comment_purpose",
+                  "context"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [
+                  "linear-comment-prepare-linear-api-comment-prepare"
+                ],
+                "status": "ready",
+                "status_detail": "Template-suggested native API implementation seam. Review before locking."
+              },
+              {
+                "backend_kind": "mcp",
+                "connection_ref": "linear-mcp",
+                "raw_operation_refs": [],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "issue_id",
+                  "comment_purpose",
+                  "context"
+                ],
+                "derived_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "issue_id",
+                  "comment_purpose",
+                  "context"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [],
+                "status": "missing",
+                "status_detail": "No MCP operation was declared for this capability."
+              }
+            ],
+            "execution_posture": "prepare_only",
+            "side_effect_level": "write_adjacent",
+            "subject_kind": "linear_issue",
+            "context_type": "issue_comment_preparation",
+            "output_intent": "comment_preview",
+            "required_inputs": [
+              "issue_id",
+              "comment_purpose",
+              "context"
+            ],
+            "optional_inputs": [
+              "backend_options"
+            ],
+            "inputs": [
+              {
+                "input_name": "issue_id",
+                "input_type": "string",
+                "required": true,
+                "summary": "Linear issue identifier.",
+                "allowed_values": [],
+                "semantic_type": "issue_ref",
+                "clarification_hint": "Ask for issue_id when it is missing or ambiguous.",
+                "entity_reference": true
+              },
+              {
+                "input_name": "comment_purpose",
+                "input_type": "string",
+                "required": true,
+                "summary": "Purpose of the comment.",
+                "allowed_values": [],
+                "clarification_hint": "Ask for comment_purpose when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "context",
+                "input_type": "string",
+                "required": true,
+                "summary": "Bounded context for the proposed comment.",
+                "allowed_values": [],
+                "clarification_hint": "Ask for context when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "backend_options",
+                "input_type": "object",
+                "required": false,
+                "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy.",
+                "allowed_values": [],
+                "semantic_type": "backend_options",
+                "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+                "entity_reference": false
+              }
+            ],
+            "backend_input_mode": "explicit",
+            "derived_required_backend_inputs": [
+              "issue_id",
+              "comment_purpose",
+              "context"
+            ],
+            "derived_optional_backend_inputs": [
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "issue_id",
+              "comment_purpose",
+              "context"
+            ],
+            "explicit_optional_backend_inputs": [
+              "backend_options"
+            ],
+            "approval_rule_refs": [
+              "approval.write_adjacent"
+            ],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "clarification_rule_refs": [
+              "clarify.issue_id",
+              "clarify.comment_purpose",
+              "clarify.context"
+            ],
+            "audit_required": true,
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "template_notes": [
+              "Imported from an explicit starter template.",
+              "Review backend operations, auth posture, and approval rules before locking or generation."
+            ]
+          }
+        },
+        {
+          "idSuffix": "mapping-linear-status-transition-request",
+          "title": "Request Status Transition",
+          "data": {
+            "artifact_type": "integration_fronting_capability_mapping",
+            "template_suggested": true,
+            "review_status": "template_suggested",
+            "title": "Request Status Transition",
+            "capability_id": "linear.status_transition.request",
+            "intent": "Prepare a governed Linear issue status transition request and stop for approval.",
+            "service_id": "linear-governance",
+            "service_name": "Linear Governance",
+            "backend_kind": "native_api",
+            "connection_ref": "linear-api",
+            "raw_operation_refs": [
+              "linear.api.status_transition_request"
+            ],
+            "backend_bindings": [
+              {
+                "backend_kind": "native_api",
+                "connection_ref": "linear-api",
+                "raw_operation_refs": [
+                  "linear.api.status_transition_request"
+                ],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "issue_id",
+                  "target_status",
+                  "reason"
+                ],
+                "derived_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "issue_id",
+                  "target_status",
+                  "reason"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [
+                  "linear-status-transition-request-linear-api-status-transition-request"
+                ],
+                "status": "ready",
+                "status_detail": "Template-suggested native API implementation seam. Review before locking."
+              },
+              {
+                "backend_kind": "mcp",
+                "connection_ref": "linear-mcp",
+                "raw_operation_refs": [],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "issue_id",
+                  "target_status",
+                  "reason"
+                ],
+                "derived_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "issue_id",
+                  "target_status",
+                  "reason"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [],
+                "status": "missing",
+                "status_detail": "No MCP operation was declared for this capability."
+              }
+            ],
+            "execution_posture": "prepare_only",
+            "side_effect_level": "write_adjacent",
+            "subject_kind": "linear_issue",
+            "context_type": "status_transition_request",
+            "output_intent": "status_transition_preview",
+            "required_inputs": [
+              "issue_id",
+              "target_status",
+              "reason"
+            ],
+            "optional_inputs": [
+              "backend_options"
+            ],
+            "inputs": [
+              {
+                "input_name": "issue_id",
+                "input_type": "string",
+                "required": true,
+                "summary": "Linear issue identifier.",
+                "allowed_values": [],
+                "semantic_type": "issue_ref",
+                "clarification_hint": "Ask for issue_id when it is missing or ambiguous.",
+                "entity_reference": true
+              },
+              {
+                "input_name": "target_status",
+                "input_type": "string",
+                "required": true,
+                "summary": "Requested target status.",
+                "allowed_values": [],
+                "clarification_hint": "Ask for target_status when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "reason",
+                "input_type": "string",
+                "required": true,
+                "summary": "Business reason for the transition.",
+                "allowed_values": [],
+                "clarification_hint": "Ask for reason when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "backend_options",
+                "input_type": "object",
+                "required": false,
+                "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy.",
+                "allowed_values": [],
+                "semantic_type": "backend_options",
+                "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+                "entity_reference": false
+              }
+            ],
+            "backend_input_mode": "explicit",
+            "derived_required_backend_inputs": [
+              "issue_id",
+              "target_status",
+              "reason"
+            ],
+            "derived_optional_backend_inputs": [
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "issue_id",
+              "target_status",
+              "reason"
+            ],
+            "explicit_optional_backend_inputs": [
+              "backend_options"
+            ],
+            "approval_rule_refs": [
+              "approval.write_adjacent"
+            ],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "clarification_rule_refs": [
+              "clarify.issue_id",
+              "clarify.target_status",
+              "clarify.reason"
+            ],
+            "audit_required": true,
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "template_notes": [
+              "Imported from an explicit starter template.",
+              "Review backend operations, auth posture, and approval rules before locking or generation."
+            ]
+          }
+        },
+        {
+          "idSuffix": "mapping-linear-cycle-move-request",
+          "title": "Request Cycle Move",
+          "data": {
+            "artifact_type": "integration_fronting_capability_mapping",
+            "template_suggested": true,
+            "review_status": "template_suggested",
+            "title": "Request Cycle Move",
+            "capability_id": "linear.cycle_move.request",
+            "intent": "Prepare a governed request to move a Linear issue into a cycle or project and stop for approval.",
+            "service_id": "linear-governance",
+            "service_name": "Linear Governance",
+            "backend_kind": "native_api",
+            "connection_ref": "linear-api",
+            "raw_operation_refs": [
+              "linear.api.cycle_move_request"
+            ],
+            "backend_bindings": [
+              {
+                "backend_kind": "native_api",
+                "connection_ref": "linear-api",
+                "raw_operation_refs": [
+                  "linear.api.cycle_move_request"
+                ],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "issue_id",
+                  "target_cycle",
+                  "reason"
+                ],
+                "derived_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "issue_id",
+                  "target_cycle",
+                  "reason"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [
+                  "linear-cycle-move-request-linear-api-cycle-move-request"
+                ],
+                "status": "ready",
+                "status_detail": "Template-suggested native API implementation seam. Review before locking."
+              },
+              {
+                "backend_kind": "mcp",
+                "connection_ref": "linear-mcp",
+                "raw_operation_refs": [],
+                "backend_input_mode": "explicit",
+                "derived_required_backend_inputs": [
+                  "issue_id",
+                  "target_cycle",
+                  "reason"
+                ],
+                "derived_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "explicit_required_backend_inputs": [
+                  "issue_id",
+                  "target_cycle",
+                  "reason"
+                ],
+                "explicit_optional_backend_inputs": [
+                  "backend_options"
+                ],
+                "matched_discovery_record_ids": [],
+                "status": "missing",
+                "status_detail": "No MCP operation was declared for this capability."
+              }
+            ],
+            "execution_posture": "prepare_only",
+            "side_effect_level": "write_adjacent",
+            "subject_kind": "linear_cycle",
+            "context_type": "cycle_move_request",
+            "output_intent": "cycle_move_preview",
+            "required_inputs": [
+              "issue_id",
+              "target_cycle",
+              "reason"
+            ],
+            "optional_inputs": [
+              "backend_options"
+            ],
+            "inputs": [
+              {
+                "input_name": "issue_id",
+                "input_type": "string",
+                "required": true,
+                "summary": "Linear issue identifier.",
+                "allowed_values": [],
+                "semantic_type": "issue_ref",
+                "clarification_hint": "Ask for issue_id when it is missing or ambiguous.",
+                "entity_reference": true
+              },
+              {
+                "input_name": "target_cycle",
+                "input_type": "string",
+                "required": true,
+                "summary": "Target cycle identifier or name.",
+                "allowed_values": [],
+                "semantic_type": "cycle_ref",
+                "clarification_hint": "Ask for target_cycle when it is missing or ambiguous.",
+                "entity_reference": true
+              },
+              {
+                "input_name": "reason",
+                "input_type": "string",
+                "required": true,
+                "summary": "Business reason for the move.",
+                "allowed_values": [],
+                "clarification_hint": "Ask for reason when it is missing or ambiguous.",
+                "entity_reference": false
+              },
+              {
+                "input_name": "backend_options",
+                "input_type": "object",
+                "required": false,
+                "summary": "Bounded Linear provider options such as selected fields or pagination. Must not bypass team scope, approval, or export policy.",
+                "allowed_values": [],
+                "semantic_type": "backend_options",
+                "clarification_hint": "Do not ask for backend_options unless the user explicitly needs provider-specific controls.",
+                "entity_reference": false
+              }
+            ],
+            "backend_input_mode": "explicit",
+            "derived_required_backend_inputs": [
+              "issue_id",
+              "target_cycle",
+              "reason"
+            ],
+            "derived_optional_backend_inputs": [
+              "backend_options"
+            ],
+            "explicit_required_backend_inputs": [
+              "issue_id",
+              "target_cycle",
+              "reason"
+            ],
+            "explicit_optional_backend_inputs": [
+              "backend_options"
+            ],
+            "approval_rule_refs": [
+              "approval.write_adjacent"
+            ],
+            "denial_rule_refs": [
+              "deny.raw_backend_bypass"
+            ],
+            "clarification_rule_refs": [
+              "clarify.issue_id",
+              "clarify.target_cycle",
+              "clarify.reason"
+            ],
+            "audit_required": true,
+            "outbound_controls": {
+              "redaction_required": true,
+              "raw_backend_not_agent_visible": true
+            },
+            "template_notes": [
+              "Imported from an explicit starter template.",
+              "Review backend operations, auth posture, and approval rules before locking or generation."
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
