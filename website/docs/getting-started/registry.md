@@ -47,6 +47,34 @@ http://127.0.0.1:8200/registry/packages
 
 The package browser shows package identity, version, publication metadata, downloads, capability summaries, readiness guidance, package manifests, service definitions, recommended locks, and generator commands.
 
+## Deploy Your Own Registry
+
+Use the release image for hosted deployments:
+
+```bash
+docker pull anipprotocol/registry:VERSION
+```
+
+Minimum production-like settings:
+
+```text
+ANIP_REGISTRY_DATABASE_URL=postgresql://...
+ANIP_REGISTRY_MODE=production
+ANIP_REGISTRY_KEY_ID=...
+ANIP_REGISTRY_ED25519_PRIVATE_KEY=...
+ANIP_REGISTRY_PUBLISH_TOKEN=...
+ANIP_REGISTRY_PUBLISHER_ID=...
+ANIP_REGISTRY_PUBLISHER_TYPE=organization
+ANIP_REGISTRY_RUN_MIGRATIONS=1
+ANIP_REGISTRY_SEED_DEMO=0
+```
+
+Use `/registry-api/v1/readyz` for readiness checks. Use a dedicated Postgres database and store signing keys and publish tokens in the platform secret manager.
+
+For multi-replica deployments, run migrations as a separate job with `ANIP_REGISTRY_MIGRATE_ONLY=1`, then start app replicas with `ANIP_REGISTRY_RUN_MIGRATIONS=0`.
+
+See [ANIP Registry](/docs/tooling/registry) and [Deployment](/docs/operations/deployment) for the full operational checklist.
+
 ## 2. Choose A Package
 
 Open a package when you want to answer:

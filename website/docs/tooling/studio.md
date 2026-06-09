@@ -107,6 +107,8 @@ OPENAI_API_KEY=...
 
 That separation matters. Studio authoring is contract design work. The simulator is testing agent-consumption behavior against already-produced contracts.
 
+The same separation is visible in the public showcases. Studio authoring has been validated with `gpt-5.4`, while the showcase agent-consumption path intentionally uses `gpt-5.4-mini`. ANIP is designed so the consuming agent can work against a bounded, service-owned contract instead of carrying all execution policy in a flagship-model prompt.
+
 Studio also supports Anthropic and local/Ollama provider settings, but provider choice does not change the trust boundary. The saved Product Design, Developer Design, diagnostics, approvals, package signature, and verifier output remain the authoritative record.
 
 ## Standard project flow
@@ -243,11 +245,17 @@ Read-only mode should block:
 
 This makes hosted Studio useful for learning without exposing mutation surfaces.
 
-## Local compose
+## Run Studio locally
 
 ```bash
 cd studio
 docker compose up --build
+```
+
+Open:
+
+```text
+http://127.0.0.1:8080
 ```
 
 Useful environment variables:
@@ -274,6 +282,57 @@ Run the local smoke:
 ```bash
 studio/scripts/smoke-compose.sh
 ```
+
+For a local editable authoring environment, keep `STUDIO_READ_ONLY=0` or omit it. For a local read-only showcase browser, run:
+
+```bash
+STUDIO_READ_ONLY=1 STUDIO_SEED_SHOWCASES=1 docker compose up --build
+```
+
+## Install or deploy Studio
+
+Studio can be installed from source for development or deployed from release images for hosted environments.
+
+Source install path:
+
+```bash
+git clone https://github.com/anip-protocol/anip.git
+cd anip/studio
+docker compose up --build
+```
+
+Container image path:
+
+```bash
+docker pull anipprotocol/studio-api:VERSION
+docker pull anipprotocol/studio-web:VERSION
+docker pull anipprotocol/studio:VERSION
+```
+
+Use `anipprotocol/studio-api` for the API process and `anipprotocol/studio-web` for the web UI. `anipprotocol/studio` is a web-image compatibility alias.
+
+Minimum production-like configuration:
+
+```text
+DATABASE_URL=postgresql://...
+STUDIO_RUN_MIGRATIONS=1
+STUDIO_ASSISTANT_PROVIDER=openai
+STUDIO_ASSISTANT_MODEL=gpt-5.4
+STUDIO_ASSISTANT_API_KEY=...
+STUDIO_REGISTRY_URL=https://registry.example.com/registry-api/v1
+STUDIO_REGISTRY_REQUIRED_MODE=production
+STUDIO_REGISTRY_TRUSTED_KEY_ID=...
+```
+
+Public demo configuration should be read-only:
+
+```text
+STUDIO_READ_ONLY=1
+STUDIO_SEED_SHOWCASES=1
+STUDIO_READ_ONLY_DATABASE_URL=postgresql://readonly-user@...
+```
+
+For public demos, disable write-capable secrets unless publication or assistant calls are intentionally enabled behind access control. Read-only mode blocks mutating HTTP methods and should use a read-only database user when possible.
 
 ## Deployment and operations
 

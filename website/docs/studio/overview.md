@@ -51,6 +51,18 @@ Studio supports three authoring paths:
 
 These modes change the authoring experience, not the authority model. A release-quality project should converge on the same locked Product baseline, saved Developer Definition, package readiness, and validation evidence regardless of which authoring mode produced it.
 
+## Model Boundary: Authoring vs Consumption
+
+Studio authoring and agent consumption are different jobs.
+
+For release-quality Studio authoring, ANIP has been tested with a stronger authoring model such as `gpt-5.4`. That model is doing contract-design work: reading source material, drafting Product Design, completing Developer Design, resolving diagnostics, and producing reviewable package material.
+
+The showcase agents deliberately use `gpt-5.4-mini` where an LLM agent is part of the demo. That includes the GTM Agent validation bank and the showcase agent-consumption path. This is not an accident or a cost-cutting footnote. It is one of the reasons ANIP exists.
+
+With ANIP, the consuming agent does not need to reconstruct policy from a giant prompt, hidden skill file, or consumer-side workflow. The service publishes the governed capability contract, input-resolution rules, approval boundaries, denial posture, audit expectations, and package trust metadata. That smaller, bounded action space lets a smaller model consume the service reliably while the service still owns enforcement.
+
+Use the stronger model where teams are authoring and reviewing contracts. Use the smaller model where an agent is consuming already-governed ANIP services.
+
 ## Who Studio Is For
 
 Studio has two primary audiences.
@@ -124,6 +136,79 @@ Studio supports several workflows:
 | Showcase browsing | You want to inspect seeded examples in read-only mode. |
 | Package publication | You have a reviewed Developer Definition and want to publish a signed Registry package. |
 | Template export | You want to turn a completed project into a safe reusable starter. |
+
+## Run Studio Locally
+
+Clone the repository and start Studio with Docker Compose:
+
+```bash
+git clone https://github.com/anip-protocol/anip.git
+cd anip/studio
+docker compose up --build
+```
+
+Open:
+
+```text
+http://127.0.0.1:8080
+```
+
+By default, local Studio restores showcase snapshots when `STUDIO_SEED_SHOWCASES=1`. If `STUDIO_READ_ONLY=0`, those projects are editable locally.
+
+For a local authoring environment with AI assistance:
+
+```bash
+export STUDIO_ASSISTANT_PROVIDER=openai
+export STUDIO_ASSISTANT_MODEL=gpt-5.4
+export OPENAI_API_KEY="sk-..."
+
+docker compose up --build
+```
+
+For a local read-only showcase browser:
+
+```bash
+STUDIO_READ_ONLY=1 STUDIO_SEED_SHOWCASES=1 docker compose up --build
+```
+
+## Deploy Or Install Studio
+
+Studio is distributed as Docker images and can also be run from source.
+
+For container deployments, use the release image tags:
+
+```bash
+docker pull anipprotocol/studio-api:VERSION
+docker pull anipprotocol/studio-web:VERSION
+docker pull anipprotocol/studio:VERSION
+```
+
+Deploy Studio with Postgres as the durable dependency. The API and web containers should be replaceable; project state lives in the database.
+
+Recommended public demo posture:
+
+```text
+STUDIO_READ_ONLY=1
+STUDIO_SEED_SHOWCASES=1
+STUDIO_READ_ONLY_DATABASE_URL=postgresql://readonly-user@...
+```
+
+Recommended internal authoring posture:
+
+```text
+DATABASE_URL=postgresql://...
+STUDIO_ASSISTANT_PROVIDER=openai
+STUDIO_ASSISTANT_MODEL=gpt-5.4
+STUDIO_ASSISTANT_API_KEY=...
+STUDIO_REGISTRY_URL=https://registry.example.com/registry-api/v1
+STUDIO_REGISTRY_REQUIRED_MODE=production
+STUDIO_REGISTRY_TRUSTED_KEY_ID=...
+STUDIO_REGISTRY_PUBLISH_TOKEN=...
+```
+
+For single-instance deployments, startup migrations are acceptable. For scaled deployments, run migrations as a job with `STUDIO_MIGRATE_ONLY=1`, then start replicas with `STUDIO_RUN_MIGRATIONS=0`.
+
+See [ANIP Studio Reference](/docs/tooling/studio) and [Deployment](/docs/operations/deployment) for the full operational checklist.
 
 ## The Trust Boundary
 

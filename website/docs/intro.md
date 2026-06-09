@@ -95,6 +95,16 @@ That distinction matters:
 
 This is why Studio is more than a form UI around JSON. It is the place where scenario-driven execution design, fronting design, approval boundaries, input-resolution rules, diagnostics, release lineage, and package publication become a repeatable workflow.
 
+## Why this can lower agent-model pressure
+
+ANIP separates contract authoring from contract consumption.
+
+Studio authoring is high-context design work. The Studio AI assistant was tested with `gpt-5.4` for producing reviewable Product Design, Developer Design, package material, and diagnostics.
+
+The showcase agents intentionally use `gpt-5.4-mini` where an LLM is used to consume ANIP services. That is possible because the consuming agent is not expected to carry all policy, approval logic, side-effect posture, and recovery behavior in its prompt. The package and service manifest publish that structure, and the service enforces it.
+
+This is one of the practical advantages of ANIP: teams can use stronger models where they are designing governed contracts, then let smaller agents consume those contracts through bounded, verifiable service-owned capabilities.
+
 ## The protocol surface
 
 An ANIP service exposes standard protocol operations:

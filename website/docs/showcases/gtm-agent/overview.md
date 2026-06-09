@@ -46,6 +46,16 @@ The generated language outputs live at:
 examples/showcase/gtm/generated/language-parity/
 ```
 
+## Why `gpt-5.4-mini` Is Enough Here
+
+The GTM Agent showcase intentionally separates contract authoring from contract consumption.
+
+Studio authoring was validated with `gpt-5.4` because it produces reviewed Product Design, Developer Design, and package material. The running GTM agent uses `gpt-5.4-mini` for question handling because it is consuming a signed ANIP package with 23 governed capabilities, explicit inputs, approval gates, denial/restriction behavior, and service-owned audit semantics.
+
+That matters. Without ANIP, the agent would need a much larger prompt, skill file, or workflow graph to remember how to safely stitch together pipeline, enrichment, routing, and outreach behavior. With ANIP, the service contract carries that execution structure, so the agent model can focus on selecting the bounded capability, resolving inputs, and reporting the service-owned outcome.
+
+The 490-question bank is designed to test that boundary. It is not testing whether a model can improvise GTM policy. It is testing whether a smaller model can consume governed services whose behavior is already explicit.
+
 ## How to read this section
 
 Use these pages in order if you are new to the showcase:
