@@ -11,7 +11,7 @@
     "labels": [
       "consumer:agent_anip"
     ],
-    "name": "Linear Fronting Showcase",
+    "name": "Linear Fronting Showcase 0.2.0",
     "project_type": "governed_service_project",
     "summary": "Governed ANIP fronting service for Linear issue discovery, issue creation preparation, comments, status changes, and cycle moves.",
     "updated_at": "2026-06-06T16:55:38.267554+00:00",

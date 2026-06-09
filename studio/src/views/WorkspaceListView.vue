@@ -159,7 +159,7 @@ async function handleCleanWorkspaces() {
       <div v-if="readOnlyMode" class="banner banner-warning">
         {{ readOnlyReason }}
       </div>
-      <div class="toolbar">
+      <div v-if="!readOnlyMode" class="toolbar">
         <button
           class="btn btn-primary"
           :disabled="readOnlyMode"
@@ -233,7 +233,7 @@ async function handleCleanWorkspaces() {
           </div>
           <h3 class="card-name">{{ workspace.name }}</h3>
           <p class="card-summary">{{ workspace.summary || 'No summary' }}</p>
-          <div class="card-meta">
+          <div v-if="!readOnlyMode" class="card-meta">
             <button
               class="action-link"
               :disabled="deletingWorkspaceId !== null || cleaningWorkspaces || readOnlyMode"

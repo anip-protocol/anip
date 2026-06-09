@@ -254,7 +254,7 @@ Useful environment variables:
 
 | Variable | Purpose |
 | --- | --- |
-| `STUDIO_SEED_SHOWCASES` | Seed GTM and fronting showcase projects. |
+| `STUDIO_SEED_SHOWCASES` | Restore canonical GTM and fronting showcase snapshots into one workspace. |
 | `STUDIO_READ_ONLY` | Block mutation routes for hosted demo mode. |
 | `STUDIO_READ_ONLY_REASON` | Message shown when mutation is blocked. |
 | `STUDIO_RUN_MIGRATIONS` | Run database migrations on application startup. |

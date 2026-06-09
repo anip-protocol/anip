@@ -40,7 +40,7 @@ ANIP_IMAGE_TAG=0.8.0 docker compose up
 Useful environment switches:
 
 ```bash
-# Seed bundled showcase projects such as GTM and fronting examples.
+# Restore canonical published showcase snapshots into one editable workspace.
 STUDIO_SEED_SHOWCASES=1 docker compose up --build
 
 # Host a read-only Studio demo. Unsafe HTTP methods are blocked at the API

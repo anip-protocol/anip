@@ -1,3 +1,5 @@
+import json
+
 from studio.server import project_snapshots, repository
 from studio.server.db import get_pool
 
@@ -98,6 +100,36 @@ def test_project_snapshot_import_can_replace_existing_project(client):
 
         assert result == {"project_id": "proj-replace", "status": "imported"}
         assert repository.get_project(conn, "proj-replace")["name"] == "Restored"
+
+
+def test_showcase_snapshot_import_can_remap_workspace(client, tmp_path):
+    with get_pool().connection() as conn:
+        repository.create_workspace(conn, workspace_id="ws-original", name="Original Workspace")
+        repository.create_project(
+            conn,
+            project_id="proj-remap",
+            workspace_id="ws-original",
+            name="Remapped Project",
+        )
+        snapshot = project_snapshots.export_project_snapshot(conn, "proj-remap", source="test")
+        repository.delete_project(conn, "proj-remap")
+        snapshot_path = tmp_path / "remapped-showcase-1.0.0.studio-project-snapshot.json"
+        snapshot_path.write_text(json.dumps(snapshot), encoding="utf-8")
+
+        result = project_snapshots.import_showcase_snapshots_from_disk(
+            conn,
+            snapshot_dir=tmp_path,
+            replace_existing=True,
+            workspace_override={
+                "id": "ws-public",
+                "name": "Public Showcases",
+                "summary": "Public snapshot workspace.",
+            },
+        )
+
+        assert result["imported"] == 1
+        assert repository.get_project(conn, "proj-remap")["workspace_id"] == "ws-public"
+        assert repository.get_workspace(conn, "ws-public")["name"] == "Public Showcases"
 
 
 def test_committed_gtm_showcase_snapshot_imports(client):
