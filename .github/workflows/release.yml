@@ -155,7 +155,7 @@ jobs:
           REQUIRED_CHECKS=("python-ci" "typescript-ci" "go-ci" "java-ci" "csharp-ci")
           ERRORS=0
           for CHECK in "${REQUIRED_CHECKS[@]}"; do
-            STATUS=$(gh api "repos/$GH_REPO/commits/$SHA/check-runs" \
+            STATUS=$(gh api "repos/$GH_REPO/commits/$SHA/check-runs?per_page=100" \
               --jq ".check_runs[] | select(.name == \"$CHECK\") | .conclusion" \
               | head -1)
             if [ "$STATUS" = "success" ]; then
