@@ -165,11 +165,36 @@ registry/scripts/smoke-compose.sh
 
 ## Studio
 
-Studio is distributed as separate API and web images:
+Studio is distributed as separate API and web images. `anipprotocol/studio`
+is also published as a compatibility alias for the standalone web image.
 
 ```bash
 docker pull anipprotocol/studio-api:VERSION
 docker pull anipprotocol/studio-web:VERSION
+docker pull anipprotocol/studio:VERSION
+```
+
+The current public Studio image hotfix is `0.24.6`:
+
+```bash
+docker pull anipprotocol/studio-api:0.24.6
+docker pull anipprotocol/studio-web:0.24.6
+docker pull anipprotocol/studio:0.24.6
+```
+
+`0.24.6` is a Studio Docker image refresh for public showcase preload fixes.
+It does not imply a new protocol/runtime package release.
+
+Studio images can be released independently through:
+
+```text
+.github/workflows/publish-studio-docker.yml
+```
+
+The broader release-lane split is tracked in:
+
+```text
+https://github.com/anip-protocol/anip/issues/208
 ```
 
 Local compose:
